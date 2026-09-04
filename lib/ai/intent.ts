@@ -28,6 +28,10 @@ export interface IntentResult {
   query: string;
   /** Resource slug carried in from the page the user is on, when relevant. */
   slug?: string;
+  /** Which collection that slug belongs to. Retrieval cannot scope without it. */
+  slugType?: "book" | "research" | "publication";
+  /** For `document_compare`: the works the question named, in order. */
+  compareTargets?: string[];
   /** Page number the user explicitly referenced ("p. 42", "ទំព័រ ៤២"). */
   page?: number;
   /** True for greetings / thanks — answered from a template, never a model. */
@@ -151,12 +155,33 @@ const RELATED_WORDS = ["similar", "like this", "related to this", "more like", "
   "same topic as", "others like",
   "ស្រដៀង", "ដូចគ្នា", "បែបនេះ", "ទាក់ទង"];
 const DETAIL_WORDS = ["what is this book about", "what's this book about", "about this book",
-  "summarize this", "summarise this", "tell me about this",
-  "សៀវភៅនេះនិយាយអំពីអ្វី", "សៀវភៅនេះអំពីអ្វី", "សង្ខេបសៀវភៅនេះ", "អំពីសៀវភៅនេះ"];
+  "tell me about this",
+  "សៀវភៅនេះនិយាយអំពីអ្វី", "សៀវភៅនេះអំពីអ្វី", "អំពីសៀវភៅនេះ"];
 const PDF_WORDS = ["according to", "on page", "which page", "what page", "inside the book",
   "in the document", "does the book say", "does it say", "quote", "cite", "chapter",
   "ទំព័រ", "នៅក្នុងឯកសារ", "និយាយអំពី", "សរសេរថា", "ដកស្រង់"];
 const LIBRARY_WORDS = ["library", "ptec", "catalog", "catalogue", "បណ្ណាល័យ", "វ.គ.ភ"];
+// A grounded summary of a document — distinct from `book_detail`, which
+// describes a record from its catalogue metadata. "What is this book about"
+// is answerable from the abstract; "summarize chapter 3" is not, and
+// answering it without the text is how a plausible fiction gets written.
+const SUMMARY_WORDS = ["summarize", "summarise", "summary of", "a summary",
+  "main idea", "main ideas", "main points", "key points", "key takeaways",
+  "what are the main", "overview of this", "gist of",
+  "សង្ខេប", "សេចក្តីសង្ខេប", "គំនិតសំខាន់", "ចំណុចសំខាន់"];
+// Two documents, one question. Checked before the single-document paths
+// because "compare A and B" also matches every book word in both titles.
+const COMPARE_WORDS = ["compare", "comparison between", "difference between",
+  "differences between", "how do they differ", "versus", " vs ", " vs. ",
+  "ប្រៀបធៀប", "ភាពខុសគ្នា", "ខុសគ្នាយ៉ាងណា"];
+// A reference, not a discussion. Format names are the strongest signal;
+// "quote"/"ដកស្រង់" deliberately stay with PDF questions, because quoting a
+// passage is a document question and formatting a reference is not.
+const CITATION_WORDS = ["cite this", "cite it", "how do i cite", "how to cite",
+  "citation for", "citation of", "give me the citation", "reference for this",
+  "in apa", "apa format", "apa 7", "mla format", "in mla", "chicago style",
+  "bibtex", "endnote", "zotero", ".ris", "ris format", "harvard style",
+  "ឯកសារយោង", "របៀបដកស្រង់សម្តី", "ទម្រង់ apa"];
 // People and subjects are directory hubs (/authors, /subjects) with their own
 // deterministic answers — a question naming one never needs a model.
 const AUTHOR_WORDS = ["who wrote", "who is the author", "who are the authors", "written by",
@@ -242,6 +267,33 @@ export function extractSubjectQuery(text: string): string {
   return out.length >= 2 ? out : "";
 }
 
+/** Splits "compare A and B" into its two works. */
+const COMPARE_SPLIT = /\s+(?:and|versus|vs\.?|with|against|និង|ជាមួយ)\s+/iu;
+const COMPARE_LEAD =
+  /^(?:please\s+)?(?:can you\s+|could you\s+)?(?:compare|comparison of|contrast|what(?:'s| is) the difference between|what are the differences between|ប្រៀបធៀប|ភាពខុសគ្នារវាង)\s+/iu;
+
+/**
+ * The works a comparison names, in the order asked.
+ *
+ * Deliberately conservative: it returns two targets or none. A question that
+ * says "compare" without naming two things ("compare these") cannot be routed
+ * to a two-document retrieval, and guessing the second document is precisely
+ * the failure a comparison must not have.
+ */
+export function extractCompareTargets(text: string): string[] {
+  const stripped = extractQuery(text).replace(COMPARE_LEAD, "").trim();
+  if (!stripped) return [];
+  const parts = stripped
+    .split(COMPARE_SPLIT)
+    .map((p) => p.replace(/^[\s"“”'’]+|[\s"“”'’?.!]+$/g, "").trim())
+    .filter((p) => p.length >= 3);
+  if (parts.length !== 2) return [];
+  // "compare the assessment methods and the sampling" is one topic, not two
+  // documents — a target has to look like a title, not a bare noun phrase
+  // continuing the first.
+  return parts;
+}
+
 const PAGE_RE = /(?:\bp(?:age|\.)?\s*|ទំព័រ\s*)(\d{1,4}|[០-៩]{1,4})/iu;
 const KHMER_DIGITS = "០១២៣៤៥៦៧៨៩";
 
@@ -271,7 +323,7 @@ export function classifyIntent(raw: string, ctx: ClassifyContext = {}): IntentRe
   const verbosity = detectVerbosity(lower);
   const page = extractPage(text);
   const query = extractQuery(text);
-  const base = { locale, verbosity, query, slug: ctx.slug, page };
+  const base = { locale, verbosity, query, slug: ctx.slug, slugType: ctx.slugType, page };
 
   // 1. Academic-integrity decline — checked first so it can't be smuggled in
   //    behind a book-search phrasing.
@@ -290,9 +342,27 @@ export function classifyIntent(raw: string, ctx: ClassifyContext = {}): IntentRe
     if (hits(lower, words)) return { ...base, intent: "faq", confidence: 0.9, topic };
   }
 
-  // 4. Context-bound intents (only meaningful when the UI told us what page
+  // 4. A reference rather than a discussion. Checked before the document
+  //    paths because "cite this in APA" is not a question about the text.
+  if (hits(lower, CITATION_WORDS)) {
+    return { ...base, intent: "citation", confidence: ctx.slug ? 0.9 : 0.75 };
+  }
+
+  // 5. Two documents, one question. Before the single-document paths, which
+  //    "compare A and B" would otherwise match through either title.
+  if (hits(lower, COMPARE_WORDS)) {
+    const targets = extractCompareTargets(text);
+    if (targets.length === 2) {
+      return { ...base, intent: "document_compare", confidence: 0.85, compareTargets: targets };
+    }
+  }
+
+  // 6. Context-bound intents (only meaningful when the UI told us what page
   //    the user is on).
   if (ctx.slug) {
+    if (hits(lower, SUMMARY_WORDS)) {
+      return { ...base, intent: "resource_summary", confidence: 0.85 };
+    }
     if (hits(lower, RELATED_WORDS)) {
       return { ...base, intent: "related_books", confidence: 0.85 };
     }
@@ -307,12 +377,18 @@ export function classifyIntent(raw: string, ctx: ClassifyContext = {}): IntentRe
     return { ...base, intent: "related_books", confidence: 0.6 };
   }
 
-  // 5. Content questions about documents — answerable only from page text.
+  // 7. A summary of a named document. The router resolves the title; when it
+  //    cannot, the answer says so rather than summarising something adjacent.
+  if (hits(lower, SUMMARY_WORDS)) {
+    return { ...base, intent: "resource_summary", confidence: 0.75 };
+  }
+
+  // 8. Content questions about documents — answerable only from page text.
   if (page !== undefined || hits(lower, PDF_WORDS)) {
     return { ...base, intent: "pdf_question", confidence: page !== undefined ? 0.85 : 0.7 };
   }
 
-  // 6. Directory hubs. Checked before the catalog searches because "books by
+  // 8b. Directory hubs. Checked before the catalog searches because "books by
   //    Creswell" and "action research by Mills" name a person, not a
   //    collection, and "what subjects do you have" names the subject index.
   if (hits(lower, SUBJECT_WORDS)) {
@@ -322,7 +398,7 @@ export function classifyIntent(raw: string, ctx: ClassifyContext = {}): IntentRe
     return { ...base, query: extractAuthorQuery(text), intent: "author_search", confidence: 0.85 };
   }
 
-  // 7. Typed catalog searches. Thesis/post words are checked before book words
+  // 9. Typed catalog searches. Thesis/post words are checked before book words
   //    because "research book" should go to theses, not the e-book catalog.
   if (hits(lower, THESIS_WORDS)) {
     return { ...base, intent: "thesis_search", confidence: 0.85 };
@@ -334,25 +410,25 @@ export function classifyIntent(raw: string, ctx: ClassifyContext = {}): IntentRe
     return { ...base, intent: "book_search", confidence: 0.85 };
   }
 
-  // 7. A bare search verb with a topic and no resource word — "find me
+  // 10. A bare search verb with a topic and no resource word — "find me
   //    something about memory". Books are the largest collection, so that's
   //    the default pool.
   if (hits(lower, SEARCH_WORDS)) {
     return { ...base, intent: "book_search", confidence: 0.7 };
   }
 
-  // 8. Mentions the library but matched no fact table — needs the model, with
-  //    library context.
+  // 11. Mentions the library but matched no fact table — needs the model, with
+  //     library context.
   if (hits(lower, LIBRARY_WORDS)) {
     return { ...base, intent: "general_library_question", confidence: 0.6 };
   }
 
-  // 9. A bare noun phrase after a results turn is a refinement of it.
+  // 12. A bare noun phrase after a results turn is a refinement of it.
   if (ctx.hadResults && lower.split(" ").length <= 6) {
     return { ...base, intent: "book_search", confidence: 0.55 };
   }
 
-  // 10. Everything else: a general question. The model answers it, but tells
+  // 13. Everything else: a general question. The model answers it, but tells
   //     the user plainly that it is not library data (§23).
   return { ...base, intent: "general_knowledge", confidence: 0.5 };
 }
@@ -367,7 +443,14 @@ export const ZERO_LLM_INTENTS: ReadonlySet<AIIntent> = new Set<AIIntent>([
   "related_books",
   "author_search",
   "subject_search",
+  // A reference is assembled from catalogue metadata by lib/citations —
+  // asking a model to format one is paying for a worse result.
+  "citation",
 ]);
 
 /** Intents that need document evidence before the model may answer. */
-export const RAG_INTENTS: ReadonlySet<AIIntent> = new Set<AIIntent>(["pdf_question"]);
+export const RAG_INTENTS: ReadonlySet<AIIntent> = new Set<AIIntent>([
+  "pdf_question",
+  "resource_summary",
+  "document_compare",
+]);

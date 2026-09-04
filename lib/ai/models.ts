@@ -61,6 +61,21 @@ export function resolveTier(input: TierInput): ModelTier {
       // is where the larger model earns its cost.
       return input.verbosity === "detailed" || input.evidenceCount >= 3 ? "reasoning" : "fast";
 
+    case "document_compare":
+      // Two documents' evidence has to be held against each other — the one
+      // shape where a bigger model measurably changes the answer.
+      return "reasoning";
+
+    case "resource_summary":
+      // Condensing passages from ONE document is not synthesis across sources.
+      // Only an explicitly deep request buys the larger model.
+      return input.verbosity === "detailed" ? "reasoning" : "fast";
+
+    case "citation":
+      // Formatted from catalogue metadata by lib/citations. A model here would
+      // cost tokens to produce a worse, unverifiable reference.
+      return "none";
+
     case "unsupported":
       return "none";
 

@@ -255,3 +255,49 @@ describe("author and subject discovery", () => {
     }
   });
 });
+
+describe("research intents", () => {
+  it("routes a citation request away from the document paths", () => {
+    for (const q of ["cite this in APA", "how do I cite this book?", "give me the citation for this", "BibTeX please"]) {
+      expect(classifyIntent(q, { slug: "a-book", slugType: "book" }).intent, q).toBe("citation");
+    }
+    // Quoting a passage is still a document question, not a reference.
+    expect(classifyIntent("quote the definition of scaffolding", { slug: "a-book" }).intent).toBe("pdf_question");
+  });
+
+  it("routes a two-document question to a comparison, with both targets", () => {
+    const r = classifyIntent("Compare Practical Research Methods and How to Write a Better Thesis");
+    expect(r.intent).toBe("document_compare");
+    expect(r.compareTargets).toEqual(["Practical Research Methods", "How to Write a Better Thesis"]);
+  });
+
+  it("refuses to invent a second document", () => {
+    // "compare these" names nothing; guessing the other side is the failure a
+    // comparison must not have.
+    expect(classifyIntent("compare these two").intent).not.toBe("document_compare");
+  });
+
+  it("routes a summary request, in both languages", () => {
+    expect(classifyIntent("summarize this book", { slug: "a-book", slugType: "book" }).intent).toBe("resource_summary");
+    expect(classifyIntent("what are the main ideas?", { slug: "a-book" }).intent).toBe("resource_summary");
+    expect(classifyIntent("សង្ខេបសៀវភៅនេះ", { slug: "a-book" }).intent).toBe("resource_summary");
+    expect(classifyIntent("Summarize Practical Research Methods").intent).toBe("resource_summary");
+  });
+
+  it("keeps a metadata question on the cheap metadata path", () => {
+    expect(classifyIntent("what is this book about?", { slug: "a-book" }).intent).toBe("book_detail");
+  });
+
+  it("carries the page's identity so retrieval can scope to it", () => {
+    const r = classifyIntent("what does it say about assessment?", { slug: "a-thesis", slugType: "research" });
+    expect(r.intent).toBe("pdf_question");
+    expect(r.slug).toBe("a-thesis");
+    expect(r.slugType).toBe("research");
+  });
+
+  it("treats a citation as answerable without a model, and the rest as needing evidence", () => {
+    expect(ZERO_LLM_INTENTS.has("citation")).toBe(true);
+    expect(ZERO_LLM_INTENTS.has("resource_summary")).toBe(false);
+    expect(ZERO_LLM_INTENTS.has("document_compare")).toBe(false);
+  });
+});

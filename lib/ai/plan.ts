@@ -15,7 +15,12 @@ import { modelIdFor, resolveTier, thinkingBudgetFor } from "./models";
 import { INJECTION_NOTICE, buildSystemPrompt, type PromptOrg } from "./prompts";
 import * as T from "./templates";
 import type { RetrievedPassage } from "./citations";
-import type { RetrievedEvidence } from "./evidence";
+import {
+  EVIDENCE_LIMITS,
+  contextCeilingFor,
+  type RetrievalMode,
+  type RetrievedEvidence,
+} from "./evidence";
 import type { AIIntent, ResultKind, SearchResult } from "./response";
 import {
   MAX_CONTEXT_TOKENS,
@@ -44,6 +49,10 @@ export interface RetrievalOutcome {
   facts: string[];
   /** The directory page a discovery intent resolved to (author or subject). */
   hub?: { kind: "author" | "subject"; name: string; url: string; count: number };
+  /** A finished reference, built from catalogue metadata — never by a model. */
+  citation?: { title: string; reference: string; url: string; page?: number };
+  /** Documents a comparison found no evidence in, by title. */
+  missingDocuments?: string[];
   dbQueries: number;
   embeddingMs: number;
   retrievalMs: number;
@@ -59,10 +68,35 @@ export const TYPES_FOR: Partial<Record<AIIntent, ResultKind[]>> = {
   post_search: ["post"],
 };
 
+/**
+ * How a question should be answered, decided before anything expensive runs.
+ *
+ * Pure and exported so the mode a request takes is a property of the QUESTION,
+ * not of whichever branch of the router happened to run — the retrieval
+ * benchmark drives this function directly.
+ */
+export function retrievalModeFor(intent: IntentResult): RetrievalMode {
+  switch (intent.intent) {
+    case "citation":
+      return "citation";
+    case "document_compare":
+      return "multi_document";
+    case "resource_summary":
+      return "summary";
+    case "pdf_question":
+      // A question asked from a resource page is answered from THAT document.
+      return intent.slug ? "scoped" : "hybrid";
+    default:
+      return "lookup";
+  }
+}
+
 /** What the deterministic stage decided, before any model is considered. */
 export interface Plan {
   intent: IntentResult;
   retrieval: RetrievalOutcome;
+  /** The retrieval mode this request took — drives the evidence budget. */
+  mode?: RetrievalMode;
   /** Compressed history — computed once and reused by the generation stage. */
   compressed: ReturnType<typeof compressConversation>;
   /** A complete answer, when no model is needed. */
@@ -143,6 +177,34 @@ export function deterministicAnswer(
       // letting the model improvise one (§23).
       return retrieval.passages.length === 0 ? T.noEvidence(locale) : undefined;
 
+    case "citation":
+      // Assembled by lib/citations from the record's own fields. A model here
+      // would spend tokens to produce a reference nobody could verify.
+      return retrieval.citation
+        ? T.citationAnswer(
+            retrieval.citation.title,
+            retrieval.citation.reference,
+            retrieval.citation.url,
+            locale,
+            retrieval.citation.page,
+          )
+        : T.noResults(intent.query, locale);
+
+    case "resource_summary":
+      // A summary of text we do not have is the most confident-sounding
+      // fiction this system could produce. When the document has no indexed
+      // pages the catalogue record is the honest answer, clearly labelled.
+      if (retrieval.passages.length === 0) {
+        return retrieval.results[0]
+          ? T.summaryFromMetadata(retrieval.results[0], retrieval.works[0]?.summary, locale)
+          : T.insufficientText(undefined, locale);
+      }
+      return undefined;
+
+    case "document_compare":
+      // Nothing from either document — comparing them would be invention.
+      return retrieval.passages.length === 0 ? T.insufficientText(undefined, locale) : undefined;
+
     default:
       return undefined;
   }
@@ -166,14 +228,27 @@ export function buildGeneration(p: Plan, org: PromptOrg): GenerationInput {
     verbosity: intent.verbosity,
   });
 
+  // The evidence budget is a property of the MODE, not a constant: a
+  // comparison legitimately needs two documents' passages where a lookup needs
+  // none. Both are bounded, and the ceiling rises only as far as the mode's
+  // own evidence allowance (lib/ai/evidence.ts).
+  const mode = p.mode ?? "hybrid";
+  const evidenceBudget = EVIDENCE_LIMITS[mode].budgetTokens || MAX_EVIDENCE_TOKENS;
+  const ceiling = contextCeilingFor(mode, MAX_CONTEXT_TOKENS);
+
   const ctx = buildContext({
     query: intent.query,
     works: p.retrieval.works,
+    // Comparison passages are labelled by document so the model can tell the
+    // two apart; without it "the second book says" has nothing behind it.
     passages: p.retrieval.passages.map((x) => ({
-      title: x.title, author: x.author, page: x.page, text: x.text,
+      title: (x as RetrievedEvidence).documentLabel ?? x.title,
+      author: x.author,
+      page: x.page,
+      text: x.text,
     })),
     facts: p.facts,
-    budget: Math.min(MAX_EVIDENCE_TOKENS, MAX_CONTEXT_TOKENS - estimateTokens(system) - compressed.overheadTokens - 120),
+    budget: Math.min(evidenceBudget, ceiling - estimateTokens(system) - compressed.overheadTokens - 120),
   });
 
   const messages: ModelMessage[] = [];

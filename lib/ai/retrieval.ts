@@ -648,6 +648,89 @@ export async function resolveRecord(
   };
 }
 
+/**
+ * The published record whose title the words name, searched across all three
+ * collections. Books first — the largest collection, and the one a bare title
+ * usually means.
+ *
+ * The database is asked with the words in order (`%research%design%`), which
+ * tolerates a dropped comma or article, and every candidate is then confirmed
+ * on normalized text so a single shared word cannot claim a match. Returns
+ * null rather than a best guess: a comparison built on the wrong document is
+ * worse than one that says it could not find it.
+ */
+export async function findRecordByTitle(rawTitle: string): Promise<ResolvedRecord | null> {
+  const clean = sanitizeFilterTerm(rawTitle);
+  const normalized = normalizeSearchText(clean);
+  if (normalized.length < 3) return null;
+  const words = clean.split(/\s+/).filter((w) => w.length >= 3).slice(0, 6);
+  if (!words.length) return null;
+  const pattern = `%${words.join("%")}%`;
+  const db = createServiceClient();
+  const matches = (title: string) => {
+    const t = normalizeSearchText(title);
+    return t.includes(normalized) || normalized.includes(t);
+  };
+
+  const { data: books } = await db
+    .from("books")
+    .select("id, slug, title, published_at, authors(name)")
+    .eq("is_published", true)
+    .ilike("title", pattern)
+    .order("download_count", { ascending: false })
+    .limit(5);
+  const book = ((books ?? []) as unknown as BookRecordRow[]).find((b) => matches(b.title));
+  if (book) {
+    return {
+      recordType: "book",
+      recordId: book.id,
+      slug: book.slug,
+      title: book.title,
+      author: book.authors?.name ?? "Unknown",
+      year: book.published_at ? String(book.published_at).slice(0, 4) : null,
+      url: `/books/${book.slug}`,
+    };
+  }
+
+  const { data: theses } = await db
+    .from("research_reports")
+    .select("id, slug, title, author_names, academic_year, published_at")
+    .eq("is_published", true)
+    .ilike("title", pattern)
+    .limit(5);
+  const thesis = ((theses ?? []) as unknown as ThesisRecordRow[]).find((r) => matches(r.title));
+  if (thesis) {
+    const ref = thesis.slug ?? thesis.id;
+    return {
+      recordType: "research",
+      recordId: thesis.id,
+      slug: ref,
+      title: thesis.title,
+      author: thesis.author_names ?? "Unknown",
+      year: thesis.academic_year ?? null,
+      url: `/theses/${ref}`,
+    };
+  }
+
+  const { data: publications } = await db
+    .from("publications")
+    .select("id, slug, title, author_names, publication_date")
+    .eq("is_published", true)
+    .ilike("title", pattern)
+    .limit(5);
+  const publication = ((publications ?? []) as unknown as PublicationRecordRow[]).find((p) => matches(p.title));
+  if (!publication) return null;
+  return {
+    recordType: "publication",
+    recordId: publication.id,
+    slug: publication.slug,
+    title: publication.title,
+    author: publication.author_names ?? "Unknown",
+    year: publication.publication_date ? String(publication.publication_date).slice(0, 4) : null,
+    url: `/publications/${publication.slug}`,
+  };
+}
+
 /** Parent metadata for page rows, published-checked. One query per type. */
 async function hydratePages(
   db: Db,
