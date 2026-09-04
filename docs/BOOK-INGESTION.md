@@ -83,6 +83,46 @@ drops a pair whose titles are identical once every digit is removed *and* whose
 digit sequences differ. It is narrow on purpose — a real duplicate that differs
 by more than a number is unaffected — and a shared content hash still wins.
 
+### Boilerplate awareness
+
+The same problem where the thing that differs is a **word**. A curriculum names
+every volume `សៀវភៅណែនាំគ្រូបង្រៀន {SUBJECT} ថ្នាក់ទី{GRADE} (STEPSAM3)`, so
+Chemistry and Biology share 40+ characters around a 3-character subject word.
+
+This shipped as a real defect: a librarian importing 15 such guides had 12 of
+them refused as copies of each other. The normalizer was never at fault — it
+keeps Khmer letters, combining marks and Khmer digits, and the 15 titles
+normalize to 15 distinct strings. `titleSimilarity()` was: it took the
+`Math.max` of a token measure and whole-string edit distance, and edit distance
+reads a 3-character difference inside a 50-character title as **94% alike**.
+The token measure had correctly said 66 and lost the `max`.
+
+Two changes, and they are separable:
+
+1. **The character measure is used only where it is the only informed measure**
+   — when a title tokenizes to a single token, which is the space-less Khmer
+   case it was introduced for. Once both titles have words, the token measure
+   decides. `fuzzyTokenRatio()` absorbs the typo case that edit distance used
+   to rescue, by pairing an unmatched token with its best counterpart and
+   crediting a fraction of a match: `psycology`/`psychology` still scores ~0.9,
+   `ជីវវិទ្យា`/`គីមីវិទ្យា` scores 0.7 and earns nothing.
+2. **`isDistinguishingVariant()`** covers the space-less case the token measure
+   cannot reach: strip the shared opening and shared ending, and if what is
+   left is substantial (≥3 code points) and mutually unrecognisable on both
+   sides, the titles name different books. A truncation, a dropped word or a
+   misspelling leaves one side empty or one character long and is untouched.
+
+Two editions of one work no longer rely on edit distance rating them alike
+either: `titleWithoutEdition()` removes the marker `editionMarker()` already
+finds, and equal bases establish the same title directly. That matters for
+short titles, where `Maths 2nd ed` / `Maths 3rd ed` is one character in twelve
+and used to fall out of the band.
+
+Neither rule can touch identifier evidence — a shared content hash or ISBN has
+already returned by the time they run. Pinned by
+`lib/books/duplicate-detection/stepsam3.test.ts`, which asserts the 15 real
+titles produce **no** verdict, and that the same guide entered twice still does.
+
 ## 4. ISBN canonicalisation
 
 `normalizeIsbn()` returns the **ISBN-13** form, so `978-1-23456-789-0` and the
@@ -106,8 +146,9 @@ stripped after NFKD, so "Zoë" and "Zoe" agree. No script is romanised. The
 Khmer zero-width word separator is treated as a word boundary.
 
 Because Khmer has no spaces, a Khmer title is legitimately one token — which is
-why similarity is the *stronger* of a token measure and a code-point edit
-distance, not either alone.
+why the code-point edit distance exists at all. It is **not** blended into
+every comparison: see *Boilerplate awareness* above for why a `Math.max` of the
+two measures let a shared title frame outvote the words that differ.
 
 ## 6. Where the checks actually happen
 
@@ -254,6 +295,7 @@ with an audit trail.
 |---|---|
 | `lib/books/duplicate-detection/normalize.test.ts` | title/ISBN/person/taxonomy folding, English and Khmer |
 | `lib/books/duplicate-detection/similarity.test.ts` | the ORDER of similarity answers, not exact numbers |
+| `lib/books/duplicate-detection/stepsam3.test.ts` | 15 real Khmer teacher's guides produce no false duplicate |
 | `lib/books/duplicate-detection/signals.test.ts` | bands, the identifier-only block, edition + series awareness |
 | `lib/books/duplicate-detection/batch.test.ts` | row-against-row, and parity with the single-upload verdict |
 | `lib/books/duplicate-detection/service.test.ts` | RPC contract, degradation, "a failure is a failure" |

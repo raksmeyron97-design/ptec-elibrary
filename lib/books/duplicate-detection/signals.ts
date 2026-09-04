@@ -18,8 +18,9 @@ import {
   normalizeIsbn,
   normalizeTitle,
   personNameKey,
+  titleWithoutEdition,
 } from "./normalize";
-import { isTitlePrefix, titleSimilarity } from "./similarity";
+import { characterRatio, isTitlePrefix, titleRemainders, titleSimilarity } from "./similarity";
 
 /* ── Vocabulary ────────────────────────────────────────────────────────── */
 
@@ -161,6 +162,19 @@ function titleEvidence(query: DuplicateQuery, candidate: DuplicateCandidate): Ti
     };
   }
 
+  // Two editions of one work, said plainly. The edition-awareness block in
+  // scoreCandidate then demotes the pair out of the strong band — this only
+  // establishes that they are the same TITLE, which is what the marker means.
+  // Asserted here rather than left to string distance, which agreed only by
+  // accident: "Mathematics, 2nd Edition" against "Mathematics, 3rd Edition" is
+  // one character in twenty-three, but "Maths 2nd ed" against "Maths 3rd ed"
+  // is one in twelve and would have fallen out of the band.
+  const queryBase = titleWithoutEdition(query.title);
+  const candidateBase = titleWithoutEdition(candidate.title);
+  if (queryBase && queryBase === candidateBase) {
+    return { base: 66, signal: "fuzzy_title", reason: "similarTitle" };
+  }
+
   const similarity = titleSimilarity(queryTitle, candidateTitle);
   if (similarity >= 88) return { base: 66, signal: "fuzzy_title", reason: "similarTitle" };
 
@@ -274,6 +288,18 @@ export function scoreCandidate(
     return null;
   }
 
+  // ── Boilerplate awareness: a shared frame is not shared identity ──────
+  //
+  // The sibling of the rule above, for the case where the thing that differs
+  // is a WORD rather than a number. A curriculum series names every volume
+  // "សៀវភៅណែនាំគ្រូបង្រៀន {SUBJECT} ថ្នាក់ទី{GRADE} (STEPSAM3)", so Chemistry
+  // and Biology share 40+ characters and differ in three — which edit distance
+  // reports as 94% alike, high enough to warn on every pair in the set. See
+  // isDistinguishingVariant for why that is not a threshold problem.
+  if (isDistinguishingVariant(query.title, candidate.title)) {
+    return null;
+  }
+
   // ── Edition awareness (§14): evidence AGAINST identity ────────────────
   //
   // Same title is not same book. Two facts say "different edition" loudly
@@ -306,6 +332,54 @@ export function scoreCandidate(
   return match(score);
 }
 
+
+/**
+ * How much of a title has to differ before the difference is a different book.
+ *
+ * Three code points, because two is a typo ("chemistry"/"chemestry" leaves
+ * "i"/"e") or a function word ("to"/"of"), and both of those are ways ONE book
+ * gets entered twice. Three or more mutually unrecognisable characters in the
+ * same slot is a different word, which is a different book.
+ */
+const MIN_DISTINGUISHING_CHARS = 3;
+
+/** Above this, the differing parts are a misspelling of each other, not two
+ *  different words. Deliberately low: the two halves of a real typo pair are
+ *  usually one edit apart, and anything looser starts eating real duplicates. */
+const REMAINDER_SIMILARITY_CEILING = 0.5;
+
+/**
+ * Do these two titles agree only on boilerplate?
+ *
+ * WHY EDIT DISTANCE NEEDS THIS. `characterRatio` is a proportion of the whole
+ * string, so the longer the shared frame, the less the meaningful part is
+ * allowed to matter. A series of teacher's guides differing only in their
+ * subject word scores in the low 90s on every pair — not because the threshold
+ * is wrong, but because the measure is answering the wrong question. Lowering
+ * the threshold would only trade these false positives for missed real ones;
+ * looking at the part that differs answers the actual question.
+ *
+ * It fires only when BOTH titles put substantial, mutually unrecognisable
+ * content in the same slot. A truncation, a dropped word or a misspelling
+ * leaves one side of the remainder empty or one character long, and is
+ * untouched — those are how a real duplicate looks.
+ *
+ * Identifier evidence never reaches here: a shared content hash or a shared
+ * ISBN has already returned by this point, so nothing this rule does can let
+ * the same file, or the same registered edition, into the catalogue twice.
+ */
+export function isDistinguishingVariant(
+  a: string | null | undefined,
+  b: string | null | undefined,
+): boolean {
+  const rest = titleRemainders(a, b);
+  if (!rest) return false;
+
+  const longest = Math.max(Array.from(rest.left).length, Array.from(rest.right).length);
+  if (longest < MIN_DISTINGUISHING_CHARS) return false;
+
+  return characterRatio(rest.left, rest.right) < REMAINDER_SIMILARITY_CEILING;
+}
 
 /**
  * Do these two titles differ ONLY by their numbers?

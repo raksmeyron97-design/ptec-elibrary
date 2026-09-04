@@ -4,7 +4,15 @@
 // Pinning exact scores would make every future tuning change a test rewrite.
 
 import { describe, expect, it } from "vitest";
-import { characterRatio, editDistance, isTitlePrefix, titleSimilarity, tokenRatio } from "./similarity";
+import {
+  characterRatio,
+  editDistance,
+  fuzzyTokenRatio,
+  isTitlePrefix,
+  titleRemainders,
+  titleSimilarity,
+  tokenRatio,
+} from "./similarity";
 
 describe("editDistance", () => {
   it("counts single-character edits", () => {
@@ -81,5 +89,71 @@ describe("isTitlePrefix", () => {
 
   it("is false for equal titles — the exact pass owns those", () => {
     expect(isTitlePrefix("Mathematics", "mathematics")).toBe(false);
+  });
+});
+
+describe("fuzzyTokenRatio", () => {
+  it("credits a misspelled word as very nearly a match", () => {
+    // The job whole-string edit distance used to do, now done per word — so it
+    // survives the boilerplate that used to drown it.
+    expect(fuzzyTokenRatio("introduction to psycology", "introduction to psychology"))
+      .toBeGreaterThan(0.9);
+  });
+
+  it("credits nothing for a genuinely different word", () => {
+    const a = "biology grade seven";
+    const b = "chemistry grade seven";
+    expect(fuzzyTokenRatio(a, b)).toBe(tokenRatio(a, b));
+  });
+
+  it("spends each token once", () => {
+    // Both left tokens are near-matches for the single right token. Crediting
+    // both would push `shared` past the smaller title's token count, and the
+    // containment term would report more than a perfect match.
+    expect(fuzzyTokenRatio("psycology psychlogy", "psychology")).toBeLessThanOrEqual(1);
+  });
+});
+
+describe("titleSimilarity with boilerplate", () => {
+  const guide = (subject: string, grade: string) =>
+    `សៀវភៅណែនាំគ្រូបង្រៀន ${subject} ថ្នាក់ទី${grade} (STEPSAM3)`;
+
+  it("does not let a shared frame carry two different subjects", () => {
+    expect(titleSimilarity(guide("ជីវវិទ្យា", "៧"), guide("គីមីវិទ្យា", "៧"))).toBeLessThan(75);
+  });
+
+  it("still rates a misspelling of a long title as near-identical", () => {
+    expect(
+      titleSimilarity(
+        "Teachers Guide for Chemistry Grade Seven",
+        "Teachers Guide for Chemestry Grade Seven",
+      ),
+    ).toBeGreaterThanOrEqual(88);
+  });
+
+  it("still uses character distance when a title has no spaces at all", () => {
+    // The case the character measure exists for: one token against one token.
+    expect(
+      titleSimilarity("សៀវភៅគណិតវិទ្យាថ្នាក់ទី៧", "សៀវភៅគណិតវិទ្យាថ្នាក់ទី៨"),
+    ).toBeGreaterThanOrEqual(88);
+  });
+});
+
+describe("titleRemainders", () => {
+  it("returns the part that differs, stripped of the shared frame", () => {
+    expect(
+      titleRemainders(
+        "សៀវភៅណែនាំគ្រូបង្រៀន ជីវវិទ្យា ថ្នាក់ទី៧",
+        "សៀវភៅណែនាំគ្រូបង្រៀន គីមីវិទ្យា ថ្នាក់ទី៧",
+      ),
+    ).toEqual({ left: "ជីវ", right: "គីមី" });
+  });
+
+  it("is null when one title merely contains the other", () => {
+    expect(titleRemainders("Mathematics", "Mathematics for Teachers")).toBeNull();
+  });
+
+  it("is null for identical titles", () => {
+    expect(titleRemainders("Mathematics", "mathematics")).toBeNull();
   });
 });

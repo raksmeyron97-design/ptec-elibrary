@@ -15,6 +15,7 @@ import {
   assessDuplicates,
   confidenceForScore,
   DUPLICATE_THRESHOLDS,
+  isDistinguishingVariant,
   isSeriesVariant,
   scoreCandidate,
   type DuplicateCandidate,
@@ -267,5 +268,30 @@ describe("assessDuplicates", () => {
 
   it("carries the truncation flag so a capped sweep is visible", () => {
     expect(assessDuplicates(query(), [candidate()], { truncated: true }).truncated).toBe(true);
+  });
+});
+
+describe("isDistinguishingVariant", () => {
+  it("separates two titles that agree only on boilerplate", () => {
+    expect(
+      isDistinguishingVariant(
+        "សៀវភៅណែនាំគ្រូបង្រៀន ជីវវិទ្យា ថ្នាក់ទី៧",
+        "សៀវភៅណែនាំគ្រូបង្រៀន គីមីវិទ្យា ថ្នាក់ទី៧",
+      ),
+    ).toBe(true);
+  });
+
+  it("leaves a misspelling alone — that is one book entered twice", () => {
+    expect(isDistinguishingVariant("Chemistry for Teachers", "Chemestry for Teachers")).toBe(false);
+  });
+
+  it("leaves a dropped word alone — isTitlePrefix owns truncation", () => {
+    expect(isDistinguishingVariant("Mathematics", "Mathematics for Teachers")).toBe(false);
+  });
+
+  it("leaves a two-character difference alone", () => {
+    // "to"/"of" is a function word, not a different subject.
+    expect(isDistinguishingVariant("Introduction to Psychology", "Introduction of Psychology"))
+      .toBe(false);
   });
 });

@@ -188,7 +188,21 @@ for (const [locale, messages] of [
       expect(t("rowBlocked", { title: "Educational Research" })).toContain("Educational Research");
       expect(t("rowStrong", { title: "Educational Research", score: 88 })).toContain("88");
       expect(t("rowPossible", { title: "Educational Research", score: 72 })).toContain("72");
-      expect(t("rowBatch", { row: 12 })).toContain("12");
+      expect(t("rowBatch", { row: 12, score: 84 })).toContain("12");
+    });
+
+    it("offers a way through a wrong verdict, in both languages", () => {
+      // A false "already in the library" is a hard stop unless every one of
+      // these renders — an untranslated override is an override that is not
+      // there for the half of the staff who read Khmer.
+      const t = createTranslator({ locale, messages, namespace: "adminUpload.bulk.duplicate" });
+      expect(t("overrideHint")).toBeTruthy();
+      expect(t("overrideRow")).toBeTruthy();
+      expect(t("overrideUndo")).toBeTruthy();
+      for (const count of [1, 5]) {
+        expect(t("overrideAll", { count })).toBeTruthy();
+        expect(t("overriddenCount", { count })).toBeTruthy();
+      }
     });
 
     it("formats the upload form's own duplicate errors", () => {

@@ -177,6 +177,32 @@ rows as **"Already in library"**, a distinct status — not an error, and not a
 duplicate. The cost is that the file is still transferred before the server can
 hash it; a client-side pre-hash would avoid that and has not been built.
 
+### A flagged row can always be imported anyway
+
+The metadata pre-flight (`findAlreadyImported` → `assessBatch`) parks a row
+whose verdict is `blocked` or `high` before its file is transferred, which saves
+the upload quota a re-import would burn. That verdict scores **metadata**, over
+a candidate pool holding no content hashes, so it can be wrong — and it was:
+15 Khmer teacher's guides sharing a title frame had 12 of them refused as
+copies of each other (`docs/BOOK-INGESTION.md` § *Boilerplate awareness*).
+
+A false positive with no way through is a worse failure than the duplicate it
+prevents, so every flagged row carries **"Not a duplicate — import anyway"**,
+and the summary strip offers the same for all flagged rows at once. Overriding
+flips the row back to `pending`; it keeps the folder and upload-session id
+Step 3 already showed, so nothing is re-derived underneath the operator.
+
+This weakens no guarantee. The override is a decision about a *resemblance*:
+
+- `saveBookRecord` → `assertNotDuplicate` re-runs the full detector at save
+  time, now with the file's real content hash, and still refuses a byte-identical
+  PDF outright — that one is never overridable, from here or anywhere.
+- The unique index on `book_files.content_hash` stands behind that.
+- The override is written to `admin_audit_log` as
+  `book.import_duplicate_override` with the score, the confidence and the record
+  it was scored against, so a row that entered over a warning can be explained
+  later.
+
 ---
 
 ## Cleanup after a failed run

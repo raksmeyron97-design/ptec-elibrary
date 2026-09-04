@@ -10,6 +10,7 @@ import {
   getResumableImportRun,
   closeImportRun,
   findAlreadyImported,
+  recordDuplicateOverride,
   type AlreadyImported,
   type ImportRun,
   type ImportRunRow,
@@ -529,6 +530,17 @@ export default function BulkUploadForm() {
   // Rows that collide with the library or with each other, keyed by row id.
   // Advisory: the content-hash check in the upload route remains the guarantee.
   const [alreadyImported, setAlreadyImported] = useState<Map<string, AlreadyImported>>(new Map());
+  // Rows whose duplicate verdict the operator has overruled.
+  //
+  // WHY THIS EXISTS. The pre-flight scores metadata, so it can be wrong — and a
+  // wrong "already in the library" used to be a hard stop with no way through,
+  // which is a worse failure than the duplicate it prevents. Fifteen Khmer
+  // teacher's guides sharing a title frame were refused as copies of each other
+  // (see lib/books/duplicate-detection/stepsam3.test.ts). The scorer is fixed;
+  // this is the escape hatch for the next false positive, because there will be
+  // one. It costs nothing in safety: the file's real content hash is checked at
+  // save time, behind a unique index, and neither is overridable from here.
+  const [duplicateOverrides, setDuplicateOverrides] = useState<Set<string>>(new Set());
   const [resumedRows, setResumedRows] = useState<Map<string, ImportRunRow>>(new Map());
   const runIdRef = useRef<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -562,6 +574,9 @@ export default function BulkUploadForm() {
     setCsvRows([]);
     setJobs([]);
     setStarted(false);
+    // Overrides are keyed by row INDEX, so a new file must not inherit them.
+    setDuplicateOverrides(new Set());
+    setAlreadyImported(new Map());
 
     const reader = new FileReader();
     reader.onload = () => {
@@ -592,6 +607,27 @@ export default function BulkUploadForm() {
   }
 
   // Build jobs and cross-reference files
+  /**
+   * Does this verdict park the row before its file is transferred?
+   *
+   * A strong-or-blocking match pre-skips, so the upload quota is not spent
+   * re-importing a book the library already has. A merely POSSIBLE match does
+   * not: same title alone is also how a second edition looks, and silently
+   * dropping those rows would make the importer lose books to protect against
+   * a maybe. Those rows stay pending, flagged, and the operator decides.
+   *
+   * An override always wins — the verdict scores metadata and can be wrong.
+   *
+   * One function because two callers need the same answer: `buildJobs` when
+   * the queue is rebuilt, and `handlePreview` when the verdicts first arrive.
+   */
+  const shouldPreSkip = useCallback(
+    (verdict: AlreadyImported | undefined, rowId: string) =>
+      Boolean(verdict && (verdict.blocked || verdict.confidence === "high")) &&
+      !duplicateOverrides.has(rowId),
+    [duplicateOverrides],
+  );
+
   // `previous` lets a rebuild keep the folder a row was already assigned, so
   // picking more PDF files after previewing re-matches the files without
   // moving anybody's destination.
@@ -609,16 +645,10 @@ export default function BulkUploadForm() {
       // run cannot inherit another book's destination.
       const prior = resumedRows.get(id);
       const priorApplies = prior !== undefined && prior.title === row.title;
-      // A strong-or-blocking match pre-skips the row, so the file is never
-      // transferred. handleStart() already filters "skipped" out of the queue,
-      // so this needs no separate branch there.
-      //
-      // A merely POSSIBLE match does not skip: same title alone is also how a
-      // second edition looks, and silently dropping those rows would make the
-      // importer lose books to protect against a maybe. Those rows stay
-      // pending, flagged, and the operator decides.
+      // handleStart() filters "skipped" out of the queue, so a pre-skipped row
+      // needs no separate branch there.
       const existing = alreadyImported.get(id);
-      const preSkip = Boolean(existing && (existing.blocked || existing.confidence === "high"));
+      const preSkip = shouldPreSkip(existing, id);
       return {
         id,
         row,
@@ -635,7 +665,7 @@ export default function BulkUploadForm() {
         uploadId: keptUploadId ?? newUploadSessionId(),
       };
     });
-  }, [csvRows, pdfIndex, coverIndex, resumedRows, alreadyImported]);
+  }, [csvRows, pdfIndex, coverIndex, resumedRows, alreadyImported, shouldPreSkip]);
 
   async function handlePreview() {
     const built = buildJobs(jobs);
@@ -655,7 +685,84 @@ export default function BulkUploadForm() {
         year: j.row.year,
       })),
     );
-    setAlreadyImported(new Map(hits.map((h) => [h.id, h])));
+    const verdicts = new Map(hits.map((h) => [h.id, h]));
+    setAlreadyImported(verdicts);
+
+    // Apply them to the queue in the same pass. `buildJobs` closes over
+    // `alreadyImported`, which has not updated yet, so rebuilding here would
+    // re-run the pre-flight's own stale answer — and the verdicts would not
+    // reach the table until the next rebuild, i.e. until Start. That put the
+    // duplicate notes, and the control for overruling them, on the wrong side
+    // of the button they are meant to inform.
+    setJobs((prev) =>
+      prev.map((job) => {
+        const verdict = verdicts.get(job.id);
+        // A row that already ran keeps its outcome; only a queued row moves.
+        if (job.status !== "pending" && job.status !== "skipped") return job;
+        if (job.error) return job;
+        return {
+          ...job,
+          alreadyImported: verdict,
+          status: shouldPreSkip(verdict, job.id) ? "skipped" : "pending",
+        };
+      }),
+    );
+  }
+
+  /**
+   * Overrule the pre-flight's duplicate verdict on one or more rows.
+   *
+   * Flips each row from `skipped` to `pending` directly rather than rebuilding
+   * the queue: a rebuild re-derives folders and upload session ids, and a row
+   * the operator has just decided to import must keep the destination Step 3
+   * already showed them.
+   *
+   * Takes a list because "import all flagged rows anyway" is one decision, not
+   * twelve — one state update, and one audit round trip per row rather than a
+   * burst of them interleaved with re-renders.
+   */
+  function overrideDuplicates(ids: readonly string[]) {
+    if (running || ids.length === 0) return;
+    const claimed = ids.filter((id) => alreadyImported.has(id) && !duplicateOverrides.has(id));
+    if (claimed.length === 0) return;
+
+    setDuplicateOverrides((prev) => new Set([...prev, ...claimed]));
+    setJobs((prev) =>
+      prev.map((j) =>
+        // A row skipped by the upload route's own 409 carries an error and is
+        // not ours to reopen — that verdict came from a content hash.
+        claimed.includes(j.id) && j.status === "skipped" && !j.error
+          ? { ...j, status: "pending" }
+          : j,
+      ),
+    );
+
+    for (const id of claimed) {
+      const verdict = alreadyImported.get(id);
+      if (!verdict) continue;
+      void recordDuplicateOverride({
+        title: jobs.find((j) => j.id === id)?.row.title ?? "",
+        matchedTitle: verdict.title,
+        matchedBookId: verdict.bookId,
+        score: verdict.score,
+        confidence: verdict.confidence,
+        source: verdict.source,
+      });
+    }
+  }
+
+  /** Put an overridden row back under its verdict. Recorded nowhere: choosing
+   *  not to import a book is not a decision anyone has to audit. */
+  function restoreDuplicateSkip(id: string) {
+    if (running || !duplicateOverrides.has(id)) return;
+    setDuplicateOverrides((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    setJobs((prev) =>
+      prev.map((j) => (j.id === id && j.status === "pending" ? { ...j, status: "skipped" } : j)),
+    );
   }
 
   function updateJob(
@@ -806,6 +913,14 @@ export default function BulkUploadForm() {
     ? jobs.filter((j) => j.status === "pending" && j.pdfFile).length
     : 0;
   const preSkipped = jobs.filter((j) => j.status === "skipped" && j.alreadyImported).length;
+  // Flagged, but the operator said import it anyway. Counted separately so the
+  // strip never claims a row will be skipped that is queued to upload.
+  const overridden = jobs.filter(
+    (j) => j.alreadyImported && duplicateOverrides.has(j.id) && !j.error,
+  ).length;
+  const overridable = jobs.filter(
+    (j) => j.status === "skipped" && j.alreadyImported && !j.error,
+  ).length;
   /* Row-level import report (§27): the three outcomes an operator acts on
      differently — refused, almost certainly already here, and worth a look. */
   const dupBlocked = jobs.filter((j) => j.alreadyImported?.blocked).length;
@@ -1118,6 +1233,33 @@ export default function BulkUploadForm() {
                   {t("alreadyImportedCount", { count: preSkipped })}
                 </p>
               )}
+              {/* The way out of a wrong verdict. The pre-flight scores metadata,
+                  so it can be wrong, and being wrong must not be terminal. */}
+              {overridable > 0 && !running && (
+                <p className="flex flex-wrap items-start gap-2 text-xs text-text-muted">
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <span>{t("duplicate.overrideHint")}</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      overrideDuplicates(
+                        jobs
+                          .filter((j) => j.status === "skipped" && j.alreadyImported && !j.error)
+                          .map((j) => j.id),
+                      )
+                    }
+                    className="font-medium text-brand underline focus-field"
+                  >
+                    {t("duplicate.overrideAll", { count: overridable })}
+                  </button>
+                </p>
+              )}
+              {overridden > 0 && (
+                <p className="flex items-start gap-2 text-xs text-warning-text">
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  {t("duplicate.overriddenCount", { count: overridden })}
+                </p>
+              )}
               {badFolders > 0 && (
                 <p role="alert" className="flex items-start gap-2 text-xs text-danger-text">
                   <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -1181,6 +1323,7 @@ export default function BulkUploadForm() {
                           {job.alreadyImported.source === "batch"
                             ? t("duplicate.rowBatch", {
                                 row: Number(job.alreadyImported.matchRowId ?? 0) + 1,
+                                score: job.alreadyImported.score,
                               })
                             : job.alreadyImported.blocked
                               ? t("duplicate.rowBlocked", { title: job.alreadyImported.title })
@@ -1204,6 +1347,21 @@ export default function BulkUploadForm() {
                             </a>
                           )}
                         </p>
+                      )}
+                      {job.alreadyImported && !job.error && !running && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            duplicateOverrides.has(job.id)
+                              ? restoreDuplicateSkip(job.id)
+                              : overrideDuplicates([job.id])
+                          }
+                          className="focus-field mt-0.5 text-xs font-medium text-brand underline"
+                        >
+                          {duplicateOverrides.has(job.id)
+                            ? t("duplicate.overrideUndo")
+                            : t("duplicate.overrideRow")}
+                        </button>
                       )}
                       {(() => {
                         const problem = describeStoragePathError(job.folder);

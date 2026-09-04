@@ -102,6 +102,28 @@ export function editionMarker(title: string | null | undefined): string | null {
   return null;
 }
 
+/** Every edition pattern, so a title can be compared with its marker taken
+ *  out. Order does not matter — a title declares at most one. */
+const EDITION_PATTERNS = [EDITION_KHMER, EDITION_NUMERIC, EDITION_WORD, EDITION_REVISED];
+
+/**
+ * The normalized title with its edition marker removed.
+ *
+ * "Mathematics, 2nd Edition" and "Mathematics, 3rd Edition" are the same WORK,
+ * and the only thing separating them is the marker `editionMarker()` already
+ * knows how to find. Comparing the bases says so directly; the scorer used to
+ * infer it from whole-string edit distance, which happened to rate the pair
+ * alike only because the marker is short next to the title. Stripping is the
+ * honest version of that, and it does not weaken when the title is short or
+ * the marker is Khmer.
+ */
+export function titleWithoutEdition(title: string | null | undefined): string {
+  let base = normalizeTitle(title);
+  if (!base) return "";
+  for (const pattern of EDITION_PATTERNS) base = base.replace(pattern, " ");
+  return base.replace(/\s+/g, " ").trim();
+}
+
 /* ── ISBN ──────────────────────────────────────────────────────────────── */
 
 export type IsbnStatus = "empty" | "invalid" | "valid";

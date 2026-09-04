@@ -19,6 +19,7 @@ import {
   normalizeTitle,
   personInitialKey,
   titleTokens,
+  titleWithoutEdition,
   validateIsbn,
 } from "./normalize";
 
@@ -195,5 +196,25 @@ describe("normalizeTaxonomyValue", () => {
 
   it("keeps genuinely different values apart", () => {
     expect(normalizeTaxonomyValue("Education")).not.toBe(normalizeTaxonomyValue("Educational"));
+  });
+});
+
+describe("titleWithoutEdition", () => {
+  it("reduces two editions of one work to the same base", () => {
+    expect(titleWithoutEdition("Mathematics, 2nd Edition"))
+      .toBe(titleWithoutEdition("Mathematics, 3rd Edition"));
+  });
+
+  it("reduces a Khmer edition marker the same way", () => {
+    expect(titleWithoutEdition("គណិតវិទ្យា បោះពុម្ពលើកទី២"))
+      .toBe(titleWithoutEdition("គណិតវិទ្យា បោះពុម្ពលើកទី៣"));
+  });
+
+  it("leaves a title with no marker untouched", () => {
+    expect(titleWithoutEdition("Mathematics")).toBe("mathematics");
+  });
+
+  it("does not mistake a grade number for an edition", () => {
+    expect(titleWithoutEdition("Mathematics Grade 7")).toBe("mathematics grade 7");
   });
 });
