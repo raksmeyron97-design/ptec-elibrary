@@ -116,10 +116,11 @@ export function deterministicAnswer(
 
     case "author_search":
       // A resolved person is a complete answer: the hub sentence plus cards.
-      // No person matched → the catalogue was searched for the name instead.
+      // No person matched → retrieval kept a work only when the question
+      // named its title ("who wrote X"), so a lone card is that work's byline.
       if (retrieval.hub) return T.hubLead(retrieval.hub, retrieval.results.length, locale);
-      return retrieval.results.length
-        ? T.foundResults(retrieval.results, intent.query, locale)
+      return retrieval.results[0]
+        ? T.writtenBy(retrieval.results[0], locale)
         : T.noAuthor(intent.query, locale);
 
     case "subject_search":

@@ -103,6 +103,14 @@ export function subjectOverview(list: string, locale: AILocale): string {
     : `The library’s subjects: ${list}. Browse them all at /subjects.`;
 }
 
+/** "Who wrote X?" — the work's own byline, from the record. */
+export function writtenBy(result: SearchResult, locale: AILocale): string {
+  const author = result.author?.trim() || (locale === "km" ? "អ្នកនិពន្ធមិនស្គាល់" : "an unknown author");
+  return locale === "km"
+    ? `«${result.title}» និពន្ធដោយ ${author}។ មើលលម្អិតនៅ ${result.url}។`
+    : `“${result.title}” is by ${author}. Details at ${result.url}.`;
+}
+
 export function noAuthor(query: string, locale: AILocale): string {
   const name = query.trim();
   if (locale === "km") {

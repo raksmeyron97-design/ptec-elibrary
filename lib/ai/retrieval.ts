@@ -579,6 +579,42 @@ function subjectItemCard(item: SubjectItem, subject: string): { result: SearchRe
 }
 
 /**
+ * The published work whose title contains the phrase, punctuation aside.
+ * The database is asked with the phrase's words in order ("%research%design%
+ * qualitative%"), which tolerates a missing Oxford comma; the row is then
+ * confirmed on normalized text so "design" alone cannot claim a match.
+ */
+async function findWorkByTitle(
+  db: Db,
+  query: string,
+  normalized: string,
+): Promise<{ result: SearchResult; work: CompactWork; dbQueries: number } | null> {
+  const words = sanitizeFilterTerm(query).split(/\s+/).filter((w) => w.length >= 3).slice(0, 6);
+  if (!words.length) return null;
+  const pattern = `%${words.join("%")}%`;
+  const titled = (title: string) => normalizeSearchText(title).includes(normalized);
+
+  const { data: books } = await db
+    .from("books")
+    .select("slug, title, cover_url, description, department, published_at, authors(name), categories(name)")
+    .eq("is_published", true)
+    .ilike("title", pattern)
+    .order("download_count", { ascending: false })
+    .limit(5);
+  const book = ((books ?? []) as any[]).find((b) => titled(b.title));
+  if (book) return { ...bookRow(book), dbQueries: 1 };
+
+  const { data: theses } = await db
+    .from("research_reports")
+    .select("id, slug, title, cover_url, abstract, author_names, program, subject, academic_year")
+    .eq("is_published", true)
+    .ilike("title", pattern)
+    .limit(5);
+  const thesis = ((theses ?? []) as any[]).find((r) => titled(r.title));
+  return thesis ? { ...thesisRow(thesis), dbQueries: 2 } : null;
+}
+
+/**
  * The person a question names, resolved through the public author directory.
  * Exact normalized name first (the same identity rule the upload gate uses),
  * then a name that contains the query. No match → the catalogue is searched
@@ -609,10 +645,17 @@ export async function searchAuthors(rawQuery: string): Promise<RetrievalOutcome>
   const pick = [...exact, ...partial].sort((a, b) => b.workCount - a.workCount)[0];
 
   if (!pick) {
-    const fallback = await searchWorks(query, { keywordOnly: true });
-    fallback.dbQueries += out.dbQueries;
-    fallback.retrievalMs = Date.now() - started;
-    return fallback;
+    // "Who wrote <title>?" names a work, not a person: answer with the work
+    // whose title contains the question, and its byline. Anything else is a
+    // name the directory does not hold, and the honest answer is that.
+    const titled = await findWorkByTitle(createServiceClient(), query, loose);
+    out.dbQueries += titled ? titled.dbQueries : 2;
+    if (titled) {
+      out.results = [titled.result];
+      out.works = [titled.work];
+    }
+    out.retrievalMs = Date.now() - started;
+    return out;
   }
 
   const profile = await getAuthorProfile(pick.slug);
@@ -640,7 +683,8 @@ export async function searchSubjects(rawQuery: string): Promise<RetrievalOutcome
   const q = normalizeSearchText(rawQuery);
   if (!q) {
     out.facts = [
-      subjects
+      [...subjects]
+        .sort((a, b) => b.counts.total - a.counts.total || a.name.localeCompare(b.name))
         .slice(0, SUBJECT_OVERVIEW_LIMIT)
         .map((s) => `${s.name} (${s.counts.total})`)
         .join(" · "),
