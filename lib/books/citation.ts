@@ -5,8 +5,11 @@ import type { Book } from "@/lib/book-utils";
 import { REPOSITORY } from "@/lib/theses/citation";
 import {
   apa,
+  mla,
+  chicago,
   bibtex,
   ris,
+  inTextReference,
   citationFileName,
   type CitationWork,
 } from "@/lib/citations";
@@ -45,6 +48,25 @@ export function bookToCitationWork(book: Book): CitationWork {
 
 export function toAPA(book: Book): string {
   return apa(bookToCitationWork(book));
+}
+
+export function toMLA(book: Book): string {
+  return mla(bookToCitationWork(book));
+}
+
+export function toChicago(book: Book): string {
+  return chicago(bookToCitationWork(book));
+}
+
+/** "(Author, Year, p. N)" for the page the reader is on. */
+export function bookPageReference(book: Book, page: number): string {
+  return inTextReference(bookToCitationWork(book), page);
+}
+
+/** A citation is only offered when the record can support one: a title plus
+ *  at least an author or a year. Anything less would be a formatted guess. */
+export function hasCitableMetadata(work: CitationWork): boolean {
+  return !!work.title.trim() && (work.authors.length > 0 || !!work.year);
 }
 
 export function toBibTeX(book: Book): string {

@@ -87,7 +87,7 @@ const ThumbnailsPanel = memo(function ThumbnailsPanel({
   }, [numPages, rowHeight, scrollTop, viewportH]);
 
   if (!pdf || !numPages) {
-    return <p className="p-3 text-xs text-slate-400">{loadingLabel}</p>;
+    return <p className="reader-muted p-3 text-[13px]">{loadingLabel}</p>;
   }
 
   const rows = [];
@@ -106,8 +106,8 @@ const ThumbnailsPanel = memo(function ThumbnailsPanel({
         <span
           className={`overflow-hidden rounded transition ${
             active
-              ? "ring-2 ring-cyan-400"
-              : "ring-1 ring-white/15 group-hover/thumb:ring-white/40 group-focus-visible/thumb:ring-cyan-400"
+              ? "ring-2 ring-[var(--reader-accent)]"
+              : "ring-1 ring-[var(--reader-line)] group-hover/thumb:ring-[var(--reader-fg-faint)] group-focus-visible/thumb:ring-[var(--reader-accent)]"
           }`}
           style={{ width: THUMB_WIDTH, height: Math.round(THUMB_WIDTH * pageAspect) }}
         >
@@ -120,14 +120,12 @@ const ThumbnailsPanel = memo(function ThumbnailsPanel({
             pageColors={pageColors}
             renderTextLayer={false}
             renderAnnotationLayer={false}
-            loading={<span className="block h-full w-full animate-pulse bg-white/10" />}
-            error={<span className="block h-full w-full bg-white/5" />}
+            loading={<span className="reader-placeholder--dark block h-full w-full animate-pulse motion-reduce:animate-none" />}
+            error={<span className="reader-placeholder--dark block h-full w-full" />}
           />
         </span>
         <span
-          className={`mt-1 text-[11px] font-semibold ${
-            active ? "text-cyan-300" : "text-slate-400"
-          }`}
+          className={`mt-1 text-[11px] font-semibold ${active ? "reader-accent" : "reader-muted"}`}
         >
           {fmtNum(p)}
         </span>

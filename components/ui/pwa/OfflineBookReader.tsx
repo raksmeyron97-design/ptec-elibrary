@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Icon from "@/components/ui/core/Icon";
 import PDFViewer from "@/components/ui/reader/PDFViewerClient";
+import ReaderViewportFill from "@/components/ui/reader/ReaderViewportFill";
 import {
   getOfflineBook,
   getOfflineBookBlob,
@@ -124,19 +125,19 @@ export default function OfflineBookReader({ bookId }: { bookId: string | null })
 
   if (state.kind === "ready") {
     return (
-      <div className="min-h-screen bg-bg-body">
+      <ReaderViewportFill>
         {header(state.book.title, true)}
-        <div className="mx-auto max-w-[1400px] px-1 py-2 sm:px-4 sm:py-4">
-          <PDFViewer
-            title={state.book.title}
-            pdfUrl={state.objectUrl}
-            bookId={state.book.id}
-            offline
-            allowDownload
-            isLoggedIn={false}
-          />
-        </div>
-      </div>
+        <PDFViewer
+          title={state.book.title}
+          pdfUrl={state.objectUrl}
+          bookId={state.book.id}
+          offline
+          allowDownload
+          isLoggedIn={false}
+          backHref={libraryHref}
+          layout="fill"
+        />
+      </ReaderViewportFill>
     );
   }
 

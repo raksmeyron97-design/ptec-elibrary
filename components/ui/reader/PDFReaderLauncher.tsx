@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { Link } from "@/i18n/navigation";
 import { usePathname } from "next/navigation";
-import { BookOpen, ExternalLink, Loader2, X } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { BookOpen, ExternalLink, Loader2 } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import PDFViewer from "@/components/ui/reader/PDFViewerClient";
 import { recordReaderOpen } from "@/app/actions/reader-events";
+import type { ReaderCitationSource } from "@/components/ui/reader/ReaderCitation";
 
 type PDFReaderLauncherProps = {
   title: string;
@@ -15,6 +16,7 @@ type PDFReaderLauncherProps = {
   totalPages?: number;
   initialProgressPct?: number;
   initialMaxProgressPct?: number;
+  initialProgressAt?: string | null;
   allowDownload?: boolean;
   isLoggedIn?: boolean;
   fullReaderHref?: string;
@@ -23,6 +25,9 @@ type PDFReaderLauncherProps = {
   /** When true, an anonymous reader is prompted to sign in instead of opening
    *  the viewer — the file API for this resource requires authentication. */
   requireAuthToView?: boolean;
+  /** Bibliographic metadata for the in-reader "Cite this book"; null when the
+   *  record cannot support a citation. */
+  citation?: ReaderCitationSource | null;
 };
 
 export default function PDFReaderLauncher({
@@ -32,14 +37,17 @@ export default function PDFReaderLauncher({
   totalPages = 0,
   initialProgressPct = 0,
   initialMaxProgressPct = 0,
+  initialProgressAt = null,
   allowDownload = true,
   isLoggedIn = false,
   fullReaderHref,
   reportEmail,
   requireAuthToView = false,
+  citation = null,
 }: PDFReaderLauncherProps) {
   const t = useTranslations("reader");
   const bookT = useTranslations("bookDetail");
+  const locale = useLocale();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const gated = requireAuthToView && !isLoggedIn;
@@ -59,46 +67,21 @@ export default function PDFReaderLauncher({
 
   if (open) {
     return (
-      <div className="overflow-hidden rounded-lg border border-divider bg-bg-surface shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-divider bg-paper px-3 py-2.5 sm:px-4">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-text-heading">{title}</p>
-            <p className="text-xs text-text-muted">{t("readOnline")}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            {fullReaderHref && (
-              <Link
-                href={fullReaderHref}
-                className="inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold text-brand transition-colors hover:bg-brand/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{bookT("openFullReader")}</span>
-              </Link>
-            )}
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-divider bg-bg-surface px-2.5 text-xs font-semibold text-text-muted transition-colors hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
-              aria-label={t("close")}
-            >
-              <X className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">{t("close")}</span>
-            </button>
-          </div>
-        </div>
-
-        <PDFViewer
-          title={title}
-          pdfUrl={pdfUrl}
-          bookId={bookId}
-          totalPages={totalPages}
-          initialProgressPct={initialProgressPct}
-          initialMaxProgressPct={initialMaxProgressPct}
-          allowDownload={allowDownload}
-          isLoggedIn={isLoggedIn}
-          reportEmail={reportEmail}
-        />
-      </div>
+      <PDFViewer
+        title={title}
+        pdfUrl={pdfUrl}
+        bookId={bookId}
+        totalPages={totalPages}
+        initialProgressPct={initialProgressPct}
+        initialMaxProgressPct={initialMaxProgressPct}
+        initialProgressAt={initialProgressAt}
+        allowDownload={allowDownload}
+        isLoggedIn={isLoggedIn}
+        reportEmail={reportEmail}
+        onClose={() => setOpen(false)}
+        fullReaderHref={fullReaderHref ? (locale === "km" ? `/km${fullReaderHref}` : fullReaderHref) : undefined}
+        citation={citation}
+      />
     );
   }
 

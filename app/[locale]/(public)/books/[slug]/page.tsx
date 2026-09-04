@@ -53,6 +53,7 @@ import { breadcrumbSchema } from "@/lib/seo/schema";
 
 import { SITE_URL } from "@/lib/seo/site";
 import { bookScholarMeta } from "@/lib/seo/citation";
+import { bookToCitationWork, hasCitableMetadata } from "@/lib/books/citation";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 
 
@@ -678,15 +679,18 @@ async function ReaderSection({
     getSessionUser(),
     getProgressOnce(book.dbId!),
   ]);
+  const work = bookToCitationWork(book);
 
   return (
     <PDFReaderLauncher
+      citation={hasCitableMetadata(work) ? { work, verified: !!book.verifiedAt } : null}
       title={book.title}
       pdfUrl={fileSrc}
       bookId={book.dbId!}
       totalPages={book.pages}
       initialProgressPct={savedProgress?.progressPct ?? 0}
       initialMaxProgressPct={savedProgress?.maxProgressPct ?? 0}
+      initialProgressAt={savedProgress?.lastReadAt ?? null}
       // Library policy (0131). The refusal that matters is the server's, in
       // /api/books/[slug]/download; this stops the viewer offering an action
       // that would be refused.

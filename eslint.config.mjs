@@ -19,6 +19,14 @@ const eslintConfig = defineConfig([
     "public/pdf/**",
     "ds-bundle/**",
     "supabase/.temp/**",
+    // Agent scratch space: `.claude/worktrees/*` are FULL second checkouts of
+    // this repo (their own node_modules, their own generated public/sw.js and
+    // bundled PDF.js workers). Linting them reports errors from vendored build
+    // output that no longer exists on this branch, and from whatever stale
+    // commit the worktree sits on — never from the code under review. CI checks
+    // out a clean tree and never sees them, so only local runs were wrong.
+    // Mirrors the same exclusion vitest already carries (vitest.config.ts).
+    ".claude/**",
   ]),
   {
     // These rules flag patterns that are either intentional (dynamic Supabase

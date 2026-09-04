@@ -167,6 +167,19 @@ const POLICIES = {
     limit: envInt("RL_LOGIN_PER_ACCOUNT_PER_15MIN", 15),
     windowMs: 15 * 60_000,
   }),
+  /**
+   * Reading-position saves (`POST /api/reader/progress`) — per signed-in user.
+   *
+   * The reader debounces its autosave at 1.5 s and only writes when the page
+   * actually changed, and this endpoint additionally only carries the teardown
+   * flush, so a real reading session produces a handful of requests. The
+   * ceiling exists so a stuck client cannot hammer a write path; it is well
+   * clear of a reader turning pages continuously.
+   */
+  readerProgress: () => ({
+    limit: envInt("RL_READER_PROGRESS_PER_MIN", 60),
+    windowMs: 60_000,
+  }),
   /** Second-factor verification — per signed-in user, else per client. */
   mfaVerify: () => ({
     limit: envInt("RL_MFA_VERIFY_PER_5MIN", 10),

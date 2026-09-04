@@ -42,3 +42,22 @@ export function parseZoomInput(raw: string): number | null {
   if (!Number.isFinite(value) || value <= 0) return null;
   return clampScale(value / 100);
 }
+
+/** The presets the zoom menu offers — a short, predictable list rather than
+    every stop the ± buttons step through. Fit modes are listed by the menu
+    itself ahead of these. */
+export const ZOOM_PRESETS = [0.75, 1, 1.25, 1.5, 2] as const;
+
+/** Where a double-tap takes the reader. Zoomed in (noticeably past the
+    fit-width scale) → back to fit-width; otherwise → a comfortable reading
+    zoom around the tap point. Returns null for "fit width". */
+export function doubleTapTarget(effectiveScale: number, fitWidthScale: number): number | null {
+  if (effectiveScale > fitWidthScale * 1.15) return null;
+  return clampScale(Math.max(effectiveScale, fitWidthScale) * 1.9);
+}
+
+/** True when the page is not zoomed beyond fit-width — the state in which a
+    horizontal swipe turns the page instead of panning. */
+export function isAtFitWidth(effectiveScale: number, fitWidthScale: number, fitMode: string): boolean {
+  return fitMode !== "custom" || effectiveScale <= fitWidthScale * 1.05;
+}

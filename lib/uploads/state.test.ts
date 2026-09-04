@@ -71,6 +71,10 @@ describe("upload state machine", () => {
     expect(canTransition("ORPHANED", "COMPLETED")).toBe(true);
   });
 
+  it("lets an orphan be claimed by saveBookRecord into SAVING_DB", () => {
+    expect(canTransition("ORPHANED", "SAVING_DB")).toBe(true);
+  });
+
   it("names exactly the states that hold unreferenced bytes", () => {
     const holding = UPLOAD_STATES.filter(holdsUnreferencedBytes);
     expect(holding).toEqual(["STORED", "SAVING_DB", "ORPHANED"]);

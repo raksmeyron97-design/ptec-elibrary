@@ -127,6 +127,74 @@ export function apa(work: CitationWork): string {
   return parts.join(" ");
 }
 
+/** MLA 9 — author-first, title, container-less for books/theses, venue for
+ *  articles, then the DOI or the repository URL. Kept in the same
+ *  deliberately plain register as `apa()`: nothing is invented for a missing
+ *  field, the well-known placeholders are used instead. */
+export function mla(work: CitationWork): string {
+  const authors = work.authors.map(oneLine).filter(Boolean).join(", ") || "Unknown author";
+  const year = work.year ?? "n.d.";
+  const title = oneLine(work.title) || "Untitled";
+  const parts: string[] = [];
+  if (work.journal) {
+    let venue = oneLine(work.journal);
+    if (work.volume) venue += `, vol. ${work.volume}`;
+    if (work.issue) venue += `, no. ${work.issue}`;
+    venue += `, ${year}`;
+    const pages = pageRangeOf(work);
+    if (pages) venue += `, pp. ${pages}`;
+    parts.push(`${authors}. "${title}." ${venue}.`);
+  } else {
+    // Books and theses: the title is italicised in print; plain text here.
+    const publisher = work.publisher ? ` ${oneLine(work.publisher)},` : "";
+    const note = work.noteType ? ` ${oneLine(work.noteType)}.` : "";
+    // "n.d." already carries its full stop.
+    parts.push(`${authors}. ${title}.${note}${publisher} ${year.endsWith(".") ? year : `${year}.`}`);
+  }
+  parts.push(`${doiOrUrlOf(work)}.`);
+  return parts.join(" ");
+}
+
+/** Chicago (author-date) — author, year, title, publisher / venue, link. */
+export function chicago(work: CitationWork): string {
+  const authors = work.authors.map(oneLine).filter(Boolean).join(", ") || "Unknown author";
+  const year = work.year ?? "n.d.";
+  const yearDot = year.endsWith(".") ? year : `${year}.`;
+  const title = oneLine(work.title) || "Untitled";
+  const parts: string[] = [];
+  if (work.journal) {
+    let venue = oneLine(work.journal);
+    if (work.volume) {
+      venue += ` ${work.volume}`;
+      if (work.issue) venue += ` (${work.issue})`;
+    }
+    const pages = pageRangeOf(work);
+    if (pages) venue += `: ${pages}`;
+    parts.push(`${authors}. ${yearDot} "${title}." ${venue}.`);
+  } else {
+    const note = work.noteType ? ` ${oneLine(work.noteType)}.` : "";
+    const publisher = work.publisher ? ` ${oneLine(work.publisher)}.` : "";
+    parts.push(`${authors}. ${yearDot} ${title}.${note}${publisher}`);
+  }
+  parts.push(`${doiOrUrlOf(work)}.`);
+  return parts.join(" ");
+}
+
+/** APA-style parenthetical page reference for a passage, e.g.
+ *  "(Sok & Chan, 2024, p. 42)". Surnames are not guessed: the author strings
+ *  are used as recorded, which is the honest choice for Khmer names where
+ *  family-name order differs from the Western convention. */
+export function inTextReference(work: CitationWork, page: number): string {
+  const names = work.authors.map(oneLine).filter(Boolean);
+  let who: string;
+  if (names.length === 0) who = oneLine(work.title) || "Untitled";
+  else if (names.length === 1) who = names[0];
+  else if (names.length === 2) who = `${names[0]} & ${names[1]}`;
+  else who = `${names[0]} et al.`;
+  const year = work.year ?? "n.d.";
+  return `(${who}, ${year}, p. ${page})`;
+}
+
 export function bibtex(work: CitationWork): string {
   const entryType =
     work.kind === "book" ? "book" : work.kind === "thesis" ? "techreport" : "article";

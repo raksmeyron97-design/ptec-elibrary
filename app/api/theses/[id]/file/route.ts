@@ -152,17 +152,34 @@ export async function GET(
   }
 
   // ── Legacy: bare R2 object key ─────────────────────────────────
-  const key = r2ObjectKey(fileUrl);
-  const command = new GetObjectCommand({
-    Bucket: process.env.R2_BUCKET_NAME!,
-    Key: key,
-  });
-  const presignedUrl = await getSignedUrl(s3, command, { expiresIn: 60 });
+  //
+  // Same guard as the books and publications file routes: R2 is the legacy
+  // fallback, a deployment may hold no credentials for it, and presigning with
+  // an empty bucket throws inside the AWS SDK and escapes as an unhandled 500.
+  // A 404 is both the truth and the answer the reader already knows how to
+  // show.
+  if (!process.env.R2_ACCOUNT_ID || !process.env.R2_BUCKET_NAME || !process.env.R2_ACCESS_KEY_ID) {
+    console.warn(`[theses/file] legacy R2 key "${fileUrl}" but R2 is not configured`);
+    return new NextResponse("File not found in storage", { status: 404 });
+  }
 
   const fetchHeaders: HeadersInit = {};
   if (rangeHeader) fetchHeaders["Range"] = rangeHeader;
 
-  const r2Res = await fetch(presignedUrl, { headers: fetchHeaders });
+  let r2Res: Response;
+  try {
+    const key = r2ObjectKey(fileUrl);
+    const command = new GetObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME,
+      Key: key,
+    });
+    const presignedUrl = await getSignedUrl(s3, command, { expiresIn: 60 });
+    r2Res = await fetch(presignedUrl, { headers: fetchHeaders });
+  } catch (storageError) {
+    console.error("[theses/file] legacy R2 read failed:", storageError);
+    return new NextResponse("File not found in storage", { status: 404 });
+  }
+
   if (!r2Res.ok && r2Res.status !== 206) {
     return new NextResponse("File not found in storage", { status: 404 });
   }
