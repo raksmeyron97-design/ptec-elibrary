@@ -78,5 +78,4 @@ public/sw.js.map
 
 # Search relevance benchmark runs (scripts/search-benchmark.ts). Only the
 # committed baseline is tracked; every other run is a local artifact.
-scripts/search-benchmark/results/*
-!scripts/search-benchmark/results/baseline.json
+scripts/search-benchmark/results/20*.json

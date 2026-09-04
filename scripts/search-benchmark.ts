@@ -184,7 +184,7 @@ function metricsOf(rows: QueryOutcome[]): Metrics {
     recallAt1: within(1),
     recallAt5: within(5),
     recallAt10: within(10),
-    mrr: ranks.reduce((sum, r) => sum + (r ? 1 / r : 0), 0) / n,
+    mrr: ranks.reduce<number>((sum, r) => sum + (r ? 1 / r : 0), 0) / n,
     zeroResultRate: rows.filter((r) => r.total === 0 && r.pageHitRank === null).length / n,
     fuzzyRate: rows.filter((r) => r.fuzzy).length / n,
     p50Ms: percentile(latencies, 50),
