@@ -157,6 +157,18 @@ const PDF_WORDS = ["according to", "on page", "which page", "what page", "inside
   "in the document", "does the book say", "does it say", "quote", "cite", "chapter",
   "ទំព័រ", "នៅក្នុងឯកសារ", "និយាយអំពី", "សរសេរថា", "ដកស្រង់"];
 const LIBRARY_WORDS = ["library", "ptec", "catalog", "catalogue", "បណ្ណាល័យ", "វ.គ.ភ"];
+// People and subjects are directory hubs (/authors, /subjects) with their own
+// deterministic answers — a question naming one never needs a model.
+const AUTHOR_WORDS = ["who wrote", "who is the author", "who are the authors", "written by",
+  "authored by", "books by", "works by", "titles by", "publications by", "theses by",
+  "thesis by", "papers by", "research by", "reports by", "studies by", "dissertation by",
+  "author of", "authors of", "by the author",
+  "អ្នកនិពន្ធ", "សរសេរដោយ", "និពន្ធដោយ", "តែងដោយ", "ស្នាដៃរបស់", "អ្នកណាសរសេរ"];
+const SUBJECT_WORDS = ["what subjects", "which subjects", "subjects do you", "subjects are there",
+  "list of subjects", "browse subjects", "all subjects", "by subject", "subject area",
+  "what topics", "which topics", "topics do you", "list of topics", "what categories",
+  "which categories", "categories do you", "in the subject", "under the subject", "in the category",
+  "មុខវិជ្ជា", "ប្រធានបទអ្វីខ្លះ", "ប្រភេទសៀវភៅ", "តាមមុខវិជ្ជា", "តាមប្រធានបទ"];
 // Greetings are matched on WORD boundaries, not as substrings: "hi" appears
 // inside "this", "which" and "history", and a substring match sent every
 // "what is this book about" down the smalltalk path.
@@ -194,6 +206,40 @@ export function extractQuery(text: string): string {
   // Trailing "ទេ?" / "please" are politeness, not topic.
   out = out.replace(/\s*(ទេ|ដែរ|បានទេ)\s*$/u, "").replace(/\s*please\s*$/i, "").trim();
   return out || text.trim();
+}
+
+// The scaffolding around a person's name. Khmer entries are whole phrases on
+// purpose: a bare syllable such as មាន is also a surname.
+const AUTHOR_SCAFFOLD = [
+  /\b(who\s+(wrote|is\s+the\s+author\s+of|are\s+the\s+authors\s+of|authored)|(e-?books?|books?|works?|titles?|publications?|theses|thesis|papers?|articles?|research|reports?|studies|dissertations?)\s+(written\s+)?by|written\s+by|authored\s+by|authors?\s+of|by\s+the\s+author|the\s+author|do\s+you\s+have|are\s+there|in\s+the\s+library|show\s+me|find|list|any|books?|works?)\b/gi,
+  /(អ្នកណាសរសេរ|អ្នកនិពន្ធ|សរសេរដោយ|និពន្ធដោយ|តែងដោយ|ស្នាដៃរបស់|សៀវភៅរបស់|សៀវភៅ|មានទេ|ខ្លះ)/gu,
+  /^(តើ)\s*/u,
+];
+
+/** The person a question names, with the question's scaffolding removed. */
+export function extractAuthorQuery(text: string): string {
+  let out = extractQuery(text);
+  for (const re of AUTHOR_SCAFFOLD) out = out.replace(re, " ");
+  return out.replace(/^[\s?,.:;-]+|[\s?,.:;-]+$/g, "").replace(/\s+/g, " ").trim();
+}
+
+const SUBJECT_SCAFFOLD = [
+  /\b(what|which|all|every|list\s+of|browse|show\s+me|do\s+you\s+have|are\s+there|available|in\s+the\s+library|does\s+the\s+library\s+(have|cover)|the\s+library|you\s+have|there\s+are|can\s+i\s+browse|do\s+you\s+cover)\b/gi,
+  /\b(subjects?|topics?|categories|category|subject\s+areas?|areas?)\b/gi,
+  // Function words and collection nouns left around the subject's own name.
+  // Prepositions inside a name ("history of education") are kept.
+  /\b(e-?books?|books?|titles?|resources?|materials?|items?|are|is|in|the|you|do|have|there|can|find|me|any|i)\b/gi,
+  /(មុខវិជ្ជា|ប្រធានបទ|ប្រភេទសៀវភៅ|អ្វីខ្លះ|តើមាន|មានអ្វី)/gu,
+  /^(តើ|តាម)\s*/u,
+];
+
+/** The subject a question names; empty when it asks for the whole list. */
+export function extractSubjectQuery(text: string): string {
+  let out = extractQuery(text);
+  for (const re of SUBJECT_SCAFFOLD) out = out.replace(re, " ");
+  out = out.replace(/^\s*(of|on|about|in|for|under|by)\s+/i, "");
+  out = out.replace(/^[\s?,.:;-]+|[\s?,.:;-]+$/g, "").replace(/\s+/g, " ").trim();
+  return out.length >= 2 ? out : "";
 }
 
 const PAGE_RE = /(?:\bp(?:age|\.)?\s*|ទំព័រ\s*)(\d{1,4}|[០-៩]{1,4})/iu;
@@ -266,7 +312,17 @@ export function classifyIntent(raw: string, ctx: ClassifyContext = {}): IntentRe
     return { ...base, intent: "pdf_question", confidence: page !== undefined ? 0.85 : 0.7 };
   }
 
-  // 6. Typed catalog searches. Thesis/post words are checked before book words
+  // 6. Directory hubs. Checked before the catalog searches because "books by
+  //    Creswell" and "action research by Mills" name a person, not a
+  //    collection, and "what subjects do you have" names the subject index.
+  if (hits(lower, SUBJECT_WORDS)) {
+    return { ...base, query: extractSubjectQuery(text), intent: "subject_search", confidence: 0.8 };
+  }
+  if (hits(lower, AUTHOR_WORDS)) {
+    return { ...base, query: extractAuthorQuery(text), intent: "author_search", confidence: 0.85 };
+  }
+
+  // 7. Typed catalog searches. Thesis/post words are checked before book words
   //    because "research book" should go to theses, not the e-book catalog.
   if (hits(lower, THESIS_WORDS)) {
     return { ...base, intent: "thesis_search", confidence: 0.85 };
@@ -309,6 +365,8 @@ export const ZERO_LLM_INTENTS: ReadonlySet<AIIntent> = new Set<AIIntent>([
   "post_search",
   "book_detail",
   "related_books",
+  "author_search",
+  "subject_search",
 ]);
 
 /** Intents that need document evidence before the model may answer. */

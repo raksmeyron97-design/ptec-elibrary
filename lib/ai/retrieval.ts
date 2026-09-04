@@ -31,8 +31,19 @@ import type { AILocale, ResultKind, SearchResult } from "./response";
 import type { RetrievedPassage } from "./citations";
 import type { CompactWork } from "./context";
 import { EMPTY_RETRIEVAL, type RetrievalOutcome } from "./plan";
+import { getListedAuthors } from "@/lib/authors/directory";
+import { getAuthorProfile } from "@/lib/authors/profile";
+import type { AuthorWork } from "@/lib/authors/types";
+import { getIndexableSubjects, getSubjectDetail, type SubjectItem } from "@/lib/subjects";
+import { personNameKey } from "@/lib/books/duplicate-detection/normalize";
+import { normalizeSearchText } from "@/lib/search/normalize";
 
 const COVERS_URL = process.env.NEXT_PUBLIC_R2_COVERS_URL ?? "";
+
+/** Cards a resolved author/subject hub shows before pointing at its page. */
+const HUB_RESULT_LIMIT = 5;
+/** Subjects named in the "what subjects do you have" overview line. */
+const SUBJECT_OVERVIEW_LIMIT = 10;
 
 /** Semantic thresholds. Chunks are held to a higher bar than work metadata
  *  because a weak page match produces a confident-sounding wrong citation. */
@@ -531,6 +542,136 @@ export async function getRelatedBooks(slug: string, limit = 4): Promise<Retrieva
   const rows = ((data ?? []) as any[]).map(bookRow);
   out.results = rows.map((r) => r.result);
   out.works = rows.map((r) => r.work);
+  return out;
+}
+
+// ── Directory hubs (zero-LLM path) ────────────────────────────────────────────
+// Author and subject questions resolve against the same fetchers the public
+// /authors and /subjects pages use, so the assistant can only name a person or
+// subject that has a page, and can only count what that page counts.
+
+const HUB_KIND: Record<string, ResultKind> = {
+  publication: "publication",
+  thesis: "research",
+  ebook: "book",
+  book: "book",
+  catalog: "catalog",
+};
+
+function slugOfHref(href: string): string {
+  return href.split("?")[0].split("#")[0].split("/").filter(Boolean).pop() ?? href;
+}
+
+function authorWorkCard(w: AuthorWork, fallbackAuthor: string): { result: SearchResult; work: CompactWork } {
+  const author = w.byline ?? fallbackAuthor;
+  return {
+    result: { slug: slugOfHref(w.href), title: w.title, author, coverUrl: w.coverUrl, url: w.href, type: HUB_KIND[w.type] ?? "book" },
+    work: { title: w.title, author, kind: w.venue ?? undefined, summary: w.excerpt ?? undefined, year: w.year ?? undefined },
+  };
+}
+
+function subjectItemCard(item: SubjectItem, subject: string): { result: SearchResult; work: CompactWork } {
+  const author = item.author ?? "Unknown";
+  return {
+    result: { slug: slugOfHref(item.href), title: item.title, author, coverUrl: null, url: item.href, type: HUB_KIND[item.type] ?? "book" },
+    work: { title: item.title, author, kind: subject, summary: item.excerpt ?? undefined },
+  };
+}
+
+/**
+ * The person a question names, resolved through the public author directory.
+ * Exact normalized name first (the same identity rule the upload gate uses),
+ * then a name that contains the query. No match → the catalogue is searched
+ * for the words instead, so a misread question still returns something real.
+ */
+export async function searchAuthors(rawQuery: string): Promise<RetrievalOutcome> {
+  const started = Date.now();
+  const out = emptyOutcome();
+  const query = rawQuery.trim();
+  if (!query) {
+    out.retrievalMs = Date.now() - started;
+    return out;
+  }
+
+  const wanted = personNameKey(query);
+  const loose = normalizeSearchText(query);
+  const authors = await getListedAuthors();
+  out.dbQueries = 1;
+
+  const exact = authors.filter((a) => personNameKey(a.name) === wanted || (a.nameKm && personNameKey(a.nameKm) === wanted));
+  const partial = exact.length || loose.length < 3
+    ? []
+    : authors.filter((a) => {
+        const name = normalizeSearchText(a.name);
+        const nameKm = normalizeSearchText(a.nameKm);
+        return name.includes(loose) || (nameKm !== "" && nameKm.includes(loose)) || (name.includes(" ") && loose.includes(name));
+      });
+  const pick = [...exact, ...partial].sort((a, b) => b.workCount - a.workCount)[0];
+
+  if (!pick) {
+    const fallback = await searchWorks(query, { keywordOnly: true });
+    fallback.dbQueries += out.dbQueries;
+    fallback.retrievalMs = Date.now() - started;
+    return fallback;
+  }
+
+  const profile = await getAuthorProfile(pick.slug);
+  out.dbQueries = 2;
+  out.retrievalMs = Date.now() - started;
+  if (!profile) return out;
+
+  const cards = profile.works.slice(0, HUB_RESULT_LIMIT).map((w) => authorWorkCard(w, profile.name));
+  out.hub = { kind: "author", name: profile.name, url: `/authors/${profile.slug}`, count: profile.works.length };
+  out.results = cards.map((c) => c.result);
+  out.works = cards.map((c) => c.work);
+  return out;
+}
+
+/**
+ * A subject by name → its hub and first resources; no name → the subject
+ * index as one fact line; a name that is not a subject → a catalogue search.
+ */
+export async function searchSubjects(rawQuery: string): Promise<RetrievalOutcome> {
+  const started = Date.now();
+  const out = emptyOutcome();
+  const subjects = await getIndexableSubjects();
+  out.dbQueries = 1;
+
+  const q = normalizeSearchText(rawQuery);
+  if (!q) {
+    out.facts = [
+      subjects
+        .slice(0, SUBJECT_OVERVIEW_LIMIT)
+        .map((s) => `${s.name} (${s.counts.total})`)
+        .join(" · "),
+    ].filter(Boolean);
+    out.retrievalMs = Date.now() - started;
+    return out;
+  }
+
+  const match =
+    subjects.find((s) => normalizeSearchText(s.name) === q) ??
+    subjects.find((s) => {
+      const name = normalizeSearchText(s.name);
+      return name.includes(q) || (name.length >= 3 && q.includes(name));
+    });
+
+  if (!match) {
+    const fallback = await searchWorks(rawQuery, { keywordOnly: true });
+    fallback.dbQueries += out.dbQueries;
+    fallback.retrievalMs = Date.now() - started;
+    return fallback;
+  }
+
+  const detail = await getSubjectDetail(match.slug);
+  out.dbQueries = 2;
+  out.retrievalMs = Date.now() - started;
+  if (!detail) return out;
+
+  const cards = detail.items.slice(0, HUB_RESULT_LIMIT).map((item) => subjectItemCard(item, detail.name));
+  out.hub = { kind: "subject", name: detail.name, url: `/subjects/${detail.slug}`, count: detail.counts.total };
+  out.results = cards.map((c) => c.result);
+  out.works = cards.map((c) => c.work);
   return out;
 }
 

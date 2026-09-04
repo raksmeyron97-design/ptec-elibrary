@@ -75,6 +75,58 @@ export function noResults(query: string, locale: AILocale, suggestions: readonly
     : `${head} Try a broader term, or browse the collection at /books.`;
 }
 
+/** An author or subject hub resolved: how much it holds, and where the full
+ *  list lives. The cards carry the first few works. */
+export function hubLead(
+  hub: { kind: "author" | "subject"; name: string; url: string; count: number },
+  shown: number,
+  locale: AILocale,
+): string {
+  const count = n(hub.count, locale);
+  if (locale === "km") {
+    const what = hub.kind === "author" ? `${hub.name} មានស្នាដៃចំនួន ${count}` : `មុខវិជ្ជា «${hub.name}» មានឯកសារចំនួន ${count}`;
+    const more = hub.count > shown ? ` បង្ហាញ ${n(shown, "km")} នៅទីនេះ;` : "";
+    return `${what} នៅក្នុងបណ្ណាល័យ វ.គ.ភ។${more} បញ្ជីពេញលេញនៅ ${hub.url}។`;
+  }
+  const what =
+    hub.kind === "author"
+      ? `${hub.name} has ${count} work${hub.count === 1 ? "" : "s"}`
+      : `The subject “${hub.name}” holds ${count} resource${hub.count === 1 ? "" : "s"}`;
+  const more = hub.count > shown ? ` — ${shown} shown here;` : ";";
+  return `${what} in the PTEC Library${more} the full list is at ${hub.url}.`;
+}
+
+/** "What subjects do you have?" — the index itself, rendered as one line. */
+export function subjectOverview(list: string, locale: AILocale): string {
+  return locale === "km"
+    ? `មុខវិជ្ជានៅក្នុងបណ្ណាល័យ៖ ${list}។ រកមើលទាំងអស់នៅ /subjects។`
+    : `The library’s subjects: ${list}. Browse them all at /subjects.`;
+}
+
+export function noAuthor(query: string, locale: AILocale): string {
+  const name = query.trim();
+  if (locale === "km") {
+    return name
+      ? `ខ្ញុំរកមិនឃើញអ្នកនិពន្ធឈ្មោះ «${name}» នៅក្នុងបណ្ណាល័យទេ។ សូមរកមើលអ្នកនិពន្ធទាំងអស់នៅ /authors។`
+      : "សូមប្រាប់ឈ្មោះអ្នកនិពន្ធ ឬរកមើលអ្នកនិពន្ធទាំងអស់នៅ /authors។";
+  }
+  return name
+    ? `I couldn’t find an author named “${name}” in the PTEC Library. Everyone with a listed work is at /authors.`
+    : "Tell me the author’s name, or browse everyone with a listed work at /authors.";
+}
+
+export function noSubject(query: string, locale: AILocale): string {
+  const name = query.trim();
+  if (locale === "km") {
+    return name
+      ? `ខ្ញុំរកមិនឃើញមុខវិជ្ជា «${name}» ទេ។ សូមរកមើលមុខវិជ្ជាទាំងអស់នៅ /subjects។`
+      : "សូមរកមើលមុខវិជ្ជាទាំងអស់នៅ /subjects។";
+  }
+  return name
+    ? `I couldn’t find a subject called “${name}”. The full list is at /subjects.`
+    : "The full list of subjects is at /subjects.";
+}
+
 /** Library fact answer, with the page path that carries the full detail. */
 export function factAnswer(text: string, link: string | undefined, locale: AILocale): string {
   if (!text) {

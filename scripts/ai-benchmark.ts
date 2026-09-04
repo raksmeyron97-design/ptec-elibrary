@@ -6,7 +6,7 @@
 //
 // WHAT THIS MEASURES, precisely
 // ─────────────────────────────
-// For each of 100 representative questions it runs the REAL post-2.0 decision
+// For each of 106 representative questions it runs the REAL post-2.0 decision
 // path — `classifyIntent` → fixture retrieval → `deterministicAnswer` →
 // `buildGeneration` — and counts the prompt it would send. It then rebuilds the
 // pre-2.0 prompt for the same question from the same fixture rows, using the
@@ -53,7 +53,7 @@ const ORG = {
   institutionName: "Phnom Penh Teacher Education College",
 };
 
-// ── The corpus: 100 representative questions ─────────────────────────────────
+// ── The corpus: 106 representative questions ─────────────────────────────────
 // Proportions are modelled on the shape of real library assistant traffic:
 // mostly catalogue lookups and library facts, a minority of document questions,
 // a tail of general knowledge and misuse. Roughly 40% Khmer, matching the
@@ -170,6 +170,13 @@ const QUESTIONS: string[] = [
   // Academic misuse (2)
   "Write my essay about Piaget for me",
   "សូមសរសេរអត្ថបទឱ្យខ្ញុំអំពីការអប់រំ",
+  // Author and subject discovery (6) — directory hubs, zero-LLM
+  "Who wrote Research Design: Qualitative, Quantitative and Mixed Methods?",
+  "Books by Catherine Dawson",
+  "តើមានសៀវភៅសរសេរដោយ ជា សុទ្ធ ទេ?",
+  "What subjects do you have?",
+  "Which books are in the subject mathematics?",
+  "តើមានមុខវិជ្ជាអ្វីខ្លះ?",
 ];
 
 /** Which questions arrive with a book page in context. */
@@ -272,6 +279,33 @@ function fixtureFor(intent: IntentResult, index: number): { retrieval: Retrieval
           })),
         },
         facts: [],
+      };
+    }
+
+    case "author_search":
+    case "subject_search": {
+      // A resolved hub: five cards plus the hub line; the overview question
+      // (no subject named) gets the index as one fact line instead.
+      const overview = intent.intent === "subject_search" && !intent.query;
+      const rows = overview ? [] : Array.from({ length: 5 }, (_, i) => rawBookRow(i));
+      return {
+        retrieval: {
+          ...EMPTY_RETRIEVAL,
+          dbQueries: overview ? 1 : 2,
+          hub: overview
+            ? undefined
+            : intent.intent === "author_search"
+              ? { kind: "author", name: "Sok Dara", url: "/authors/sok-dara", count: 12 }
+              : { kind: "subject", name: "Education", url: "/subjects/education", count: 34 },
+          results: rows.map((r) => ({
+            slug: r.slug, title: r.title, author: r.authors.name,
+            coverUrl: r.cover_url, url: `/books/${r.slug}`, type: "book" as const,
+          })),
+          works: rows.map((r) => ({
+            title: r.title, author: r.authors.name, kind: "Education", summary: DESCRIPTION, year: 2021,
+          })),
+        },
+        facts: overview ? ["Education (34) · Mathematics (12) · Science (9)"] : [],
       };
     }
 
@@ -545,7 +579,7 @@ interface Row {
 }
 
 /**
- * The corpus is 100 DISTINCT questions, so a single pass can never show a cache
+ * The corpus is 106 DISTINCT questions, so a single pass can never show a cache
  * hit. Real traffic repeats: a handful of popular queries dominate the day.
  * The repeat pass replays every third question a second time and reports how
  * many of those repeats the retrieval cache would serve.

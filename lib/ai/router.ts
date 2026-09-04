@@ -30,7 +30,9 @@ import {
   getLibraryFact,
   getLibraryOverview,
   getRelatedBooks,
+  searchAuthors,
   searchPassages,
+  searchSubjects,
   searchWorks,
 } from "./retrieval";
 import {
@@ -104,6 +106,16 @@ async function retrieveFor(
 
     case "related_books":
       return { retrieval: intent.slug ? await getRelatedBooks(intent.slug) : EMPTY_RETRIEVAL, facts: [] };
+
+    case "author_search": {
+      const retrieval = await searchAuthors(intent.query);
+      return { retrieval, facts: [] };
+    }
+
+    case "subject_search": {
+      const retrieval = await searchSubjects(intent.query);
+      return { retrieval, facts: retrieval.facts };
+    }
 
     case "pdf_question":
       return {

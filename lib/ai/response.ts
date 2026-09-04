@@ -15,6 +15,8 @@ export type AIIntent =
   | "post_search"
   | "book_detail"
   | "related_books"
+  | "author_search"
+  | "subject_search"
   | "pdf_question"
   | "general_library_question"
   | "general_knowledge"
