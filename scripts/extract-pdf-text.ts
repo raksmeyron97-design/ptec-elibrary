@@ -30,6 +30,14 @@ config();
 
 import { createClient } from "@supabase/supabase-js";
 import { indexPdfPages, type PageRecordType } from "../lib/pdf-page-index";
+import {
+  RETRYABLE_STATUSES,
+  outcomeFromError,
+  outcomeFromResult,
+  sourceDigest,
+  writeIndexState,
+  type IndexStatus,
+} from "../lib/indexing/state";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -66,13 +74,50 @@ async function fetchIndexedRecordKeys(): Promise<Set<string>> {
   return keys;
 }
 
+/**
+ * Records whose most recent outcome was PERMANENT — a PDF that parsed cleanly
+ * and had no text on any page. Re-fetching and re-parsing a scan on every
+ * sweep costs bandwidth and CPU to learn the same thing again, so they are
+ * skipped unless --all.
+ *
+ * `unfetchable` and `failed` are deliberately NOT in this set: those are a
+ * storage blip and a bug respectively, and both are exactly what a repair run
+ * exists to retry.
+ */
+async function fetchPermanentlySkippedKeys(): Promise<Set<string>> {
+  const keys = new Set<string>();
+  const { data, error } = await db
+    .from("resource_index_state")
+    .select("record_type, record_id, status");
+  if (error) {
+    // Before migration 0133 the table is absent. Fall back to the old
+    // behaviour (retry everything) rather than failing the backfill.
+    console.warn(`resource_index_state unavailable (${error.message}); not skipping any scans.`);
+    return keys;
+  }
+  for (const r of data ?? []) {
+    const status = r.status as IndexStatus;
+    if (!RETRYABLE_STATUSES.has(status) && status !== "indexed") {
+      keys.add(`${r.record_type}:${r.record_id}`);
+    }
+  }
+  return keys;
+}
+
 async function main() {
-  const [{ data: books }, { data: theses }, { data: publications }, alreadyIndexed] = await Promise.all([
-    db.from("books").select("id, title, book_files(file_url)").eq("is_published", true),
-    db.from("research_reports").select("id, title, file_url").eq("is_published", true),
-    db.from("publications").select("id, title, pdf_url").eq("is_published", true),
-    REEXTRACT_ALL ? Promise.resolve(new Set<string>()) : fetchIndexedRecordKeys(),
-  ]);
+  const [{ data: books }, { data: theses }, { data: publications }, indexedKeys, permanentKeys] =
+    await Promise.all([
+      db.from("books").select("id, title, book_files(file_url)").eq("is_published", true),
+      db.from("research_reports").select("id, title, file_url").eq("is_published", true),
+      db.from("publications").select("id, title, pdf_url").eq("is_published", true),
+      REEXTRACT_ALL ? Promise.resolve(new Set<string>()) : fetchIndexedRecordKeys(),
+      REEXTRACT_ALL ? Promise.resolve(new Set<string>()) : fetchPermanentlySkippedKeys(),
+    ]);
+
+  /* Two reasons to leave a record alone: it already has pages, or we already
+     established it has none to get. Everything else — including a record that
+     failed last time — is a target. */
+  const alreadyIndexed = new Set<string>([...indexedKeys, ...permanentKeys]);
 
   const targets: Target[] = [];
   for (const b of books ?? []) {
@@ -99,6 +144,11 @@ async function main() {
   for (const t of targets) {
     done++;
     const label = `[${done}/${targets.length}] ${t.title.slice(0, 50)}`;
+    /* Every branch below records an outcome in resource_index_state, so the
+       admin Data Quality panel reflects this run. A CLI sweep that indexed
+       nothing and a CLI sweep that was never run must not look the same
+       there — that equivalence is the defect this table was added for. */
+    let outcome: { status: IndexStatus; pages: number; detail?: string };
     try {
       const result = await indexPdfPages({
         recordType: t.recordType,
@@ -106,6 +156,7 @@ async function main() {
         fileUrl: t.rawUrl,
         db,
       });
+      outcome = outcomeFromResult(result);
       if (result.indexed) {
         totalPages += result.pages;
         indexedCount++;
@@ -118,9 +169,22 @@ async function main() {
         console.log(`${label} — SKIP (${result.reason}${result.detail ? `: ${result.detail}` : ""})`);
       }
     } catch (err) {
+      outcome = outcomeFromError(err);
       failed++;
       console.log(`${label} — FAILED: ${err instanceof Error ? err.message.slice(0, 100) : err}`);
     }
+
+    await writeIndexState(db, {
+      recordType: t.recordType,
+      recordId: t.recordId,
+      status: outcome.status,
+      pages: outcome.pages,
+      // Chunk embedding is scripts/embed-library.ts's job; claiming a count
+      // here would overstate what this run produced.
+      chunks: 0,
+      detail: outcome.detail,
+      sourceDigest: sourceDigest(t.rawUrl),
+    });
   }
 
   console.log(`\nDone. ${indexedCount} records indexed (${totalPages} pages), ${skippedNoText} had no text layer, ${failed} failed.`);

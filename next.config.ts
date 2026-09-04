@@ -156,6 +156,43 @@ const nextConfig: NextConfig = {
   // pdfjs is loaded lazily by lib/pdf-page-index.ts for server-side text
   // extraction; keep it out of the server bundle (worker/canvas quirks).
   serverExternalPackages: ["pdfjs-dist"],
+  /**
+   * SHIP pdf.worker.mjs, WHICH FILE TRACING CANNOT SEE.
+   *
+   * `lib/pdf-page-index.ts` imports `pdfjs-dist/legacy/build/pdf.mjs` by a
+   * string literal, so the tracer finds THAT file and copies it into
+   * `.next/standalone/node_modules/`. But pdf.js does not reach its worker
+   * through an import the tracer can follow — it resolves one at runtime:
+   *
+   *     GlobalWorkerOptions.workerSrc ||= "./pdf.worker.mjs";
+   *
+   * In Node there is no real Worker, so `getDocument()` takes the "fake
+   * worker" path, which imports that specifier to get `WorkerMessageHandler`.
+   * A relative specifier assigned to a mutable global is invisible to static
+   * analysis, so the traced output contained exactly one pdfjs file —
+   * `legacy/build/pdf.mjs` — and every call in the container died on its first
+   * statement with:
+   *
+   *     Setting up fake worker failed: "Cannot find module
+   *     .../pdfjs-dist/legacy/build/pdf.worker.mjs"
+   *
+   * `indexPdfPagesSafe()` is non-throwing by contract, so that exception was
+   * caught and logged and nothing else. The result in production: `book_pages`
+   * held 0 rows for 120 uploaded books across five weeks, "found inside"
+   * search matched nothing, and the AI assistant could cite no page of any
+   * book — while every local run and every test passed, because a dev
+   * `node_modules` has the worker sitting next to `pdf.mjs`.
+   *
+   * The reproduction is one `mv` away: hide `pdf.worker.mjs` and the extractor
+   * throws that exact message; restore it and the same PDF yields 172 pages.
+   *
+   * This entry is therefore load-bearing for search and for RAG, not a build
+   * detail. `lib/pdf-worker-tracing.test.ts` fails if it is removed or if the
+   * path stops matching the file pdf.js actually asks for.
+   */
+  outputFileTracingIncludes: {
+    "/**": ["./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"],
+  },
   turbopack: {},
   async rewrites() {
     return {

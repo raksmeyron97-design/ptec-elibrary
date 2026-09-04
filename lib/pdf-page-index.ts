@@ -20,6 +20,13 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { toAllowedStorageUrl } from "@/lib/zima";
+import {
+  outcomeFromError,
+  outcomeFromResult,
+  sourceDigest,
+  writeIndexState,
+  type IndexStatus,
+} from "./indexing/state";
 
 export const MAX_PAGE_CHARS = 8000; // cap outliers; a page of real prose is ~3-4k chars
 export const MIN_PAGE_CHARS = 20;   // below this it's a blank/scanned page — skip
@@ -178,11 +185,21 @@ export async function indexPdfPages(opts: {
 }
 
 /**
- * Background-safe wrapper for server actions: never throws, only logs.
+ * Background-safe wrapper for server actions: never throws.
+ *
  * Call via `after(() => indexPdfPagesSafe(...))` so the admin's upload
  * response isn't blocked by PDF parsing. After a successful extraction it
  * chains chunk embedding (book_chunks, migration 0082) so new/replaced
  * uploads become passage-searchable without a manual backfill.
+ *
+ * EVERY outcome — success, either skip, and a thrown error — is recorded in
+ * `resource_index_state` (migration 0133) before this returns. That write is
+ * the point of the wrapper, not a nicety: this function's non-throwing
+ * contract is what let a total production failure run for five weeks looking
+ * exactly like a collection of scanned documents, because a `console.log` in a
+ * container nobody tails is not an observation. A resource that reaches here
+ * ends up with a status a human can be shown, or the failure to record THAT is
+ * itself logged at error level.
  */
 export async function indexPdfPagesSafe(
   recordType: PageRecordType,
@@ -190,8 +207,32 @@ export async function indexPdfPagesSafe(
   fileUrl: string,
 ): Promise<void> {
   const logId = sanitizeLogId(recordId);
+
+  // One client for the extraction AND the bookkeeping, so the status row lands
+  // in the same database the pages did. Built outside the try because without
+  // a client there is nowhere to record an outcome — the one case this
+  // function cannot make visible, so it is at least loud.
+  let db: SupabaseClient;
   try {
-    const result = await indexPdfPages({ recordType, recordId, fileUrl });
+    db = serviceDb();
+  } catch (err) {
+    console.error(
+      "[pdf-index] %s:%s — no service client:",
+      recordType,
+      logId,
+      err instanceof Error ? err.message : err,
+    );
+    return;
+  }
+
+  const digest = sourceDigest(fileUrl);
+  let outcome: { status: IndexStatus; pages: number; detail?: string };
+  let chunks = 0;
+
+  try {
+    const result = await indexPdfPages({ recordType, recordId, fileUrl, db });
+    outcome = outcomeFromResult(result);
+
     if (result.indexed) {
       // Constant format string, values as arguments. A template literal makes
       // the whole message the format string, so a `%` inside a record id would
@@ -199,7 +240,8 @@ export async function indexPdfPagesSafe(
       // string. The rendered line is identical.
       console.log("[pdf-index] %s:%s — indexed %d pages", recordType, logId, result.pages);
       const { embedRecordChunksSafe } = await import("./chunk-embed");
-      await embedRecordChunksSafe(recordType, recordId);
+      const embedded = await embedRecordChunksSafe(recordType, recordId);
+      chunks = embedded?.embedded ? embedded.chunks : 0;
     } else {
       console.log(
         "[pdf-index] %s:%s — skipped (%s)",
@@ -209,6 +251,7 @@ export async function indexPdfPagesSafe(
       );
     }
   } catch (err) {
+    outcome = outcomeFromError(err);
     console.error(
       "[pdf-index] %s:%s — failed:",
       recordType,
@@ -216,4 +259,14 @@ export async function indexPdfPagesSafe(
       err instanceof Error ? err.message : err,
     );
   }
+
+  await writeIndexState(db, {
+    recordType,
+    recordId,
+    status: outcome.status,
+    pages: outcome.pages,
+    chunks,
+    detail: outcome.detail,
+    sourceDigest: digest,
+  });
 }
