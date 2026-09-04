@@ -145,6 +145,12 @@ Three edges carry most of the value:
 * **ORPHANED → COMPLETED** — the reconciler's most important edge. A save whose
   *response* was lost leaves a real `books` row and a session that never heard
   about it. Deleting that file would take out a catalogued book's PDF.
+* **ORPHANED → SAVING_DB** — the save action claims from `["STORED", "ORPHANED"]`,
+  so a librarian who left the form open past the reconciler's expiry can still
+  save. `transition()` validates every state in that list before touching the
+  row, so this edge must exist even for a session still sitting in STORED —
+  without it every chunked save failed with "Illegal upload transition
+  ORPHANED → SAVING_DB".
 
 **Client stages** (`UploadStage`) are deliberately coarser and only one of them
 is measurable:

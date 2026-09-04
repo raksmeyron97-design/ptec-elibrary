@@ -55,6 +55,7 @@ const params = (slug: string) => Promise.resolve({ slug });
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.unstubAllEnvs();
   getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
   isVerifiedGoogleCrawler.mockResolvedValue(false);
   rateLimit.mockResolvedValue({ success: true, reset: 0 });
@@ -188,6 +189,67 @@ describe("GET /api/books/[slug]/file", () => {
     );
     expect(res.status).toBe(401);
     expect(zimaFetch).not.toHaveBeenCalled();
+  });
+
+  // ── Legacy R2 records on a deployment with no R2 ──────────────────────────
+  // The seeded book's file_url is a bare legacy key. Presigning it with an
+  // empty bucket threw inside the AWS SDK and escaped as an unhandled 500,
+  // which is how the one readable book on a fresh checkout answered.
+  describe("a legacy R2 key when R2 is not configured", () => {
+    beforeEach(() => {
+      vi.stubEnv("R2_ACCOUNT_ID", "");
+      vi.stubEnv("R2_BUCKET_NAME", "");
+      vi.stubEnv("R2_ACCESS_KEY_ID", "");
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      maybeSingle.mockResolvedValue({
+        data: {
+          title: "Foundations of Education",
+          book_files: [{ file_url: "books/seed/foundations-of-education.pdf", format: "pdf" }],
+        },
+        error: null,
+      });
+    });
+
+    it("never throws and never answers 500", async () => {
+      const res = await GET(req("/api/books/abc-123/file"), { params: params("abc-123") });
+      expect(res.status).not.toBe(500);
+      expect(res.status).toBeLessThan(500);
+    });
+
+    it("answers an honest 404 when the development placeholder is switched off", async () => {
+      vi.stubEnv("DEV_PLACEHOLDER_PDF", "off");
+      const res = await GET(req("/api/books/abc-123/file"), { params: params("abc-123") });
+      expect(res.status).toBe(404);
+      expect(await res.text()).toBe("File not found in storage");
+    });
+
+    it("answers 404 in production, where the placeholder cannot exist", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      const res = await GET(req("/api/books/abc-123/file"), { params: params("abc-123") });
+      expect(res.status).toBe(404);
+    });
+
+    it("serves a labelled placeholder in development so the reader is openable", async () => {
+      const res = await GET(req("/api/books/abc-123/file"), { params: params("abc-123") });
+      expect(res.status).toBe(200);
+      expect(res.headers.get("x-ptec-placeholder")).toBe("development");
+      expect(res.headers.get("content-type")).toBe("application/pdf");
+      const body = Buffer.from(await res.arrayBuffer()).toString("latin1");
+      expect(body.startsWith("%PDF")).toBe(true);
+      expect(body).toContain("Development placeholder - not library content");
+    });
+
+    it("keeps the inline-only rule — a placeholder is still never an attachment", async () => {
+      const res = await GET(req("/api/books/abc-123/file"), { params: params("abc-123") });
+      expect(res.headers.get("content-disposition")).toContain("inline");
+      expect(res.headers.get("content-disposition")).not.toContain("attachment");
+    });
+
+    it("still refuses an anonymous reader before reaching storage at all", async () => {
+      getUser.mockResolvedValue({ data: { user: null } });
+      const res = await GET(req("/api/books/abc-123/file"), { params: params("abc-123") });
+      expect(res.status).toBe(401);
+    });
   });
 
   it("never emits an attachment disposition — the source string is inline only", async () => {

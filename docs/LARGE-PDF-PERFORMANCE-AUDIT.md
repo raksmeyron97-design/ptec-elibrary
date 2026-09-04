@@ -108,7 +108,7 @@ at a favourable server-side 20 ms per call, steps 1–3 add ~60 ms to every chun
 
 ### 3b. `rangeChunkSize: 65536`
 
-`components/ui/reader/PDFViewer.tsx:449` pins PDF.js to 64 KB ranges. Benchmark
+`components/ui/reader/PDFViewer.tsx` pinned PDF.js to 64 KB ranges (the option now lives in `components/ui/reader/pdf-options.ts`). Benchmark
 against the local Zima instance, fetching the first 4 MB of a 60 MB file (a
 realistic "enough to render the first page of a scanned book" figure), with a
 simulated per-request proxy overhead:
@@ -188,7 +188,7 @@ And in Zima:
 ## 6. Files this will change
 
 **e-library**
-- `components/ui/reader/PDFViewer.tsx` — `rangeChunkSize`
+- `components/ui/reader/pdf-options.ts` (was inline in `PDFViewer.tsx`) — `rangeChunkSize`
 - `app/api/books/[slug]/file/route.ts` — cached book lookup, range-aware limit
 - `lib/rate-limit-policy.ts` — a `fileRange` policy beside `fileRead`
 - `lib/zima.ts` — send the API key on file reads

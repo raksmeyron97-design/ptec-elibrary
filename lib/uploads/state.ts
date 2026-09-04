@@ -56,6 +56,14 @@ export type UploadState = (typeof UPLOAD_STATES)[number];
  *                            that, and the save is retryable without
  *                            re-uploading a byte.
  *   STORED/SAVING_DB → ORPHANED  the reconciler's verdict, never a request's.
+ *   ORPHANED → SAVING_DB     `saveBookRecord` claiming a file the reconciler
+ *                            orphaned because the save took too long. The
+ *                            bytes are still in storage and the user is still
+ *                            on the form, so the save is allowed to finish.
+ *                            `transition()` validates EVERY state in its
+ *                            `from` list, so the save action's
+ *                            `["STORED", "ORPHANED"]` claim needs this edge
+ *                            even when the row is still STORED.
  */
 const TRANSITIONS: Readonly<Record<UploadState, readonly UploadState[]>> = {
   // CREATED → FINALIZING is legal, and not a shortcut past uploading. The
@@ -73,7 +81,7 @@ const TRANSITIONS: Readonly<Record<UploadState, readonly UploadState[]>> = {
   COMPLETED: [],
   FAILED:    [],
   CANCELLED: [],
-  ORPHANED:  ["COMPLETED", "CANCELLED"],
+  ORPHANED:  ["SAVING_DB", "COMPLETED", "CANCELLED"],
 };
 
 export function canTransition(from: UploadState, to: UploadState): boolean {

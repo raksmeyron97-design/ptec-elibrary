@@ -16,9 +16,17 @@ const FOCUSABLE =
  *
  * Returns a ref to attach to the dialog container.
  */
-export function useFocusTrap<T extends HTMLElement>(active: boolean) {
+export function useFocusTrap<T extends HTMLElement>(
+  active: boolean,
+  options: {
+    /** Selector for the element to focus on open, instead of the first
+     *  focusable one (e.g. a search field the dialog exists for). */
+    initialFocus?: string;
+  } = {},
+) {
   const containerRef = useRef<T | null>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
+  const { initialFocus } = options;
 
   useEffect(() => {
     if (!active) return;
@@ -29,7 +37,8 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean) {
 
     // Move focus inside the dialog after the open animation has mounted it.
     const focusTimer = window.setTimeout(() => {
-      const first = container.querySelector<HTMLElement>(FOCUSABLE);
+      const preferred = initialFocus ? container.querySelector<HTMLElement>(initialFocus) : null;
+      const first = preferred ?? container.querySelector<HTMLElement>(FOCUSABLE);
       (first ?? container).focus();
     }, 0);
 
@@ -64,7 +73,7 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean) {
       document.removeEventListener("keydown", onKeyDown, true);
       restoreRef.current?.focus?.();
     };
-  }, [active]);
+  }, [active, initialFocus]);
 
   return containerRef;
 }

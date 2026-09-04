@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { upsertReadingProgress } from "@/lib/reading-progress";
 
 // ── Load saved progress for a book ───────────────────────────────────────────
 export async function getReadingProgress(
@@ -39,11 +40,19 @@ export async function getReadingProgress(
 }
 
 // ── Upsert progress (called from client via server action) ────────────────────
+//
+// The DEBOUNCED autosave path, used while the reader is open and the page is
+// alive. The teardown flush cannot use this — a Server Action is a plain
+// `fetch()` with no `keepalive`, so the browser cancels it when the tab closes
+// — and goes to POST /api/reader/progress instead. Both share
+// `upsertReadingProgress()`, so the high-water rule for `max_progress_pct` is
+// defined exactly once.
 export async function saveReadingProgress(
   bookId: string,
   progressPct: number
 ): Promise<void> {
-  // Same fix: get user from cookie client first
+  // Get the user from the cookie client first; the write then runs through the
+  // service client, which bypasses RLS.
   const supabase = await createClient();
 
   const {
@@ -51,35 +60,5 @@ export async function saveReadingProgress(
   } = await supabase.auth.getUser();
   if (!user) return;
 
-  // Service client bypasses RLS for the write
-  const db = createServiceClient();
-
-  // Fetch current max_progress_pct first
-  const { data: existing } = await db
-    .from("reading_progress")
-    .select("max_progress_pct")
-    .eq("user_id", user.id)
-    .eq("book_id", bookId)
-    .maybeSingle();
-
-  const currentMax = existing?.max_progress_pct ? Number(existing.max_progress_pct) : 0;
-  const clampedProgress = Math.min(100, Math.max(0, progressPct));
-  const newMax = Math.max(currentMax, clampedProgress);
-
-  const { error } = await db.from("reading_progress").upsert(
-    {
-      user_id:      user.id,
-      book_id:      bookId,
-      progress_pct: clampedProgress,
-      max_progress_pct: newMax,
-      last_read_at: new Date().toISOString(),
-    },
-    {
-      onConflict: "user_id,book_id",
-    }
-  );
-
-  if (error) {
-    console.error("[saveReadingProgress]", error.message);
-  }
+  await upsertReadingProgress(user.id, bookId, progressPct);
 }

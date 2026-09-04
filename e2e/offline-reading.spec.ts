@@ -123,7 +123,9 @@ async function clearOfflineState(page: Page) {
   });
 }
 
-const readerCanvas = (page: Page) => page.locator("canvas").first();
+// The pdf.js page canvas specifically: the footer draws a canvas of its own,
+// which used to satisfy this wait before the reader chunk had even loaded.
+const readerCanvas = (page: Page) => page.locator(".react-pdf__Page canvas").first();
 
 test.describe("offline reading", () => {
   test.describe("saving", () => {
@@ -268,11 +270,12 @@ test.describe("offline reading", () => {
 
       // The page count comes out of the PDF pdf.js parsed, not from metadata:
       // the seeded record claims nothing about length.
-      const pageInput = page.getByRole("spinbutton", { name: /go to page/i });
-      await expect(pageInput).toHaveValue("1");
-      await expect(page.getByText("/ 3").first()).toBeVisible();
-      await page.getByRole("button", { name: /^next/i }).first().click();
-      await expect(pageInput).toHaveValue("2", { timeout: 10_000 });
+      // CSS rather than role: the reader HUD auto-hides (aria-hidden) after
+      // 3 s of inactivity, and a role query would then find nothing.
+      const indicator = page.locator('[data-reader-hud] button[aria-label^="Page "]:visible').first();
+      await expect(indicator).toHaveAttribute("aria-label", "Page 1 of 3");
+      await page.keyboard.press("ArrowRight");
+      await expect(indicator).toHaveAttribute("aria-label", "Page 2 of 3", { timeout: 10_000 });
     });
 
     test("explains itself when the bytes are missing instead of failing blankly", async ({ page }) => {

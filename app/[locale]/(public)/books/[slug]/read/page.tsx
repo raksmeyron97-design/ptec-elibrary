@@ -1,29 +1,30 @@
 import type { Metadata } from "next";
 import { decodeSlugParam } from "@/lib/slug";
-import { Link } from "@/i18n/navigation";
 import { notFound, redirect } from "next/navigation";
 import { unstable_cache } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { mapRowToBook } from "@/lib/books";
+import { bookToCitationWork, hasCitableMetadata } from "@/lib/books/citation";
 import { getReadingProgress } from "@/app/actions/reading-progress";
 import PDFViewer from "@/components/ui/reader/PDFViewerClient";
 import ReaderOpenPing from "@/components/ui/reader/ReaderOpenPing";
-import Icon from "@/components/ui/core/Icon";
-import { getTranslations } from "next-intl/server";
+import ReaderViewportFill from "@/components/ui/reader/ReaderViewportFill";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { getSiteConfig } from "@/lib/system-settings/config";
 
 // Dedicated, chrome-light reading surface. The book detail page embeds the
 // same viewer as a preview; long reading sessions belong here, where the
-// viewer gets the whole viewport instead of competing with page furniture.
+// viewer gets the whole viewport. The reader's own HUD carries the back link
+// and the title, so this page adds no chrome of its own.
 
 type ReadPageProps = { params: Promise<{ slug: string; locale: string }> };
 
 const getReadableBook = unstable_cache(
   async (slug: string) => {
     const supabase = createServiceClient();
-    const COLUMNS = "id, title, slug, cover_color, cover_url, pages, department, authors ( name, bio ), categories ( name )";
+    const COLUMNS =
+      "id, title, slug, cover_color, cover_url, pages, department, isbn, publisher, language, published_at, verified_at, authors ( name, bio ), categories ( name )";
     const load = (columns: string) =>
       supabase
         .from("books")
@@ -71,7 +72,7 @@ export async function generateMetadata({ params }: ReadPageProps): Promise<Metad
 }
 
 export default async function BookReadPage({ params }: ReadPageProps) {
-  const [{ slug: rawSlug, locale }, t] = await Promise.all([params, getTranslations("bookDetail")]);
+  const { slug: rawSlug, locale } = await params;
   // generateMetadata receives decoded params while the page body gets them
   // encoded — decodeSlugParam is idempotent, so normalize in both places.
   const slug = decodeSlugParam(rawSlug);
@@ -82,51 +83,41 @@ export default async function BookReadPage({ params }: ReadPageProps) {
   // anonymous visitors to sign in (and back here) instead of rendering a viewer
   // whose PDF fetch would 401.
   const user = await getSessionUser();
+  const prefix = locale === "km" ? "/km" : "";
   if (!user) {
-    const prefix = locale === "km" ? "/km" : "";
     redirect(`/auth/login?callbackUrl=${encodeURIComponent(`${prefix}/books/${slug}/read`)}`);
   }
 
   const fileSrc = `/api/books/${book.dbId}/file`;
-  const savedProgress = await getReadingProgress(book.dbId);
+  const [savedProgress, siteConfig] = await Promise.all([getReadingProgress(book.dbId), getSiteConfig()]);
+  // The same metadata the book page's "Cite this book" uses — offered inside
+  // the reader only when it can support a citation.
+  const work = bookToCitationWork(book);
+  const citation = hasCitableMetadata(work) ? { work, verified: !!book.verifiedAt } : null;
 
   return (
-    <div className="min-h-screen bg-bg-body">
-      {/* Slim context bar — back to the book, nothing else. */}
-      <div className="border-b border-divider bg-bg-surface px-4 py-2.5 sm:px-6">
-        <div className="mx-auto flex max-w-[1400px] items-center gap-3">
-          <Link
-            href={`/books/${slug}`}
-            className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-brand transition-colors hover:bg-brand/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
-          >
-            <Icon name="arrow-left" className="text-[15px]" />
-            {t("details")}
-          </Link>
-          <h1 className="font-khmer-serif min-w-0 flex-1 truncate text-[15px] font-bold text-text-heading">
-            {book.title}
-          </h1>
-        </div>
-      </div>
-
+    <ReaderViewportFill>
       <ReaderOpenPing contentType="book" contentId={book.dbId} />
-      <div className="mx-auto max-w-[1400px] px-2 py-3 sm:px-4 sm:py-4">
-        <PDFViewer
-          title={book.title}
-          pdfUrl={fileSrc}
-          bookId={book.dbId}
-          totalPages={book.pages}
-          initialProgressPct={savedProgress?.progressPct ?? 0}
-          initialMaxProgressPct={savedProgress?.maxProgressPct ?? 0}
-          // Library policy (0131), not a UI preference: the reader hides the
-          // Download action for a read-online-only book. The refusal that
-          // matters is the server's — /api/books/[slug]/download re-decides on
-          // every request — but offering an action that would 403 is a worse
-          // experience than not offering it.
-          allowDownload={book.allowDownload !== false}
-          isLoggedIn={!!user}
-          reportEmail={(await getSiteConfig()).email}
-        />
-      </div>
-    </div>
+      <PDFViewer
+        title={book.title}
+        pdfUrl={fileSrc}
+        bookId={book.dbId}
+        totalPages={book.pages}
+        initialProgressPct={savedProgress?.progressPct ?? 0}
+        initialMaxProgressPct={savedProgress?.maxProgressPct ?? 0}
+        initialProgressAt={savedProgress?.lastReadAt ?? null}
+        // Library policy (0131), not a UI preference: the reader hides the
+        // Download action for a read-online-only book. The refusal that
+        // matters is the server's — /api/books/[slug]/download re-decides on
+        // every request — but offering an action that would 403 is a worse
+        // experience than not offering it.
+        allowDownload={book.allowDownload !== false}
+        isLoggedIn={!!user}
+        reportEmail={siteConfig.email}
+        backHref={`${prefix}/books/${slug}`}
+        citation={citation}
+        layout="fill"
+      />
+    </ReaderViewportFill>
   );
 }

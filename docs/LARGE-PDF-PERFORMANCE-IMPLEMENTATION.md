@@ -85,7 +85,7 @@ collapses under `STRICT_DOWNLOAD_RATE_LIMIT`.
 
 | File | Change |
 |---|---|
-| `components/ui/reader/PDFViewer.tsx` | `rangeChunkSize` 64 KB → 512 KB; `pdf_first_page` telemetry with request count + bytes; `onRenderSuccess` plumbed through `VirtualPage` |
+| `components/ui/reader/PDFViewer.tsx` | `rangeChunkSize` 64 KB → 512 KB; `pdf_first_page` telemetry with request count + bytes; `onRenderSuccess` plumbed through `VirtualPage`. Since the reader refactor (docs/READER-UX-PERFORMANCE-VERIFICATION.md) the options live in `pdf-options.ts` (pinned by `pdf-options.test.ts`) and the telemetry in `hooks/useReaderTelemetry.ts` |
 | `app/api/books/[slug]/file/route.ts` | book row read through a `books`-tagged cache instead of a query per chunk; ranged requests metered as `fileRange` |
 | `app/api/theses/[id]/file/route.ts` | same range-aware metering (same viewer, same defect) |
 | `app/api/publications/[slug]/file/route.ts` | same |
@@ -210,7 +210,7 @@ Each change is independent and separately revertible.
 
 | To undo | Do this |
 |---|---|
-| Larger chunks | `rangeChunkSize: 65536` in `PDFViewer.tsx` |
+| Larger chunks | `rangeChunkSize: 65536` in `components/ui/reader/pdf-options.ts` |
 | Range-aware limiting | `RL_FILE_RANGE_PER_MIN=30` (equal to `RL_FILE_READ_PER_MIN`) |
 | Zima's authenticated bucket | `RL_FILES_AUTHED_PER_MIN=300` (equal to `RL_FILES_PER_MIN`) |
 | Cached book lookup | revert the `unstable_cache` wrapper in the file route; it is already tag-revalidated by every book mutation |

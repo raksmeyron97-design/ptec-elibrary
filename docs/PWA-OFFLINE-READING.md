@@ -152,7 +152,10 @@ network path.
 annotations, download counting, reader telemetry) at the single place they are
 all gated, while local state — bookmarks, last page, zoom, theme — keeps working
 because it never left the device. Downloading the open book is still allowed
-offline: the bytes are already there.
+offline: the bytes are already there. The offline reader passes `layout="fill"`
+and `backHref` (the offline library) so the viewer's own HUD carries the way
+back; `components/ui/reader/PDFViewer.test.tsx` ("offline mode") asserts that
+no server action and no telemetry beacon fires with `offline` set.
 
 pdf.js assets are already offline-safe and unchanged: the worker and standard
 fonts are precached, cmaps are fetched on demand and cached by rule 6.

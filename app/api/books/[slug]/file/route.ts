@@ -28,6 +28,7 @@ import { logSecurityEvent } from "@/lib/security-log";
 import { zimaFetch } from "@/lib/zima";
 import { clientIp } from "@/lib/client-ip";
 import { isVerifiedGoogleCrawler } from "@/lib/security/crawler";
+import { placeholderPdfResponse } from "@/lib/dev/placeholder-pdf";
 import { lockdownResponse } from "@/lib/security/lockdown";
 
 // Legacy R2 client — kept for backward compat with bare-key records in the DB.
@@ -199,17 +200,48 @@ export async function GET(
   }
 
   // ── Legacy: bare R2 object key (private bucket) ────────────────
-  const key = r2ObjectKey(fileUrl);
-  const command = new GetObjectCommand({
-    Bucket: process.env.R2_BUCKET_NAME!,
-    Key: key,
-  });
-  const presignedUrl = await getSignedUrl(s3, command, { expiresIn: 60 });
+  //
+  // R2 is the legacy fallback — Zima is primary — so a deployment can quite
+  // reasonably hold no R2 credentials at all, and every local checkout leaves
+  // those vars EMPTY. Presigning with an empty bucket throws
+  // `No value provided for input HTTP label: Bucket` deep inside the AWS SDK,
+  // and the throw escaped as an unhandled 500 with a stack trace: both an
+  // unhelpful answer and a worse one than the truth, which is simply that this
+  // route cannot produce the file. Everything below resolves to the same
+  // honest 404 the Zima branch already returns for an object storage lacks.
+  // (Mirrors the guard app/api/publications/[slug]/file/route.ts already had.)
+  if (!process.env.R2_ACCOUNT_ID || !process.env.R2_BUCKET_NAME || !process.env.R2_ACCESS_KEY_ID) {
+    // Development only, and only once real storage has been ruled out: serve a
+    // labelled placeholder so the reader can be opened by hand against the
+    // seeded book, whose file_url points at an object no local store holds.
+    const placeholder = placeholderPdfResponse({
+      title: book.title,
+      rangeHeader,
+      disposition,
+      source: "books/file",
+    });
+    if (placeholder) return placeholder;
+    console.warn(`[books/file] legacy R2 key "${fileUrl}" but R2 is not configured`);
+    return new NextResponse("File not found in storage", { status: 404 });
+  }
 
   const fetchHeaders: HeadersInit = {};
   if (rangeHeader) fetchHeaders["Range"] = rangeHeader;
 
-  const r2Res = await fetch(presignedUrl, { headers: fetchHeaders });
+  let r2Res: Response;
+  try {
+    const key = r2ObjectKey(fileUrl);
+    const command = new GetObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME,
+      Key: key,
+    });
+    const presignedUrl = await getSignedUrl(s3, command, { expiresIn: 60 });
+    r2Res = await fetch(presignedUrl, { headers: fetchHeaders });
+  } catch (storageError) {
+    console.error("[books/file] legacy R2 read failed:", storageError);
+    return new NextResponse("File not found in storage", { status: 404 });
+  }
+
   if (!r2Res.ok && r2Res.status !== 206) {
     return new NextResponse("File not found in storage", { status: 404 });
   }

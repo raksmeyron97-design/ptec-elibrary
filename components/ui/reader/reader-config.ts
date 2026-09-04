@@ -4,6 +4,8 @@
 export type ReaderTheme = "light" | "dark";
 export type ReaderFitMode = "width" | "page" | "custom";
 export type ReaderViewMode = "single" | "scroll";
+/** Single-page turn animation. "auto" follows the OS reduced-motion setting. */
+export type ReaderPageTransition = "auto" | "off";
 
 /** Reader palette. Dark page colors are fed to pdf.js's `pageColors`
     (its official high-contrast recolor API) — never a CSS invert filter. */
@@ -29,6 +31,13 @@ export const READER_KEYS = {
   zoom: "ebook:reader:v2:zoom",
   rotation: (bookId: string) => `ebook:reader:v2:rotation:${bookId}`,
   nativeWidth: (bookId: string) => `ebook:reader:v2:pw:${bookId}`,
+  pageTransition: "ebook:reader:v2:pageTransition",
+  /** Per-book exact reading position `{ p, pct }`. */
+  position: (bookId: string) => `ebook:pos:${bookId}`,
+  /** Per-book bookmarks (page numbers). */
+  bookmarks: (bookId: string) => `ebook:bm:${bookId}`,
+  /** Per-book page-1 aspect ratio, so the loading placeholder is the right shape. */
+  aspect: (bookId: string) => `ebook:ar:${bookId}`,
 } as const;
 
 export const lsGet = (k: string): string | null => {
@@ -80,4 +89,24 @@ export function loadReaderRotation(bookId: string): number {
 export function loadNativePageWidth(bookId: string): number | undefined {
   const v = parseFloat(lsGet(READER_KEYS.nativeWidth(bookId)) ?? "");
   return Number.isFinite(v) && v > 40 && v < 20000 ? v : undefined;
+}
+
+export function loadReaderPageTransition(): ReaderPageTransition {
+  return lsGet(READER_KEYS.pageTransition) === "off" ? "off" : "auto";
+}
+
+export function loadBookmarks(bookId: string): number[] {
+  try {
+    const arr = JSON.parse(lsGet(READER_KEYS.bookmarks(bookId)) ?? "[]");
+    return Array.isArray(arr)
+      ? Array.from(new Set(arr.filter((n): n is number => typeof n === "number" && n >= 1))).sort((a, b) => a - b)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export function loadAspectRatio(bookId: string): number | undefined {
+  const ar = parseFloat(lsGet(READER_KEYS.aspect(bookId)) ?? "");
+  return Number.isFinite(ar) && ar > 0.2 && ar < 5 ? ar : undefined;
 }

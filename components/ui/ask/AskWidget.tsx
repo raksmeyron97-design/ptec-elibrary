@@ -5,6 +5,7 @@ import { Link } from "@/i18n/navigation";
 import NextLink from "next/link";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
+import { usePathname } from "next/navigation";
 import { getRemainingAiQuota } from "@/app/actions/ai-usage";
 import { useSession } from "@/components/providers/SessionProvider";
 
@@ -181,6 +182,11 @@ export default function AskWidget() {
   const headingId = useId();
 
   const [open, setOpen] = useState(false);
+  // The PDF reader routes own the bottom-right corner (their panel toggle
+  // sits exactly under this FAB on phones) and are a focused surface — the
+  // library assistant is one tap away on the book page the reader came from.
+  const pathname = usePathname();
+  const onReaderRoute = /\/books\/[^/]+\/read\/?$|\/offline-reader/.test(pathname ?? "");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -359,6 +365,8 @@ export default function AskWidget() {
   const sendDisabled  = inputDisabled || cooldownActive || !input.trim();
 
   const starters: [string, string, string] = [t("starter1"), t("starter2"), t("starter3")];
+
+  if (onReaderRoute) return null;
 
   return (
     <>
