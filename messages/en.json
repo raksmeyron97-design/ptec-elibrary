@@ -4753,6 +4753,19 @@
         "chipMissing": "{count} missing",
         "searchable": "Searchable digital resources: {searchable} of {total}. This is reported separately and is never shown publicly as the resource total."
       },
+      "fullText": {
+        "title": "Full-text index",
+        "unavailable": "Index-health view unavailable (migration 0133 not applied yet).",
+        "hint": "Pages extracted from each PDF. This is what “found inside” search matches and what an AI answer cites by page — a record can carry a semantic embedding and still hold no extracted text. Run {command} to close the gap.",
+        "chip": "{type}: {indexed} / {published} indexed",
+        "chipPages": "{pages} pages · {chunks} passages",
+        "chipNever": "{count} never attempted",
+        "chipFailed": "{count} failed",
+        "chipScanned": "{count} scanned (no text layer)",
+        "chipUnfetchable": "{count} unfetchable",
+        "failedHint": "A failed record is a bug or an outage on our side, never a property of the document — check the server log for [pdf-index] entries.",
+        "neverHint": "Never attempted means the background indexer has not run over these records. New uploads index themselves; existing records need the backfill command above."
+      },
       "duplicates": {
         "title": "Possible duplicate records ({count})",
         "hint": "Published records sharing a title within the same type. They are each counted once (counts are per row, with no joins), so these do not inflate any total — but two editions of the same work may be worth merging or distinguishing.",

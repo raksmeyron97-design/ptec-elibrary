@@ -16,13 +16,22 @@
 //    embedding. There is no separate search-document table in this schema
 //    (the embedding is a column on the resource row), so duplicate and
 //    orphaned documents cannot exist — a missing embedding is the only drift.
+//  * Full-text index coverage: published rows vs rows whose PDF pages were
+//    actually extracted (migration 0133). This is a SEPARATE question from
+//    the embedding above and is reported separately on purpose — production
+//    once scored 3/120 on embeddings while scoring 0/120 here, and only the
+//    second number explains why searching for a phrase inside a book returned
+//    nothing and no AI answer could cite a page. `failed` and
+//    `never attempted` are never merged into a single "not indexed" figure:
+//    one is a bug on our side, the other is work not yet run, and the whole
+//    defect was that they looked identical.
 //
 //  * It CANNOT set a counter. "Recalculate and verify" drops the stats cache
 //    and recounts from canonical rows; there is no stored total to overwrite.
 
 import { useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { RefreshCw, CheckCircle2, AlertTriangle, Search, Copy } from "lucide-react";
+import { RefreshCw, CheckCircle2, AlertTriangle, Search, FileSearch, Copy } from "lucide-react";
 import { recalculateResourceStats } from "@/app/actions/data-quality";
 import type { AdminTypeStats } from "@/lib/admin/resource-stats";
 import type { ResourceStatsReconciliation } from "@/lib/admin/resource-stats";
@@ -228,6 +237,64 @@ export default function ResourceCountAudit({ initial }: Props) {
                   total: fmt(actual.totalDigitalResources),
                 })}
               </p>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* ── Full-text index reconciliation (migration 0133) ── */}
+      <div className="mt-6">
+        <h3 className="inline-flex items-center gap-1.5 text-[12.5px] font-bold text-text-heading">
+          <FileSearch className="h-3.5 w-3.5" aria-hidden />
+          {t("fullText.title")}
+        </h3>
+        {rec.fullTextIndex === null ? (
+          <p className="mt-1 text-[12px] text-text-muted">{t("fullText.unavailable")}</p>
+        ) : (
+          <>
+            <p className="mt-0.5 max-w-[78ch] text-[11.5px] text-text-muted">
+              {t.rich("fullText.hint", {
+                command: () => (
+                  <code className="rounded bg-paper px-1">npx tsx scripts/extract-pdf-text.ts</code>
+                ),
+              })}
+            </p>
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {rec.fullTextIndex.map((r) => {
+                /* A record we never tried, and one we tried and crashed on,
+                   both need a human — so both colour the chip. A scan does
+                   not: it is a true fact about the document. */
+                const needsAction = r.failed > 0 || r.neverAttempted > 0 || r.unfetchable > 0;
+                return (
+                  <li
+                    key={r.resourceType}
+                    className={`rounded-lg border px-3 py-1.5 text-[12px] tabular-nums ${
+                      needsAction
+                        ? "border-warning-line bg-warning-soft text-warning-text"
+                        : "border-divider bg-paper text-text-muted"
+                    }`}
+                  >
+                    {t("fullText.chip", {
+                      type: t.has(`type.${r.resourceType}`) ? t(`type.${r.resourceType}`) : r.resourceType,
+                      indexed: fmt(r.indexed),
+                      published: fmt(r.published),
+                    })}
+                    {r.indexed > 0 && (
+                      <> · {t("fullText.chipPages", { pages: fmt(r.totalPages), chunks: fmt(r.totalChunks) })}</>
+                    )}
+                    {r.neverAttempted > 0 && <> · {t("fullText.chipNever", { count: fmt(r.neverAttempted) })}</>}
+                    {r.failed > 0 && <> · {t("fullText.chipFailed", { count: fmt(r.failed) })}</>}
+                    {r.unfetchable > 0 && <> · {t("fullText.chipUnfetchable", { count: fmt(r.unfetchable) })}</>}
+                    {r.noTextLayer > 0 && <> · {t("fullText.chipScanned", { count: fmt(r.noTextLayer) })}</>}
+                  </li>
+                );
+              })}
+            </ul>
+            {rec.fullTextIndex.some((r) => r.failed > 0) && (
+              <p className="mt-2 max-w-[78ch] text-[11.5px] text-warning-text">{t("fullText.failedHint")}</p>
+            )}
+            {rec.fullTextIndex.some((r) => r.neverAttempted > 0) && (
+              <p className="mt-1 max-w-[78ch] text-[11.5px] text-text-muted">{t("fullText.neverHint")}</p>
             )}
           </>
         )}

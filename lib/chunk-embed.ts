@@ -244,11 +244,17 @@ export async function embedRecordChunks(opts: {
  * indexPdfPagesSafe() so upload responses aren't blocked and an embedding
  * failure (e.g. Gemini outage) degrades to "no passages yet" — the backfill
  * script repairs those records on its next run.
+ *
+ * Returns the result (or null when it threw) so the caller can record the
+ * chunk count in `resource_index_state`. Swallowing it here is what made
+ * "extracted 172 pages but embedded nothing" — a real and recoverable state,
+ * since embedding is the half that depends on an external API and a daily
+ * quota — indistinguishable from a fully indexed record.
  */
 export async function embedRecordChunksSafe(
   recordType: PageRecordType,
   recordId: string,
-): Promise<void> {
+): Promise<ChunkEmbedResult | null> {
   const logId = sanitizeLogId(recordId);
   try {
     const result = await embedRecordChunks({ recordType, recordId });
@@ -264,6 +270,7 @@ export async function embedRecordChunksSafe(
     } else {
       console.log("[chunk-embed] %s:%s — skipped (%s)", recordType, logId, result.reason);
     }
+    return result;
   } catch (err) {
     console.error(
       "[chunk-embed] %s:%s — failed:",
@@ -271,5 +278,6 @@ export async function embedRecordChunksSafe(
       logId,
       err instanceof Error ? err.message : err,
     );
+    return null;
   }
 }

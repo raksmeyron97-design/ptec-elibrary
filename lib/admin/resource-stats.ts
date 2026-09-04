@@ -46,6 +46,38 @@ export type SearchIndexHealthRow = {
   missingEmbedding: number;
 };
 
+/**
+ * Full-text extraction coverage — the OTHER half of "is this findable?", and
+ * the half nothing reported until migration 0133.
+ *
+ * `SearchIndexHealthRow` measures the embedding ON the resource row, which
+ * makes a book reachable by a semantic match against its title and
+ * description. This measures whether the words INSIDE the PDF were extracted,
+ * which is what "found inside" page hits and every page-cited AI answer are
+ * built from. A collection can score perfectly on the first and hold nothing
+ * at all on the second — production did, for five weeks.
+ *
+ * `neverAttempted` is deliberately its own number rather than being folded
+ * into a "not indexed" total. "We have never run the indexer over these" and
+ * "we ran it and they are scans" call for opposite responses, and the whole
+ * defect was that they looked the same.
+ */
+export type FullTextIndexHealthRow = {
+  resourceType: string;
+  published: number;
+  indexed: number;
+  /** Parsed fine, but every page was an image. Permanent without OCR. */
+  noTextLayer: number;
+  /** File could not be fetched — transient, worth retrying. */
+  unfetchable: number;
+  /** The attempt threw. Always a bug or an outage on our side. */
+  failed: number;
+  /** No attempt has ever been recorded for these. */
+  neverAttempted: number;
+  totalPages: number;
+  totalChunks: number;
+};
+
 export type ResourceStatsReconciliation = {
   /** Fresh recount straight from the canonical view. */
   actual: PublicCollectionStats | null;
@@ -55,6 +87,9 @@ export type ResourceStatsReconciliation = {
   drift: Array<{ metric: string; cached: number; actual: number }>;
   /** Per-type published vs embedded, for the search-index reconciliation. */
   searchIndex: SearchIndexHealthRow[] | null;
+  /** Per-type full-text extraction coverage (migration 0133). Null while the
+   *  view is missing — i.e. between a deploy and its migration. */
+  fullTextIndex: FullTextIndexHealthRow[] | null;
   /** Published rows whose normalised title collides with another published
    *  row of the same type. NOT excluded from counts — two editions can share
    *  a title legitimately — but surfaced so a librarian can judge. */
@@ -195,12 +230,17 @@ async function findPossibleDuplicates(
 export async function reconcilePublicResourceStats(): Promise<ResourceStatsReconciliation> {
   const supabase = createServiceClient();
 
-  const [actual, cached, searchRes, possibleDuplicates] = await Promise.all([
+  const [actual, cached, searchRes, indexRes, possibleDuplicates] = await Promise.all([
     computeCollectionStats(),
     getCollectionStats(),
     supabase
       .from("public_resource_search_health")
       .select("resource_type, published, embedded, missing_embedding"),
+    supabase
+      .from("public_resource_index_health")
+      .select(
+        "record_type, published, indexed, no_text_layer, unfetchable, failed, never_attempted, total_pages, total_chunks",
+      ),
     findPossibleDuplicates(supabase),
   ]);
 
@@ -222,6 +262,24 @@ export async function reconcilePublicResourceStats(): Promise<ResourceStatsRecon
         missingEmbedding: Number(r.missing_embedding),
       }));
 
+  /* Null (not an empty list) while migration 0133 is unapplied, so the panel
+     can say "run the migration" instead of rendering a confident row of
+     zeroes. A zero here reads as "nothing to index", which is the exact
+     misreading this whole change exists to prevent. */
+  const fullTextIndex = indexRes.error
+    ? null
+    : (indexRes.data ?? []).map((r) => ({
+        resourceType: String(r.record_type),
+        published: Number(r.published),
+        indexed: Number(r.indexed),
+        noTextLayer: Number(r.no_text_layer),
+        unfetchable: Number(r.unfetchable),
+        failed: Number(r.failed),
+        neverAttempted: Number(r.never_attempted),
+        totalPages: Number(r.total_pages),
+        totalChunks: Number(r.total_chunks),
+      }));
+
   if (drift.length > 0) {
     console.error(
       JSON.stringify({
@@ -240,6 +298,7 @@ export async function reconcilePublicResourceStats(): Promise<ResourceStatsRecon
     cached,
     drift,
     searchIndex,
+    fullTextIndex,
     possibleDuplicates,
     checkedAt: new Date().toISOString(),
   };
