@@ -269,7 +269,14 @@ VALUES
   ('66666666-6666-4666-8666-666666666602', 'How to Download Books for Offline Reading', 'download-books-offline',
    'A short guide to saving library books to your phone so they stay readable without mobile data.',
    E'## Read without data\n\nEvery book detail page has a **Download** button. Once a book is downloaded it appears under *Offline books* and opens with no network connection at all.\n\n1. Open any book page\n2. Tap **Download**\n3. Find it later under **Offline books**\n\n> Downloads stay on your device until you remove them. Installing the library as an app keeps them available even when the browser cache is cleared.',
-   'Guide', '{offline,pwa,how-to}', '33333333-3333-3333-3333-333333333333', true, 'published', false, true, now() - interval '2 days'),
+   -- 'Other', not 'Guide': lib/admin/posts-shared.ts CATEGORIES is the
+   -- authoritative set (Research | Announcement | Event | Journal | Other),
+   -- and the public post page resolves its label with
+   -- t(`category${post.category}`). A category the app does not define has
+   -- no message key, so this row made /posts/download-books-offline throw
+   -- MISSING_MESSAGE and fail the a11y e2e spec — seed data asserting a
+   -- value the admin UI could never produce.
+   'Other', '{offline,pwa,how-to}', '33333333-3333-3333-3333-333333333333', true, 'published', false, true, now() - interval '2 days'),
 
   ('66666666-6666-4666-8666-666666666603', 'Draft: Annual Library Report 2026', 'annual-library-report-2026',
    'Work in progress — figures for the 2026 annual report are still being collected.',
