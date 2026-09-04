@@ -17,6 +17,7 @@
 import { assessBatch } from "@/lib/books/duplicate-detection/batch";
 import type { DuplicateCandidate, DuplicateConfidence, DuplicateReason } from "@/lib/books/duplicate-detection/signals";
 import { requirePermission } from "@/lib/auth/requireAdmin";
+import { logAdminAction } from "@/app/actions/audit";
 
 /** One row of the queue as it is persisted. Mirrors BookJob's durable fields. */
 export interface ImportRunRow {
@@ -317,5 +318,43 @@ export async function findAlreadyImported(
     // Advisory only. A failed pre-check must never block an import — the
     // content-hash check downstream is the actual guarantee.
     return [];
+  }
+}
+
+/**
+ * Record that an operator overrode the pre-flight's duplicate verdict.
+ *
+ * The pre-flight is ADVISORY — it scores metadata before a byte is uploaded,
+ * against a candidate pool that holds no content hashes, so it can be wrong in
+ * both directions and a librarian has to be able to say so. What it must not
+ * be is silent: a row that entered the library over a "this is already here"
+ * warning is exactly the row someone will later want explained.
+ *
+ * This changes no gate. The identifier refusals still stand where they always
+ * did — `assertNotDuplicate` re-runs at save time with the file's real content
+ * hash, and the unique index on `book_files.content_hash` stands behind that.
+ * A librarian can overrule a resemblance; nobody overrules a hash.
+ */
+export async function recordDuplicateOverride(input: {
+  title: string;
+  matchedTitle: string;
+  matchedBookId?: string | null;
+  score: number;
+  confidence: DuplicateConfidence;
+  source: "catalog" | "batch";
+}): Promise<void> {
+  try {
+    const { userId } = await requirePermission("books", "write");
+    await logAdminAction(userId, "book.import_duplicate_override", "books", input.matchedBookId ?? undefined, {
+      attemptedTitle: String(input.title).slice(0, 300),
+      matchedTitle: String(input.matchedTitle).slice(0, 300),
+      score: input.score,
+      confidence: input.confidence,
+      source: input.source,
+      stage: "bulk_import_preflight",
+    });
+  } catch {
+    // An unrecorded override must not stop the import: the row still faces the
+    // authoritative check at save time, which does its own logging.
   }
 }

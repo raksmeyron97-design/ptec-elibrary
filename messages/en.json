@@ -7107,7 +7107,12 @@
         "rowBlocked": "Already registered as “{title}”.",
         "rowStrong": "Likely already in the library as “{title}” ({score}%).",
         "rowPossible": "Possible duplicate of “{title}” ({score}%).",
-        "rowBatch": "Same book as row {row} of this file."
+        "rowBatch": "Looks like the same book as row {row} of this file ({score}%).",
+        "overrideHint": "Not a duplicate? A flagged row can still be imported —",
+        "overrideAll": "{count, plural, one {import the flagged row anyway} other {import all # flagged rows anyway}}",
+        "overrideRow": "Not a duplicate — import anyway",
+        "overrideUndo": "Skip this row after all",
+        "overriddenCount": "{count, plural, one {# flagged row will be imported anyway. The decision is recorded, and the file is still checked for an exact match when it is saved.} other {# flagged rows will be imported anyway. The decision is recorded, and each file is still checked for an exact match when it is saved.}}"
       },
       "transportChunked": "Large PDFs are being sent in chunks — reliable over the proxy, but they use the one-file storage endpoint (60 requests/hour), not the batched one."
     },
