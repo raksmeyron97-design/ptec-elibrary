@@ -161,6 +161,28 @@ const PDF_WORDS = ["according to", "on page", "which page", "what page", "inside
   "in the document", "does the book say", "does it say", "quote", "cite", "chapter",
   "ទំព័រ", "នៅក្នុងឯកសារ", "និយាយអំពី", "សរសេរថា", "ដកស្រង់"];
 const LIBRARY_WORDS = ["library", "ptec", "catalog", "catalogue", "បណ្ណាល័យ", "វ.គ.ភ"];
+// A question answered ACROSS the collection's documents rather than from one.
+//
+// "Do you have books about sampling" wants the shelf; "what does the
+// literature say about sampling" wants what the books on it actually say.
+// Both used to reach `book_search`, so the second was answered with a list of
+// covers — the cross-document evidence path existed, was tested, and was
+// reachable by nothing. Kept narrow on purpose: the trigger is asking what the
+// documents SAY, not naming a topic, because every catalogue search names one
+// and converting those to retrieval would spend an embedding and a model call
+// on questions a title match already answers.
+// Entries are the VERB PHRASE without its article, because the determiner in
+// front of it varies and an article is not what makes the question one:
+// "what does the library's literature say about sampling" and "what does the
+// literature say about sampling" are the same request.
+const LITERATURE_WORDS = [
+  "literature say", "literature says", "books say", "sources say",
+  "authors say", "studies say", "research say", "research says",
+  "research show", "research shows", "scholarship say",
+  "according to the literature", "in the literature",
+  "across the collection", "across the library", "across these books",
+  "អក្សរសិល្ប៍និយាយ", "ការស្រាវជ្រាវបង្ហាញ",
+];
 // A grounded summary of a document — distinct from `book_detail`, which
 // describes a record from its catalogue metadata. "What is this book about"
 // is answerable from the abstract; "summarize chapter 3" is not, and
@@ -538,7 +560,11 @@ export function classifyIntent(raw: string, ctx: ClassifyContext = {}): IntentRe
   }
 
   // 8. Content questions about documents — answerable only from page text.
-  if (page !== undefined || hits(lower, PDF_WORDS)) {
+  //    A literature question is one of these with no single document named:
+  //    the router answers it from passages retrieved ACROSS the collection
+  //    (searchPassages → hybrid), which is the difference between telling a
+  //    reader what the books say and handing them the shelf.
+  if (page !== undefined || hits(lower, PDF_WORDS) || hits(lower, LITERATURE_WORDS)) {
     return { ...base, intent: "pdf_question", confidence: page !== undefined ? 0.85 : 0.7 };
   }
 

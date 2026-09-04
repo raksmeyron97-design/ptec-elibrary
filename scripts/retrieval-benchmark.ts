@@ -402,7 +402,18 @@ async function main() {
       candidates = out.candidateCount;
       semanticAvailable = out.semanticAvailable;
     } else {
-      effectiveMode = mode === "lookup" ? (record ? "scoped" : "hybrid") : mode;
+      // The mode the ROUTER would use, with no remapping.
+      //
+      // This used to read `mode === "lookup" ? (record ? "scoped" : "hybrid")
+      // : mode`, which invented a retrieval production does not perform: an
+      // intent that resolves to `lookup` is answered from the catalogue, and
+      // EVIDENCE_LIMITS.lookup retrieves zero passages. The remap therefore
+      // reported page evidence for questions that get none in the app, and hid
+      // the routing defect fixed in the previous commit behind a benchmark
+      // that quietly did the right thing on the router's behalf. A `lookup`
+      // question now scores as what it is — no passages — and the failure
+      // breakdown files it under QUERY_ROUTING_MISS.
+      effectiveMode = mode;
       const out = await retrieveEvidence({
         query: intent.query || q.question,
         mode: effectiveMode,

@@ -396,3 +396,33 @@ describe("keyword tables match at a word start", () => {
     expect(classifyIntent("What are the opening hours?").intent).toBe("faq");
   });
 });
+
+// ── Asking what the collection SAYS, not what it holds ────────────────────────
+describe("literature questions across the collection", () => {
+  it("routes 'what does the literature say about X' to document evidence", () => {
+    // The cross-document evidence path (searchPassages → hybrid) existed, was
+    // tested, and was reachable by nothing: every phrasing of this landed on a
+    // catalogue search, so a research question was answered with a list of
+    // covers. Measured: 20 of 20 such questions retrieved no passages at all.
+    for (const q of [
+      "What does the library's literature say about sampling?",
+      "What does the literature say about sampling?",
+      "What do the books say about triangulation?",
+      "What does the research show about formative assessment?",
+      "According to the literature, what is grounded theory?",
+    ]) {
+      expect(classifyIntent(q, {}).intent, q).toBe("pdf_question");
+    }
+  });
+
+  it("leaves catalogue searches on their zero-model path", () => {
+    // The trigger is asking what the documents SAY. Naming a topic is not
+    // enough — every catalogue search names one, and routing those to
+    // retrieval would spend an embedding and a model call on questions a
+    // title match already answers.
+    expect(classifyIntent("Do you have books about sampling?").intent).toBe("book_search");
+    expect(classifyIntent("Find me books on research methods").intent).toBe("book_search");
+    expect(classifyIntent("Show me theses on action research").intent).toBe("thesis_search");
+    expect(classifyIntent("How many books do you have?").intent).toBe("faq");
+  });
+});
