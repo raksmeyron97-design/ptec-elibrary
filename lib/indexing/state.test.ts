@@ -170,9 +170,17 @@ describe("toRow", () => {
 });
 
 describe("writeIndexState", () => {
-  function db(result: { error: { message: string } | null }) {
+  /* A stub standing in for the PostgREST builder: `writeIndexState` now READS
+     the current row before deciding whether it may overwrite it, so the mock
+     has to answer both halves. `existing` is what the read returns. */
+  function db(
+    result: { error: { message: string } | null },
+    existing: Record<string, unknown> | null = null,
+  ) {
     const upsert = vi.fn().mockResolvedValue(result);
-    return { client: { from: vi.fn(() => ({ upsert })) }, upsert };
+    const maybeSingle = vi.fn().mockResolvedValue({ data: existing, error: null });
+    const select = vi.fn(() => ({ eq: () => ({ eq: () => ({ maybeSingle }) }) }));
+    return { client: { from: vi.fn(() => ({ upsert, select })) }, upsert };
   }
 
   it("upserts on the composite key so a re-index replaces the old outcome", async () => {

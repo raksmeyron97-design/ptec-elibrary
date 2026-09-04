@@ -22,6 +22,13 @@
 
 import { createHash } from "node:crypto";
 import type { IndexPdfResult, PageRecordType } from "../pdf-page-index";
+import {
+  classifyFailure,
+  nextAttemptAt,
+  nextAttemptCount,
+  shouldOverwrite,
+  type FailureKind,
+} from "./retry";
 
 /**
  * What the most recent attempt produced.
@@ -33,7 +40,13 @@ import type { IndexPdfResult, PageRecordType } from "../pdf-page-index";
  * outage on our side. Merging any of them, as a bare "not indexed" boolean
  * would, is precisely what hid the original defect.
  */
-export const INDEX_STATUSES = ["indexed", "no_text_layer", "unfetchable", "failed"] as const;
+export const INDEX_STATUSES = [
+  "running",
+  "indexed",
+  "no_text_layer",
+  "unfetchable",
+  "failed",
+] as const;
 export type IndexStatus = (typeof INDEX_STATUSES)[number];
 
 /** Statuses worth retrying on the next backfill sweep. */
@@ -50,6 +63,10 @@ export type IndexStateRecord = {
   chunks: number;
   detail?: string;
   sourceDigest?: string;
+  /** Attempts already recorded for this record; drives the backoff (0134). */
+  previousAttempts?: number;
+  /** Who is writing this — a claim marker for `running`. */
+  claimedBy?: string;
 };
 
 /** Matches the CHECK on resource_index_state.detail. */
@@ -136,49 +153,155 @@ export function outcomeFromError(err: unknown): {
 }
 
 /** The row shape written to `resource_index_state` (migration 0133). */
-export function toRow(state: IndexStateRecord): Record<string, unknown> {
+export function toRow(state: IndexStateRecord, now: Date = new Date()): Record<string, unknown> {
+  const detail = sanitizeDetail(state.detail);
+  const kind = classifyFailure(state.status, detail);
+  const attempts = nextAttemptCount(kind, state.previousAttempts ?? 0);
+  const next = nextAttemptAt(kind, attempts, now);
+
   return {
     record_type: state.recordType,
     record_id: state.recordId,
     status: state.status,
     pages: Math.max(0, Math.trunc(state.pages)),
     chunks: Math.max(0, Math.trunc(state.chunks)),
-    detail: sanitizeDetail(state.detail) ?? null,
+    detail: detail ?? null,
     source_digest: state.sourceDigest ?? null,
-    attempted_at: new Date().toISOString(),
+    failure_kind: kind,
+    attempt_count: attempts,
+    next_attempt_at: next ? next.toISOString() : null,
+    // A claim only means something while the record is in flight; carrying it
+    // on a finished row would make a dead runner look like the owner of a
+    // healthy record.
+    claimed_at: state.status === "running" ? now.toISOString() : null,
+    claimed_by: state.status === "running" ? (state.claimedBy ?? null) : null,
+    attempted_at: now.toISOString(),
   };
 }
 
-/** Minimal surface of the Supabase client this module needs. */
+/**
+ * Minimal surface of the Supabase client this module needs.
+ *
+ * Kept deliberately SHALLOW. Spelling the full `.select().eq().eq().maybeSingle()`
+ * chain here made TypeScript match a real `SupabaseClient` against a
+ * four-level nested interface and give up with "type instantiation is
+ * excessively deep". The chain is asserted once, locally, in
+ * `readIndexState()` instead — the same shape, checked in one place rather
+ * than imposed on every caller's type.
+ */
 type IndexStateDb = {
   from(table: string): {
-    upsert(
+    select: (columns: string) => unknown;
+    upsert: (
       values: Record<string, unknown>,
       options: { onConflict: string },
-    ): PromiseLike<{ error: { message: string } | null }>;
+    ) => PromiseLike<{ error: { message: string } | null }>;
   };
 };
+
+/** The narrow slice of the PostgREST builder `readIndexState` walks. */
+type SingleRowQuery = {
+  eq(column: string, value: string): {
+    eq(column: string, value: string): {
+      maybeSingle(): PromiseLike<{
+        data: Record<string, unknown> | null;
+        error: { message: string } | null;
+      }>;
+    };
+  };
+};
+
+/** What is already stored for a record, as the overwrite rule needs it. */
+export type ExistingState = {
+  status: IndexStatus;
+  failureKind: FailureKind | null;
+  attemptCount: number;
+};
+
+/** Read the current row, or null when there is none. Never throws. */
+export async function readIndexState(
+  db: IndexStateDb,
+  recordType: PageRecordType,
+  recordId: string,
+): Promise<ExistingState | null> {
+  try {
+    const query = db
+      .from("resource_index_state")
+      .select("status, failure_kind, attempt_count") as SingleRowQuery;
+    const { data, error } = await query
+      .eq("record_type", recordType)
+      .eq("record_id", recordId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) return null;
+    return {
+      status: data.status as IndexStatus,
+      failureKind: (data.failure_kind as FailureKind | null) ?? null,
+      attemptCount: Number(data.attempt_count ?? 0) || 0,
+    };
+  } catch {
+    // A read failure must not stop the write path: the worst case is that we
+    // lose the attempt counter for one record, which the next pass restores.
+    return null;
+  }
+}
 
 /**
  * Record the outcome of an indexing attempt. Never throws.
  *
+ * Two things happen here that did not in 0133, and both exist because of the
+ * same production incident.
+ *
+ * 1. The attempt is CLASSIFIED (transient / permanent / config) and given a
+ *    retry schedule, so a Gemini daily-quota stop is queued work rather than a
+ *    broken book.
+ *
+ * 2. A `config` verdict is REFUSED when the stored state is not itself a
+ *    config failure. A process whose storage allow-list cannot reach the
+ *    files it is asked about has learned nothing about those files, and must
+ *    not be allowed to overwrite what a correctly configured run established.
+ *    That single rule is the difference between the laptop incident being a
+ *    no-op and it being 203 false verdicts in production.
+ *
  * This is bookkeeping about a background job that itself must not fail a
  * user's save, so a bookkeeping failure must not either — but it is logged at
  * error level, because a database that cannot accept this row means the admin
- * screen is about to under-report, which is the failure mode this whole change
- * exists to remove.
+ * screen is about to under-report.
  */
-export async function writeIndexState(db: IndexStateDb, state: IndexStateRecord): Promise<void> {
+export async function writeIndexState(
+  db: IndexStateDb,
+  state: IndexStateRecord,
+  now: Date = new Date(),
+): Promise<void> {
+  const safeId = state.recordId.replace(/[^\w-]/g, "");
+  const existing = await readIndexState(db, state.recordType, state.recordId);
+  const kind = classifyFailure(state.status, sanitizeDetail(state.detail));
+
+  if (!shouldOverwrite(kind, existing)) {
+    console.warn(
+      "[index-state] %s:%s — refusing to overwrite %s with a config failure (%s). " +
+        "This process cannot reach the files it was asked about; fix the environment, not the data.",
+      state.recordType,
+      safeId,
+      existing?.status ?? "an absent state",
+      sanitizeDetail(state.detail) ?? "no detail",
+    );
+    return;
+  }
+
   try {
     const { error } = await db
       .from("resource_index_state")
-      .upsert(toRow(state), { onConflict: "record_type,record_id" });
+      .upsert(
+        toRow({ ...state, previousAttempts: existing?.attemptCount ?? 0 }, now),
+        { onConflict: "record_type,record_id" },
+      );
     if (error) throw new Error(error.message);
   } catch (err) {
     console.error(
       "[index-state] %s:%s — could not record status %s:",
       state.recordType,
-      state.recordId.replace(/[^\w-]/g, ""),
+      safeId,
       state.status,
       err instanceof Error ? err.message : err,
     );

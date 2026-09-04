@@ -39,6 +39,13 @@ on:
     # fail with "already being finalized" until it is released, and a librarian
     # blocked on one book will not wait until 03:00.
     - cron: "17 * * * *"
+    # Index reconciliation hourly, offset from the upload sweep so the two do
+    # not contend for the box. Hourly rather than daily because the backlog it
+    # drains is invisible to readers in the worst way: a book that is published
+    # and listed but whose text nothing can search, and whose pages no AI
+    # answer can cite. The pass is bounded (10 records) and claims what it
+    # works on, so overlapping runs cannot double-process a record.
+    - cron: "41 * * * *"
   workflow_dispatch:
     inputs:
       job:
@@ -46,7 +53,7 @@ on:
         required: true
         default: publish-scheduled
         type: choice
-        options: [publish-scheduled, cleanup, security-scan, upload-reconcile, both]
+        options: [publish-scheduled, cleanup, security-scan, upload-reconcile, index-reconcile, both]
 
 permissions:
   contents: read # checkout, on the runs that alert
@@ -250,4 +257,52 @@ jobs:
             [ "$attempt" -lt 2 ] && sleep 20
           done
           echo "::error title=Upload reconciliation failed::/api/cron/upload-reconcile did not return 200 — see docs/RUNBOOKS.md"
+          exit 1
+
+  # ── Retrieval index reconciliation ──────────────────────────────────────────
+  # Re-runs PDF text extraction for resources that need it: never attempted, a
+  # retry now due, indexed from a PDF that has since been replaced, or holding
+  # a claim left behind by a killed runner. Bounded per pass; see
+  # lib/indexing/reconcile.ts for what is eligible and why.
+  #
+  # NO TELEGRAM ALERT, same reasoning as upload-reconcile: a missed pass delays
+  # a book becoming full-text searchable by an hour, which is not worth waking
+  # anyone. The failure that DOES matter here is silent success — a pass that
+  # returns 200 having refused to do anything because this deployment's storage
+  # allow-list cannot reach its own files. That is why the step below inspects
+  # `skippedEnvironment` in the body and fails loudly on it: an environment
+  # mismatch is exactly the condition that once wrote 203 false verdicts, and a
+  # green tick over it would repeat the original mistake one layer up.
+  index-reconcile:
+    if: >-
+      github.event.schedule == '41 * * * *' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (inputs.job == 'index-reconcile' || inputs.job == 'both'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Reconcile retrieval index
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -uo pipefail
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error title=CRON_SECRET missing::Set the CRON_SECRET repo secret to the same value as the box's .env"
+            exit 1
+          fi
+          for attempt in 1 2; do
+            code=$(curl -sS --max-time 300 -o /tmp/body.json -w '%{http_code}' \
+              -H "Authorization: Bearer $CRON_SECRET" \
+              "$SITE_URL/api/cron/index-reconcile") && [ "$code" = "200" ] && {
+                cat /tmp/body.json; echo
+                if grep -q '"skippedEnvironment":true' /tmp/body.json; then
+                  echo "::error title=Index reconciliation refused to run::The deployment's storage allow-list cannot reach the files in its own database (ZIMA_API_URL vs book_files hosts) — see docs/INDEX-RECONCILIATION.md"
+                  exit 1
+                fi
+                exit 0; }
+            echo "attempt $attempt: HTTP ${code:-no-response}"
+            cat /tmp/body.json 2>/dev/null || true
+            [ "$attempt" -lt 2 ] && sleep 20
+          done
+          echo "::error title=Index reconciliation failed::/api/cron/index-reconcile did not return 200 — see docs/RUNBOOKS.md"
           exit 1
