@@ -22,6 +22,15 @@
  * each way the arrangement can break: the tracing entry being dropped, pdfjs
  * renaming or moving the worker in an upgrade, or the extractor switching to a
  * build whose worker is a different file.
+ *
+ * The worker was not the only thing hiding behind a runtime lookup. pdfjs also
+ * reaches for `@napi-rs/canvas` through `createRequire(import.meta.url)` — an
+ * OPTIONAL dependency, invisible to the tracer for exactly the same reason —
+ * and that package is the only `DOMMatrix` Node has. Without it, pdf.mjs
+ * throws `ReferenceError: DOMMatrix is not defined` while evaluating its own
+ * module body. `lib/polyfills/dom-matrix.ts` supplies one instead of shipping
+ * a native binary; the second describe block below pins that it is mounted
+ * before the import that needs it.
  */
 
 import { describe, it, expect } from "vitest";
@@ -78,5 +87,62 @@ describe("pdfjs worker is shipped to the standalone server", () => {
     const configured = path.join(ROOT, "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs");
     const beside = path.join(path.dirname(require_.resolve(PDFJS_ENTRY)), "pdf.worker.mjs");
     expect(path.resolve(configured)).toBe(path.resolve(beside));
+  });
+});
+
+describe("pdfjs gets a DOMMatrix in Node", () => {
+  it("pdf.mjs constructs one while evaluating its own module body", () => {
+    const source = readFileSync(require_.resolve(PDFJS_ENTRY), "utf8");
+
+    // Not inside a function — this runs on import, which is why the polyfill
+    // cannot be installed lazily on first use. If an upgrade moves it, the
+    // in-function install in extractPdfPages still covers us, but the reason
+    // written in dom-matrix.ts has changed and should be re-read.
+    expect(source).toContain("const SCALE_MATRIX = new DOMMatrix()");
+  });
+
+  it("pdfjs's own fallback is an optional dependency the tracer cannot see", () => {
+    const pkg = JSON.parse(
+      readFileSync(require_.resolve("pdfjs-dist/package.json"), "utf8"),
+    ) as { optionalDependencies?: Record<string, string> };
+    expect(pkg.optionalDependencies).toHaveProperty("@napi-rs/canvas");
+
+    const source = readFileSync(require_.resolve(PDFJS_ENTRY), "utf8");
+    expect(source).toContain('require("@napi-rs/canvas")');
+    expect(source).toContain("createRequire(import.meta.url)");
+  });
+
+  it("the extractor installs the polyfill before importing pdfjs", () => {
+    const source = read("lib/pdf-page-index.ts");
+
+    expect(source).toContain('from "./polyfills/dom-matrix"');
+    expect(source.indexOf("installDomMatrixPolyfill()")).toBeLessThan(
+      source.indexOf(`import("${PDFJS_ENTRY}")`),
+    );
+  });
+
+  it("importing lib/pdf-page-index.ts leaves a usable DOMMatrix on globalThis", async () => {
+    const target = globalThis as { DOMMatrix?: unknown };
+    const original = target.DOMMatrix;
+    delete target.DOMMatrix;
+    try {
+      await import("./pdf-page-index");
+
+      expect(typeof target.DOMMatrix).toBe("function");
+      const Ctor = target.DOMMatrix as new () => {
+        scaleSelf(x: number, y: number): { translateSelf(x: number, y: number): Matrix };
+      };
+      type Matrix = { a: number; b: number; c: number; d: number; e: number; f: number };
+
+      // The literal expression from pdf.worker.mjs's compileType3Glyph.
+      const m = new Ctor().scaleSelf(1 / 100, -1 / 200).translateSelf(0, -200);
+      for (const key of ["a", "b", "c", "d", "e", "f"] as const) {
+        expect(Number.isFinite(m[key])).toBe(true);
+      }
+      expect([m.a, m.b, m.c, m.d, m.e, m.f]).toEqual([0.01, 0, 0, -0.005, 0, 1]);
+    } finally {
+      if (original === undefined) delete target.DOMMatrix;
+      else target.DOMMatrix = original;
+    }
   });
 });
