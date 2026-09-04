@@ -155,7 +155,7 @@ const RELATED_WORDS = ["similar", "like this", "related to this", "more like", "
   "same topic as", "others like",
   "ស្រដៀង", "ដូចគ្នា", "បែបនេះ", "ទាក់ទង"];
 const DETAIL_WORDS = ["what is this book about", "what's this book about", "about this book",
-  "tell me about this",
+  "tell me about this", "what this book is about", "what this is about",
   "សៀវភៅនេះនិយាយអំពីអ្វី", "សៀវភៅនេះអំពីអ្វី", "អំពីសៀវភៅនេះ"];
 const PDF_WORDS = ["according to", "on page", "which page", "what page", "inside the book",
   "in the document", "does the book say", "does it say", "quote", "cite", "chapter",
@@ -205,8 +205,147 @@ const ACADEMIC_MISUSE = ["write my essay", "write an essay for me", "do my homew
   "complete my homework", "answer my exam", "write my report for me",
   "សរសេរអត្ថបទឱ្យខ្ញុំ", "ធ្វើកិច្ចការឱ្យខ្ញុំ", "សរសេរសារណាឱ្យខ្ញុំ", "ធ្វើលំហាត់ឱ្យខ្ញុំ"];
 
+/**
+ * Keyword entries match at a WORD START, not anywhere inside a word.
+ *
+ * Every table here is matched against lowercased text, and plain `includes`
+ * reads a phrase inside a longer word: "fine for" (a library-rules phrase)
+ * matched "de-fine for-mative", so "how does this book define formative
+ * assessment" was answered with the library's conduct policy. The greeting
+ * table already carries a hand-rolled regex for exactly this reason ("hi"
+ * inside "this", "which", "history") and "printing" was narrowed after
+ * matching "the printing press" — this generalises both fixes instead of
+ * waiting for the next table to hit it.
+ *
+ * The boundary is on the LEFT only. A right-hand boundary would cost the free
+ * inflection tolerance the tables rely on — "quote" must still match
+ * "quotes", "borrow" must still match "borrowing" — while the defect being
+ * fixed is always a phrase starting mid-word.
+ *
+ * Entries that are not plain Latin words keep substring matching: Khmer has
+ * no word boundaries by design (the tables are built on that), and `\b` around
+ * punctuation like ".ris" or " vs " either never fires or fires in the wrong
+ * place.
+ */
+const LATIN_PHRASE = /^[a-z0-9]+(?: [a-z0-9]+)*$/;
+const boundaryCache = new Map<string, RegExp | null>();
+
+function matcherFor(word: string): RegExp | null {
+  const cached = boundaryCache.get(word);
+  if (cached !== undefined) return cached;
+  const re = LATIN_PHRASE.test(word)
+    ? new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "u")
+    : null;
+  boundaryCache.set(word, re);
+  return re;
+}
+
 function hits(text: string, words: readonly string[]): boolean {
-  return words.some((w) => text.includes(w));
+  return words.some((w) => {
+    const re = matcherFor(w);
+    return re ? re.test(text) : text.includes(w);
+  });
+}
+
+// ── A question about the document in hand ─────────────────────────────────────
+// The reader is standing on a book's page and asks about it. Before this, the
+// only way to reach that conclusion was a literal phrase list, and it recognised
+// "what does THE book say" while sending "what does THIS book say" — the more
+// natural phrasing of the same question — to a corpus-wide catalogue search
+// that returns no page evidence at all. Measured against the phrasings a reader
+// actually uses, 11 of 16 missed, in both languages.
+//
+// So the rule is structural rather than lexical: when the UI has told us which
+// record the reader is on, a question that POINTS at that record and asks what
+// it contains is a question about that record. Whether it names a topic decides
+// which of the two document paths answers it — a topic means passages to
+// retrieve, no topic means the document itself is the subject.
+
+/** Ways of pointing at the record the reader is currently viewing. */
+const DEICTIC_WORDS = [
+  "this book", "this e-book", "this ebook", "this document", "this text",
+  "this thesis", "this paper", "this publication", "this report", "this volume",
+  "the book", "the document", "the text", "in here", "in it",
+  "សៀវភៅនេះ", "ឯកសារនេះ", "អត្ថបទនេះ", "និក្ខេបបទនេះ", "របាយការណ៍នេះ",
+];
+
+/** Asking what a document contains, rather than about it as a catalogue entry. */
+const CONTENT_VERBS = [
+  "say", "says", "said", "discuss", "discusses", "cover", "covers",
+  "explain", "explains", "define", "defines", "mention", "mentions",
+  "talk about", "talks about", "describe", "describes", "address", "addresses",
+  "argue", "argues", "state", "states", "contain", "contains",
+  "include", "includes", "teach", "teaches", "write about", "writes about",
+  "what is in", "what's in", "what are in", "inside",
+  "និយាយ", "ពន្យល់", "រៀបរាប់", "បង្ហាញ", "អធិប្បាយ", "មានអ្វី", "នៅក្នុង",
+];
+
+/**
+ * Phrasings that point AWAY from the document in hand, even while naming it.
+ *
+ * "What other books are like this one" and "who wrote this book" both contain
+ * a deictic and a verb, and neither is answered from the document's text.
+ * Listed here rather than relied on from check order, because the deictic rule
+ * runs inside the context branch — ahead of the author and subject tables.
+ */
+const NOT_THIS_DOCUMENT = [
+  "other book", "other e-book", "another book", "similar book", "books like",
+  "recommend", "do you have", "find me", "search for", "which books",
+  "what books", "how many books", "who wrote", "who is the author",
+  "who are the authors", "written by", "authored by", "author of",
+  "download", "borrow", "available", "how do i get", "how much",
+  "សៀវភៅផ្សេង", "អ្នកនិពន្ធ", "អ្នកណាសរសេរ", "ទាញយក", "សៀវភៅដទៃ",
+];
+
+/**
+ * Words that carry no topic, so their presence in a question does not mean it
+ * named one. Kept to the scaffolding a question about a document is built from
+ * — this is not a general stopword list, and it is only ever used to answer
+ * "did the reader name a subject, or just point at the book?".
+ */
+const TOPIC_SCAFFOLD = new Set([
+  "what", "whats", "which", "who", "whom", "whose", "when", "where", "why",
+  "how", "does", "do", "did", "is", "are", "was", "were", "be", "been",
+  "the", "a", "an", "this", "that", "these", "those", "it", "its", "there",
+  "and", "or", "but", "of", "in", "on", "at", "to", "for", "from", "with",
+  "about", "into", "over", "under", "between", "book", "books", "ebook",
+  "document", "text", "thesis", "paper", "publication", "report", "volume",
+  "page", "pages", "say", "says", "said", "tell", "tells", "me", "you",
+  "your", "i", "my", "we", "us", "can", "could", "would", "should", "will",
+  "shall", "may", "might", "must", "have", "has", "had", "any", "some",
+  "all", "more", "most", "other", "such", "than", "then", "also", "just",
+  "only", "very", "much", "many", "explain", "explains", "discuss",
+  "discusses", "cover", "covers", "define", "defines", "mention", "mentions",
+  "describe", "describes", "contain", "contains", "include", "includes",
+  "inside", "talk", "talks", "please", "here",
+]);
+
+/** True when the text names something to look for beyond the document itself. */
+function namesATopic(lower: string): boolean {
+  // Khmer runs have no word boundaries, so a Khmer-only question cannot be
+  // split into topic and scaffolding this way. Such a question is treated as
+  // naming no topic — which routes it to the overview path, whose retrieval
+  // samples the document rather than searching it for the question's own
+  // words. That is the correct answer for "តើមានអ្វីនៅក្នុងសៀវភៅនេះ" and the
+  // safe one for anything else: sampling a document can be thin, but
+  // searching an English book for a Khmer question phrase returns nothing.
+  return lower
+    .split(/[^\p{L}\p{N}]+/u)
+    .some((w) => w.length >= 3 && !TOPIC_SCAFFOLD.has(w) && !/[ក-៿]/u.test(w));
+}
+
+/**
+ * How a question about the current record should be answered, or null when it
+ * is not about the record at all.
+ *
+ *   "content"  — it named a topic: retrieve passages from this document
+ *   "overview" — it named none: the document itself is the subject
+ */
+export function documentQuestionKind(lower: string): "content" | "overview" | null {
+  if (hits(lower, NOT_THIS_DOCUMENT)) return null;
+  if (!hits(lower, DEICTIC_WORDS)) return null;
+  if (!hits(lower, CONTENT_VERBS)) return null;
+  return namesATopic(lower) ? "content" : "overview";
 }
 
 // ── Query extraction ──────────────────────────────────────────────────────────
@@ -371,6 +510,21 @@ export function classifyIntent(raw: string, ctx: ClassifyContext = {}): IntentRe
     }
     if (page !== undefined || hits(lower, PDF_WORDS)) {
       return { ...base, intent: "pdf_question", confidence: 0.8 };
+    }
+    // A question that points at the record in hand and asks what it contains.
+    // Reached only after the intents with their own deterministic answers
+    // (summary, related, detail) have declined it, so this widens the document
+    // paths without taking anything from them.
+    const kind = documentQuestionKind(lower);
+    if (kind === "content") {
+      return { ...base, intent: "pdf_question", confidence: 0.75 };
+    }
+    if (kind === "overview") {
+      // No topic to search for: the document is the subject, so the summary
+      // path answers — its retrieval samples the document instead of searching
+      // it for the question's own words, and it falls back to the catalogue
+      // record when the text was never indexed.
+      return { ...base, intent: "resource_summary", confidence: 0.7 };
     }
   }
   if (hits(lower, RELATED_WORDS) && hits(lower, BOOK_WORDS)) {

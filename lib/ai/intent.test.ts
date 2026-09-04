@@ -301,3 +301,98 @@ describe("research intents", () => {
     expect(ZERO_LLM_INTENTS.has("document_compare")).toBe(false);
   });
 });
+
+// ── A question about the document in hand ─────────────────────────────────────
+// The reader is standing on a book's page. Before this, only two literal
+// phrasings reached the document paths; the more natural ones went to a
+// corpus-wide catalogue search that returns no page evidence at all. Measured
+// over the phrasings readers actually use, 11 of 16 missed — in both languages.
+describe("questions asked from a resource page", () => {
+  const onBook = { slug: "a-book", slugType: "book" as const };
+  const ask = (q: string) => classifyIntent(q, onBook).intent;
+
+  it("routes a topic question about the current book to its own document", () => {
+    // "the book" worked and "this book" did not, which is the same question.
+    for (const q of [
+      "What does this book say about sampling?",
+      "What does the book say about sampling?",
+      "Does this book discuss sampling?",
+      "Where does this book talk about interviews?",
+      "Explain what this book says about triangulation",
+      "How does this book define formative assessment?",
+      "តើសៀវភៅនេះនិយាយអ្វីអំពី sampling?",
+    ]) {
+      expect(ask(q), q).toBe("pdf_question");
+    }
+  });
+
+  it("routes a contents question with no topic to the summary path", () => {
+    // Nothing to search the document FOR, so the document is the subject and
+    // its retrieval samples pages instead of matching the question's words.
+    // The Khmer forms are the ones that used to search an English book's pages
+    // for a Khmer question phrase, which can only ever return nothing.
+    for (const q of [
+      "What is in this book?",
+      "What does this book cover?",
+      "What does this book explain?",
+      "តើមានអ្វីនៅក្នុងសៀវភៅនេះ?",
+      "តើសៀវភៅនេះពន្យល់អំពីអ្វី?",
+    ]) {
+      expect(ask(q), q).toBe("resource_summary");
+    }
+  });
+
+  it("answers 'what is this book about' from the record, in either language", () => {
+    // Deliberately NOT the summary path: the abstract already answers it, and
+    // the two languages must agree on which question this is.
+    for (const q of [
+      "What is this book about?",
+      "Tell me what this book is about",
+      "សៀវភៅនេះនិយាយអំពីអ្វី?",
+    ]) {
+      expect(ask(q), q).toBe("book_detail");
+    }
+  });
+
+  it("does not swallow questions that point away from the document", () => {
+    // Each of these names the book and is still not answered from its text.
+    // The deictic rule runs inside the context branch, ahead of the author and
+    // subject tables, so it has to decline them itself.
+    expect(ask("Who wrote this book?")).toBe("author_search");
+    expect(ask("What other books are like this one?")).toBe("related_books");
+    expect(ask("How do I cite this book in APA?")).toBe("citation");
+    expect(ask("Summarize this book")).toBe("resource_summary");
+  });
+
+  it("stays a catalogue search when no record is in hand", () => {
+    // Without a slug, "this book" points at nothing.
+    expect(classifyIntent("What does this book say about sampling?").intent).not.toBe(
+      "pdf_question",
+    );
+  });
+});
+
+describe("keyword tables match at a word start", () => {
+  it("does not read a library phrase out of the middle of a word", () => {
+    // "fine for" (library rules) matched "de-fine for-mative", so a question
+    // about a book's contents was answered with the conduct policy.
+    expect(
+      classifyIntent("How does this book define formative assessment?", {
+        slug: "a-book",
+        slugType: "book",
+      }).intent,
+    ).not.toBe("faq");
+  });
+
+  it("keeps the inflection tolerance the tables rely on", () => {
+    // The boundary is on the left only: a right-hand one would stop "quote"
+    // matching "quotes" and "borrow" matching "borrowing".
+    expect(classifyIntent("Can you quote the passage on page 12?").intent).toBe("pdf_question");
+    expect(classifyIntent("What are the borrowing rules?").intent).toBe("faq");
+  });
+
+  it("still answers the library questions it always did", () => {
+    expect(classifyIntent("Is there a fine for overdue books?").intent).toBe("faq");
+    expect(classifyIntent("What are the opening hours?").intent).toBe("faq");
+  });
+});

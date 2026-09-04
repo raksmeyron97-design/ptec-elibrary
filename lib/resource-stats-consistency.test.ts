@@ -61,6 +61,12 @@ describe("counting the countable entities happens in exactly one place", () => {
         "lib/admin/intelligence.ts",
         "lib/admin/dashboard.ts",
         "lib/books-data.ts", // filtered listing count — a different metric
+        // The retrieval benchmark records the corpus each result describes.
+        // It must NOT read through getCollectionStats: that is the cached
+        // public figure for "digital resources", while a retrieval score needs
+        // the raw count of books beside how many have extracted pages and
+        // embedded chunks. It renders on no surface and can contradict nothing.
+        "scripts/retrieval-benchmark.ts",
         "lib/posts-data.ts",
         "lib/metadata-exports/works.ts",
         "app/actions/review.ts",
