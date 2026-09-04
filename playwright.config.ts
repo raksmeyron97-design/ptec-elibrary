@@ -55,6 +55,11 @@ export default defineConfig({
       // developer running this suite locally would spend real Gemini calls,
       // and CI — which has no key at all — could not reach any AI surface.
       AI_MOCK_PROVIDER: process.env.AI_MOCK_PROVIDER || '1',
+      // One seeded reader asks every assistant question in the suite, across
+      // two browser projects and up to two retries. The real 10/day quota is
+      // spent before the run is half done, and the quota notice is
+      // indistinguishable from a broken answer.
+      AI_DAILY_USER_LIMIT: process.env.AI_DAILY_USER_LIMIT || '500',
       NEXT_PUBLIC_TURNSTILE_SITE_KEY:
         process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA',
     },

@@ -88,7 +88,7 @@ function SourceList({ sources, onNavigate }: { sources: AnswerSource[]; onNaviga
   };
 
   return (
-    <div className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.03] p-3">
+    <div data-testid="ask-sources" className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.03] p-3">
       <p className="mb-2 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-blue-300/70">
         {t("sources")}
       </p>
@@ -652,6 +652,7 @@ export default function AskWidget() {
                         <AiAvatar />
                         <div className="flex min-w-0 flex-1 flex-col gap-1.5 items-start">
                           <div
+                            data-testid="ask-answer"
                             className={`max-w-full rounded-2xl rounded-tl-md px-4 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap ${
                               m.errorKind === "quota"
                                 ? "bg-amber-950/50 text-amber-300 ring-1 ring-amber-500/20"

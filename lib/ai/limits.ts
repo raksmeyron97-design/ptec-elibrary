@@ -12,8 +12,15 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { ADMIN_PANEL_ROLES, type AppRole } from "@/lib/types/roles";
 import { AIRequestError } from "./response";
 
-/** Per-user assistant messages per day (Asia/Phnom_Penh calendar day). */
-export const DAILY_USER_LIMIT = 10;
+/**
+ * Per-user assistant messages per day (Asia/Phnom_Penh calendar day).
+ *
+ * Overridable by env for the e2e suite only: a browser test that exercises
+ * five assistant surfaces across two projects with retries spends more than a
+ * day's quota in a minute, and the resulting "you've used all 10 messages"
+ * looks exactly like a broken feature. Production sets nothing and gets 10.
+ */
+export const DAILY_USER_LIMIT = Number(process.env.AI_DAILY_USER_LIMIT ?? 10) || 10;
 /** Total assistant messages per day across all users — denial-of-wallet cap. */
 export const DAILY_GLOBAL_LIMIT = 500;
 /** Minimum gap between accepted requests from one user. */

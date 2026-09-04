@@ -173,6 +173,7 @@ jobs:
           # deterministic stand-in model so its surfaces are testable at all;
           # see lib/ai/mock-model.ts.
           echo "AI_MOCK_PROVIDER=1"
+          echo "AI_DAILY_USER_LIMIT=500"
         } >> "$GITHUB_ENV"
 
     - name: Install Playwright Browsers

@@ -14,21 +14,34 @@
 // The seeded book has five pages of text (supabase/seed.sql §13) with
 // distinctive phrases; the page numbers asserted here are those page numbers.
 
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 import { installSeededReaderSession } from "./utils/auth";
 
 const BOOK = "/books/foundations-of-education";
 
-/** Open the assistant and ask one question; resolves when an answer lands. */
-async function ask(page: Page, question: string) {
+/**
+ * Ask one question and return the answer bubble.
+ *
+ * It waits for an ANSWER to appear rather than for particular words: answers
+ * come in two languages and several shapes (a grounded reply, a citation, an
+ * honest refusal), and a helper that waits for English prose fails on the
+ * Khmer and citation paths for reasons that have nothing to do with them.
+ * An error bubble also satisfies the wait, so a quota or cooldown message
+ * fails the assertion that follows with its own text on screen instead of a
+ * bare 30-second timeout.
+ */
+async function ask(page: Page, question: string): Promise<Locator> {
+  const answers = page.getByTestId("ask-answer");
+  const before = await answers.count();
+
   await page.getByRole("button", { name: /ask the library assistant/i }).click();
   const input = page.getByPlaceholder(/ask anything/i);
   await expect(input).toBeVisible();
   await input.fill(question);
   await page.getByRole("button", { name: /^send$/i }).click();
-  // The answer replaces the typing indicator; sources render with it.
-  await expect(page.getByText(/according to the retrieved|could not find|couldn’t find|don’t have enough/i).first())
-    .toBeVisible({ timeout: 30_000 });
+
+  await expect(answers).toHaveCount(before + 1, { timeout: 45_000 });
+  return answers.last();
 }
 
 test.describe("research assistant", () => {
@@ -38,43 +51,44 @@ test.describe("research assistant", () => {
 
   test("answers a question about the book in front of you, and shows the page", async ({ page }) => {
     await page.goto(BOOK);
-    await ask(page, "What does it say about formative assessment?");
+    const answer = await ask(page, "What does it say about formative assessment?");
+    await expect(answer).toContainText(/formative assessment/i);
 
-    const sources = page.getByText("Sources", { exact: true });
-    await expect(sources).toBeVisible();
+    await expect(page.getByTestId("ask-sources")).toBeVisible();
 
     // The cited page must be one the seed actually contains. p. 12 carries the
     // formative-assessment passage; a citation to any other page would mean
-    // retrieval or grounding stopped agreeing about what was retrieved.
+    // retrieval and grounding stopped agreeing about what was retrieved.
     const citation = page.getByRole("link", { name: /Foundations of Education.*p\. 12/i });
     await expect(citation).toBeVisible();
     await expect(citation).toHaveAttribute("href", /\/books\/foundations-of-education\?page=12/);
   });
 
-  test("a source can be opened at its page, copied as a citation and kept", async ({ page }) => {
+  test("a source can be copied as a citation and kept", async ({ page }) => {
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.goto(BOOK);
     await ask(page, "What does it say about classroom management?");
 
-    await expect(page.getByRole("button", { name: /copy citation/i }).first()).toBeVisible();
+    await expect(page.getByTestId("ask-sources")).toBeVisible();
     await page.getByRole("button", { name: /copy citation/i }).first().click();
     await expect(page.getByRole("button", { name: /citation copied/i }).first()).toBeVisible();
 
     await page.getByRole("button", { name: /save to research/i }).first().click();
     await expect(page.getByRole("button", { name: /^saved$/i }).first()).toBeVisible();
 
-    // The saved source reaches the dashboard, which is the point of saving it.
-    await page.goto("/dashboard");
-    await expect(page.getByText(/my research/i).first()).toBeVisible({ timeout: 15_000 });
+    // The saved source reaches the reader's collections, which is the point of
+    // saving it. reading_list_items (0136) is what carries the page number.
+    await page.goto("/dashboard?tab=lists#library");
+    await expect(page.getByText(/my research/i).first()).toBeVisible({ timeout: 20_000 });
   });
 
   test("says it has no evidence rather than inventing some", async ({ page }) => {
     await page.goto(BOOK);
-    await ask(page, "What does it say about zebrafish cardiac regeneration protocols?");
+    const answer = await ask(page, "What does it say about zebrafish cardiac regeneration protocols?");
 
-    // No sources panel, because nothing was retrieved to put in it.
-    await expect(page.getByText("Sources", { exact: true })).toHaveCount(0);
-    await expect(page.getByText(/could not find|couldn’t find|no evidence/i).first()).toBeVisible();
+    await expect(answer).toContainText(/could not find|couldn’t find|no evidence|not find a passage/i);
+    // No sources panel, because nothing was retrieved to put in one.
+    await expect(page.getByTestId("ask-sources")).toHaveCount(0);
   });
 
   test("answers a Khmer question and still cites the English source", async ({ page }) => {
@@ -83,17 +97,18 @@ test.describe("research assistant", () => {
 
     // The question is Khmer; the document is English. The citation must point
     // at the real English record, never at a translated or invented title.
-    await expect(page.getByRole("link", { name: /Foundations of Education/i }).first())
-      .toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId("ask-sources")).toBeVisible();
+    await expect(page.getByRole("link", { name: /Foundations of Education/i }).first()).toBeVisible();
   });
 
-  test("a citation request costs no model call and returns the record's own reference", async ({ page }) => {
+  test("a citation request is answered from catalogue metadata", async ({ page }) => {
     await page.goto(BOOK);
-    await ask(page, "Cite this in APA");
+    const answer = await ask(page, "Cite this in APA");
 
-    // Assembled by lib/citations from catalogue fields — so the answer carries
-    // the title and links at the record's cite panel.
-    await expect(page.getByText(/APA reference for/i)).toBeVisible();
-    await expect(page.getByText(/Foundations of Education/).first()).toBeVisible();
+    // Assembled by lib/citations from the record's own fields — no model, and
+    // the reference carries the seeded publication year.
+    await expect(answer).toContainText(/APA reference for/i);
+    await expect(answer).toContainText(/Foundations of Education/);
+    await expect(answer).toContainText(/2023/);
   });
 });
