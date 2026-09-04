@@ -94,6 +94,70 @@ development `node_modules` has the worker sitting next to `pdf.mjs`.
    attempt durable, so the next silent failure is not silent.
 3. **The admin Data Quality panel** renders it, so the failure is *seen*.
 
+### The sequel: `DOMMatrix is not defined`
+
+Shipping the worker exposed the second thing pdf.js hides behind a runtime
+lookup — and `resource_index_state` is the reason we found out at all. With the
+worker in place, records stopped failing on `Setting up fake worker failed` and
+started failing on:
+
+```
+status: failed
+detail: DOMMatrix is not defined
+```
+
+`DOMMatrix` is a browser API; Node has never had one. pdf.js knows that and
+covers it in `src/display/node_utils.js`:
+
+```js
+const require = process.getBuiltinModule("module").createRequire(import.meta.url);
+canvas = require("@napi-rs/canvas");
+if (!globalThis.DOMMatrix) { globalThis.DOMMatrix = canvas.DOMMatrix; }
+```
+
+`@napi-rs/canvas` is an **optional** dependency of `pdfjs-dist`, pulled in
+through `createRequire` — the same invisibility as `workerSrc`, one layer
+down. It is therefore absent from `.next/standalone`, `globalThis.DOMMatrix`
+stays undefined, and `pdf.mjs` throws while evaluating *its own module body*:
+
+```js
+const SCALE_MATRIX = new DOMMatrix();   // pdf.mjs, module scope
+```
+
+So this is not confined to unusual documents. The `import()` itself throws, and
+`compileType3Glyph` in the worker — which builds one to flip a Type 3 bitmap
+glyph into text space — would throw next:
+
+```js
+const { a, b, c, d, e, f } =
+  new DOMMatrix().scaleSelf(1 / width, -1 / height).translateSelf(0, -height);
+```
+
+It reproduces the same way the worker did. Hide the package and the extractor
+throws `ReferenceError: DOMMatrix is not defined`:
+
+```bash
+mv node_modules/@napi-rs{,.HIDDEN}
+mv node_modules/pdfjs-dist/node_modules/@napi-rs{,.HIDDEN}
+```
+
+**The fix is `lib/polyfills/dom-matrix.ts`**, mounted on `globalThis` before
+the pdf.js import (at module scope in `lib/pdf-page-index.ts`, and again in
+`extractPdfPages` where it is load-bearing). Tracing `@napi-rs/canvas` was the
+alternative and was rejected: it is a platform-specific native binary shipped
+to satisfy two constructors, and text extraction rasterizes nothing.
+
+The polyfill is deliberately narrow — affine 2D only, the six components
+pdf.js reads — and a 3D operation **throws** rather than returning a plausible
+2D answer, so the next gap is loud rather than silently wrong. It installs only
+when the runtime has none, so a browser or canvas-backed `DOMMatrix` always
+wins. Its arithmetic is pinned in `lib/polyfills/dom-matrix.test.ts` against
+values taken from a real spec implementation, and
+`lib/pdf-worker-tracing.test.ts` pins that it is mounted before the import.
+
+`Path2D` is *not* polyfilled. pdf.js only warns about it, and it is reached
+from rendering, which this path never does.
+
 ## The index state model
 
 One row per `(record_type, record_id)`, recording the most recent attempt.

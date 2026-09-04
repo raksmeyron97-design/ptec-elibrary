@@ -20,6 +20,7 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { toAllowedStorageUrl } from "@/lib/zima";
+import { installDomMatrixPolyfill } from "./polyfills/dom-matrix";
 import {
   outcomeFromError,
   outcomeFromResult,
@@ -27,6 +28,13 @@ import {
   writeIndexState,
   type IndexStatus,
 } from "./indexing/state";
+
+// pdfjs needs a `DOMMatrix` and Node has none; the standalone container has no
+// way to get one either (see lib/polyfills/dom-matrix.ts). Installed at module
+// scope so ANY route into this file is covered, and again immediately before
+// the dynamic import in `extractPdfPages` — that is where it is load-bearing,
+// and pdf.mjs throws during its own module evaluation if it is missing.
+installDomMatrixPolyfill();
 
 export const MAX_PAGE_CHARS = 8000; // cap outliers; a page of real prose is ~3-4k chars
 export const MIN_PAGE_CHARS = 20;   // below this it's a blank/scanned page — skip
@@ -103,6 +111,7 @@ export async function resolvePdfUrl(rawUrl: string): Promise<string | null> {
 
 /** Per-page text via pdfjs. Empty/scanned pages are dropped. */
 export async function extractPdfPages(bytes: ArrayBuffer): Promise<{ pageNo: number; content: string }[]> {
+  installDomMatrixPolyfill();
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   // Keep the loading task: pdfjs 6 dropped the PDFDocumentProxy.destroy()
   // shortcut, and tearing down the worker is only reachable from the task.
