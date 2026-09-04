@@ -30,6 +30,7 @@ config();
 
 import { createClient } from "@supabase/supabase-js";
 import { indexPdfPages, type PageRecordType } from "../lib/pdf-page-index";
+import { describeTarget, judgeEnvironment, PROBE_SAMPLE_SIZE } from "../lib/indexing/environment";
 import {
   RETRYABLE_STATUSES,
   outcomeFromError,
@@ -136,6 +137,24 @@ async function main() {
     if (p.pdf_url && !alreadyIndexed.has(`publication:${p.id}`)) {
       targets.push({ recordType: "publication", recordId: p.id, title: p.title, rawUrl: p.pdf_url });
     }
+  }
+
+  /* Refuse to write verdicts this process cannot support.
+   *
+   * This script loads .env.local BEFORE .env, so a developer shell supplies a
+   * dev ZIMA_API_URL even when the Supabase credentials point at production.
+   * That exact combination once recorded 203 healthy books as `unfetchable`
+   * in production — a statement about the operator's laptop, stored as a fact
+   * about the library. The allow-list was right to refuse those URLs; the bug
+   * was that we wrote down what it refused. */
+  const target = describeTarget();
+  const verdict = judgeEnvironment(targets.slice(0, PROBE_SAMPLE_SIZE).map((t) => t.rawUrl));
+  console.log(`Target: ${target.label} — storage hosts: ${verdict.hosts.join(", ") || "(none)"}`);
+  if (!verdict.ok) {
+    console.error(`\n✖ ENVIRONMENT MISMATCH — refusing to run.\n\n  ${verdict.reason}\n`);
+    console.error("  Run with the target deployment's storage configuration, or use");
+    console.error("  `npm run backfill:index -- --dry-run` first.\n");
+    process.exit(2);
   }
 
   console.log(`${targets.length} records to extract (${alreadyIndexed.size ? `${alreadyIndexed.size / 1} already indexed, skipped` : "fresh run"})…`);

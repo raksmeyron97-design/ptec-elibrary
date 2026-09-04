@@ -74,6 +74,17 @@ export type FullTextIndexHealthRow = {
   failed: number;
   /** No attempt has ever been recorded for these. */
   neverAttempted: number;
+  /** Indexed, but from a file the resource no longer points at. The only
+   *  state that is actively WRONG rather than absent: search can quote text
+   *  the current PDF does not contain. Derived in SQL from source_digest. */
+  stale: number;
+  /** Currently claimed by a runner. */
+  running: number;
+  /** Failures split by whose problem they are (0134). `config` says nothing
+   *  about the collection — it means a runner could not reach the files. */
+  failedTransient: number;
+  failedPermanent: number;
+  failedConfig: number;
   totalPages: number;
   totalChunks: number;
 };
@@ -239,7 +250,7 @@ export async function reconcilePublicResourceStats(): Promise<ResourceStatsRecon
     supabase
       .from("public_resource_index_health")
       .select(
-        "record_type, published, indexed, no_text_layer, unfetchable, failed, never_attempted, total_pages, total_chunks",
+        "record_type, published, indexed, stale, no_text_layer, unfetchable, failed, running, never_attempted, failed_transient, failed_permanent, failed_config, total_pages, total_chunks",
       ),
     findPossibleDuplicates(supabase),
   ]);
@@ -276,6 +287,11 @@ export async function reconcilePublicResourceStats(): Promise<ResourceStatsRecon
         unfetchable: Number(r.unfetchable),
         failed: Number(r.failed),
         neverAttempted: Number(r.never_attempted),
+        stale: Number(r.stale ?? 0),
+        running: Number(r.running ?? 0),
+        failedTransient: Number(r.failed_transient ?? 0),
+        failedPermanent: Number(r.failed_permanent ?? 0),
+        failedConfig: Number(r.failed_config ?? 0),
         totalPages: Number(r.total_pages),
         totalChunks: Number(r.total_chunks),
       }));

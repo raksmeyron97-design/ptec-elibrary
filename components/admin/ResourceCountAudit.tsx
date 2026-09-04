@@ -264,7 +264,13 @@ export default function ResourceCountAudit({ initial }: Props) {
                 /* A record we never tried, and one we tried and crashed on,
                    both need a human — so both colour the chip. A scan does
                    not: it is a true fact about the document. */
-                const needsAction = r.failed > 0 || r.neverAttempted > 0 || r.unfetchable > 0;
+                /* Stale is included because it is the one state that is
+                   actively WRONG rather than merely absent — search can quote
+                   text the current PDF no longer contains. A no_text_layer
+                   count still does not colour the chip: that is a true fact
+                   about the documents, not a defect. */
+                const needsAction =
+                  r.failed > 0 || r.neverAttempted > 0 || r.unfetchable > 0 || r.stale > 0;
                 return (
                   <li
                     key={r.resourceType}
@@ -282,9 +288,12 @@ export default function ResourceCountAudit({ initial }: Props) {
                     {r.indexed > 0 && (
                       <> · {t("fullText.chipPages", { pages: fmt(r.totalPages), chunks: fmt(r.totalChunks) })}</>
                     )}
+                    {r.stale > 0 && <> · {t("fullText.chipStale", { count: fmt(r.stale) })}</>}
+                    {r.running > 0 && <> · {t("fullText.chipRunning", { count: fmt(r.running) })}</>}
                     {r.neverAttempted > 0 && <> · {t("fullText.chipNever", { count: fmt(r.neverAttempted) })}</>}
                     {r.failed > 0 && <> · {t("fullText.chipFailed", { count: fmt(r.failed) })}</>}
                     {r.unfetchable > 0 && <> · {t("fullText.chipUnfetchable", { count: fmt(r.unfetchable) })}</>}
+                    {r.failedConfig > 0 && <> · {t("fullText.chipConfig", { count: fmt(r.failedConfig) })}</>}
                     {r.noTextLayer > 0 && <> · {t("fullText.chipScanned", { count: fmt(r.noTextLayer) })}</>}
                   </li>
                 );
@@ -295,6 +304,19 @@ export default function ResourceCountAudit({ initial }: Props) {
             )}
             {rec.fullTextIndex.some((r) => r.neverAttempted > 0) && (
               <p className="mt-1 max-w-[78ch] text-[11.5px] text-text-muted">{t("fullText.neverHint")}</p>
+            )}
+            {rec.fullTextIndex.some((r) => r.stale > 0) && (
+              <p className="mt-1 max-w-[78ch] text-[11.5px] text-warning-text">{t("fullText.staleHint")}</p>
+            )}
+            {rec.fullTextIndex.some((r) => r.failedConfig > 0) && (
+              <p className="mt-1 max-w-[78ch] text-[11.5px] text-text-muted">{t("fullText.configHint")}</p>
+            )}
+            {rec.fullTextIndex.some((r) => r.failedPermanent > 0) && (
+              <p className="mt-1 max-w-[78ch] text-[11.5px] text-text-muted">
+                {t("fullText.permanentHint", {
+                  count: fmt(rec.fullTextIndex.reduce((n, r) => n + r.failedPermanent, 0)),
+                })}
+              </p>
             )}
           </>
         )}

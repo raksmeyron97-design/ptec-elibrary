@@ -4764,7 +4764,13 @@
         "chipScanned": "{count} scanned (no text layer)",
         "chipUnfetchable": "{count} unfetchable",
         "failedHint": "A failed record is a bug or an outage on our side, never a property of the document — check the server log for [pdf-index] entries.",
-        "neverHint": "Never attempted means the background indexer has not run over these records. New uploads index themselves; existing records need the backfill command above."
+        "neverHint": "Never attempted means the background indexer has not run over these records. New uploads index themselves; existing records need the backfill command above.",
+        "chipStale": "{count} stale (PDF replaced)",
+        "chipRunning": "{count} in progress",
+        "chipConfig": "{count} blocked by configuration",
+        "staleHint": "A stale record was indexed from a PDF that has since been replaced — search can still quote text the current file does not contain. The hourly reconciliation job re-indexes these first.",
+        "configHint": "A configuration failure says nothing about the document: a runner could not reach the files at all (usually a backfill started with the wrong storage settings). It never overwrites a good result, and clears itself once a correctly configured run reaches the record.",
+        "permanentHint": "{count} permanently failed — retrying will not help. These need a person, or OCR."
       },
       "duplicates": {
         "title": "Possible duplicate records ({count})",

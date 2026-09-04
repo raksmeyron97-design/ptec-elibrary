@@ -10,6 +10,7 @@
     "start": "next start",
     "lint": "eslint",
     "doctor": "npx react-doctor@latest",
+    "backfill:index": "tsx scripts/backfill-index.ts",
     "test": "vitest",
     "test:e2e": "playwright test",
     "optimize:hero": "node scripts/optimize-hero.mjs",
