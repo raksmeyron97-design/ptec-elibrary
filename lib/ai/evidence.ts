@@ -21,7 +21,72 @@
 //     opposite. The old `matchChunks` hard-coded one-passage-per-work, which
 //     gave diversity by accident and made depth impossible.
 
+import { hasKhmer, normalizeSearchText } from "@/lib/search/normalize";
 import type { RetrievedPassage } from "./citations";
+
+/**
+ * Function words a question is made of. They are not evidence of anything:
+ * searching page text for "what", "does" or "about" matches every page in the
+ * library, which is the same as matching none of them.
+ *
+ * Deliberately small. This is not linguistics — it is the handful of words
+ * that appear in the shape of a question ("what does the book say about X")
+ * and would otherwise drown the two words that carry the topic.
+ */
+const QUESTION_WORDS = new Set([
+  "what", "which", "who", "whom", "whose", "when", "where", "why", "how",
+  "does", "do", "did", "is", "are", "was", "were", "be", "been", "being",
+  "the", "a", "an", "this", "that", "these", "those", "it", "its", "their",
+  "and", "or", "but", "of", "in", "on", "at", "to", "for", "from", "with",
+  "about", "into", "over", "under", "between", "book", "books", "document",
+  "text", "page", "pages", "say", "says", "said", "tell", "tells", "me",
+  "you", "your", "i", "my", "we", "us", "can", "could", "would", "should",
+  "will", "shall", "may", "might", "must", "have", "has", "had", "there",
+  "here", "any", "some", "all", "more", "most", "other", "such", "than",
+  "then", "also", "just", "only", "very", "much", "many",
+]);
+
+/**
+ * The words in a question that could plausibly appear in the text being
+ * searched, longest first.
+ *
+ * Longest-first matters: a page containing "assessment" is better evidence
+ * for "what does it say about formative assessment" than one containing
+ * "formative", and when the candidate budget binds it is the specific term
+ * that should survive. Khmer has no word boundaries, so a Khmer query is one
+ * term — the phrase itself.
+ */
+export function queryTerms(query: string, max = 6): string[] {
+  const normalized = normalizeSearchText(query);
+  if (!normalized) return [];
+  if (hasKhmer(normalized)) return [normalized];
+  const seen = new Set<string>();
+  const terms: string[] = [];
+  for (const word of normalized.split(" ")) {
+    if (word.length < 4 || QUESTION_WORDS.has(word) || seen.has(word)) continue;
+    seen.add(word);
+    terms.push(word);
+  }
+  return terms.sort((a, b) => b.length - a.length).slice(0, max);
+}
+
+/**
+ * How well a page answers the query, from the terms it contains.
+ *
+ * A page carrying the whole phrase is the strongest lexical evidence there
+ * is; after that, more distinct topic terms beats more repetitions of one.
+ * Returns 0 when nothing matched, so the caller can drop the row rather than
+ * cite a page whose only connection to the question is the word "the".
+ */
+export function lexicalScore(content: string, query: string, terms: readonly string[]): number {
+  const text = normalizeSearchText(content);
+  if (!text) return 0;
+  const phrase = normalizeSearchText(query);
+  let score = 0;
+  if (phrase && text.includes(phrase)) score += 10;
+  for (const term of terms) if (text.includes(term)) score += 1;
+  return score;
+}
 
 /** Which pool a piece of evidence came from. */
 export type EvidenceMatchType = "pdf_exact" | "semantic";

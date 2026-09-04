@@ -40,8 +40,8 @@ import {
   searchWorks,
   type ResolvedRecord,
 } from "./retrieval";
-import { getCitationSource } from "./citation-source";
-import type { EvidenceRecordType } from "./evidence";
+import { attachReferences, getCitationSource } from "./citation-source";
+import { sourceCount, type EvidenceRecordType } from "./evidence";
 import {
   EMPTY_RETRIEVAL,
   TYPES_FOR,
@@ -324,6 +324,11 @@ export async function runAssistant(
     resultCount: retrieval.results.length,
     deterministic: true,
     fallback: retrieval.fallback,
+    retrievalMode: p.mode ?? "lookup",
+    scoped: p.mode === "scoped",
+    candidateCount: retrieval.candidateCount ?? 0,
+    evidenceCount: retrieval.passages.length,
+    sourceCount: sourceCount(retrieval.evidence ?? []),
   });
 
   // ── Zero-LLM path ───────────────────────────────────────────────────────────
@@ -335,9 +340,15 @@ export async function runAssistant(
       cacheHit: retrieval.cacheHit,
       deterministic: true,
     };
-    const response = retrieval.results.length
-      ? resultsResponse(p.answer, retrieval.results, intent.intent, metadata)
-      : textResponse(p.answer, intent.intent, metadata);
+    // A deterministic answer can still carry evidence — a scoped question the
+    // template declined to answer, or a citation intent. When it does, the
+    // sources travel with it so the reader can open the page it came from.
+    const deterministicSources = sources.length ? await attachReferences(sources) : sources;
+    const response = deterministicSources.length
+      ? citationsResponse(p.answer, deterministicSources, retrieval.results, intent.intent, metadata)
+      : retrieval.results.length
+        ? resultsResponse(p.answer, retrieval.results, intent.intent, metadata)
+        : textResponse(p.answer, intent.intent, metadata);
     return { response, telemetry: { ...baseTelemetry(), fallback: retrieval.fallback ?? "no_llm" } };
   }
 
@@ -372,6 +383,8 @@ export async function runAssistant(
         usage?.totalTokens ?? (usage?.inputTokens ?? inputTokens) + (usage?.outputTokens ?? estimateTokens(answer)),
       latencyMs: Date.now() - started,
       deterministic: false,
+      groundedCitations: grounded.grounded.length,
+      hallucinatedCitations: grounded.hallucinated.length,
     };
 
     const metadata = {
@@ -382,8 +395,12 @@ export async function runAssistant(
       deterministic: false,
     };
 
-    const response = cited.length
-      ? citationsResponse(answer, cited, retrieval.results, intent.intent, metadata)
+    // References are fetched only for the sources that survived grounding —
+    // a hallucinated citation never triggers a lookup.
+    const withReferences = cited.length ? await attachReferences(cited) : cited;
+
+    const response = withReferences.length
+      ? citationsResponse(answer, withReferences, retrieval.results, intent.intent, metadata)
       : retrieval.results.length
         ? resultsResponse(answer, retrieval.results, intent.intent, metadata)
         : textResponse(answer, intent.intent, metadata);
@@ -472,6 +489,11 @@ export async function streamAssistant(input: AssistantInput): Promise<StreamPlan
       resultCount: retrieval.results.length,
       deterministic: false,
       fallback: retrieval.fallback,
+      retrievalMode: p.mode ?? "lookup",
+      scoped: p.mode === "scoped",
+      candidateCount: retrieval.candidateCount ?? 0,
+      evidenceCount: retrieval.passages.length,
+      sourceCount: sourceCount(retrieval.evidence ?? []),
     },
   };
 }

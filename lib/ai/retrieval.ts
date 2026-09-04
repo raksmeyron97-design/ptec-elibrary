@@ -35,6 +35,8 @@ import {
   balanceByDocument,
   diversify,
   fuseEvidence,
+  lexicalScore,
+  queryTerms,
   spreadPages,
   type EvidenceRecordType,
   type RetrievalMode,
@@ -736,6 +738,7 @@ async function hydratePages(
   db: Db,
   rows: PageRow[],
   query: string,
+  terms: readonly string[] = [],
 ): Promise<RetrievedEvidence[]> {
   const idsByType = new Map<EvidenceRecordType, string[]>();
   for (const r of rows) {
@@ -773,6 +776,11 @@ async function hydratePages(
     const type = r.record_type as EvidenceRecordType;
     const info = meta.get(`${type}:${r.record_id}`);
     if (!info) continue; // unpublished or missing parent — never citable
+    const content = String(r.content ?? "");
+    const lower = content.toLowerCase();
+    const focus = lower.includes(query.toLowerCase())
+      ? query
+      : (terms.find((t) => lower.includes(t)) ?? query);
     out.push({
       recordType: type,
       recordId: r.record_id,
@@ -781,7 +789,7 @@ async function hydratePages(
       author: info.author,
       url: urlFor(type, info.ref),
       page: Number(r.page_no) || 1,
-      text: makeSnippet(String(r.content ?? ""), query, PASSAGE_CHARS / 4),
+      text: makeSnippet(content, focus, PASSAGE_CHARS / 4),
       similarity: 1,
       score: 0,
     });
@@ -805,21 +813,89 @@ async function lexicalPages(
 ): Promise<RetrievedEvidence[]> {
   const q = sanitizeFilterTerm(query);
   if (q.length < 3) return [];
+  // A question is not a phrase to find on a page. Searching page text for
+  // "what does the book say about formative assessment" matches nothing,
+  // while its topic terms match the pages that answer it — so the whole
+  // phrase and the terms are asked for together, and scored afterwards.
+  const terms = queryTerms(q);
+  const patterns = [q, ...terms].filter((p) => p.length >= 3);
+  if (patterns.length === 0) return [];
+
   try {
-    let request = db
-      .from("book_pages")
-      .select("record_type, record_id, page_no, content")
-      .ilike("content", `%${q}%`);
+    let request = db.from("book_pages").select("record_type, record_id, page_no, content");
     if (scope) {
       request = request.eq("record_type", scope.recordType).eq("record_id", scope.recordId);
     }
-    const { data, error } = await request.order("page_no", { ascending: true }).limit(limit * 3);
+    const { data, error } = await request
+      .or(patterns.map((p) => `content.ilike.%${p}%`).join(","))
+      .limit(limit * 6);
     if (error || !data?.length) return [];
-    return hydratePages(db, data as unknown as PageRow[], q);
+
+    const scored = (data as unknown as PageRow[])
+      .map((row) => ({ row, score: lexicalScore(row.content ?? "", q, terms) }))
+      .filter((r) => r.score > 0)
+      .sort((a, b) => b.score - a.score || a.row.page_no - b.row.page_no)
+      .slice(0, limit);
+    if (scored.length === 0) return [];
+
+    // Centre each snippet on a term the page actually contains, so the reader
+    // sees why it was cited rather than the top of the page.
+    return hydratePages(
+      db,
+      scored.map((r) => r.row),
+      q,
+      terms,
+    );
   } catch (err) {
     console.error("[ai/retrieval] lexical pages:", err instanceof Error ? err.message : err);
     return [];
   }
+}
+
+/**
+ * Pages spread through one document, for a summary with nothing to search on.
+ *
+ * "Summarize this book" contains no topic to retrieve: searching page text for
+ * the word "summarize" finds the pages that happen to use it, which is worse
+ * than useless. A summary instead needs a sample OF the document — real pages,
+ * evenly spaced, so the model condenses what the book actually says and every
+ * claim still carries a page a reader can open.
+ *
+ * Page numbers are read first and the text of only the chosen pages is
+ * fetched: a 300-page book must not send 300 pages of text over the wire to
+ * pick five.
+ */
+async function samplePages(
+  db: Db,
+  scope: EvidenceScope,
+  limit: number,
+): Promise<RetrievedEvidence[]> {
+  const { data: numbers, error } = await db
+    .from("book_pages")
+    .select("page_no")
+    .eq("record_type", scope.recordType)
+    .eq("record_id", scope.recordId)
+    .order("page_no", { ascending: true })
+    .limit(2_000);
+  if (error || !numbers?.length) return [];
+
+  // Front matter (title page, copyright, contents) summarises nothing.
+  const all = (numbers as { page_no: number }[]).map((r) => r.page_no);
+  const body = all.filter((p) => p > 4);
+  const pages = body.length >= limit ? body : all;
+  const step = pages.length / limit;
+  const picked = [
+    ...new Set(Array.from({ length: limit }, (_, i) => pages[Math.min(pages.length - 1, Math.floor(i * step))])),
+  ];
+
+  const { data } = await db
+    .from("book_pages")
+    .select("record_type, record_id, page_no, content")
+    .eq("record_type", scope.recordType)
+    .eq("record_id", scope.recordId)
+    .in("page_no", picked);
+  if (!data?.length) return [];
+  return hydratePages(db, data as unknown as PageRow[], "");
 }
 
 /** Chunks nearest the query vector, corpus-wide or inside one record. */
@@ -970,14 +1046,22 @@ export async function retrieveEvidence(input: RetrieveEvidenceInput): Promise<Ev
     }
 
     const fused = fuseEvidence([lexical, semantic]);
+    // A summary request usually names no topic to retrieve on, so when the
+    // legs come back empty the document itself is sampled. Only for a scoped
+    // summary: sampling the whole library would summarise nothing.
+    const sampled =
+      input.mode === "summary" && scope && fused.length === 0
+        ? await samplePages(db, scope, limit)
+        : [];
+    const pool = fused.length ? fused : sampled;
     const evidence =
       input.mode === "summary"
-        ? spreadPages(fused, limit)
-        : diversify(fused, { limit, perResource: limits.perResource });
+        ? spreadPages(pool, limit)
+        : diversify(pool, { limit, perResource: limits.perResource });
 
     return {
       evidence,
-      candidateCount: lexical.length + semantic.length,
+      candidateCount: lexical.length + semantic.length + sampled.length,
       dbQueries,
       embeddingMs: embedding.ms,
       semanticAvailable: semanticAllowed && Boolean(embedding.vector),

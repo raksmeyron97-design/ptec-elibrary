@@ -53,6 +53,10 @@ export interface RetrievalOutcome {
   citation?: { title: string; reference: string; url: string; page?: number };
   /** Documents a comparison found no evidence in, by title. */
   missingDocuments?: string[];
+  /** Rows the retrieval legs produced before fusion and diversity. */
+  candidateCount?: number;
+  /** False when the record has no embedded chunks — exact-text only. */
+  semanticAvailable?: boolean;
   dbQueries: number;
   embeddingMs: number;
   retrievalMs: number;

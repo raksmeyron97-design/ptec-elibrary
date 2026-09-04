@@ -28,6 +28,7 @@ import {
   type CitationWork,
 } from "@/lib/citations";
 import type { EvidenceRecordType } from "./evidence";
+import type { Source } from "./response";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -125,4 +126,32 @@ export async function getCitationSources(
 /** "(Dawson, 2019, p. 42)" for a cited page. */
 export function pageReference(work: CitationWork, page: number): string {
   return inTextReference(work, page);
+}
+
+/**
+ * Fill in the copyable reference on the sources an answer actually cited.
+ *
+ * Runs AFTER grounding, so a hallucinated citation never triggers a lookup,
+ * and only for the records that survived — an answer citing four pages of one
+ * book costs one query. A source whose record cannot produce a citation keeps
+ * its title, page and link; the copy affordance is simply absent, which is
+ * honest about a record that has no year and no author.
+ */
+export async function attachReferences(sources: readonly Source[]): Promise<Source[]> {
+  const citable = sources.filter(
+    (s): s is Source & { recordType: EvidenceRecordType; recordId: string } =>
+      Boolean(s.recordId) && (s.recordType === "book" || s.recordType === "research" || s.recordType === "publication"),
+  );
+  if (citable.length === 0) return [...sources];
+
+  const map = await getCitationSources(citable);
+  return sources.map((s) => {
+    const found = s.recordId && s.recordType ? map.get(`${s.recordType}:${s.recordId}`) : undefined;
+    if (!found) return s;
+    return {
+      ...s,
+      reference: found.reference,
+      citation: s.page === undefined ? undefined : inTextReference(found.work, s.page),
+    };
+  });
 }
