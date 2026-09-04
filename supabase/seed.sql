@@ -709,3 +709,37 @@ ON CONFLICT (id) DO NOTHING;
 UPDATE public.publication_authors
    SET slug = public.author_slugify(coalesce(nullif(full_name, ''), full_name_km))
  WHERE slug IS NULL;
+
+
+-- ============================================================================
+-- 13. Extracted page text, so retrieval has something to retrieve
+-- ============================================================================
+-- Without book_pages rows the AI assistant is untestable end to end: every
+-- question returns "no evidence" and the sources panel, the citations and the
+-- page deep links never render, so the e2e suite could only assert that the
+-- widget opens. These pages carry deliberately distinctive phrases the specs
+-- search for, and the page numbers they cite are these page numbers.
+--
+-- Text only — no embeddings. CI has no Gemini key, and the lexical leg of
+-- retrieval is exactly the path that must work without one.
+
+INSERT INTO public.book_pages (record_type, record_id, page_no, content)
+VALUES
+  ('book', '33333333-3333-4333-8333-333333333301', 12,
+   'Formative assessment is best understood as a continuous process rather than an event. The teacher gathers evidence of learning during instruction, interprets it against the intended outcome, and adjusts the next step accordingly.'),
+  ('book', '33333333-3333-4333-8333-333333333301', 24,
+   'Classroom management in the early grades rests on predictable routines. A teacher who establishes clear transitions recovers several minutes of instructional time in every lesson, and the pupils who benefit most are those who arrive least prepared.'),
+  ('book', '33333333-3333-4333-8333-333333333301', 37,
+   'Inclusive practice begins with the assumption that every learner can progress. Differentiation is not a separate curriculum but a set of adjustments to pace, grouping and representation applied to the same intended outcome.'),
+  ('book', '33333333-3333-4333-8333-333333333301', 58,
+   'Reflective practice asks the teacher to treat a lesson as evidence. Notes taken immediately after teaching are more useful than recollections gathered at the end of a week, because the detail that explains a result fades first.'),
+  ('book', '33333333-3333-4333-8333-333333333301', 71,
+   'Assessment for certification and assessment for learning answer different questions. Confusing the two produces a classroom where every task is graded and none of the grading changes what happens next.')
+ON CONFLICT (record_type, record_id, page_no) DO NOTHING;
+
+-- The indexing state row a real extraction would have written, so the admin
+-- Data Quality panel and lib/ai/readiness.ts see a normally indexed book
+-- rather than one that was never attempted.
+INSERT INTO public.resource_index_state (record_type, record_id, status, pages, chunks, attempted_at)
+VALUES ('book', '33333333-3333-4333-8333-333333333301', 'indexed', 5, 0, now())
+ON CONFLICT (record_type, record_id) DO NOTHING;

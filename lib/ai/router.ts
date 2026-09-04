@@ -41,6 +41,7 @@ import {
   type ResolvedRecord,
 } from "./retrieval";
 import { attachReferences, getCitationSource } from "./citation-source";
+import { isMockProvider, mockModel } from "./mock-model";
 import { sourceCount, type EvidenceRecordType } from "./evidence";
 import {
   EMPTY_RETRIEVAL,
@@ -287,6 +288,10 @@ async function plan(input: AssistantInput): Promise<Plan> {
 
 // ── Stage 2: model generation (only when stage 1 could not answer) ────────────
 function googleModel(id: string) {
+  // The e2e seam. Gated on an env flag that production never sets, so the
+  // assistant's surfaces are testable in CI (which has no key) without any
+  // test reaching a billed provider. See lib/ai/mock-model.ts.
+  if (isMockProvider()) return mockModel();
   const apiKey = process.env.GEMINI_API_KEY ?? process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!apiKey) throw new AIRequestError("unavailable", "GEMINI_API_KEY is not configured.");
   return createGoogleGenerativeAI({ apiKey })(id);

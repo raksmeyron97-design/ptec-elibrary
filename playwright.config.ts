@@ -50,6 +50,11 @@ export default defineConfig({
     env: {
       ...(process.env as Record<string, string>),
       SEO_INDEXING: 'on',
+      // The assistant answers from a deterministic stand-in model
+      // (lib/ai/mock-model.ts) rather than a billed provider. Without it, a
+      // developer running this suite locally would spend real Gemini calls,
+      // and CI — which has no key at all — could not reach any AI surface.
+      AI_MOCK_PROVIDER: process.env.AI_MOCK_PROVIDER || '1',
       NEXT_PUBLIC_TURNSTILE_SITE_KEY:
         process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA',
     },
