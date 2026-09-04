@@ -15,6 +15,7 @@ import { modelIdFor, resolveTier, thinkingBudgetFor } from "./models";
 import { INJECTION_NOTICE, buildSystemPrompt, type PromptOrg } from "./prompts";
 import * as T from "./templates";
 import type { RetrievedPassage } from "./citations";
+import type { RetrievedEvidence } from "./evidence";
 import type { AIIntent, ResultKind, SearchResult } from "./response";
 import {
   MAX_CONTEXT_TOKENS,
@@ -32,6 +33,13 @@ export interface RetrievalOutcome {
   works: CompactWork[];
   /** Page-level evidence, ranked. Empty unless the intent needed it. */
   passages: RetrievedPassage[];
+  /**
+   * The same passages with their provenance (record type + id, match type).
+   * Set by `retrieveEvidence`; absent on the legacy paths that only ever had
+   * a title and a page. Citations are built from THIS when it is present, so
+   * a source can be saved and verified by identity rather than by title text.
+   */
+  evidence?: RetrievedEvidence[];
   /** Library facts already resolved to display strings. */
   facts: string[];
   /** The directory page a discovery intent resolved to (author or subject). */

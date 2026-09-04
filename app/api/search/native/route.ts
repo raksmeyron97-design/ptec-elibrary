@@ -63,6 +63,10 @@ import {
   digitalAvailability,
   physicalAvailability,
 } from "@/lib/search/availability";
+// One definition of "show the reader where the match is", shared with the AI
+// evidence layer so a page hit reads the same in a result card and under an
+// answer.
+import { makeSnippet } from "@/lib/search/snippet";
 import { clientIp } from "@/lib/client-ip";
 
 export type { ActiveSearchType, SearchResult, SearchResultType, SearchSort } from "@/lib/search/ranking";
@@ -1056,14 +1060,6 @@ async function fuzzySearch(db: DB, q: string, typeFilter?: SearchResultType, lim
       matchedFields: ["title"],
       actions: { view: FUZZY_URL[r.source as SearchResultType](r.ref) },
     }));
-}
-
-function makeSnippet(content: string, q: string, radius = 90): string {
-  const idx = content.toLowerCase().indexOf(q.toLowerCase());
-  if (idx === -1) return `${content.slice(0, radius * 2)}...`;
-  const start = Math.max(0, idx - radius);
-  const end = Math.min(content.length, idx + q.length + radius);
-  return `${start > 0 ? "..." : ""}${content.slice(start, end).trim()}${end < content.length ? "..." : ""}`;
 }
 
 async function searchPageContent(db: DB, q: string, limit = 6): Promise<PageHit[]> {
