@@ -179,6 +179,26 @@ benchmark traffic out of `search_queries`. Named runs are committed under
 
 Do not claim a ranking change helped without running it.
 
+### Measured on 2026-09-04 (215 published books, dev server on a laptop against the hosted database)
+
+| category | n | R@1 before → after | R@5 | MRR | zero-result |
+|---|---|---|---|---|---|
+| title_en | 12 | 58% → 100% | 58% → 100% | 0.58 → 1.00 | 0% |
+| title_km | 12 | 100% → 100% | 100% | 1.00 | 0% |
+| mixed | 10 | 100% → 100% | 100% | 1.00 | 0% |
+| author | 12 | 100% → 100% | 100% | 1.00 | 0% |
+| subject | 12 | 67% → 67% | 100% | 0.78 | 0% |
+| typo | 10 | 60% → 100% | 70% → 100% | 0.65 → 1.00 | 0% |
+| isbn | 10 | 30% → 100% | 30% → 100% | 0.30 → 1.00 | 50% → 0% |
+| pdf_text | 12 | 100% → 100% | 100% | 1.00 | 0% |
+| **all** | 90 | **78% → 96%** | **83% → 100%** | **0.80 → 0.97** | **6% → 0%** |
+
+Client p50 1.87 s → 1.75 s under the same conditions (dev server, remote
+database; the p95 is dominated by dev-mode recompiles and is not a production
+number). `results/baseline.json` and `results/after.json` are the two runs.
+The `subject` R@1 of 67% is four Khmer category queries whose top result is a
+sibling title in the same category — every expected record is in the top 5.
+
 ## Analytics
 
 Public query logs are written to `search_queries`; result clicks to
