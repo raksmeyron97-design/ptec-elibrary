@@ -601,7 +601,7 @@ async function findWorkByTitle(
     .ilike("title", pattern)
     .order("download_count", { ascending: false })
     .limit(5);
-  const book = ((books ?? []) as any[]).find((b) => titled(b.title));
+  const book = ((books ?? []) as { title: string }[]).find((b) => titled(b.title));
   if (book) return { ...bookRow(book), dbQueries: 1 };
 
   const { data: theses } = await db
@@ -610,7 +610,7 @@ async function findWorkByTitle(
     .eq("is_published", true)
     .ilike("title", pattern)
     .limit(5);
-  const thesis = ((theses ?? []) as any[]).find((r) => titled(r.title));
+  const thesis = ((theses ?? []) as { title: string }[]).find((r) => titled(r.title));
   return thesis ? { ...thesisRow(thesis), dbQueries: 2 } : null;
 }
 
