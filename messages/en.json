@@ -541,6 +541,11 @@
     "details": "Details",
     "reviews": "Reviews",
     "relatedBooks": "Related books",
+    "relatedReason": {
+      "subject": "Same subject",
+      "author": "Same author",
+      "keywords": "Shared tags"
+    },
     "continueReading": "Continue reading",
     "complete": "complete",
     "lastRead": "Last read",

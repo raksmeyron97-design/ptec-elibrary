@@ -546,6 +546,11 @@
     "details": "ព័ត៌មានលម្អិត",
     "reviews": "ការវាយតម្លៃ",
     "relatedBooks": "សៀវភៅដែលពាក់ព័ន្ធ",
+    "relatedReason": {
+      "subject": "មុខវិជ្ជាដូចគ្នា",
+      "author": "អ្នកនិពន្ធដូចគ្នា",
+      "keywords": "ស្លាកដូចគ្នា"
+    },
     "continueReading": "បន្តអាន",
     "complete": "បានបញ្ចប់",
     "lastRead": "អានចុងក្រោយ",
