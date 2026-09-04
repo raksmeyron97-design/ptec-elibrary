@@ -959,6 +959,33 @@ export interface RetrieveEvidenceInput {
   scope?: EvidenceScope;
   /** Overrides the mode's evidence cap. */
   limit?: number;
+  /**
+   * Return each leg's candidate pool alongside the chosen evidence, and skip
+   * the cache so the pools describe this call.
+   *
+   * For the retrieval benchmark ONLY. "Recall@5 = 84%" cannot say whether a
+   * miss was never retrieved, retrieved and out-ranked, or retrieved and
+   * evicted by the per-record cap — and those three have three different
+   * fixes. The pools are what make that difference observable
+   * (lib/ai/failure-class.ts). No request path sets this; the flag adds no
+   * work when it is off.
+   */
+  debug?: boolean;
+}
+
+/** One retrieved passage, reduced to what a failure classifier compares on. */
+export interface EvidencePoolRef {
+  recordType: string;
+  recordId: string;
+  page: number;
+}
+
+/** Each stage's output, in stage order. Present only for a `debug` call. */
+export interface EvidencePools {
+  lexical: EvidencePoolRef[];
+  semantic: EvidencePoolRef[];
+  /** Fused and ranked, before diversity — the input to the final selection. */
+  fused: EvidencePoolRef[];
 }
 
 export interface EvidenceOutcome extends RetrievalOutcome {
@@ -967,11 +994,19 @@ export interface EvidenceOutcome extends RetrievalOutcome {
   candidateCount: number;
   /** False when the resource has no embedded chunks — an honest "exact only". */
   semanticAvailable: boolean;
+  /** Set only when `debug` was requested. */
+  pools?: EvidencePools;
 }
 
 function emptyEvidence(): EvidenceOutcome {
   return { ...EMPTY_RETRIEVAL, evidence: [], candidateCount: 0, semanticAvailable: false };
 }
+
+const poolRef = (e: RetrievedEvidence): EvidencePoolRef => ({
+  recordType: e.recordType,
+  recordId: e.recordId,
+  page: e.page,
+});
 
 function evidenceToResults(evidence: readonly RetrievedEvidence[]): SearchResult[] {
   const seen = new Set<string>();
@@ -1030,14 +1065,7 @@ export async function retrieveEvidence(input: RetrieveEvidenceInput): Promise<Ev
     limit,
   ]);
 
-  const { value, hit } = await cached<{
-    evidence: RetrievedEvidence[];
-    candidateCount: number;
-    dbQueries: number;
-    embeddingMs: number;
-    semanticAvailable: boolean;
-    fallback?: RetrievalOutcome["fallback"];
-  }>("retrieval", key, async () => {
+  const compute = async () => {
     const db = createServiceClient();
     const [lexical, embedding] = await Promise.all([
       lexicalPages(db, query, scope, limits.candidates),
@@ -1072,8 +1100,22 @@ export async function retrieveEvidence(input: RetrieveEvidenceInput): Promise<Ev
       embeddingMs: embedding.ms,
       semanticAvailable: semanticAllowed && Boolean(embedding.vector),
       fallback: !semanticAllowed && lexical.length > 0 ? ("keyword" as const) : undefined,
+      pools: input.debug
+        ? {
+            lexical: lexical.map(poolRef),
+            semantic: semantic.map(poolRef),
+            fused: pool.map(poolRef),
+          }
+        : undefined,
     };
-  });
+  };
+
+  // A debug call must describe ITS OWN retrieval, so it neither reads nor
+  // writes the shared cache: a cached entry carries no pools, and storing one
+  // would hand a request path a payload it never asked for.
+  const { value, hit } = input.debug
+    ? { value: await compute(), hit: false }
+    : await cached<Awaited<ReturnType<typeof compute>>>("retrieval", key, compute);
 
   out.evidence = value.evidence;
   out.passages = value.evidence;
@@ -1084,6 +1126,7 @@ export async function retrieveEvidence(input: RetrieveEvidenceInput): Promise<Ev
   out.embeddingMs = hit ? 0 : value.embeddingMs;
   out.cacheHit = hit;
   out.fallback = hit ? "cache" : value.fallback;
+  out.pools = value.pools;
   out.retrievalMs = Date.now() - started;
   return out;
 }
