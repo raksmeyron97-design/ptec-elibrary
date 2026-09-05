@@ -1,0 +1,17 @@
+{
+  "before": {
+    "mounted": 5,
+    "canvases": 5,
+    "canvasMB": 15.1
+  },
+  "peak": {
+    "mounted": 7,
+    "canvases": 18,
+    "canvasMB": 27
+  },
+  "after": {
+    "mounted": 7,
+    "canvases": 9,
+    "canvasMB": 26.4
+  }
+}

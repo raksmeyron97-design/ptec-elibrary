@@ -1,0 +1,43 @@
+{
+  "file": {
+    "pages": 20,
+    "bytes": 10494075
+  },
+  "firstPaintMs": 12540,
+  "atOpen": {
+    "label": "open + 6 s idle",
+    "mounted": 7,
+    "canvases": 9,
+    "pageCanvases": 7,
+    "canvasMB": 26.4,
+    "textLayers": 7,
+    "objectUrls": 0,
+    "timeouts": 1,
+    "intervals": 1,
+    "resizeObservers": 5,
+    "mutationObservers": 2,
+    "nodes": 2963,
+    "listeners": 817,
+    "heapMB": 18.4,
+    "serverRequests": 17,
+    "serverRangeRequests": 16,
+    "serverMB": 9.7,
+    "ms": 12540
+  },
+  "idle": {
+    "label": "6 s more, counters reset",
+    "mounted": 7,
+    "canvases": 9,
+    "pageCanvases": 7,
+    "canvasMB": 26.4,
+    "textLayers": 7,
+    "objectUrls": 0,
+    "timeouts": 1,
+    "intervals": 1,
+    "resizeObservers": 5,
+    "mutationObservers": 2,
+    "serverRequests": 0,
+    "serverRangeRequests": 0,
+    "serverMB": 0
+  }
+}

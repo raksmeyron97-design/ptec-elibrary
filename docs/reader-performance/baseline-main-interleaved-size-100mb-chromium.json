@@ -1,0 +1,989 @@
+{
+  "file": {
+    "pages": 200,
+    "bytes": 104939228
+  },
+  "firstPaintMs": 5459,
+  "atPaint": {
+    "label": "first paint",
+    "mounted": 2,
+    "canvases": 4,
+    "textLayers": 2,
+    "objectUrls": 0,
+    "timeouts": 3,
+    "intervals": 1,
+    "resizeObservers": 5,
+    "mutationObservers": 2,
+    "serverRequests": 158,
+    "serverRangeRequests": 157,
+    "serverMB": 178.16,
+    "ms": 5459
+  },
+  "afterIdle": {
+    "label": "6 s idle",
+    "mounted": 5,
+    "canvases": 7,
+    "textLayers": 5,
+    "objectUrls": 0,
+    "timeouts": 0,
+    "intervals": 1,
+    "resizeObservers": 5,
+    "mutationObservers": 2,
+    "nodes": 3030,
+    "listeners": 887,
+    "heapMB": 21.8,
+    "serverRequests": 158,
+    "serverRangeRequests": 157,
+    "serverMB": 178.16
+  },
+  "requests": [
+    {
+      "range": null,
+      "status": 200,
+      "bytes": 104939228,
+      "aborted": false
+    },
+    {
+      "range": "bytes=104857600-104939227",
+      "status": 206,
+      "bytes": 81628,
+      "aborted": false
+    },
+    {
+      "range": "bytes=104333312-104857599",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=103809024-104333311",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=101187584-101711871",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=103284736-103809023",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=100663296-101187583",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=100139008-100663295",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=102760448-103284735",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=99614720-100139007",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=99090432-99614719",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=98566144-99090431",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=102236160-102760447",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=98041856-98566143",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=97517568-98041855",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=96993280-97517567",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=96468992-96993279",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=101711872-102236159",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=95944704-96468991",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=95420416-95944703",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=94896128-95420415",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=94371840-94896127",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=93847552-94371839",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=93323264-93847551",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=92798976-93323263",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=92274688-92798975",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=91750400-92274687",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=91226112-91750399",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=90701824-91226111",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=90177536-90701823",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=89653248-90177535",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=89128960-89653247",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=88604672-89128959",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=88080384-88604671",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=87556096-88080383",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=87031808-87556095",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=86507520-87031807",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=85983232-86507519",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=85458944-85983231",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=84934656-85458943",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=84410368-84934655",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=83886080-84410367",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=83361792-83886079",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=82837504-83361791",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=82313216-82837503",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=81788928-82313215",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=81264640-81788927",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=80740352-81264639",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=80216064-80740351",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=79691776-80216063",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=79167488-79691775",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=78643200-79167487",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=78118912-78643199",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=77594624-78118911",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=77070336-77594623",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=76546048-77070335",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=76021760-76546047",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=75497472-76021759",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=74973184-75497471",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=74448896-74973183",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=73924608-74448895",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=73400320-73924607",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=72876032-73400319",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=72351744-72876031",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=71827456-72351743",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=71303168-71827455",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=70778880-71303167",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=70254592-70778879",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=69730304-70254591",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=69206016-69730303",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=68681728-69206015",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=68157440-68681727",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=67633152-68157439",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=67108864-67633151",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=66584576-67108863",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=66060288-66584575",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=65536000-66060287",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=65011712-65535999",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=64487424-65011711",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=63963136-64487423",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=63438848-63963135",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=62914560-63438847",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=62390272-62914559",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=61865984-62390271",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=61341696-61865983",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=60817408-61341695",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=60293120-60817407",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=59768832-60293119",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=59244544-59768831",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=58720256-59244543",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=58195968-58720255",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=57671680-58195967",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=57147392-57671679",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=56623104-57147391",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=56098816-56623103",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=55574528-56098815",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=55050240-55574527",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=54525952-55050239",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=54001664-54525951",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=53477376-54001663",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=52953088-53477375",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=52428800-52953087",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=51904512-52428799",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=51380224-51904511",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=50855936-51380223",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=50331648-50855935",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=49807360-50331647",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=49283072-49807359",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=48758784-49283071",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=48234496-48758783",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=47710208-48234495",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=47185920-47710207",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=46661632-47185919",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=46137344-46661631",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=45613056-46137343",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=45088768-45613055",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=44564480-45088767",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=44040192-44564479",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=43515904-44040191",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=42991616-43515903",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=42467328-42991615",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=41943040-42467327",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=41418752-41943039",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=40894464-41418751",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=40370176-40894463",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=39845888-40370175",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=39321600-39845887",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=38797312-39321599",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=38273024-38797311",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=37748736-38273023",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=37224448-37748735",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=36700160-37224447",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=36175872-36700159",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=35651584-36175871",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=35127296-35651583",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=34603008-35127295",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=34078720-34603007",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=33554432-34078719",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=33030144-33554431",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=32505856-33030143",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=31981568-32505855",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=31457280-31981567",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=30932992-31457279",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=30408704-30932991",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=29884416-30408703",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=29360128-29884415",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=28835840-29360127",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=28311552-28835839",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=27787264-28311551",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=27262976-27787263",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=26738688-27262975",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=26214400-26738687",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=25690112-26214399",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=25165824-25690111",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=24641536-25165823",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=24117248-24641535",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=23592960-24117247",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=23068672-23592959",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    }
+  ]
+}

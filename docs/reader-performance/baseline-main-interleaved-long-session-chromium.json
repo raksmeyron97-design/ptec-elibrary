@@ -1,0 +1,399 @@
+{
+  "file": {
+    "pages": 500,
+    "bytes": 24794537
+  },
+  "snapshots": [
+    {
+      "label": "open",
+      "mounted": 500,
+      "canvases": 502,
+      "textLayers": 500,
+      "objectUrls": 0,
+      "timeouts": 1,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 9479,
+      "listeners": 887,
+      "heapMB": 46.6,
+      "serverRequests": 29,
+      "serverRangeRequests": 28,
+      "serverMB": 37.29,
+      "ms": 25128
+    },
+    {
+      "label": "page 20",
+      "mounted": 6,
+      "canvases": 8,
+      "textLayers": 6,
+      "objectUrls": 0,
+      "timeouts": 2,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3099,
+      "listeners": 892,
+      "heapMB": 25,
+      "serverRequests": 29,
+      "serverRangeRequests": 28,
+      "serverMB": 37.29,
+      "ms": 2394
+    },
+    {
+      "label": "page 50",
+      "mounted": 6,
+      "canvases": 8,
+      "textLayers": 6,
+      "objectUrls": 0,
+      "timeouts": 1,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3084,
+      "listeners": 891,
+      "heapMB": 24.9,
+      "serverRequests": 29,
+      "serverRangeRequests": 28,
+      "serverMB": 37.29,
+      "ms": 2478
+    },
+    {
+      "label": "page 100",
+      "mounted": 6,
+      "canvases": 8,
+      "textLayers": 6,
+      "objectUrls": 0,
+      "timeouts": 1,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3084,
+      "listeners": 891,
+      "heapMB": 24.4,
+      "serverRequests": 29,
+      "serverRangeRequests": 28,
+      "serverMB": 37.29,
+      "ms": 1741
+    },
+    {
+      "label": "page 200",
+      "mounted": 6,
+      "canvases": 8,
+      "textLayers": 6,
+      "objectUrls": 0,
+      "timeouts": 2,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3096,
+      "listeners": 892,
+      "heapMB": 24.3,
+      "serverRequests": 29,
+      "serverRangeRequests": 28,
+      "serverMB": 37.29,
+      "ms": 2064
+    },
+    {
+      "label": "page 300",
+      "mounted": 6,
+      "canvases": 8,
+      "textLayers": 6,
+      "objectUrls": 0,
+      "timeouts": 1,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3084,
+      "listeners": 891,
+      "heapMB": 24.4,
+      "serverRequests": 29,
+      "serverRangeRequests": 28,
+      "serverMB": 37.29,
+      "ms": 2751
+    },
+    {
+      "label": "page 400",
+      "mounted": 6,
+      "canvases": 8,
+      "textLayers": 6,
+      "objectUrls": 0,
+      "timeouts": 1,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3084,
+      "listeners": 891,
+      "heapMB": 24.3,
+      "serverRequests": 29,
+      "serverRangeRequests": 28,
+      "serverMB": 37.29,
+      "ms": 2060
+    },
+    {
+      "label": "page 500",
+      "mounted": 3,
+      "canvases": 5,
+      "textLayers": 3,
+      "objectUrls": 0,
+      "timeouts": 1,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3042,
+      "listeners": 891,
+      "heapMB": 24.5,
+      "serverRequests": 29,
+      "serverRangeRequests": 28,
+      "serverMB": 37.29,
+      "ms": 2159
+    },
+    {
+      "label": "zoom ×2",
+      "mounted": 3,
+      "canvases": 5,
+      "textLayers": 3,
+      "objectUrls": 0,
+      "timeouts": 1,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3045,
+      "listeners": 891,
+      "heapMB": 24.3,
+      "serverRequests": 29,
+      "serverRangeRequests": 28,
+      "serverMB": 37.29,
+      "ms": 861
+    },
+    {
+      "label": "rotate 90°",
+      "mounted": 3,
+      "canvases": 5,
+      "textLayers": 3,
+      "objectUrls": 0,
+      "timeouts": 1,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3045,
+      "listeners": 891,
+      "heapMB": 24.3,
+      "serverRequests": 29,
+      "serverRangeRequests": 28,
+      "serverMB": 37.29,
+      "ms": 744
+    },
+    {
+      "label": "search",
+      "mounted": 6,
+      "canvases": 8,
+      "textLayers": 6,
+      "objectUrls": 0,
+      "timeouts": 3,
+      "intervals": 2,
+      "resizeObservers": 5,
+      "mutationObservers": 3,
+      "nodes": 3130,
+      "listeners": 910,
+      "heapMB": 25.3,
+      "serverRequests": 29,
+      "serverRangeRequests": 28,
+      "serverMB": 37.29,
+      "ms": 2787
+    },
+    {
+      "label": "panel closed",
+      "mounted": 6,
+      "canvases": 8,
+      "textLayers": 6,
+      "objectUrls": 0,
+      "timeouts": 3,
+      "intervals": 2,
+      "resizeObservers": 5,
+      "mutationObservers": 3,
+      "nodes": 3129,
+      "listeners": 910,
+      "heapMB": 25.1,
+      "serverRequests": 29,
+      "serverRangeRequests": 28,
+      "serverMB": 37.29
+    }
+  ],
+  "requests": [
+    {
+      "range": null,
+      "status": 200,
+      "bytes": 24794537,
+      "aborted": false
+    },
+    {
+      "range": "bytes=24641536-24794536",
+      "status": 206,
+      "bytes": 153001,
+      "aborted": false
+    },
+    {
+      "range": "bytes=24117248-24641535",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=23592960-24117247",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=23068672-23592959",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=22544384-23068671",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=22020096-22544383",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=21495808-22020095",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=19398656-19922943",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=18874368-19398655",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=18350080-18874367",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=20971520-21495807",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=17825792-18350079",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=17301504-17825791",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=16777216-17301503",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=20447232-20971519",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=15728640-16252927",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=15204352-15728639",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=14680064-15204351",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=14155776-14680063",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=16252928-16777215",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=19922944-20447231",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=13631488-14155775",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=13107200-13631487",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=12582912-13107199",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=12058624-12582911",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=11534336-12058623",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=10485760-11010047",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=11010048-11534335",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    }
+  ]
+}

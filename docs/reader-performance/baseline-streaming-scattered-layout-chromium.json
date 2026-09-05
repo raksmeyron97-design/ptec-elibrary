@@ -1,0 +1,72 @@
+{
+  "file": {
+    "pages": 20,
+    "bytes": 10494155
+  },
+  "snap": {
+    "label": "scattered",
+    "mounted": 6,
+    "canvases": 8,
+    "pageCanvases": 6,
+    "canvasMB": 35.9,
+    "textLayers": 6,
+    "objectUrls": 0,
+    "timeouts": 1,
+    "intervals": 1,
+    "resizeObservers": 5,
+    "mutationObservers": 2,
+    "nodes": 3041,
+    "listeners": 890,
+    "heapMB": 21.6,
+    "serverRequests": 11,
+    "serverRangeRequests": 10,
+    "serverMB": 14.52,
+    "ms": 3731
+  },
+  "requests": [
+    {
+      "range": null,
+      "bytes": 10494155
+    },
+    {
+      "range": "bytes=10485760-10494154",
+      "bytes": 8395
+    },
+    {
+      "range": "bytes=9961472-10485759",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=9437184-9961471",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=6815744-7340031",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=6291456-6815743",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=8912896-9437183",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=5767168-6291455",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=8388608-8912895",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=7864320-8388607",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=7340032-7864319",
+      "bytes": 524288
+    }
+  ]
+}

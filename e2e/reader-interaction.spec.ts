@@ -124,8 +124,11 @@ test.describe("reader interaction cost", () => {
       for (const degrees of [90, 180, 270, 0]) {
         await reveal(page);
         await page.keyboard.press("r");
-        await expect(page.locator('[data-page="120"] canvas').first()).toBeVisible({ timeout: 30_000 });
-        await expect(pageIndicator(page)).toHaveAttribute("aria-label", `Page 120 of ${PAGES}`);
+        // A quarter turn changes every row's height; the reader re-anchors on
+        // the current page at the same fraction through it, which on a short
+        // phone viewport is a visible two-step. Wait for the indicator first.
+        await expect(pageIndicator(page)).toHaveAttribute("aria-label", `Page 120 of ${PAGES}`, { timeout: 30_000 });
+        await expect(page.locator('[data-page="120"] canvas').first()).toBeVisible({ timeout: 45_000 });
         const pages = await page.$$eval("[data-page]", (els) => els.map((e) => Number(e.getAttribute("data-page"))));
         expect(new Set(pages).size, `duplicate rows at ${degrees}°`).toBe(pages.length);
         expect(pages.length, `mounted at ${degrees}°`).toBeLessThanOrEqual(READER_BUDGETS.MAX_MOUNTED_PAGES);

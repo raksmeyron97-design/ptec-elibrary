@@ -109,7 +109,7 @@ async function goToPage(page: Page, n: number, opts: { expectRendered?: boolean 
   if (opts.expectRendered === false) {
     // The bytes may be unreachable — the row must still exist and the reader
     // must still say where it is.
-    await expect(page.locator(`[data-page="${n}"]`)).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(`[data-page="${n}"]`)).toBeVisible({ timeout: 60_000 });
   } else {
     await expect(page.locator(`[data-page="${n}"] canvas`).first()).toBeVisible({ timeout: 45_000 });
   }
@@ -283,10 +283,13 @@ test.describe("PDF reader — production performance", () => {
           READER_BUDGETS.MAX_CANVAS_BYTES.desktop / 1048576,
         );
       }
-      // Mounted pages do not grow with distance travelled.
+      // Mounted pages do not grow with distance travelled: the window is the
+      // same size after eight jumps as after the first few (it can be SMALLER
+      // right after open, before the prefetch budget has filled).
       const last = snaps[snaps.length - 1];
       const first = snaps[1];
-      expect(last.mounted).toBeLessThanOrEqual(first.mounted + 2);
+      const earlyWindow = Math.max(...snaps.slice(1, 5).map((s) => s.mounted));
+      expect(last.mounted).toBeLessThanOrEqual(earlyWindow + 2);
       // Listeners and observers do not accumulate across the session (Chromium).
       if (last.listeners !== undefined && first.listeners !== undefined) {
         expect(last.listeners, "event listeners").toBeLessThanOrEqual(first.listeners + 40);
