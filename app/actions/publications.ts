@@ -670,6 +670,7 @@ export async function deletePublication(id: string) {
   await supabase.from("book_pages").delete().eq("record_type", "publication").eq("record_id", id);
   await supabase.from("book_chunks").delete().eq("record_type", "publication").eq("record_id", id);
   await supabase.from("resource_index_state").delete().eq("record_type", "publication").eq("record_id", id);
+  await supabase.from("resource_semantic_insights").delete().eq("record_type", "publication").eq("record_id", id);
 
   const { error } = await supabase.from("publications").delete().eq("id", id);
   if (error) {
