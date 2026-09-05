@@ -14,11 +14,12 @@ test process** (`e2e/utils/pdf-server.ts`) fed generated multi-MB PDFs
 that server with `route.continue({ url })`, so the browser still addresses
 `/api/books/<id>/file` and pdf.js behaves exactly as in production; what the
 server counts is what it actually wrote to the socket. Browsers: Chromium
-(Desktop Chrome, Pixel 5 emulation) and WebKit (Desktop Safari, iPhone 13
-emulation) via Playwright. Absolute latencies are dev-server, loopback
+(Desktop Chrome and Pixel 5 emulation) via Playwright; WebKit could not be
+launched on this machine (§12). Absolute latencies are dev-server, loopback
 numbers and are quoted only as before/after pairs under identical
 conditions; the properties (bounded, proportional, recovered) are what is
-claimed.
+claimed. "Before" is `main` at `2c615f3` with the same specs and the same
+test server; "after" is this branch.
 
 ---
 
@@ -68,15 +69,23 @@ the reconnecting badge.
 
 `e2e/reader-performance.spec.ts`, Chromium, one book per size, clustered page
 dictionaries (the common producer layout), open → sit on page 1 → 6 s idle →
-counters reset → 6 s more.
+counters reset → 6 s more. "Before" = the same spec and server with
+`disableStream: false` (the shipped configuration), everything else equal.
 
-| File | Before: pushed to read page 1 | After: open + settle | After: next 6 s idle |
+| File | Before: open + settle | After: open + settle | After: next 6 s idle |
 |---|---|---|---|
-| 10 MB / 20 p | 10.0 MB (all of it) | 12.2 MB · 20 req ¹ | **0 req / 0 MB** |
-| 25 MB / 50 p | 36.0 MB (stream + 23 ranges) | 7.6 MB · 11 req | **0 / 0** |
-| 50 MB / 100 p | 91.6 MB (stream + 84 ranges) | 3.7 MB · 9 req | **0 / 0** |
-| 75 MB / 150 p | 140.1 MB (stream + 131 ranges) | 6.1 MB · 9 req | **0 / 0** |
-| 100 MB / 200 p | **178.2 MB** (102 MB stream + 157 ranges) | **7.1 MB · 11 req** | **0 / 0** |
+| 10 MB / 20 p | 10.0 MB · 2 req (the whole file) | 12.2 MB · 20 req ¹ | **0 req / 0 MB** |
+| 25 MB / 50 p | 25.0 MB · 2 req (the whole file) | 7.6 MB · 11 req | **0 / 0** |
+| 50 MB / 100 p | 50.1 MB · 2 req (the whole file) | 3.7 MB · 9 req | **0 / 0** |
+| 75 MB / 150 p | 75.1 MB · 2 req (the whole file) | 6.1 MB · 9 req | **0 / 0** |
+| 100 MB / 200 p | **100.2 MB · 2 req (the whole file)** | **7.1 MB · 11 req** | **0 / 0** |
+
+Before, the two requests were the xref range and the initial GET — which
+pdf.js kept open and read to the end of the file, whatever the reader looked
+at. The first baseline run, with the interleaved layout the generator then
+produced, was worse still: **178 MB for the 100 MB book** (a 102 MB stream
+*plus* 157 ranges, the same bytes twice), because the load-time page-tree walk
+(F13) ran alongside the stream.
 
 ¹ The 20-page book is small enough that the resumed position plus the
 page-1 window is most of the book; the property that matters — the cost does
@@ -98,25 +107,35 @@ strategy document).
 500-page / 24 MB book, 1 → 20 → 50 → 100 → 200 → 300 → 400 → 500 → zoom ×2
 → rotate → search → panel → bookmark → back to 400. Chromium, CDP metrics.
 
-| Measure | Before | After |
+| Measure | Before (streaming on) | After |
 |---|---|---|
-| Mounted pages at open (resumed at last page) | **500** (502 canvases) | 6 (8 canvases) |
-| DOM nodes at open | 9,479 | 3,060 |
-| JS heap at open | 46.6 MB | 22.5 MB |
-| First paint | 25.1 s ² | 5.0 s |
-| Mounted pages, every later step | 3–6 | 7–8 (bounded ≤ 12; prefetch now fills its budget) |
-| Page-jump latency, 7 jumps | 1.7–2.8 s | 1.7–2.9 s |
-| Zoom step / rotate | 861 / 744 ms | 917 / 777 ms |
-| Bytes by page 500 (before search) | **37.3 MB** — the whole 24 MB file, plus 13 MB of duplicated ranges | **10.0 MB** |
-| Bytes after search (walks every page's text) | 37.3 MB (already had it all) | 17.5 MB |
-| Canvas backing store, peak | not measured | 64.6 MB (budget 256 MB desktop) |
-| JS event listeners, open → end | 887 → 910 | 892 → 910 |
-| ResizeObservers / MutationObservers | 5 / 2 → 5 / 3 | 5 / 2 → 5 / 3 |
+| Bytes at open | **23.8 MB — the whole file, in 2 requests** | 2.5 MB |
+| Bytes by page 500 (before search) | 23.8 MB (nothing left to fetch) | **10.0 MB**, growing with each jump |
+| Bytes after search (walks every page's text) | 23.8 MB | 17.5 MB |
+| Mounted pages at open | 6 ² | 6 (8 canvases) |
+| Mounted pages, every later step | 5–6 | 7–8 (bounded ≤ 12; prefetch now fills its budget) |
+| DOM nodes | 3,034–3,259 | 3,060–3,191 |
+| JS heap | 22.3–24.2 MB | 22.5–24.1 MB |
+| Page-jump latency, 7 jumps | 1.6–1.8 s (bytes already local) | 1.7–2.9 s (bytes fetched on demand) |
+| Zoom step / rotate | 724 / 686 ms | 917 / 777 ms |
+| Canvas backing store, peak | 49.4 MB | 64.6 MB (budget 256 MB desktop) |
+| JS event listeners, open → end | — | 892 → 910 |
+| ResizeObservers / MutationObservers | — | 5 / 2 → 5 / 3 |
 | Live object URLs | 0 | 0 |
-| Live intervals | 1–3 | 2–5, back to 2 |
 
-² Resume to page 500 through a smooth scroll of the whole document, with
-every page in between mounting and starting to render — the F10 case.
+² This baseline rerun happened to resume at page 1. The **first** baseline
+run resumed at the account's saved position, page 500, and recorded **500
+mounted pages, 502 canvases, 9,479 DOM nodes, 46.6 MB heap and a 25.1 s first
+paint** — the F10 case (`mergeRanges` mounting every page between the old and
+new windows during the resume scroll). It is pinned by the component test "a
+JUMP mounts a window around the destination, never the pages in between",
+which fails on the old code and passes on this branch.
+
+Jumps are ~0.3–1 s slower after the change **because the bytes are now
+fetched when the page is asked for** rather than already sitting in memory
+from a background download of the whole book; on a real link the whole-book
+download is what made the *first* page late and the data plan pay, so this is
+the intended trade.
 
 The unchanged listener/observer counts across mount → jump × 8 → zoom →
 rotate → search → panel → unmount are the "no accumulation" evidence; the +1
