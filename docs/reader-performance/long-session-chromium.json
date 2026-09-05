@@ -7,22 +7,23 @@
     {
       "label": "open",
       "mounted": 8,
-      "canvases": 10,
-      "pageCanvases": 8,
-      "canvasMB": 46.7,
-      "textLayers": 8,
+      "canvases": 9,
+      "pageCanvases": 7,
+      "canvasMB": 41.3,
+      "textLayers": 7,
       "objectUrls": 0,
       "timeouts": 4,
       "intervals": 1,
       "resizeObservers": 5,
       "mutationObservers": 2,
-      "nodes": 3069,
-      "listeners": 890,
+      "nodes": 3076,
+      "listeners": 891,
       "heapMB": 22.3,
-      "serverRequests": 3,
-      "serverRangeRequests": 2,
-      "serverMB": 1.96,
-      "ms": 5406
+      "serverRequests": 7,
+      "serverRangeRequests": 6,
+      "serverMB": 3.71,
+      "serverRangeMB": 2.65,
+      "ms": 10691
     },
     {
       "label": "page 20",
@@ -38,11 +39,12 @@
       "mutationObservers": 2,
       "nodes": 3110,
       "listeners": 895,
-      "heapMB": 22.8,
-      "serverRequests": 5,
-      "serverRangeRequests": 4,
-      "serverMB": 2.96,
-      "ms": 2008
+      "heapMB": 22.9,
+      "serverRequests": 8,
+      "serverRangeRequests": 7,
+      "serverMB": 4.21,
+      "serverRangeMB": 3.15,
+      "ms": 1676
     },
     {
       "label": "page 50",
@@ -59,10 +61,11 @@
       "nodes": 3110,
       "listeners": 895,
       "heapMB": 23.1,
-      "serverRequests": 7,
-      "serverRangeRequests": 6,
-      "serverMB": 3.96,
-      "ms": 1796
+      "serverRequests": 9,
+      "serverRangeRequests": 8,
+      "serverMB": 4.71,
+      "serverRangeMB": 3.65,
+      "ms": 1669
     },
     {
       "label": "page 100",
@@ -72,17 +75,18 @@
       "canvasMB": 46.7,
       "textLayers": 8,
       "objectUrls": 0,
-      "timeouts": 3,
+      "timeouts": 2,
       "intervals": 1,
       "resizeObservers": 5,
       "mutationObservers": 2,
-      "nodes": 3130,
-      "listeners": 896,
+      "nodes": 3116,
+      "listeners": 895,
       "heapMB": 23.3,
-      "serverRequests": 9,
-      "serverRangeRequests": 8,
-      "serverMB": 4.96,
-      "ms": 1629
+      "serverRequests": 12,
+      "serverRangeRequests": 11,
+      "serverMB": 6.21,
+      "serverRangeMB": 5.15,
+      "ms": 1646
     },
     {
       "label": "page 200",
@@ -96,13 +100,14 @@
       "intervals": 1,
       "resizeObservers": 5,
       "mutationObservers": 2,
-      "nodes": 3136,
+      "nodes": 3130,
       "listeners": 896,
-      "heapMB": 23.5,
-      "serverRequests": 13,
-      "serverRangeRequests": 12,
-      "serverMB": 6.96,
-      "ms": 1741
+      "heapMB": 22.6,
+      "serverRequests": 15,
+      "serverRangeRequests": 14,
+      "serverMB": 7.71,
+      "serverRangeMB": 6.65,
+      "ms": 1619
     },
     {
       "label": "page 300",
@@ -112,17 +117,18 @@
       "canvasMB": 46.7,
       "textLayers": 8,
       "objectUrls": 0,
-      "timeouts": 3,
+      "timeouts": 2,
       "intervals": 1,
       "resizeObservers": 5,
       "mutationObservers": 2,
-      "nodes": 3136,
-      "listeners": 896,
-      "heapMB": 23.6,
-      "serverRequests": 15,
-      "serverRangeRequests": 14,
-      "serverMB": 7.96,
-      "ms": 1914
+      "nodes": 3116,
+      "listeners": 895,
+      "heapMB": 22.6,
+      "serverRequests": 18,
+      "serverRangeRequests": 17,
+      "serverMB": 9.21,
+      "serverRangeMB": 8.15,
+      "ms": 1591
     },
     {
       "label": "page 400",
@@ -136,13 +142,14 @@
       "intervals": 1,
       "resizeObservers": 5,
       "mutationObservers": 2,
-      "nodes": 3122,
+      "nodes": 3128,
       "listeners": 895,
       "heapMB": 22.7,
-      "serverRequests": 17,
-      "serverRangeRequests": 16,
-      "serverMB": 8.96,
-      "ms": 2604
+      "serverRequests": 22,
+      "serverRangeRequests": 21,
+      "serverMB": 11.21,
+      "serverRangeMB": 10.15,
+      "ms": 1646
     },
     {
       "label": "page 500",
@@ -158,11 +165,12 @@
       "mutationObservers": 2,
       "nodes": 3114,
       "listeners": 895,
-      "heapMB": 22.7,
-      "serverRequests": 19,
-      "serverRangeRequests": 18,
-      "serverMB": 9.96,
-      "ms": 1807
+      "heapMB": 23.6,
+      "serverRequests": 24,
+      "serverRangeRequests": 23,
+      "serverMB": 12.21,
+      "serverRangeMB": 11.15,
+      "ms": 1632
     },
     {
       "label": "zoom ×2",
@@ -178,11 +186,12 @@
       "mutationObservers": 2,
       "nodes": 3115,
       "listeners": 895,
-      "heapMB": 22.7,
-      "serverRequests": 19,
-      "serverRangeRequests": 18,
-      "serverMB": 9.96,
-      "ms": 1108
+      "heapMB": 23.3,
+      "serverRequests": 24,
+      "serverRangeRequests": 23,
+      "serverMB": 12.21,
+      "serverRangeMB": 11.15,
+      "ms": 830
     },
     {
       "label": "rotate 90°",
@@ -198,31 +207,33 @@
       "mutationObservers": 2,
       "nodes": 3115,
       "listeners": 895,
-      "heapMB": 22.7,
-      "serverRequests": 19,
-      "serverRangeRequests": 18,
-      "serverMB": 9.96,
-      "ms": 733
+      "heapMB": 23.3,
+      "serverRequests": 24,
+      "serverRangeRequests": 23,
+      "serverMB": 12.21,
+      "serverRangeMB": 11.15,
+      "ms": 693
     },
     {
       "label": "search",
       "mounted": 8,
-      "canvases": 9,
-      "pageCanvases": 7,
-      "canvasMB": 57,
-      "textLayers": 7,
+      "canvases": 10,
+      "pageCanvases": 8,
+      "canvasMB": 64.6,
+      "textLayers": 8,
       "objectUrls": 0,
-      "timeouts": 4,
+      "timeouts": 5,
       "intervals": 2,
       "resizeObservers": 5,
       "mutationObservers": 3,
-      "nodes": 3166,
+      "nodes": 3174,
       "listeners": 914,
-      "heapMB": 23.7,
-      "serverRequests": 33,
-      "serverRangeRequests": 32,
-      "serverMB": 16.96,
-      "ms": 2917
+      "heapMB": 24.2,
+      "serverRequests": 37,
+      "serverRangeRequests": 36,
+      "serverMB": 18.71,
+      "serverRangeMB": 17.65,
+      "ms": 1763
     },
     {
       "label": "panel closed",
@@ -236,39 +247,41 @@
       "intervals": 2,
       "resizeObservers": 5,
       "mutationObservers": 3,
-      "nodes": 3078,
-      "listeners": 903,
-      "heapMB": 23.5,
-      "serverRequests": 33,
-      "serverRangeRequests": 32,
-      "serverMB": 16.96
+      "nodes": 3092,
+      "listeners": 904,
+      "heapMB": 24,
+      "serverRequests": 38,
+      "serverRangeRequests": 37,
+      "serverMB": 19.21,
+      "serverRangeMB": 18.15
     },
     {
       "label": "back to 400",
-      "mounted": 2,
-      "canvases": 2,
-      "pageCanvases": 0,
-      "canvasMB": 3.5,
-      "textLayers": 0,
+      "mounted": 8,
+      "canvases": 10,
+      "pageCanvases": 8,
+      "canvasMB": 64.6,
+      "textLayers": 8,
       "objectUrls": 0,
-      "timeouts": 5,
+      "timeouts": 3,
       "intervals": 1,
       "resizeObservers": 5,
       "mutationObservers": 3,
-      "nodes": 3041,
-      "listeners": 908,
-      "heapMB": 23.2,
-      "serverRequests": 35,
-      "serverRangeRequests": 34,
-      "serverMB": 17.96,
-      "ms": 175
+      "nodes": 3144,
+      "listeners": 909,
+      "heapMB": 24,
+      "serverRequests": 43,
+      "serverRangeRequests": 42,
+      "serverMB": 21.71,
+      "serverRangeMB": 20.65,
+      "ms": 1605
     }
   ],
   "requests": [
     {
       "range": null,
       "status": 200,
-      "bytes": 1376256,
+      "bytes": 1114112,
       "aborted": true
     },
     {
@@ -284,6 +297,24 @@
       "aborted": false
     },
     {
+      "range": "bytes=18350080-18874367",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=2097152-2621439",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=1572864-2097151",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
       "range": "bytes=524288-1048575",
       "status": 206,
       "bytes": 524288,
@@ -296,13 +327,13 @@
       "aborted": false
     },
     {
-      "range": "bytes=2097152-2621439",
+      "range": "bytes=2621440-3145727",
       "status": 206,
       "bytes": 524288,
       "aborted": false
     },
     {
-      "range": "bytes=2621440-3145727",
+      "range": "bytes=3670016-4194303",
       "status": 206,
       "bytes": 524288,
       "aborted": false
@@ -315,12 +346,6 @@
     },
     {
       "range": "bytes=4718592-5242879",
-      "status": 206,
-      "bytes": 524288,
-      "aborted": false
-    },
-    {
-      "range": "bytes=5242880-5767167",
       "status": 206,
       "bytes": 524288,
       "aborted": false
@@ -344,6 +369,12 @@
       "aborted": false
     },
     {
+      "range": "bytes=13631488-14155775",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
       "range": "bytes=14155776-14680063",
       "status": 206,
       "bytes": 524288,
@@ -351,6 +382,18 @@
     },
     {
       "range": "bytes=14680064-15204351",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=17825792-18350079",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=18874368-19398655",
       "status": 206,
       "bytes": 524288,
       "aborted": false
@@ -392,19 +435,13 @@
       "aborted": false
     },
     {
-      "range": "bytes=1572864-2097151",
-      "status": 206,
-      "bytes": 524288,
-      "aborted": false
-    },
-    {
       "range": "bytes=3145728-3670015",
       "status": 206,
       "bytes": 524288,
       "aborted": false
     },
     {
-      "range": "bytes=3670016-4194303",
+      "range": "bytes=5242880-5767167",
       "status": 206,
       "bytes": 524288,
       "aborted": false
@@ -470,7 +507,31 @@
       "aborted": false
     },
     {
-      "range": "bytes=13631488-14155775",
+      "range": "bytes=15204352-15728639",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=15728640-16252927",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=16252928-16777215",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=16777216-17301503",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=17301504-17825791",
       "status": 206,
       "bytes": 524288,
       "aborted": false
