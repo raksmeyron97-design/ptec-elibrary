@@ -37,6 +37,7 @@ export function useConnectivity({
   onReload,
   onTransition,
   onRecovery,
+  isStuck,
 }: {
   enabled: boolean;
   probeUrl: string | null | undefined;
@@ -47,14 +48,18 @@ export function useConnectivity({
   /** Telemetry: connectivity is confirmed back. `reloaded` says whether the
       document had to be reloaded to clear pdf.js's broken chunk state. */
   onRecovery?: (reloaded: boolean) => void;
+  /** True when a mounted page is still waiting to render. Consulted only at
+      the moment connectivity returns: a page that never settled during an
+      outage is stuck, and no error was ever raised for it (see below). */
+  isStuck?: () => boolean;
 }) {
   const [state, dispatch] = useReducer(
     (s: ConnectivityState, e: ConnectivityEvent) => reduceConnectivity(s, e),
     INITIAL_CONNECTIVITY,
   );
-  const callbacks = useRef({ onReload, onTransition, onRecovery });
+  const callbacks = useRef({ onReload, onTransition, onRecovery, isStuck });
   useEffect(() => {
-    callbacks.current = { onReload, onTransition, onRecovery };
+    callbacks.current = { onReload, onTransition, onRecovery, isStuck };
   });
   const probeUrlRef = useRef(probeUrl);
   useEffect(() => {
@@ -93,19 +98,31 @@ export function useConnectivity({
   useEffect(() => {
     const was = prevStatus.current;
     prevStatus.current = state.status;
-    if (was === "online" && state.status !== "online") callbacks.current.onTransition?.();
-    if (was !== "online" && state.status === "online" && !state.needsReload) {
-      callbacks.current.onRecovery?.(false);
+    if (was === "online" && state.status !== "online") {
+      callbacks.current.onTransition?.();
+      return;
     }
-  }, [state.status, state.needsReload]);
+    if (was === "online" || state.status !== "online") return;
 
-  /* The one side effect of recovery: a document whose chunk state pdf.js
-     cannot repair is reloaded, exactly once. */
-  useEffect(() => {
-    if (state.status !== "online" || !state.needsReload) return;
-    dispatch({ type: "reloaded" });
-    callbacks.current.onReload();
-    callbacks.current.onRecovery?.(true);
+    /* Connectivity is back. Reload the document when something is known to be
+       broken — a request FAILED during the outage — or when a mounted page is
+       still waiting.
+
+       The second condition is not belt-and-braces. A range request that fails
+       leaves its chunk registered as in flight in pdf.js's ChunkedStreamManager
+       (`_requestsByChunk` is cleared only on receipt), so every later request
+       for that chunk joins the same never-resolving wait: the page does not
+       error, it HANGS, and `onLoadError` is never called. Observed on a real
+       offline→online cycle: the reader recovered the pages it already had and
+       left the one it had asked for blank, with nothing reported. A reload is
+       the only thing that clears that state, and it is cheap — reader state is
+       React state, not the document's. */
+    const stuck = state.needsReload || callbacks.current.isStuck?.() === true;
+    if (stuck) {
+      if (state.needsReload) dispatch({ type: "reloaded" });
+      callbacks.current.onReload();
+    }
+    callbacks.current.onRecovery?.(stuck);
   }, [state.status, state.needsReload]);
 
   /* The probe loop. Re-armed whenever the machine's answer to "when next?"

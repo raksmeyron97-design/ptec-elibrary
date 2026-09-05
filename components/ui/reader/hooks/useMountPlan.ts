@@ -131,6 +131,22 @@ export function useMountPlan({
     [renderKey, documentKey],
   );
 
+  /* Is any MOUNTED page still waiting — neither painted nor failed?
+     Read through a ref because the caller asks at an arbitrary moment (when
+     connectivity returns), not during render. A page that is still waiting
+     after an outage is the signature of pdf.js's stuck-chunk state: a range
+     request that failed leaves its chunk registered as in flight, so the
+     page's promise never settles and no error is ever reported. Nothing else
+     in the reader can observe that. */
+  const pendingRef = useRef<{ mounted: number[]; settled: ReadonlySet<number> }>({ mounted: [], settled: EMPTY });
+  useEffect(() => {
+    pendingRef.current = { mounted: plan.mounted, settled: settledNow };
+  }, [plan.mounted, settledNow]);
+  const hasUnsettledPages = useCallback(
+    () => pendingRef.current.mounted.some((p) => !pendingRef.current.settled.has(p)),
+    [],
+  );
+
   /** Did the reader land on a page the prefetcher had already fetched? */
   const everRenderedNow = pagesFor(everRendered, documentKey);
   const everRenderedRef = useRef(everRenderedNow);
@@ -146,6 +162,7 @@ export function useMountPlan({
     mountedPages: plan.mounted,
     onPageSettled,
     notePageVisited,
+    hasUnsettledPages,
     /** Snapshot for the session telemetry beacon. */
     stats: useCallback(() => ({ ...statsRef.current }), []),
   };

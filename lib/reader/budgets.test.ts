@@ -18,6 +18,8 @@ describe("reader budgets", () => {
     expect(READER_BUDGETS.MAX_SEARCH_MATCHES).toBe(500);
     expect(READER_BUDGETS.IDLE_CLEANUP_MS).toBe(30_000);
     expect(READER_BUDGETS.RECONNECT_BACKOFF_MS.at(-1)).toBe(30_000);
+    // One open may cost front matter + xref + a chunk per mounted page.
+    expect(READER_BUDGETS.OPEN_REQUEST_BUDGET).toBeGreaterThan(READER_BUDGETS.MAX_MOUNTED_PAGES);
     // The tiers are ordered: a faster link never gets a smaller budget.
     expect(READER_BUDGETS.MAX_PREFETCH_BYTES.slow).toBeLessThan(READER_BUDGETS.MAX_PREFETCH_BYTES.normal);
     expect(READER_BUDGETS.MAX_PREFETCH_BYTES.normal).toBeLessThan(READER_BUDGETS.MAX_PREFETCH_BYTES.fast);

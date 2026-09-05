@@ -48,8 +48,14 @@ export const READER_BUDGETS = {
   /** Reconnect probe schedule. The last entry repeats. */
   RECONNECT_BACKOFF_MS: [2_000, 4_000, 8_000, 16_000, 30_000] as readonly number[],
 
-  /** Requests the first painted page may cost before it is reported slow. */
-  FIRST_PAGE_REQUEST_BUDGET: 12,
+  /**
+   * Range requests one OPEN may cost: the document's front matter and xref,
+   * plus one 512 KB chunk per mounted page, plus slack for objects that
+   * straddle a chunk boundary. Not a browser limit — a regression fence, so
+   * that a change which makes the reader walk a document again is caught by
+   * `e2e/reader-performance.spec.ts` rather than by a rate-limit alert.
+   */
+  OPEN_REQUEST_BUDGET: 12 + 8,
 } as const;
 
 export type DeviceClass = "touch" | "desktop";

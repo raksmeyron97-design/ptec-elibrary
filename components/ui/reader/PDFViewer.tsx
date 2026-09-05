@@ -334,7 +334,12 @@ export default function PDFViewer({
     },
     onTransition: () => reportReaderEvent("offline_transition"),
     onRecovery: (reloaded) => reportReaderEvent("network_recovery", { reloaded }),
+    isStuck: () => hasUnsettledPagesRef.current(),
   });
+  /* The viewer needs the connectivity machine before the mount planner (the
+     planner's `online` input comes from it) and the machine needs the
+     planner's stuck-page test. One ref breaks the cycle. */
+  const hasUnsettledPagesRef = useRef<() => boolean>(() => false);
 
   /* ── Geometry ───────────────────────────────────────────────── */
   const geom = useMemo(
@@ -421,6 +426,7 @@ export default function PDFViewer({
     mountedPages,
     onPageSettled,
     notePageVisited,
+    hasUnsettledPages,
     stats: mountStats,
   } = useMountPlan({
     active: viewMode === "scroll" && numPages > 0,
@@ -433,6 +439,9 @@ export default function PDFViewer({
     geometryKey,
     documentKey,
   });
+  useEffect(() => {
+    hasUnsettledPagesRef.current = hasUnsettledPages;
+  }, [hasUnsettledPages]);
   /** Spacer heights, including any gap inside the mounted set — the plan is a
       SET of pages, not a span, so two runs can be separated. */
   const spacerBefore = mountedPages.length ? (mountedPages[0] - 1) * rowHeight : 0;
@@ -803,10 +812,14 @@ export default function PDFViewer({
   };
   const onPageRenderError = useCallback(
     (page: number, error: Error) => {
+      const kind = classifyPdfError(error);
       onPageSettled(page, false);
-      reportReaderEvent("pdf_render_error", { page, message: error.message });
+      // A render can fail because the bytes never arrived, not because the
+      // page is bad; those failures belong to the connectivity machine too.
+      connectivity.reportLoadFailure(kind);
+      reportReaderEvent("pdf_render_error", { page, message: error.message, kind });
     },
-    [reportReaderEvent, onPageSettled],
+    [reportReaderEvent, onPageSettled, connectivity],
   );
   /** A page's BYTES could not be fetched — the failure a network outage
       produces, and the one that used to be invisible: react-pdf showed its
