@@ -27,7 +27,9 @@ import { READER_BUDGETS } from "../lib/reader/budgets";
 
 const BOOK_SLUG = "foundations-of-education";
 const MB = 1024 * 1024;
-const REPORT_DIR = path.resolve(__dirname, "../test-results/reader-performance");
+// Outside Playwright's outputDir on purpose: `test-results/` is wiped at the start of
+// every run, and these numbers are the evidence the verification document quotes.
+const REPORT_DIR = path.resolve(__dirname, "../reports/reader-performance");
 
 /** Counters the page cannot lie about: installed before the app runs. */
 const PROBE_SCRIPT = `(() => {

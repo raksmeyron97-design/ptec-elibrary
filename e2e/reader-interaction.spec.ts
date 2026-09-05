@@ -17,7 +17,9 @@ import { READER_BUDGETS } from "../lib/reader/budgets";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BOOK_SLUG = "foundations-of-education";
-const REPORT_DIR = path.resolve(__dirname, "../test-results/reader-performance");
+// Outside Playwright's outputDir on purpose: `test-results/` is wiped at the start of
+// every run, and these numbers are the evidence the verification document quotes.
+const REPORT_DIR = path.resolve(__dirname, "../reports/reader-performance");
 const PAGES = 500;
 
 const pageIndicator = (page: Page) =>
