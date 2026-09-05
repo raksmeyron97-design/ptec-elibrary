@@ -299,6 +299,12 @@ const CONTENT_VERBS = [
   "argue", "argues", "state", "states", "contain", "contains",
   "include", "includes", "teach", "teaches", "write about", "writes about",
   "what is in", "what's in", "what are in", "inside",
+  // A bare "about" carries the same question ("is this document about
+  // ethics?"). Safe this late: the phrasings where "about" means something
+  // else — "about this book", "tell me about this" — are DETAIL_WORDS and
+  // have already answered, and the ones pointing elsewhere are declined by
+  // NOT_THIS_DOCUMENT above.
+  "about",
   "និយាយ", "ពន្យល់", "រៀបរាប់", "បង្ហាញ", "អធិប្បាយ", "មានអ្វី", "នៅក្នុង",
 ];
 
