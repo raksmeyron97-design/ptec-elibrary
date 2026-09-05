@@ -322,6 +322,73 @@ export default function ResourceCountAudit({ initial }: Props) {
         )}
       </div>
 
+      {/* ── Semantic coverage (migration 0137) ── */}
+      <div className="mt-6">
+        <h3 className="inline-flex items-center gap-1.5 text-[12.5px] font-bold text-text-heading">
+          <FileSearch className="h-3.5 w-3.5" aria-hidden />
+          {t("semantic.title")}
+        </h3>
+        {rec.semanticIndex === null ? (
+          <p className="mt-1 text-[12px] text-text-muted">{t("semantic.unavailable")}</p>
+        ) : (
+          <>
+            <p className="mt-0.5 max-w-[78ch] text-[11.5px] text-text-muted">
+              {t.rich("semantic.hint", {
+                command: () => (
+                  <code className="rounded bg-paper px-1">
+                    npx tsx scripts/build-semantic-insights.ts
+                  </code>
+                ),
+              })}
+            </p>
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {rec.semanticIndex.map((r) => {
+                /* Damaged text is the only state here that is a DEFECT ON OUR
+                   SIDE — the extraction toolchain produced something that is
+                   not the document. "Never computed" needs a human too, but
+                   only to run a script. "Unsupported topics" colours nothing:
+                   a book whose tags are not discussed in its body is a
+                   cataloguing observation, not a fault. */
+                const needsAction = r.damagedText > 0 || r.neverComputed > 0;
+                return (
+                  <li
+                    key={r.resourceType}
+                    className={`rounded-lg border px-3 py-1.5 text-[12px] tabular-nums ${
+                      needsAction
+                        ? "border-warning-line bg-warning-soft text-warning-text"
+                        : "border-divider bg-paper text-text-muted"
+                    }`}
+                  >
+                    {t("semantic.chip", {
+                      type: t.has(`type.${r.resourceType}`) ? t(`type.${r.resourceType}`) : r.resourceType,
+                      withTopics: fmt(r.withTopics),
+                      published: fmt(r.published),
+                    })}
+                    {r.totalTopics > 0 && <> · {t("semantic.chipTopics", { count: fmt(r.totalTopics) })}</>}
+                    {r.damagedText > 0 && <> · {t("semantic.chipDamaged", { count: fmt(r.damagedText) })}</>}
+                    {r.noText > 0 && <> · {t("semantic.chipNoText", { count: fmt(r.noText) })}</>}
+                    {r.unsupportedTopics > 0 && (
+                      <> · {t("semantic.chipUnsupported", { count: fmt(r.unsupportedTopics) })}</>
+                    )}
+                    {r.neverComputed > 0 && <> · {t("semantic.chipNever", { count: fmt(r.neverComputed) })}</>}
+                  </li>
+                );
+              })}
+            </ul>
+            {rec.semanticIndex.some((r) => r.damagedText > 0) && (
+              <p className="mt-2 max-w-[78ch] text-[11.5px] text-warning-text">
+                {t("semantic.damagedHint", {
+                  count: fmt(rec.semanticIndex.reduce((n, r) => n + r.damagedText, 0)),
+                })}
+              </p>
+            )}
+            {rec.semanticIndex.some((r) => r.unsupportedTopics > 0) && (
+              <p className="mt-1 max-w-[78ch] text-[11.5px] text-text-muted">{t("semantic.unsupportedHint")}</p>
+            )}
+          </>
+        )}
+      </div>
+
       {/* ── Possible duplicates ── */}
       {rec.possibleDuplicates.length > 0 && (
         <div className="mt-6">

@@ -89,6 +89,35 @@ export type FullTextIndexHealthRow = {
   totalChunks: number;
 };
 
+/**
+ * Per-type SEMANTIC coverage (migration 0137) — the third question about a
+ * resource's text, and the one the other two cannot answer.
+ *
+ * `public_resource_search_health` asks whether a record has an embedding.
+ * `public_resource_index_health` asks whether its pages were extracted. Both
+ * report success for a book whose extracted "text" is not the document's text
+ * at all, which is the state of every Khmer-script book in this collection:
+ * `indexed`, embedded, and unreadable. `damagedText` is the count that says so.
+ */
+export type SemanticHealthRow = {
+  resourceType: string;
+  published: number;
+  /** Proved at least one catalogue topic from body text. */
+  withTopics: number;
+  /** Pages were extracted and are not this document's text. Ours to fix, in
+   *  the extraction toolchain — never a property of the collection. */
+  damagedText: number;
+  /** No extracted pages, or too few to judge. */
+  noText: number;
+  /** Text is good; no catalogue tag is discussed in it. A cataloguing signal. */
+  unsupportedTopics: number;
+  /** The build script has never run over these. Its own bucket, for the same
+   *  reason 0133 keeps `never_attempted` separate: "not computed" and
+   *  "computed and found nothing" are different facts. */
+  neverComputed: number;
+  totalTopics: number;
+};
+
 export type ResourceStatsReconciliation = {
   /** Fresh recount straight from the canonical view. */
   actual: PublicCollectionStats | null;
@@ -101,6 +130,9 @@ export type ResourceStatsReconciliation = {
   /** Per-type full-text extraction coverage (migration 0133). Null while the
    *  view is missing — i.e. between a deploy and its migration. */
   fullTextIndex: FullTextIndexHealthRow[] | null;
+  /** Per-type semantic coverage (migration 0137). Null while the view is
+   *  missing — between a deploy and its migration. */
+  semanticIndex: SemanticHealthRow[] | null;
   /** Published rows whose normalised title collides with another published
    *  row of the same type. NOT excluded from counts — two editions can share
    *  a title legitimately — but surfaced so a librarian can judge. */
@@ -241,7 +273,7 @@ async function findPossibleDuplicates(
 export async function reconcilePublicResourceStats(): Promise<ResourceStatsReconciliation> {
   const supabase = createServiceClient();
 
-  const [actual, cached, searchRes, indexRes, possibleDuplicates] = await Promise.all([
+  const [actual, cached, searchRes, indexRes, semanticRes, possibleDuplicates] = await Promise.all([
     computeCollectionStats(),
     getCollectionStats(),
     supabase
@@ -251,6 +283,11 @@ export async function reconcilePublicResourceStats(): Promise<ResourceStatsRecon
       .from("public_resource_index_health")
       .select(
         "record_type, published, indexed, stale, no_text_layer, unfetchable, failed, running, never_attempted, failed_transient, failed_permanent, failed_config, total_pages, total_chunks",
+      ),
+    supabase
+      .from("public_resource_semantic_health")
+      .select(
+        "record_type, published, with_topics, damaged_text, no_text, unsupported_topics, never_computed, total_topics",
       ),
     findPossibleDuplicates(supabase),
   ]);
@@ -296,6 +333,21 @@ export async function reconcilePublicResourceStats(): Promise<ResourceStatsRecon
         totalChunks: Number(r.total_chunks),
       }));
 
+  /* Null, not [], while 0137 is unapplied — same reasoning as fullTextIndex
+     above: a confident row of zeroes reads as "nothing to compute". */
+  const semanticIndex = semanticRes.error
+    ? null
+    : (semanticRes.data ?? []).map((r) => ({
+        resourceType: String(r.record_type),
+        published: Number(r.published),
+        withTopics: Number(r.with_topics),
+        damagedText: Number(r.damaged_text),
+        noText: Number(r.no_text),
+        unsupportedTopics: Number(r.unsupported_topics),
+        neverComputed: Number(r.never_computed),
+        totalTopics: Number(r.total_topics),
+      }));
+
   if (drift.length > 0) {
     console.error(
       JSON.stringify({
@@ -315,6 +367,7 @@ export async function reconcilePublicResourceStats(): Promise<ResourceStatsRecon
     drift,
     searchIndex,
     fullTextIndex,
+    semanticIndex,
     possibleDuplicates,
     checkedAt: new Date().toISOString(),
   };

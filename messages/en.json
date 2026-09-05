@@ -4808,7 +4808,20 @@
         "hint": "Published records sharing a title within the same type. They are each counted once (counts are per row, with no joins), so these do not inflate any total — but two editions of the same work may be worth merging or distinguishing.",
         "row": "{count, plural, =1 {1 record} other {# records}} ({type})"
       },
-      "lastReconciled": "Last reconciled {time} UTC"
+      "lastReconciled": "Last reconciled {time} UTC",
+      "semantic": {
+        "title": "Semantic coverage",
+        "unavailable": "Unavailable — migration 0137 has not been applied to this database yet.",
+        "hint": "Which published resources proved at least one catalogue topic from their own body text. Rebuild with {command}.",
+        "chip": "{type}: {withTopics}/{published} with topics",
+        "chipTopics": "{count} topics",
+        "chipDamaged": "{count} damaged text",
+        "chipNoText": "{count} no text",
+        "chipUnsupported": "{count} nothing proven",
+        "chipNever": "{count} never computed",
+        "damagedHint": "{count} resources hold text that extraction produced but that is not the document's text — broken Khmer encoding from legacy non-Unicode fonts. Those documents are not searchable by their contents, cannot be cited by page, and are excluded from every public claim. Fixing them is an extraction-toolchain change (OCR or a font remap), not a cataloguing task.",
+        "unsupportedHint": "These resources extracted cleanly, but none of their catalogue tags appear in the body text. Usually that means the tags describe the document's context rather than its contents — worth a cataloguer's eye, not a defect."
+      }
     }
   },
   "adminSearchInsights": {
