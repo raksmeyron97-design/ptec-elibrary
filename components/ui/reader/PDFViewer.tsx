@@ -351,6 +351,11 @@ export default function PDFViewer({
      planner's `online` input comes from it) and the machine needs the
      planner's stuck-page test. One ref breaks the cycle. */
   const hasUnsettledPagesRef = useRef<() => boolean>(() => false);
+  // Stable: the hook's RETURN object is new every render, and naming it in a
+  // dependency array would recreate every per-page callback on every render
+  // (defeating ReaderPage's memo) and re-arm the stall watchdog on every
+  // scroll frame. The callback itself is memoised.
+  const reportLoadFailure = connectivity.reportLoadFailure;
 
   /* ── Geometry ───────────────────────────────────────────────── */
   const geom = useMemo(
@@ -476,13 +481,13 @@ export default function PDFViewer({
       const still = unsettledVisiblePage();
       if (still === null || stallReportedRef.current === documentKey) return;
       stallReportedRef.current = documentKey;
-      connectivity.reportLoadFailure("network");
+      reportLoadFailure("network");
       reportReaderEvent("page_load_error", { page: still, kind: "stalled" });
     }, READER_BUDGETS.STALL_TIMEOUT_MS);
     return () => window.clearTimeout(timer);
     // `mountedPages` changing means a page settled or the window moved: both
     // re-evaluate what is waiting.
-  }, [offline, viewMode, numPages, mountedPages, documentKey, unsettledVisiblePage, connectivity, reportReaderEvent]);
+  }, [offline, viewMode, numPages, mountedPages, documentKey, unsettledVisiblePage, reportLoadFailure, reportReaderEvent]);
   /** Spacer heights, including any gap inside the mounted set — the plan is a
       SET of pages, not a span, so two runs can be separated. */
   const spacerBefore = mountedPages.length ? (mountedPages[0] - 1) * rowHeight : 0;
@@ -855,7 +860,7 @@ export default function PDFViewer({
     setLoadErrorKind(kind);
     // A transient failure (offline, 429, 5xx) starts the reconnect machine,
     // which retries on its own schedule instead of leaving a dead screen.
-    connectivity.reportLoadFailure(kind);
+    reportLoadFailure(kind);
     reportReaderEvent("pdf_load_error", { message: error.message, kind, bytes: docBytes ?? undefined });
   };
   const onPageRenderError = useCallback(
@@ -864,10 +869,10 @@ export default function PDFViewer({
       onPageSettled(page, false);
       // A render can fail because the bytes never arrived, not because the
       // page is bad; those failures belong to the connectivity machine too.
-      connectivity.reportLoadFailure(kind);
+      reportLoadFailure(kind);
       reportReaderEvent("pdf_render_error", { page, message: error.message, kind });
     },
-    [reportReaderEvent, onPageSettled, connectivity],
+    [reportReaderEvent, onPageSettled, reportLoadFailure],
   );
   /** A page's BYTES could not be fetched — the failure a network outage
       produces, and the one that used to be invisible: react-pdf showed its
@@ -877,10 +882,10 @@ export default function PDFViewer({
     (page: number, error: Error) => {
       const kind = classifyPdfError(error);
       onPageSettled(page, false);
-      connectivity.reportLoadFailure(kind);
+      reportLoadFailure(kind);
       reportReaderEvent("page_load_error", { page, message: error.message, kind });
     },
-    [connectivity, reportReaderEvent, onPageSettled],
+    [reportLoadFailure, reportReaderEvent, onPageSettled],
   );
   const onPageRendered = useCallback(
     (page: number) => {

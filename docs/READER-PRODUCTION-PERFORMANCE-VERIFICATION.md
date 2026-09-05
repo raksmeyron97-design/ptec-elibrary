@@ -256,7 +256,7 @@ and append the results here.
 | `npx tsc --noEmit` | clean |
 | `npm run lint` | 0 errors (5 pre-existing warnings, none in touched files) |
 | `npx vitest run` | **3,646 passed**, 50 skipped, 235 files — includes 51 new/updated reader tests (5 pure modules: 50; `PDFViewer.test.tsx`: 40 → 51; `pdf-options.test.ts`: 3 → 4) |
-| `npm run build` (webpack, from a clean `.next`) | see the line appended at the end of this file |
+| `npm run build` (webpack, `rm -rf .next` first) | **PASS** — exit 0, 115 static pages, service worker bundled; the only warnings are Next's own pre-existing Edge-runtime notices |
 | `e2e/reader-ux` + `offline-reading` + `a11y`, Chromium + Pixel 5 | **60 passed**, 6 skipped (the two true-offline-navigation cases need a production server, as before; project-specific viewport cases) |
 | `e2e/reader-performance` + `reader-interaction`, Chromium | **12 / 12 passed** |
 | `e2e/reader-performance` + `reader-interaction`, Pixel 5 | 6 passed in the combined 9-minute serial run + 3 that timed out under that load (rotation, long session, outage) and **passed when run alone** (10.9 s, 29.4 s); the two timeouts involved were lengthened. 5 skipped by design (large sizes and the scattered case run on one project) |
