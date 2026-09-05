@@ -115,15 +115,15 @@ strategy document).
 | Measure | Before (streaming on) | After — Chromium | After — Pixel 5 |
 |---|---|---|---|
 | Bytes at open | **23.8 MB — the whole file, in 2 requests** | 2.5 MB | 2.5 MB |
-| Range bytes by page 500 (before search) | 23.8 MB (nothing left to fetch) | **6.9 MB**, growing with each window | 5.4 MB |
-| Bytes after search (walks every page's text) | 23.8 MB | 15.4 MB | 13.4 MB |
-| Mounted pages, range over the session | 5–6 | 2–8 (bounded ≤ 12) | 2–9 |
+| Range bytes by page 500 (before search) | 23.8 MB (nothing left to fetch) | **6.2 MB**, growing with each window | 7.2 MB |
+| Bytes after search (walks every page's text) | 23.8 MB | 16.6 MB | 16.9 MB |
+| Mounted pages, range over the session | 5–6 | 2–6 (bounded ≤ 12) | 6–9 |
 | DOM nodes, open → end | 3,034 → 3,259 | 3,069 → 3,041 | — |
 | JS heap, open → end | 22.3 → 24.2 MB | 22.3 → 23.2 MB | 18.3 → 19.8 MB |
-| Page-jump latency, 7 jumps | 1.6–1.8 s (bytes already local, smooth scroll) | **0.3–0.7 s** (instant landing, bytes fetched on demand) | 0.3–0.6 s |
+| Page-jump latency, 7 jumps | 1.6–1.8 s (bytes already local, smooth scroll) | **0.24–0.63 s** (instant landing, bytes fetched on demand) | 0.17–0.31 s |
 | Zoom ×2 / rotate | 724 / 686 ms | 1,108 / 733 ms | — |
 | Search, 500 pages | 1,295 ms | 2,917 ms (fetches every page's text) | — |
-| Canvas backing store, peak | 49.4 MB | 64.6 MB (budget 256 MB) | 45.1 MB (budget 96 MB) |
+| Canvas backing store, peak | 49.4 MB | 49.4 MB (budget 256 MB) | 67.8 MB (budget 96 MB) |
 | JS event listeners, open → end | — | 890 → 908 | 818 → 836 |
 | ResizeObservers / MutationObservers | — | 5 / 2 → 5 / 3 | same |
 | Live object URLs | 0 | 0 | 0 |
