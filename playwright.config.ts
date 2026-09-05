@@ -27,8 +27,8 @@ const BASE_URL =
 const WEBKIT_PROJECTS =
   process.env.PW_WEBKIT === '1'
     ? [
-        { name: 'webkit', use: { ...devices['Desktop Safari'] }, testMatch: /reader-(ux|performance)\.spec\.ts/ },
-        { name: 'Mobile Safari', use: { ...devices['iPhone 13'] }, testMatch: /reader-(ux|performance)\.spec\.ts/ },
+        { name: 'webkit', use: { ...devices['Desktop Safari'] }, testMatch: /reader-(ux|performance|interaction)\.spec\.ts/ },
+        { name: 'Mobile Safari', use: { ...devices['iPhone 13'] }, testMatch: /reader-(ux|performance|interaction)\.spec\.ts/ },
       ]
     : [];
 

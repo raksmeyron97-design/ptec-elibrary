@@ -173,7 +173,7 @@ and the offline reader's inertness.
 | Refined search over 500 pages ("page 4" → "page 431") | 918 ms, indicator 431 | 869 ms, indicator 431 (was 430 — F12) |
 | Swipe / double-tap / zoomed swipe (single-page mode) | n/a | swipe turns, double-tap zooms, zoomed swipe pans |
 
-## 8. Real-device / Safari — see §12 (WebKit runs)
+## 8. Real-device / Safari — WARN, see §12
 
 ## 9. Offline — PASS
 
@@ -199,7 +199,29 @@ session, enum-checks device/source/kind, and is rate limited per IP
 endpoint, no credential in a URL. `lib/books/storage-url-exposure.test.ts`
 and the authorization-boundary tests are untouched and green.
 
-## 12. WebKit (Desktop Safari, iPhone 13) — filled in below after the runs
+## 12. WebKit (Desktop Safari, iPhone 13) — NOT RUN on this machine (WARN)
+
+`playwright.config.ts` now carries opt-in WebKit projects (`PW_WEBKIT=1 npx
+playwright test --project=webkit --project="Mobile Safari"`, matching the
+three reader specs), and the specs were written engine-neutral (no CDP where
+WebKit runs; touch via real `Touch`/`TouchEvent`). The run was attempted and
+could not start: **Playwright 1.60 does not ship a WebKit build for macOS 13**
+(`ERROR: Playwright does not support webkit on mac13`), which is what this
+machine runs. Every WebKit result in this document is therefore absent, not
+inferred. What is Safari-specific in the change set was reasoned from the
+engine's documented behaviour, not observed:
+
+* the network tier comes from the measured first-page transfer where
+  `navigator.connection` is missing (Safari, Firefox) — unit-tested;
+* the canvas budget on touch devices (96 MiB) exists because WebKit enforces
+  a per-page canvas memory limit and blanks canvases beyond it;
+* `visibilitychange` / `pagehide` (not `beforeunload`) carry the teardown
+  flush, as before;
+* gestures use `touchstart/move/end` with passive listeners, as before.
+
+To close this: run the three reader specs on a macOS 14+ machine or in CI
+with `PW_WEBKIT=1`, or on a physical iPhone against a preview deployment,
+and append the results here.
 
 ## 13. Tests, lint, build — filled in below after the final run
 
