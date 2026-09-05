@@ -232,12 +232,16 @@ test.describe("PDF reader — production performance", () => {
       let t0 = Date.now();
       await page.keyboard.press("+");
       await page.keyboard.press("+");
-      await expect(page.locator('[data-page="500"] canvas').first()).toBeVisible({ timeout: 30_000 });
+      // The zoom re-anchors the viewport on the current page; wait for the
+      // reader to say where it is before asking for that page's canvas.
+      await expect(pageIndicator(page)).toHaveAttribute("aria-label", `Page ${PAGES} of ${PAGES}`, { timeout: 30_000 });
+      await expect(page.locator(`[data-page="${PAGES}"] canvas`).first()).toBeVisible({ timeout: 45_000 });
       await page.waitForTimeout(600);
       await record(await snapshot(page, cdp, server, "zoom ×2", Date.now() - t0));
       t0 = Date.now();
       await page.keyboard.press("r");
-      await expect(page.locator('[data-page="500"] canvas').first()).toBeVisible({ timeout: 30_000 });
+      await expect(pageIndicator(page)).toHaveAttribute("aria-label", `Page ${PAGES} of ${PAGES}`, { timeout: 30_000 });
+      await expect(page.locator(`[data-page="${PAGES}"] canvas`).first()).toBeVisible({ timeout: 45_000 });
       await page.waitForTimeout(600);
       await record(await snapshot(page, cdp, server, "rotate 90°", Date.now() - t0));
       await expect(pageIndicator(page)).toHaveAttribute("aria-label", `Page ${PAGES} of ${PAGES}`);
@@ -302,12 +306,21 @@ test.describe("PDF reader — production performance", () => {
       }
       expect(last.resizeObservers).toBeLessThanOrEqual(first.resizeObservers + 1);
       expect(last.mutationObservers).toBeLessThanOrEqual(first.mutationObservers + 1);
-      // The reader visited ~8 windows of a 500-page book; it must not have pulled
-      // the book. Range bytes only — the cancelled initial GET's loopback slop is
-      // asserted separately. (Search reads every page's content stream — that is
-      // the one legitimate whole-document walk, and it comes after this point.)
+      // The cost of the session scales with the WINDOWS visited, not with the
+      // document: each window is at most MAX_MOUNTED_PAGES pages, which spans
+      // at most ceil(pages × bytes-per-page ÷ chunk) + 1 chunks (a boundary
+      // straddle), plus the front matter and the xref. Range bytes only — the
+      // cancelled initial GET's loopback slop is asserted separately. (Search
+      // reads every page's content stream — the one legitimate whole-document
+      // walk — and comes after this point.)
+      const CHUNK = 512 * 1024;
+      const windows = 2 + 7; // open, back to page 1, seven jumps
+      const chunksPerWindow = Math.ceil((READER_BUDGETS.MAX_MOUNTED_PAGES * (pdf.length / PAGES)) / CHUNK) + 1;
+      const budgetMB = ((windows * chunksPerWindow + 2) * CHUNK) / MB;
       const beforeSearch = snaps.find((s) => s.label === "page 500")!;
-      expect(beforeSearch.serverRangeMB, "range bytes served before search").toBeLessThan((pdf.length / MB) * 0.5);
+      expect(beforeSearch.serverRangeMB, `range bytes for ${windows} windows (budget ${budgetMB.toFixed(1)} MB)`).toBeLessThan(budgetMB);
+      // ...and, whatever the arithmetic, never most of the book.
+      expect(beforeSearch.serverRangeMB).toBeLessThan((pdf.length / MB) * 0.6);
       for (const r of server.fullRequests()) expect(r.aborted, "the un-ranged GET is cancelled").toBe(true);
     } finally {
       await server.close();

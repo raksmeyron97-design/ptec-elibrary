@@ -115,12 +115,12 @@ strategy document).
 | Measure | Before (streaming on) | After — Chromium | After — Pixel 5 |
 |---|---|---|---|
 | Bytes at open | **23.8 MB — the whole file, in 2 requests** | 2.5 MB | 2.5 MB |
-| Bytes by page 500 (before search) | 23.8 MB (nothing left to fetch) | **10.0 MB**, growing with each jump | 9.8 MB |
-| Bytes after search (walks every page's text) | 23.8 MB | 18.0 MB | 18.8 MB |
+| Range bytes by page 500 (before search) | 23.8 MB (nothing left to fetch) | **6.9 MB**, growing with each window | 5.4 MB |
+| Bytes after search (walks every page's text) | 23.8 MB | 15.4 MB | 13.4 MB |
 | Mounted pages, range over the session | 5–6 | 2–8 (bounded ≤ 12) | 2–9 |
 | DOM nodes, open → end | 3,034 → 3,259 | 3,069 → 3,041 | — |
 | JS heap, open → end | 22.3 → 24.2 MB | 22.3 → 23.2 MB | 18.3 → 19.8 MB |
-| Page-jump latency, 7 jumps | 1.6–1.8 s (bytes already local) | 1.6–2.6 s (bytes fetched on demand) | 0.3–2.0 s |
+| Page-jump latency, 7 jumps | 1.6–1.8 s (bytes already local, smooth scroll) | **0.3–0.7 s** (instant landing, bytes fetched on demand) | 0.3–0.6 s |
 | Zoom ×2 / rotate | 724 / 686 ms | 1,108 / 733 ms | — |
 | Search, 500 pages | 1,295 ms | 2,917 ms (fetches every page's text) | — |
 | Canvas backing store, peak | 49.4 MB | 64.6 MB (budget 256 MB) | 45.1 MB (budget 96 MB) |
@@ -136,11 +136,14 @@ new windows during the resume scroll). It is pinned by the component test "a
 JUMP mounts a window around the destination, never the pages in between",
 which fails on the old code and passes on this branch.
 
-Jumps are ~0.3–1 s slower after the change **because the bytes are now
-fetched when the page is asked for** rather than already sitting in memory
-from a background download of the whole book; on a real link the whole-book
-download is what made the *first* page late and the data plan pay, so this is
-the intended trade.
+A jump now LANDS instead of animating. The smooth scroll to a far page used
+to sweep the viewport across every row in between, and each row it passed
+mounted, started a render and fetched its chunk — on CI's fast runners "go to
+page 500" cost the chunks of pages 2–499 (14–16 MB of range traffic for nine
+jumps, against 10 MB on this laptop, which completed fewer frames of the
+animation). A far jump (> 2 pages) is now instant, as in pdf.js's own viewer;
+a page turn stays smooth; reduced motion stays instant everywhere. That is
+also why jumps are three to five times faster than before.
 
 The unchanged listener/observer counts across mount → jump × 8 → zoom →
 rotate → search → panel → unmount are the "no accumulation" evidence; the +1

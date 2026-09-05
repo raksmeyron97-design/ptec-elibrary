@@ -527,18 +527,27 @@ export default function PDFViewer({
   }, []);
   const navigateToPage = useCallback((val: number) => {
     const target = clamp(1, numPagesRef.current || 1, val);
-    setDirection(readingDirection(currentPageRef.current, target));
+    const from = currentPageRef.current;
+    setDirection(readingDirection(from, target));
     currentPageRef.current = target;
     setCurrentPage(target);
     setResumePrompt(null);
     if (geomRef.current.viewMode === "scroll") {
       const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      // Smooth only for a page TURN. A smooth scroll to a far page animates
+      // the viewport across every row in between, and each row it passes
+      // mounts, starts a render and fetches its chunk — "go to page 500" cost
+      // the chunks of pages 2–499 on a fast machine (measured in CI: 14–16 MB
+      // of a 24 MB book for nine jumps, against 10 MB locally). A jump lands
+      // instantly, as pdf.js's own viewer does, and only the destination
+      // window is fetched.
+      const behavior: ScrollBehavior = prefersReduced || Math.abs(target - from) > 2 ? "auto" : "smooth";
       const top = rowTop(target, geomRef.current.rowHeight, HUD_INSET_TOP);
       beginProgrammaticScroll(top);
       requestAnimationFrame(() => {
         const el = containerRef.current;
         if (!el) return;
-        el.scrollTo({ top, behavior: prefersReduced ? "auto" : "smooth" });
+        el.scrollTo({ top, behavior });
         setScrollTop(top);
       });
     }
