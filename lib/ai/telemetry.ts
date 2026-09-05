@@ -59,6 +59,18 @@ export function recordAiRequest(
     result_count: t.resultCount ?? 0,
     cache: t.cacheHit ? "hit" : "miss",
     deterministic: t.deterministic ?? false,
+    // Retrieval shape and grounding outcome. Counts and enums only — never the
+    // question, the passage or a title. `hallucinated_citations` rising is the
+    // signal that grounding is doing more work than it should, and it was
+    // previously invisible: the streamed path could only overload
+    // `fallback: "error"` to hint at it.
+    retrieval_mode: t.retrievalMode ?? "lookup",
+    scoped: t.scoped ?? false,
+    candidate_count: t.candidateCount ?? 0,
+    evidence_count: t.evidenceCount ?? 0,
+    source_count: t.sourceCount ?? 0,
+    grounded_citations: t.groundedCitations ?? 0,
+    hallucinated_citations: t.hallucinatedCitations ?? 0,
   };
   if (t.fallback) detail.fallback = t.fallback;
 

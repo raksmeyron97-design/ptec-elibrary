@@ -12,12 +12,36 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { ADMIN_PANEL_ROLES, type AppRole } from "@/lib/types/roles";
 import { AIRequestError } from "./response";
 
-/** Per-user assistant messages per day (Asia/Phnom_Penh calendar day). */
-export const DAILY_USER_LIMIT = 10;
+/**
+ * Per-user assistant messages per day (Asia/Phnom_Penh calendar day).
+ *
+ * Overridable by env for the e2e suite only: a browser test that exercises
+ * five assistant surfaces across two projects with retries spends more than a
+ * day's quota in a minute, and the resulting "you've used all 10 messages"
+ * looks exactly like a broken feature. Production sets nothing and gets 10.
+ */
+export const DAILY_USER_LIMIT = Number(process.env.AI_DAILY_USER_LIMIT ?? 10) || 10;
 /** Total assistant messages per day across all users — denial-of-wallet cap. */
 export const DAILY_GLOBAL_LIMIT = 500;
-/** Minimum gap between accepted requests from one user. */
-export const COOLDOWN_MS = 5_000;
+/**
+ * Minimum gap between accepted requests from one user.
+ *
+ * Overridable by env for the e2e suite, which drives every assistant surface
+ * from one seeded reader in sequence: the second test in a file always lands
+ * inside the window and its answer becomes "slow down" — on screen,
+ * indistinguishable from a feature that does not work. This smooths burst
+ * traffic; it is not a correctness property, and the durable budget is the
+ * daily quota in Postgres. Production sets nothing and gets 5s.
+ */
+export const COOLDOWN_MS = (() => {
+  // `|| 5_000` would be wrong here: 0 is the value the e2e suite wants, and a
+  // falsy check would throw it away. A malformed value must not silently
+  // remove the limit either — `Number("abc")` is NaN, and every `now - last <
+  // NaN` comparison is false, which is a disabled cooldown that looks
+  // configured. Finite or the default.
+  const configured = Number(process.env.AI_COOLDOWN_MS ?? 5_000);
+  return Number.isFinite(configured) && configured >= 0 ? configured : 5_000;
+})();
 
 /**
  * Sentinel UUIDs used as `ai_usage` row keys for the global counters. Not real

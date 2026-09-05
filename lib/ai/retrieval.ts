@@ -28,9 +28,23 @@ import { filterTokens, orFilter, sanitizeFilterTerm } from "./guardrails";
 import { normalizeQuery } from "./intent";
 import { MAX_PASSAGES, MAX_RESULTS } from "./token-budget";
 import type { AILocale, ResultKind, SearchResult } from "./response";
-import type { RetrievedPassage } from "./citations";
 import type { CompactWork } from "./context";
 import { EMPTY_RETRIEVAL, type RetrievalOutcome } from "./plan";
+import {
+  EVIDENCE_LIMITS,
+  balanceByDocument,
+  diversify,
+  fuseEvidence,
+  lexicalScore,
+  minLexicalScore,
+  queryTerms,
+  spreadPages,
+  type EvidenceRecordType,
+  type RetrievalMode,
+  type RetrievedEvidence,
+} from "./evidence";
+import { getResourceReadiness } from "./readiness";
+import { makeSnippet } from "@/lib/search/snippet";
 import { getListedAuthors } from "@/lib/authors/directory";
 import { getAuthorProfile } from "@/lib/authors/profile";
 import type { AuthorWork } from "@/lib/authors/types";
@@ -283,40 +297,6 @@ async function semanticWorks(
   return out;
 }
 
-// ── Passage search ────────────────────────────────────────────────────────────
-async function matchChunks(db: Db, vec: number[], limit: number): Promise<RetrievedPassage[]> {
-  const { data, error } = await db.rpc("match_book_chunks", {
-    query_embedding: vec,
-    match_count: Math.max(limit * 3, 9),
-    min_similarity: CHUNK_MIN_SIMILARITY,
-  });
-  if (error) {
-    // Pre-migration databases and empty chunk tables land here — the caller
-    // still has metadata results to work with.
-    console.error("[ai/retrieval] match_book_chunks:", error.message);
-    return [];
-  }
-  // Rows arrive ranked. Keep at most one passage per work so three passages
-  // mean three different sources rather than three pages of one book.
-  const seen = new Set<string>();
-  const out: RetrievedPassage[] = [];
-  for (const r of (data ?? []) as any[]) {
-    const url = urlFor(r.source, r.ref);
-    if (seen.has(url)) continue;
-    seen.add(url);
-    out.push({
-      title: r.title,
-      author: r.author ?? "Unknown",
-      url,
-      page: Number(r.page_no) || 1,
-      text: String(r.content ?? "").slice(0, PASSAGE_CHARS),
-      similarity: Number(r.similarity ?? 0),
-    });
-    if (out.length >= limit) break;
-  }
-  return out;
-}
-
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -419,51 +399,30 @@ export async function searchWorks(
 }
 
 /**
- * Page-level evidence for a document question. One embedding + one RPC, and
- * the passages are capped at MAX_PASSAGES before they ever reach the context
- * builder — six 700-character chunks per request was the single largest
- * avoidable input cost in the old /api/chat (audit §4.8).
+ * Page-level evidence for a document question, across the whole public
+ * library. A thin wrapper over `retrieveEvidence` in hybrid mode — kept as a
+ * named export because it is the shape the router, the tests and the token
+ * benchmark already speak.
+ *
+ * What changed underneath: it is no longer vector-only. Before, a question
+ * quoting a phrase printed on a page could return nothing while
+ * /api/search/native found that page instantly, because the chunk's embedding
+ * sat below the similarity floor. The lexical leg now runs alongside.
  */
 export async function searchPassages(
   rawQuery: string,
   limit = MAX_PASSAGES,
 ): Promise<RetrievalOutcome> {
-  const started = Date.now();
-  const out = emptyOutcome();
-  const query = sanitizeFilterTerm(rawQuery);
-  if (!query) return out;
+  return retrieveEvidence({ query: rawQuery, mode: "hybrid", limit });
+}
 
-  const key = cacheKey(["chunks", normalizeQuery(query), limit]);
-  const { value, hit } = await cached<{
-    passages: RetrievedPassage[];
-    dbQueries: number;
-    embeddingMs: number;
-    fallback?: RetrievalOutcome["fallback"];
-  }>("retrieval", key, async () => {
-    const emb = await embedQuery(query);
-    if (!emb.vector) {
-      return { passages: [], dbQueries: 0, embeddingMs: emb.ms, fallback: "no_embedding" as const };
-    }
-    const db = createServiceClient();
-    const passages = await matchChunks(db, emb.vector, limit);
-    return { passages, dbQueries: 1, embeddingMs: emb.ms };
-  });
-
-  out.passages = value.passages;
-  out.results = value.passages.map((p) => ({
-    slug: p.url.split("/").pop() ?? "",
-    title: p.title,
-    author: p.author,
-    coverUrl: null,
-    url: p.url,
-    type: (p.url.startsWith("/theses") ? "research" : p.url.startsWith("/publications") ? "publication" : "book") as ResultKind,
-  }));
-  out.dbQueries = hit ? 0 : value.dbQueries;
-  out.embeddingMs = hit ? 0 : value.embeddingMs;
-  out.cacheHit = hit;
-  out.fallback = hit ? "cache" : value.fallback;
-  out.retrievalMs = Date.now() - started;
-  return out;
+/** Evidence from inside ONE resource — the "Ask this book" path. */
+export async function searchRecordPassages(
+  rawQuery: string,
+  scope: EvidenceScope,
+  limit = EVIDENCE_LIMITS.scoped.evidence,
+): Promise<EvidenceOutcome> {
+  return retrieveEvidence({ query: rawQuery, mode: "scoped", scope, limit });
 }
 
 /** Metadata for one book. One query. */
@@ -542,6 +501,687 @@ export async function getRelatedBooks(slug: string, limit = 4): Promise<Retrieva
   const rows = ((data ?? []) as any[]).map(bookRow);
   out.results = rows.map((r) => r.result);
   out.works = rows.map((r) => r.work);
+  return out;
+}
+
+// ── Research evidence (hybrid, optionally scoped) ─────────────────────────────
+// The retrieval half of a grounded answer. Everything here returns
+// RetrievedEvidence — a passage that knows which record and page it came from
+// — so a citation can be verified against a record id rather than a title
+// string, and "save this source" knows what to save.
+
+export interface EvidenceScope {
+  recordType: EvidenceRecordType;
+  recordId: string;
+}
+
+const RECORD_TABLE: Record<EvidenceRecordType, string> = {
+  book: "books",
+  research: "research_reports",
+  // `author_names` is computed by publications_with_stats (0114), not stored
+  // on the base table: selecting it from `publications` makes PostgREST reject
+  // the whole query, and a fetcher that swallows the error returns an empty
+  // list indistinguishable from "this record has no pages".
+  publication: "publications_with_stats",
+};
+
+export interface ResolvedRecord {
+  recordType: EvidenceRecordType;
+  recordId: string;
+  slug: string;
+  title: string;
+  author: string;
+  year: string | null;
+  url: string;
+}
+
+// Row shapes for the selects below. Narrow on purpose: the Supabase client has
+// no generated schema types in this repo, and `any` here would silently absorb
+// a renamed column into an undefined title.
+type BookRecordRow = {
+  id: string;
+  slug: string;
+  title: string;
+  published_at: string | null;
+  authors: { name: string } | null;
+};
+type ThesisRecordRow = {
+  id: string;
+  slug: string | null;
+  title: string;
+  author_names: string | null;
+  academic_year: string | null;
+  published_at: string | null;
+};
+type PublicationRecordRow = {
+  id: string;
+  slug: string;
+  title: string;
+  author_names: string | null;
+  publication_date: string | null;
+};
+type PageRow = { record_type: string; record_id: string; page_no: number; content: string };
+type ParentMetaRow = {
+  id: string;
+  slug: string | null;
+  title: string;
+  authors?: { name: string } | null;
+  author_names?: string | null;
+};
+type ChunkRow = {
+  source: string;
+  record_id: string;
+  ref: string;
+  title: string;
+  author: string | null;
+  page_no: number;
+  content: string;
+  similarity: number;
+};
+
+/**
+ * The record a slug names, or null when it is not a published resource.
+ *
+ * This is the gate scoped retrieval passes through: an unpublished or unknown
+ * slug resolves to nothing, so a scoped question about it retrieves nothing
+ * rather than falling back to a corpus-wide search that might surface
+ * something adjacent (§35 — visibility decided BEFORE retrieval).
+ */
+export async function resolveRecord(
+  recordType: EvidenceRecordType,
+  slug: string,
+): Promise<ResolvedRecord | null> {
+  const clean = sanitizeFilterTerm(slug);
+  if (!clean) return null;
+  const db = createServiceClient();
+
+  if (recordType === "book") {
+    const { data } = await db
+      .from("books")
+      .select("id, slug, title, published_at, authors(name)")
+      .eq("slug", clean)
+      .eq("is_published", true)
+      .maybeSingle();
+    const row = data as BookRecordRow | null;
+    if (!row) return null;
+    return {
+      recordType,
+      recordId: row.id,
+      slug: row.slug,
+      title: row.title,
+      author: row.authors?.name ?? "Unknown",
+      year: row.published_at ? String(row.published_at).slice(0, 4) : null,
+      url: `/books/${row.slug}`,
+    };
+  }
+
+  if (recordType === "research") {
+    const { data } = await db
+      .from("research_reports")
+      .select("id, slug, title, author_names, academic_year, published_at")
+      .or(`slug.eq.${clean},id.eq.${clean}`)
+      .eq("is_published", true)
+      .maybeSingle();
+    const row = data as ThesisRecordRow | null;
+    if (!row) return null;
+    const ref = row.slug ?? row.id;
+    return {
+      recordType,
+      recordId: row.id,
+      slug: ref,
+      title: row.title,
+      author: row.author_names ?? "Unknown",
+      year: row.academic_year ?? (row.published_at ? String(row.published_at).slice(0, 4) : null),
+      url: `/theses/${ref}`,
+    };
+  }
+
+  const { data } = await db
+    .from("publications_with_stats")
+    .select("id, slug, title, author_names, publication_date")
+    .eq("slug", clean)
+    .eq("is_published", true)
+    .maybeSingle();
+  const row = data as PublicationRecordRow | null;
+  if (!row) return null;
+  return {
+    recordType,
+    recordId: row.id,
+    slug: row.slug,
+    title: row.title,
+    author: row.author_names ?? "Unknown",
+    year: row.publication_date ? String(row.publication_date).slice(0, 4) : null,
+    url: `/publications/${row.slug}`,
+  };
+}
+
+/**
+ * The published record whose title the words name, searched across all three
+ * collections. Books first — the largest collection, and the one a bare title
+ * usually means.
+ *
+ * The database is asked with the words in order (`%research%design%`), which
+ * tolerates a dropped comma or article, and every candidate is then confirmed
+ * on normalized text so a single shared word cannot claim a match. Returns
+ * null rather than a best guess: a comparison built on the wrong document is
+ * worse than one that says it could not find it.
+ */
+export async function findRecordByTitle(rawTitle: string): Promise<ResolvedRecord | null> {
+  const clean = sanitizeFilterTerm(rawTitle);
+  const normalized = normalizeSearchText(clean);
+  if (normalized.length < 3) return null;
+  const words = clean.split(/\s+/).filter((w) => w.length >= 3).slice(0, 6);
+  if (!words.length) return null;
+  const pattern = `%${words.join("%")}%`;
+  const db = createServiceClient();
+  const matches = (title: string) => {
+    const t = normalizeSearchText(title);
+    return t.includes(normalized) || normalized.includes(t);
+  };
+
+  const { data: books } = await db
+    .from("books")
+    .select("id, slug, title, published_at, authors(name)")
+    .eq("is_published", true)
+    .ilike("title", pattern)
+    .order("download_count", { ascending: false })
+    .limit(5);
+  const book = ((books ?? []) as unknown as BookRecordRow[]).find((b) => matches(b.title));
+  if (book) {
+    return {
+      recordType: "book",
+      recordId: book.id,
+      slug: book.slug,
+      title: book.title,
+      author: book.authors?.name ?? "Unknown",
+      year: book.published_at ? String(book.published_at).slice(0, 4) : null,
+      url: `/books/${book.slug}`,
+    };
+  }
+
+  const { data: theses } = await db
+    .from("research_reports")
+    .select("id, slug, title, author_names, academic_year, published_at")
+    .eq("is_published", true)
+    .ilike("title", pattern)
+    .limit(5);
+  const thesis = ((theses ?? []) as unknown as ThesisRecordRow[]).find((r) => matches(r.title));
+  if (thesis) {
+    const ref = thesis.slug ?? thesis.id;
+    return {
+      recordType: "research",
+      recordId: thesis.id,
+      slug: ref,
+      title: thesis.title,
+      author: thesis.author_names ?? "Unknown",
+      year: thesis.academic_year ?? null,
+      url: `/theses/${ref}`,
+    };
+  }
+
+  const { data: publications } = await db
+    .from("publications_with_stats")
+    .select("id, slug, title, author_names, publication_date")
+    .eq("is_published", true)
+    .ilike("title", pattern)
+    .limit(5);
+  const publication = ((publications ?? []) as unknown as PublicationRecordRow[]).find((p) => matches(p.title));
+  if (!publication) return null;
+  return {
+    recordType: "publication",
+    recordId: publication.id,
+    slug: publication.slug,
+    title: publication.title,
+    author: publication.author_names ?? "Unknown",
+    year: publication.publication_date ? String(publication.publication_date).slice(0, 4) : null,
+    url: `/publications/${publication.slug}`,
+  };
+}
+
+/** Parent metadata for page rows, published-checked. One query per type. */
+async function hydratePages(
+  db: Db,
+  rows: PageRow[],
+  query: string,
+  terms: readonly string[] = [],
+): Promise<RetrievedEvidence[]> {
+  const idsByType = new Map<EvidenceRecordType, string[]>();
+  for (const r of rows) {
+    const type = r.record_type as EvidenceRecordType;
+    if (!RECORD_TABLE[type]) continue;
+    idsByType.set(type, [...(idsByType.get(type) ?? []), r.record_id]);
+  }
+
+  const meta = new Map<string, { title: string; author: string; ref: string }>();
+  await Promise.all(
+    [...idsByType.entries()].map(async ([type, ids]) => {
+      const select =
+        type === "book"
+          ? "id, slug, title, authors(name)"
+          : type === "research"
+            ? "id, slug, title, author_names"
+            : "id, slug, title, author_names";
+      const { data } = await db
+        .from(RECORD_TABLE[type])
+        .select(select)
+        .in("id", [...new Set(ids)])
+        .eq("is_published", true);
+      for (const row of (data ?? []) as unknown as ParentMetaRow[]) {
+        meta.set(`${type}:${row.id}`, {
+          title: row.title,
+          author: row.authors?.name ?? row.author_names ?? "Unknown",
+          ref: row.slug ?? row.id,
+        });
+      }
+    }),
+  );
+
+  const out: RetrievedEvidence[] = [];
+  for (const r of rows) {
+    const type = r.record_type as EvidenceRecordType;
+    const info = meta.get(`${type}:${r.record_id}`);
+    if (!info) continue; // unpublished or missing parent — never citable
+    const content = String(r.content ?? "");
+    const lower = content.toLowerCase();
+    const focus = lower.includes(query.toLowerCase())
+      ? query
+      : (terms.find((t) => lower.includes(t)) ?? query);
+    out.push({
+      recordType: type,
+      recordId: r.record_id,
+      matchType: "pdf_exact",
+      title: info.title,
+      author: info.author,
+      url: urlFor(type, info.ref),
+      page: Number(r.page_no) || 1,
+      text: makeSnippet(content, focus, PASSAGE_CHARS / 4),
+      similarity: 1,
+      score: 0,
+    });
+  }
+  return out;
+}
+
+/**
+ * Pages containing the query text verbatim.
+ *
+ * This is the leg the AI path never had: `book_pages` was searched only by
+ * /api/search/native, so a question quoting a phrase printed on page 24 could
+ * be answered "I found no evidence" while the search box found it instantly.
+ * Scoped queries filter in SQL, not afterwards.
+ */
+async function lexicalPages(
+  db: Db,
+  query: string,
+  scope: EvidenceScope | undefined,
+  limit: number,
+): Promise<RetrievedEvidence[]> {
+  const q = sanitizeFilterTerm(query);
+  if (q.length < 3) return [];
+  // A question is not a phrase to find on a page. Searching page text for
+  // "what does the book say about formative assessment" matches nothing,
+  // while its topic terms match the pages that answer it — so the whole
+  // phrase and the terms are asked for together, and scored afterwards.
+  const terms = queryTerms(q);
+  const patterns = [q, ...terms].filter((p) => p.length >= 3);
+  if (patterns.length === 0) return [];
+
+  try {
+    let request = db.from("book_pages").select("record_type, record_id, page_no, content");
+    if (scope) {
+      request = request.eq("record_type", scope.recordType).eq("record_id", scope.recordId);
+    }
+    const { data, error } = await request
+      .or(patterns.map((p) => `content.ilike.%${p}%`).join(","))
+      .limit(limit * 6);
+    if (error || !data?.length) return [];
+
+    const floor = minLexicalScore(terms);
+    const scored = (data as unknown as PageRow[])
+      .map((row) => ({ row, score: lexicalScore(row.content ?? "", q, terms) }))
+      .filter((r) => r.score >= floor)
+      .sort((a, b) => b.score - a.score || a.row.page_no - b.row.page_no)
+      .slice(0, limit);
+    if (scored.length === 0) return [];
+
+    // Centre each snippet on a term the page actually contains, so the reader
+    // sees why it was cited rather than the top of the page.
+    return hydratePages(
+      db,
+      scored.map((r) => r.row),
+      q,
+      terms,
+    );
+  } catch (err) {
+    console.error("[ai/retrieval] lexical pages:", err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
+/**
+ * Pages spread through one document, for a summary with nothing to search on.
+ *
+ * "Summarize this book" contains no topic to retrieve: searching page text for
+ * the word "summarize" finds the pages that happen to use it, which is worse
+ * than useless. A summary instead needs a sample OF the document — real pages,
+ * evenly spaced, so the model condenses what the book actually says and every
+ * claim still carries a page a reader can open.
+ *
+ * Page numbers are read first and the text of only the chosen pages is
+ * fetched: a 300-page book must not send 300 pages of text over the wire to
+ * pick five.
+ */
+async function samplePages(
+  db: Db,
+  scope: EvidenceScope,
+  limit: number,
+): Promise<RetrievedEvidence[]> {
+  const { data: numbers, error } = await db
+    .from("book_pages")
+    .select("page_no")
+    .eq("record_type", scope.recordType)
+    .eq("record_id", scope.recordId)
+    .order("page_no", { ascending: true })
+    .limit(2_000);
+  if (error || !numbers?.length) return [];
+
+  // Front matter (title page, copyright, contents) summarises nothing.
+  const all = (numbers as { page_no: number }[]).map((r) => r.page_no);
+  const body = all.filter((p) => p > 4);
+  const pages = body.length >= limit ? body : all;
+  const step = pages.length / limit;
+  const picked = [
+    ...new Set(Array.from({ length: limit }, (_, i) => pages[Math.min(pages.length - 1, Math.floor(i * step))])),
+  ];
+
+  const { data } = await db
+    .from("book_pages")
+    .select("record_type, record_id, page_no, content")
+    .eq("record_type", scope.recordType)
+    .eq("record_id", scope.recordId)
+    .in("page_no", picked);
+  if (!data?.length) return [];
+  return hydratePages(db, data as unknown as PageRow[], "");
+}
+
+/** Chunks nearest the query vector, corpus-wide or inside one record. */
+async function semanticChunks(
+  db: Db,
+  vec: number[],
+  scope: EvidenceScope | undefined,
+  limit: number,
+): Promise<RetrievedEvidence[]> {
+  const rpc = scope
+    ? db.rpc("match_record_chunks", {
+        query_embedding: vec,
+        p_record_type: scope.recordType,
+        p_record_id: scope.recordId,
+        match_count: limit,
+        min_similarity: CHUNK_MIN_SIMILARITY,
+      })
+    : db.rpc("match_book_chunks", {
+        query_embedding: vec,
+        match_count: limit,
+        min_similarity: CHUNK_MIN_SIMILARITY,
+      });
+
+  const { data, error } = await rpc;
+  if (error) {
+    // A database without 0135 (or without chunks) lands here; the lexical leg
+    // still carries the answer.
+    console.error("[ai/retrieval] semantic chunks:", error.message);
+    return [];
+  }
+  const out: RetrievedEvidence[] = [];
+  for (const r of (data ?? []) as ChunkRow[]) {
+    const type = r.source as EvidenceRecordType;
+    if (!RECORD_TABLE[type]) continue;
+    out.push({
+      recordType: type,
+      recordId: r.record_id,
+      matchType: "semantic",
+      title: r.title,
+      author: r.author ?? "Unknown",
+      url: urlFor(type, r.ref),
+      page: Number(r.page_no) || 1,
+      text: String(r.content ?? "").slice(0, PASSAGE_CHARS),
+      similarity: Number(r.similarity ?? 0),
+      score: 0,
+    });
+  }
+  return out;
+}
+
+export interface RetrieveEvidenceInput {
+  query: string;
+  mode: RetrievalMode;
+  /** Restrict retrieval to one record. Applied in SQL, never after the fact. */
+  scope?: EvidenceScope;
+  /** Overrides the mode's evidence cap. */
+  limit?: number;
+  /**
+   * Return each leg's candidate pool alongside the chosen evidence, and skip
+   * the cache so the pools describe this call.
+   *
+   * For the retrieval benchmark ONLY. "Recall@5 = 84%" cannot say whether a
+   * miss was never retrieved, retrieved and out-ranked, or retrieved and
+   * evicted by the per-record cap — and those three have three different
+   * fixes. The pools are what make that difference observable
+   * (lib/ai/failure-class.ts). No request path sets this; the flag adds no
+   * work when it is off.
+   */
+  debug?: boolean;
+}
+
+/** One retrieved passage, reduced to what a failure classifier compares on. */
+export interface EvidencePoolRef {
+  recordType: string;
+  recordId: string;
+  page: number;
+}
+
+/** Each stage's output, in stage order. Present only for a `debug` call. */
+export interface EvidencePools {
+  lexical: EvidencePoolRef[];
+  semantic: EvidencePoolRef[];
+  /** Fused and ranked, before diversity — the input to the final selection. */
+  fused: EvidencePoolRef[];
+}
+
+export interface EvidenceOutcome extends RetrievalOutcome {
+  evidence: RetrievedEvidence[];
+  /** Rows the two legs produced before fusion and diversity. */
+  candidateCount: number;
+  /** False when the resource has no embedded chunks — an honest "exact only". */
+  semanticAvailable: boolean;
+  /** Set only when `debug` was requested. */
+  pools?: EvidencePools;
+}
+
+function emptyEvidence(): EvidenceOutcome {
+  return { ...EMPTY_RETRIEVAL, evidence: [], candidateCount: 0, semanticAvailable: false };
+}
+
+const poolRef = (e: RetrievedEvidence): EvidencePoolRef => ({
+  recordType: e.recordType,
+  recordId: e.recordId,
+  page: e.page,
+});
+
+function evidenceToResults(evidence: readonly RetrievedEvidence[]): SearchResult[] {
+  const seen = new Set<string>();
+  const out: SearchResult[] = [];
+  for (const e of evidence) {
+    if (seen.has(e.url)) continue;
+    seen.add(e.url);
+    out.push({
+      slug: e.url.split("/").pop() ?? "",
+      title: e.title,
+      author: e.author,
+      coverUrl: null,
+      url: e.url,
+      type: KIND_FOR[e.recordType] ?? "book",
+    });
+  }
+  return out;
+}
+
+/**
+ * Hybrid evidence retrieval — the one entry point for grounded answers.
+ *
+ *   query (+ scope) → lexical pages ∥ semantic chunks → fuse → diversify
+ *
+ * The two legs run in parallel and are fused by reciprocal rank, so neither
+ * can starve the other, and a page both agree on leads. Diversity is
+ * directional: a scoped question keeps several pages of one document, an
+ * unscoped one prefers several documents (see lib/ai/evidence.ts).
+ *
+ * The semantic leg is SKIPPED, not merely allowed to fail, when readiness says
+ * the record has no embedded chunks — an embedding call that can only return
+ * nothing is pure cost, and the caller needs to know the difference between
+ * "no evidence" and "never indexed".
+ */
+export async function retrieveEvidence(input: RetrieveEvidenceInput): Promise<EvidenceOutcome> {
+  const started = Date.now();
+  const out = emptyEvidence();
+  const query = sanitizeFilterTerm(input.query);
+  const limits = EVIDENCE_LIMITS[input.mode];
+  const limit = input.limit ?? limits.evidence;
+  if (!query || limit <= 0) {
+    out.retrievalMs = Date.now() - started;
+    return out;
+  }
+
+  const scope = input.scope;
+  const readiness = scope ? await getResourceReadiness(scope.recordType, scope.recordId) : null;
+  const semanticAllowed = readiness ? readiness.semanticReady : Boolean(process.env.GEMINI_API_KEY);
+
+  const key = cacheKey([
+    "evidence",
+    input.mode,
+    scope?.recordType,
+    scope?.recordId,
+    normalizeQuery(query),
+    limit,
+  ]);
+
+  const compute = async () => {
+    const db = createServiceClient();
+    const [lexical, embedding] = await Promise.all([
+      lexicalPages(db, query, scope, limits.candidates),
+      semanticAllowed ? embedQuery(query) : Promise.resolve({ vector: null, ms: 0, cacheHit: false }),
+    ]);
+
+    let semantic: RetrievedEvidence[] = [];
+    let dbQueries = 1;
+    if (embedding.vector) {
+      semantic = await semanticChunks(db, embedding.vector, scope, limits.candidates);
+      dbQueries += 1;
+    }
+
+    const fused = fuseEvidence([lexical, semantic]);
+    // A summary request usually names no topic to retrieve on, so when the
+    // legs come back empty the document itself is sampled. Only for a scoped
+    // summary: sampling the whole library would summarise nothing.
+    const sampled =
+      input.mode === "summary" && scope && fused.length === 0
+        ? await samplePages(db, scope, limit)
+        : [];
+    const pool = fused.length ? fused : sampled;
+    const evidence =
+      input.mode === "summary"
+        ? spreadPages(pool, limit)
+        : diversify(pool, { limit, perResource: limits.perResource });
+
+    return {
+      evidence,
+      candidateCount: lexical.length + semantic.length + sampled.length,
+      dbQueries,
+      embeddingMs: embedding.ms,
+      semanticAvailable: semanticAllowed && Boolean(embedding.vector),
+      fallback: !semanticAllowed && lexical.length > 0 ? ("keyword" as const) : undefined,
+      pools: input.debug
+        ? {
+            lexical: lexical.map(poolRef),
+            semantic: semantic.map(poolRef),
+            fused: pool.map(poolRef),
+          }
+        : undefined,
+    };
+  };
+
+  // A debug call must describe ITS OWN retrieval, so it neither reads nor
+  // writes the shared cache: a cached entry carries no pools, and storing one
+  // would hand a request path a payload it never asked for.
+  const { value, hit } = input.debug
+    ? { value: await compute(), hit: false }
+    : await cached<Awaited<ReturnType<typeof compute>>>("retrieval", key, compute);
+
+  out.evidence = value.evidence;
+  out.passages = value.evidence;
+  out.results = evidenceToResults(value.evidence);
+  out.candidateCount = value.candidateCount;
+  out.semanticAvailable = value.semanticAvailable;
+  out.dbQueries = hit ? 0 : value.dbQueries;
+  out.embeddingMs = hit ? 0 : value.embeddingMs;
+  out.cacheHit = hit;
+  out.fallback = hit ? "cache" : value.fallback;
+  out.pools = value.pools;
+  out.retrievalMs = Date.now() - started;
+  return out;
+}
+
+/**
+ * Evidence for a comparison: each document retrieved inside its own scope,
+ * then balanced so neither side can crowd the other out of the prompt.
+ */
+export async function retrieveComparison(
+  query: string,
+  records: readonly ResolvedRecord[],
+): Promise<EvidenceOutcome> {
+  const started = Date.now();
+  const out = emptyEvidence();
+  if (records.length === 0) {
+    out.retrievalMs = Date.now() - started;
+    return out;
+  }
+
+  const limits = EVIDENCE_LIMITS.multi_document;
+  const perDocument = await Promise.all(
+    records.map((record) =>
+      retrieveEvidence({
+        query,
+        mode: "multi_document",
+        scope: { recordType: record.recordType, recordId: record.recordId },
+        limit: limits.perResource,
+      }),
+    ),
+  );
+
+  out.evidence = balanceByDocument(
+    records.map((record, i) => ({ label: record.title, evidence: perDocument[i].evidence })),
+    limits,
+  );
+  out.passages = out.evidence;
+  out.results = records.map((record) => ({
+    slug: record.slug,
+    title: record.title,
+    author: record.author,
+    coverUrl: null,
+    url: record.url,
+    type: KIND_FOR[record.recordType] ?? "book",
+  }));
+  out.works = records.map((record) => ({
+    title: record.title,
+    author: record.author,
+    year: record.year ?? undefined,
+  }));
+  out.candidateCount = perDocument.reduce((sum, r) => sum + r.candidateCount, 0);
+  out.semanticAvailable = perDocument.some((r) => r.semanticAvailable);
+  out.dbQueries = perDocument.reduce((sum, r) => sum + r.dbQueries, 0);
+  out.embeddingMs = perDocument.reduce((sum, r) => sum + r.embeddingMs, 0);
+  out.cacheHit = perDocument.every((r) => r.cacheHit);
+  out.retrievalMs = Date.now() - started;
   return out;
 }
 

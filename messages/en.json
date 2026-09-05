@@ -133,6 +133,8 @@
     "copyPageReference": "Copy page reference",
     "copyDoi": "Copy DOI",
     "copyCitation": "Copy citation",
+    "saveSource": "Save to research",
+    "sourceSaved": "Saved",
     "readerSettings": "Reader settings",
     "keyboardShortcuts": "Keyboard shortcuts",
     "reportProblem": "Report a problem",
@@ -570,7 +572,10 @@
     "physicalCopies": "Physical Copies",
     "aboutHeading": "What is this book about?",
     "defaultSummary": "{title} is a public resource in the PTEC Library collection.",
-    "openFullReader": "Open full-screen reader"
+    "openFullReader": "Open full-screen reader",
+    "topicsHeading": "Topics covered",
+    "topicsPageCount": "{count, plural, one {# page} other {# pages}}",
+    "topicsProvenance": "Identified from this book's own text. Each count is the number of pages of the book that discuss the topic; contents pages, front matter and bibliographies are not counted."
   },
   "physical": {
     "available": "Available",
@@ -1354,6 +1359,16 @@
     "starter1": "Recommend books about teaching methods",
     "starter2": "What are the library opening hours?",
     "starter3": "How do I borrow a book?",
+    "bookStarter1": "What are the main ideas in this book?",
+    "bookStarter2": "What does it say about assessment?",
+    "bookStarter3": "Give me the citation for this",
+    "sources": "Sources",
+    "onPage": "p. {page}",
+    "copyCitation": "Copy citation",
+    "citationCopied": "Citation copied",
+    "saveSource": "Save to research",
+    "sourceSaved": "Saved",
+    "askThisBook": "Ask this book",
     "error": "Sorry, something went wrong. Try again.",
     "disclaimer": "AI answers may contain mistakes — please verify with library staff.",
     "loginRequired": "Sign in to use the library assistant.",
@@ -4793,7 +4808,20 @@
         "hint": "Published records sharing a title within the same type. They are each counted once (counts are per row, with no joins), so these do not inflate any total — but two editions of the same work may be worth merging or distinguishing.",
         "row": "{count, plural, =1 {1 record} other {# records}} ({type})"
       },
-      "lastReconciled": "Last reconciled {time} UTC"
+      "lastReconciled": "Last reconciled {time} UTC",
+      "semantic": {
+        "title": "Semantic coverage",
+        "unavailable": "Unavailable — migration 0137 has not been applied to this database yet.",
+        "hint": "Which published resources proved at least one catalogue topic from their own body text. Rebuild with {command}.",
+        "chip": "{type}: {withTopics}/{published} with topics",
+        "chipTopics": "{count} topics",
+        "chipDamaged": "{count} damaged text",
+        "chipNoText": "{count} no text",
+        "chipUnsupported": "{count} nothing proven",
+        "chipNever": "{count} never computed",
+        "damagedHint": "{count} resources hold text that extraction produced but that is not the document's text — broken Khmer encoding from legacy non-Unicode fonts. Those documents are not searchable by their contents, cannot be cited by page, and are excluded from every public claim. Fixing them is an extraction-toolchain change (OCR or a font remap), not a cataloguing task.",
+        "unsupportedHint": "These resources extracted cleanly, but none of their catalogue tags appear in the body text. Usually that means the tags describe the document's context rather than its contents — worth a cataloguer's eye, not a defect."
+      }
     }
   },
   "adminSearchInsights": {
@@ -6396,6 +6424,9 @@
       "cohort": "Cohort {cohort}",
       "noCohort": "No cohort",
       "noYear": "No year",
+      "verdictReadyTitle": "Ready to publish",
+      "verdictReadyBody": "Nothing blocks publication. The server re-checks on publish.",
+      "verdictBlockedTitle": "Not ready to publish",
       "openPreview": "Open public preview",
       "recommendations": "{count, plural, one {# recommendation before publishing} other {# recommendations before publishing}}",
       "complete": "Metadata looks complete."

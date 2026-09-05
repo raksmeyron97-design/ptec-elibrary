@@ -18,6 +18,9 @@ export type AIIntent =
   | "author_search"
   | "subject_search"
   | "pdf_question"
+  | "resource_summary"
+  | "document_compare"
+  | "citation"
   | "general_library_question"
   | "general_knowledge"
   | "unsupported";
@@ -59,6 +62,17 @@ export interface Source {
   url: string;
   /** Short excerpt shown under the citation in the UI. */
   snippet?: string;
+  /**
+   * Which record this passage came from. Present whenever retrieval knew —
+   * it is what lets the UI offer "save this source" and what a citation is
+   * verified against, instead of a title string that two editions share.
+   */
+  recordType?: ResultKind;
+  recordId?: string;
+  /** APA in-text form for the cited page, e.g. "(Dawson, 2019, p. 42)". */
+  citation?: string;
+  /** Full APA reference for the work. */
+  reference?: string;
 }
 
 export type AIMode = "text" | "search_results" | "citations";
@@ -81,6 +95,20 @@ export interface AITelemetry {
   resultCount: number;
   /** True when the answer came from a template rather than a model. */
   deterministic: boolean;
+  /** Which retrieval strategy ran (lib/ai/evidence.ts). */
+  retrievalMode?: string;
+  /** True when retrieval was restricted to one record ("Ask this book"). */
+  scoped?: boolean;
+  /** Rows the retrieval legs produced before fusion and diversity. */
+  candidateCount?: number;
+  /** Passages that reached the model. */
+  evidenceCount?: number;
+  /** Distinct records the evidence drew on. */
+  sourceCount?: number;
+  /** Citations the answer made that retrieval supports. */
+  groundedCitations?: number;
+  /** Citations stripped because retrieval did not support them. */
+  hallucinatedCitations?: number;
   /** Set when a primary path failed and a degraded path answered instead. */
   fallback?: "keyword" | "no_llm" | "no_embedding" | "cache" | "error";
 }

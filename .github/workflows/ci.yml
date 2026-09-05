@@ -169,6 +169,12 @@ jobs:
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
           echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
           echo "NEXT_PUBLIC_SITE_URL=http://localhost:3000"
+          # No Gemini key exists in CI. The assistant runs against the
+          # deterministic stand-in model so its surfaces are testable at all;
+          # see lib/ai/mock-model.ts.
+          echo "AI_MOCK_PROVIDER=1"
+          echo "AI_DAILY_USER_LIMIT=500"
+          echo "AI_COOLDOWN_MS=0"
         } >> "$GITHUB_ENV"
 
     - name: Install Playwright Browsers

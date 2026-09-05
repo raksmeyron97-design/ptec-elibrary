@@ -126,6 +126,7 @@ export default function ReadingListsSection({ initialLists }: Props) {
         id: res.id!,
         user_id: "",
         name: newName.trim(),
+        topic: null,
         description: null,
         is_public: newPub,
         created_at: new Date().toISOString(),

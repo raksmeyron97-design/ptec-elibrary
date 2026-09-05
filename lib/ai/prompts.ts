@@ -36,6 +36,10 @@ const MODE_RIDER: Partial<Record<AIIntent, string>> = {
     "The result cards are rendered by the interface. Summarise what the items cover in one sentence.",
   related_books:
     "Explain in one sentence what these titles have in common with the one the reader is viewing.",
+  resource_summary:
+    "Summarise ONLY what the numbered passages contain, and say which parts of the document you did not see. Cite each claim as (Title, p. N). Do not describe chapters or findings that no passage mentions.",
+  document_compare:
+    "Compare the documents using only the numbered passages, which are labelled by document. Structure the answer as: each document's position, then the key differences. Cite every claim as (Title, p. N). If one document has no passages on the question, say so plainly instead of inferring its position.",
   author_search:
     "The result cards are rendered by the interface. Say in one sentence what this author's listed works cover; do not invent biography, roles or affiliations.",
   subject_search:

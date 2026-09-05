@@ -255,3 +255,209 @@ describe("author and subject discovery", () => {
     }
   });
 });
+
+describe("research intents", () => {
+  it("routes a citation request away from the document paths", () => {
+    for (const q of ["cite this in APA", "how do I cite this book?", "give me the citation for this", "BibTeX please"]) {
+      expect(classifyIntent(q, { slug: "a-book", slugType: "book" }).intent, q).toBe("citation");
+    }
+    // Quoting a passage is still a document question, not a reference.
+    expect(classifyIntent("quote the definition of scaffolding", { slug: "a-book" }).intent).toBe("pdf_question");
+  });
+
+  it("routes a two-document question to a comparison, with both targets", () => {
+    const r = classifyIntent("Compare Practical Research Methods and How to Write a Better Thesis");
+    expect(r.intent).toBe("document_compare");
+    expect(r.compareTargets).toEqual(["Practical Research Methods", "How to Write a Better Thesis"]);
+  });
+
+  it("refuses to invent a second document", () => {
+    // "compare these" names nothing; guessing the other side is the failure a
+    // comparison must not have.
+    expect(classifyIntent("compare these two").intent).not.toBe("document_compare");
+  });
+
+  it("routes a summary request, in both languages", () => {
+    expect(classifyIntent("summarize this book", { slug: "a-book", slugType: "book" }).intent).toBe("resource_summary");
+    expect(classifyIntent("what are the main ideas?", { slug: "a-book" }).intent).toBe("resource_summary");
+    expect(classifyIntent("សង្ខេបសៀវភៅនេះ", { slug: "a-book" }).intent).toBe("resource_summary");
+    expect(classifyIntent("Summarize Practical Research Methods").intent).toBe("resource_summary");
+  });
+
+  it("keeps a metadata question on the cheap metadata path", () => {
+    expect(classifyIntent("what is this book about?", { slug: "a-book" }).intent).toBe("book_detail");
+  });
+
+  it("carries the page's identity so retrieval can scope to it", () => {
+    const r = classifyIntent("what does it say about assessment?", { slug: "a-thesis", slugType: "research" });
+    expect(r.intent).toBe("pdf_question");
+    expect(r.slug).toBe("a-thesis");
+    expect(r.slugType).toBe("research");
+  });
+
+  it("treats a citation as answerable without a model, and the rest as needing evidence", () => {
+    expect(ZERO_LLM_INTENTS.has("citation")).toBe(true);
+    expect(ZERO_LLM_INTENTS.has("resource_summary")).toBe(false);
+    expect(ZERO_LLM_INTENTS.has("document_compare")).toBe(false);
+  });
+});
+
+// ── A question about the document in hand ─────────────────────────────────────
+// The reader is standing on a book's page. Before this, only two literal
+// phrasings reached the document paths; the more natural ones went to a
+// corpus-wide catalogue search that returns no page evidence at all. Measured
+// over the phrasings readers actually use, 11 of 16 missed — in both languages.
+describe("questions asked from a resource page", () => {
+  const onBook = { slug: "a-book", slugType: "book" as const };
+  const ask = (q: string) => classifyIntent(q, onBook).intent;
+
+  it("routes a topic question about the current book to its own document", () => {
+    // "the book" worked and "this book" did not, which is the same question.
+    for (const q of [
+      "What does this book say about sampling?",
+      "What does the book say about sampling?",
+      "Does this book discuss sampling?",
+      "Where does this book talk about interviews?",
+      "Explain what this book says about triangulation",
+      "How does this book define formative assessment?",
+      "តើសៀវភៅនេះនិយាយអ្វីអំពី sampling?",
+    ]) {
+      expect(ask(q), q).toBe("pdf_question");
+    }
+  });
+
+  it("routes a contents question with no topic to the summary path", () => {
+    // Nothing to search the document FOR, so the document is the subject and
+    // its retrieval samples pages instead of matching the question's words.
+    // The Khmer forms are the ones that used to search an English book's pages
+    // for a Khmer question phrase, which can only ever return nothing.
+    for (const q of [
+      "What is in this book?",
+      "What does this book cover?",
+      "What does this book explain?",
+      "តើមានអ្វីនៅក្នុងសៀវភៅនេះ?",
+      "តើសៀវភៅនេះពន្យល់អំពីអ្វី?",
+    ]) {
+      expect(ask(q), q).toBe("resource_summary");
+    }
+  });
+
+  it("answers 'what is this book about' from the record, in either language", () => {
+    // Deliberately NOT the summary path: the abstract already answers it, and
+    // the two languages must agree on which question this is.
+    for (const q of [
+      "What is this book about?",
+      "Tell me what this book is about",
+      "សៀវភៅនេះនិយាយអំពីអ្វី?",
+    ]) {
+      expect(ask(q), q).toBe("book_detail");
+    }
+  });
+
+  it("does not swallow questions that point away from the document", () => {
+    // Each of these names the book and is still not answered from its text.
+    // The deictic rule runs inside the context branch, ahead of the author and
+    // subject tables, so it has to decline them itself.
+    expect(ask("Who wrote this book?")).toBe("author_search");
+    expect(ask("What other books are like this one?")).toBe("related_books");
+    expect(ask("How do I cite this book in APA?")).toBe("citation");
+    expect(ask("Summarize this book")).toBe("resource_summary");
+  });
+
+  it("stays a catalogue search when no record is in hand", () => {
+    // Without a slug, "this book" points at nothing.
+    expect(classifyIntent("What does this book say about sampling?").intent).not.toBe(
+      "pdf_question",
+    );
+  });
+});
+
+describe("keyword tables match at a word start", () => {
+  it("does not read a library phrase out of the middle of a word", () => {
+    // "fine for" (library rules) matched "de-fine for-mative", so a question
+    // about a book's contents was answered with the conduct policy.
+    expect(
+      classifyIntent("How does this book define formative assessment?", {
+        slug: "a-book",
+        slugType: "book",
+      }).intent,
+    ).not.toBe("faq");
+  });
+
+  it("keeps the inflection tolerance the tables rely on", () => {
+    // The boundary is on the left only: a right-hand one would stop "quote"
+    // matching "quotes" and "borrow" matching "borrowing".
+    expect(classifyIntent("Can you quote the passage on page 12?").intent).toBe("pdf_question");
+    expect(classifyIntent("What are the borrowing rules?").intent).toBe("faq");
+  });
+
+  it("still answers the library questions it always did", () => {
+    expect(classifyIntent("Is there a fine for overdue books?").intent).toBe("faq");
+    expect(classifyIntent("What are the opening hours?").intent).toBe("faq");
+  });
+});
+
+// ── Asking what the collection SAYS, not what it holds ────────────────────────
+describe("literature questions across the collection", () => {
+  it("routes 'what does the literature say about X' to document evidence", () => {
+    // The cross-document evidence path (searchPassages → hybrid) existed, was
+    // tested, and was reachable by nothing: every phrasing of this landed on a
+    // catalogue search, so a research question was answered with a list of
+    // covers. Measured: 20 of 20 such questions retrieved no passages at all.
+    for (const q of [
+      "What does the library's literature say about sampling?",
+      "What does the literature say about sampling?",
+      "What do the books say about triangulation?",
+      "What does the research show about formative assessment?",
+      "According to the literature, what is grounded theory?",
+    ]) {
+      expect(classifyIntent(q, {}).intent, q).toBe("pdf_question");
+    }
+  });
+
+  it("leaves catalogue searches on their zero-model path", () => {
+    // The trigger is asking what the documents SAY. Naming a topic is not
+    // enough — every catalogue search names one, and routing those to
+    // retrieval would spend an embedding and a model call on questions a
+    // title match already answers.
+    expect(classifyIntent("Do you have books about sampling?").intent).toBe("book_search");
+    expect(classifyIntent("Find me books on research methods").intent).toBe("book_search");
+    expect(classifyIntent("Show me theses on action research").intent).toBe("thesis_search");
+    expect(classifyIntent("How many books do you have?").intent).toBe("faq");
+  });
+});
+
+describe("questions about the resource in front of the reader", () => {
+  const onBook = { slug: "foundations-of-education", slugType: "book" as const };
+
+  it("treats a Khmer question naming this book as a document question", () => {
+    // Khmer word order puts the demonstrative where the English phrase list
+    // does not reach, so this used to classify as a catalogue search for the
+    // word "សៀវភៅ" — and answered from the whole library instead of the book
+    // the reader was holding.
+    expect(classifyIntent("តើសៀវភៅនេះនិយាយអ្វីអំពី assessment?", onBook).intent).toBe("pdf_question");
+  });
+
+  it("sends a question with no topic to the path that samples the document", () => {
+    // "What is in this book?" names nothing to retrieve, so searching page
+    // text for the question's own words finds nothing. The summary path
+    // samples the document instead.
+    expect(classifyIntent("តើមានអ្វីនៅក្នុងសៀវភៅនេះ?", onBook).intent).toBe("resource_summary");
+  });
+
+  it("does the same for the English demonstratives", () => {
+    expect(classifyIntent("does this book cover sampling?", onBook).intent).toBe("pdf_question");
+    expect(classifyIntent("what does this document say about ethics?", onBook).intent).toBe("pdf_question");
+  });
+
+  it("only applies on a resource page — the same words elsewhere still search", () => {
+    expect(classifyIntent("តើសៀវភៅនេះនិយាយអ្វីអំពី assessment?").intent).toBe("book_search");
+  });
+
+  it("does not swallow the other context-bound intents", () => {
+    expect(classifyIntent("summarize this book", onBook).intent).toBe("resource_summary");
+    expect(classifyIntent("cite this book", onBook).intent).toBe("citation");
+    expect(classifyIntent("show me similar books", onBook).intent).toBe("related_books");
+    expect(classifyIntent("what is this book about?", onBook).intent).toBe("book_detail");
+  });
+});

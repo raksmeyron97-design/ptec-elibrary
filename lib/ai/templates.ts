@@ -75,6 +75,62 @@ export function noResults(query: string, locale: AILocale, suggestions: readonly
     : `${head} Try a broader term, or browse the collection at /books.`;
 }
 
+/**
+ * A reference, assembled from the catalogue record. No model is involved —
+ * `lib/citations.ts` formats it, so the fields are the library's own and a
+ * missing publisher stays missing instead of being invented.
+ */
+export function citationAnswer(
+  title: string,
+  reference: string,
+  url: string,
+  locale: AILocale,
+  page?: number,
+): string {
+  const inText = page === undefined ? "" : locale === "km"
+    ? ` សម្រាប់ទំព័រ ${toKhmerDigits(page)}។`
+    : ` for page ${page}.`;
+  return locale === "km"
+    ? `ឯកសារយោង APA សម្រាប់ «${title}»៖\n\n${reference}\n\nទម្រង់ផ្សេងទៀត (MLA, Chicago, BibTeX, RIS) មាននៅ ${url}#cite។${inText}`
+    : `APA reference for “${title}”:\n\n${reference}\n\nOther formats (MLA, Chicago, BibTeX, RIS) are on the record page: ${url}#cite.${inText}`;
+}
+
+/**
+ * The document exists but its text does not — a scan, or a record never
+ * indexed. Said plainly, because a summary written without the text is the
+ * most confident-sounding kind of fiction this assistant could produce.
+ */
+export function insufficientText(title: string | undefined, locale: AILocale): string {
+  const what = title ? (locale === "km" ? `«${title}»` : `“${title}”`) : locale === "km" ? "ឯកសារនេះ" : "this document";
+  return locale === "km"
+    ? `ខ្ញុំមិនមានអត្ថបទដែលបានធ្វើលិបិក្រមគ្រប់គ្រាន់ពី ${what} ដើម្បីធ្វើសេចក្តីសង្ខេបដែលអាចទុកចិត្តបានទេ។ ឯកសារនេះអាចជារូបភាពស្កេន ឬមិនទាន់បានធ្វើលិបិក្រម។`
+    : `I don’t have enough indexed text from ${what} to write a reliable summary. It may be an image-only scan, or not indexed yet.`;
+}
+
+/** A summary is impossible, but the catalogue record still says something. */
+export function summaryFromMetadata(result: SearchResult, summary: string | undefined, locale: AILocale): string {
+  const head = insufficientText(result.title, locale);
+  if (!summary) return head;
+  return locale === "km"
+    ? `${head}\n\nតាមកំណត់ត្រាបញ្ជីសៀវភៅ៖ ${summary}`
+    : `${head}\n\nFrom the catalogue record: ${summary}`;
+}
+
+/** Lead-in for a two-document comparison; the model writes the substance. */
+export function compareLead(titles: readonly string[], locale: AILocale): string {
+  const [a, b] = titles;
+  return locale === "km"
+    ? `ការប្រៀបធៀបរវាង «${a}» និង «${b}» ដោយផ្អែកលើអត្ថបទដែលបានដកស្រង់៖`
+    : `Comparing “${a}” and “${b}” from the retrieved passages:`;
+}
+
+/** One side of a comparison has no evidence — never inferred as agreement. */
+export function compareMissing(title: string, locale: AILocale): string {
+  return locale === "km"
+    ? `ខ្ញុំរកមិនឃើញអត្ថបទដែលពាក់ព័ន្ធនៅក្នុង «${title}» សម្រាប់សំណួរនេះទេ ដូច្នេះមិនអាចប្រៀបធៀបបានពេញលេញ។`
+    : `I found no relevant passages in “${title}” for this question, so a full comparison isn’t possible.`;
+}
+
 /** An author or subject hub resolved: how much it holds, and where the full
  *  list lives. The cards carry the first few works. */
 export function hubLead(

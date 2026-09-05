@@ -7,6 +7,7 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import { getRemainingAiQuota } from "@/app/actions/ai-usage";
+import { saveSourceToResearch } from "@/app/actions/reading-lists";
 import { useSession } from "@/components/providers/SessionProvider";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -26,6 +27,118 @@ const TYPE_META: Record<NonNullable<Book["type"]>, { label: string; badge: strin
   post: { label: "News", badge: "bg-emerald-400/15 text-emerald-300 ring-emerald-300/20" },
 };
 
+/**
+ * A cited passage. `url` already carries `?page=N`, so opening it lands the
+ * reader on the page the claim came from — the whole point of a page-aware
+ * citation. `reference` is the APA form built from catalogue metadata by
+ * lib/citations; when a record cannot support one it is absent, and the copy
+ * affordance is simply not offered.
+ */
+interface AnswerSource {
+  title: string;
+  author: string;
+  page?: number;
+  url: string;
+  snippet?: string;
+  recordType?: string;
+  recordId?: string;
+  citation?: string;
+  reference?: string;
+}
+
+/**
+ * The evidence panel under an answer.
+ *
+ * This is what makes a claim checkable: each row names the document and the
+ * page, links straight to that page in the reader, and offers the APA
+ * reference to copy. Sources are what retrieval returned and grounding kept —
+ * an answer can cite nothing it was not given.
+ */
+function SourceList({ sources, onNavigate }: { sources: AnswerSource[]; onNavigate: () => void }) {
+  const t = useTranslations("ask");
+  const [copied, setCopied] = useState<number | null>(null);
+  const [saved, setSaved] = useState<Set<number>>(new Set());
+  const [saving, setSaving] = useState<number | null>(null);
+
+  const copy = async (index: number, reference: string) => {
+    try {
+      await navigator.clipboard.writeText(reference);
+      setCopied(index);
+      setTimeout(() => setCopied((c) => (c === index ? null : c)), 2_000);
+    } catch {
+      // Clipboard permission denied — the reference is still on screen.
+    }
+  };
+
+  // A citation is worth keeping at the moment it is read. The destination is
+  // the reader's default collection, created on demand: a list picker between
+  // finding a source and keeping it is how sources get lost.
+  const save = async (index: number, source: AnswerSource) => {
+    if (!source.recordId || !source.recordType) return;
+    setSaving(index);
+    const res = await saveSourceToResearch(
+      source.recordType as "book" | "research" | "publication",
+      source.recordId,
+      { page: source.page },
+    );
+    if (!("error" in res) || !res.error || res.error === "already_in_list") {
+      setSaved((s) => new Set([...s, index]));
+    }
+    setSaving(null);
+  };
+
+  return (
+    <div data-testid="ask-sources" className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.03] p-3">
+      <p className="mb-2 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-blue-300/70">
+        {t("sources")}
+      </p>
+      <ol className="flex flex-col gap-2">
+        {sources.map((s, i) => (
+          <li key={`${s.url}-${i}`} className="flex flex-col gap-1">
+            <div className="flex items-baseline gap-1.5">
+              <span className="shrink-0 text-[11px] font-semibold tabular-nums text-gold-400/80">[{i + 1}]</span>
+              <NextLink
+                href={s.url}
+                onClick={onNavigate}
+                className="min-w-0 flex-1 text-[12.5px] font-medium leading-snug text-blue-100 underline-offset-2 hover:text-gold-300 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
+              >
+                {s.title}
+                {s.page !== undefined && (
+                  <span className="ml-1.5 font-normal text-blue-300/70">{t("onPage", { page: s.page })}</span>
+                )}
+              </NextLink>
+            </div>
+            {s.snippet && (
+              <p className="pl-6 text-[11.5px] leading-relaxed text-blue-200/60 line-clamp-2">“{s.snippet}”</p>
+            )}
+            <div className="ml-6 flex flex-wrap items-center gap-1">
+              {s.reference && (
+                <button
+                  type="button"
+                  onClick={() => copy(i, s.reference!)}
+                  className="w-fit rounded-lg px-1.5 py-0.5 text-[11px] font-semibold text-blue-300/70 transition-colors hover:bg-white/[0.06] hover:text-gold-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
+                >
+                  {copied === i ? t("citationCopied") : t("copyCitation")}
+                </button>
+              )}
+              {s.recordId && s.recordType && (
+                <button
+                  type="button"
+                  onClick={() => save(i, s)}
+                  disabled={saving === i || saved.has(i)}
+                  className="w-fit rounded-lg px-1.5 py-0.5 text-[11px] font-semibold text-blue-300/70 transition-colors hover:bg-white/[0.06] hover:text-gold-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400 disabled:opacity-60"
+                >
+                  {saved.has(i) ? t("sourceSaved") : t("saveSource")}
+                </button>
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 type MessageRole = "user" | "assistant";
 
 interface ChatMessage {
@@ -33,8 +146,24 @@ interface ChatMessage {
   role: MessageRole;
   text: string;
   books?: Book[];
+  sources?: AnswerSource[];
   isError?: boolean;
   errorKind?: "quota" | "cooldown" | "global_limit" | "auth" | "general";
+}
+
+/**
+ * The resource page the reader is on, if any. Sent as `context` so retrieval
+ * can scope to that record: the server has accepted this field all along, and
+ * no client ever sent it, which is why "what does this book say about X" used
+ * to search the whole library.
+ */
+function resourceContext(pathname: string): { slug: string; slugType: "book" | "research" | "publication" } | null {
+  const match = /^(?:\/km)?\/(books|theses|publications)\/([^/?#]+)/.exec(pathname);
+  if (!match) return null;
+  const slug = decodeURIComponent(match[2]);
+  if (!slug || slug === "read") return null;
+  const slugType = match[1] === "books" ? "book" : match[1] === "theses" ? "research" : "publication";
+  return { slug, slugType };
 }
 
 // ── Sparkle icon ──────────────────────────────────────────────────────────────
@@ -187,6 +316,9 @@ export default function AskWidget() {
   // library assistant is one tap away on the book page the reader came from.
   const pathname = usePathname();
   const onReaderRoute = /\/books\/[^/]+\/read\/?$|\/offline-reader/.test(pathname ?? "");
+  // The resource page the reader is on. Retrieval scopes to it, so a question
+  // asked here is answered from THIS document rather than the whole library.
+  const pageContext = resourceContext(pathname ?? "");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -276,10 +408,13 @@ export default function AskWidget() {
         .map((m) => ({ role: m.role === "assistant" ? "model" : "user", text: m.text }));
 
       try {
-        const res = await fetch("/api/ask", {
+        const res = await fetch("/api/ai", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: history }),
+          body: JSON.stringify({
+            messages: history,
+            ...(pageContext ? { context: pageContext } : {}),
+          }),
         });
 
         // Parse error kind from body when possible
@@ -332,7 +467,12 @@ export default function AskWidget() {
           return;
         }
 
-        const data: { answer: string; books: Book[]; remaining: number | null } = await res.json();
+        const data: {
+          answer: string;
+          results?: Book[];
+          sources?: AnswerSource[];
+          remaining: number | null;
+        } = await res.json();
 
         // Track remaining quota (null = admin, unlimited)
         if (data.remaining !== null && data.remaining !== undefined) {
@@ -342,7 +482,13 @@ export default function AskWidget() {
 
         setMessages((prev) => [
           ...prev,
-          { id: genId(), role: "assistant", text: data.answer, books: data.books?.slice(0, 5) },
+          {
+            id: genId(),
+            role: "assistant",
+            text: data.answer,
+            books: data.results?.slice(0, 5),
+            sources: data.sources?.slice(0, 6),
+          },
         ]);
 
         // Activate client-side cooldown UX after a successful request too
@@ -358,13 +504,17 @@ export default function AskWidget() {
         setLoading(false);
       }
     },
-    [loading, cooldownActive, quotaExhausted, globalBusy, messages, t]
+    [loading, cooldownActive, quotaExhausted, globalBusy, messages, pageContext, t]
   );
 
   const inputDisabled = loading || quotaExhausted || globalBusy;
   const sendDisabled  = inputDisabled || cooldownActive || !input.trim();
 
-  const starters: [string, string, string] = [t("starter1"), t("starter2"), t("starter3")];
+  // On a resource page the opening prompts are about THAT document, because
+  // that is what retrieval will scope to.
+  const starters: [string, string, string] = pageContext
+    ? [t("bookStarter1"), t("bookStarter2"), t("bookStarter3")]
+    : [t("starter1"), t("starter2"), t("starter3")];
 
   if (onReaderRoute) return null;
 
@@ -502,6 +652,7 @@ export default function AskWidget() {
                         <AiAvatar />
                         <div className="flex min-w-0 flex-1 flex-col gap-1.5 items-start">
                           <div
+                            data-testid="ask-answer"
                             className={`max-w-full rounded-2xl rounded-tl-md px-4 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap ${
                               m.errorKind === "quota"
                                 ? "bg-amber-950/50 text-amber-300 ring-1 ring-amber-500/20"
@@ -514,6 +665,9 @@ export default function AskWidget() {
                           >
                             {parseMarkdown(m.text)}
                           </div>
+                          {m.sources && m.sources.length > 0 && (
+                            <SourceList sources={m.sources} onNavigate={() => setOpen(false)} />
+                          )}
                           {m.books && m.books.length > 0 && (
                             <div className="ask-scroll -mx-4 mt-1.5 flex w-[calc(100%+32px)] snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-3 pt-1">
                               {m.books.map((book) => (

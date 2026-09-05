@@ -28,6 +28,10 @@ export interface IntentResult {
   query: string;
   /** Resource slug carried in from the page the user is on, when relevant. */
   slug?: string;
+  /** Which collection that slug belongs to. Retrieval cannot scope without it. */
+  slugType?: "book" | "research" | "publication";
+  /** For `document_compare`: the works the question named, in order. */
+  compareTargets?: string[];
   /** Page number the user explicitly referenced ("p. 42", "ទំព័រ ៤២"). */
   page?: number;
   /** True for greetings / thanks — answered from a template, never a model. */
@@ -151,12 +155,55 @@ const RELATED_WORDS = ["similar", "like this", "related to this", "more like", "
   "same topic as", "others like",
   "ស្រដៀង", "ដូចគ្នា", "បែបនេះ", "ទាក់ទង"];
 const DETAIL_WORDS = ["what is this book about", "what's this book about", "about this book",
-  "summarize this", "summarise this", "tell me about this",
-  "សៀវភៅនេះនិយាយអំពីអ្វី", "សៀវភៅនេះអំពីអ្វី", "សង្ខេបសៀវភៅនេះ", "អំពីសៀវភៅនេះ"];
+  "tell me about this", "what this book is about", "what this is about",
+  "សៀវភៅនេះនិយាយអំពីអ្វី", "សៀវភៅនេះអំពីអ្វី", "អំពីសៀវភៅនេះ"];
 const PDF_WORDS = ["according to", "on page", "which page", "what page", "inside the book",
   "in the document", "does the book say", "does it say", "quote", "cite", "chapter",
   "ទំព័រ", "នៅក្នុងឯកសារ", "និយាយអំពី", "សរសេរថា", "ដកស្រង់"];
 const LIBRARY_WORDS = ["library", "ptec", "catalog", "catalogue", "បណ្ណាល័យ", "វ.គ.ភ"];
+// A question answered ACROSS the collection's documents rather than from one.
+//
+// "Do you have books about sampling" wants the shelf; "what does the
+// literature say about sampling" wants what the books on it actually say.
+// Both used to reach `book_search`, so the second was answered with a list of
+// covers — the cross-document evidence path existed, was tested, and was
+// reachable by nothing. Kept narrow on purpose: the trigger is asking what the
+// documents SAY, not naming a topic, because every catalogue search names one
+// and converting those to retrieval would spend an embedding and a model call
+// on questions a title match already answers.
+// Entries are the VERB PHRASE without its article, because the determiner in
+// front of it varies and an article is not what makes the question one:
+// "what does the library's literature say about sampling" and "what does the
+// literature say about sampling" are the same request.
+const LITERATURE_WORDS = [
+  "literature say", "literature says", "books say", "sources say",
+  "authors say", "studies say", "research say", "research says",
+  "research show", "research shows", "scholarship say",
+  "according to the literature", "in the literature",
+  "across the collection", "across the library", "across these books",
+  "អក្សរសិល្ប៍និយាយ", "ការស្រាវជ្រាវបង្ហាញ",
+];
+// A grounded summary of a document — distinct from `book_detail`, which
+// describes a record from its catalogue metadata. "What is this book about"
+// is answerable from the abstract; "summarize chapter 3" is not, and
+// answering it without the text is how a plausible fiction gets written.
+const SUMMARY_WORDS = ["summarize", "summarise", "summary of", "a summary",
+  "main idea", "main ideas", "main points", "key points", "key takeaways",
+  "what are the main", "overview of this", "gist of",
+  "សង្ខេប", "សេចក្តីសង្ខេប", "គំនិតសំខាន់", "ចំណុចសំខាន់"];
+// Two documents, one question. Checked before the single-document paths
+// because "compare A and B" also matches every book word in both titles.
+const COMPARE_WORDS = ["compare", "comparison between", "difference between",
+  "differences between", "how do they differ", "versus", " vs ", " vs. ",
+  "ប្រៀបធៀប", "ភាពខុសគ្នា", "ខុសគ្នាយ៉ាងណា"];
+// A reference, not a discussion. Format names are the strongest signal;
+// "quote"/"ដកស្រង់" deliberately stay with PDF questions, because quoting a
+// passage is a document question and formatting a reference is not.
+const CITATION_WORDS = ["cite this", "cite it", "how do i cite", "how to cite",
+  "citation for", "citation of", "give me the citation", "reference for this",
+  "in apa", "apa format", "apa 7", "mla format", "in mla", "chicago style",
+  "bibtex", "endnote", "zotero", ".ris", "ris format", "harvard style",
+  "ឯកសារយោង", "របៀបដកស្រង់សម្តី", "ទម្រង់ apa"];
 // People and subjects are directory hubs (/authors, /subjects) with their own
 // deterministic answers — a question naming one never needs a model.
 const AUTHOR_WORDS = ["who wrote", "who is the author", "who are the authors", "written by",
@@ -180,8 +227,153 @@ const ACADEMIC_MISUSE = ["write my essay", "write an essay for me", "do my homew
   "complete my homework", "answer my exam", "write my report for me",
   "សរសេរអត្ថបទឱ្យខ្ញុំ", "ធ្វើកិច្ចការឱ្យខ្ញុំ", "សរសេរសារណាឱ្យខ្ញុំ", "ធ្វើលំហាត់ឱ្យខ្ញុំ"];
 
+/**
+ * Keyword entries match at a WORD START, not anywhere inside a word.
+ *
+ * Every table here is matched against lowercased text, and plain `includes`
+ * reads a phrase inside a longer word: "fine for" (a library-rules phrase)
+ * matched "de-fine for-mative", so "how does this book define formative
+ * assessment" was answered with the library's conduct policy. The greeting
+ * table already carries a hand-rolled regex for exactly this reason ("hi"
+ * inside "this", "which", "history") and "printing" was narrowed after
+ * matching "the printing press" — this generalises both fixes instead of
+ * waiting for the next table to hit it.
+ *
+ * The boundary is on the LEFT only. A right-hand boundary would cost the free
+ * inflection tolerance the tables rely on — "quote" must still match
+ * "quotes", "borrow" must still match "borrowing" — while the defect being
+ * fixed is always a phrase starting mid-word.
+ *
+ * Entries that are not plain Latin words keep substring matching: Khmer has
+ * no word boundaries by design (the tables are built on that), and `\b` around
+ * punctuation like ".ris" or " vs " either never fires or fires in the wrong
+ * place.
+ */
+const LATIN_PHRASE = /^[a-z0-9]+(?: [a-z0-9]+)*$/;
+const boundaryCache = new Map<string, RegExp | null>();
+
+function matcherFor(word: string): RegExp | null {
+  const cached = boundaryCache.get(word);
+  if (cached !== undefined) return cached;
+  const re = LATIN_PHRASE.test(word)
+    ? new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "u")
+    : null;
+  boundaryCache.set(word, re);
+  return re;
+}
+
 function hits(text: string, words: readonly string[]): boolean {
-  return words.some((w) => text.includes(w));
+  return words.some((w) => {
+    const re = matcherFor(w);
+    return re ? re.test(text) : text.includes(w);
+  });
+}
+
+// ── A question about the document in hand ─────────────────────────────────────
+// The reader is standing on a book's page and asks about it. Before this, the
+// only way to reach that conclusion was a literal phrase list, and it recognised
+// "what does THE book say" while sending "what does THIS book say" — the more
+// natural phrasing of the same question — to a corpus-wide catalogue search
+// that returns no page evidence at all. Measured against the phrasings a reader
+// actually uses, 11 of 16 missed, in both languages.
+//
+// So the rule is structural rather than lexical: when the UI has told us which
+// record the reader is on, a question that POINTS at that record and asks what
+// it contains is a question about that record. Whether it names a topic decides
+// which of the two document paths answers it — a topic means passages to
+// retrieve, no topic means the document itself is the subject.
+
+/** Ways of pointing at the record the reader is currently viewing. */
+const DEICTIC_WORDS = [
+  "this book", "this e-book", "this ebook", "this document", "this text",
+  "this thesis", "this paper", "this publication", "this report", "this volume",
+  "the book", "the document", "the text", "in here", "in it",
+  "សៀវភៅនេះ", "ឯកសារនេះ", "អត្ថបទនេះ", "និក្ខេបបទនេះ", "របាយការណ៍នេះ",
+];
+
+/** Asking what a document contains, rather than about it as a catalogue entry. */
+const CONTENT_VERBS = [
+  "say", "says", "said", "discuss", "discusses", "cover", "covers",
+  "explain", "explains", "define", "defines", "mention", "mentions",
+  "talk about", "talks about", "describe", "describes", "address", "addresses",
+  "argue", "argues", "state", "states", "contain", "contains",
+  "include", "includes", "teach", "teaches", "write about", "writes about",
+  "what is in", "what's in", "what are in", "inside",
+  // A bare "about" carries the same question ("is this document about
+  // ethics?"). Safe this late: the phrasings where "about" means something
+  // else — "about this book", "tell me about this" — are DETAIL_WORDS and
+  // have already answered, and the ones pointing elsewhere are declined by
+  // NOT_THIS_DOCUMENT above.
+  "about",
+  "និយាយ", "ពន្យល់", "រៀបរាប់", "បង្ហាញ", "អធិប្បាយ", "មានអ្វី", "នៅក្នុង",
+];
+
+/**
+ * Phrasings that point AWAY from the document in hand, even while naming it.
+ *
+ * "What other books are like this one" and "who wrote this book" both contain
+ * a deictic and a verb, and neither is answered from the document's text.
+ * Listed here rather than relied on from check order, because the deictic rule
+ * runs inside the context branch — ahead of the author and subject tables.
+ */
+const NOT_THIS_DOCUMENT = [
+  "other book", "other e-book", "another book", "similar book", "books like",
+  "recommend", "do you have", "find me", "search for", "which books",
+  "what books", "how many books", "who wrote", "who is the author",
+  "who are the authors", "written by", "authored by", "author of",
+  "download", "borrow", "available", "how do i get", "how much",
+  "សៀវភៅផ្សេង", "អ្នកនិពន្ធ", "អ្នកណាសរសេរ", "ទាញយក", "សៀវភៅដទៃ",
+];
+
+/**
+ * Words that carry no topic, so their presence in a question does not mean it
+ * named one. Kept to the scaffolding a question about a document is built from
+ * — this is not a general stopword list, and it is only ever used to answer
+ * "did the reader name a subject, or just point at the book?".
+ */
+const TOPIC_SCAFFOLD = new Set([
+  "what", "whats", "which", "who", "whom", "whose", "when", "where", "why",
+  "how", "does", "do", "did", "is", "are", "was", "were", "be", "been",
+  "the", "a", "an", "this", "that", "these", "those", "it", "its", "there",
+  "and", "or", "but", "of", "in", "on", "at", "to", "for", "from", "with",
+  "about", "into", "over", "under", "between", "book", "books", "ebook",
+  "document", "text", "thesis", "paper", "publication", "report", "volume",
+  "page", "pages", "say", "says", "said", "tell", "tells", "me", "you",
+  "your", "i", "my", "we", "us", "can", "could", "would", "should", "will",
+  "shall", "may", "might", "must", "have", "has", "had", "any", "some",
+  "all", "more", "most", "other", "such", "than", "then", "also", "just",
+  "only", "very", "much", "many", "explain", "explains", "discuss",
+  "discusses", "cover", "covers", "define", "defines", "mention", "mentions",
+  "describe", "describes", "contain", "contains", "include", "includes",
+  "inside", "talk", "talks", "please", "here",
+]);
+
+/** True when the text names something to look for beyond the document itself. */
+function namesATopic(lower: string): boolean {
+  // Khmer runs have no word boundaries, so a Khmer-only question cannot be
+  // split into topic and scaffolding this way. Such a question is treated as
+  // naming no topic — which routes it to the overview path, whose retrieval
+  // samples the document rather than searching it for the question's own
+  // words. That is the correct answer for "តើមានអ្វីនៅក្នុងសៀវភៅនេះ" and the
+  // safe one for anything else: sampling a document can be thin, but
+  // searching an English book for a Khmer question phrase returns nothing.
+  return lower
+    .split(/[^\p{L}\p{N}]+/u)
+    .some((w) => w.length >= 3 && !TOPIC_SCAFFOLD.has(w) && !/[ក-៿]/u.test(w));
+}
+
+/**
+ * How a question about the current record should be answered, or null when it
+ * is not about the record at all.
+ *
+ *   "content"  — it named a topic: retrieve passages from this document
+ *   "overview" — it named none: the document itself is the subject
+ */
+export function documentQuestionKind(lower: string): "content" | "overview" | null {
+  if (hits(lower, NOT_THIS_DOCUMENT)) return null;
+  if (!hits(lower, DEICTIC_WORDS)) return null;
+  if (!hits(lower, CONTENT_VERBS)) return null;
+  return namesATopic(lower) ? "content" : "overview";
 }
 
 // ── Query extraction ──────────────────────────────────────────────────────────
@@ -242,6 +434,33 @@ export function extractSubjectQuery(text: string): string {
   return out.length >= 2 ? out : "";
 }
 
+/** Splits "compare A and B" into its two works. */
+const COMPARE_SPLIT = /\s+(?:and|versus|vs\.?|with|against|និង|ជាមួយ)\s+/iu;
+const COMPARE_LEAD =
+  /^(?:please\s+)?(?:can you\s+|could you\s+)?(?:compare|comparison of|contrast|what(?:'s| is) the difference between|what are the differences between|ប្រៀបធៀប|ភាពខុសគ្នារវាង)\s+/iu;
+
+/**
+ * The works a comparison names, in the order asked.
+ *
+ * Deliberately conservative: it returns two targets or none. A question that
+ * says "compare" without naming two things ("compare these") cannot be routed
+ * to a two-document retrieval, and guessing the second document is precisely
+ * the failure a comparison must not have.
+ */
+export function extractCompareTargets(text: string): string[] {
+  const stripped = extractQuery(text).replace(COMPARE_LEAD, "").trim();
+  if (!stripped) return [];
+  const parts = stripped
+    .split(COMPARE_SPLIT)
+    .map((p) => p.replace(/^[\s"“”'’]+|[\s"“”'’?.!]+$/g, "").trim())
+    .filter((p) => p.length >= 3);
+  if (parts.length !== 2) return [];
+  // "compare the assessment methods and the sampling" is one topic, not two
+  // documents — a target has to look like a title, not a bare noun phrase
+  // continuing the first.
+  return parts;
+}
+
 const PAGE_RE = /(?:\bp(?:age|\.)?\s*|ទំព័រ\s*)(\d{1,4}|[០-៩]{1,4})/iu;
 const KHMER_DIGITS = "០១២៣៤៥៦៧៨៩";
 
@@ -271,7 +490,7 @@ export function classifyIntent(raw: string, ctx: ClassifyContext = {}): IntentRe
   const verbosity = detectVerbosity(lower);
   const page = extractPage(text);
   const query = extractQuery(text);
-  const base = { locale, verbosity, query, slug: ctx.slug, page };
+  const base = { locale, verbosity, query, slug: ctx.slug, slugType: ctx.slugType, page };
 
   // 1. Academic-integrity decline — checked first so it can't be smuggled in
   //    behind a book-search phrasing.
@@ -290,9 +509,27 @@ export function classifyIntent(raw: string, ctx: ClassifyContext = {}): IntentRe
     if (hits(lower, words)) return { ...base, intent: "faq", confidence: 0.9, topic };
   }
 
-  // 4. Context-bound intents (only meaningful when the UI told us what page
+  // 4. A reference rather than a discussion. Checked before the document
+  //    paths because "cite this in APA" is not a question about the text.
+  if (hits(lower, CITATION_WORDS)) {
+    return { ...base, intent: "citation", confidence: ctx.slug ? 0.9 : 0.75 };
+  }
+
+  // 5. Two documents, one question. Before the single-document paths, which
+  //    "compare A and B" would otherwise match through either title.
+  if (hits(lower, COMPARE_WORDS)) {
+    const targets = extractCompareTargets(text);
+    if (targets.length === 2) {
+      return { ...base, intent: "document_compare", confidence: 0.85, compareTargets: targets };
+    }
+  }
+
+  // 6. Context-bound intents (only meaningful when the UI told us what page
   //    the user is on).
   if (ctx.slug) {
+    if (hits(lower, SUMMARY_WORDS)) {
+      return { ...base, intent: "resource_summary", confidence: 0.85 };
+    }
     if (hits(lower, RELATED_WORDS)) {
       return { ...base, intent: "related_books", confidence: 0.85 };
     }
@@ -302,17 +539,42 @@ export function classifyIntent(raw: string, ctx: ClassifyContext = {}): IntentRe
     if (page !== undefined || hits(lower, PDF_WORDS)) {
       return { ...base, intent: "pdf_question", confidence: 0.8 };
     }
+    // A question that points at the record in hand and asks what it contains.
+    // Reached only after the intents with their own deterministic answers
+    // (summary, related, detail) have declined it, so this widens the document
+    // paths without taking anything from them.
+    const kind = documentQuestionKind(lower);
+    if (kind === "content") {
+      return { ...base, intent: "pdf_question", confidence: 0.75 };
+    }
+    if (kind === "overview") {
+      // No topic to search for: the document is the subject, so the summary
+      // path answers — its retrieval samples the document instead of searching
+      // it for the question's own words, and it falls back to the catalogue
+      // record when the text was never indexed.
+      return { ...base, intent: "resource_summary", confidence: 0.7 };
+    }
   }
   if (hits(lower, RELATED_WORDS) && hits(lower, BOOK_WORDS)) {
     return { ...base, intent: "related_books", confidence: 0.6 };
   }
 
-  // 5. Content questions about documents — answerable only from page text.
-  if (page !== undefined || hits(lower, PDF_WORDS)) {
+  // 7. A summary of a named document. The router resolves the title; when it
+  //    cannot, the answer says so rather than summarising something adjacent.
+  if (hits(lower, SUMMARY_WORDS)) {
+    return { ...base, intent: "resource_summary", confidence: 0.75 };
+  }
+
+  // 8. Content questions about documents — answerable only from page text.
+  //    A literature question is one of these with no single document named:
+  //    the router answers it from passages retrieved ACROSS the collection
+  //    (searchPassages → hybrid), which is the difference between telling a
+  //    reader what the books say and handing them the shelf.
+  if (page !== undefined || hits(lower, PDF_WORDS) || hits(lower, LITERATURE_WORDS)) {
     return { ...base, intent: "pdf_question", confidence: page !== undefined ? 0.85 : 0.7 };
   }
 
-  // 6. Directory hubs. Checked before the catalog searches because "books by
+  // 8b. Directory hubs. Checked before the catalog searches because "books by
   //    Creswell" and "action research by Mills" name a person, not a
   //    collection, and "what subjects do you have" names the subject index.
   if (hits(lower, SUBJECT_WORDS)) {
@@ -322,7 +584,7 @@ export function classifyIntent(raw: string, ctx: ClassifyContext = {}): IntentRe
     return { ...base, query: extractAuthorQuery(text), intent: "author_search", confidence: 0.85 };
   }
 
-  // 7. Typed catalog searches. Thesis/post words are checked before book words
+  // 9. Typed catalog searches. Thesis/post words are checked before book words
   //    because "research book" should go to theses, not the e-book catalog.
   if (hits(lower, THESIS_WORDS)) {
     return { ...base, intent: "thesis_search", confidence: 0.85 };
@@ -334,25 +596,25 @@ export function classifyIntent(raw: string, ctx: ClassifyContext = {}): IntentRe
     return { ...base, intent: "book_search", confidence: 0.85 };
   }
 
-  // 7. A bare search verb with a topic and no resource word — "find me
+  // 10. A bare search verb with a topic and no resource word — "find me
   //    something about memory". Books are the largest collection, so that's
   //    the default pool.
   if (hits(lower, SEARCH_WORDS)) {
     return { ...base, intent: "book_search", confidence: 0.7 };
   }
 
-  // 8. Mentions the library but matched no fact table — needs the model, with
-  //    library context.
+  // 11. Mentions the library but matched no fact table — needs the model, with
+  //     library context.
   if (hits(lower, LIBRARY_WORDS)) {
     return { ...base, intent: "general_library_question", confidence: 0.6 };
   }
 
-  // 9. A bare noun phrase after a results turn is a refinement of it.
+  // 12. A bare noun phrase after a results turn is a refinement of it.
   if (ctx.hadResults && lower.split(" ").length <= 6) {
     return { ...base, intent: "book_search", confidence: 0.55 };
   }
 
-  // 10. Everything else: a general question. The model answers it, but tells
+  // 13. Everything else: a general question. The model answers it, but tells
   //     the user plainly that it is not library data (§23).
   return { ...base, intent: "general_knowledge", confidence: 0.5 };
 }
@@ -367,7 +629,14 @@ export const ZERO_LLM_INTENTS: ReadonlySet<AIIntent> = new Set<AIIntent>([
   "related_books",
   "author_search",
   "subject_search",
+  // A reference is assembled from catalogue metadata by lib/citations —
+  // asking a model to format one is paying for a worse result.
+  "citation",
 ]);
 
 /** Intents that need document evidence before the model may answer. */
-export const RAG_INTENTS: ReadonlySet<AIIntent> = new Set<AIIntent>(["pdf_question"]);
+export const RAG_INTENTS: ReadonlySet<AIIntent> = new Set<AIIntent>([
+  "pdf_question",
+  "resource_summary",
+  "document_compare",
+]);

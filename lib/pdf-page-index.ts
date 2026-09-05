@@ -38,7 +38,36 @@ installDomMatrixPolyfill();
 
 export const MAX_PAGE_CHARS = 8000; // cap outliers; a page of real prose is ~3-4k chars
 export const MIN_PAGE_CHARS = 20;   // below this it's a blank/scanned page — skip
-const INSERT_BATCH = 100;
+
+/**
+ * Write budget per statement, in characters of page text.
+ *
+ * A fixed ROW count was the bug. `book_pages.content` carries a GIN trigram
+ * index (0066), so the cost of an insert is proportional to the TEXT it
+ * carries, not to the number of rows — and a row here is anything from 20 to
+ * 8,000 characters. At the old batch of 100 rows, a book of dense prose sent
+ * ~300 kB of text and ~100k trigrams into one statement and blew through
+ * Postgres's statement timeout.
+ *
+ * That was not theoretical. Eight books in production are recorded `failed`
+ * with `canceling statement due to statement timeout`, and three of them hold
+ * EXACTLY 100 rows with a max page number of 101–103: one batch committed and
+ * the next one died. A book of short pages sails through the same code.
+ *
+ * 120k characters is roughly a third of what was failing, and it bounds the
+ * statement by the thing that actually costs — so a book of 8,000-character
+ * pages sends 15 rows and a book of 300-character pages sends 400, and both
+ * cost about the same.
+ */
+const INSERT_CHAR_BUDGET = 120_000;
+/** Belt and braces: never send more rows than this regardless of size. */
+const INSERT_MAX_ROWS = 400;
+/** Pages deleted per statement — the same GIN cost applies in reverse. */
+const DELETE_PAGE_STRIDE = 500;
+
+/** Postgres `query_canceled` — a statement that ran out of time. Retryable
+ *  with less work, unlike a constraint violation. */
+const STATEMENT_TIMEOUT = "57014";
 
 export type PageRecordType = "book" | "research" | "publication";
 
@@ -143,6 +172,114 @@ export async function extractPdfPages(bytes: ArrayBuffer): Promise<{ pageNo: num
 }
 
 /**
+ * Split pages into statements bounded by the text they carry.
+ *
+ * A single page larger than the budget still goes out on its own — it is one
+ * row and cannot be split further, and MAX_PAGE_CHARS already caps it well
+ * below anything that could time out alone.
+ */
+export function budgetedBatches(
+  pages: readonly { pageNo: number; content: string }[],
+): { pageNo: number; content: string }[][] {
+  const batches: { pageNo: number; content: string }[][] = [];
+  let current: { pageNo: number; content: string }[] = [];
+  let chars = 0;
+
+  for (const page of pages) {
+    const wouldExceed = chars + page.content.length > INSERT_CHAR_BUDGET;
+    if (current.length > 0 && (wouldExceed || current.length >= INSERT_MAX_ROWS)) {
+      batches.push(current);
+      current = [];
+      chars = 0;
+    }
+    current.push(page);
+    chars += page.content.length;
+  }
+  if (current.length > 0) batches.push(current);
+  return batches;
+}
+
+/**
+ * Insert one batch, halving it and retrying if the database says the statement
+ * ran out of time.
+ *
+ * The character budget is sized so this should not fire. It exists because the
+ * budget is a guess about a database whose timeout this code does not control
+ * and cannot see — a busy instance, a colder cache or a tightened
+ * `statement_timeout` all move the line. Halving converges in a few steps and
+ * ends at a single row, which is the smallest unit that exists; if THAT times
+ * out the failure is real and belongs to a human, so it propagates.
+ */
+async function insertBatch(
+  db: SupabaseClient,
+  recordType: PageRecordType,
+  recordId: string,
+  batch: readonly { pageNo: number; content: string }[],
+): Promise<void> {
+  if (batch.length === 0) return;
+
+  const rows = batch.map((p) => ({
+    record_type: recordType,
+    record_id: recordId,
+    page_no: p.pageNo,
+    content: p.content,
+  }));
+
+  const { error } = await db.from("book_pages").insert(rows);
+  if (!error) return;
+  if (error.code !== STATEMENT_TIMEOUT || batch.length === 1) {
+    throw Object.assign(new Error(error.message), { code: error.code });
+  }
+
+  const mid = Math.floor(batch.length / 2);
+  await insertBatch(db, recordType, recordId, batch.slice(0, mid));
+  await insertBatch(db, recordType, recordId, batch.slice(mid));
+}
+
+/**
+ * Remove every page row for a record, in bounded statements.
+ *
+ * Deleting 1,622 rows from a GIN-indexed table is the same shape of statement
+ * as inserting them, so it gets the same treatment: page-number strides rather
+ * than one unbounded `DELETE … WHERE record_id = …`. The final unbounded sweep
+ * catches anything outside the observed range (a row from an older extraction
+ * with more pages) and is cheap by then because the bulk is already gone.
+ */
+async function deleteRecordPages(
+  db: SupabaseClient,
+  recordType: PageRecordType,
+  recordId: string,
+): Promise<void> {
+  const { data: highest } = await db
+    .from("book_pages")
+    .select("page_no")
+    .eq("record_type", recordType)
+    .eq("record_id", recordId)
+    .order("page_no", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ page_no: number }>();
+
+  const maxPage = highest?.page_no ?? 0;
+  for (let from = 0; from <= maxPage; from += DELETE_PAGE_STRIDE) {
+    const { error } = await db
+      .from("book_pages")
+      .delete()
+      .eq("record_type", recordType)
+      .eq("record_id", recordId)
+      .gte("page_no", from)
+      .lt("page_no", from + DELETE_PAGE_STRIDE);
+    if (error) throw Object.assign(new Error(error.message), { code: error.code });
+  }
+
+  const { error } = await db
+    .from("book_pages")
+    .delete()
+    .eq("record_type", recordType)
+    .eq("record_id", recordId);
+  if (error) throw Object.assign(new Error(error.message), { code: error.code });
+}
+
+/**
  * Fetch a record's PDF, extract per-page text, and replace its book_pages
  * rows (idempotent). Throws on unexpected DB/parse errors; expected non-fatal
  * outcomes (unfetchable file, no text layer) come back as `indexed: false`.
@@ -172,22 +309,27 @@ export async function indexPdfPages(opts: {
   if (pages.length === 0) return { indexed: false, reason: "no-text-layer" };
 
   // Idempotent: replace any existing rows for this record.
-  const { error: delError } = await db
-    .from("book_pages")
-    .delete()
-    .eq("record_type", opts.recordType)
-    .eq("record_id", opts.recordId);
-  if (delError) throw new Error(delError.message);
+  await deleteRecordPages(db, opts.recordType, opts.recordId);
 
-  for (let i = 0; i < pages.length; i += INSERT_BATCH) {
-    const batch = pages.slice(i, i + INSERT_BATCH).map((p) => ({
-      record_type: opts.recordType,
-      record_id: opts.recordId,
-      page_no: p.pageNo,
-      content: p.content,
-    }));
-    const { error } = await db.from("book_pages").insert(batch);
-    if (error) throw new Error(error.message);
+  try {
+    for (const batch of budgetedBatches(pages)) {
+      await insertBatch(db, opts.recordType, opts.recordId, batch);
+    }
+  } catch (err) {
+    // A half-written index is worse than none, and it is what production
+    // currently holds: three records carry pages 1–101 of a 400- to 700-page
+    // book because the second insert batch timed out after the first
+    // committed. `resource_index_state` says `failed`, correctly — but
+    // /api/search/native reads `book_pages`, not that table, so those books
+    // answer "found inside" for their first hundred pages and stay silent
+    // about the rest, indistinguishable from a book that really does only
+    // mention a phrase early on.
+    //
+    // So the record is emptied before the failure propagates. Absent is an
+    // honest state that the reconciler will retry; truncated is a lie that
+    // nothing detects.
+    await deleteRecordPages(db, opts.recordType, opts.recordId).catch(() => {});
+    throw err;
   }
 
   return { indexed: true, pages: pages.length };

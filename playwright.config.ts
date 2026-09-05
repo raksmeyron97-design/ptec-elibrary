@@ -50,6 +50,19 @@ export default defineConfig({
     env: {
       ...(process.env as Record<string, string>),
       SEO_INDEXING: 'on',
+      // The assistant answers from a deterministic stand-in model
+      // (lib/ai/mock-model.ts) rather than a billed provider. Without it, a
+      // developer running this suite locally would spend real Gemini calls,
+      // and CI — which has no key at all — could not reach any AI surface.
+      AI_MOCK_PROVIDER: process.env.AI_MOCK_PROVIDER || '1',
+      // One seeded reader asks every assistant question in the suite, across
+      // two browser projects and up to two retries. The real 10/day quota is
+      // spent before the run is half done, and the quota notice is
+      // indistinguishable from a broken answer.
+      AI_DAILY_USER_LIMIT: process.env.AI_DAILY_USER_LIMIT || '500',
+      // Tests run back to back as one user, so every second request lands
+      // inside the 5s burst window and is answered "slow down".
+      AI_COOLDOWN_MS: process.env.AI_COOLDOWN_MS || '0',
       NEXT_PUBLIC_TURNSTILE_SITE_KEY:
         process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA',
     },

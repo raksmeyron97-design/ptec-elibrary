@@ -137,6 +137,18 @@ export function revalidateHomepagePhotos() {
  * deliberately accepted: the entry is one tiny row and a wrong count on the
  * busiest page is worse than an extra recount.
  */
+/**
+ * A user's own surfaces after their workspace changed (a saved source, a
+ * collection, a note). These are `force-dynamic`, per-user pages, so this is
+ * about clearing the router cache the client holds, not a shared one — and it
+ * is a named helper because "/dashboard" and "/lists/<id>" were being typed as
+ * raw strings in four actions, where a typo fails silently.
+ */
+export function revalidateUserWorkspace(listId?: string) {
+  revalidateLocalizedPath("/dashboard");
+  if (listId) revalidateLocalizedPath(`/lists/${listId}`);
+}
+
 export function revalidateCollectionStats() {
   revalidateTag(TAGS.collectionStats, "max");
   revalidatePublicPath("/");

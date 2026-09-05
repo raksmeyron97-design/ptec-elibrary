@@ -29,6 +29,14 @@ export interface RetrievedPassage {
   page: number;
   text: string;
   similarity: number;
+  /**
+   * Which record the passage came from, when retrieval knew. Optional because
+   * the legacy paths only ever had a title and a page; `lib/ai/evidence.ts`
+   * always sets it, and it is what lets a source be saved and a citation be
+   * verified by identity rather than by title text.
+   */
+  recordType?: "book" | "research" | "publication";
+  recordId?: string;
 }
 
 /**
@@ -50,6 +58,8 @@ export function buildSources(passages: readonly RetrievedPassage[], snippetChars
       page: p.page,
       url: `${p.url}?page=${p.page}`,
       snippet: text.length > snippetChars ? `${text.slice(0, snippetChars).trim()}…` : text,
+      recordType: p.recordType,
+      recordId: p.recordId,
     });
   }
   return out;

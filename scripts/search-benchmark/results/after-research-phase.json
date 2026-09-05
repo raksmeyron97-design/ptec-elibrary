@@ -1,0 +1,1610 @@
+{
+  "generatedAt": "2026-09-04T16:04:32.333Z",
+  "base": "http://localhost:3000",
+  "collection": "PTEC e-Library public collection, labelled 2026-09-04 (215 published books; no theses/publications/catalog rows yet)",
+  "querySetVersion": 1,
+  "overall": {
+    "n": 90,
+    "recallAt1": 0.9555555555555556,
+    "recallAt5": 1,
+    "recallAt10": 1,
+    "mrr": 0.9712962962962963,
+    "zeroResultRate": 0,
+    "fuzzyRate": 0,
+    "p50Ms": 2139,
+    "p95Ms": 6848
+  },
+  "byCategory": {
+    "title_en": {
+      "n": 12,
+      "recallAt1": 1,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "mrr": 1,
+      "zeroResultRate": 0,
+      "fuzzyRate": 0,
+      "p50Ms": 2069,
+      "p95Ms": 7699
+    },
+    "title_km": {
+      "n": 12,
+      "recallAt1": 1,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "mrr": 1,
+      "zeroResultRate": 0,
+      "fuzzyRate": 0,
+      "p50Ms": 1511,
+      "p95Ms": 8767
+    },
+    "mixed": {
+      "n": 10,
+      "recallAt1": 1,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "mrr": 1,
+      "zeroResultRate": 0,
+      "fuzzyRate": 0,
+      "p50Ms": 1912,
+      "p95Ms": 5066
+    },
+    "author": {
+      "n": 12,
+      "recallAt1": 1,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "mrr": 1,
+      "zeroResultRate": 0,
+      "fuzzyRate": 0,
+      "p50Ms": 2073,
+      "p95Ms": 3615
+    },
+    "subject": {
+      "n": 12,
+      "recallAt1": 0.6666666666666666,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "mrr": 0.7847222222222222,
+      "zeroResultRate": 0,
+      "fuzzyRate": 0,
+      "p50Ms": 4024,
+      "p95Ms": 12006
+    },
+    "typo": {
+      "n": 10,
+      "recallAt1": 1,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "mrr": 1,
+      "zeroResultRate": 0,
+      "fuzzyRate": 0,
+      "p50Ms": 2174,
+      "p95Ms": 3592
+    },
+    "isbn": {
+      "n": 10,
+      "recallAt1": 1,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "mrr": 1,
+      "zeroResultRate": 0,
+      "fuzzyRate": 0,
+      "p50Ms": 2023,
+      "p95Ms": 2687
+    },
+    "pdf_text": {
+      "n": 12,
+      "recallAt1": 1,
+      "recallAt5": 1,
+      "recallAt10": 1,
+      "mrr": 1,
+      "zeroResultRate": 0,
+      "fuzzyRate": 0,
+      "p50Ms": 2107,
+      "p95Ms": 3583
+    }
+  },
+  "queries": [
+    {
+      "id": "title_en-001",
+      "category": "title_en",
+      "q": "Practical Research Methods",
+      "status": 200,
+      "latencyMs": 7699,
+      "total": 101,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:practical-research-methods",
+        "book:methods-in-educational-research-from-theory-to-practice-2nd-edition",
+        "book:a-z-of-digital-research-methods",
+        "book:introduction-to-research-methods-5th-edition",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "title_en-002",
+      "category": "title_en",
+      "q": "How to Write a Better Thesis",
+      "status": 200,
+      "latencyMs": 2416,
+      "total": 106,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:how-to-write-a-better-thesis",
+        "book:handbook-of-methodological-approaches-to-community-based-research",
+        "book:how-to-design-and-evaluate-research-in-education-8th-edition",
+        "book:qualitative-research-an-introduction-to-methods-and-designs",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "title_en-003",
+      "category": "title_en",
+      "q": "Academic Phrasebank",
+      "status": 200,
+      "latencyMs": 1566,
+      "total": 8,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:academic-phrasebank-2018-edition",
+        "book:quality-of-teaching-and-learning-in-response-to-21st-century-education-selected-action-research-reports-12-4-student-teachers-batch-3-academic-year-2024-2025",
+        "book:english-for-academic-research-writing-exercises",
+        "book:phrasebook-for-writing-papers-and-research-in-english-4th-edition"
+      ]
+    },
+    {
+      "id": "title_en-004",
+      "category": "title_en",
+      "q": "Interviewing as Qualitative Research",
+      "status": 200,
+      "latencyMs": 2410,
+      "total": 124,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:interviewing-as-qualitative-research-3rd-edition",
+        "book:handbook-of-methodological-approaches-to-community-based-research",
+        "book:qualitative-research-a-guide-to-design-and-implementation-2nd-edition",
+        "book:introduction-to-qualitative-research-methods-4th-edition",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "title_en-005",
+      "category": "title_en",
+      "q": "Effective School Management",
+      "status": 200,
+      "latencyMs": 2132,
+      "total": 37,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:effective-school-management-4th-edition",
+        "book:methodological-advances-in-educational-effectiveness-research",
+        "book:action-research-in-practice-partnerships-for-social-justice-in-education",
+        "book:action-research-themes-in-education"
+      ]
+    },
+    {
+      "id": "title_en-006",
+      "category": "title_en",
+      "q": "Elementary Survey Sampling",
+      "status": 200,
+      "latencyMs": 1601,
+      "total": 18,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:elementary-survey-sampling-7th-edition",
+        "book:social-research-methods-qualitative-and-quantitative-7th-edition",
+        "book:educational-research-quantitative-qualitative-and-mixed-5th-edition",
+        "book:social-research-methods-4th-edition"
+      ]
+    },
+    {
+      "id": "title_en-007",
+      "category": "title_en",
+      "q": "Doing Action Research in English Language Teaching",
+      "status": 200,
+      "latencyMs": 2205,
+      "total": 166,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:doing-action-research-in-english-language-teaching",
+        "book:action-research-in-teaching-and-learning",
+        "book:integrating-teaching-learning-and-action-research",
+        "book:the-action-research-planner-doing-critical-participatory-action-research",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "title_en-008",
+      "category": "title_en",
+      "q": "Education Research in the Public Interest",
+      "status": 200,
+      "latencyMs": 2843,
+      "total": 167,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:education-research-in-the-public-interest",
+        "book:methods-in-educational-research-from-theory-to-practice",
+        "book:methods-in-educational-research-from-theory-to-practice-2nd-edition",
+        "book:quality-of-teaching-and-learning-in-response-to-21st-century-education-selected-action-research-reports-12-4-student-teachers-batch-3-academic-year-2024-2025",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "title_en-009",
+      "category": "title_en",
+      "q": "English for Writing Research Papers",
+      "status": 200,
+      "latencyMs": 1690,
+      "total": 139,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:english-for-writing-research-papers",
+        "book:english-for-writing-research-papers-2nd-edition",
+        "book:english-for-academic-research-writing-exercises",
+        "book:phrasebook-for-writing-papers-and-research-in-english-4th-edition",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "title_en-010",
+      "category": "title_en",
+      "q": "Data Analysis and Hypothesis Testing Using Python",
+      "status": 200,
+      "latencyMs": 1907,
+      "total": 159,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:data-analysis-and-hypothesis-testing-using-python",
+        "book:spss-survival-manual-a-step-by-step-guide-to-data-analysis-using-ibm-spss",
+        "book:data-analysis-with-microsoft-excel-updated-for-office-2007-3rd-edition",
+        "book:quantitative-data-analysis-in-education",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "title_en-011",
+      "category": "title_en",
+      "q": "Combining Methods in Educational and Social Research",
+      "status": 200,
+      "latencyMs": 1762,
+      "total": 167,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:combining-methods-in-educational-and-social-research",
+        "book:methodological-advances-in-educational-effectiveness-research",
+        "book:methods-in-educational-research-from-theory-to-practice",
+        "book:methods-in-educational-research-from-theory-to-practice-2nd-edition",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "title_en-012",
+      "category": "title_en",
+      "q": "Essentials of Research Design and Methodology",
+      "status": 200,
+      "latencyMs": 2069,
+      "total": 160,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:essentials-of-research-design-and-methodology",
+        "book:methodology-of-educational-research-and-statistics",
+        "book:fundamental-of-research-methodology-and-statistics",
+        "book:research-design-qualitative-quantitative-and-mixed-methods-approaches",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "title_km-001",
+      "category": "title_km",
+      "q": "ការសិក្សាបែបសកម្ម",
+      "status": 200,
+      "latencyMs": 1894,
+      "total": 2,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:ការសិក្សាបែបសកម្ម-active-learning",
+        "book:កម្មវិធីសិក្សាលម្អិត-ផ្នែកកម្មសិក្សាគរុកោសល្យ-ba-1"
+      ]
+    },
+    {
+      "id": "title_km-002",
+      "category": "title_km",
+      "q": "ការបង្រៀនតាមវិធីសម្តែងតួ",
+      "status": 200,
+      "latencyMs": 1511,
+      "total": 10,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:ការបង្រៀនតាមវិធីសម្តែងតួ",
+        "book:វិធីសាស្ត្របង្រៀន-ការអប់រំសុខភាពសម្រាប់គ្រូឧទ្ទេស",
+        "book:វិធីសាស្ត្របង្រៀនគណិតវិទ្យាផ្នែកចំនួន-ថ្នាក់ទី៥",
+        "book:វិធីសាស្ត្របង្រៀនគណិតវិទ្យាផ្នែកចំនួន-ថ្នាក់ទី២"
+      ]
+    },
+    {
+      "id": "title_km-003",
+      "category": "title_km",
+      "q": "កំណត់ហេតុរបស់ជីវតាក្វាន់",
+      "status": 200,
+      "latencyMs": 1689,
+      "total": 1,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:កំណត់ហេតុរបស់ជីវតាក្វាន់-3rd-edition"
+      ]
+    },
+    {
+      "id": "title_km-004",
+      "category": "title_km",
+      "q": "ការអប់រំបំណិនជីវិតស្តីពីបរិស្ថាន",
+      "status": 200,
+      "latencyMs": 2053,
+      "total": 2,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:ការអប់រំបំណិនជីវិតស្តីពីបរិស្ថាន",
+        "book:ឯកសារជំនួយ-ស្តីពី-ការអប់រំ-និងការលើកកម្ពស់សុខភាព"
+      ]
+    },
+    {
+      "id": "title_km-005",
+      "category": "title_km",
+      "q": "កិច្ចតែងការភាសាខ្មែរ ថ្នាក់ទី៩",
+      "status": 200,
+      "latencyMs": 1295,
+      "total": 11,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:កិច្ចតែងការភាសាខ្មែរ-ថ្នាក់ទី៩",
+        "book:សៀវភៅណែនាំគ្រូបង្រៀន-គីមីវិទ្យា-ថ្នាក់ទី៩-stepsam3",
+        "book:សៀវភៅណែនាំគ្រូបង្រៀន-ជីវវិទ្យា-ថ្នាក់ទី៩-stepsam3",
+        "book:សៀវភៅណែនាំគ្រូបង្រៀន-ផែនដីវិទ្យា-ថ្នាក់ទី៩-stepsam3"
+      ]
+    },
+    {
+      "id": "title_km-006",
+      "category": "title_km",
+      "q": "សទ្ទានុក្រមវិទ្យាសាស្រ្ត និងបច្ចេកវិទ្យា",
+      "status": 200,
+      "latencyMs": 1368,
+      "total": 12,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:សទ្ទានុក្រមវិទ្យាសាស្រ្ត-និងបច្ចេកវិទ្យា",
+        "book:សទ្ទានុក្រមវិទ្យាសាស្រ្តនយោបាយ-និងការទូត",
+        "book:គុណភាពទឹក-សម្រាប់វិទ្យាសាស្ត្រគីមីវិទ្យា-និងបរិស្ថានវិទ្យា",
+        "book:គណិតវិទ្យា-បណ្តុំវិទ្យាសាស្រ្ត"
+      ]
+    },
+    {
+      "id": "title_km-007",
+      "category": "title_km",
+      "q": "សេចក្តីផ្តើមនីតិភូមិបាល",
+      "status": 200,
+      "latencyMs": 1093,
+      "total": 1,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:សេចក្តីផ្តើមនីតិភូមិបាល"
+      ]
+    },
+    {
+      "id": "title_km-008",
+      "category": "title_km",
+      "q": "ការវិភាគទិន្នន័យតាម SPSS",
+      "status": 200,
+      "latencyMs": 1626,
+      "total": 6,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:ការវិភាគទិន្នន័យតាម-spss-16-0",
+        "book:spss-survival-manual-a-step-by-step-guide-to-data-analysis-using-ibm-spss",
+        "book:doing-data-analysis-with-spss-version-18-5th-edition",
+        "book:spss-explained"
+      ]
+    },
+    {
+      "id": "title_km-009",
+      "category": "title_km",
+      "q": "ក្របខ័ណ្ឌកម្មវិធីអប់រំគ្រូបង្រៀនបឋមសិក្សា",
+      "status": 200,
+      "latencyMs": 1297,
+      "total": 3,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:ក្របខ័ណ្ឌកម្មវិធីអប់រំគ្រូបង្រៀនបឋមសិក្សា-១២-៤",
+        "book:កម្មវិធីសិក្សាលម្អិត-សម្រាប់កម្មវិធីអប់រំគ្រូបង្រៀនអនុវិទ្យាល័យតាមប្រព័ន្ធ-បរិញ្ញាបត្រ-១-មុខវិជ្ជា-វិធីសាស្ត្រ១-ឯកទេស-រូបវិទ្យា",
+        "book:ក្របខ័ណ្ឌកម្មវិធីអប់រំគ្រូបង្រៀន-មត្តេយ្យសិក្សា-១២-២"
+      ]
+    },
+    {
+      "id": "title_km-010",
+      "category": "title_km",
+      "q": "ការអភិវឌ្ឍភាពជាអ្នកដឹកនាំ",
+      "status": 200,
+      "latencyMs": 1431,
+      "total": 1,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:ការអភិវឌ្ឍភាពជាអ្នកដឹកនាំ-leadership-development"
+      ]
+    },
+    {
+      "id": "title_km-011",
+      "category": "title_km",
+      "q": "ការប្រើប្រាស់បច្ចេកវិទ្យាឌីជីថលជួយដល់ការរៀន និងបង្រៀន",
+      "status": 200,
+      "latencyMs": 8767,
+      "total": 2,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:ការប្រើប្រាស់បច្ចេកវិទ្យាឌីជីថលជួយដល់ការរៀន-និងបង្រៀន",
+        "book:សទ្ទានុក្រមវិទ្យាសាស្រ្ត-និងបច្ចេកវិទ្យា"
+      ]
+    },
+    {
+      "id": "title_km-012",
+      "category": "title_km",
+      "q": "ការអប់រំសុខភាពសម្រាប់សាលាគរុកោសល្យ និងវិក្រឹតការ",
+      "status": 200,
+      "latencyMs": 1727,
+      "total": 3,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:ការអប់រំសុខភាពសម្រាប់សាលាគរុកោសល្យ-និងវិក្រឹតការ",
+        "book:វិធីសាស្ត្របង្រៀន-ការអប់រំសុខភាពសម្រាប់គ្រូឧទ្ទេស",
+        "book:ការអប់រំសុខភាពសម្រាប់មជ្ឈមណ្ឌលគរុកោសល្យភូមិភាគ"
+      ]
+    },
+    {
+      "id": "mixed-001",
+      "category": "mixed",
+      "q": "SPSS ការវិភាគទិន្នន័យ",
+      "status": 200,
+      "latencyMs": 1268,
+      "total": 6,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:ការវិភាគទិន្នន័យតាម-spss-16-0",
+        "book:spss-survival-manual-a-step-by-step-guide-to-data-analysis-using-ibm-spss",
+        "book:doing-data-analysis-with-spss-version-18-5th-edition",
+        "book:spss-explained"
+      ]
+    },
+    {
+      "id": "mixed-002",
+      "category": "mixed",
+      "q": "Active Learning ការសិក្សា",
+      "status": 200,
+      "latencyMs": 1912,
+      "total": 29,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:ការសិក្សាបែបសកម្ម-active-learning",
+        "book:teaching-and-learning-strategies-for-the-thinking-classroom",
+        "book:quality-of-teaching-and-learning-in-response-to-21st-century-education-selected-action-research-reports-12-4-student-teachers-batch-3-academic-year-2024-2025",
+        "book:action-research-in-teaching-and-learning",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "mixed-003",
+      "category": "mixed",
+      "q": "Leadership ការអភិវឌ្ឍ",
+      "status": 200,
+      "latencyMs": 5066,
+      "total": 7,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:ការអភិវឌ្ឍភាពជាអ្នកដឹកនាំ-leadership-development",
+        "book:pedagogy-and-practice-leadership-guide",
+        "book:ថ្នាលអភិវឌ្ឍសមត្ថភាព-cdp",
+        "book:from-teacher-to-manager-managing-language-teaching-organizations"
+      ]
+    },
+    {
+      "id": "mixed-004",
+      "category": "mixed",
+      "q": "action research ស្រាវជ្រាវប្រតិបត្តិ",
+      "status": 200,
+      "latencyMs": 3479,
+      "total": 87,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:quality-of-teaching-and-learning-in-response-to-21st-century-education-selected-action-research-reports-12-4-student-teachers-batch-3-academic-year-2024-2025",
+        "book:action-research-series-volume-3",
+        "book:action-research-series-volume-2",
+        "book:action-research-series-volume-1",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "mixed-005",
+      "category": "mixed",
+      "q": "statistics ស្ថិតិ",
+      "status": 200,
+      "latencyMs": 3218,
+      "total": 15,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:student-statistics-challenges-in-collection-and-validity",
+        "book:research-methods-and-statistics-a-critical-thinking-approach-3rd-edition",
+        "book:methodology-of-educational-research-and-statistics",
+        "book:fundamental-of-research-methodology-and-statistics"
+      ]
+    },
+    {
+      "id": "mixed-006",
+      "category": "mixed",
+      "q": "qualitative ស្រាវជ្រាវបែបគុណភាព",
+      "status": 200,
+      "latencyMs": 2544,
+      "total": 28,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:qualitative-inquiry-and-research-design-4th-edition",
+        "book:the-coding-manual-for-qualitative-researchers",
+        "book:introduction-to-qualitative-research-methods-4th-edition",
+        "book:qualitative-research-from-start-to-finish-2nd-edition"
+      ]
+    },
+    {
+      "id": "mixed-007",
+      "category": "mixed",
+      "q": "mathematics គណិតវិទ្យា",
+      "status": 200,
+      "latencyMs": 2159,
+      "total": 18,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា២",
+        "book:កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា១",
+        "book:កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាចំណេះដឹងឯកទេសគណិតវិទ្យា",
+        "book:គណិតវិទ្យា-បណ្តុំវិទ្យាសាស្រ្ត"
+      ]
+    },
+    {
+      "id": "mixed-008",
+      "category": "mixed",
+      "q": "chemistry គីមីវិទ្យា",
+      "status": 200,
+      "latencyMs": 1504,
+      "total": 10,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:គីមីវិទ្យា-បណ្តុំវិទ្យាសាស្ត្រ",
+        "book:គីមីវិទ្យា-បណ្តុំវិទ្យាសាស្ត្រសង្គម",
+        "book:សៀវភៅពិសោធគីមីវិទ្យា-ភាគ២",
+        "book:សៀវភៅណែនាំគ្រូបង្រៀន-គីមីវិទ្យា-ថ្នាក់ទី៩-stepsam3"
+      ]
+    },
+    {
+      "id": "mixed-009",
+      "category": "mixed",
+      "q": "physics រូបវិទ្យា",
+      "status": 200,
+      "latencyMs": 1436,
+      "total": 11,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:កម្មវិធីសិក្សាលម្អិត-សម្រាប់កម្មវិធីអប់រំគ្រូបង្រៀនអនុវិទ្យាល័យតាមប្រព័ន្ធ-បរិញ្ញាបត្រ-១-មុខវិជ្ជា-វិធីសាស្ត្រ១-ឯកទេស-រូបវិទ្យា",
+        "book:សៀវភៅណែនាំគ្រូបង្រៀន-រូបវិទ្យា-ថ្នាក់ទី៨-stepsam3",
+        "book:សៀវភៅណែនាំគ្រូបង្រៀន-រូបវិទ្យា-ថ្នាក់ទី៩-stepsam3",
+        "book:សៀវភៅណែនាំគ្រូបង្រៀន-រូបវិទ្យា-ថ្នាក់ទី៧-stepsam3"
+      ]
+    },
+    {
+      "id": "mixed-010",
+      "category": "mixed",
+      "q": "biology ជីវវិទ្យា",
+      "status": 200,
+      "latencyMs": 1615,
+      "total": 7,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:ជីវវិទ្យា-បណ្តុំវិទ្យាសាស្ត្រ-កម្រិតបឋម",
+        "book:សុខភាពនៅក្នុងដៃរបស់យើង-សម្រាប់វិទ្យាសាស្ត្រជីវវិទ្យា",
+        "book:សៀវភៅណែនាំគ្រូបង្រៀន-ជីវវិទ្យា-ថ្នាក់ទី៧-stepsam3",
+        "book:សៀវភៅណែនាំគ្រូបង្រៀន-ជីវវិទ្យា-ថ្នាក់ទី៨-stepsam3"
+      ]
+    },
+    {
+      "id": "author-001",
+      "category": "author",
+      "q": "Catherine Dawson",
+      "status": 200,
+      "latencyMs": 1819,
+      "total": 7,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:a-z-of-digital-research-methods",
+        "book:100-activities-for-teaching-research-methods",
+        "book:practical-research-methods",
+        "book:introduction-to-research-methods-4th-edition"
+      ]
+    },
+    {
+      "id": "author-002",
+      "category": "author",
+      "q": "John W. Creswell",
+      "status": 200,
+      "latencyMs": 2290,
+      "total": 7,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:research-design-qualitative-quantitative-and-mixed-methods-3rd-edition",
+        "book:research-design-qualitative-quantitative-and-mixed-methods-approaches",
+        "book:educational-research-planning-conducting-and-evaluating-4th-edition",
+        "book:qualitative-inquiry-and-research-design-4th-edition"
+      ]
+    },
+    {
+      "id": "author-003",
+      "category": "author",
+      "q": "Creswell",
+      "status": 200,
+      "latencyMs": 3615,
+      "total": 5,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:research-design-qualitative-quantitative-and-mixed-methods-3rd-edition",
+        "book:qualitative-inquiry-and-research-design-4th-edition",
+        "book:research-design-qualitative-quantitative-and-mixed-methods-approaches",
+        "book:educational-research-planning-conducting-and-evaluating-4th-edition"
+      ]
+    },
+    {
+      "id": "author-004",
+      "category": "author",
+      "q": "Ranjit Kumar",
+      "status": 200,
+      "latencyMs": 2771,
+      "total": 4,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:research-methodology-a-step-by-step-guide-for-beginners-3rd-edition",
+        "book:research-methodology-a-step-by-step-guide-for-beginners-4th-edition",
+        "book:research-methodology-a-step-by-step-guide-for-beginners-5th-edition",
+        "book:fundamental-of-research-methodology-and-statistics"
+      ]
+    },
+    {
+      "id": "author-005",
+      "category": "author",
+      "q": "Adrian Wallwork",
+      "status": 200,
+      "latencyMs": 2073,
+      "total": 4,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:english-for-writing-research-papers",
+        "book:english-for-writing-research-papers-2nd-edition",
+        "book:english-for-research-usage-style-and-grammar",
+        "book:english-for-academic-research-writing-exercises"
+      ]
+    },
+    {
+      "id": "author-006",
+      "category": "author",
+      "q": "Louis Cohen",
+      "status": 200,
+      "latencyMs": 2558,
+      "total": 3,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:research-methods-in-education-8th-edition",
+        "book:research-methods-in-education-6th-edition",
+        "book:research-methods-in-education-5th-edition"
+      ]
+    },
+    {
+      "id": "author-007",
+      "category": "author",
+      "q": "Geoffrey Mills",
+      "status": 200,
+      "latencyMs": 2430,
+      "total": 6,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 5,
+      "top": [
+        "book:educational-research-competencies-for-analysis-12th-edition",
+        "book:educational-research-competencies-for-analysis-11th-global-edition",
+        "book:action-research-a-guide-for-the-teacher-researcher-5th-edition",
+        "book:educational-research-competencies-for-analysis-10th-edition"
+      ]
+    },
+    {
+      "id": "author-008",
+      "category": "author",
+      "q": "Lodico",
+      "status": 200,
+      "latencyMs": 1479,
+      "total": 2,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:methods-in-educational-research-from-theory-to-practice",
+        "book:methods-in-educational-research-from-theory-to-practice-2nd-edition"
+      ]
+    },
+    {
+      "id": "author-009",
+      "category": "author",
+      "q": "ក្រុមប្រឹក្សាជាតិភាសាខ្មែរ",
+      "status": 200,
+      "latencyMs": 2242,
+      "total": 13,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:សទ្ទានុក្រមទស្សនវិជ្ជា",
+        "book:សទ្ទានុក្រមពាក្យច្បាប់-និងរដ្ឋបាល",
+        "book:សទ្ទានុក្រមវិទ្យាសាស្រ្ត-និងបច្ចេកវិទ្យា",
+        "book:សទ្ទានុក្រមវេជ្ជសាស្រ្ត-និងកសិកម្ម"
+      ]
+    },
+    {
+      "id": "author-010",
+      "category": "author",
+      "q": "ជា សុទ្ធ",
+      "status": 200,
+      "latencyMs": 1898,
+      "total": 54,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា២",
+        "book:កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា១",
+        "book:កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាចំណេះដឹងឯកទេសគណិតវិទ្យា",
+        "book:ដំណើរឆ្ពោះទៅសម្រេចចក្ខុវិស័យកម្ពុជា-ឆ្នាំ២០៥០",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "author-011",
+      "category": "author",
+      "q": "សិត សេង",
+      "status": 200,
+      "latencyMs": 2007,
+      "total": 9,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 4,
+      "top": [
+        "book:សៀវភៅពិសោធគីមីវិទ្យា-ភាគ២",
+        "book:សៀវភៅណែនាំស្ដីពីឧបករណ៍ពិសោធ-មន្ទីរពិសោធវិទ្យាសាស្ត្រ",
+        "book:គ្រប់គ្រងមន្ទីរពិសោធវិទ្យាសាស្ត្រ",
+        "book:គុណភាពនៃការបង្រៀននិងរៀនឆ្លើយតបការអប់រំក្នុងសតវត្សទី២១-របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស-គរុនិស្សិត១២-៤-ជំនាន់ទី៣-ឆ្នាំសិក្សា២០២៤-២០២៥",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "author-012",
+      "category": "author",
+      "q": "ម៉ៅ សុភា",
+      "status": 200,
+      "latencyMs": 1679,
+      "total": 5,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:បណ្ដុំសំណេរតែងសេចក្តី-ភាគ-១",
+        "book:បណ្ដុំសំណេរតែងសេចក្តី-ភាគ-៣",
+        "book:បណ្ដុំសំណេរតែងសេចក្តី-ភាគ-២",
+        "book:គុណភាពទឹក-សម្រាប់វិទ្យាសាស្ត្រគីមីវិទ្យា-និងបរិស្ថានវិទ្យា"
+      ]
+    },
+    {
+      "id": "subject-001",
+      "category": "subject",
+      "q": "គណិតវិទ្យា",
+      "status": 200,
+      "latencyMs": 1910,
+      "total": 15,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 2,
+      "top": [
+        "book:កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា២",
+        "book:កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា១",
+        "book:គណិតវិទ្យា-បណ្តុំវិទ្យាសាស្រ្ត",
+        "book:គណិតវិទ្យា-បណ្តុំវិទ្យាសាស្រ្តសង្គម"
+      ]
+    },
+    {
+      "id": "subject-002",
+      "category": "subject",
+      "q": "គីមីវិទ្យា",
+      "status": 200,
+      "latencyMs": 6479,
+      "total": 13,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 2,
+      "top": [
+        "book:គីមីវិទ្យា-បណ្តុំវិទ្យាសាស្ត្រ",
+        "book:គីមីវិទ្យា-បណ្តុំវិទ្យាសាស្ត្រសង្គម",
+        "book:សៀវភៅណែនាំគ្រូបង្រៀន-គីមីវិទ្យា-ថ្នាក់ទី៩-stepsam3",
+        "book:សៀវភៅណែនាំគ្រូបង្រៀន-គីមីវិទ្យា-ថ្នាក់ទី៧-stepsam3"
+      ]
+    },
+    {
+      "id": "subject-003",
+      "category": "subject",
+      "q": "ជីវវិទ្យា",
+      "status": 200,
+      "latencyMs": 2170,
+      "total": 16,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:ជីវវិទ្យា-បណ្តុំវិទ្យាសាស្ត្រ-កម្រិតបឋម",
+        "book:សុខភាពនៅក្នុងដៃរបស់យើង-សម្រាប់វិទ្យាសាស្ត្រជីវវិទ្យា",
+        "book:សៀវភៅណែនាំគ្រូបង្រៀន-ជីវវិទ្យា-ថ្នាក់ទី៧-stepsam3",
+        "book:សៀវភៅណែនាំគ្រូបង្រៀន-ជីវវិទ្យា-ថ្នាក់ទី៨-stepsam3"
+      ]
+    },
+    {
+      "id": "subject-004",
+      "category": "subject",
+      "q": "រូបវិទ្យា",
+      "status": 200,
+      "latencyMs": 2592,
+      "total": 14,
+      "fuzzy": false,
+      "rank": 2,
+      "pageHitRank": 2,
+      "top": [
+        "book:កម្មវិធីសិក្សាលម្អិត-សម្រាប់កម្មវិធីអប់រំគ្រូបង្រៀនអនុវិទ្យាល័យតាមប្រព័ន្ធ-បរិញ្ញាបត្រ-១-មុខវិជ្ជា-វិធីសាស្ត្រ១-ឯកទេស-រូបវិទ្យា",
+        "book:អន្តរកម្មសម្រាប់វិទ្យាសាស្ត្ររូបវិទ្យា-សៀវភៅសម្រាប់សិស្ស-ភាគ៣",
+        "book:សៀវភៅណែនាំគ្រូបង្រៀន-រូបវិទ្យា-ថ្នាក់ទី៨-stepsam3",
+        "book:សៀវភៅណែនាំគ្រូបង្រៀន-រូបវិទ្យា-ថ្នាក់ទី៩-stepsam3"
+      ]
+    },
+    {
+      "id": "subject-005",
+      "category": "subject",
+      "q": "ប្រវត្តិសាស្ត្រ",
+      "status": 200,
+      "latencyMs": 4771,
+      "total": 13,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:ប្រវត្តិសាស្ត្រកម្ពុជា",
+        "book:ប្រវត្តិសាស្ត្រកម្ពុជាប្រជាធិបតេយ្យ-2nd-edition",
+        "book:ប្រវត្តិសាស្ត្រខ្មែរ-សម្រាប់មធ្យមនិងឧត្តមសិក្សា",
+        "book:ប្រវត្តិសាស្ត្រប្រទេសកម្ពុជា"
+      ]
+    },
+    {
+      "id": "subject-006",
+      "category": "subject",
+      "q": "ច្បាប់",
+      "status": 200,
+      "latencyMs": 12006,
+      "total": 12,
+      "fuzzy": false,
+      "rank": 4,
+      "pageHitRank": null,
+      "top": [
+        "book:ច្បាប់ការទូត-diplomatic-law",
+        "book:សទ្ទានុក្រមពាក្យច្បាប់-និងរដ្ឋបាល",
+        "book:សទ្ទានុក្រមពាក្យច្បាប់-រដ្ឋប្បវេណី-និងនីតិវិធីរដ្ឋប្បវេណី",
+        "book:នីតិអន្តរជាតិឯកជន"
+      ]
+    },
+    {
+      "id": "subject-007",
+      "category": "subject",
+      "q": "សុខភាព",
+      "status": 200,
+      "latencyMs": 6465,
+      "total": 6,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:វិធីសាស្ត្របង្រៀន-ការអប់រំសុខភាពសម្រាប់គ្រូឧទ្ទេស",
+        "book:ឯកសារជំនួយ-ស្តីពី-ការអប់រំ-និងការលើកកម្ពស់សុខភាព",
+        "book:ការអប់រំសុខភាពសម្រាប់មជ្ឈមណ្ឌលគរុកោសល្យភូមិភាគ",
+        "book:ការអប់រំសុខភាពសម្រាប់សាលាគរុកោសល្យ-និងវិក្រឹតការ"
+      ]
+    },
+    {
+      "id": "subject-008",
+      "category": "subject",
+      "q": "ទស្សនវិជ្ជា",
+      "status": 200,
+      "latencyMs": 6848,
+      "total": 13,
+      "fuzzy": false,
+      "rank": 3,
+      "pageHitRank": null,
+      "top": [
+        "book:សទ្ទានុក្រមទស្សនវិជ្ជា",
+        "book:មេរៀនសង្ខេបទស្សនវិជ្ជា-ថ្នាក់ទី-១១",
+        "book:មនុស្សលោក-2nd-edition",
+        "book:ព្រះពុទ្ធសាសនា-និង-បរិស្ថាន-1st-edition"
+      ]
+    },
+    {
+      "id": "subject-009",
+      "category": "subject",
+      "q": "បច្ចេកវិទ្យា",
+      "status": 200,
+      "latencyMs": 3468,
+      "total": 17,
+      "fuzzy": false,
+      "rank": 3,
+      "pageHitRank": null,
+      "top": [
+        "book:សទ្ទានុក្រមវិទ្យាសាស្រ្ត-និងបច្ចេកវិទ្យា",
+        "book:ការប្រើប្រាស់បច្ចេកវិទ្យាឌីជីថលជួយដល់ការរៀន-និងបង្រៀន",
+        "book:សៀវភៅគ្រូ-អក្ខរកម្មឌីជីថល-កម្រិតមធ្យម",
+        "book:រុក្ខវិទ្យា"
+      ]
+    },
+    {
+      "id": "subject-010",
+      "category": "subject",
+      "q": "ភាសាអង់គ្លេសសិក្សា",
+      "status": 200,
+      "latencyMs": 2271,
+      "total": 9,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:introducing-english-for-research-publication-purposes",
+        "book:academic-phrasebank-2018-edition",
+        "book:english-for-writing-research-papers-2nd-edition",
+        "book:competency-based-language-teaching-in-higher-education"
+      ]
+    },
+    {
+      "id": "subject-011",
+      "category": "subject",
+      "q": "action research",
+      "status": 200,
+      "latencyMs": 10171,
+      "total": 86,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:action-research-series-volume-3",
+        "book:action-research-series-volume-2",
+        "book:action-research-series-volume-1",
+        "book:action-research-a-guide-for-the-teacher-researcher-5th-edition",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "subject-012",
+      "category": "subject",
+      "q": "qualitative research",
+      "status": 200,
+      "latencyMs": 4024,
+      "total": 86,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:qualitative-research-a-guide-to-design-and-implementation-2nd-edition",
+        "book:qualitative-research-from-start-to-finish-2nd-edition",
+        "book:qualitative-research-and-evaluation-methods-4th-edition",
+        "book:qualitative-research-from-start-to-finish",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "typo-001",
+      "category": "typo",
+      "q": "Practicl Research Methods",
+      "status": 200,
+      "latencyMs": 3592,
+      "total": 91,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:practical-research-methods",
+        "book:methods-in-educational-research-from-theory-to-practice",
+        "book:methods-in-educational-research-from-theory-to-practice-2nd-edition",
+        "book:a-z-of-digital-research-methods",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "typo-002",
+      "category": "typo",
+      "q": "Acadmic Phrasebank",
+      "status": 200,
+      "latencyMs": 2161,
+      "total": 2,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:academic-phrasebank-2018-edition",
+        "book:phrasebook-for-writing-papers-and-research-in-english-4th-edition"
+      ]
+    },
+    {
+      "id": "typo-003",
+      "category": "typo",
+      "q": "Interveiwing as Qualitative Research",
+      "status": 200,
+      "latencyMs": 2837,
+      "total": 124,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:interviewing-as-qualitative-research-3rd-edition",
+        "book:handbook-of-methodological-approaches-to-community-based-research",
+        "book:qualitative-inquiry-and-research-design-4th-edition",
+        "book:social-research-methods-qualitative-and-quantitative-7th-edition",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "typo-004",
+      "category": "typo",
+      "q": "Effectiv School Management",
+      "status": 200,
+      "latencyMs": 1786,
+      "total": 37,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:effective-school-management-4th-edition",
+        "book:methodological-advances-in-educational-effectiveness-research",
+        "book:action-research-in-practice-partnerships-for-social-justice-in-education",
+        "book:action-research-themes-in-education"
+      ]
+    },
+    {
+      "id": "typo-005",
+      "category": "typo",
+      "q": "Elementry Survey Sampling",
+      "status": 200,
+      "latencyMs": 1726,
+      "total": 18,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:elementary-survey-sampling-7th-edition",
+        "book:social-research-methods-4th-edition",
+        "book:social-research-methods-qualitative-and-quantitative-7th-edition",
+        "book:how-to-design-and-evaluate-research-in-education-8th-edition"
+      ]
+    },
+    {
+      "id": "typo-006",
+      "category": "typo",
+      "q": "How to Writ a Better Thesis",
+      "status": 200,
+      "latencyMs": 2753,
+      "total": 115,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:how-to-write-a-better-thesis",
+        "book:phrasebook-for-writing-papers-and-research-in-english-4th-edition",
+        "book:handbook-of-methodological-approaches-to-community-based-research",
+        "book:how-to-design-and-evaluate-research-in-education-8th-edition",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "typo-007",
+      "category": "typo",
+      "q": "Actoin Research for Teacher Candidates",
+      "status": 200,
+      "latencyMs": 2399,
+      "total": 145,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:action-research-for-teacher-candidates",
+        "book:quality-of-teaching-and-learning-in-response-to-21st-century-education-selected-action-research-reports-12-4-student-teachers-batch-3-academic-year-2024-2025",
+        "book:action-research-a-guide-for-the-teacher-researcher-5th-edition",
+        "book:becoming-a-teacher-through-action-research-3rd-edition",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "typo-008",
+      "category": "typo",
+      "q": "Essentails of Research Design",
+      "status": 200,
+      "latencyMs": 2174,
+      "total": 116,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:essentials-of-research-design-and-methodology",
+        "book:methodology-of-educational-research-and-statistics",
+        "book:research-design-qualitative-quantitative-and-mixed-methods-approaches",
+        "book:research-design-quantitative-qualitative-and-arts-based-approaches",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "typo-009",
+      "category": "typo",
+      "q": "Competency-basd Language Teaching",
+      "status": 200,
+      "latencyMs": 2362,
+      "total": 28,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:competency-based-language-teaching-in-higher-education",
+        "book:doing-action-research-in-english-language-teaching",
+        "book:from-teacher-to-manager-managing-language-teaching-organizations",
+        "book:100-activities-for-teaching-research-methods"
+      ]
+    },
+    {
+      "id": "typo-010",
+      "category": "typo",
+      "q": "Doing Action Reserch in English Language Teaching",
+      "status": 200,
+      "latencyMs": 1852,
+      "total": 165,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:doing-action-research-in-english-language-teaching",
+        "book:action-research-in-teaching-and-learning",
+        "book:integrating-teaching-learning-and-action-research",
+        "book:the-action-research-planner-doing-critical-participatory-action-research",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "isbn-001",
+      "category": "isbn",
+      "q": "978-1-4739-4629-3",
+      "status": 200,
+      "latencyMs": 2257,
+      "total": 1,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:100-activities-for-teaching-research-methods"
+      ]
+    },
+    {
+      "id": "isbn-002",
+      "category": "isbn",
+      "q": "978-1-4625-0961-4",
+      "status": 200,
+      "latencyMs": 2023,
+      "total": 1,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:action-research-in-education-a-practical-guide"
+      ]
+    },
+    {
+      "id": "isbn-003",
+      "category": "isbn",
+      "q": "978-0-415-43794-3",
+      "status": 200,
+      "latencyMs": 1885,
+      "total": 1,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:action-research-in-teaching-and-learning"
+      ]
+    },
+    {
+      "id": "isbn-004",
+      "category": "isbn",
+      "q": "9781138486805",
+      "status": 200,
+      "latencyMs": 2209,
+      "total": 1,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:a-z-of-digital-research-methods"
+      ]
+    },
+    {
+      "id": "isbn-005",
+      "category": "isbn",
+      "q": "9780335213078",
+      "status": 200,
+      "latencyMs": 2403,
+      "total": 1,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 2,
+      "top": [
+        "book:combining-methods-in-educational-and-social-research"
+      ]
+    },
+    {
+      "id": "isbn-006",
+      "category": "isbn",
+      "q": "9780415991452",
+      "status": 200,
+      "latencyMs": 1700,
+      "total": 1,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:doing-action-research-in-english-language-teaching"
+      ]
+    },
+    {
+      "id": "isbn-007",
+      "category": "isbn",
+      "q": "1607096935",
+      "status": 200,
+      "latencyMs": 1901,
+      "total": 1,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:action-research-for-teacher-candidates"
+      ]
+    },
+    {
+      "id": "isbn-008",
+      "category": "isbn",
+      "q": "0132613174",
+      "status": 200,
+      "latencyMs": 1473,
+      "total": 1,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:educational-research-competencies-for-analysis-10th-edition"
+      ]
+    },
+    {
+      "id": "isbn-009",
+      "category": "isbn",
+      "q": "9780415171526",
+      "status": 200,
+      "latencyMs": 2687,
+      "total": 1,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:action-research-in-practice-partnerships-for-social-justice-in-education"
+      ]
+    },
+    {
+      "id": "isbn-010",
+      "category": "isbn",
+      "q": "0 415 17152 0",
+      "status": 200,
+      "latencyMs": 2168,
+      "total": 1,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": null,
+      "top": [
+        "book:action-research-in-practice-partnerships-for-social-justice-in-education"
+      ]
+    },
+    {
+      "id": "pdf_text-001",
+      "category": "pdf_text",
+      "q": "Ebbs and Flows of Interviewing",
+      "status": 200,
+      "latencyMs": 2107,
+      "total": 160,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:interviewing-as-qualitative-research-3rd-edition",
+        "book:methodology-of-educational-research-and-statistics",
+        "book:pedagogy-and-practice-leadership-guide",
+        "book:quality-of-teaching-and-learning-in-response-to-21st-century-education-selected-action-research-reports-12-4-student-teachers-batch-3-academic-year-2024-2025",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "pdf_text-002",
+      "category": "pdf_text",
+      "q": "Telling the Story of Your Action Research",
+      "status": 200,
+      "latencyMs": 2787,
+      "total": 138,
+      "fuzzy": false,
+      "rank": 2,
+      "pageHitRank": 1,
+      "top": [
+        "book:action-research-a-guide-for-the-teacher-researcher-5th-edition",
+        "book:becoming-a-teacher-through-action-research-3rd-edition",
+        "book:the-action-research-planner-doing-critical-participatory-action-research",
+        "book:action-research-themes-in-education",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "pdf_text-003",
+      "category": "pdf_text",
+      "q": "extracts in this book taken from real papers",
+      "status": 200,
+      "latencyMs": 1765,
+      "total": 166,
+      "fuzzy": false,
+      "rank": null,
+      "pageHitRank": 1,
+      "top": [
+        "book:phrasebook-for-writing-papers-and-research-in-english-4th-edition",
+        "book:methods-in-educational-research-from-theory-to-practice-2nd-edition",
+        "book:qualitative-research-from-start-to-finish-2nd-edition",
+        "book:from-teacher-to-manager-managing-language-teaching-organizations",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "pdf_text-004",
+      "category": "pdf_text",
+      "q": "What Should Count as Educational Research",
+      "status": 200,
+      "latencyMs": 2703,
+      "total": 130,
+      "fuzzy": false,
+      "rank": 4,
+      "pageHitRank": 1,
+      "top": [
+        "book:methodological-advances-in-educational-effectiveness-research",
+        "book:educational-research-competencies-for-analysis-10th-edition",
+        "book:key-ideas-in-educational-research",
+        "book:education-research-in-the-public-interest",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "pdf_text-005",
+      "category": "pdf_text",
+      "q": "Literature Map of the Research",
+      "status": 200,
+      "latencyMs": 3583,
+      "total": 137,
+      "fuzzy": false,
+      "rank": 1,
+      "pageHitRank": 1,
+      "top": [
+        "book:research-design-qualitative-quantitative-and-mixed-methods-approaches",
+        "book:research-design-qualitative-quantitative-and-mixed-methods-3rd-edition",
+        "book:methodology-of-educational-research-and-statistics",
+        "book:action-research-a-guide-for-the-teacher-researcher-5th-edition",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "pdf_text-006",
+      "category": "pdf_text",
+      "q": "valuable addition to teacher-education literature",
+      "status": 200,
+      "latencyMs": 3457,
+      "total": 103,
+      "fuzzy": false,
+      "rank": 2,
+      "pageHitRank": 1,
+      "top": [
+        "book:quality-of-teaching-and-learning-in-response-to-21st-century-education-selected-action-research-reports-12-4-student-teachers-batch-3-academic-year-2024-2025",
+        "book:action-research-for-teacher-candidates",
+        "book:handbook-of-methodological-approaches-to-community-based-research",
+        "book:qualitative-research-an-introduction-to-methods-and-designs",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "pdf_text-007",
+      "category": "pdf_text",
+      "q": "Sophisticated Poll Watcher",
+      "status": 200,
+      "latencyMs": 2282,
+      "total": 0,
+      "fuzzy": false,
+      "rank": null,
+      "pageHitRank": 1,
+      "top": []
+    },
+    {
+      "id": "pdf_text-008",
+      "category": "pdf_text",
+      "q": "Overjustification Effect",
+      "status": 200,
+      "latencyMs": 2139,
+      "total": 10,
+      "fuzzy": false,
+      "rank": null,
+      "pageHitRank": 1,
+      "top": [
+        "book:methodological-advances-in-educational-effectiveness-research",
+        "book:effective-school-management-4th-edition",
+        "book:action-research-series-volume-1",
+        "book:quality-of-teaching-and-learning-in-response-to-21st-century-education-selected-action-research-reports-12-4-student-teachers-batch-3-academic-year-2024-2025"
+      ]
+    },
+    {
+      "id": "pdf_text-009",
+      "category": "pdf_text",
+      "q": "most common repair words",
+      "status": 200,
+      "latencyMs": 1558,
+      "total": 4,
+      "fuzzy": false,
+      "rank": null,
+      "pageHitRank": 1,
+      "top": [
+        "book:academic-phrasebank-2018-edition",
+        "book:research-design-quantitative-qualitative-and-arts-based-approaches",
+        "book:សៀវភៅណែនាំស្ដីពីឧបករណ៍ពិសោធ-មន្ទីរពិសោធវិទ្យាសាស្ត្រ",
+        "book:phrasebook-for-writing-papers-and-research-in-english-4th-edition"
+      ]
+    },
+    {
+      "id": "pdf_text-010",
+      "category": "pdf_text",
+      "q": "Coding and categorizing qualitative data",
+      "status": 200,
+      "latencyMs": 1765,
+      "total": 160,
+      "fuzzy": false,
+      "rank": null,
+      "pageHitRank": 1,
+      "top": [
+        "book:the-coding-manual-for-qualitative-researchers",
+        "book:qualitative-data-analysis-a-methods-sourcebook",
+        "book:qualitative-data-analysis-with-nvivo-2nd-edition",
+        "book:research-design-qualitative-quantitative-and-mixed-methods-approaches",
+        "post:សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍"
+      ]
+    },
+    {
+      "id": "pdf_text-011",
+      "category": "pdf_text",
+      "q": "Salamanca Convention",
+      "status": 200,
+      "latencyMs": 1584,
+      "total": 4,
+      "fuzzy": false,
+      "rank": null,
+      "pageHitRank": 1,
+      "top": [
+        "book:បណ្ដុំសំណេរតែងសេចក្តី-ភាគ-១",
+        "book:ច្បាប់ការទូត-diplomatic-law",
+        "book:សទ្ទានុក្រមវិទ្យាសាស្រ្តនយោបាយ-និងការទូត",
+        "book:ព្រំដែននៃប្រទេសកម្ពុជា-les-frontières-du-cambodge"
+      ]
+    },
+    {
+      "id": "pdf_text-012",
+      "category": "pdf_text",
+      "q": "Written report format",
+      "status": 200,
+      "latencyMs": 2084,
+      "total": 30,
+      "fuzzy": false,
+      "rank": null,
+      "pageHitRank": 1,
+      "top": [
+        "book:quality-of-teaching-and-learning-in-response-to-21st-century-education-selected-action-research-reports-12-4-student-teachers-batch-3-academic-year-2024-2025",
+        "book:publication-manual-of-the-american-psychological-association-7th-edition",
+        "book:research-methodology-a-step-by-step-guide-for-beginners-4th-edition",
+        "book:research-methodology-a-step-by-step-guide-for-beginners-3rd-edition"
+      ]
+    }
+  ]
+}

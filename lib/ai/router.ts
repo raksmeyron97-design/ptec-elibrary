@@ -26,20 +26,29 @@ import {
 } from "./guardrails";
 import { classifyIntent, type ClassifyContext, type IntentResult } from "./intent";
 import {
+  findRecordByTitle,
   getBookDetail,
   getLibraryFact,
   getLibraryOverview,
   getRelatedBooks,
+  resolveRecord,
+  retrieveComparison,
+  retrieveEvidence,
   searchAuthors,
   searchPassages,
   searchSubjects,
   searchWorks,
+  type ResolvedRecord,
 } from "./retrieval";
+import { attachReferences, getCitationSource } from "./citation-source";
+import { isMockProvider, mockModel } from "./mock-model";
+import { sourceCount, type EvidenceRecordType } from "./evidence";
 import {
   EMPTY_RETRIEVAL,
   TYPES_FOR,
   buildGeneration,
   deterministicAnswer,
+  retrievalModeFor,
   type Plan,
   type RetrievalOutcome,
 } from "./plan";
@@ -50,6 +59,7 @@ import {
   textResponse,
   type AIResponse,
   type AITelemetry,
+  type ResultKind,
 } from "./response";
 import * as T from "./templates";
 import { MAX_PASSAGES, MAX_PASSAGES_DETAILED, estimateTokens } from "./token-budget";
@@ -117,7 +127,100 @@ async function retrieveFor(
       return { retrieval, facts: retrieval.facts };
     }
 
-    case "pdf_question":
+    case "citation": {
+      // The record the reader is on, or the work their words name. Either
+      // way the reference is assembled from catalogue fields, never written.
+      const record = await resolveIntentRecord(intent);
+      if (!record) return { retrieval: EMPTY_RETRIEVAL, facts: [] };
+      const source = await getCitationSource(record.recordType, record.recordId);
+      if (!source) return { retrieval: EMPTY_RETRIEVAL, facts: [] };
+      return {
+        retrieval: {
+          ...EMPTY_RETRIEVAL,
+          dbQueries: 2,
+          results: [
+            {
+              slug: record.slug,
+              title: record.title,
+              author: record.author,
+              coverUrl: null,
+              url: record.url,
+              type: RESULT_KIND[record.recordType],
+            },
+          ],
+          citation: {
+            title: source.title,
+            reference: source.reference,
+            url: source.url,
+            page: intent.page,
+          },
+        },
+        facts: [],
+      };
+    }
+
+    case "resource_summary": {
+      const record = await resolveIntentRecord(intent);
+      if (!record) return { retrieval: EMPTY_RETRIEVAL, facts: [] };
+      const retrieval = await retrieveEvidence({
+        query: intent.query || record.title,
+        mode: "summary",
+        scope: { recordType: record.recordType, recordId: record.recordId },
+      });
+      // The record's own card and abstract travel with the evidence: when the
+      // document turns out to have no indexed text, the deterministic answer
+      // falls back to them rather than to silence.
+      const detail = await getBookDetailFor(record);
+      return {
+        retrieval: {
+          ...retrieval,
+          results: retrieval.results.length ? retrieval.results : detail.results,
+          works: detail.works.length ? detail.works : retrieval.works,
+        },
+        facts: [],
+      };
+    }
+
+    case "document_compare": {
+      const targets = intent.compareTargets ?? [];
+      const resolved = (await Promise.all(targets.map((t) => findRecordByTitle(t)))).filter(
+        (r): r is NonNullable<typeof r> => r !== null,
+      );
+      if (resolved.length < 2) {
+        // One of the two works could not be identified. Falling back to a
+        // corpus search would answer a different question; say what happened.
+        return { retrieval: EMPTY_RETRIEVAL, facts: [] };
+      }
+      const retrieval = await retrieveComparison(intent.query, resolved);
+      const covered = new Set(retrieval.evidence.map((e) => e.recordId));
+      const missing = resolved.filter((r) => !covered.has(r.recordId));
+      return {
+        retrieval: {
+          ...retrieval,
+          missingDocuments: missing.map((r) => r.title),
+        },
+        // A document with no passages is stated as a fact the model must
+        // repeat, not left for it to infer agreement from.
+        facts: missing.map((r) => T.compareMissing(r.title, intent.locale)),
+      };
+    }
+
+    case "pdf_question": {
+      // Asked from a resource page, the question is about THAT document.
+      // Before this, the slug was used to classify the intent and then
+      // thrown away, so "what does this book say about X" searched the whole
+      // library and could return at most one page of the book in hand.
+      const record = intent.slug ? await resolveIntentRecord(intent) : null;
+      if (record) {
+        return {
+          retrieval: await retrieveEvidence({
+            query: intent.query,
+            mode: "scoped",
+            scope: { recordType: record.recordType, recordId: record.recordId },
+          }),
+          facts: [],
+        };
+      }
       return {
         retrieval: await searchPassages(
           intent.query,
@@ -125,7 +228,45 @@ async function retrieveFor(
         ),
         facts: [],
       };
+    }
   }
+}
+
+const RESULT_KIND: Record<EvidenceRecordType, ResultKind> = {
+  book: "book",
+  research: "research",
+  publication: "publication",
+};
+
+/**
+ * The record a request is about: the page the reader is on when the UI sent
+ * one, otherwise the work their words name. Returns null rather than guessing
+ * — a scoped answer about the wrong document is worse than no answer.
+ */
+async function resolveIntentRecord(intent: IntentResult): Promise<ResolvedRecord | null> {
+  if (intent.slug) {
+    const bySlug = await resolveRecord(intent.slugType ?? "book", intent.slug);
+    if (bySlug) return bySlug;
+  }
+  return intent.query ? findRecordByTitle(intent.query) : null;
+}
+
+/** The record's catalogue card, for a summary that has no indexed text. */
+async function getBookDetailFor(record: ResolvedRecord): Promise<RetrievalOutcome> {
+  if (record.recordType === "book") return getBookDetail(record.slug);
+  return {
+    ...EMPTY_RETRIEVAL,
+    results: [
+      {
+        slug: record.slug,
+        title: record.title,
+        author: record.author,
+        coverUrl: null,
+        url: record.url,
+        type: RESULT_KIND[record.recordType],
+      },
+    ],
+  };
 }
 
 async function plan(input: AssistantInput): Promise<Plan> {
@@ -137,6 +278,7 @@ async function plan(input: AssistantInput): Promise<Plan> {
   return {
     intent,
     retrieval,
+    mode: retrievalModeFor(intent),
     facts,
     compressed,
     injection: detectPromptInjection(compressed.current),
@@ -146,6 +288,10 @@ async function plan(input: AssistantInput): Promise<Plan> {
 
 // ── Stage 2: model generation (only when stage 1 could not answer) ────────────
 function googleModel(id: string) {
+  // The e2e seam. Gated on an env flag that production never sets, so the
+  // assistant's surfaces are testable in CI (which has no key) without any
+  // test reaching a billed provider. See lib/ai/mock-model.ts.
+  if (isMockProvider()) return mockModel();
   const apiKey = process.env.GEMINI_API_KEY ?? process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!apiKey) throw new AIRequestError("unavailable", "GEMINI_API_KEY is not configured.");
   return createGoogleGenerativeAI({ apiKey })(id);
@@ -183,6 +329,11 @@ export async function runAssistant(
     resultCount: retrieval.results.length,
     deterministic: true,
     fallback: retrieval.fallback,
+    retrievalMode: p.mode ?? "lookup",
+    scoped: p.mode === "scoped",
+    candidateCount: retrieval.candidateCount ?? 0,
+    evidenceCount: retrieval.passages.length,
+    sourceCount: sourceCount(retrieval.evidence ?? []),
   });
 
   // ── Zero-LLM path ───────────────────────────────────────────────────────────
@@ -194,9 +345,15 @@ export async function runAssistant(
       cacheHit: retrieval.cacheHit,
       deterministic: true,
     };
-    const response = retrieval.results.length
-      ? resultsResponse(p.answer, retrieval.results, intent.intent, metadata)
-      : textResponse(p.answer, intent.intent, metadata);
+    // A deterministic answer can still carry evidence — a scoped question the
+    // template declined to answer, or a citation intent. When it does, the
+    // sources travel with it so the reader can open the page it came from.
+    const deterministicSources = sources.length ? await attachReferences(sources) : sources;
+    const response = deterministicSources.length
+      ? citationsResponse(p.answer, deterministicSources, retrieval.results, intent.intent, metadata)
+      : retrieval.results.length
+        ? resultsResponse(p.answer, retrieval.results, intent.intent, metadata)
+        : textResponse(p.answer, intent.intent, metadata);
     return { response, telemetry: { ...baseTelemetry(), fallback: retrieval.fallback ?? "no_llm" } };
   }
 
@@ -231,6 +388,8 @@ export async function runAssistant(
         usage?.totalTokens ?? (usage?.inputTokens ?? inputTokens) + (usage?.outputTokens ?? estimateTokens(answer)),
       latencyMs: Date.now() - started,
       deterministic: false,
+      groundedCitations: grounded.grounded.length,
+      hallucinatedCitations: grounded.hallucinated.length,
     };
 
     const metadata = {
@@ -241,8 +400,12 @@ export async function runAssistant(
       deterministic: false,
     };
 
-    const response = cited.length
-      ? citationsResponse(answer, cited, retrieval.results, intent.intent, metadata)
+    // References are fetched only for the sources that survived grounding —
+    // a hallucinated citation never triggers a lookup.
+    const withReferences = cited.length ? await attachReferences(cited) : cited;
+
+    const response = withReferences.length
+      ? citationsResponse(answer, withReferences, retrieval.results, intent.intent, metadata)
       : retrieval.results.length
         ? resultsResponse(answer, retrieval.results, intent.intent, metadata)
         : textResponse(answer, intent.intent, metadata);
@@ -331,6 +494,11 @@ export async function streamAssistant(input: AssistantInput): Promise<StreamPlan
       resultCount: retrieval.results.length,
       deterministic: false,
       fallback: retrieval.fallback,
+      retrievalMode: p.mode ?? "lookup",
+      scoped: p.mode === "scoped",
+      candidateCount: retrieval.candidateCount ?? 0,
+      evidenceCount: retrieval.passages.length,
+      sourceCount: sourceCount(retrieval.evidence ?? []),
     },
   };
 }
