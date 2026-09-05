@@ -6411,6 +6411,9 @@
       "cohort": "Cohort {cohort}",
       "noCohort": "No cohort",
       "noYear": "No year",
+      "verdictReadyTitle": "Ready to publish",
+      "verdictReadyBody": "Nothing blocks publication. The server re-checks on publish.",
+      "verdictBlockedTitle": "Not ready to publish",
       "openPreview": "Open public preview",
       "recommendations": "{count, plural, one {# recommendation before publishing} other {# recommendations before publishing}}",
       "complete": "Metadata looks complete."
