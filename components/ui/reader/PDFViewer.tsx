@@ -550,7 +550,7 @@ export default function PDFViewer({
         const target = programmaticTargetRef.current;
         const maxTop = el.scrollHeight - el.clientHeight;
         // Arrived (or the target lies beyond the end and we are at the end).
-        if (target !== null && (Math.abs(nextTop - target) <= 1 || (target > maxTop && nextTop >= maxTop - 1))) {
+        if (target !== null && (Math.abs(nextTop - target) <= 2 || (target > maxTop && nextTop >= maxTop - 1))) {
           programmaticScroll.current = false;
           programmaticTargetRef.current = null;
           window.clearTimeout(progScrollTimer.current);
@@ -998,7 +998,15 @@ export default function PDFViewer({
         const mr = mark.getBoundingClientRect();
         const cr = el.getBoundingClientRect();
         if (mr.top < cr.top + HUD_INSET_TOP + 16 || mr.bottom > cr.bottom - HUD_INSET_BOTTOM - 16) {
-          el.scrollTop += mr.top - (cr.top + cr.height / 2);
+          // Centring the highlight is a PROGRAMMATIC move, so it must not be
+          // read back as a page change. On a short viewport the 35% line then
+          // falls on the previous page and the reader was told it had landed
+          // on page 430 after searching to 431 — with the highlight, on 431,
+          // in the middle of the screen.
+          const nextTop = el.scrollTop + (mr.top - (cr.top + cr.height / 2));
+          beginProgrammaticScroll(nextTop, 700);
+          el.scrollTop = nextTop;
+          setScrollTop(nextTop);
         }
         if (mr.left < cr.left + 16 || mr.right > cr.right - 16) {
           el.scrollLeft += mr.left - (cr.left + cr.width / 2);
@@ -1009,7 +1017,7 @@ export default function PDFViewer({
       }
     }, 150);
     return () => window.clearInterval(timer);
-  }, [search.currentMatch]);
+  }, [search.currentMatch, beginProgrammaticScroll]);
 
   /* ── Annotation actions ─────────────────────────────────────── */
   const saveHighlight = useCallback(
@@ -1298,6 +1306,10 @@ export default function PDFViewer({
       >
         <div
           ref={docAreaRef}
+          // The element the touch listeners are bound to (swipe, pinch,
+          // double-tap). Named so a test can dispatch to the same node the
+          // reader listens on — events do not travel down from the root.
+          data-reader-doc
           className={cx("relative min-h-0 w-full flex-1", layout === "embedded" && !focusMode && "h-[76vh] min-h-[560px] flex-none")}
         >
           <ReaderTopBar
