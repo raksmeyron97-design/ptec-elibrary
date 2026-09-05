@@ -171,7 +171,11 @@ npx tsc --noEmit                            clean
 npm run lint                                clean
 ```
 
-Full suite: 3,853 tests, 244 files. The semantic fixtures are verbatim
+Full suite: 245 files passed, 2 skipped; 3,800 tests passed, 50 skipped, 0
+failed. `lib/i18n-keys.test.ts` caught eleven admin keys filed in the wrong
+namespace during this work — the panel would have rendered raw key strings.
+
+The semantic fixtures are verbatim
 production excerpts — damaged Khmer pages paired with what those documents
 actually say — so they are the regression guard for the gate that keeps 99
 books out of public claims.
