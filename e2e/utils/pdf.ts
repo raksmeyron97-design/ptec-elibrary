@@ -42,3 +42,90 @@ export function makeTestPdf(pageCount = 3, label = "PTEC offline reading test"):
     "latin1",
   );
 }
+
+/**
+ * A LARGE, page-heavy PDF for the performance specs — the shape of a scanned
+ * textbook: every page carries an uncompressed grayscale image XObject of
+ * `bytesPerPage` bytes drawn edge to edge, plus one line of real text (so
+ * search has something to find and the text layer is not empty). Objects are
+ * laid out page by page — page dict, content stream, image — so the file is
+ * NOT linearized and page N's bytes really do live N/pages of the way in,
+ * which is what makes a range request for page 400 land far from page 1.
+ *
+ * `pages × bytesPerPage` sets the size: 500 × 48 KB ≈ 24 MB, 200 × 512 KB
+ * ≈ 100 MB. Built in memory; the xref offsets are computed from the
+ * assembled body so pdf.js parses it without repair.
+ */
+export function makeLargeTestPdf(opts: { pages: number; bytesPerPage: number; label?: string }): Buffer {
+  const { pages, bytesPerPage } = opts;
+  const label = opts.label ?? "PTEC large PDF";
+  // Square-ish gray image whose byte count is bytesPerPage.
+  const side = Math.max(8, Math.floor(Math.sqrt(bytesPerPage)));
+  const imgW = side;
+  const imgH = Math.max(1, Math.floor(bytesPerPage / side));
+  const imageBytes = imgW * imgH;
+  // A gradient with a per-page phase, so pages are visibly different and the
+  // data is not all one byte (pdf.js would still be honest, but a human
+  // checking a screenshot would not be).
+  const makeImage = (p: number) => {
+    const buf = Buffer.allocUnsafe(imageBytes);
+    for (let y = 0; y < imgH; y++) {
+      const row = y * imgW;
+      for (let x = 0; x < imgW; x++) buf[row + x] = (x + y + p * 7) & 0xff;
+    }
+    return buf;
+  };
+
+  // Object ids: 1 catalog, 2 pages, 3 font, then per page: dict, content, image.
+  const pageId = (i: number) => 4 + i * 3;
+  const contentId = (i: number) => 5 + i * 3;
+  const imageId = (i: number) => 6 + i * 3;
+  const kids = Array.from({ length: pages }, (_, i) => `${pageId(i)} 0 R`).join(" ");
+
+  const parts: Buffer[] = [];
+  const offsets: number[] = [];
+  let length = 0;
+  const push = (s: string | Buffer) => {
+    const b = typeof s === "string" ? Buffer.from(s, "latin1") : s;
+    parts.push(b);
+    length += b.length;
+  };
+  const obj = (id: number, body: string | Buffer[]) => {
+    offsets[id] = length;
+    push(`${id} 0 obj\n`);
+    if (typeof body === "string") push(body);
+    else for (const b of body) push(b);
+    push(`\nendobj\n`);
+  };
+
+  push("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
+  obj(1, `<< /Type /Catalog /Pages 2 0 R >>`);
+  obj(2, `<< /Type /Pages /Kids [${kids}] /Count ${pages} >>`);
+  obj(3, `<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>`);
+  for (let i = 0; i < pages; i++) {
+    const text = `${label} — page ${i + 1}`.replace(/[()\\]/g, "");
+    const stream =
+      `q 595 0 0 842 0 0 cm /Im1 Do Q\n` +
+      `BT /F1 18 Tf 1 g 40 780 Td (${text}) Tj ET`;
+    obj(
+      pageId(i),
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents ${contentId(i)} 0 R ` +
+        `/Resources << /Font << /F1 3 0 R >> /XObject << /Im1 ${imageId(i)} 0 R >> >> >>`,
+    );
+    obj(contentId(i), `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+    obj(imageId(i), [
+      Buffer.from(
+        `<< /Type /XObject /Subtype /Image /Width ${imgW} /Height ${imgH} /ColorSpace /DeviceGray /BitsPerComponent 8 /Length ${imageBytes} >>\nstream\n`,
+        "latin1",
+      ),
+      makeImage(i),
+      Buffer.from(`\nendstream`, "latin1"),
+    ]);
+  }
+  const count = 3 + pages * 3 + 1;
+  const xrefStart = length;
+  let xref = `xref\n0 ${count}\n0000000000 65535 f \n`;
+  for (let id = 1; id < count; id++) xref += `${String(offsets[id]).padStart(10, "0")} 00000 n \n`;
+  push(`${xref}trailer\n<< /Size ${count} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF\n`);
+  return Buffer.concat(parts, length);
+}

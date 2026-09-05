@@ -1,7 +1,26 @@
 /* Reader error classification — pure, so every message-to-kind mapping the
    error state depends on is pinned by a unit test. */
 
-export type PdfErrorKind = "missing" | "permission" | "invalid" | "network" | "unknown";
+export type PdfErrorKind =
+  | "missing"
+  | "permission"
+  | "invalid"
+  | "network"
+  /** The proxy answered 429: the reader's own range budget ran out. Waits it out. */
+  | "rateLimited"
+  /** The proxy or storage answered 5xx: transient on their side, not the file's. */
+  | "server"
+  | "unknown";
+
+const STATUS_RE = /\b(\d{3})\b/;
+
+/** The HTTP status pdf.js embedded in the message ("Unexpected server response (429)"), if any. */
+function statusOf(message: string): number | null {
+  const m = STATUS_RE.exec(message);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return n >= 100 && n <= 599 ? n : null;
+}
 
 /** Which of the reader's error screens a pdf.js / fetch failure maps to.
     Deliberately conservative: an unrecognised message is "unknown", never a
@@ -9,19 +28,29 @@ export type PdfErrorKind = "missing" | "permission" | "invalid" | "network" | "u
 export function classifyPdfError(error: { message?: string; name?: string } | null | undefined): PdfErrorKind {
   const message = (error?.message ?? "").toLowerCase();
   const name = (error?.name ?? "").toLowerCase();
-  if (name === "missingpdfexception" || message.includes("404") || message.includes("not found") || message.includes("missing")) {
+  const status = statusOf(message);
+  if (status === 429 || message.includes("too many requests")) return "rateLimited";
+  if (status !== null && status >= 500) return "server";
+  if (name === "missingpdfexception" || status === 404 || message.includes("not found") || message.includes("missing")) {
     return "missing";
   }
-  if (name === "unexpectedresponseexception" && (message.includes("401") || message.includes("403"))) {
+  if (name === "unexpectedresponseexception" && (status === 401 || status === 403)) {
     return "permission";
   }
-  if (message.includes("401") || message.includes("403") || message.includes("unauthorized") || message.includes("forbidden")) {
+  if (status === 401 || status === 403 || message.includes("unauthorized") || message.includes("forbidden")) {
     return "permission";
   }
   if (name === "invalidpdfexception" || name === "passwordexception" || message.includes("invalid") || message.includes("corrupt") || message.includes("password")) {
     return "invalid";
   }
-  if (message.includes("network") || message.includes("failed to fetch") || message.includes("load failed")) {
+  if (
+    name === "aborterror" ||
+    message.includes("network") ||
+    message.includes("failed to fetch") ||
+    message.includes("load failed") ||
+    message.includes("networkerror") ||
+    message.includes("connection")
+  ) {
     return "network";
   }
   return "unknown";
@@ -43,6 +72,10 @@ export function errorActions(kind: PdfErrorKind, offline: boolean): {
     case "missing":
       return { retry: true, report: true, back: true };
     case "network":
+    case "rateLimited":
+    case "server":
+      // The file is fine; the link or the server is not. Reporting it as
+      // broken would send the librarian after a document that works.
       return { retry: true, report: false, back: false };
     default:
       return { retry: true, report: true, back: true };
