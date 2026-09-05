@@ -74,11 +74,16 @@ counters reset → 6 s more. "Before" = the same spec and server with
 
 | File | Before: open + settle | After: open + settle | After: next 6 s idle |
 |---|---|---|---|
-| 10 MB / 20 p | 10.0 MB · 2 req (the whole file) | 12.2 MB · 20 req ¹ | **0 req / 0 MB** |
-| 25 MB / 50 p | 25.0 MB · 2 req (the whole file) | 7.6 MB · 11 req | **0 / 0** |
-| 50 MB / 100 p | 50.1 MB · 2 req (the whole file) | 3.7 MB · 9 req | **0 / 0** |
-| 75 MB / 150 p | 75.1 MB · 2 req (the whole file) | 6.1 MB · 9 req | **0 / 0** |
-| 100 MB / 200 p | **100.2 MB · 2 req (the whole file)** | **7.1 MB · 11 req** | **0 / 0** |
+| 10 MB / 20 p | 10.0 MB · 2 req (the whole file) | 8.7 MB · 14 req ¹ | **0 req / 0 MB** |
+| 25 MB / 50 p | 25.0 MB · 2 req (the whole file) | 7.4 MB · 11 req | **0 / 0** |
+| 50 MB / 100 p | 50.1 MB · 2 req (the whole file) | 7.3 MB · 11 req | **0 / 0** |
+| 75 MB / 150 p | 75.1 MB · 2 req (the whole file) | 6.0 MB · 9 req | **0 / 0** |
+| 100 MB / 200 p | **100.2 MB · 2 req (the whole file)** | **7.3 MB · 11 req** | **0 / 0** |
+
+(Final run; `docs/reader-performance/size-*-chromium.json`. An earlier run
+gave 12.2 / 7.6 / 3.7 / 6.1 / 7.1 MB — the spread is the resumed position
+and the prefetch tier, never the file size.) Pixel 5 (10 and 25 MB): same
+shape — `size-*-Mobile-Chrome.json`.
 
 Before, the two requests were the xref range and the initial GET — which
 pdf.js kept open and read to the end of the file, whatever the reader looked
@@ -107,21 +112,21 @@ strategy document).
 500-page / 24 MB book, 1 → 20 → 50 → 100 → 200 → 300 → 400 → 500 → zoom ×2
 → rotate → search → panel → bookmark → back to 400. Chromium, CDP metrics.
 
-| Measure | Before (streaming on) | After |
-|---|---|---|
-| Bytes at open | **23.8 MB — the whole file, in 2 requests** | 2.5 MB |
-| Bytes by page 500 (before search) | 23.8 MB (nothing left to fetch) | **10.0 MB**, growing with each jump |
-| Bytes after search (walks every page's text) | 23.8 MB | 17.5 MB |
-| Mounted pages at open | 6 ² | 6 (8 canvases) |
-| Mounted pages, every later step | 5–6 | 7–8 (bounded ≤ 12; prefetch now fills its budget) |
-| DOM nodes | 3,034–3,259 | 3,060–3,191 |
-| JS heap | 22.3–24.2 MB | 22.5–24.1 MB |
-| Page-jump latency, 7 jumps | 1.6–1.8 s (bytes already local) | 1.7–2.9 s (bytes fetched on demand) |
-| Zoom step / rotate | 724 / 686 ms | 917 / 777 ms |
-| Canvas backing store, peak | 49.4 MB | 64.6 MB (budget 256 MB desktop) |
-| JS event listeners, open → end | — | 892 → 910 |
-| ResizeObservers / MutationObservers | — | 5 / 2 → 5 / 3 |
-| Live object URLs | 0 | 0 |
+| Measure | Before (streaming on) | After — Chromium | After — Pixel 5 |
+|---|---|---|---|
+| Bytes at open | **23.8 MB — the whole file, in 2 requests** | 2.5 MB | 2.5 MB |
+| Bytes by page 500 (before search) | 23.8 MB (nothing left to fetch) | **10.0 MB**, growing with each jump | 9.8 MB |
+| Bytes after search (walks every page's text) | 23.8 MB | 18.0 MB | 18.8 MB |
+| Mounted pages, range over the session | 5–6 | 2–8 (bounded ≤ 12) | 2–9 |
+| DOM nodes, open → end | 3,034 → 3,259 | 3,069 → 3,041 | — |
+| JS heap, open → end | 22.3 → 24.2 MB | 22.3 → 23.2 MB | 18.3 → 19.8 MB |
+| Page-jump latency, 7 jumps | 1.6–1.8 s (bytes already local) | 1.6–2.6 s (bytes fetched on demand) | 0.3–2.0 s |
+| Zoom ×2 / rotate | 724 / 686 ms | 1,108 / 733 ms | — |
+| Search, 500 pages | 1,295 ms | 2,917 ms (fetches every page's text) | — |
+| Canvas backing store, peak | 49.4 MB | 64.6 MB (budget 256 MB) | 45.1 MB (budget 96 MB) |
+| JS event listeners, open → end | — | 890 → 908 | 818 → 836 |
+| ResizeObservers / MutationObservers | — | 5 / 2 → 5 / 3 | same |
+| Live object URLs | 0 | 0 | 0 |
 
 ² This baseline rerun happened to resume at page 1. The **first** baseline
 run resumed at the account's saved position, page 500, and recorded **500
@@ -186,11 +191,13 @@ and the offline reader's inertness.
 
 | | Chromium | Pixel 5 |
 |---|---|---|
-| Zoom sweep (3 up, 3 down), step latency | 151–651 ms, 2–5 pages mounted, ≤ 34 MB canvas | 156–474 ms, 4–6 pages, ≤ 54.5 MB |
+| Zoom sweep (3 up, 3 down), per-step latency | 269–464 ms, 2–4 pages mounted, ≤ 34 MB canvas | 121–327 ms, 4–6 pages, ≤ 54.5 MB |
 | Rotation 90/180/270/0 on page 120 | page kept, no duplicate rows, ≤ 12 mounted | same |
-| Pages panel opened ×3 on 500 pages | 8 → peak 17 canvases (30 MB) → 8 | 10 → 20 → 11 |
-| Refined search over 500 pages ("page 4" → "page 431") | 918 ms, indicator 431 | 869 ms, indicator 431 (was 430 — F12) |
+| Pages panel opened ×3 on 500 pages, canvases | 10 → peak 19 (39 MB) → 6 | 5 → 18 (27 MB) → 9 |
+| Refined search over 500 pages ("page 4" → "page 431") | 891 ms, indicator 431 | 1,056 ms, indicator 431 (was 430 — F12) |
 | Swipe / double-tap / zoomed swipe (single-page mode) | n/a | swipe turns, double-tap zooms, zoomed swipe pans |
+
+Evidence: `docs/reader-performance/{zoom,thumbnails,search}-*.json`.
 
 ## 8. Real-device / Safari — WARN, see §12
 
@@ -242,7 +249,22 @@ To close this: run the three reader specs on a macOS 14+ machine or in CI
 with `PW_WEBKIT=1`, or on a physical iPhone against a preview deployment,
 and append the results here.
 
-## 13. Tests, lint, build — filled in below after the final run
+## 13. Tests, lint, build
+
+| Check | Result |
+|---|---|
+| `npx tsc --noEmit` | clean |
+| `npm run lint` | 0 errors (5 pre-existing warnings, none in touched files) |
+| `npx vitest run` | **3,646 passed**, 50 skipped, 235 files — includes 51 new/updated reader tests (5 pure modules: 50; `PDFViewer.test.tsx`: 40 → 51; `pdf-options.test.ts`: 3 → 4) |
+| `npm run build` (webpack, from a clean `.next`) | see the line appended at the end of this file |
+| `e2e/reader-ux` + `offline-reading` + `a11y`, Chromium + Pixel 5 | **60 passed**, 6 skipped (the two true-offline-navigation cases need a production server, as before; project-specific viewport cases) |
+| `e2e/reader-performance` + `reader-interaction`, Chromium | **12 / 12 passed** |
+| `e2e/reader-performance` + `reader-interaction`, Pixel 5 | 6 passed in the combined 9-minute serial run + 3 that timed out under that load (rotation, long session, outage) and **passed when run alone** (10.9 s, 29.4 s); the two timeouts involved were lengthened. 5 skipped by design (large sizes and the scattered case run on one project) |
+| WebKit / Mobile Safari | not runnable on this machine — §12 |
+
+Every new e2e case fails against `main` for the reason it exists (the size
+cases on bytes, the long session on mounted pages, the outage case on
+recovery), which is how the baselines above were produced.
 
 ## 14. Remaining limitations, stated plainly
 

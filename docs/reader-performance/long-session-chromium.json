@@ -1,0 +1,479 @@
+{
+  "file": {
+    "pages": 500,
+    "bytes": 24794537
+  },
+  "snapshots": [
+    {
+      "label": "open",
+      "mounted": 8,
+      "canvases": 10,
+      "pageCanvases": 8,
+      "canvasMB": 46.7,
+      "textLayers": 8,
+      "objectUrls": 0,
+      "timeouts": 4,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3069,
+      "listeners": 890,
+      "heapMB": 22.3,
+      "serverRequests": 3,
+      "serverRangeRequests": 2,
+      "serverMB": 1.96,
+      "ms": 5406
+    },
+    {
+      "label": "page 20",
+      "mounted": 8,
+      "canvases": 10,
+      "pageCanvases": 8,
+      "canvasMB": 46.7,
+      "textLayers": 8,
+      "objectUrls": 0,
+      "timeouts": 2,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3110,
+      "listeners": 895,
+      "heapMB": 22.8,
+      "serverRequests": 5,
+      "serverRangeRequests": 4,
+      "serverMB": 2.96,
+      "ms": 2008
+    },
+    {
+      "label": "page 50",
+      "mounted": 8,
+      "canvases": 10,
+      "pageCanvases": 8,
+      "canvasMB": 46.7,
+      "textLayers": 8,
+      "objectUrls": 0,
+      "timeouts": 2,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3110,
+      "listeners": 895,
+      "heapMB": 23.1,
+      "serverRequests": 7,
+      "serverRangeRequests": 6,
+      "serverMB": 3.96,
+      "ms": 1796
+    },
+    {
+      "label": "page 100",
+      "mounted": 8,
+      "canvases": 10,
+      "pageCanvases": 8,
+      "canvasMB": 46.7,
+      "textLayers": 8,
+      "objectUrls": 0,
+      "timeouts": 3,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3130,
+      "listeners": 896,
+      "heapMB": 23.3,
+      "serverRequests": 9,
+      "serverRangeRequests": 8,
+      "serverMB": 4.96,
+      "ms": 1629
+    },
+    {
+      "label": "page 200",
+      "mounted": 8,
+      "canvases": 10,
+      "pageCanvases": 8,
+      "canvasMB": 46.7,
+      "textLayers": 8,
+      "objectUrls": 0,
+      "timeouts": 3,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3136,
+      "listeners": 896,
+      "heapMB": 23.5,
+      "serverRequests": 13,
+      "serverRangeRequests": 12,
+      "serverMB": 6.96,
+      "ms": 1741
+    },
+    {
+      "label": "page 300",
+      "mounted": 8,
+      "canvases": 10,
+      "pageCanvases": 8,
+      "canvasMB": 46.7,
+      "textLayers": 8,
+      "objectUrls": 0,
+      "timeouts": 3,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3136,
+      "listeners": 896,
+      "heapMB": 23.6,
+      "serverRequests": 15,
+      "serverRangeRequests": 14,
+      "serverMB": 7.96,
+      "ms": 1914
+    },
+    {
+      "label": "page 400",
+      "mounted": 8,
+      "canvases": 10,
+      "pageCanvases": 8,
+      "canvasMB": 46.7,
+      "textLayers": 8,
+      "objectUrls": 0,
+      "timeouts": 2,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3122,
+      "listeners": 895,
+      "heapMB": 22.7,
+      "serverRequests": 17,
+      "serverRangeRequests": 16,
+      "serverMB": 8.96,
+      "ms": 2604
+    },
+    {
+      "label": "page 500",
+      "mounted": 7,
+      "canvases": 9,
+      "pageCanvases": 7,
+      "canvasMB": 41.3,
+      "textLayers": 7,
+      "objectUrls": 0,
+      "timeouts": 2,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3114,
+      "listeners": 895,
+      "heapMB": 22.7,
+      "serverRequests": 19,
+      "serverRangeRequests": 18,
+      "serverMB": 9.96,
+      "ms": 1807
+    },
+    {
+      "label": "zoom ×2",
+      "mounted": 7,
+      "canvases": 9,
+      "pageCanvases": 7,
+      "canvasMB": 57,
+      "textLayers": 7,
+      "objectUrls": 0,
+      "timeouts": 2,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3115,
+      "listeners": 895,
+      "heapMB": 22.7,
+      "serverRequests": 19,
+      "serverRangeRequests": 18,
+      "serverMB": 9.96,
+      "ms": 1108
+    },
+    {
+      "label": "rotate 90°",
+      "mounted": 7,
+      "canvases": 9,
+      "pageCanvases": 7,
+      "canvasMB": 57,
+      "textLayers": 7,
+      "objectUrls": 0,
+      "timeouts": 2,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3115,
+      "listeners": 895,
+      "heapMB": 22.7,
+      "serverRequests": 19,
+      "serverRangeRequests": 18,
+      "serverMB": 9.96,
+      "ms": 733
+    },
+    {
+      "label": "search",
+      "mounted": 8,
+      "canvases": 9,
+      "pageCanvases": 7,
+      "canvasMB": 57,
+      "textLayers": 7,
+      "objectUrls": 0,
+      "timeouts": 4,
+      "intervals": 2,
+      "resizeObservers": 5,
+      "mutationObservers": 3,
+      "nodes": 3166,
+      "listeners": 914,
+      "heapMB": 23.7,
+      "serverRequests": 33,
+      "serverRangeRequests": 32,
+      "serverMB": 16.96,
+      "ms": 2917
+    },
+    {
+      "label": "panel closed",
+      "mounted": 8,
+      "canvases": 10,
+      "pageCanvases": 8,
+      "canvasMB": 64.6,
+      "textLayers": 8,
+      "objectUrls": 0,
+      "timeouts": 3,
+      "intervals": 2,
+      "resizeObservers": 5,
+      "mutationObservers": 3,
+      "nodes": 3078,
+      "listeners": 903,
+      "heapMB": 23.5,
+      "serverRequests": 33,
+      "serverRangeRequests": 32,
+      "serverMB": 16.96
+    },
+    {
+      "label": "back to 400",
+      "mounted": 2,
+      "canvases": 2,
+      "pageCanvases": 0,
+      "canvasMB": 3.5,
+      "textLayers": 0,
+      "objectUrls": 0,
+      "timeouts": 5,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 3,
+      "nodes": 3041,
+      "listeners": 908,
+      "heapMB": 23.2,
+      "serverRequests": 35,
+      "serverRangeRequests": 34,
+      "serverMB": 17.96,
+      "ms": 175
+    }
+  ],
+  "requests": [
+    {
+      "range": null,
+      "status": 200,
+      "bytes": 1376256,
+      "aborted": true
+    },
+    {
+      "range": "bytes=0-524287",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=24641536-24794536",
+      "status": 206,
+      "bytes": 153001,
+      "aborted": false
+    },
+    {
+      "range": "bytes=524288-1048575",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=1048576-1572863",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=2097152-2621439",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=2621440-3145727",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=4194304-4718591",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=4718592-5242879",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=5242880-5767167",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=8912896-9437183",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=9437184-9961471",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=9961472-10485759",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=14155776-14680063",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=14680064-15204351",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=19398656-19922943",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=19922944-20447231",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=23592960-24117247",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=24117248-24641535",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=12058624-12582911",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=12582912-13107199",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=1572864-2097151",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=3145728-3670015",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=3670016-4194303",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=5767168-6291455",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=6291456-6815743",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=6815744-7340031",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=7340032-7864319",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=7864320-8388607",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=8388608-8912895",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=10485760-11010047",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=11010048-11534335",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=11534336-12058623",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=13107200-13631487",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=13631488-14155775",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    }
+  ]
+}
