@@ -82,6 +82,11 @@ type Snapshot = {
   serverRequests: number;
   serverRangeRequests: number;
   serverMB: number;
+  /** Bytes served by RANGE requests only — what the reader asked for. The
+      initial un-ranged GET is cancelled by pdf.js, and how much of it the
+      server pushed before the cancel landed is a property of the socket
+      (0.4–4.4 MB observed on loopback), not of the reader. */
+  serverRangeMB: number;
   ms?: number;
 };
 
@@ -183,6 +188,7 @@ async function snapshot(page: Page, cdp: CDPSession | null, server: PdfServer, l
     serverRequests: server.requests.length,
     serverRangeRequests: server.rangeRequests().length,
     serverMB: Math.round((server.totalBytes() / MB) * 100) / 100,
+    serverRangeMB: Math.round((server.rangeRequests().reduce((sum, r) => sum + r.bytes, 0) / MB) * 100) / 100,
     ms,
   };
 }
@@ -296,10 +302,13 @@ test.describe("PDF reader — production performance", () => {
       }
       expect(last.resizeObservers).toBeLessThanOrEqual(first.resizeObservers + 1);
       expect(last.mutationObservers).toBeLessThanOrEqual(first.mutationObservers + 1);
-      // The reader read ~10 pages of a 500-page book; it must not have pulled the book.
-      // (Search reads every page's content stream — that is the one legitimate whole-document walk.)
+      // The reader visited ~8 windows of a 500-page book; it must not have pulled
+      // the book. Range bytes only — the cancelled initial GET's loopback slop is
+      // asserted separately. (Search reads every page's content stream — that is
+      // the one legitimate whole-document walk, and it comes after this point.)
       const beforeSearch = snaps.find((s) => s.label === "page 500")!;
-      expect(beforeSearch.serverMB, "bytes served before search").toBeLessThan((pdf.length / MB) * 0.5);
+      expect(beforeSearch.serverRangeMB, "range bytes served before search").toBeLessThan((pdf.length / MB) * 0.5);
+      for (const r of server.fullRequests()) expect(r.aborted, "the un-ranged GET is cancelled").toBe(true);
     } finally {
       await server.close();
     }
