@@ -53,7 +53,18 @@ const ERROR_TYPES = new Set(["pdf_load_error", "pdf_render_error", "page_load_er
 
 const DEVICES = new Set(["phone", "tablet", "desktop"]);
 const SOURCES = new Set(["cache", "network"]);
-const ERROR_KINDS = new Set(["missing", "permission", "invalid", "network", "rateLimited", "server", "unknown"]);
+const ERROR_KINDS = new Set([
+  "missing",
+  "permission",
+  "invalid",
+  "network",
+  "rateLimited",
+  "server",
+  "unknown",
+  // Not a pdf.js error: a page that never settled. See the stall watchdog in
+  // PDFViewer — the only observable form pdf.js's stuck-chunk state takes.
+  "stalled",
+]);
 
 /** A finite, non-negative integer, or undefined. Client-supplied counters are
  *  clamped rather than trusted: this ends up in a database column, and an

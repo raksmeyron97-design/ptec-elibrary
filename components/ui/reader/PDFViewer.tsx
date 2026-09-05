@@ -293,6 +293,9 @@ export default function PDFViewer({
   const progScrollTimer = useRef<number | undefined>(undefined);
   const scrollRafRef = useRef<number | null>(null);
   const initialScrollDoneRef = useRef(false);
+  /** A document is loaded and its rows have real heights. Read by the scroll
+      handler, which must not interpret the loading placeholder's geometry. */
+  const docLoadedRef = useRef(false);
   const localPositionRef = useRef<ReturnType<typeof parseLocalPosition>>(null);
   const statusTimerRef = useRef<number | undefined>(undefined);
 
@@ -324,10 +327,18 @@ export default function PDFViewer({
      "in flight" inside pdf.js, so a later request for it hangs rather than
      retrying (docs/READER-PRODUCTION-AUDIT-2.md §F2). */
   const reloadForRecoveryRef = useRef(false);
+  const recoveryReloadsRef = useRef(0);
   const connectivity = useConnectivity({
     enabled: !offline && !!pdfUrl && !fromCache,
     probeUrl: pdfUrl,
     onReload: () => {
+      if (recoveryReloadsRef.current >= READER_BUDGETS.MAX_RECOVERY_RELOADS) {
+        // Not transient after all. An honest error screen with a manual retry
+        // beats reloading a document that cannot be read, forever.
+        setLoadErrorKind("network");
+        return;
+      }
+      recoveryReloadsRef.current += 1;
       reloadForRecoveryRef.current = true;
       setLoadErrorKind(null);
       setDocKey((k) => k + 1);
@@ -427,6 +438,7 @@ export default function PDFViewer({
     onPageSettled,
     notePageVisited,
     hasUnsettledPages,
+    unsettledVisiblePage,
     stats: mountStats,
   } = useMountPlan({
     active: viewMode === "scroll" && numPages > 0,
@@ -442,6 +454,35 @@ export default function PDFViewer({
   useEffect(() => {
     hasUnsettledPagesRef.current = hasUnsettledPages;
   }, [hasUnsettledPages]);
+
+  /* ── Stall watchdog ─────────────────────────────────────────────────────
+     The third failure signal, and the only one for the worst case. pdf.js
+     gives an error when a request FAILS, and the browser gives an event when
+     the radio goes off — but a range request that fails leaves its chunk
+     registered as in flight, so every later request for it joins a wait that
+     never resolves: no error, no event, `navigator.onLine` still true. From
+     the outside it is indistinguishable from a slow page, which is why the
+     signal has to be time.
+
+     Armed only for a page the reader can SEE, cleared the moment it settles,
+     and reported once per document — the connectivity machine takes it from
+     there (probe, then a reload that keeps the page and the zoom). */
+  const stallReportedRef = useRef("");
+  useEffect(() => {
+    if (offline || viewMode !== "scroll" || !numPages) return;
+    const waiting = unsettledVisiblePage();
+    if (waiting === null) return;
+    const timer = window.setTimeout(() => {
+      const still = unsettledVisiblePage();
+      if (still === null || stallReportedRef.current === documentKey) return;
+      stallReportedRef.current = documentKey;
+      connectivity.reportLoadFailure("network");
+      reportReaderEvent("page_load_error", { page: still, kind: "stalled" });
+    }, READER_BUDGETS.STALL_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+    // `mountedPages` changing means a page settled or the window moved: both
+    // re-evaluate what is waiting.
+  }, [offline, viewMode, numPages, mountedPages, documentKey, unsettledVisiblePage, connectivity, reportReaderEvent]);
   /** Spacer heights, including any gap inside the mounted set — the plan is a
       SET of pages, not a span, so two runs can be separated. */
   const spacerBefore = mountedPages.length ? (mountedPages[0] - 1) * rowHeight : 0;
@@ -516,10 +557,20 @@ export default function PDFViewer({
         }
         return;
       }
-      if (geomRef.current.viewMode !== "scroll" || !numPagesRef.current) return;
+      if (geomRef.current.viewMode !== "scroll" || !numPagesRef.current || !docLoadedRef.current) return;
       // At the very end of the document the last row cannot reach the 35%
       // line (it is shorter than the viewport), so the end IS the last page.
-      const atEnd = nextTop >= el.scrollHeight - el.clientHeight - 1;
+      //
+      // ...but only when there is a document under it. While <Document> shows
+      // its loading node — a reload after an outage, a retry, a new file — the
+      // scroll content collapses to one placeholder, so `scrollHeight ≈
+      // clientHeight` and EVERY scroll event satisfied this test. A recovery
+      // reload therefore landed the reader on the last page of the book
+      // (observed: page 300 of 300 after recovering at page 240). Requiring
+      // real scrollable content is what distinguishes "at the end" from
+      // "there is nothing here yet".
+      const scrollable = el.scrollHeight - el.clientHeight;
+      const atEnd = scrollable > geomRef.current.rowHeight * 0.5 && nextTop >= scrollable - 1;
       const next = atEnd
         ? numPagesRef.current
         : pageAtScroll(nextTop, el.clientHeight, geomRef.current.rowHeight, numPagesRef.current, HUD_INSET_TOP);
@@ -746,6 +797,7 @@ export default function PDFViewer({
   }, []);
   const onDocumentLoadSuccess = (pdf: PdfDocumentProxy) => {
     pdfRef.current = pdf;
+    docLoadedRef.current = true;
     setPdfDoc(pdf);
     setLoadErrorKind(null);
     setNumPages(pdf.numPages);
@@ -754,16 +806,12 @@ export default function PDFViewer({
     // were, not re-run resume and not apologise with "Welcome back".
     if (reloadForRecoveryRef.current) {
       reloadForRecoveryRef.current = false;
-      const keep = clamp(1, pdf.numPages, currentPageRef.current);
-      initialScrollDoneRef.current = true;
-      requestAnimationFrame(() => {
-        const el = containerRef.current;
-        if (!el || geomRef.current.viewMode !== "scroll") return;
-        const top = rowTop(keep, geomRef.current.rowHeight, HUD_INSET_TOP);
-        beginProgrammaticScroll(top, 700);
-        el.scrollTop = top;
-        setScrollTop(top);
-      });
+      currentPageRef.current = clamp(1, pdf.numPages, currentPageRef.current);
+      setCurrentPage(currentPageRef.current);
+      // Positioning is left to the layout-ready effect below, which runs once
+      // the rows have their real height. Scrolling here would happen while
+      // the spacers are still collapsed, and the browser would clamp it away.
+      initialScrollDoneRef.current = false;
       return;
     }
     const local = localPositionRef.current ?? parseLocalPosition(lsGet(READER_KEYS.position(bookId)));
@@ -869,6 +917,7 @@ export default function PDFViewer({
   };
   useEffect(() => {
     initialScrollDoneRef.current = false;
+    docLoadedRef.current = false;
   }, [docKey, pdfUrl]);
   useEffect(() => {
     if (viewMode !== "scroll" || !numPages || !pageWidth || initialScrollDoneRef.current) return;

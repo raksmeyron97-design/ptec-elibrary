@@ -64,6 +64,10 @@ type Snapshot = {
   label: string;
   mounted: number;
   canvases: number;
+  /** Canvases belonging to a mounted page row, as opposed to the hidden
+      page-1 geometry measurer and the thumbnail column. */
+  pageCanvases: number;
+  canvasMB: number;
   textLayers: number;
   objectUrls: number;
   timeouts: number;
@@ -143,9 +147,13 @@ async function cdpFor(page: Page, browserName: string): Promise<CDPSession | nul
 async function snapshot(page: Page, cdp: CDPSession | null, server: PdfServer, label: string, ms?: number): Promise<Snapshot> {
   const dom = await page.evaluate(() => {
     const p = (window as unknown as { __ptecProbe: { objectUrls: number; timeouts: Set<number>; intervals: Set<number>; resizeObservers: number; mutationObservers: number } }).__ptecProbe;
+    const all = Array.from(document.querySelectorAll("canvas"));
     return {
       mounted: document.querySelectorAll("[data-page]").length,
-      canvases: document.querySelectorAll("canvas").length,
+      canvases: all.length,
+      pageCanvases: document.querySelectorAll("[data-page] canvas").length,
+      // Backing store, which is the figure a browser's canvas budget counts.
+      canvasMB: Math.round((all.reduce((sum, c) => sum + c.width * c.height * 4, 0) / 1048576) * 10) / 10,
       textLayers: document.querySelectorAll(".textLayer").length,
       objectUrls: p.objectUrls,
       timeouts: p.timeouts.size,
@@ -247,17 +255,32 @@ test.describe("PDF reader — production performance", () => {
       await page.waitForTimeout(600);
       await record(await snapshot(page, cdp, server, "back to 400", ms));
 
-      console.log(`\n[reader-perf ${testInfo.project.name}] ` + snaps.map((s) => `${s.label}: mounted=${s.mounted} canvases=${s.canvases} nodes=${s.nodes ?? "-"} listeners=${s.listeners ?? "-"} heap=${s.heapMB ?? "-"}MB objURLs=${s.objectUrls} timers=${s.timeouts} reqs=${s.serverRequests} MB=${s.serverMB}${s.ms !== undefined ? ` (${s.ms} ms)` : ""}`).join("\n  "));
+      console.log(`\n[reader-perf ${testInfo.project.name}] ` + snaps.map((s) => `${s.label}: mounted=${s.mounted} canvases=${s.canvases}/${s.canvasMB}MB nodes=${s.nodes ?? "-"} listeners=${s.listeners ?? "-"} heap=${s.heapMB ?? "-"}MB objURLs=${s.objectUrls} timers=${s.timeouts} reqs=${s.serverRequests} MB=${s.serverMB}${s.ms !== undefined ? ` (${s.ms} ms)` : ""}`).join("\n  "));
 
       // ── Bounds ──────────────────────────────────────────────────────────
       for (const s of snaps) {
         expect(s.mounted, `mounted pages at "${s.label}"`).toBeLessThanOrEqual(READER_BUDGETS.MAX_MOUNTED_PAGES);
         expect(s.objectUrls, `live object URLs at "${s.label}"`).toBe(0);
-        expect(s.intervals, `live intervals at "${s.label}"`).toBeLessThanOrEqual(1);
+        // The reader owns one interval (bringing an active search match into
+        // view, self-clearing); the dev server owns another. What matters is
+        // that they do not accumulate.
+        expect(s.intervals, `live intervals at "${s.label}"`).toBeLessThanOrEqual(3);
       }
-      // Canvases: mounted pages + the hidden page-1 measurer + thumbnails while the panel is open.
-      const closed = snaps.filter((s) => s.label !== "search");
-      for (const s of closed) expect(s.canvases, `canvases at "${s.label}"`).toBeLessThanOrEqual(s.mounted + 1);
+      expect(snaps[snaps.length - 1].intervals, "intervals at the end vs the start").toBeLessThanOrEqual(
+        snaps[0].intervals + 1,
+      );
+      // One canvas per mounted page row, and never more.
+      for (const s of snaps) {
+        expect(s.pageCanvases, `page canvases at "${s.label}"`).toBeLessThanOrEqual(s.mounted);
+        // Plus the hidden page-1 geometry measurer, and — while the Pages
+        // panel is open — its own windowed column.
+        expect(s.canvases, `canvases at "${s.label}"`).toBeLessThanOrEqual(
+          s.mounted + 1 + READER_BUDGETS.MAX_THUMBNAILS_MOUNTED,
+        );
+        expect(s.canvasMB, `canvas backing store at "${s.label}"`).toBeLessThanOrEqual(
+          READER_BUDGETS.MAX_CANVAS_BYTES.desktop / 1048576,
+        );
+      }
       // Mounted pages do not grow with distance travelled.
       const last = snaps[snaps.length - 1];
       const first = snaps[1];
@@ -363,17 +386,21 @@ test.describe("PDF reader — production performance", () => {
 
   test("network drop: the current page stays, nothing is spammed, and reading resumes when the link returns", async ({ page, isMobile, browserName, context }, testInfo) => {
     test.setTimeout(8 * 60_000);
-    const PAGES = 300;
-    const pdf = makeLargeTestPdf({ pages: PAGES, bytesPerPage: 64 * 1024, label: "PTEC outage" });
+    // Big pages, so a far page is CERTAINLY in a chunk the reader has not
+    // fetched. pdf.js groups contiguous missing chunks into one range, so on a
+    // small document a jump can be answered from bytes already in the stream —
+    // which tests nothing.
+    const PAGES = 200;
+    const pdf = makeLargeTestPdf({ pages: PAGES, bytesPerPage: 512 * 1024, label: "PTEC outage" });
     const server = await startPdfServer(pdf);
     const report: Record<string, unknown> = {};
     try {
       await openReader(page, isMobile, server, PAGES);
       const cdp = await cdpFor(page, browserName);
-      await goToPage(page, 80);
+      await goToPage(page, 5);
       await page.waitForTimeout(800);
       const zoomBefore = await zoomLabel(page);
-      report.before = await snapshot(page, cdp, server, "page 80 online");
+      report.before = await snapshot(page, cdp, server, "page 5 online");
 
       // ── Phase 1: the browser itself goes offline. ───────────────────────
       const failed: string[] = [];
@@ -384,7 +411,7 @@ test.describe("PDF reader — production performance", () => {
       await page.waitForTimeout(6_000);
       await reveal(page);
       // The page that was rendered is still on screen and still readable.
-      await expect(page.locator('[data-page="80"] canvas').first()).toBeVisible();
+      await expect(page.locator('[data-page="5"] canvas').first()).toBeVisible();
       const badgeText = await page
         .locator('[data-reader-hud="top"] [role="status"]')
         .textContent()
@@ -407,9 +434,9 @@ test.describe("PDF reader — production performance", () => {
       // stays true, so nothing but the reader's own failures can notice. This
       // is the case that used to leave a blank page forever.
       await page.route("**/api/books/*/file*", (route) => route.abort("failed"));
-      await goToPage(page, 240, { expectRendered: false });
+      await goToPage(page, 150, { expectRendered: false });
       await page.waitForTimeout(8_000);
-      report.during = await snapshot(page, cdp, server, "file unreachable, asked for 240");
+      report.during = await snapshot(page, cdp, server, "file unreachable, asked for 150");
       const stuckBadge = await page
         .locator('[data-reader-hud="top"] [role="status"]')
         .textContent()
@@ -421,9 +448,11 @@ test.describe("PDF reader — production performance", () => {
       // by the reader, and the page they asked for must actually paint.
       await page.unroute("**/api/books/*/file*");
       await routeBookFileTo(page, server);
-      await expect(page.locator('[data-page="240"] canvas').first()).toBeVisible({ timeout: 90_000 });
-      await expect(pageIndicator(page)).toHaveAttribute("aria-label", `Page 240 of ${PAGES}`);
-      report.after = await snapshot(page, cdp, server, "recovered on 240");
+      await expect(page.locator('[data-page="150"] canvas').first()).toBeVisible({ timeout: 120_000 });
+      // The position survived the reload — a scroll during the reload used to
+      // read the collapsed content as "the end of the book".
+      await expect(pageIndicator(page)).toHaveAttribute("aria-label", `Page 150 of ${PAGES}`);
+      report.after = await snapshot(page, cdp, server, "recovered on 150");
       report.zoomBefore = zoomBefore;
       report.zoomAfter = await zoomLabel(page);
       expect(report.zoomAfter, "zoom survived the recovery").toBe(zoomBefore);

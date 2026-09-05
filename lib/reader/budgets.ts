@@ -45,6 +45,28 @@ export const READER_BUDGETS = {
       The same value pdf.js's own viewer uses (CLEANUP_TIMEOUT). */
   IDLE_CLEANUP_MS: 30_000,
 
+  /**
+   * How long a VISIBLE page may sit unrendered before the reader treats it as
+   * stalled rather than slow.
+   *
+   * This is the only signal pdf.js gives for its stuck-chunk state: a range
+   * request that fails leaves its chunk registered as in flight, so the page's
+   * promise never settles and never rejects. Nothing errors, nothing is
+   * logged, and `navigator.onLine` is still true — a dead tunnel or a captive
+   * portal looks exactly like a page that is taking its time. Twelve seconds
+   * is already a broken experience, and the response (a reload that preserves
+   * the page, the zoom and every local note) costs the reader nothing.
+   */
+  STALL_TIMEOUT_MS: 12_000,
+
+  /**
+   * How many times one reading session may reload the document to recover.
+   * Beyond this the fault is not transient and the reader is shown the error
+   * screen instead, with a manual retry — an automatic loop against a file
+   * that cannot be read is worse than an honest failure.
+   */
+  MAX_RECOVERY_RELOADS: 3,
+
   /** Reconnect probe schedule. The last entry repeats. */
   RECONNECT_BACKOFF_MS: [2_000, 4_000, 8_000, 16_000, 30_000] as readonly number[],
 

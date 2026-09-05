@@ -138,14 +138,26 @@ export function useMountPlan({
      request that failed leaves its chunk registered as in flight, so the
      page's promise never settles and no error is ever reported. Nothing else
      in the reader can observe that. */
-  const pendingRef = useRef<{ mounted: number[]; settled: ReadonlySet<number> }>({ mounted: [], settled: EMPTY });
+  const pendingRef = useRef<{ mounted: number[]; settled: ReadonlySet<number>; visible: PageRange }>({
+    mounted: [],
+    settled: EMPTY,
+    visible,
+  });
   useEffect(() => {
-    pendingRef.current = { mounted: plan.mounted, settled: settledNow };
-  }, [plan.mounted, settledNow]);
+    pendingRef.current = { mounted: plan.mounted, settled: settledNow, visible };
+  }, [plan.mounted, settledNow, visible]);
   const hasUnsettledPages = useCallback(
     () => pendingRef.current.mounted.some((p) => !pendingRef.current.settled.has(p)),
     [],
   );
+  /** The first page the reader can SEE that has not settled, or null. A
+      prefetch page taking its time is not a symptom; a blank page in front of
+      someone is. */
+  const unsettledVisiblePage = useCallback((): number | null => {
+    const { visible: v, settled } = pendingRef.current;
+    for (let p = v.start; p <= v.end; p++) if (!settled.has(p)) return p;
+    return null;
+  }, []);
 
   /** Did the reader land on a page the prefetcher had already fetched? */
   const everRenderedNow = pagesFor(everRendered, documentKey);
@@ -163,6 +175,7 @@ export function useMountPlan({
     onPageSettled,
     notePageVisited,
     hasUnsettledPages,
+    unsettledVisiblePage,
     /** Snapshot for the session telemetry beacon. */
     stats: useCallback(() => ({ ...statsRef.current }), []),
   };
