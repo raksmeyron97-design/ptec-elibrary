@@ -426,3 +426,38 @@ describe("literature questions across the collection", () => {
     expect(classifyIntent("How many books do you have?").intent).toBe("faq");
   });
 });
+
+describe("questions about the resource in front of the reader", () => {
+  const onBook = { slug: "foundations-of-education", slugType: "book" as const };
+
+  it("treats a Khmer question naming this book as a document question", () => {
+    // Khmer word order puts the demonstrative where the English phrase list
+    // does not reach, so this used to classify as a catalogue search for the
+    // word "សៀវភៅ" — and answered from the whole library instead of the book
+    // the reader was holding.
+    expect(classifyIntent("តើសៀវភៅនេះនិយាយអ្វីអំពី assessment?", onBook).intent).toBe("pdf_question");
+  });
+
+  it("sends a question with no topic to the path that samples the document", () => {
+    // "What is in this book?" names nothing to retrieve, so searching page
+    // text for the question's own words finds nothing. The summary path
+    // samples the document instead.
+    expect(classifyIntent("តើមានអ្វីនៅក្នុងសៀវភៅនេះ?", onBook).intent).toBe("resource_summary");
+  });
+
+  it("does the same for the English demonstratives", () => {
+    expect(classifyIntent("does this book cover sampling?", onBook).intent).toBe("pdf_question");
+    expect(classifyIntent("what does this document say about ethics?", onBook).intent).toBe("pdf_question");
+  });
+
+  it("only applies on a resource page — the same words elsewhere still search", () => {
+    expect(classifyIntent("តើសៀវភៅនេះនិយាយអ្វីអំពី assessment?").intent).toBe("book_search");
+  });
+
+  it("does not swallow the other context-bound intents", () => {
+    expect(classifyIntent("summarize this book", onBook).intent).toBe("resource_summary");
+    expect(classifyIntent("cite this book", onBook).intent).toBe("citation");
+    expect(classifyIntent("show me similar books", onBook).intent).toBe("related_books");
+    expect(classifyIntent("what is this book about?", onBook).intent).toBe("book_detail");
+  });
+});

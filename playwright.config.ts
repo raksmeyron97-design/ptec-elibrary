@@ -60,6 +60,9 @@ export default defineConfig({
       // spent before the run is half done, and the quota notice is
       // indistinguishable from a broken answer.
       AI_DAILY_USER_LIMIT: process.env.AI_DAILY_USER_LIMIT || '500',
+      // Tests run back to back as one user, so every second request lands
+      // inside the 5s burst window and is answered "slow down".
+      AI_COOLDOWN_MS: process.env.AI_COOLDOWN_MS || '0',
       NEXT_PUBLIC_TURNSTILE_SITE_KEY:
         process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA',
     },
