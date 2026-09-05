@@ -7,7 +7,6 @@ import {
   mayFetch,
   nextProbeDelay,
   reduceConnectivity,
-  shouldReloadAfterProbe,
   type ConnectivityEvent,
   type ConnectivityState,
 } from "@/lib/reader/connectivity";
@@ -20,7 +19,8 @@ import type { PdfErrorKind } from "@/lib/reader/errors";
  * the one side effect that matters — asking the viewer to reload the
  * document once, after connectivity is confirmed, if a request failed while
  * the link was down (a failed range request leaves its chunk permanently
- * broken inside pdf.js; see the audit, F2).
+ * "in flight" inside pdf.js, so a later request for it hangs rather than
+ * retrying; see the audit, F2).
  *
  * The probe is a one-byte Range request for the document itself: it proves
  * the whole path — session, proxy, storage — rather than a CDN edge, and it
@@ -42,18 +42,16 @@ export function useConnectivity({
   probeUrl: string | null | undefined;
   /** Reload the document, preserving reader state. Called at most once per outage. */
   onReload: () => void;
-  /** Telemetry: the reader went from online to offline. */
+  /** Telemetry: the reader stopped being able to fetch. */
   onTransition?: () => void;
-  /** Telemetry: a probe succeeded after an outage. `reloaded` says whether a
-      document reload was needed. */
+  /** Telemetry: connectivity is confirmed back. `reloaded` says whether the
+      document had to be reloaded to clear pdf.js's broken chunk state. */
   onRecovery?: (reloaded: boolean) => void;
 }) {
   const [state, dispatch] = useReducer(
     (s: ConnectivityState, e: ConnectivityEvent) => reduceConnectivity(s, e),
     INITIAL_CONNECTIVITY,
   );
-  const stateRef = useRef(state);
-  stateRef.current = state;
   const callbacks = useRef({ onReload, onTransition, onRecovery });
   useEffect(() => {
     callbacks.current = { onReload, onTransition, onRecovery };
@@ -68,11 +66,7 @@ export function useConnectivity({
   useEffect(() => {
     if (!enabled || typeof window === "undefined") return;
     if (!navigator.onLine) dispatch({ type: "browserOffline" });
-    const onOffline = () => {
-      const was = stateRef.current.status;
-      dispatch({ type: "browserOffline" });
-      if (was === "online") callbacks.current.onTransition?.();
-    };
+    const onOffline = () => dispatch({ type: "browserOffline" });
     const onOnline = () => dispatch({ type: "browserOnline" });
     window.addEventListener("offline", onOffline);
     window.addEventListener("online", onOnline);
@@ -82,15 +76,37 @@ export function useConnectivity({
     };
   }, [enabled]);
 
-  /** A pdf.js load failed. Transient kinds start (or extend) an outage. */
-  const reportLoadFailure = useCallback((kind: PdfErrorKind) => {
-    if (!enabled) return;
-    const was = stateRef.current.status;
-    dispatch({ type: "loadFailed", kind });
-    // The reducer ignores non-transient kinds; only announce a real outage.
-    const next = reduceConnectivity(stateRef.current, { type: "loadFailed", kind });
-    if (was === "online" && next.status !== "online") callbacks.current.onTransition?.();
-  }, [enabled]);
+  /** A pdf.js load failed. Transient kinds start (or extend) an outage; the
+      reducer ignores the rest. */
+  const reportLoadFailure = useCallback(
+    (kind: PdfErrorKind) => {
+      if (enabled) dispatch({ type: "loadFailed", kind });
+    },
+    [enabled],
+  );
+
+  /* One place decides what an OBSERVED transition means, so a repeated
+     failure inside one outage cannot report twice and a recovery cannot be
+     missed. Reading the transition here rather than at each dispatch site is
+     also what keeps the callbacks out of render. */
+  const prevStatus = useRef(state.status);
+  useEffect(() => {
+    const was = prevStatus.current;
+    prevStatus.current = state.status;
+    if (was === "online" && state.status !== "online") callbacks.current.onTransition?.();
+    if (was !== "online" && state.status === "online" && !state.needsReload) {
+      callbacks.current.onRecovery?.(false);
+    }
+  }, [state.status, state.needsReload]);
+
+  /* The one side effect of recovery: a document whose chunk state pdf.js
+     cannot repair is reloaded, exactly once. */
+  useEffect(() => {
+    if (state.status !== "online" || !state.needsReload) return;
+    dispatch({ type: "reloaded" });
+    callbacks.current.onReload();
+    callbacks.current.onRecovery?.(true);
+  }, [state.status, state.needsReload]);
 
   /* The probe loop. Re-armed whenever the machine's answer to "when next?"
      changes; cleared on every re-arm and on unmount, so exactly one timer
@@ -106,18 +122,7 @@ export function useConnectivity({
       dispatch({ type: "probeStart" });
       const ok = await probe(probeUrlRef.current, controller.signal);
       if (cancelled) return;
-      if (!ok) {
-        dispatch({ type: "probeFailed" });
-        return;
-      }
-      const after = reduceConnectivity(stateRef.current, { type: "probeOk" });
-      dispatch({ type: "probeOk" });
-      const reload = shouldReloadAfterProbe(after);
-      if (reload) {
-        callbacks.current.onReload();
-        dispatch({ type: "reloaded" });
-      }
-      callbacks.current.onRecovery?.(reload);
+      dispatch({ type: ok ? "probeOk" : "probeFailed" });
     }, delay);
     return () => {
       cancelled = true;
@@ -132,12 +137,13 @@ export function useConnectivity({
     state,
     reportLoadFailure,
     mayFetch: !enabled || mayFetch(state),
-    badge: (fromCache: boolean) => (enabled ? connectivityBadge(state, fromCache) : fromCache ? ("cached" as const) : null),
+    badge: (fromCache: boolean) =>
+      enabled ? connectivityBadge(state, fromCache) : fromCache ? ("cached" as const) : null,
   };
 }
 
 /** True when the document is reachable again. A 401/403/404 also returns
-    true: the network is back and the document's own error screen is the
+    true: the network is back, and the document's own error screen is the
     right place to say what is wrong with the file. */
 async function probe(url: string | null | undefined, signal: AbortSignal): Promise<boolean> {
   if (!url || url.startsWith("blob:")) return true;
@@ -149,7 +155,7 @@ async function probe(url: string | null | undefined, signal: AbortSignal): Promi
       credentials: "same-origin",
       signal,
     });
-    // Drain nothing: one byte, and the body is released with the response.
+    // One byte, and the body is released rather than read.
     try {
       await res.body?.cancel();
     } catch {

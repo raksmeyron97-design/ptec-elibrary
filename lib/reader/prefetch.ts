@@ -11,8 +11,12 @@
      • at most `maxConcurrent` prefetch pages may be rendering at once, and
        none is admitted until the visible pages have painted — background
        rasters share pdf.js's 15 ms render slices with the page being read;
-     • pages that fall out of the window are evicted, which cancels their
-       render task (react-pdf does that on unmount) and releases their canvas;
+     • pages that fall out of the window are dropped, which cancels their
+       render task (react-pdf does that on unmount) and releases their canvas.
+       A direction change re-orders the candidates, so an in-flight prefetch
+       that is no longer the nearest page yields its slot to one that is —
+       jumping from page 100 to page 250 stops work on 101–103 rather than
+       finishing it;
      • nothing is admitted while offline: an unmounted page costs no request,
        and a request that fails leaves its chunk permanently broken in
        pdf.js's stream manager (see docs/READER-PRODUCTION-AUDIT-2.md, F2).
@@ -90,67 +94,60 @@ export function prefetchOrder(input: {
 export type MountPlan = {
   /** Every page to mount, ascending. */
   mounted: number[];
-  /** Prefetch pages newly admitted this round. */
-  admit: number[];
-  /** Previously admitted pages that left the window. */
-  evict: number[];
-  /** Admitted pages still rendering after this round. */
+  /** The prefetch pages among them, in priority order. */
+  prefetch: number[];
+  /** Prefetch pages that have not settled yet — the concurrency in use. */
   inFlight: number;
 };
 
 /**
- * One planning round. Deterministic: the same inputs give the same plan.
+ * One planning round. A PURE FUNCTION of the current situation: the same
+ * inputs give the same plan, and there is no admitted-set to keep in state
+ * (which is what would otherwise need a commit effect, and could drift from
+ * what is actually mounted).
  *
  *   visible      the strictly visible window (mounted whatever else is true)
- *   candidates   prefetchOrder() output
- *   admitted     prefetch pages mounted before this round
- *   rendered     pages whose canvas has painted at the current geometry
- *   visibleReady every visible page has painted (or there is nothing to wait for)
+ *   candidates   prefetchOrder() output, nearest first
+ *   settled      pages whose canvas has painted OR failed at this geometry
+ *   visibleReady every visible page has settled
  *   online       the reader may issue requests
+ *
+ * A candidate is mounted when it has already settled (keeping it costs
+ * nothing and un-mounting it would throw the canvas away) or when fewer than
+ * `maxConcurrent` unsettled prefetch pages are already mounted.
  */
 export function planMounts(input: {
   visible: PageRange;
   numPages: number;
   candidates: readonly number[];
-  admitted: ReadonlySet<number>;
-  rendered: ReadonlySet<number>;
+  settled: ReadonlySet<number>;
   maxConcurrent: number;
   visibleReady: boolean;
   online: boolean;
 }): MountPlan {
-  const { visible, numPages, candidates, admitted, rendered, maxConcurrent, visibleReady, online } = input;
-  const inWindow = new Set(candidates);
-  const isVisible = (p: number) => p >= visible.start && p <= visible.end;
+  const { visible, numPages, candidates, settled, maxConcurrent, visibleReady, online } = input;
+  const lo = clamp(1, numPages || 1, visible.start);
+  const hi = clamp(1, numPages || 1, visible.end);
 
-  const evict: number[] = [];
-  const keep: number[] = [];
-  for (const p of admitted) {
-    // A page that scrolled INTO the visible window is no longer prefetch; it
-    // is dropped from the admitted set but stays mounted as a visible page.
-    if (isVisible(p)) continue;
-    if (inWindow.has(p)) keep.push(p);
-    else evict.push(p);
-  }
-
-  let inFlight = keep.filter((p) => !rendered.has(p)).length;
-  const admit: number[] = [];
-  if (visibleReady && online) {
+  const prefetch: number[] = [];
+  let inFlight = 0;
+  if (visibleReady && numPages) {
     for (const p of candidates) {
-      if (inFlight >= Math.max(0, maxConcurrent)) break;
-      if (admitted.has(p) || isVisible(p)) continue;
-      admit.push(p);
+      if (p >= lo && p <= hi) continue; // already visible
+      if (settled.has(p)) {
+        prefetch.push(p);
+        continue;
+      }
+      if (!online || inFlight >= Math.max(0, maxConcurrent)) continue;
+      prefetch.push(p);
       inFlight += 1;
     }
   }
 
   const set = new Set<number>();
-  const lo = clamp(1, numPages || 1, visible.start);
-  const hi = clamp(1, numPages || 1, visible.end);
-  for (let p = lo; p <= hi; p++) set.add(p);
-  for (const p of keep) set.add(p);
-  for (const p of admit) set.add(p);
-  const mounted = Array.from(set).sort((a, b) => a - b);
-  return { mounted, admit, evict: evict.sort((a, b) => a - b), inFlight };
+  if (numPages) for (let p = lo; p <= hi; p++) set.add(p);
+  for (const p of prefetch) set.add(p);
+  return { mounted: Array.from(set).sort((a, b) => a - b), prefetch, inFlight };
 }
 
 /** Which way the reader is moving, from two successive current pages. A jump

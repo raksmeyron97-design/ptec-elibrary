@@ -8,6 +8,23 @@ import {
   type ReadingDirection,
 } from "@/lib/reader/prefetch";
 
+/** A set of pages that is only valid for one key (a geometry, a document).
+    Carrying the key WITH the value is what lets a stale set be recognised
+    during render without touching a ref: a mismatch simply reads as empty. */
+type KeyedPages = { key: string; pages: ReadonlySet<number> };
+
+const EMPTY: ReadonlySet<number> = new Set();
+const keyed = (key: string, pages: ReadonlySet<number>): KeyedPages => ({ key, pages });
+const pagesFor = (state: KeyedPages, key: string): ReadonlySet<number> =>
+  state.key === key ? state.pages : EMPTY;
+
+function withPage(state: KeyedPages, key: string, page: number): KeyedPages {
+  if (state.key === key && state.pages.has(page)) return state;
+  const pages = new Set(state.key === key ? state.pages : []);
+  pages.add(page);
+  return { key, pages };
+}
+
 /**
  * Which pages continuous-scroll mode mounts, and in what order the ones the
  * reader is NOT looking at are allowed to start rendering.
@@ -15,20 +32,21 @@ import {
  * The decisions live in lib/reader/prefetch.ts (pure, tested). This hook owns
  * the bookkeeping React needs around them:
  *
- *   • `settled`      — pages whose canvas painted OR failed at the CURRENT
- *                      geometry. Cleared when `geometryKey` changes (zoom,
- *                      rotation, DPR), so a resize re-rasterises the visible
- *                      page before any neighbour is admitted. Failures count
- *                      as settled: a visible page that cannot render must not
- *                      block the window forever.
- *   • `admitted`     — prefetch pages currently mounted beyond the visible
- *                      window.
- *   • `everRendered` — pages that have painted at any geometry for this
- *                      document, i.e. whose bytes pdf.js already holds. Reset
- *                      only when `documentKey` changes. It is what makes a
- *                      prefetch hit distinguishable from a miss.
+ * The mounted set is DERIVED, not accumulated: there is no "admitted" state to
+ * commit in an effect and no chance of it drifting from what is on screen.
+ * Two pieces of state feed it:
  *
- * Every `onPageSettled` bumps a version, so the plan is recomputed and the
+ *   • `settled`      — pages whose canvas painted OR failed at the CURRENT
+ *                      geometry. A zoom or rotation changes the geometry key,
+ *                      which invalidates the whole set, so a resize
+ *                      re-rasterises the visible page before any neighbour is
+ *                      admitted. Failures count as settled: a visible page
+ *                      that cannot render must not block the window forever.
+ *   • `everRendered` — pages that have painted at any geometry for this
+ *                      document, i.e. whose bytes pdf.js already holds. It is
+ *                      what makes a prefetch hit distinguishable from a miss.
+ *
+ * Every `onPageSettled` updates `settled`, so the plan is recomputed and the
  * next candidate admitted — that is how "at most N in flight" stays true
  * without a timer.
  *
@@ -65,35 +83,14 @@ export function useMountPlan({
   /** Changes when a different document is loaded (or reloaded). */
   documentKey: string;
 }) {
-  const [admitted, setAdmitted] = useState<ReadonlySet<number>>(() => new Set());
-  const settledRef = useRef<Set<number>>(new Set());
-  const renderedRef = useRef<Set<number>>(new Set());
-  const everRenderedRef = useRef<Set<number>>(new Set());
-  const [version, setVersion] = useState(0);
+  // The geometry key alone is not enough to invalidate: two documents can be
+  // laid out identically. Both keys travel together.
+  const renderKey = `${documentKey}|${geometryKey}`;
+  const [settled, setSettled] = useState<KeyedPages>(() => keyed(renderKey, EMPTY));
+  const [everRendered, setEverRendered] = useState<KeyedPages>(() => keyed(documentKey, EMPTY));
   const statsRef = useRef({ maxMounted: 0, hits: 0, misses: 0 });
 
-  // A new geometry invalidates every painted canvas; a new document
-  // invalidates everything known about the pages themselves. Done during
-  // render (not in an effect) so the very first plan after the change already
-  // sees the cleared sets — an effect would run after one wrong plan.
-  const geometryRef = useRef(geometryKey);
-  const documentRef = useRef(documentKey);
-  if (documentRef.current !== documentKey) {
-    documentRef.current = documentKey;
-    geometryRef.current = geometryKey;
-    settledRef.current = new Set();
-    renderedRef.current = new Set();
-    everRenderedRef.current = new Set();
-    statsRef.current = { maxMounted: 0, hits: 0, misses: 0 };
-  } else if (geometryRef.current !== geometryKey) {
-    geometryRef.current = geometryKey;
-    settledRef.current = new Set();
-    renderedRef.current = new Set();
-  }
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setAdmitted(new Set());
-  }, [geometryKey, documentKey]);
+  const settledNow = pagesFor(settled, renderKey);
 
   const candidates = useMemo(
     () => (active ? prefetchOrder({ visible, numPages, overscan, direction }) : []),
@@ -101,13 +98,10 @@ export function useMountPlan({
   );
 
   const plan = useMemo(() => {
-    if (!active || !numPages) {
-      return { mounted: [] as number[], admit: [] as number[], evict: [] as number[], inFlight: 0 };
-    }
-    const settled = settledRef.current;
+    if (!active || !numPages) return { mounted: [] as number[], prefetch: [] as number[], inFlight: 0 };
     let visibleReady = true;
     for (let p = visible.start; p <= visible.end; p++) {
-      if (!settled.has(p)) {
+      if (!settledNow.has(p)) {
         visibleReady = false;
         break;
       }
@@ -116,45 +110,33 @@ export function useMountPlan({
       visible,
       numPages,
       candidates,
-      admitted,
-      rendered: settled,
+      settled: settledNow,
       maxConcurrent,
       visibleReady,
       online,
     });
-    // `version` is the settled-set clock: the sets are refs, so it must be
-    // named here for the plan to move when a page paints.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, numPages, visible, candidates, admitted, maxConcurrent, online, version]);
+  }, [active, numPages, visible, candidates, settledNow, maxConcurrent, online]);
 
-  // Commit admissions and evictions. Only when something changed, so this
-  // cannot loop: a plan with nothing to admit or evict leaves state alone.
   useEffect(() => {
-    if (plan.admit.length === 0 && plan.evict.length === 0) return;
-    setAdmitted((prev) => {
-      const next = new Set(prev);
-      for (const p of plan.evict) next.delete(p);
-      for (const p of plan.admit) next.add(p);
-      // A page that scrolled INTO the visible window stops being prefetch.
-      for (const p of Array.from(next)) if (p >= visible.start && p <= visible.end) next.delete(p);
-      return next.size === prev.size && [...next].every((p) => prev.has(p)) ? prev : next;
-    });
-  }, [plan, visible.start, visible.end]);
-
-  if (plan.mounted.length > statsRef.current.maxMounted) {
-    statsRef.current.maxMounted = plan.mounted.length;
-  }
-
-  const onPageSettled = useCallback((page: number, painted: boolean) => {
-    settledRef.current.add(page);
-    if (painted) {
-      renderedRef.current.add(page);
-      everRenderedRef.current.add(page);
+    if (plan.mounted.length > statsRef.current.maxMounted) {
+      statsRef.current.maxMounted = plan.mounted.length;
     }
-    setVersion((v) => v + 1);
-  }, []);
+  }, [plan.mounted.length]);
+
+  const onPageSettled = useCallback(
+    (page: number, painted: boolean) => {
+      setSettled((prev) => withPage(prev, renderKey, page));
+      if (painted) setEverRendered((prev) => withPage(prev, documentKey, page));
+    },
+    [renderKey, documentKey],
+  );
 
   /** Did the reader land on a page the prefetcher had already fetched? */
+  const everRenderedNow = pagesFor(everRendered, documentKey);
+  const everRenderedRef = useRef(everRenderedNow);
+  useEffect(() => {
+    everRenderedRef.current = everRenderedNow;
+  }, [everRenderedNow]);
   const notePageVisited = useCallback((page: number) => {
     if (everRenderedRef.current.has(page)) statsRef.current.hits += 1;
     else statsRef.current.misses += 1;
@@ -164,7 +146,6 @@ export function useMountPlan({
     mountedPages: plan.mounted,
     onPageSettled,
     notePageVisited,
-    isRendered: useCallback((page: number) => renderedRef.current.has(page), []),
     /** Snapshot for the session telemetry beacon. */
     stats: useCallback(() => ({ ...statsRef.current }), []),
   };

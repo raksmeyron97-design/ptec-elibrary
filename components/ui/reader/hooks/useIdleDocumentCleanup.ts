@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { READER_BUDGETS } from "@/lib/reader/budgets";
 
 type CleanableDocument = { cleanup?: (keepLoadedFonts?: boolean) => Promise<void> | void };
@@ -34,14 +34,11 @@ export function useIdleDocumentCleanup({
   enabled?: boolean;
   idleMs?: number;
 }) {
-  const pdfRef = useRef(pdf);
-  pdfRef.current = pdf;
-
   useEffect(() => {
     if (!enabled || !pdf) return;
     const timer = window.setTimeout(() => {
       try {
-        void Promise.resolve(pdfRef.current?.cleanup?.(true)).catch(() => {});
+        void Promise.resolve(pdf.cleanup?.(true)).catch(() => {});
       } catch {
         /* a document torn down between the timer and here */
       }
