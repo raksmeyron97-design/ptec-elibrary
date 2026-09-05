@@ -12,6 +12,26 @@ import dotenv from 'dotenv';
 dotenv.config({ path: path.resolve(__dirname, '.env.local'), quiet: true });
 dotenv.config({ path: path.resolve(__dirname, '.env'), quiet: true });
 
+// A second checkout (a git worktree, a second agent) often has port 3000 taken
+// by ANOTHER tree's dev server; `reuseExistingServer` would then silently test
+// the wrong code. PORT moves both the server and the baseURL together, and
+// PLAYWRIGHT_BASE_URL (already honoured by e2e/utils/auth.ts for cookies)
+// points the suite at any running origin.
+const PORT = Number(process.env.PORT || 3000);
+const BASE_URL =
+  process.env.PLAYWRIGHT_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || `http://localhost:${PORT}`;
+// WebKit (desktop Safari + iPhone) is opt-in: it is not installed on every
+// machine, and the whole suite is not written for three engines. The reader
+// specs are, and docs/READER-PRODUCTION-PERFORMANCE-VERIFICATION.md records
+// their WebKit runs. `PW_WEBKIT=1 npx playwright test --project=webkit`.
+const WEBKIT_PROJECTS =
+  process.env.PW_WEBKIT === '1'
+    ? [
+        { name: 'webkit', use: { ...devices['Desktop Safari'] }, testMatch: /reader-(ux|performance|interaction)\.spec\.ts/ },
+        { name: 'Mobile Safari', use: { ...devices['iPhone 13'] }, testMatch: /reader-(ux|performance|interaction)\.spec\.ts/ },
+      ]
+    : [];
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -20,7 +40,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+    baseURL: BASE_URL,
     trace: 'on-first-retry',
   },
   projects: [
@@ -32,10 +52,11 @@ export default defineConfig({
       name: 'Mobile Chrome',
       use: { ...devices['Pixel 5'] },
     },
+    ...WEBKIT_PROJECTS,
   ],
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
+    command: `npm run dev -- -p ${PORT}`,
+    url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     // e2e asserts PRODUCTION-shaped SEO output (robots.txt, sitemap, meta
     // robots). Local/CI servers are non-indexable by default (opt-in policy,

@@ -1,0 +1,486 @@
+{
+  "file": {
+    "pages": 500,
+    "bytes": 24794537
+  },
+  "snapshots": [
+    {
+      "label": "open",
+      "mounted": 2,
+      "canvases": 4,
+      "pageCanvases": 2,
+      "canvasMB": 14.3,
+      "textLayers": 2,
+      "objectUrls": 0,
+      "timeouts": 5,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3003,
+      "listeners": 891,
+      "heapMB": 21.8,
+      "serverRequests": 5,
+      "serverRangeRequests": 4,
+      "serverMB": 2.08,
+      "serverRangeMB": 1.65,
+      "ms": 27415
+    },
+    {
+      "label": "page 20",
+      "mounted": 6,
+      "canvases": 6,
+      "pageCanvases": 4,
+      "canvasMB": 25.1,
+      "textLayers": 4,
+      "objectUrls": 0,
+      "timeouts": 3,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3086,
+      "listeners": 896,
+      "heapMB": 22.4,
+      "serverRequests": 7,
+      "serverRangeRequests": 6,
+      "serverMB": 3.08,
+      "serverRangeMB": 2.65,
+      "ms": 288
+    },
+    {
+      "label": "page 50",
+      "mounted": 6,
+      "canvases": 8,
+      "pageCanvases": 6,
+      "canvasMB": 35.9,
+      "textLayers": 6,
+      "objectUrls": 0,
+      "timeouts": 3,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3084,
+      "listeners": 895,
+      "heapMB": 22.7,
+      "serverRequests": 9,
+      "serverRangeRequests": 8,
+      "serverMB": 4.08,
+      "serverRangeMB": 3.65,
+      "ms": 485
+    },
+    {
+      "label": "page 100",
+      "mounted": 6,
+      "canvases": 8,
+      "pageCanvases": 6,
+      "canvasMB": 35.9,
+      "textLayers": 6,
+      "objectUrls": 0,
+      "timeouts": 3,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3084,
+      "listeners": 895,
+      "heapMB": 22.8,
+      "serverRequests": 10,
+      "serverRangeRequests": 9,
+      "serverMB": 4.58,
+      "serverRangeMB": 4.15,
+      "ms": 377
+    },
+    {
+      "label": "page 200",
+      "mounted": 6,
+      "canvases": 8,
+      "pageCanvases": 6,
+      "canvasMB": 35.9,
+      "textLayers": 6,
+      "objectUrls": 0,
+      "timeouts": 3,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3084,
+      "listeners": 895,
+      "heapMB": 22.9,
+      "serverRequests": 12,
+      "serverRangeRequests": 11,
+      "serverMB": 5.58,
+      "serverRangeMB": 5.15,
+      "ms": 607
+    },
+    {
+      "label": "page 300",
+      "mounted": 6,
+      "canvases": 8,
+      "pageCanvases": 6,
+      "canvasMB": 35.9,
+      "textLayers": 6,
+      "objectUrls": 0,
+      "timeouts": 3,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3084,
+      "listeners": 895,
+      "heapMB": 22.9,
+      "serverRequests": 13,
+      "serverRangeRequests": 12,
+      "serverMB": 6.08,
+      "serverRangeMB": 5.65,
+      "ms": 242
+    },
+    {
+      "label": "page 400",
+      "mounted": 6,
+      "canvases": 8,
+      "pageCanvases": 6,
+      "canvasMB": 35.9,
+      "textLayers": 6,
+      "objectUrls": 0,
+      "timeouts": 3,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3096,
+      "listeners": 896,
+      "heapMB": 23,
+      "serverRequests": 13,
+      "serverRangeRequests": 12,
+      "serverMB": 6.08,
+      "serverRangeMB": 5.65,
+      "ms": 392
+    },
+    {
+      "label": "page 500",
+      "mounted": 5,
+      "canvases": 7,
+      "pageCanvases": 5,
+      "canvasMB": 30.5,
+      "textLayers": 5,
+      "objectUrls": 0,
+      "timeouts": 4,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3084,
+      "listeners": 896,
+      "heapMB": 23.1,
+      "serverRequests": 14,
+      "serverRangeRequests": 13,
+      "serverMB": 6.58,
+      "serverRangeMB": 6.15,
+      "ms": 634
+    },
+    {
+      "label": "zoom ×2",
+      "mounted": 5,
+      "canvases": 7,
+      "pageCanvases": 5,
+      "canvasMB": 41.7,
+      "textLayers": 5,
+      "objectUrls": 0,
+      "timeouts": 2,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3085,
+      "listeners": 896,
+      "heapMB": 23.2,
+      "serverRequests": 14,
+      "serverRangeRequests": 13,
+      "serverMB": 6.58,
+      "serverRangeMB": 6.15,
+      "ms": 1013
+    },
+    {
+      "label": "rotate 90°",
+      "mounted": 5,
+      "canvases": 7,
+      "pageCanvases": 5,
+      "canvasMB": 41.7,
+      "textLayers": 5,
+      "objectUrls": 0,
+      "timeouts": 3,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 2,
+      "nodes": 3085,
+      "listeners": 896,
+      "heapMB": 23.2,
+      "serverRequests": 14,
+      "serverRangeRequests": 13,
+      "serverMB": 6.58,
+      "serverRangeMB": 6.15,
+      "ms": 938
+    },
+    {
+      "label": "search",
+      "mounted": 6,
+      "canvases": 8,
+      "pageCanvases": 6,
+      "canvasMB": 41.9,
+      "textLayers": 6,
+      "objectUrls": 0,
+      "timeouts": 3,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 3,
+      "nodes": 3131,
+      "listeners": 914,
+      "heapMB": 24.2,
+      "serverRequests": 31,
+      "serverRangeRequests": 30,
+      "serverMB": 15.08,
+      "serverRangeMB": 14.65,
+      "ms": 3167
+    },
+    {
+      "label": "panel closed",
+      "mounted": 6,
+      "canvases": 8,
+      "pageCanvases": 6,
+      "canvasMB": 49.4,
+      "textLayers": 6,
+      "objectUrls": 0,
+      "timeouts": 2,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 3,
+      "nodes": 3042,
+      "listeners": 903,
+      "heapMB": 24,
+      "serverRequests": 32,
+      "serverRangeRequests": 31,
+      "serverMB": 15.58,
+      "serverRangeMB": 15.15
+    },
+    {
+      "label": "back to 400",
+      "mounted": 6,
+      "canvases": 8,
+      "pageCanvases": 6,
+      "canvasMB": 49.4,
+      "textLayers": 6,
+      "objectUrls": 0,
+      "timeouts": 3,
+      "intervals": 1,
+      "resizeObservers": 5,
+      "mutationObservers": 3,
+      "nodes": 3086,
+      "listeners": 908,
+      "heapMB": 23.1,
+      "serverRequests": 34,
+      "serverRangeRequests": 33,
+      "serverMB": 16.58,
+      "serverRangeMB": 16.15,
+      "ms": 366
+    }
+  ],
+  "requests": [
+    {
+      "range": null,
+      "status": 200,
+      "bytes": 458752,
+      "aborted": true
+    },
+    {
+      "range": "bytes=0-524287",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=24641536-24794536",
+      "status": 206,
+      "bytes": 153001,
+      "aborted": false
+    },
+    {
+      "range": "bytes=19398656-19922943",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=19922944-20447231",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=524288-1048575",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=1048576-1572863",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=2097152-2621439",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=2621440-3145727",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=4718592-5242879",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=9437184-9961471",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=9961472-10485759",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=14680064-15204351",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=24117248-24641535",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=12058624-12582911",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=12582912-13107199",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=1572864-2097151",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=3145728-3670015",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=3670016-4194303",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=4194304-4718591",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=5242880-5767167",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=5767168-6291455",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=6291456-6815743",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=6815744-7340031",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=7340032-7864319",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=7864320-8388607",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=8388608-8912895",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=8912896-9437183",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=10485760-11010047",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=11010048-11534335",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=11534336-12058623",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=13107200-13631487",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=13631488-14155775",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    },
+    {
+      "range": "bytes=14155776-14680063",
+      "status": 206,
+      "bytes": 524288,
+      "aborted": false
+    }
+  ]
+}

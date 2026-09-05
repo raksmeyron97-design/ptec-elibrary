@@ -218,7 +218,15 @@ export async function logDownloadAttempt(input: {
   }
 }
 
-export type AppEventKind = "ai_request" | "storage_operation" | "notification" | "export";
+export type AppEventKind =
+  | "ai_request"
+  | "storage_operation"
+  | "notification"
+  | "export"
+  /** PDF reader performance and reliability (migration 0138). Counts, enums
+   *  and a path — never document content, an IP or a user id; the route
+   *  app/api/reader-events rebuilds the payload from an allow-list. */
+  | "reader_event";
 export type AppEventStatus = "ok" | "error" | "timeout" | "quota" | "fallback";
 
 /**

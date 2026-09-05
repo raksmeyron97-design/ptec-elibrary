@@ -1,0 +1,47 @@
+{
+  "browser": "chromium",
+  "rows": [
+    {
+      "zoom": "75%",
+      "ms": 121,
+      "mounted": 6,
+      "canvases": 6,
+      "canvasMB": 23.9
+    },
+    {
+      "zoom": "100%",
+      "ms": 292,
+      "mounted": 4,
+      "canvases": 6,
+      "canvasMB": 22.3
+    },
+    {
+      "zoom": "125%",
+      "ms": 179,
+      "mounted": 6,
+      "canvases": 6,
+      "canvasMB": 54.5
+    },
+    {
+      "zoom": "100%",
+      "ms": 230,
+      "mounted": 4,
+      "canvases": 6,
+      "canvasMB": 22.3
+    },
+    {
+      "zoom": "75%",
+      "ms": 217,
+      "mounted": 4,
+      "canvases": 6,
+      "canvasMB": 15.6
+    },
+    {
+      "zoom": "50%",
+      "ms": 327,
+      "mounted": 5,
+      "canvases": 7,
+      "canvasMB": 12.8
+    }
+  ]
+}

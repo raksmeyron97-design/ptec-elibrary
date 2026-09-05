@@ -22,10 +22,32 @@ type FakePdf = {
   getDestination: (n: string) => Promise<unknown>;
   getPageIndex: (r: unknown) => Promise<number>;
   getPage: (n: number) => Promise<FakePage>;
+  cleanup: (keepFonts?: boolean) => void;
   destroy: () => void;
 };
 
-const scripted: { pdf: FakePdf | null; error: Error | null } = { pdf: null, error: null };
+/** What the mocked <Page> does per page number, so the specs can script a
+ *  page whose bytes never arrive (a network outage) or one that never
+ *  finishes rendering (the concurrency gate). */
+const scripted: {
+  pdf: FakePdf | null;
+  error: Error | null;
+  /** Pages whose LOAD fails, with the error react-pdf would report. */
+  failLoad: Map<number, Error>;
+  /** Pages that mount but never call back — neither painted nor failed. */
+  stall: Set<number>;
+  /** The page proxies handed to onLoadSuccess, so cleanup() can be asserted. */
+  pageProxies: Map<number, { cleanup: ReturnType<typeof vi.fn> }>;
+} = { pdf: null, error: null, failLoad: new Map(), stall: new Set(), pageProxies: new Map() };
+
+function pageProxy(n: number) {
+  let proxy = scripted.pageProxies.get(n);
+  if (!proxy) {
+    proxy = { cleanup: vi.fn(() => true) };
+    scripted.pageProxies.set(n, proxy);
+  }
+  return proxy;
+}
 
 function makePdf(numPages: number, opts: { texts?: Record<number, string>; outline?: unknown } = {}): FakePdf {
   return {
@@ -37,6 +59,7 @@ function makePdf(numPages: number, opts: { texts?: Record<number, string>; outli
       Promise.resolve({
         getTextContent: () => Promise.resolve({ items: [{ str: opts.texts?.[n] ?? `Page ${n} text` }] }),
       }),
+    cleanup: vi.fn(),
     destroy: vi.fn(),
   };
 }
@@ -73,13 +96,34 @@ vi.mock("react-pdf", () => {
     pageNumber: number;
     width?: number;
     onRenderSuccess?: () => void;
-    onLoadSuccess?: (p: { originalWidth: number; originalHeight: number; width: number; height: number; rotate: number }) => void;
+    onRenderError?: (e: Error) => void;
+    onLoadError?: (e: Error) => void;
+    onLoadSuccess?: (p: unknown) => void;
   }) {
-    const { pageNumber, onRenderSuccess, onLoadSuccess, width } = props;
+    const { pageNumber, onRenderSuccess, onRenderError, onLoadError, onLoadSuccess, width } = props;
+    // Like react-pdf: the callbacks are read at fire time, not depended on —
+    // a parent that recreates them must not re-run the render.
+    const latest = useRef({ onRenderSuccess, onRenderError, onLoadError, onLoadSuccess });
+    latest.current = { onRenderSuccess, onRenderError, onLoadError, onLoadSuccess };
     useEffect(() => {
-      onLoadSuccess?.({ originalWidth: 600, originalHeight: 800, width: width ?? 600, height: (width ?? 600) * (4 / 3), rotate: 0 });
-      onRenderSuccess?.();
-    }, [pageNumber, onRenderSuccess, onLoadSuccess, width]);
+      const failure = scripted.failLoad.get(pageNumber);
+      if (failure) {
+        latest.current.onLoadError?.(failure);
+        return;
+      }
+      if (scripted.stall.has(pageNumber)) return;
+      const proxy = pageProxy(pageNumber);
+      latest.current.onLoadSuccess?.(
+        Object.assign(proxy, {
+          originalWidth: 600,
+          originalHeight: 800,
+          width: width ?? 600,
+          height: (width ?? 600) * (4 / 3),
+          rotate: 0,
+        }),
+      );
+      latest.current.onRenderSuccess?.();
+    }, [pageNumber, width]);
     return createElement(
       "div",
       { className: "react-pdf__Page", "data-page-number": pageNumber },
@@ -106,6 +150,7 @@ const incrementDownloadCount = vi.fn(async () => {});
 vi.mock("@/app/actions/download", () => ({ incrementDownloadCount: (...a: unknown[]) => incrementDownloadCount(...(a as [])) }));
 
 import PDFViewer, { type PDFViewerProps } from "./PDFViewer";
+import { READER_BUDGETS } from "@/lib/reader/budgets";
 
 const sendBeacon = vi.fn(() => true);
 /** The reading-position beacon (`POST /api/reader/progress`) goes through
@@ -153,6 +198,9 @@ beforeEach(() => {
   window.localStorage.clear();
   scripted.pdf = makePdf(3);
   scripted.error = null;
+  scripted.failLoad = new Map();
+  scripted.stall = new Set();
+  scripted.pageProxies = new Map();
   desktop = false;
   saveReadingProgress.mockClear();
   getBookAnnotations.mockClear();
@@ -186,6 +234,20 @@ const key = (k: string, init: KeyboardEventInit = {}) => fireEvent.keyDown(windo
 
 async function loaded() {
   await waitFor(() => expect(document.querySelector(".react-pdf__Page")).toBeTruthy());
+}
+
+/** Jump through the page navigator, the way a reader does. */
+async function goToPage(n: number) {
+  await act(async () => {
+    indicator().click();
+  });
+  const dialog = screen.getByRole("dialog", { name: "Go to page" });
+  const box = within(dialog).getByRole("textbox");
+  fireEvent.change(box, { target: { value: String(n) } });
+  await act(async () => {
+    fireEvent.submit(box.closest("form")!);
+    await new Promise((r) => setTimeout(r, 20));
+  });
 }
 
 /* ═══════════════════════════════ A. preserved capabilities ═══════════════ */
@@ -498,6 +560,228 @@ describe("annotations", () => {
     await waitFor(() => expect(addAnnotation).toHaveBeenCalledTimes(1));
     expect(addAnnotation).toHaveBeenCalledWith(BOOK, 1, "working memory plays", "", "green");
     await waitFor(() => expect(screen.queryByRole("toolbar", { name: "Selected text actions" })).toBeNull());
+  });
+});
+
+/* ═════════════════ A2. production performance & reliability ══════════════ */
+
+describe("bounded mounting", () => {
+  const mountedPages = () =>
+    Array.from(document.querySelectorAll("[data-page]")).map((el) => Number(el.getAttribute("data-page")));
+
+  it("a JUMP mounts a window around the destination, never the pages in between", async () => {
+    // The regression this replaced: the mounted set was the union of the
+    // immediate window and a lagging deferred one, so a jump from 1 to 250
+    // mounted every page between them until the deferred value caught up.
+    // Measured in a real browser before the fix: 500 pages, 502 canvases.
+    scripted.pdf = makePdf(500);
+    renderViewer({ totalPages: 500 });
+    await loaded();
+    await goToPage(250);
+    const pages = mountedPages();
+    expect(pages.length).toBeLessThanOrEqual(READER_BUDGETS.MAX_MOUNTED_PAGES);
+    expect(pages.some((p) => p > 200)).toBe(true);
+    expect(pages.filter((p) => p < 200)).toEqual([]);
+  });
+
+  it("mounts nothing beyond the visible window until the visible pages have painted", async () => {
+    scripted.pdf = makePdf(500);
+    scripted.stall = new Set([1, 2, 3]); // page 1 never finishes rendering
+    renderViewer({ totalPages: 500 });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    // Only the visible rows are mounted; no neighbour competes with page 1.
+    expect(mountedPages().every((p) => p <= 3)).toBe(true);
+  });
+
+  it("stops admitting neighbours while the reader is offline", async () => {
+    scripted.pdf = makePdf(500);
+    renderViewer({ totalPages: 500 });
+    await loaded();
+    const online = mountedPages().length;
+    await act(async () => {
+      Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+      window.dispatchEvent(new Event("offline"));
+      await new Promise((r) => setTimeout(r, 30));
+    });
+    // Already-rendered pages stay; nothing new is fetched.
+    expect(mountedPages().length).toBeLessThanOrEqual(online);
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+  });
+
+  it("releases a page's pdf.js retention when it leaves the window", async () => {
+    scripted.pdf = makePdf(500);
+    renderViewer({ totalPages: 500 });
+    await loaded();
+    const early = mountedPages();
+    await act(async () => {
+      key("End"); // jump to the last page — every early page unmounts
+      await new Promise((r) => setTimeout(r, 30));
+    });
+    for (const p of early) {
+      expect(scripted.pageProxies.get(p)?.cleanup, `page ${p} cleanup`).toHaveBeenCalled();
+    }
+  });
+
+  it("releases the document's worker caches after an idle period, never while rendering", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderViewer();
+    await loaded();
+    const pdf = scripted.pdf!;
+    await act(async () => {
+      vi.advanceTimersByTime(READER_BUDGETS.IDLE_CLEANUP_MS - 1_000);
+    });
+    expect(pdf.cleanup).not.toHaveBeenCalled();
+    await act(async () => {
+      vi.advanceTimersByTime(2_000);
+    });
+    expect(pdf.cleanup).toHaveBeenCalledWith(true); // keepLoadedFonts
+  });
+});
+
+describe("network interruption", () => {
+  const badge = () => document.querySelector('[data-reader-hud="top"] [role="status"]');
+
+  it("says so when a page's bytes cannot be fetched, and reports it once", async () => {
+    scripted.pdf = makePdf(40);
+    scripted.failLoad = new Map([[2, new Error("Unexpected server response (503)")]]);
+    renderViewer({ totalPages: 40 });
+    await loaded();
+    await act(async () => {
+      key("ArrowRight");
+      await new Promise((r) => setTimeout(r, 30));
+    });
+    expect(badge()?.textContent).toMatch(/Offline|Reconnecting/);
+    // Reported as a page_load_error carrying the classified kind and a device
+    // class — counts and enums, no document content, no URL with a query.
+    const beacons = await Promise.all(
+      sendBeacon.mock.calls.map(async (c) => JSON.parse(await (c as unknown as [string, Blob])[1].text())),
+    );
+    const failures = beacons.filter((b) => b.type === "page_load_error");
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toMatchObject({ page: 2, kind: "server", bookId: BOOK, file: `/api/books/${BOOK}/file` });
+    expect(failures[0]).not.toHaveProperty("text");
+    // ...and exactly one offline_transition, however many pages fail.
+    expect(beacons.filter((b) => b.type === "offline_transition")).toHaveLength(1);
+  });
+
+  it("recovers by reloading the document ONCE, keeping the page and the zoom", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    scripted.pdf = makePdf(40);
+    renderViewer({ totalPages: 40 });
+    await loaded();
+    await act(async () => {
+      key("+"); // zoom in, so the restored state is observable
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    const zoomNow = () =>
+      document.querySelector('[data-reader-hud="bottom"] button[aria-label^="Zoom —"]')?.textContent;
+    const zoomBefore = zoomNow();
+    expect(zoomBefore).toBe("150%");
+    // Jump to a page whose bytes have not been fetched, with the link down.
+    scripted.failLoad = new Map([[20, new Error("Unexpected server response (429)")]]);
+    await goToPage(20);
+    expect(badge()?.textContent).toMatch(/Offline|Reconnecting/);
+    expect(pageIndicatorText()).toBe("Page 20 of 40");
+
+    // The link returns. The probe is a one-byte Range request on the backoff
+    // schedule; only after it succeeds is the document reloaded.
+    scripted.failLoad = new Map();
+    const before = fetchMock.mock.calls.length;
+    await act(async () => {
+      vi.advanceTimersByTime(2_100);
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    const probes = (fetchMock.mock.calls.slice(before) as unknown as [string, RequestInit][]).filter(
+      ([, init]) => (init?.headers as Record<string, string> | undefined)?.Range === "bytes=0-0",
+    );
+    expect(probes.length).toBeGreaterThanOrEqual(1);
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    // Reader state survived the reload: same page, same zoom, no badge...
+    expect(pageIndicatorText()).toBe("Page 20 of 40");
+    expect(zoomNow()).toBe(zoomBefore);
+    expect(badge()).toBeNull();
+    // ...and no "Welcome back" card: this was a recovery, not a return visit.
+    expect(screen.queryByText("Welcome back")).toBeNull();
+    // Exactly one reload, reported once.
+    const beacons = await Promise.all(
+      sendBeacon.mock.calls.map(async (c) => JSON.parse(await (c as unknown as [string, Blob])[1].text())),
+    );
+    const recoveries = beacons.filter((b) => b.type === "network_recovery");
+    expect(recoveries).toHaveLength(1);
+    expect(recoveries[0].reloaded).toBe(true);
+  });
+
+  it("makes no probe at all while the browser says it is offline", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderViewer();
+    await loaded();
+    fetchMock.mockClear();
+    await act(async () => {
+      Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+      window.dispatchEvent(new Event("offline"));
+      vi.advanceTimersByTime(30_000);
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+  });
+
+  it("the offline reader never probes, never reloads and never reports", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderViewer({ offline: true, pdfUrl: "blob:local" });
+    await loaded();
+    await act(async () => {
+      window.dispatchEvent(new Event("offline"));
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(sendBeacon).not.toHaveBeenCalled();
+  });
+});
+
+describe("reading progress under a failing network", () => {
+  it("retries a save the server refused instead of counting it as done", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    saveReadingProgress.mockRejectedValueOnce(new Error("offline"));
+    renderViewer({ isLoggedIn: true });
+    await loaded();
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    await act(async () => {
+      vi.advanceTimersByTime(1_700);
+    });
+    expect(saveReadingProgress).toHaveBeenCalledTimes(1);
+    // The rejection restores the marker, so the next page turn sends again —
+    // including the position the failed call was carrying.
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    await act(async () => {
+      vi.advanceTimersByTime(1_700);
+    });
+    expect(saveReadingProgress).toHaveBeenCalledTimes(2);
+    expect(saveReadingProgress).toHaveBeenLastCalledWith(BOOK, 100);
+  });
+
+  it("flushes a position the server never got as soon as the link returns", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    saveReadingProgress.mockRejectedValueOnce(new Error("offline"));
+    renderViewer({ isLoggedIn: true });
+    await loaded();
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    await act(async () => {
+      vi.advanceTimersByTime(1_700);
+    });
+    saveReadingProgress.mockClear();
+    // The event and the debounce it re-arms are two separate turns: the effect
+    // that schedules the retry only runs when React commits the state change.
+    await act(async () => {
+      window.dispatchEvent(new Event("online"));
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(1_700);
+    });
+    expect(saveReadingProgress).toHaveBeenCalledWith(BOOK, 67);
   });
 });
 

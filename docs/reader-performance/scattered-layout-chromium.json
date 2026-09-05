@@ -1,0 +1,116 @@
+{
+  "file": {
+    "pages": 20,
+    "bytes": 10494155
+  },
+  "snap": {
+    "label": "scattered",
+    "mounted": 6,
+    "canvases": 8,
+    "pageCanvases": 6,
+    "canvasMB": 35.9,
+    "textLayers": 6,
+    "objectUrls": 0,
+    "timeouts": 1,
+    "intervals": 1,
+    "resizeObservers": 5,
+    "mutationObservers": 2,
+    "nodes": 3043,
+    "listeners": 890,
+    "heapMB": 22,
+    "serverRequests": 22,
+    "serverRangeRequests": 21,
+    "serverMB": 12.63,
+    "ms": 11284
+  },
+  "requests": [
+    {
+      "range": null,
+      "bytes": 2752512
+    },
+    {
+      "range": "bytes=0-524287",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=10485760-10494154",
+      "bytes": 8395
+    },
+    {
+      "range": "bytes=9961472-10485759",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=9437184-9961471",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=8912896-9437183",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=8388608-8912895",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=7864320-8388607",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=7340032-7864319",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=6815744-7340031",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=6291456-6815743",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=5767168-6291455",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=5242880-5767167",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=4718592-5242879",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=4194304-4718591",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=3670016-4194303",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=3145728-3670015",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=2621440-3145727",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=2097152-2621439",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=1572864-2097151",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=1048576-1572863",
+      "bytes": 524288
+    },
+    {
+      "range": "bytes=524288-1048575",
+      "bytes": 524288
+    }
+  ]
+}

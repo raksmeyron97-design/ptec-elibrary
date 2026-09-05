@@ -52,6 +52,15 @@ function sendProgressBeacon(bookId: string, progressPct: number): void {
  * `numPages` is the `pages` column and `currentPage` a placeholder derived
  * from it — a 12-page file recorded as 120 pages put "page 120, 100%" into
  * localStorage and the server 400 ms after mount, over the real position.
+ *
+ * A FAILED SAVE IS RETRIED. `lastSaved` used to be advanced before the call,
+ * so a save rejected while the link was down counted as done and the position
+ * was not sent again until the reader turned another page: read offline to
+ * page 80, reconnect, close the tab, and the server still held page 12. The
+ * device record was right, so the same device resumed correctly and another
+ * device did not — the hardest kind of loss to notice. Now a rejection puts
+ * `lastSaved` back, which re-arms the debounce, and the browser's `online`
+ * event re-runs it immediately.
  */
 export function useReaderProgress({
   bookId,
@@ -136,17 +145,37 @@ export function useReaderProgress({
   );
 
   /* Auto-save to the server (debounced). */
+  const [retryTick, setRetryTick] = useState(0);
   useEffect(() => {
     if (!ready || !isLoggedIn || !bookId || numPages === 0 || progressPct === lastSavedRef.current) return;
     const id = window.setTimeout(() => {
+      const previous = lastSavedRef.current;
       lastSavedRef.current = progressPct;
       setLastSaved(progressPct);
       startTransition(() => {
-        void saveReadingProgress(bookId, progressPct).then(() => markSynced(progressPct), () => {});
+        void saveReadingProgress(bookId, progressPct).then(
+          () => markSynced(progressPct),
+          () => {
+            // Not saved. Restore the marker so the next page turn — or the
+            // `online` handler below — sends this position again.
+            if (lastSavedRef.current === progressPct) {
+              lastSavedRef.current = previous;
+              setLastSaved(previous);
+            }
+          },
+        );
       });
     }, AUTOSAVE_MS);
     return () => window.clearTimeout(id);
-  }, [ready, progressPct, bookId, numPages, isLoggedIn, markSynced]);
+  }, [ready, progressPct, bookId, numPages, isLoggedIn, markSynced, retryTick]);
+
+  /* Reconnecting is the moment to flush a position the server never got. */
+  useEffect(() => {
+    if (!isLoggedIn || !bookId) return;
+    const onOnline = () => setRetryTick((t) => t + 1);
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [isLoggedIn, bookId]);
 
   /* Flush when the tab is hidden or the page is being torn down. */
   const readyRef = useRef(ready);
@@ -187,10 +216,19 @@ export function useReaderProgress({
   const saveNow = useCallback(() => {
     if (!readyRef.current || !isLoggedIn || !bookId || numPagesRef.current === 0) return;
     const pct = progressRef.current;
+    const previous = lastSavedRef.current;
     lastSavedRef.current = pct;
     setLastSaved(pct);
     startTransition(() => {
-      void saveReadingProgress(bookId, pct).then(() => markSynced(pct), () => {});
+      void saveReadingProgress(bookId, pct).then(
+        () => markSynced(pct),
+        () => {
+          if (lastSavedRef.current === pct) {
+            lastSavedRef.current = previous;
+            setLastSaved(previous);
+          }
+        },
+      );
     });
   }, [bookId, isLoggedIn, markSynced]);
 

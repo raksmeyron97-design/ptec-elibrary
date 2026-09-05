@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Moon,
   PanelLeft,
+  RefreshCw,
   Search as SearchIcon,
   Sun,
   WifiOff,
@@ -49,7 +50,7 @@ export type ReaderTopBarProps = {
   onTogglePanel: () => void;
   searchOpen: boolean;
   onToggleSearch: () => void;
-  badge: "cached" | "offline" | null;
+  badge: "cached" | "offline" | "reconnecting" | null;
   focusMode: boolean;
   onExitFocus: () => void;
   /** The ⋯ trigger + menu, owned by the parent. */
@@ -105,12 +106,25 @@ export const ReaderTopBar = memo(function ReaderTopBar(p: ReaderTopBarProps) {
       <div className="flex shrink-0 items-center gap-0.5">
         {p.badge && (
           <span
-            className={`hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold sm:inline-flex ${
-              p.badge === "cached" ? "reader-success" : "reader-muted"
+            // A connection state is a status, not decoration: announced
+            // politely so a screen-reader user learns the reader has stopped
+            // fetching, and shown on phones too (where the outage is likeliest).
+            role={p.badge === "cached" ? undefined : "status"}
+            aria-live={p.badge === "cached" ? undefined : "polite"}
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+              p.badge === "cached" ? "reader-success hidden sm:inline-flex" : "reader-muted"
             }`}
           >
-            {p.badge === "cached" ? <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> : <WifiOff className="h-3.5 w-3.5" aria-hidden />}
-            {p.badge === "cached" ? t("offlineAvailable") : t("offlineNow")}
+            {p.badge === "cached" ? (
+              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+            ) : p.badge === "reconnecting" ? (
+              <RefreshCw className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden />
+            ) : (
+              <WifiOff className="h-3.5 w-3.5" aria-hidden />
+            )}
+            <span className={p.badge === "cached" ? undefined : "hidden sm:inline"}>
+              {p.badge === "cached" ? t("offlineAvailable") : p.badge === "reconnecting" ? t("reconnecting") : t("offlineNow")}
+            </span>
           </span>
         )}
         <button

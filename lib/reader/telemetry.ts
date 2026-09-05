@@ -1,16 +1,31 @@
 /* Reader telemetry helpers — browser-side, side-effect-free until `send`.
 
    What is logged: event type, book id, the PDF's PATH (never its query
-   string), page, duration, request/byte counts, cache/network source. What is
-   never logged: document text, selections, tokens, signed URLs. The route on
-   the other end (`/api/reader-events`) clamps and re-validates everything. */
+   string), page, duration, request/byte counts, cache/network source, and
+   coarse enums (device class, network tier, error kind). What is never
+   logged: document text, selections, tokens, signed URLs, IP addresses, user
+   ids. The route on the other end (`/api/reader-events`) clamps and
+   re-validates everything and drops any key it does not know. */
 
 export type ReaderEventType =
   | "pdf_load_error"
   | "pdf_load_slow"
   | "pdf_render_error"
   | "pdf_first_page"
+  /** A single page's bytes could not be fetched — the network-outage failure. */
+  | "page_load_error"
+  /** The reader stopped being able to fetch (browser offline, or a transient failure). */
+  | "offline_transition"
+  /** A probe succeeded after an outage; `reloaded` says whether the document
+      had to be reloaded to clear pdf.js's broken chunk state. */
+  | "network_recovery"
+  /** One summary per reading session: prefetch hit rate and peak mounted pages. */
+  | "reader_session"
   | "broken_file_report";
+
+/** Coarse device class. Derived from pointer type and viewport width — never
+    from a user-agent string, and never fine-grained enough to identify. */
+export type ReaderDeviceClass = "phone" | "tablet" | "desktop";
 
 export type ReaderEventPayload = {
   type: ReaderEventType;
@@ -25,6 +40,17 @@ export type ReaderEventPayload = {
   bytes?: number;
   /** "cache" when the book was already on the device, else "network". */
   source?: string;
+  device?: ReaderDeviceClass;
+  /** Preload tier in force: "slow" | "normal" | "fast". */
+  tier?: string;
+  /** Error classification (`lib/reader/errors`), an enum, not a message. */
+  kind?: string;
+  /** network_recovery: was a document reload needed? */
+  reloaded?: boolean;
+  /** reader_session counters. */
+  prefetchHits?: number;
+  prefetchMisses?: number;
+  maxMounted?: number;
 };
 
 /** The PDF URL reduced to a path: no origin, no query string, no token. */
