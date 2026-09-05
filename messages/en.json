@@ -178,6 +178,7 @@
     "startFromBeginning": "Start from beginning",
     "offlineAvailable": "Available offline",
     "offlineNow": "Offline",
+    "reconnecting": "Reconnecting…",
     "readerLabel": "{title} — reader",
     "retrying": "Retrying…"
   },

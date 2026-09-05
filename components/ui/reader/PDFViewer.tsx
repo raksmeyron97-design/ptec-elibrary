@@ -1,8 +1,8 @@
 "use client";
 
 import {
+  Fragment,
   useCallback,
-  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -48,10 +48,17 @@ import {
 import {
   clamp,
   computeVirtualRange,
-  mergeRanges,
   pageAtScroll,
   rowTop,
 } from "@/lib/reader/virtual";
+import {
+  READER_BUDGETS,
+  canvasBytes,
+  classifyDevice,
+  deviceBudgetClass,
+  prefetchWindowSize,
+} from "@/lib/reader/budgets";
+import { readingDirection, type ReadingDirection } from "@/lib/reader/prefetch";
 import { classifyPdfError, type PdfErrorKind } from "@/lib/reader/errors";
 import { localizeDigits } from "@/lib/reader/page-input";
 import { currentSectionIndex, sectionTitleForPage, type FlatOutlineEntry } from "@/lib/reader/outline";
@@ -88,6 +95,9 @@ import { useLatest } from "./hooks/useLatest";
 import { useResolvedPdfFile } from "./hooks/useResolvedPdfFile";
 import { useReaderTelemetry } from "./hooks/useReaderTelemetry";
 import { useReaderPreload } from "./hooks/useReaderPreload";
+import { useMountPlan } from "./hooks/useMountPlan";
+import { useConnectivity } from "./hooks/useConnectivity";
+import { useIdleDocumentCleanup } from "./hooks/useIdleDocumentCleanup";
 import { useAutoHideControls } from "./hooks/useAutoHideControls";
 import { useTextLayerA11y } from "./hooks/useTextLayerA11y";
 import { useReaderGestures } from "./hooks/useReaderGestures";
@@ -263,6 +273,10 @@ export default function PDFViewer({
   const [downloading, setDownloading] = useState(false);
   const [annotationColor, setAnnotationColor] = useState<AnnotationColor>(ANNOTATION_DEFAULT_COLOR);
   const [statusMessage, setStatusMessage] = useState("");
+  /** Single-page mode: the page the reader is looking at has painted, so the
+      off-screen neighbours may start. Reset on every page turn and on any
+      geometry change, so a neighbour never competes with the current page. */
+  const [singlePageReady, setSinglePageReady] = useState(false);
   const [pageAnnouncement, setPageAnnouncement] = useState("");
 
   /* ── Refs ───────────────────────────────────────────────────── */
@@ -283,7 +297,13 @@ export default function PDFViewer({
   const statusTimerRef = useRef<number | undefined>(undefined);
 
   /* ── Telemetry + preload policy ─────────────────────────────── */
-  const { reportReaderEvent, onFirstPagePainted, firstPagePainted, elapsed } = useReaderTelemetry({
+  const {
+    reportReaderEvent,
+    onFirstPagePainted,
+    firstPagePainted,
+    firstPageTransfer,
+    elapsed,
+  } = useReaderTelemetry({
     bookId,
     pdfUrl,
     offline,
@@ -291,7 +311,30 @@ export default function PDFViewer({
     docKey,
     currentPageRef,
   });
-  const preload = useReaderPreload(firstPagePainted);
+  // The tier follows Network Information where it exists and the measured
+  // first-page transfer everywhere else (Safari, Firefox), so an iPhone on a
+  // poor link is no longer treated as "normal" by default.
+  const preload = useReaderPreload(firstPagePainted, firstPageTransfer);
+
+  /* ── Connectivity ───────────────────────────────────────────────
+     Offline reading is already network-free, and a blob: URL cannot be
+     probed, so the machine is inert there. Everywhere else it freezes new
+     requests during an outage and reloads the document ONCE when the link
+     comes back — a failed range request leaves its chunk permanently
+     "in flight" inside pdf.js, so a later request for it hangs rather than
+     retrying (docs/READER-PRODUCTION-AUDIT-2.md §F2). */
+  const reloadForRecoveryRef = useRef(false);
+  const connectivity = useConnectivity({
+    enabled: !offline && !!pdfUrl && !fromCache,
+    probeUrl: pdfUrl,
+    onReload: () => {
+      reloadForRecoveryRef.current = true;
+      setLoadErrorKind(null);
+      setDocKey((k) => k + 1);
+    },
+    onTransition: () => reportReaderEvent("offline_transition"),
+    onRecovery: (reloaded) => reportReaderEvent("network_recovery", { reloaded }),
+  });
 
   /* ── Geometry ───────────────────────────────────────────────── */
   const geom = useMemo(
@@ -325,39 +368,84 @@ export default function PDFViewer({
   const frameClass = cx("reader-page-frame", theme === "dark" ? "reader-page-frame--dark" : "reader-page-frame--light");
   const placeholderClass = theme === "dark" ? "reader-placeholder--dark" : "reader-placeholder--light";
 
-  /* ── Virtualisation (visible now, overscan deferred) ───────────
-     The visible window renders at normal priority; the overscan rows arrive
-     in a deferred pass, which puts the page being read ahead of its
-     neighbours in pdf.js's render queue. Overscan is 0 until page 1 paints. */
-  const virtualInput = {
-    scrollTop,
-    viewportHeight: containerHeight ?? 0,
-    rowHeight,
-    numPages,
-    insetTop: HUD_INSET_TOP,
-  };
+  /* ── Virtualisation + prefetch ─────────────────────────────────
+     The visible window is mounted unconditionally. Everything beyond it is
+     PREFETCH: budgeted (pages, bytes and canvas memory — lib/reader/budgets),
+     ordered nearest-first in the reading direction, admitted a couple at a
+     time and only once the visible pages have painted, and never admitted
+     while the link is down (lib/reader/prefetch). */
   const visibleRange = useMemo(
-    () => computeVirtualRange({ ...virtualInput, overscan: 0 }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    () =>
+      computeVirtualRange({
+        scrollTop,
+        viewportHeight: containerHeight ?? 0,
+        rowHeight,
+        numPages,
+        insetTop: HUD_INSET_TOP,
+        overscan: 0,
+      }),
     [scrollTop, containerHeight, rowHeight, numPages],
   );
-  const fullRange = useMemo(
-    () => computeVirtualRange({ ...virtualInput, overscan: preload.overscan }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [scrollTop, containerHeight, rowHeight, numPages, preload.overscan],
+  const visibleWindow = useMemo(
+    () => ({ start: visibleRange.visibleStart, end: visibleRange.visibleEnd }),
+    [visibleRange.visibleStart, visibleRange.visibleEnd],
   );
-  const deferredKey = useDeferredValue(`${fullRange.start}-${fullRange.end}`);
-  const mountedPages = useMemo(() => {
-    if (viewMode !== "scroll" || !numPages) return [];
-    const [ds, de] = deferredKey.split("-").map(Number);
-    return mergeRanges(
-      { start: visibleRange.visibleStart, end: visibleRange.visibleEnd },
-      { start: ds, end: de },
-      numPages,
-    );
-  }, [viewMode, numPages, visibleRange.visibleStart, visibleRange.visibleEnd, deferredKey]);
+
+  const [direction, setDirection] = useState<ReadingDirection>(0);
+  const deviceClass = useMemo(
+    () =>
+      classifyDevice({
+        coarsePointer: typeof window !== "undefined" && !!window.matchMedia?.("(pointer: coarse)").matches,
+        viewportWidth: containerWidth ?? 0,
+      }),
+    [containerWidth],
+  );
+  /** File size ÷ pages, so a scanned book prefetches fewer pages than a text
+      one on the same link. `null` until the document reports its length. */
+  const [docBytes, setDocBytes] = useState<number | null>(null);
+  const overscan = useMemo(
+    () =>
+      prefetchWindowSize({
+        tier: preload.tier,
+        visibleCount: Math.max(1, visibleWindow.end - visibleWindow.start + 1),
+        bytesPerPage: docBytes && numPages ? docBytes / numPages : undefined,
+        perPageCanvasBytes: canvasBytes(pageWidth ?? 0, estHeight, renderPixelRatio),
+        device: deviceBudgetClass(deviceClass),
+      }),
+    [preload.tier, visibleWindow, docBytes, numPages, pageWidth, estHeight, renderPixelRatio, deviceClass],
+  );
+
+  const geometryKey = `${pageWidth ?? 0}|${pageRotate ?? "auto"}|${renderPixelRatio}`;
+  const documentKey = `${docKey}|${resolvedFile ?? ""}`;
+  const {
+    mountedPages,
+    onPageSettled,
+    notePageVisited,
+    stats: mountStats,
+  } = useMountPlan({
+    active: viewMode === "scroll" && numPages > 0,
+    visible: visibleWindow,
+    numPages,
+    overscan: firstPagePainted ? overscan : 0,
+    direction,
+    online: connectivity.mayFetch,
+    maxConcurrent: READER_BUDGETS.MAX_CONCURRENT_PREFETCH,
+    geometryKey,
+    documentKey,
+  });
+  /** Spacer heights, including any gap inside the mounted set — the plan is a
+      SET of pages, not a span, so two runs can be separated. */
   const spacerBefore = mountedPages.length ? (mountedPages[0] - 1) * rowHeight : 0;
   const spacerAfter = mountedPages.length ? (numPages - mountedPages[mountedPages.length - 1]) * rowHeight : 0;
+
+  /* Release pdf.js's worker-side caches (decoded images, fonts, xref) once
+     rendering has been idle. Keyed on the mounted set + geometry, so the timer
+     restarts on any render activity and never fires mid-render. */
+  useIdleDocumentCleanup({
+    pdf: pdfDoc,
+    activityKey: `${documentKey}|${geometryKey}|${mountedPages.join(",")}`,
+    enabled: !!pdfDoc,
+  });
 
   /* ── Announcements ──────────────────────────────────────────── */
   const announce = useCallback((msg: string) => {
@@ -384,6 +472,7 @@ export default function PDFViewer({
   }, []);
   const navigateToPage = useCallback((val: number) => {
     const target = clamp(1, numPagesRef.current || 1, val);
+    setDirection(readingDirection(currentPageRef.current, target));
     currentPageRef.current = target;
     setCurrentPage(target);
     setResumePrompt(null);
@@ -426,6 +515,7 @@ export default function PDFViewer({
         ? numPagesRef.current
         : pageAtScroll(nextTop, el.clientHeight, geomRef.current.rowHeight, numPagesRef.current, HUD_INSET_TOP);
       if (next !== currentPageRef.current) {
+        setDirection(readingDirection(currentPageRef.current, next));
         currentPageRef.current = next;
         setCurrentPage(next);
       }
@@ -640,12 +730,33 @@ export default function PDFViewer({
   }, [isDesktop]);
 
   /* ── Document callbacks ─────────────────────────────────────── */
+  const onDocumentLoadProgress = useCallback(({ total }: { total?: number }) => {
+    // `total` is the file route's Content-Length. It is what makes the byte
+    // budget per page real rather than a guess.
+    if (typeof total === "number" && total > 0) setDocBytes(total);
+  }, []);
   const onDocumentLoadSuccess = (pdf: PdfDocumentProxy) => {
     pdfRef.current = pdf;
     setPdfDoc(pdf);
     setLoadErrorKind(null);
     setNumPages(pdf.numPages);
     numPagesRef.current = pdf.numPages; // fresh for navigateToPage below
+    // A reload to recover from an outage must land the reader back where they
+    // were, not re-run resume and not apologise with "Welcome back".
+    if (reloadForRecoveryRef.current) {
+      reloadForRecoveryRef.current = false;
+      const keep = clamp(1, pdf.numPages, currentPageRef.current);
+      initialScrollDoneRef.current = true;
+      requestAnimationFrame(() => {
+        const el = containerRef.current;
+        if (!el || geomRef.current.viewMode !== "scroll") return;
+        const top = rowTop(keep, geomRef.current.rowHeight, HUD_INSET_TOP);
+        beginProgrammaticScroll(top, 700);
+        el.scrollTop = top;
+        setScrollTop(top);
+      });
+      return;
+    }
     const local = localPositionRef.current ?? parseLocalPosition(lsGet(READER_KEYS.position(bookId)));
     const fromLocal = resolveResumePage({
       local,
@@ -683,12 +794,54 @@ export default function PDFViewer({
     if (durationMs > 8000) reportReaderEvent("pdf_load_slow", { durationMs });
   };
   const onDocumentLoadError = (error: Error) => {
-    setLoadErrorKind(classifyPdfError(error));
-    reportReaderEvent("pdf_load_error", { message: error.message });
+    const kind = classifyPdfError(error);
+    setLoadErrorKind(kind);
+    // A transient failure (offline, 429, 5xx) starts the reconnect machine,
+    // which retries on its own schedule instead of leaving a dead screen.
+    connectivity.reportLoadFailure(kind);
+    reportReaderEvent("pdf_load_error", { message: error.message, kind, bytes: docBytes ?? undefined });
   };
   const onPageRenderError = useCallback(
-    (page: number, error: Error) => reportReaderEvent("pdf_render_error", { page, message: error.message }),
-    [reportReaderEvent],
+    (page: number, error: Error) => {
+      onPageSettled(page, false);
+      reportReaderEvent("pdf_render_error", { page, message: error.message });
+    },
+    [reportReaderEvent, onPageSettled],
+  );
+  /** A page's BYTES could not be fetched — the failure a network outage
+      produces, and the one that used to be invisible: react-pdf showed its
+      own English "Failed to load the page." forever, nothing was reported,
+      and pdf.js's stream manager was left with a chunk it would never retry. */
+  const onPageLoadError = useCallback(
+    (page: number, error: Error) => {
+      const kind = classifyPdfError(error);
+      onPageSettled(page, false);
+      connectivity.reportLoadFailure(kind);
+      reportReaderEvent("page_load_error", { page, message: error.message, kind });
+    },
+    [connectivity, reportReaderEvent, onPageSettled],
+  );
+  const onPageRendered = useCallback(
+    (page: number) => {
+      onPageSettled(page, true);
+      onFirstPagePainted();
+    },
+    [onPageSettled, onFirstPagePainted],
+  );
+  /* Single-page mode has one <Page>; its handlers read the page from a ref so
+     they are stable, which keeps react-pdf's own render effect from re-running
+     on every parent render. */
+  const onSinglePageRendered = useCallback(() => {
+    setSinglePageReady(true);
+    onPageRendered(currentPageRef.current);
+  }, [onPageRendered]);
+  const onSinglePageRenderError = useCallback(
+    (error: Error) => onPageRenderError(currentPageRef.current, error),
+    [onPageRenderError],
+  );
+  const onSinglePageLoadError = useCallback(
+    (error: Error) => onPageLoadError(currentPageRef.current, error),
+    [onPageLoadError],
   );
   const onFirstPageLoad = (page: { originalWidth?: number; originalHeight?: number; width: number; height: number; rotate?: number }) => {
     const w = page.originalWidth ?? page.width;
@@ -901,6 +1054,38 @@ export default function PDFViewer({
   useEffect(() => {
     numPagesRef.current = numPages;
   }, [numPages]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSinglePageReady(false);
+  }, [currentPage, pageWidth, pageRotate, renderPixelRatio, docKey]);
+
+  /* One session summary at teardown: how well the prefetcher did and how many
+     pages were ever mounted at once. Counts only — see lib/reader/telemetry. */
+  useEffect(() => {
+    if (offline) return;
+    const flush = () => {
+      const s = mountStats();
+      if (s.hits + s.misses === 0) return;
+      reportReaderEvent("reader_session", {
+        prefetchHits: s.hits,
+        prefetchMisses: s.misses,
+        maxMounted: s.maxMounted,
+      });
+    };
+    window.addEventListener("pagehide", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, [offline, mountStats, reportReaderEvent]);
+
+  /* Prefetch hit/miss: was the page the reader moved to already fetched? */
+  const visitedRef = useRef(0);
+  useEffect(() => {
+    if (!numPages || currentPage === visitedRef.current) return;
+    visitedRef.current = currentPage;
+    notePageVisited(currentPage);
+  }, [currentPage, numPages, notePageVisited]);
 
   /* ── No-PDF fallback ────────────────────────────────────────── */
   if (!pdfUrl) {
@@ -951,7 +1136,7 @@ export default function PDFViewer({
     ...(reportHref ? [{ id: "report", label: t("reportProblem"), icon: <Flag className="h-4 w-4" />, href: reportHref, onSelect: onReport } as MoreMenuItem] : []),
   ];
 
-  const badge: "cached" | "offline" | null = fromCache ? "cached" : isOffline ? "offline" : null;
+  const badge = connectivity.badge(fromCache) ?? (isOffline ? ("offline" as const) : null);
   const showTransition = viewMode === "single" && pageTransition === "auto";
 
   const panelBody =
@@ -1104,6 +1289,7 @@ export default function PDFViewer({
                   file={resolvedFile ?? undefined}
                   options={PDF_DOCUMENT_OPTIONS}
                   onLoadSuccess={onDocumentLoadSuccess}
+                  onLoadProgress={onDocumentLoadProgress}
                   onLoadError={onDocumentLoadError}
                   onSourceError={onDocumentLoadError}
                   loading={
@@ -1129,22 +1315,31 @@ export default function PDFViewer({
                   {viewMode === "scroll" ? (
                     <div className="flex flex-col" style={{ paddingTop: HUD_INSET_TOP, paddingBottom: HUD_INSET_BOTTOM }}>
                       {spacerBefore > 0 && <div style={{ height: spacerBefore }} aria-hidden />}
-                      {mountedPages.map((p) => (
-                        <ReaderPage
-                          key={p}
-                          pageNumber={p}
-                          width={pageWidth}
-                          estHeight={estHeight}
-                          rotate={pageRotate}
-                          pageColors={pageColors}
-                          frameClass={frameClass}
-                          placeholderClass={placeholderClass}
-                          devicePixelRatio={renderPixelRatio}
-                          onRenderError={(error) => onPageRenderError(p, error)}
-                          onRenderSuccess={onFirstPagePainted}
-                          customTextRenderer={textRendererFor(p)}
-                        />
-                      ))}
+                      {mountedPages.map((p, i) => {
+                        // The plan is a set, not a span: a page evicted from
+                        // between two runs leaves a gap that has to keep its
+                        // height, or every row below it jumps.
+                        const gap = i > 0 ? (p - mountedPages[i - 1] - 1) * rowHeight : 0;
+                        return (
+                          <Fragment key={p}>
+                            {gap > 0 && <div style={{ height: gap }} aria-hidden />}
+                            <ReaderPage
+                              pageNumber={p}
+                              width={pageWidth}
+                              estHeight={estHeight}
+                              rotate={pageRotate}
+                              pageColors={pageColors}
+                              frameClass={frameClass}
+                              placeholderClass={placeholderClass}
+                              devicePixelRatio={renderPixelRatio}
+                              onRenderError={onPageRenderError}
+                              onLoadError={onPageLoadError}
+                              onRendered={onPageRendered}
+                              customTextRenderer={textRendererFor(p)}
+                            />
+                          </Fragment>
+                        );
+                      })}
                       {spacerAfter > 0 && <div style={{ height: spacerAfter }} aria-hidden />}
                       {/* capture page-1 geometry once */}
                       {!arMeasuredRef.current && (
@@ -1163,16 +1358,19 @@ export default function PDFViewer({
                           pageColors={pageColors}
                           devicePixelRatio={renderPixelRatio}
                           onLoadSuccess={arMeasuredRef.current ? undefined : onFirstPageLoad}
-                          onRenderError={(error) => onPageRenderError(currentPage, error)}
-                          onRenderSuccess={onFirstPagePainted}
+                          onLoadError={onSinglePageLoadError}
+                          onRenderError={onSinglePageRenderError}
+                          onRenderSuccess={onSinglePageRendered}
                           renderTextLayer
                           renderAnnotationLayer
                           customTextRenderer={textRendererFor(currentPage)}
                           loading={<div style={{ height: estHeight, width: pageWidth }} className={cx("animate-pulse rounded motion-reduce:animate-none", placeholderClass)} />}
                         />
                       </div>
-                      {/* Neighbours pre-rendered off-screen for instant page turns — how many depends on the link. */}
-                      {preload.neighbours > 0 && (
+                      {/* Neighbours pre-rendered off-screen for instant page turns — how
+                          many depends on the link, and none until the page the reader is
+                          looking at has painted AND the link is up. */}
+                      {preload.neighbours > 0 && connectivity.mayFetch && singlePageReady && (
                         <div aria-hidden className="pointer-events-none absolute opacity-0" style={{ left: -99999, top: 0 }}>
                           {preload.neighbours >= 2 && currentPage > 1 && (
                             <Page pageNumber={currentPage - 1} width={pageWidth} rotate={pageRotate} pageColors={pageColors} devicePixelRatio={renderPixelRatio} renderTextLayer={false} renderAnnotationLayer={false} />

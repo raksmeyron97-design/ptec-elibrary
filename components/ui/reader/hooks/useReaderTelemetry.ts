@@ -5,8 +5,11 @@ import {
   measurePdfTransfer,
   safePdfPath,
   sendReaderEvent,
+  type ReaderDeviceClass,
   type ReaderEventType,
 } from "@/lib/reader/telemetry";
+import { classifyDevice } from "@/lib/reader/budgets";
+import type { MeasuredTransfer } from "@/lib/reader/preload";
 
 export type ReportReaderEvent = (
   type: ReaderEventType,
@@ -17,8 +20,22 @@ export type ReportReaderEvent = (
     requests?: number;
     bytes?: number;
     source?: string;
+    kind?: string;
+    reloaded?: boolean;
+    prefetchHits?: number;
+    prefetchMisses?: number;
+    maxMounted?: number;
   },
 ) => void;
+
+/** Pointer type and viewport width only — never a user-agent string. */
+function deviceClass(): ReaderDeviceClass {
+  if (typeof window === "undefined") return "desktop";
+  return classifyDevice({
+    coarsePointer: !!window.matchMedia?.("(pointer: coarse)").matches,
+    viewportWidth: window.innerWidth,
+  });
+}
 
 /**
  * Reader telemetry: five event types, counts and enums only.
@@ -52,6 +69,9 @@ export function useReaderTelemetry({
   const docId = `${docKey}|${pdfUrl ?? ""}`;
   const reportedForRef = useRef<string | null>(null);
   const [firstPagePainted, setFirstPagePainted] = useState(false);
+  /** What painting the first page cost, for the network tier. Undefined where
+      Resource Timing cannot answer — never a guess. */
+  const [firstPageTransfer, setFirstPageTransfer] = useState<MeasuredTransfer | undefined>(undefined);
   // The clock for the FIRST document starts at first render (a state
   // initialiser), not in an effect: children's effects — where react-pdf
   // reports a load — run before a parent's, so an effect-started clock could
@@ -62,7 +82,10 @@ export function useReaderTelemetry({
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (clock.id !== docId) setClock({ id: docId, at: performance.now() });
-    if (reportedForRef.current !== docId) setFirstPagePainted(false);
+    if (reportedForRef.current !== docId) {
+      setFirstPagePainted(false);
+      setFirstPageTransfer(undefined);
+    }
   }, [docId, clock.id]);
 
   const reportReaderEvent = useCallback<ReportReaderEvent>(
@@ -78,6 +101,12 @@ export function useReaderTelemetry({
         requests: details.requests,
         bytes: details.bytes,
         source: details.source,
+        device: deviceClass(),
+        kind: details.kind,
+        reloaded: details.reloaded,
+        prefetchHits: details.prefetchHits,
+        prefetchMisses: details.prefetchMisses,
+        maxMounted: details.maxMounted,
       });
     },
     [bookId, pdfUrl, offline, currentPageRef],
@@ -93,6 +122,8 @@ export function useReaderTelemetry({
         ? (performance.getEntriesByType("resource") as PerformanceResourceTiming[])
         : null;
     const { requests, bytes } = measurePdfTransfer(pdfUrl, entries, window.location.origin);
+    // Feeds the network tier where navigator.connection does not exist.
+    if (typeof bytes === "number") setFirstPageTransfer({ bytes, durationMs });
     reportReaderEvent("pdf_first_page", {
       durationMs,
       requests,
@@ -104,5 +135,5 @@ export function useReaderTelemetry({
   /** Milliseconds since the current document started loading. */
   const elapsed = useCallback(() => Math.round(performance.now() - clock.at), [clock.at]);
 
-  return { reportReaderEvent, onFirstPagePainted, firstPagePainted, elapsed };
+  return { reportReaderEvent, onFirstPagePainted, firstPagePainted, firstPageTransfer, elapsed };
 }

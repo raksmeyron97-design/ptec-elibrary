@@ -18,8 +18,25 @@ export const PDF_DOCUMENT_OPTIONS = {
   // Type 4 PostScript functions, and only their first render.
   isEvalSupported: false,
   // Fetch only what is rendered — the reader's whole large-book strategy.
+  //
+  // BOTH flags are required, and that is not obvious. `disableAutoFetch` alone
+  // does nothing while streaming is on: pdf.js cancels its initial
+  // full-document request only when `!isStreamingSupported && isRangeSupported`
+  // (pdf.mjs, FetchTransport), and the worker then sets
+  // `disableAutoFetch ||= fullReader.isStreamingSupported` — so the option
+  // looked honoured while the whole file arrived anyway, as a background
+  // stream, in addition to the ranges. Measured before this line existed:
+  // opening a 100 MB book and reading page 1 pushed 178 MB (a 102 MB stream
+  // plus 76 MB of ranges) through the proxy; a 10 MB book pushed all 10 MB.
+  // With streaming off it is a few hundred KB. See
+  // docs/READER-PRODUCTION-AUDIT-2.md §F1 and the verification document's
+  // before/after table.
+  //
+  // The cost is one extra round trip on first paint (chunk 0 arrives as a
+  // range rather than in the initial body). That is the trade the whole
+  // large-book strategy is built on: requests are cheap, the file is not.
   disableAutoFetch: true,
-  disableStream: false,
+  disableStream: true,
   // 512 KB, not pdf.js's 64 KB default. Every range request is a full,
   // authorised round trip through /api/books/[id]/file, so the cost of a
   // chunk is dominated by the request, not its size. Measured: the ~4 MB a

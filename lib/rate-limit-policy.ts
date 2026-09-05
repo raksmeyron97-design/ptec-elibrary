@@ -181,6 +181,20 @@ const POLICIES = {
     windowMs: 60_000,
   }),
   /** Second-factor verification — per signed-in user, else per client. */
+  /**
+   * Reader telemetry beacons — per IP, anonymous by necessity (a beacon fires
+   * as the document is torn down, and there is no session to key on).
+   *
+   * A reading session emits a handful: one first-page event, one session
+   * summary, and one per failure or outage. 120/min is far above that and far
+   * below anything that could be used to write rows in volume; over the limit
+   * the event is dropped with a 204, never a 429 — a beacon cannot read a
+   * reply and must not retry.
+   */
+  readerEvents: () => ({
+    limit: strictDiv(envInt("RL_READER_EVENTS_PER_MIN", 120)),
+    windowMs: 60_000,
+  }),
   mfaVerify: () => ({
     limit: envInt("RL_MFA_VERIFY_PER_5MIN", 10),
     windowMs: 5 * 60_000,

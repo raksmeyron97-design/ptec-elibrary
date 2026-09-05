@@ -183,6 +183,7 @@
     "startFromBeginning": "ចាប់ផ្ដើមពីដំបូង",
     "offlineAvailable": "អានបានក្រៅបណ្ដាញ",
     "offlineNow": "ក្រៅបណ្ដាញ",
+    "reconnecting": "កំពុងតភ្ជាប់ឡើងវិញ…",
     "readerLabel": "{title} — កម្មវិធីអាន",
     "retrying": "កំពុងព្យាយាមម្ដងទៀត…"
   },

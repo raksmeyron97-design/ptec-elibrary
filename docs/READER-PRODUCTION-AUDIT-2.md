@@ -5,8 +5,13 @@ Audit of `main` at `2c615f3` on 2026-09-05, before any change. Companion to
 rebuild) and [LARGE-PDF-PERFORMANCE-AUDIT.md](./LARGE-PDF-PERFORMANCE-AUDIT.md)
 (the range-request work). Those documents describe what was *intended*; this one
 records what the code and the bundled libraries *actually do*, from reading
-`react-pdf@10.4.1` and `pdfjs-dist@6.2.108` as shipped in `node_modules`, not
-from their documentation.
+`react-pdf@10.4.1` and the `pdfjs-dist@5.4.296` it bundles
+(`node_modules/react-pdf/node_modules/pdfjs-dist` — the browser build; the
+top-level `pdfjs-dist@6.2.108` is the server-side text extractor) as shipped,
+not from their documentation. Line references below are into the 6.2.108
+build, which is easier to read; every cited code path was re-checked in the
+5.4.296 build (`pdf.mjs:12842`, `pdf.worker.mjs:3178/3269/58239`,
+`pdf.mjs:14696`) and is identical in behaviour.
 
 What changed as a result is in
 [READER-PRODUCTION-PERFORMANCE-VERIFICATION.md](./READER-PRODUCTION-PERFORMANCE-VERIFICATION.md);
