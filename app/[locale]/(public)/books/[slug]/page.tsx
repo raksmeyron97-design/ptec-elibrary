@@ -36,6 +36,7 @@ import { unstable_cache } from "next/cache";
 import JsonLd from "@/components/seo/JsonLd";
 import { buildBookMetadata, bookCanonicalUrl, bookJsonLd, type BookSeoInput } from "@/lib/seo/book-seo";
 import ResourceConnections from "@/components/seo/ResourceConnections";
+import BookTopics from "@/components/ui/books/BookTopics";
 import { resolveSubjectLinks } from "@/lib/resources/connections";
 import RelatedBooks from "@/components/ui/books/RelatedBooks";
 import CiteBook from "@/components/ui/books/CiteBook";
@@ -500,6 +501,18 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
             }
           >
             <ReviewsSection book={book} />
+          </Suspense>
+        )}
+
+        {/* What this book demonstrably covers, from its own extracted text
+            (0137). Streamed for the same reason as the hubs below: it reads a
+            precomputed row rather than this request's data. Renders nothing —
+            which is the common case — when the record has no insights, so the
+            book page is byte-identical to before for every record the build
+            script has not reached. */}
+        {book.dbId && (
+          <Suspense fallback={null}>
+            <BookTopics bookId={book.dbId} locale={locale} />
           </Suspense>
         )}
 
