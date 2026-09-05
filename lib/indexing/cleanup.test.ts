@@ -2,12 +2,19 @@
  *
  * A deleted resource must leave nothing searchable behind.
  *
- * `book_pages`, `book_chunks` and `resource_index_state` are all polymorphic
- * (`record_type` + `record_id`) with NO foreign key to the resource tables —
- * books, theses and publications live in three separate tables, so there is
- * nothing to cascade from. That makes cleanup the *caller's* job, and a caller
- * that forgets one of the three leaves a deleted book's text in the search
- * index and its passages quotable by the AI.
+ * `book_pages`, `book_chunks`, `resource_index_state` and
+ * `resource_semantic_insights` are all polymorphic (`record_type` +
+ * `record_id`) with NO foreign key to the resource tables — books, theses and
+ * publications live in three separate tables, so there is nothing to cascade
+ * from. That makes cleanup the *caller's* job, and a caller that forgets one
+ * of them leaves a deleted book's text in the search index and its passages
+ * quotable by the AI.
+ *
+ * 0137 arrived claiming in its own header that "deletes cascade through the
+ * same server code that already clears those". They did not: none of the four
+ * call sites touched the new table, and this list is what would have said so.
+ * A derived table added without a line here is a leak nothing else can find,
+ * because a polymorphic orphan has no parent to be noticed from.
  *
  * This is a source scan rather than a behavioural test for the same reason the
  * other invariant tests in this repo are: the failure is an OMISSION at a call
@@ -32,8 +39,13 @@ const DELETE_SITES: Array<{ file: string; recordType: string; label: string }> =
   { file: "app/actions/publications.ts", recordType: "publication", label: "publication delete" },
 ];
 
-/** The three tables that make a resource's text retrievable. */
-const RETRIEVAL_TABLES = ["book_pages", "book_chunks", "resource_index_state"] as const;
+/** Every table derived from a resource's extracted text. */
+const RETRIEVAL_TABLES = [
+  "book_pages",
+  "book_chunks",
+  "resource_index_state",
+  "resource_semantic_insights",
+] as const;
 
 function read(rel: string): string {
   return readFileSync(path.join(ROOT, rel), "utf8");
