@@ -206,6 +206,55 @@ files, and offline recoveries are not computable. `app_events` (migration
 `0090`) already holds AI telemetry rows with exactly the shape needed; its
 `kind` check constraint just does not admit a reader kind.
 
+### F10 — A jump mounted every page between the old and new positions (HIGH) — found by measurement
+
+Not visible from the code review above; found by the first baseline run of
+`e2e/reader-performance.spec.ts`. The virtualiser mounted
+`mergeRanges(immediateWindow, deferredWindow)` — the *union* of the window
+at the current scroll position and the (lagging) `useDeferredValue` window.
+While scrolling the two are adjacent; after a jump (a resume to page 500,
+"Go to page", an outline entry, a search hit) they are arbitrarily far apart,
+and the union is every page in between for as long as the deferred value
+lags — which, with pdf.js busy rendering, is long. Measured at open on a real
+500-page document resuming at its last page: **500 pages and 502 canvases
+mounted**, 9,479 DOM nodes, 46.6 MB heap, a 25 s first paint. The component
+test "≤ 12 pages for a 500-page book" could not see it: it opens at page 1.
+
+### F11 — A reload landed the reader on the last page (MEDIUM) — found by measurement
+
+While `<Document>` shows its loading node the scroll content collapses to one
+placeholder, so `scrollHeight ≈ clientHeight` and the scroll handler's "at
+the end of the document" rule (`scrollTop >= scrollHeight − clientHeight −
+1`) was true at `scrollTop 0`. Any scroll event during a reload — the retry
+button, a new file, the recovery reload this phase adds — set the current
+page to the last page. Observed: recovery at page 240 of 300 ended on page
+300.
+
+### F12 — Search moved the page indicator off by one (LOW) — found by measurement
+
+Centring the active search highlight scrolls the container directly, and
+that scroll was read back as a page change. On a phone viewport (542 px
+high) the 35 % line then sits on the previous page: searching to page 431
+reported "Page 430" with the highlight on 431 mid-screen, and saved that
+position.
+
+### F13 — pdf.js walks every page dictionary at load; where they sit decides the cost (MEDIUM, not ours to fix in the reader)
+
+`PDFDocument.checkLastPage()` runs at load and calls `getPage(numPages − 1)`;
+`Catalog.getPageDict()` on a flat `/Kids` array issues `xref.fetchAsync` for
+**every** kid (`pdf.worker.mjs`, "pageDictCache.put(lastKid,
+xref.fetchAsync(lastKid))"). Whether that costs one chunk or the whole file
+depends on the producer's object layout: page dictionaries written together
+(linearized/optimized output, most producers) fit in one or two 512 KB
+chunks; page dictionaries interleaved with each page's image (a naive
+page-at-a-time writer) put each one in its own chunk, and the load-time walk
+touches the entire file however `disableAutoFetch` is set. Measured with a
+10 MB / 20-page document of each shape after the streaming fix: **clustered
+7.6 MB → dominated by the mounted pages' own images; interleaved 12.6 MB =
+the whole file**. Pinned by a dedicated e2e case so a pdf.js change shows
+up. The remedy is at ingestion (`qpdf --object-streams=generate
+--linearize`), not in the viewer — recorded in READER-CACHING-STRATEGY.md.
+
 ### F9 — Smaller items
 
 * `useReaderSearch` keeps every page's text for the document's life; for a
@@ -269,7 +318,7 @@ file route keeps the HTTP cache out of it. The risk is F1: "ephemeral reader
 prefetch" today is *the entire file*, held in the worker's memory. Nothing
 else caches it, so nothing needs evicting — but nothing bounds it either.
 
-## 10. Proposed changes
+## 10. Proposed changes (as implemented; see the verification document)
 
 1. **`disableStream: true`** (F1). Every byte then arrives by an explicit
    512 KB range the reader asked for; the audit's chunk-size measurements

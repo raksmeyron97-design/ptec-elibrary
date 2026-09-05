@@ -68,14 +68,39 @@ The worker's `ChunkedStream` still allocates its `Uint8Array(length)` up front
 a chunk lands — so the measure that matters is bytes transferred, and it is
 now a function of pages read:
 
-| Situation | Before | After |
+| Situation (real range-serving server, Chromium) | Before | After |
 |---|---|---|
-| Open a 100 MB scanned book, read page 1 | whole file streamed in the background | see verification §4 — bounded, a handful of chunks |
-| Read pages 1 → 500 by jumps in a 24 MB book | whole file | proportional to pages visited plus one chunk of xref |
+| Open a 100 MB / 200-page scanned book, sit on page 1 | 178 MB pushed (102 MB stream + 157 ranges) | 7.1 MB, 11 requests, then **0** while idle |
+| Open a 25 MB / 50-page book | 36 MB | 7.6 MB |
+| 500-page book, 1 → 20 → 50 → … → 500 | 37.3 MB (the whole 24 MB file, twice in places) | 12.8 MB, proportional to pages visited |
 
 The cost is one extra round-trip on first paint: chunk 0 arrives by range
-rather than in the initial response body. Measured in the verification
-document.
+rather than in the initial response body. pdf.js cancels the initial GET as
+soon as the headers prove ranges are supported; what the server manages to
+push before the cancel lands is a property of the link (on loopback, with
+very large socket buffers, 0.4–3 MB), not of the file, and does not scale
+with it.
+
+**One cost the reader cannot control: where the producer put the page
+dictionaries.** pdf.js validates the page count at load
+(`checkLastPage` → `getPage(numPages − 1)`), and on a flat `/Kids` array
+that fetches *every* page dictionary. Written together — linearized or
+optimized output, most producers — they occupy one or two chunks. Written
+page-at-a-time next to each page's image, every dictionary sits in its own
+512 KB chunk and the load-time walk touches the whole file whatever the
+reader's settings (measured: 12.6 MB of a 10 MB file, pinned by
+`e2e/reader-performance.spec.ts` "scattered"). The remedy belongs to
+ingestion, not the viewer:
+
+```
+qpdf --object-streams=generate --linearize in.pdf out.pdf
+```
+
+packs the non-stream objects (every page dictionary among them) into a few
+compressed object streams and puts the first page's objects first. It is the
+single most effective large-PDF optimisation available to this collection and
+is recorded here as the next step rather than done in this phase, which is
+the reader's.
 
 ### 3.2 Decoded pages: the mounted window, and nothing after it
 
@@ -127,6 +152,23 @@ the visible page is re-rasterised first. Every rule is in
 (Chromium) and from the measured first-page transfer (bytes ÷ ms from Resource
 Timing) everywhere else; `Save-Data` forces `slow`. No tier can exceed the
 `fast` budgets. `lib/reader/preload.ts`.
+
+### 3.4a Outages
+
+A failed range request leaves its chunk registered as in flight inside
+pdf.js, so later requests for it hang rather than retry, and the failure may
+surface as a load error, a render error, or — most often — nothing at all.
+The reader treats three signals as one outage (`lib/reader/connectivity.ts`):
+the browser's `offline` event, a transient classified failure (network / 429
+/ 5xx) from a page load or render, and a **visible page that has not
+rendered for `STALL_TIMEOUT_MS` (12 s)**. During an outage nothing new is
+requested (rendered pages stay, prefetch stops, unfetched rows show their
+placeholder) and a small badge says so. Recovery is a one-byte `Range`
+probe of the document itself on a 2 → 30 s backoff, then — only if a
+request failed or a visible page is still waiting — one document reload
+that keeps the page, the zoom, the rotation and every local note. Reloads are
+capped at `MAX_RECOVERY_RELOADS` (3) per session; after that the honest error
+screen with a manual retry is shown.
 
 ### 3.5 What is deliberately NOT cached
 
