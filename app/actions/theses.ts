@@ -465,6 +465,7 @@ export async function deleteThesis(id: string) {
   await supabase.from("book_pages").delete().eq("record_type", "research").eq("record_id", id);
   await supabase.from("book_chunks").delete().eq("record_type", "research").eq("record_id", id);
   await supabase.from("resource_index_state").delete().eq("record_type", "research").eq("record_id", id);
+  await supabase.from("resource_semantic_insights").delete().eq("record_type", "research").eq("record_id", id);
 
   const { error } = await supabase.from("research_reports").delete().eq("id", id);
 
@@ -797,6 +798,7 @@ export async function bulkUpdateTheses(
     await supabase.from("book_pages").delete().eq("record_type", "research").in("record_id", ids);
     await supabase.from("book_chunks").delete().eq("record_type", "research").in("record_id", ids);
     await supabase.from("resource_index_state").delete().eq("record_type", "research").in("record_id", ids);
+    await supabase.from("resource_semantic_insights").delete().eq("record_type", "research").in("record_id", ids);
     const { error, count } = await supabase.from("research_reports").delete({ count: "exact" }).in("id", ids);
 
     for (const row of rows ?? []) {
