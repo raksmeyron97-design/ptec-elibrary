@@ -64,7 +64,8 @@ echo "Host"
 dir="${SUPABASE_DATA_DIR:-$INFRA_DIR/volumes/db/data}"
 mkdir -p "$dir" 2>/dev/null || bad "cannot create SUPABASE_DATA_DIR=$dir"
 free_gb=$(df -Pk "$dir" 2>/dev/null | awk 'NR==2{printf "%d", $4/1024/1024}')
-[ "${free_gb:-0}" -ge 10 ] && ok "${free_gb} GB free at $dir" || bad "less than 10 GB free at $dir"
+min_free="${PREFLIGHT_MIN_FREE_GB:-10}"
+[ "${free_gb:-0}" -ge "$min_free" ] && ok "${free_gb} GB free at $dir" || bad "less than ${min_free} GB free at $dir (PREFLIGHT_MIN_FREE_GB overrides for a staging host)"
 mem_gb=$(awk '/MemTotal/{printf "%d", $2/1024/1024}' /proc/meminfo 2>/dev/null || sysctl -n hw.memsize 2>/dev/null | awk '{printf "%d",$1/1024/1024/1024}')
 [ "${mem_gb:-0}" -ge 7 ] && ok "${mem_gb} GB RAM" || warn "${mem_gb:-?} GB RAM — below the 8 GB the memory budget assumes"
 [ -d "${MAIL_TEMPLATES_DIR:-$INFRA_DIR/../../supabase/templates}" ] && ok "mail templates directory present" || bad "mail templates directory missing"

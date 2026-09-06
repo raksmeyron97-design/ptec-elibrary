@@ -8,9 +8,10 @@ ENV_FILE="${ENV_FILE:-$INFRA_DIR/.env}"
 DB_CONTAINER="${DB_CONTAINER:-supabase-db}"
 STATE_DIR="${STATE_DIR:-/var/lib/ptec-supabase}"
 
-log()  { printf '%s [%s] %s\n' "$(date -Is)" "${SCRIPT_NAME:-infra}" "$*"; }
-warn() { printf '%s [%s] WARN: %s\n' "$(date -Is)" "${SCRIPT_NAME:-infra}" "$*" >&2; }
-die()  { printf '%s [%s] ERROR: %s\n' "$(date -Is)" "${SCRIPT_NAME:-infra}" "$*" >&2; exit 1; }
+now()  { date -u +%Y-%m-%dT%H:%M:%SZ; }
+log()  { printf '%s [%s] %s\n' "$(now)" "${SCRIPT_NAME:-infra}" "$*"; }
+warn() { printf '%s [%s] WARN: %s\n' "$(now)" "${SCRIPT_NAME:-infra}" "$*" >&2; }
+die()  { printf '%s [%s] ERROR: %s\n' "$(now)" "${SCRIPT_NAME:-infra}" "$*" >&2; exit 1; }
 
 # Load KEY=VALUE lines from the infra .env without echoing values. Values are
 # exported for the current process only.
@@ -19,11 +20,23 @@ load_env() {
   local perms
   perms="$(stat -c '%a' "$ENV_FILE" 2>/dev/null || stat -f '%Lp' "$ENV_FILE" 2>/dev/null || echo "")"
   case "$perms" in 600|400) ;; *) warn ".env permissions are $perms — run: chmod 600 $ENV_FILE" ;; esac
-  set -a
-  # shellcheck disable=SC1090
-  . <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' "$ENV_FILE" | sed 's/\r$//')
-  set +a
+  # A read loop, not `source`: values are never executed, spaces and quotes
+  # survive, and it works on bash 3.2 (macOS) as well as the box's bash 5.
+  local line key val
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%$'\r'}"
+    case "$line" in ''|'#'*) continue ;; esac
+    key="${line%%=*}"; val="${line#*=}"
+    [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
+    case "$val" in \"*\") val="${val#\"}"; val="${val%\"}" ;; \'*\') val="${val#\'}"; val="${val%\'}" ;; esac
+    export "$key=$val"
+  done < "$ENV_FILE"
 }
+
+# Exclusive lock on FD 9 when flock exists (Linux); a no-op elsewhere.
+take_lock() { if command -v flock >/dev/null 2>&1; then exec 9>"$1"; flock -n 9 || die "another run holds $1"; fi; }
+sha256() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"; else shasum -a 256 "$@"; fi; }
+epoch_ms() { if date +%s%N 2>/dev/null | grep -qv N; then echo $(( $(date +%s%N) / 1000000 )); else python3 -c 'import time;print(int(time.time()*1000))' 2>/dev/null || echo $(( $(date +%s) * 1000 )); fi; }
 
 compose() { (cd "$INFRA_DIR" && docker compose --env-file "$ENV_FILE" "$@"); }
 

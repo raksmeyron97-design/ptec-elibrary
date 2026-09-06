@@ -28,7 +28,7 @@ BACKUP_DIR="${BACKUP_DIR:-/DATA/backups/supabase}"
 RETENTION="${BACKUP_RETENTION_DAYS:-30}"
 mkdir -p "$BACKUP_DIR"; chmod 700 "$BACKUP_DIR"
 mkdir -p "$STATE_DIR" 2>/dev/null || STATE_DIR="$BACKUP_DIR/.state"; mkdir -p "$STATE_DIR"
-exec 9>"$STATE_DIR/backup.lock"; flock -n 9 || die "another backup is running"
+take_lock "$STATE_DIR/backup.lock"
 
 TS=$(date -u +%Y%m%d-%H%M%S)
 BASE="$BACKUP_DIR/db-$TS"
@@ -61,7 +61,7 @@ docker exec supabase-db pg_dumpall -U supabase_admin --globals-only --no-role-pa
 log "recording row counts"
 {
   echo '{'
-  echo "  \"created_at\": \"$(date -u -Is)\","
+  echo "  \"created_at\": \"$(now)\","
   echo "  \"image\": \"$(docker inspect --format '{{.Config.Image}}' supabase-db)\","
   echo "  \"pg_version\": \"$(dbscalar 'show server_version')\","
   echo '  "counts": {'
@@ -95,7 +95,7 @@ else
   suffix=""
 fi
 chmod 600 "$BASE".*
-sha256sum "$BASE".* > "$BASE.sha256"
+sha256 "$BASE".* > "$BASE.sha256"
 bytes=$(du -k "$BASE.dump$suffix" | cut -f1)
 log "OK: $BASE.dump$suffix (${bytes} KB, $entries archive entries)"
 
@@ -105,7 +105,7 @@ if [ "$ROTATE" -eq 1 ]; then
 fi
 remaining=$(ls -1 "$BACKUP_DIR"/db-*.dump* 2>/dev/null | wc -l | tr -d ' ')
 
-date -u -Is > "$BACKUP_DIR/.last-ok"
+now > "$BACKUP_DIR/.last-ok"
 record_ops_event backup_db ok "{\"file\":\"$(basename "$BASE.dump$suffix")\",\"kb\":$bytes,\"entries\":$entries,\"encrypted\":$([ -n "$suffix" ] && echo true || echo false),\"retained\":$remaining,\"method\":\"pg_dump\"}"
 record_ops_event backup_verify ok "{\"file\":\"$(basename "$BASE.dump$suffix")\",\"entries\":$entries}"
 trap - ERR

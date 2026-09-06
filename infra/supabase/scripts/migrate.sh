@@ -26,7 +26,7 @@ for a in "$@"; do case "$a" in --dry-run) DRY=1;; --no-pull) PULL=0;; *) die "un
 MIG_DIR="$REPO_DIR/supabase/migrations"
 [ -d "$MIG_DIR" ] || die "no migrations directory at $MIG_DIR"
 mkdir -p "$STATE_DIR" 2>/dev/null || STATE_DIR="$INFRA_DIR/.state"; mkdir -p "$STATE_DIR"
-exec 9>"$STATE_DIR/migrate.lock"; flock -n 9 || die "another migrate run is in progress"
+take_lock "$STATE_DIR/migrate.lock"
 
 if [ "$PULL" -eq 1 ] && [ "$DRY" -eq 0 ] && [ -d "$REPO_DIR/.git" ]; then
   log "git pull --ff-only in $REPO_DIR"

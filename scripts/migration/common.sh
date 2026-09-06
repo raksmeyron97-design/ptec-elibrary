@@ -16,18 +16,27 @@ OUT_ROOT="${MIGRATION_OUT_DIR:-$REPO_DIR/reports/migration}"
 PG_CLIENT_IMAGE="${PG_CLIENT_IMAGE:-postgres:17-alpine}"
 SELFHOST_DB_CONTAINER="${SELFHOST_DB_CONTAINER:-supabase-db}"
 
-log()  { printf '%s [%s] %s\n' "$(date -Is)" "${SCRIPT_NAME:-migration}" "$*"; }
-warn() { printf '%s [%s] WARN: %s\n' "$(date -Is)" "${SCRIPT_NAME:-migration}" "$*" >&2; }
-die()  { printf '%s [%s] ERROR: %s\n' "$(date -Is)" "${SCRIPT_NAME:-migration}" "$*" >&2; exit 1; }
+now()  { date -u +%Y-%m-%dT%H:%M:%SZ; }
+log()  { printf '%s [%s] %s\n' "$(now)" "${SCRIPT_NAME:-migration}" "$*"; }
+warn() { printf '%s [%s] WARN: %s\n' "$(now)" "${SCRIPT_NAME:-migration}" "$*" >&2; }
+die()  { printf '%s [%s] ERROR: %s\n' "$(now)" "${SCRIPT_NAME:-migration}" "$*" >&2; exit 1; }
+sha256() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"; else shasum -a 256 "$@"; fi; }
 require_cmd() { for c in "$@"; do command -v "$c" >/dev/null 2>&1 || die "required command not found: $c"; done; }
 
 # Load repo .env / .env.local (names the app already uses) without printing.
 load_app_env() {
-  set -a
+  local f line key val
   for f in "$REPO_DIR/.env" "$REPO_DIR/.env.local"; do
-    [ -f "$f" ] && . <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' "$f" | sed 's/\r$//; s/^\([^=]*\)="\(.*\)"$/\1=\2/')
+    [ -f "$f" ] || continue
+    while IFS= read -r line || [ -n "$line" ]; do
+      line="${line%$'\r'}"
+      case "$line" in ''|'#'*) continue ;; esac
+      key="${line%%=*}"; val="${line#*=}"
+      [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
+      case "$val" in \"*\") val="${val#\"}"; val="${val%\"}" ;; \'*\') val="${val#\'}"; val="${val%\'}" ;; esac
+      export "$key=$val"
+    done < "$f"
   done
-  set +a
 }
 
 # Run a postgres client tool against a URL. Prefers a host binary; falls back

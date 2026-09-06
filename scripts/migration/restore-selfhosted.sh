@@ -22,7 +22,7 @@ require_cmd docker
 DUMP="${1:-}"; FORCE=0; [ "${2:-}" = "--force" ] && FORCE=1
 [ -d "$DUMP" ] || die "usage: restore-selfhosted.sh <dump dir> [--force]"
 for f in 00-extensions.sql 10-schema.sql 20-auth-triggers.sql 30-data-public.sql 40-data-auth.sql 50-publication.sql; do [ -f "$DUMP/$f" ] || die "missing $DUMP/$f"; done
-(cd "$DUMP" && sha256sum -c --quiet <(sed -n '/--- sha256/,$p' manifest.txt | tail -n +2)) || die "sha256 mismatch — the dump was modified after it was written"
+(cd "$DUMP" && sha256 -c --quiet <(sed -n '/--- sha256/,$p' manifest.txt | tail -n +2)) || die "sha256 mismatch — the dump was modified after it was written"
 
 docker exec "$SELFHOST_DB_CONTAINER" pg_isready -U postgres -h localhost >/dev/null || die "self-hosted database not ready"
 selfhost_psql -Atc "select 1 from auth.schema_migrations limit 1" >/dev/null 2>&1 || die "auth schema not initialised — start the auth (GoTrue) container first and wait for it to be healthy"

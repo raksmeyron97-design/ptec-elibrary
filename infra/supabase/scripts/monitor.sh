@@ -69,7 +69,8 @@ if [ "$MODE" = "--daily" ]; then
 
   last="${BACKUP_DIR:-/DATA/backups/supabase}/.last-ok"
   if [ -f "$last" ]; then
-    age_h=$(( ( $(date +%s) - $(date -d "$(cat "$last")" +%s 2>/dev/null || stat -c %Y "$last") ) / 3600 ))
+    last_epoch=$(stat -c %Y "$last" 2>/dev/null || stat -f %m "$last")
+    age_h=$(( ( $(date +%s) - last_epoch ) / 3600 ))
     [ "$age_h" -le 30 ] && transition backup-fresh ok "last good backup ${age_h}h ago" || transition backup-fresh warn "last good backup ${age_h}h ago (> 30h — docs/ALERT-CATALOG.md backup-stale)"
   else transition backup-fresh warn "no successful backup recorded yet"; fi
 

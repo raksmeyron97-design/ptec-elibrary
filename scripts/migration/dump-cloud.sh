@@ -57,7 +57,7 @@ cloud_psql -Atc "select format('alter publication supabase_realtime add table %I
 
 log "manifest"
 {
-  echo "dumped_at=$(date -u -Is)"
+  echo "dumped_at=$(now)"
   echo "source=$(printf '%s' "$CLOUD_DB_URL" | sed -E 's#.*@([^/:]+).*#\1#')"
   echo "postgres=$(cloud_psql -Atc 'show server_version')"
   echo "auth_schema_version=$(cloud_psql -Atc 'select max(version) from auth.schema_migrations')"
@@ -67,7 +67,7 @@ log "manifest"
   cloud_psql -At < "$OUT/.counts.sql"
   rm -f "$OUT/.counts.sql"
   echo "--- sha256"
-  (cd "$OUT" && sha256sum ./*.sql)
+  (cd "$OUT" && sha256 ./*.sql)
 } > "$OUT/manifest.txt"
 chmod 600 "$OUT"/*
 du -sh "$OUT" | sed 's/^/    /'
