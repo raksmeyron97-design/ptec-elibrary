@@ -26,9 +26,11 @@ export const CHUNK_SIZE = 1000;    // target chars per chunk (~ well under the e
 export const CHUNK_OVERLAP = 150;  // chars carried into the next chunk for context
 export const MIN_CHUNK_CHARS = 40; // fragments below this aren't worth a vector
 
-const EMBED_BATCH = 16;      // texts per Gemini embedContent call
-const EMBED_BATCH_DELAY_MS = 200; // pause between embed calls (rate-limit headroom)
-const INSERT_BATCH = 40;     // rows per insert (each carries a 768-dim vector)
+const EMBED_BATCH = 32;      // texts per Gemini embedContent call
+const EMBED_BATCH_DELAY_MS = 100; // pause between embed calls (rate-limit headroom)
+// Each row carries a 768-dim vector, so a wide insert is a heavy statement:
+// 40 rows at a time reached Postgres' statement timeout on this collection.
+const INSERT_BATCH = 15;     // rows per insert
 const PAGE_FETCH = 500;      // book_pages rows fetched per DB page
 
 export type ChunkEmbedResult =
@@ -53,18 +55,31 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // Honor the server's suggested retryDelay when present, otherwise back off
 // hard enough to clear a per-minute window. A PER-DAY quota error is not
 // retryable — fail fast so callers don't spin for hours.
-const QUOTA_BACKOFFS_MS = [2_000, 35_000, 65_000];
+const QUOTA_BACKOFFS_MS = [5_000, 30_000, 60_000, 90_000, 120_000, 180_000];
 
-/** True when the error is an exhausted DAILY quota (waiting won't help). */
-export function isDailyQuotaError(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err);
-  return /perday/i.test(msg);
-}
-
+/** The server's suggested wait, in ms, when the error carries one. */
 function retryDelayMs(err: unknown): number | null {
   const msg = err instanceof Error ? err.message : String(err);
-  const m = msg.match(/retryDelay[^0-9]*(\d+)/i);
+  const m = msg.match(/retryDelay[^0-9]*(\d+)/i) || msg.match(/retry after (\d+)/i);
   return m ? Number(m[1]) * 1000 : null;
+}
+
+/** True when the error is an exhausted DAILY quota (waiting won't help).
+ *
+ * Google spends the same quotaId ("…PerDay…") on BOTH a per-minute burst
+ * throttle and genuine daily exhaustion, so /perday/ alone cannot tell them
+ * apart. The retryDelay it attaches can: a burst throttle asks for a wait
+ * that clears within the minute window, while a spent day either carries no
+ * delay at all or one far longer than any window. Reading a burst throttle
+ * as daily exhaustion aborted a backfill after two or three records with
+ * thousands of requests still left on the key.
+ */
+export function isDailyQuotaError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (!/perday/i.test(msg)) return false;
+  const delay = retryDelayMs(err);
+  if (delay !== null && delay <= 120_000) return false; // short delay -> burst, not the day
+  return true;
 }
 
 async function embedWithBackoff(texts: string[]): Promise<number[][]> {
@@ -76,7 +91,16 @@ async function embedWithBackoff(texts: string[]): Promise<number[][]> {
     } catch (err) {
       lastErr = err;
       if (isDailyQuotaError(err) || attempt >= QUOTA_BACKOFFS_MS.length) break;
-      await sleep(retryDelayMs(err) ?? QUOTA_BACKOFFS_MS[attempt]);
+      const waitMs = retryDelayMs(err) ?? QUOTA_BACKOFFS_MS[attempt];
+      // Constant format string, values as arguments -- see the note in
+      // lib/pdf-page-index.ts on why a template literal is wrong here.
+      console.log(
+        "[chunk-embed] rate limited, waiting %ds before retry %d/%d",
+        Math.round(waitMs / 1000),
+        attempt + 1,
+        QUOTA_BACKOFFS_MS.length,
+      );
+      await sleep(waitMs);
     }
   }
   throw lastErr;
