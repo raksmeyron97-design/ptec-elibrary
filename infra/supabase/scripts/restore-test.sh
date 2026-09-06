@@ -44,12 +44,13 @@ sleep 3
 t0=$(date +%s)
 log "restoring (pg_restore --clean --if-exists, errors on pre-existing supabase objects are expected and counted)"
 set +e
-docker exec -i "$NAME" pg_restore -U supabase_admin -d postgres --no-owner --role=supabase_admin --exit-on-error=false \
-  --clean --if-exists --no-privileges=false -Fc < "$WORK/db.dump" > "$WORK/restore.log" 2>&1
+docker exec -i "$NAME" pg_restore -U supabase_admin -d postgres --no-owner --role=supabase_admin \
+  --clean --if-exists -Fc < "$WORK/db.dump" > "$WORK/restore.log" 2>&1
 rc=$?
 set -e
 errors=$(grep -c 'ERROR' "$WORK/restore.log" || true)
 log "pg_restore exit $rc, $errors error line(s), $(( $(date +%s) - t0 ))s"
+[ "$errors" -gt 0 ] && { echo "  first errors (pre-existing GoTrue/Supabase objects are expected):"; grep 'ERROR' "$WORK/restore.log" | head -5 | cut -c1-160 | sed 's/^/    /'; }
 
 q() { docker exec "$NAME" psql -U supabase_admin -d postgres -Atc "$1"; }
 fail=0; check() { if [ "$2" = "$3" ]; then printf '  ✓ %s = %s\n' "$1" "$2"; else printf '  ✗ %s: got %s expected %s\n' "$1" "$2" "$3"; fail=1; fi; }

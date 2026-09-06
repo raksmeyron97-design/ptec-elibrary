@@ -1,8 +1,9 @@
 # Kong declarative config (DB-less) for the PTEC self-hosted Supabase stack.
 #
-# Rendered at container start by the `kong` service entrypoint, which
-# substitutes $SUPABASE_ANON_KEY / $SUPABASE_SERVICE_KEY from the environment —
-# so the keys never sit in a tracked file. Everything else is literal.
+# Rendered at container start by the "kong" service entrypoint, which
+# substitutes the two placeholders $SUPABASE_ANON_KEY / $SUPABASE_SERVICE_KEY
+# from the environment with sed — so the keys never sit in a tracked file and
+# nothing else in this file is interpreted (no eval).
 #
 # What is routed (and what is NOT):
 #   /auth/v1/*       → GoTrue     (verify/callback/authorize open; the rest key-auth)
@@ -13,10 +14,10 @@
 #                      directly and never travels through the tunnel.
 #   /storage/v1, /functions/v1, /graphql/v1 → not routed (unused, audit §6).
 #
-# Consumers: `anon` (group anon) and `service_role` (group admin). The `acl`
-# plugin decides which group may reach a route; the `key-auth` plugin verifies
-# the `apikey` header/query against the consumer keys; the JWT in
-# `Authorization: Bearer …` is passed through untouched (hide_credentials:
+# Consumers: "anon" (group anon) and "service_role" (group admin). The "acl"
+# plugin decides which group may reach a route; the "key-auth" plugin verifies
+# the "apikey" header/query against the consumer keys; the JWT in
+# "Authorization: Bearer …" is passed through untouched (hide_credentials:
 # false) so PostgREST/GoTrue can verify it themselves.
 
 _format_version: '2.1'
@@ -96,11 +97,13 @@ services:
     routes:
       - name: rest-v1-openapi-root
         strip_path: true
-        paths: [/rest/v1/]
-        # Exact match on the root only; the catch-all below is more specific
-        # for every table path because of the trailing slash + regex_priority.
+        # Regex for the BARE root only. Kong 2.8 evaluates regex routes before
+        # prefix routes, and strip_path on a regex removes the whole match —
+        # here that is the root itself, so PostgREST receives "/" (the OpenAPI
+        # document). Any longer path fails this regex and falls through to the
+        # prefix route below.
+        paths: ["/rest/v1/$"]
         regex_priority: 10
-        methods: [GET, HEAD, OPTIONS]
     plugins:
       - name: cors
       - name: key-auth
@@ -117,7 +120,11 @@ services:
     routes:
       - name: rest-v1-all
         strip_path: true
-        paths: [~/rest/v1/.+]
+        # PLAIN PREFIX, never a regex: strip_path on a regex strips the whole
+        # match, which sent /rest/v1/categories upstream as "/" and answered
+        # every table query with the OpenAPI document. A prefix strips exactly
+        # /rest/v1/ and forwards /categories?select=… intact.
+        paths: [/rest/v1/]
     plugins:
       - name: cors
       - name: key-auth

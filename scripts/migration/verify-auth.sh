@@ -25,7 +25,9 @@ r=$(get -H "apikey: $ANON" "$URL/auth/v1/health"); c=$(code <<<"$r"); b=$(body <
 r=$(get -H "apikey: $ANON" "$URL/auth/v1/settings"); c=$(code <<<"$r"); b=$(body <<<"$r")
 if [ "$c" = 200 ]; then
   ok "/auth/v1/settings 200"
-  grep -q '"google":true' <<<"$b" && ok "google provider enabled" || bad "google provider NOT enabled in settings"
+  if grep -q '"google":true' <<<"$b"; then ok "google provider enabled"
+  elif [ "${EXPECT_GOOGLE:-true}" = "false" ]; then note "google provider disabled (EXPECT_GOOGLE=false — staging)"
+  else bad "google provider NOT enabled in settings"; fi
   grep -q '"email":true' <<<"$b" && ok "email provider enabled" || bad "email provider disabled"
   grep -q '"disable_signup":false' <<<"$b" && ok "signup enabled" || note "signup disabled"
   grep -q '"mfa_enabled":true' <<<"$b" && ok "MFA enabled" || note "settings does not report mfa_enabled (older GoTrue reports totp under mfa)"
@@ -47,8 +49,8 @@ c=$(get -H "apikey: $ANON" "$URL/rest/v1/" | code); case "$c" in 401|403) ok "Op
 if [ -n "$SVC" ]; then
   c=$(get -H "apikey: $SVC" -H "Authorization: Bearer $SVC" "$URL/rest/v1/" | code); [ "$c" = 200 ] && ok "OpenAPI root with service key 200" || bad "service key OpenAPI root → $c"
   r=$(get -H "apikey: $SVC" -H "Authorization: Bearer $SVC" -H "Content-Type: application/json" -X POST -d '{}' "$URL/rest/v1/rpc/get_home_stats"); c=$(code <<<"$r"); [ "$c" = 200 ] && ok "rpc get_home_stats 200" || bad "rpc get_home_stats → $c"
-  r=$(get -H "apikey: $SVC" -H "Authorization: Bearer $SVC" -H "Content-Type: application/json" -X POST -d '{"q":"mathematics","match_count":3}' "$URL/rest/v1/rpc/search_library_fuzzy"); c=$(code <<<"$r"); [ "$c" = 200 ] && ok "rpc search_library_fuzzy (pg_trgm) 200" || note "rpc search_library_fuzzy → $c (argument names may differ)"
-  r=$(get -H "apikey: $SVC" -H "Authorization: Bearer $SVC" "$URL/auth/v1/admin/users?page=1&per_page=1"); c=$(code <<<"$r"); [ "$c" = 200 ] && ok "admin API listUsers 200 (total: $(sed -n 's/.*"total":\([0-9]*\).*/\1/p' <<<"$(body <<<"$r")"))" || bad "admin listUsers → $c"
+  r=$(get -H "apikey: $SVC" -H "Authorization: Bearer $SVC" -H "Content-Type: application/json" -X POST -d '{"query_text":"mathematics","match_count":3}' "$URL/rest/v1/rpc/search_library_fuzzy"); c=$(code <<<"$r"); [ "$c" = 200 ] && ok "rpc search_library_fuzzy (pg_trgm) 200" || bad "rpc search_library_fuzzy → $c"
+  r=$(get -H "apikey: $SVC" -H "Authorization: Bearer $SVC" "$URL/auth/v1/admin/users?page=1&per_page=1"); c=$(code <<<"$r"); [ "$c" = 200 ] && ok "admin API listUsers 200 (users on page: $(grep -o '"aud"' <<<"$(body <<<"$r")" | wc -l | tr -d ' '))" || bad "admin listUsers → $c"
 fi
 
 echo "Realtime"

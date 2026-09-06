@@ -36,7 +36,7 @@ load_env() {
 # Exclusive lock on FD 9 when flock exists (Linux); a no-op elsewhere.
 take_lock() { if command -v flock >/dev/null 2>&1; then exec 9>"$1"; flock -n 9 || die "another run holds $1"; fi; }
 sha256() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"; else shasum -a 256 "$@"; fi; }
-epoch_ms() { if date +%s%N 2>/dev/null | grep -qv N; then echo $(( $(date +%s%N) / 1000000 )); else python3 -c 'import time;print(int(time.time()*1000))' 2>/dev/null || echo $(( $(date +%s) * 1000 )); fi; }
+epoch_ms() { python3 -c 'import time;print(int(time.time()*1000))' 2>/dev/null || echo $(( $(date +%s) * 1000 )); }
 
 compose() { (cd "$INFRA_DIR" && docker compose --env-file "$ENV_FILE" "$@"); }
 
@@ -48,7 +48,10 @@ dbscalar() { docker exec "$DB_CONTAINER" psql -U supabase_admin -d postgres -Atc
 # Heartbeat row the app's /api/health deep probe and admin "Backups" card read
 # (public.ops_events, migration 0088). kind: backup_db|backup_verify|restore_drill|maintenance|other
 record_ops_event() {
-  local kind="$1" status="$2" detail_json="${3:-{}}"
+  local kind="$1" status="$2" detail_json="${3:-}"
+  # Not "${3:-{}}": bash closes the expansion at the first "}" and appends a
+  # literal one, producing invalid JSON ("{}}") on every default call.
+  [ -n "$detail_json" ] || detail_json='{}'
   dbscalar "insert into public.ops_events (kind, status, detail) values ('$kind', '$status', '$detail_json'::jsonb)" >/dev/null 2>&1 \
     || warn "could not record ops_events heartbeat ($kind/$status)"
 }

@@ -68,7 +68,13 @@ min_free="${PREFLIGHT_MIN_FREE_GB:-10}"
 [ "${free_gb:-0}" -ge "$min_free" ] && ok "${free_gb} GB free at $dir" || bad "less than ${min_free} GB free at $dir (PREFLIGHT_MIN_FREE_GB overrides for a staging host)"
 mem_gb=$(awk '/MemTotal/{printf "%d", $2/1024/1024}' /proc/meminfo 2>/dev/null || sysctl -n hw.memsize 2>/dev/null | awk '{printf "%d",$1/1024/1024/1024}')
 [ "${mem_gb:-0}" -ge 7 ] && ok "${mem_gb} GB RAM" || warn "${mem_gb:-?} GB RAM — below the 8 GB the memory budget assumes"
-[ -d "${MAIL_TEMPLATES_DIR:-$INFRA_DIR/../../supabase/templates}" ] && ok "mail templates directory present" || bad "mail templates directory missing"
+tdir="${MAIL_TEMPLATES_DIR:-$INFRA_DIR/../../supabase/templates}"
+if [ -d "$tdir" ]; then
+  for t in confirmation recovery magic_link; do
+    if [ -s "$tdir/$t.html" ]; then ok "mail template $t.html present"
+    else bad "mail template $t.html is missing or EMPTY — GoTrue would send blank emails. Export the template from the Cloud dashboard (Auth → Email Templates) into supabase/templates/ (docs/SELF_HOSTED_SUPABASE_CUTOVER.md, Phase F)"; fi
+  done
+else bad "mail templates directory missing ($tdir)"; fi
 compose config -q 2>/dev/null && ok "compose file renders" || bad "compose config failed"
 
 echo

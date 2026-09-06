@@ -6,7 +6,7 @@
 #   open http://127.0.0.1:8025
 services:
   mailpit:
-    image: axllent/mailpit:v1.28
+    image: ${MAILPIT_IMAGE:-axllent/mailpit:v1.28}
     container_name: supabase-mailpit
     restart: unless-stopped
     networks: [supabase]

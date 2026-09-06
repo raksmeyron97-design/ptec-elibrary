@@ -20,6 +20,7 @@ now()  { date -u +%Y-%m-%dT%H:%M:%SZ; }
 log()  { printf '%s [%s] %s\n' "$(now)" "${SCRIPT_NAME:-migration}" "$*"; }
 warn() { printf '%s [%s] WARN: %s\n' "$(now)" "${SCRIPT_NAME:-migration}" "$*" >&2; }
 die()  { printf '%s [%s] ERROR: %s\n' "$(now)" "${SCRIPT_NAME:-migration}" "$*" >&2; exit 1; }
+epoch_ms() { python3 -c 'import time;print(int(time.time()*1000))' 2>/dev/null || echo $(( $(date +%s) * 1000 )); }
 sha256() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"; else shasum -a 256 "$@"; fi; }
 require_cmd() { for c in "$@"; do command -v "$c" >/dev/null 2>&1 || die "required command not found: $c"; done; }
 

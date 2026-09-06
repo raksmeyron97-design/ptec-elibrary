@@ -65,7 +65,7 @@ log "recording row counts"
   echo "  \"image\": \"$(docker inspect --format '{{.Config.Image}}' supabase-db)\","
   echo "  \"pg_version\": \"$(dbscalar 'show server_version')\","
   echo '  "counts": {'
-  dbscalar "select format('    \"%s.%s\": %s', n.nspname, c.relname, (xpath('/row/c/text()', query_to_xml(format('select count(*) as c from %I.%I', n.nspname, c.relname), false, true, '')))[1]::text) from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind='r' and n.nspname in ('public','auth') order by 1" | paste -sd ',\n' | sed 's/,$//' | tr -d '\r'
+  dbscalar "select string_agg(format('    \"%s.%s\": %s', n.nspname, c.relname, (xpath('/row/c/text()', query_to_xml(format('select count(*) as c from %I.%I', n.nspname, c.relname), false, true, '')))[1]::text), E',\n' order by n.nspname, c.relname) from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind='r' and n.nspname in ('public','auth')"
   echo '  },'
   echo "  \"extensions\": [$(dbscalar "select string_agg(format('\"%s@%s:%s\"', e.extname, e.extversion, n.nspname), ', ' order by e.extname) from pg_extension e join pg_namespace n on n.oid=e.extnamespace")],"
   echo "  \"functions_public\": $(dbscalar "select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public'"),"
@@ -77,9 +77,11 @@ log "recording row counts"
 # Verify the archive is a readable custom-format dump containing the core table.
 log "verifying archive"
 listing=$(docker run --rm -i --entrypoint pg_restore "$(docker inspect --format '{{.Config.Image}}' supabase-db)" --list < "$BASE.dump.partial")
-printf '%s' "$listing" | grep -q 'TABLE DATA public books ' || fail_out "archive verification failed: books table data missing from listing"
-printf '%s' "$listing" | grep -q 'TABLE DATA auth users ' || fail_out "archive verification failed: auth.users missing from listing"
-entries=$(printf '%s\n' "$listing" | grep -c '^[0-9]' || true)
+# Here-strings, not pipes: under pipefail a `printf | grep -q` fails when grep
+# exits early and printf takes SIGPIPE — which read as "books table missing".
+grep -q 'TABLE DATA public books ' <<<"$listing" || fail_out "archive verification failed: books table data missing from listing"
+grep -q 'TABLE DATA auth users ' <<<"$listing" || fail_out "archive verification failed: auth.users missing from listing"
+entries=$(grep -c '^[0-9]' <<<"$listing" || true)
 
 # Encrypt (optional) and land atomically.
 if [ -n "${BACKUP_PASSPHRASE:-}" ]; then

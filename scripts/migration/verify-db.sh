@@ -22,7 +22,8 @@ SQL="$(dirname "$0")/snapshot.sql"
 mode="${1:---compare}"
 
 snapshot() { # snapshot <label> <psql-fn>
-  local label="$1" fn="$2" out="$V/$label-$TS.txt"
+  local label="$1" fn="$2" out
+  out="$V/$label-$TS.txt"
   log "snapshot $label → $out"
   "$fn" -At -v ON_ERROR_STOP=1 < "$SQL" > "$out"
   # DB latency, measured server-side round trip from this client (3 samples).
