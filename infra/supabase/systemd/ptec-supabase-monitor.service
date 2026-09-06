@@ -1,0 +1,8 @@
+[Unit]
+Description=PTEC self-hosted Supabase — fast health monitor (postgres, containers, API, auth)
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=__INFRA_DIR__/scripts/monitor.sh --fast
+TimeoutStartSec=2min

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { rateLimit } from "@/lib/rate-limit";
+import { serverSupabaseUrl } from "@/lib/supabase/origin";
 import { logSecurityEvent } from "@/lib/security-log";
 import { validateContactInput, type ContactInput } from "@/lib/contact/validate";
 import { sendGmail, GmailSendError } from "@/lib/gmail";
@@ -157,7 +158,9 @@ export async function POST(req: NextRequest) {
   // email identity, both durably in contact_rate_limit (the key column stores
   // either an IP or an "email:<sha256>" identity; addresses are hashed so the
   // table never holds raw emails for non-persisted attempts).
-  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+  const supabase = createClient(serverSupabaseUrl(), process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+    auth: { persistSession: false },
+  });
   const emailKey = `email:${createHash("sha256").update(cleanEmail).digest("hex").slice(0, 40)}`;
   const [limit, emailLimit] = await Promise.all([
     checkLimit(ip, supabase),

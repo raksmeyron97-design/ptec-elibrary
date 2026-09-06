@@ -1,0 +1,10 @@
+[Unit]
+Description=PTEC self-hosted Supabase — weekly restore test into a throwaway container
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=__INFRA_DIR__/scripts/restore-test.sh
+Nice=15
+IOSchedulingClass=idle
+TimeoutStartSec=2h

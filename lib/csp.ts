@@ -109,36 +109,42 @@ export function needsEval(pathname: string): boolean {
   return EVAL_PATH_PATTERNS.some((re) => re.test(pathname));
 }
 
+import { supabaseOrigins } from "@/lib/supabase/origin";
+
 const IS_DEV = process.env.NODE_ENV === "development";
 
-// A *production* build pointed at a LOCAL Supabase stack — i.e. the Docker
-// image run on a developer machine — talks to it over plain http on a loopback
-// or LAN address, which none of the directives below cover. The browser then
-// blocks the sign-in fetch and the admin login reports "Failed to fetch" while
-// every server-rendered page still works, because only the client-side call is
-// refused.
+// The configured Supabase origin — whatever scheme — plus its websocket twin.
 //
-// The allowance is derived from the configured URL rather than gated on an env
-// flag on purpose: production points NEXT_PUBLIC_SUPABASE_URL at
-// https://<project>.supabase.co, so the https check fails, both constants
-// expand to "" and the emitted policy is byte-identical to before.
-const LOCAL_SUPABASE = (() => {
-  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  if (!raw.startsWith("http://")) return { http: "", ws: "" };
-  try {
-    const url = new URL(raw);
-    return { http: ` ${url.origin}`, ws: ` ws://${url.host}` };
-  } catch {
-    return { http: "", ws: "" };
-  }
+// Derived from NEXT_PUBLIC_SUPABASE_URL rather than gated on an env flag, so
+// the same policy serves Supabase Cloud (https://<ref>.supabase.co), the
+// self-hosted gateway (https://supabase.storage-ptec.online, wss:// for
+// Realtime) and a plain-http local stack on a loopback or LAN address (the
+// Docker image run on a developer machine — without this the browser blocks
+// the sign-in fetch and the admin login reports "Failed to fetch" while every
+// server-rendered page still works, because only the client-side call is
+// refused). The origin is deduplicated against the literal list below, and a
+// missing/unparseable URL contributes nothing — never an exception.
+//
+// LEGACY: the `*.supabase.co` literals stay through the migration window so an
+// image built for one Supabase keeps working if the env points at the other
+// (docs/SELF_HOSTED_SUPABASE_ROLLBACK.md). Remove them once the Cloud project
+// is retired — never earlier.
+const CONFIGURED_SUPABASE = (() => {
+  const o = supabaseOrigins();
+  if (!o) return { http: "", ws: "" };
+  const legacy = o.host.endsWith(".supabase.co");
+  return {
+    http: legacy ? "" : ` ${o.http}`,
+    ws: legacy ? "" : ` ${o.ws}`,
+  };
 })();
 
 const LOCAL_IMGS =
-  (IS_DEV ? " http://127.0.0.1:* http://localhost:*" : "") + LOCAL_SUPABASE.http;
+  (IS_DEV ? " http://127.0.0.1:* http://localhost:*" : "") + CONFIGURED_SUPABASE.http;
 const LOCAL_CONNS =
   (IS_DEV ? " http://127.0.0.1:* ws://127.0.0.1:* http://localhost:* ws://localhost:*" : "") +
-  LOCAL_SUPABASE.http +
-  LOCAL_SUPABASE.ws;
+  CONFIGURED_SUPABASE.http +
+  CONFIGURED_SUPABASE.ws;
 
 // Directives that do not vary between the two policies. These carry most of
 // the actual hardening (no plugins, no base-tag hijack, no framing, form posts

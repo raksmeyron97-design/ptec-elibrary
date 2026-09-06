@@ -1,0 +1,464 @@
+# PTEC e-Library — self-hosted Supabase on ZimaOS.
+#
+# Trimmed from supabase/supabase `docker/docker-compose.yml` to what this
+# application actually uses (docs/SELF_HOSTED_SUPABASE_MIGRATION_AUDIT.md §6):
+#   db (Postgres 17 + pgvector/pg_trgm/pgcrypto) · kong · auth (GoTrue) ·
+#   rest (PostgREST) · realtime · meta · studio · mail-templates · cloudflared.
+# Deliberately absent: Storage/imgproxy (files live in Zima Storage), Edge
+# Functions, Logflare/Vector analytics, Supavisor.
+#
+#   docker compose up -d                       # LAN/loopback only (staging, validation)
+#   docker compose --profile tunnel up -d      # + Cloudflare Tunnel (production)
+#
+# Exposure policy (docs/ZIMAOS-DEPLOYMENT.md §3): NOTHING here publishes a port
+# to the LAN by default. Kong and Studio bind to 127.0.0.1 unless KONG_BIND /
+# STUDIO_BIND say otherwise; Postgres, GoTrue, PostgREST, Realtime and pg-meta
+# have no `ports:` at all. Public traffic enters only through cloudflared →
+# kong:8000. The app container joins the `ptec-supabase` network and talks to
+# http://kong:8000 directly (SUPABASE_INTERNAL_URL), never through the Internet.
+#
+# Memory budget (host has ~8 GB): db 2g · realtime 512m · studio 512m · kong,
+# auth, rest, meta 256m each · templates 32m · cloudflared 128m ≈ 4.2 GB hard
+# ceiling, well under half of it in steady state. Tune only after measuring
+# (`docker stats`), never before.
+
+name: ptec-supabase
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-hardening: &hardening
+  restart: unless-stopped
+  logging: *default-logging
+  security_opt:
+    - no-new-privileges:true
+
+services:
+
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  db:
+    <<: *hardening
+    container_name: supabase-db
+    image: supabase/postgres:${POSTGRES_IMAGE_TAG:-17.6.1.136}
+    networks: [supabase]
+    volumes:
+      # Init scripts (run ONCE, on an empty data directory). Same files as the
+      # upstream stack minus webhooks/analytics/pooler. See db/init/README.md.
+      - ./db/init/99-roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:ro
+      - ./db/init/99-jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:ro
+      - ./db/init/99-realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:ro
+      # Data. A bind mount on /DATA so ZimaOS disk tooling and the weekly
+      # volume backup see it; override with SUPABASE_DATA_DIR.
+      - ${SUPABASE_DATA_DIR:-./volumes/db/data}:/var/lib/postgresql/data
+      # pgsodium root key — must persist or every restart makes vault data
+      # unreadable. Named volume, never on tmpfs.
+      - db-config:/etc/postgresql-custom
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    environment:
+      POSTGRES_HOST: /var/run/postgresql
+      PGPORT: 5432
+      POSTGRES_PORT: 5432
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: postgres
+      POSTGRES_DB: postgres
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXP: ${JWT_EXPIRY:-3600}
+    # Tuning for a 2 GB slice of an 8 GB host (postgres/README.md explains
+    # each value). Passed as flags so the image's own postgresql.conf — with
+    # the preload libraries the Supabase extensions need — stays intact.
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+      - -c
+      - shared_buffers=${PG_SHARED_BUFFERS:-512MB}
+      - -c
+      - effective_cache_size=${PG_EFFECTIVE_CACHE_SIZE:-1536MB}
+      - -c
+      - work_mem=${PG_WORK_MEM:-8MB}
+      - -c
+      - maintenance_work_mem=${PG_MAINTENANCE_WORK_MEM:-128MB}
+      - -c
+      - max_connections=${PG_MAX_CONNECTIONS:-100}
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - wal_compression=on
+      - -c
+      - checkpoint_completion_target=0.9
+      - -c
+      - max_wal_size=1GB
+      - -c
+      - log_min_duration_statement=${PG_LOG_MIN_DURATION_MS:-500}
+      - -c
+      - log_min_messages=fatal
+    deploy:
+      resources:
+        limits:
+          memory: ${PG_MEMORY_LIMIT:-2g}
+          cpus: "2.0"
+
+  # ── API gateway ────────────────────────────────────────────────────────────
+  kong:
+    <<: *hardening
+    container_name: supabase-kong
+    image: kong:${KONG_IMAGE_TAG:-2.8.1}
+    networks: [supabase]
+    # Loopback by default. The tunnel reaches kong over the Docker network, so
+    # this mapping exists only for local health checks / SSH-forwarded access.
+    ports:
+      - "${KONG_BIND:-127.0.0.1}:${KONG_HTTP_PORT:-8000}:8000/tcp"
+    depends_on:
+      auth:
+        condition: service_healthy
+      rest:
+        condition: service_started
+    volumes:
+      - ./kong/kong.yml:/home/kong/kong.tmpl.yml:ro
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl,request-termination
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+      KONG_NGINX_WORKER_PROCESSES: "1"
+      KONG_MEM_CACHE_SIZE: 64m
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: "off"
+      # Trust Cloudflare's forwarded scheme so GoTrue builds https redirects.
+      KONG_TRUSTED_IPS: 0.0.0.0/0,::/0
+      KONG_REAL_IP_HEADER: CF-Connecting-IP
+      KONG_REAL_IP_RECURSIVE: "on"
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+    # Substitute the two API-key placeholders into the declarative config at
+    # start-up (sed, not eval: the keys are the only thing interpreted, so
+    # regexes, quotes and comments in kong.yml stay literal).
+    entrypoint: >
+      bash -c 'sed -e "s|\$$SUPABASE_ANON_KEY|$$SUPABASE_ANON_KEY|g" -e "s|\$$SUPABASE_SERVICE_KEY|$$SUPABASE_SERVICE_KEY|g"
+      /home/kong/kong.tmpl.yml > /home/kong/kong.yml
+      && /docker-entrypoint.sh kong docker-start'
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+  # ── GoTrue (Auth) ──────────────────────────────────────────────────────────
+  auth:
+    <<: *hardening
+    container_name: supabase-auth
+    # Pinned to the version the Cloud project runs (supabase/.temp/gotrue-version)
+    # so the restored `auth` schema data matches GoTrue's own migrations.
+    image: supabase/gotrue:${GOTRUE_IMAGE_TAG:-v2.195.0}
+    networks: [supabase]
+    depends_on:
+      db:
+        condition: service_healthy
+      mail-templates:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9999/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      # Public origin of the Auth API — issuer of every JWT, base of every
+      # emailed link and of the OAuth callback. Includes /auth/v1 on purpose
+      # (matches Cloud's iss claim shape).
+      API_EXTERNAL_URL: ${SUPABASE_PUBLIC_URL}/auth/v1
+
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/postgres
+
+      # The app's origin. Redirects and emailed links land here.
+      GOTRUE_SITE_URL: ${SITE_URL}
+      GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS}
+      GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP:-false}
+
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: ${JWT_EXPIRY:-3600}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_JWT_ISSUER: ${SUPABASE_PUBLIC_URL}/auth/v1
+
+      # Email (supabase/config.toml [auth] mirrored for production).
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: ${ENABLE_EMAIL_SIGNUP:-true}
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: "false"
+      GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM:-false}
+      GOTRUE_MAILER_SECURE_EMAIL_CHANGE_ENABLED: "true"
+      GOTRUE_MAILER_OTP_EXP: ${MAILER_OTP_EXP:-3600}
+      GOTRUE_MAILER_OTP_LENGTH: "6"
+      GOTRUE_SMTP_MAX_FREQUENCY: ${SMTP_MAX_FREQUENCY:-1s}
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL}
+      GOTRUE_SMTP_HOST: ${SMTP_HOST}
+      GOTRUE_SMTP_PORT: ${SMTP_PORT}
+      GOTRUE_SMTP_USER: ${SMTP_USER}
+      GOTRUE_SMTP_PASS: ${SMTP_PASS}
+      GOTRUE_SMTP_SENDER_NAME: ${SMTP_SENDER_NAME:-PTEC Library}
+      # Paths are appended to API_EXTERNAL_URL (which already carries /auth/v1).
+      GOTRUE_MAILER_URLPATHS_INVITE: /verify
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: /verify
+      GOTRUE_MAILER_URLPATHS_RECOVERY: /verify
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: /verify
+      # Bilingual templates from supabase/templates/, served on the internal
+      # network (GoTrue fetches templates by URL, it cannot read files).
+      GOTRUE_MAILER_TEMPLATES_CONFIRMATION: http://mail-templates/confirmation.html
+      GOTRUE_MAILER_TEMPLATES_RECOVERY: http://mail-templates/recovery.html
+      GOTRUE_MAILER_TEMPLATES_MAGIC_LINK: http://mail-templates/magic_link.html
+      GOTRUE_MAILER_SUBJECTS_CONFIRMATION: "បញ្ជាក់អ៊ីមែលរបស់អ្នក / Confirm Your Email – PTEC Library"
+      GOTRUE_MAILER_SUBJECTS_RECOVERY: "កំណត់ពាក្យសម្ងាត់ឡើងវិញ / Reset Your Password – PTEC Library"
+      GOTRUE_MAILER_SUBJECTS_MAGIC_LINK: "តំណភ្ជាប់ចូល / Your Sign-in Link – PTEC Library"
+
+      # Passwords (config.toml: minimum 8, letters + digits) and leaked-password check.
+      GOTRUE_PASSWORD_MIN_LENGTH: "8"
+      GOTRUE_PASSWORD_REQUIRED_CHARACTERS: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ:0123456789"
+      GOTRUE_PASSWORD_HIBP_ENABLED: ${PASSWORD_HIBP_ENABLED:-true}
+
+      # Sessions.
+      GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED: "true"
+      GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL: "10"
+      GOTRUE_SECURITY_MANUAL_LINKING_ENABLED: "false"
+
+      # Rate limits (per hour unless stated). Copy the dashboard's values here
+      # during cutover preparation; these are the config.toml defaults.
+      GOTRUE_RATE_LIMIT_EMAIL_SENT: ${RATE_LIMIT_EMAIL_SENT:-30}
+      GOTRUE_RATE_LIMIT_TOKEN_REFRESH: ${RATE_LIMIT_TOKEN_REFRESH:-150}
+      GOTRUE_RATE_LIMIT_VERIFY: ${RATE_LIMIT_VERIFY:-30}
+      GOTRUE_RATE_LIMIT_SIGNUPS: ${RATE_LIMIT_SIGNUPS:-30}
+
+      # Turnstile — the login form always sends a captchaToken
+      # (app/actions/sign-in.ts). Same secret as the app's TURNSTILE_SECRET_KEY.
+      GOTRUE_SECURITY_CAPTCHA_ENABLED: ${AUTH_CAPTCHA_ENABLED:-true}
+      GOTRUE_SECURITY_CAPTCHA_PROVIDER: turnstile
+      GOTRUE_SECURITY_CAPTCHA_SECRET: ${TURNSTILE_SECRET_KEY}
+
+      # MFA — free self-hosted; the admin panel requires AAL2.
+      GOTRUE_MFA_TOTP_ENROLL_ENABLED: "true"
+      GOTRUE_MFA_TOTP_VERIFY_ENABLED: "true"
+      GOTRUE_MFA_MAX_ENROLLED_FACTORS: "10"
+      GOTRUE_MFA_PHONE_ENROLL_ENABLED: "false"
+      GOTRUE_MFA_PHONE_VERIFY_ENABLED: "false"
+
+      # Google OAuth (was dashboard-only on Cloud). Redirect URI must ALSO be
+      # registered in Google Cloud Console: ${SUPABASE_PUBLIC_URL}/auth/v1/callback
+      GOTRUE_EXTERNAL_GOOGLE_ENABLED: ${GOOGLE_ENABLED:-false}
+      GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID}
+      GOTRUE_EXTERNAL_GOOGLE_SECRET: ${GOOGLE_OAUTH_SECRET}
+      GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI: ${SUPABASE_PUBLIC_URL}/auth/v1/callback
+
+      GOTRUE_EXTERNAL_PHONE_ENABLED: "false"
+      GOTRUE_SMS_AUTOCONFIRM: "false"
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+  # ── PostgREST ──────────────────────────────────────────────────────────────
+  rest:
+    <<: *hardening
+    container_name: supabase-rest
+    image: postgrest/postgrest:${POSTGREST_IMAGE_TAG:-v14.17}
+    networks: [supabase]
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "postgrest", "--ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@db:5432/postgres
+      # graphql_public is dropped on purpose: nothing uses GraphQL (audit §3).
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_EXTRA_SEARCH_PATH: public,extensions
+      PGRST_DB_MAX_ROWS: "1000"
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_DB_POOL: ${PGRST_DB_POOL:-10}
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
+      PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY:-3600}
+      # `postgrest --ready` (the healthcheck) refuses the default "!4" host.
+      PGRST_ADMIN_SERVER_HOST: localhost
+      PGRST_ADMIN_SERVER_PORT: 3001
+    command: ["postgrest"]
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+  # ── Realtime (comment presence + postgres_changes on post_comments) ────────
+  realtime:
+    <<: *hardening
+    # The name is load-bearing: realtime derives the tenant id from the
+    # subdomain of its own hostname.
+    container_name: realtime-dev.supabase-realtime
+    image: supabase/realtime:${REALTIME_IMAGE_TAG:-v2.102.3}
+    networks: [supabase]
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sSfL --head -o /dev/null -H \"Authorization: Bearer ${ANON_KEY}\" http://localhost:4000/api/tenants/realtime-dev/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    environment:
+      PORT: 4000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: postgres
+      DB_AFTER_CONNECT_QUERY: "SET search_path TO _realtime"
+      DB_ENC_KEY: ${REALTIME_DB_ENC_KEY}
+      API_JWT_SECRET: ${JWT_SECRET}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      METRICS_JWT_SECRET: ${JWT_SECRET}
+      ERL_AFLAGS: -proto_dist inet_tcp
+      DNS_NODES: "''"
+      RLIMIT_NOFILE: "10000"
+      APP_NAME: realtime
+      SEED_SELF_HOST: "true"
+      RUN_JANITOR: "true"
+      DISABLE_HEALTHCHECK_LOGGING: "true"
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  # ── pg-meta (Studio's database API; service-role only through Kong) ────────
+  meta:
+    <<: *hardening
+    container_name: supabase-meta
+    image: supabase/postgres-meta:${PG_META_IMAGE_TAG:-v0.96.6}
+    networks: [supabase]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: db
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: postgres
+      PG_META_DB_USER: supabase_admin
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      CRYPTO_KEY: ${PG_META_CRYPTO_KEY}
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+  # ── Studio — LAN ONLY. Never routed through Kong or the tunnel. ────────────
+  studio:
+    <<: *hardening
+    container_name: supabase-studio
+    image: supabase/studio:${STUDIO_IMAGE_TAG:-2026.08.03-sha-022b374}
+    networks: [supabase]
+    ports:
+      # 127.0.0.1 by default: reach it with `ssh -L 3001:127.0.0.1:3001 box`
+      # or over Tailscale. STUDIO_BIND=<LAN IP> exposes it to the school LAN.
+      - "${STUDIO_BIND:-127.0.0.1}:${STUDIO_PORT:-3001}:3000/tcp"
+    depends_on:
+      meta:
+        condition: service_started
+      kong:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    environment:
+      HOSTNAME: "0.0.0.0"
+      STUDIO_PG_META_URL: http://meta:8080
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER_READ_WRITE: postgres
+      PG_META_CRYPTO_KEY: ${PG_META_CRYPTO_KEY}
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_MAX_ROWS: "1000"
+      PGRST_DB_EXTRA_SEARCH_PATH: public,extensions
+      DEFAULT_ORGANIZATION_NAME: ${STUDIO_DEFAULT_ORGANIZATION:-PTEC}
+      DEFAULT_PROJECT_NAME: ${STUDIO_DEFAULT_PROJECT:-PTEC e-Library}
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      AUTH_JWT_SECRET: ${JWT_SECRET}
+      # No Logflare in this stack — Studio's Logs pages are disabled.
+      ENABLED_FEATURES_LOGS_ALL: "false"
+      NEXT_ANALYTICS_BACKEND_PROVIDER: postgres
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  # ── Mail templates (internal static server for GoTrue) ─────────────────────
+  mail-templates:
+    <<: *hardening
+    container_name: supabase-mail-templates
+    image: busybox:${BUSYBOX_IMAGE_TAG:-1.37}
+    networks: [supabase]
+    volumes:
+      # Single source of truth: the same files supabase/config.toml points the
+      # local CLI stack at.
+      - ${MAIL_TEMPLATES_DIR:-../../supabase/templates}:/www:ro
+    command: ["httpd", "-f", "-p", "80", "-h", "/www"]
+    read_only: true
+    deploy:
+      resources:
+        limits:
+          memory: 32m
+
+  # ── Cloudflare Tunnel: supabase.storage-ptec.online → http://kong:8000 ──────
+  cloudflared:
+    <<: *hardening
+    container_name: supabase-tunnel
+    image: cloudflare/cloudflared:${CLOUDFLARED_IMAGE_TAG:-2026.8.0}
+    profiles: ["tunnel"]
+    networks: [supabase]
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${SUPABASE_TUNNEL_TOKEN:-}
+    depends_on:
+      kong:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+
+volumes:
+  db-config:
+
+networks:
+  # Fixed name so the app's docker-compose.selfhost.yml can join it as an
+  # external network and reach http://kong:8000 without leaving the box.
+  supabase:
+    name: ptec-supabase
+    driver: bridge

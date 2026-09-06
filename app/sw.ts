@@ -21,6 +21,14 @@ import {
   offlineShellFor,
   shouldPrecache,
 } from "@/lib/sw-policy";
+import { isSupabaseHost, supabaseOrigins } from "@/lib/supabase/origin";
+
+// The Supabase host this build was compiled for. `process.env.NEXT_PUBLIC_*`
+// is inlined into the worker at build time like any client bundle; when it is
+// absent (older toolchain, misconfigured build) the helper returns null and
+// rule 8 falls back to the Supabase Cloud suffix — it never throws, and the
+// worker keeps installing.
+const SUPABASE_HOST = supabaseOrigins(process.env.NEXT_PUBLIC_SUPABASE_URL)?.host ?? null;
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -264,7 +272,7 @@ const runtimeCaching: RuntimeCaching[] = [
   // user on a shared device.
   {
     matcher: ({ request, url }) =>
-      url.hostname.endsWith("supabase.co") &&
+      isSupabaseHost(url.hostname, SUPABASE_HOST) &&
       request.method === "GET" &&
       PUBLIC_REST_RE.test(url.pathname),
     handler: new StaleWhileRevalidate({

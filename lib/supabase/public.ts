@@ -1,5 +1,6 @@
 // lib/supabase/public.ts
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { serverSupabaseUrl } from "@/lib/supabase/origin";
 
 // ── Public client (ANON key, NO cookies) ──────────────────────────
 // For public, non-personalized reads only. Because it never touches
@@ -8,7 +9,7 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 // Queries run as `anon` and respect RLS.
 export function createPublicClient() {
   return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serverSupabaseUrl(),
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       auth: {

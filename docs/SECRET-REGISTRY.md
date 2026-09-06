@@ -20,8 +20,13 @@ always on suspected exposure (§I10) or offboarding of anyone who held it
 | Secret | Purpose | Locations | Cadence | Rotation impact |
 |---|---|---|---|---|
 | `SUPABASE_SERVICE_ROLE_KEY` | RLS-bypassing server client; image build prerendering | SB (issuer) · GH-S · Box · VC | 12 mo | Miss a location → failed builds or 500s on service-role paths; republish image required |
-| `SUPABASE_DB_URL` | `migrate.yml` applies migrations (session pooler) | GH-S | With DB password | Migrations stop applying until updated |
+| `SUPABASE_DB_URL` | `migrate.yml` applies migrations to **Cloud** (session pooler). Absent in self-hosted mode — migrations run on the box (`infra/supabase/scripts/migrate.sh`) | GH-S (Cloud only) | With DB password | Migrations stop applying until updated |
 | `CRON_SECRET` | Bearer auth for `/api/cron/*` | GH-S · Box | 12 mo | Sweeps 401 while the two copies disagree — one sitting |
+| `JWT_SECRET` (self-hosted Supabase) | Signs every access token; anon/service keys derive from it | Box `infra/supabase/.env` · PM | 12 mo, via `infra/supabase/scripts/generate-secrets.sh --rotate-jwt` | **Every user signs in again**; anon key changes → GH-V + image republish + app `.env` |
+| `POSTGRES_PASSWORD` (self-hosted Supabase) | All service roles (`authenticator`, `supabase_auth_admin`, …) | Box `infra/supabase/.env` · PM | 12 mo | `ALTER USER` for each role in `infra/supabase/db/init/99-roles.sql`, then restart the stack |
+| `SECRET_KEY_BASE`, `REALTIME_DB_ENC_KEY`, `PG_META_CRYPTO_KEY` | Realtime / pg-meta internal encryption | Box `infra/supabase/.env` · PM | On compromise | Realtime tenant re-seeds; Studio saved connections lost |
+| `GOOGLE_OAUTH_SECRET` (+ client id) | GoTrue Google provider (was SB dashboard) | Google Console (issuer) · Box `infra/supabase/.env` · PM | 12 mo | Google sign-in fails while stale |
+| `SUPABASE_TUNNEL_TOKEN` | cloudflared for `supabase.storage-ptec.online` | CF Zero Trust (issuer) · Box `infra/supabase/.env` | On compromise | Browser API calls fail site-wide while stale — Sev 1 |
 | `ADMIN_SECRET_KEY` | Server-side admin signing/step-up | Box · VC | 12 mo | None user-visible if applied promptly |
 | `ZIMA_API_KEY` | Primary file storage API | Zima admin (issuer) · Box · VC | 12 mo | Uploads + proxied downloads fail while stale |
 | `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | Legacy R2 presigned GETs | CF (issuer) · Box · VC | 12 mo | Legacy-file downloads only |

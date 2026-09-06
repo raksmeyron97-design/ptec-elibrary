@@ -1,0 +1,25 @@
+# Self-hosted Supabase override for the app (docs/SELF_HOSTED_SUPABASE_CUTOVER.md).
+#
+# Activate by adding to the box's .env (compose reads COMPOSE_FILE from it):
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.selfhost.yml
+#
+# Two things, both load-bearing:
+#   1. The app joins the Supabase stack's Docker network (created by
+#      infra/supabase/docker-compose.yml as `ptec-supabase`) so `kong` resolves.
+#   2. SUPABASE_INTERNAL_URL tells every server-side Supabase client to call
+#      http://kong:8000 — the private network — instead of the public hostname.
+#      Without it each page render would leave the box through Cloudflare and
+#      re-enter through the tunnel (lib/supabase/origin.ts).
+# The browser still uses NEXT_PUBLIC_SUPABASE_URL (baked into the bundle), which
+# must remain the public tunnel hostname. Removing COMPOSE_FILE from .env and
+# `docker compose up -d app` is the whole rollback of this file.
+services:
+  app:
+    networks: [web, supabase]
+    environment:
+      SUPABASE_INTERNAL_URL: http://kong:8000
+
+networks:
+  supabase:
+    external: true
+    name: ptec-supabase

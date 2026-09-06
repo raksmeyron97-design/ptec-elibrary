@@ -4,6 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { AUTH_COOKIE_OPTIONS } from "@/lib/supabase/cookie-options";
+import { serverSupabaseUrl } from "@/lib/supabase/origin";
 
 // ── Regular client (ប្រើ ANON key + session cookies) ─────────────
 // ប្រើសម្រាប់: auth.getUser(), reading public data
@@ -11,7 +12,7 @@ export async function createClient() {
   const cookieStore = await cookies();
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serverSupabaseUrl(),
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookieOptions: AUTH_COOKIE_OPTIONS,
@@ -36,7 +37,7 @@ export async function createClient() {
 // ⚠️ NEVER ប្រើ client-side — server only!
 export function createServiceClient() {
   return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serverSupabaseUrl(),
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {
       auth: {

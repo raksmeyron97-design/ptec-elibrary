@@ -83,3 +83,4 @@ scripts/retrieval-benchmark/results/20*.json
 
 # Reader performance measurements written by e2e/reader-*.spec.ts (evidence is copied into docs/)
 /reports/
+.playwright-mcp/
