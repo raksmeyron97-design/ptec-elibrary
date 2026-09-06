@@ -3,6 +3,7 @@ import { AuthApiError } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { AUTH_COOKIE_OPTIONS } from "@/lib/supabase/cookie-options";
+import { serverSupabaseUrl } from "@/lib/supabase/origin";
 import { canonicalHostRedirect } from "@/lib/canonical-host";
 import { gateBookSlug } from "@/lib/book-slug-gate";
 import { gateResourceSlug, RESOURCE_GATES } from "@/lib/resource-slug-gate";
@@ -175,7 +176,7 @@ export async function middleware(request: NextRequest) {
     });
 
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      serverSupabaseUrl(),
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookieOptions: AUTH_COOKIE_OPTIONS,
@@ -346,7 +347,7 @@ export async function middleware(request: NextRequest) {
     try {
       const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
       const lookup = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/research_reports?id=eq.${legacyThesis[1]}&is_published=eq.true&select=slug&limit=1`,
+        `${serverSupabaseUrl()}/rest/v1/research_reports?id=eq.${legacyThesis[1]}&is_published=eq.true&select=slug&limit=1`,
         { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } },
       );
       if (lookup.ok) {
@@ -384,7 +385,7 @@ export async function middleware(request: NextRequest) {
     }
     if (bookSlug) {
       const verdict = await gateBookSlug(bookSlug, {
-        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+        supabaseUrl: serverSupabaseUrl(),
         anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
       });
       if (verdict?.kind === "redirect") {
@@ -449,7 +450,7 @@ export async function middleware(request: NextRequest) {
     // A UUID here is a legacy thesis id already handled above; never gate it.
     if (!slug || UUID_SLUG_RE.test(slug)) break;
     const verdict = await gateResourceSlug(cfg, slug, {
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+      supabaseUrl: serverSupabaseUrl(),
       anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
     });
     if (verdict?.kind === "not-found") {
@@ -499,7 +500,7 @@ export async function middleware(request: NextRequest) {
   });
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serverSupabaseUrl(),
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookieOptions: AUTH_COOKIE_OPTIONS,

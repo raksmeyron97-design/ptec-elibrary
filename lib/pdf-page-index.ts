@@ -19,6 +19,7 @@
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { serverSupabaseUrl } from "@/lib/supabase/origin";
 import { toAllowedStorageUrl } from "@/lib/zima";
 import { installDomMatrixPolyfill } from "./polyfills/dom-matrix";
 import {
@@ -102,7 +103,7 @@ export function sanitizeLogId(value: string): string {
 }
 
 function serviceDb(): SupabaseClient {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "";
+  const url = serverSupabaseUrl();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
   if (!url || !key) {
     throw new Error("pdf-page-index: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required");

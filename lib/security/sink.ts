@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { serverSupabaseUrl } from "@/lib/supabase/origin";
 import { anonymousSessionHash } from "@/lib/search/analytics";
 import type { NormalizedSecurityEvent } from "@/lib/security/model";
 
@@ -80,7 +81,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 function serviceClient(): SupabaseClient | null {
   if (client) return client;
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = serverSupabaseUrl();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
   client = createClient(url, key, { auth: { persistSession: false } });

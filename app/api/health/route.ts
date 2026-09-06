@@ -6,6 +6,7 @@ import {
   type PublicCollectionStats,
 } from "@/lib/collection-stats";
 import { verifyBearer } from "@/lib/security/bearer";
+import { serverSupabaseUrl } from "@/lib/supabase/origin";
 
 /**
  * Liveness + dependency health for uptime monitors and the Docker
@@ -15,8 +16,15 @@ import { verifyBearer } from "@/lib/security/bearer";
  *
  * Checks are cheap and bounded (3s each, run in parallel):
  *  - db:      PostgREST HEAD on a public table with the anon key
+ *  - auth:    GoTrue /auth/v1/health (self-hosted GoTrue is a separate
+ *             process from PostgREST, so "db ok" no longer implies sign-in works)
  *  - storage: any HTTP response from the Zima Storage origin counts as
  *             reachable (even 401/404 — we probe reachability, not auth)
+ *
+ * Both Supabase probes go to the URL the SERVER uses (SUPABASE_INTERNAL_URL
+ * when the app is colocated with the stack), because that is the path every
+ * page render takes — a healthy public hostname with a broken internal route
+ * would otherwise read as healthy.
  *
  * Deep probe (operators only): send `Authorization: Bearer $CRON_SECRET`
  * to additionally get dependency latencies, backup freshness
@@ -45,7 +53,7 @@ async function probe(fn: (signal: AbortSignal) => Promise<boolean>): Promise<boo
 
 /** Latest good backup age in hours, from ops_events (0088); null = unknown. */
 async function backupAgeHours(signal: AbortSignal): Promise<number | null> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = serverSupabaseUrl();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
   const res = await fetch(
@@ -110,11 +118,12 @@ export async function GET(request: NextRequest) {
 
   const t0 = Date.now();
   let dbMs = -1;
+  let authMs = -1;
   let storageMs = -1;
 
-  const [db, storage, backupAge, statsReconciliation] = await Promise.all([
+  const [db, auth, storage, backupAge, statsReconciliation] = await Promise.all([
     probe(async (signal) => {
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const url = serverSupabaseUrl();
       const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
       if (!url || !key) return false;
       const res = await fetch(`${url}/rest/v1/categories?select=id&limit=1`, {
@@ -124,6 +133,18 @@ export async function GET(request: NextRequest) {
         cache: "no-store",
       });
       dbMs = Date.now() - t0;
+      return res.ok;
+    }),
+    probe(async (signal) => {
+      const url = serverSupabaseUrl();
+      const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (!url || !key) return false;
+      const res = await fetch(`${url}/auth/v1/health`, {
+        headers: { apikey: key },
+        signal,
+        cache: "no-store",
+      });
+      authMs = Date.now() - t0;
       return res.ok;
     }),
     probe(async (signal) => {
@@ -152,14 +173,18 @@ export async function GET(request: NextRequest) {
       : Promise.resolve(null),
   ]);
 
-  const healthy = db && storage;
+  const healthy = db && auth && storage;
   const body: Record<string, unknown> = {
     status: healthy ? "ok" : "degraded",
-    checks: { db: db ? "ok" : "fail", storage: storage ? "ok" : "fail" },
+    checks: { db: db ? "ok" : "fail", auth: auth ? "ok" : "fail", storage: storage ? "ok" : "fail" },
     ts: new Date().toISOString(),
   };
   if (deep) {
-    body.latencyMs = { db: dbMs >= 0 ? dbMs : null, storage: storageMs >= 0 ? storageMs : null };
+    body.latencyMs = {
+      db: dbMs >= 0 ? dbMs : null,
+      auth: authMs >= 0 ? authMs : null,
+      storage: storageMs >= 0 ? storageMs : null,
+    };
     // null = no ops_events yet (0088 pending or backups never ran) — the
     // monitor treats unknown as stale.
     body.backupAgeHours = backupAge;

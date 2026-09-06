@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { serverSupabaseUrl } from "@/lib/supabase/origin";
 import { SITE_URL } from "@/lib/seo/site";
 import { logSecurityEvent } from "@/lib/security-log";
 import { alertMaxAttempts } from "../config";
@@ -49,7 +50,7 @@ export interface DeliveryResult {
 }
 
 function serviceClient(): SupabaseClient | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = serverSupabaseUrl();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
   return createClient(url, key, { auth: { persistSession: false } });

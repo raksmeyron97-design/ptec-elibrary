@@ -22,6 +22,7 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import { logSecurityEvent } from "@/lib/security-log";
+import { serverSupabaseUrl } from "@/lib/supabase/origin";
 
 export type RateLimitFailMode = "open" | "emergency" | "closed";
 
@@ -29,7 +30,7 @@ export type RateLimitFailMode = "open" | "emergency" | "closed";
 // rate-limit checks happen in API routes, not Server Components).
 function getServiceClient() {
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serverSupabaseUrl(),
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false } }
   );

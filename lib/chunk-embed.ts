@@ -20,6 +20,7 @@
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { serverSupabaseUrl } from "@/lib/supabase/origin";
 import { sanitizeLogId, type PageRecordType } from "./pdf-page-index";
 
 export const CHUNK_SIZE = 1000;    // target chars per chunk (~ well under the embed token cap)
@@ -38,7 +39,7 @@ export type ChunkEmbedResult =
 export type PageChunk = { pageNo: number; chunkNo: number; content: string };
 
 function serviceDb(): SupabaseClient {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "";
+  const url = serverSupabaseUrl();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
   if (!url || !key) {
     throw new Error("chunk-embed: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required");

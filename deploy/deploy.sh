@@ -145,6 +145,19 @@ if [ -f "$FAILED_FILE" ] && [ "$(cat "$FAILED_FILE")" = "$AFTER_ID" ] && [ "$FOR
   exit 0
 fi
 
+# Self-hosted Supabase (infra/supabase/): the database lives on this box, so
+# migrations are applied HERE, before the image that expects them is rolled
+# forward — the ordering migrate.yml + docker-publish.yml gave us on Cloud.
+# A failed migration aborts the deploy: never run new code on an old schema.
+# The hook is inert while the stack is not installed (no infra/supabase/.env).
+if [ -f "$APP_DIR/infra/supabase/.env" ] && [ -x "$APP_DIR/infra/supabase/scripts/migrate.sh" ]; then
+  log "self-hosted Supabase detected — applying pending migrations first"
+  if ! "$APP_DIR/infra/supabase/scripts/migrate.sh" 2>&1 | sed 's/^/    /'; then
+    echo "$AFTER_ID" > "$FAILED_FILE"
+    die "migrations failed; NOT deploying $AFTER_ID (see journalctl -u ptec-elibrary-deploy)"
+  fi
+fi
+
 log "deploying $AFTER_ID (was ${BEFORE_ID:-none})"
 # --no-deps: bring up ONLY the app and judge it on its own health before
 # touching cloudflared. Pointing a live tunnel at a container that is about to
