@@ -33,6 +33,13 @@ services:
     # cloudflared reaches the app over the internal network, not the host.
     ports:
       - "3000:3000"
+      # The Cloudflare Tunnel connector on the box routes library.ptec.edu.kh to
+      # 10.1.1.146:13000 (its pre-existing published route), so the app is
+      # published on that port too. Both map to the same container port; the
+      # HEALTHCHECK and deploy.sh keep using 3000. Added at the self-hosted
+      # Supabase cutover (2026-09-06) — do not remove without changing the
+      # tunnel's public hostname route first.
+      - "13000:3000"
     networks: [web]
     read_only: true
     tmpfs:
