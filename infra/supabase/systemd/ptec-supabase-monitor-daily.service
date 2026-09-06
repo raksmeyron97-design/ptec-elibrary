@@ -1,0 +1,8 @@
+[Unit]
+Description=PTEC self-hosted Supabase — daily resource monitor (RAM, disk, backup freshness)
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=__INFRA_DIR__/scripts/monitor.sh --daily
+TimeoutStartSec=5min

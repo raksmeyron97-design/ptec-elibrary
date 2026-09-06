@@ -1,0 +1,191 @@
+# Kong declarative config (DB-less) for the PTEC self-hosted Supabase stack.
+#
+# Rendered at container start by the `kong` service entrypoint, which
+# substitutes $SUPABASE_ANON_KEY / $SUPABASE_SERVICE_KEY from the environment —
+# so the keys never sit in a tracked file. Everything else is literal.
+#
+# What is routed (and what is NOT):
+#   /auth/v1/*       → GoTrue     (verify/callback/authorize open; the rest key-auth)
+#   /rest/v1/*       → PostgREST  (key-auth; OpenAPI root service-role only)
+#   /realtime/v1/*   → Realtime   (websocket, key-auth)
+#   /pg/*            → pg-meta    (service-role only — Studio's database API)
+#   /                → 404. Studio is NOT here: it binds to a LAN/loopback port
+#                      directly and never travels through the tunnel.
+#   /storage/v1, /functions/v1, /graphql/v1 → not routed (unused, audit §6).
+#
+# Consumers: `anon` (group anon) and `service_role` (group admin). The `acl`
+# plugin decides which group may reach a route; the `key-auth` plugin verifies
+# the `apikey` header/query against the consumer keys; the JWT in
+# `Authorization: Bearer …` is passed through untouched (hide_credentials:
+# false) so PostgREST/GoTrue can verify it themselves.
+
+_format_version: '2.1'
+_transform: true
+
+consumers:
+  - username: anon
+    keyauth_credentials:
+      - key: $SUPABASE_ANON_KEY
+  - username: service_role
+    keyauth_credentials:
+      - key: $SUPABASE_SERVICE_KEY
+
+acls:
+  - consumer: anon
+    group: anon
+  - consumer: service_role
+    group: admin
+
+services:
+  ## ── Auth: open routes (browser lands here from emails / OAuth) ─────────────
+  - name: auth-v1-open
+    url: http://auth:9999/verify
+    routes:
+      - name: auth-v1-open
+        strip_path: true
+        paths: [/auth/v1/verify]
+    plugins:
+      - name: cors
+  - name: auth-v1-open-callback
+    url: http://auth:9999/callback
+    routes:
+      - name: auth-v1-open-callback
+        strip_path: true
+        paths: [/auth/v1/callback]
+    plugins:
+      - name: cors
+  - name: auth-v1-open-authorize
+    url: http://auth:9999/authorize
+    routes:
+      - name: auth-v1-open-authorize
+        strip_path: true
+        paths: [/auth/v1/authorize]
+    plugins:
+      - name: cors
+  - name: auth-v1-open-jwks
+    url: http://auth:9999/.well-known/jwks.json
+    routes:
+      - name: auth-v1-open-jwks
+        strip_path: true
+        paths: [/auth/v1/.well-known/jwks.json]
+    plugins:
+      - name: cors
+
+  ## ── Auth: everything else needs an API key ────────────────────────────────
+  - name: auth-v1
+    url: http://auth:9999/
+    routes:
+      - name: auth-v1-all
+        strip_path: true
+        paths: [/auth/v1/]
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: false
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow: [admin, anon]
+
+  ## ── PostgREST OpenAPI root: service-role only ─────────────────────────────
+  ## (the anon key must not enumerate every table; scripts/backup/lib.mjs and
+  ## check-schema-drift.mjs use the service key for discovery.)
+  - name: rest-v1-openapi
+    url: http://rest:3000/
+    routes:
+      - name: rest-v1-openapi-root
+        strip_path: true
+        paths: [/rest/v1/]
+        # Exact match on the root only; the catch-all below is more specific
+        # for every table path because of the trailing slash + regex_priority.
+        regex_priority: 10
+        methods: [GET, HEAD, OPTIONS]
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: false
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow: [admin]
+
+  ## ── PostgREST ─────────────────────────────────────────────────────────────
+  - name: rest-v1
+    url: http://rest:3000/
+    routes:
+      - name: rest-v1-all
+        strip_path: true
+        paths: [~/rest/v1/.+]
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: false
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow: [admin, anon]
+
+  ## ── Realtime (websocket) ──────────────────────────────────────────────────
+  - name: realtime-v1-ws
+    url: http://realtime-dev.supabase-realtime:4000/socket
+    protocol: ws
+    routes:
+      - name: realtime-v1-ws
+        strip_path: true
+        paths: [/realtime/v1/]
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: false
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow: [admin, anon]
+
+  # Realtime's own tenant/openapi admin endpoints are never public.
+  - name: realtime-v1-rest-blocked
+    url: http://realtime-dev.supabase-realtime:4000/api
+    protocol: http
+    routes:
+      - name: realtime-v1-rest-blocked
+        strip_path: true
+        paths: [/realtime/v1/api]
+    plugins:
+      - name: request-termination
+        config:
+          status_code: 403
+          message: "Access is forbidden."
+
+  ## ── pg-meta: service role only (Studio uses it over the internal network) ──
+  - name: meta
+    url: http://meta:8080/
+    routes:
+      - name: meta-all
+        strip_path: true
+        paths: [/pg/]
+    plugins:
+      - name: key-auth
+        config:
+          hide_credentials: false
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow: [admin]
+
+  ## ── Anything else: 404, not Studio ────────────────────────────────────────
+  - name: not-found
+    url: http://127.0.0.1:1/
+    routes:
+      - name: not-found-all
+        strip_path: true
+        paths: [/]
+        regex_priority: -1
+    plugins:
+      - name: request-termination
+        config:
+          status_code: 404
+          message: "Not found."

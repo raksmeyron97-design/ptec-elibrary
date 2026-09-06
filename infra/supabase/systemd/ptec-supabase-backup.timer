@@ -1,0 +1,12 @@
+# 03:20 box-local: after the 02:00 Zima file backup and the app's 03:10 JSONL
+# backup, so the three never contend for the disk. backup-stale alerts at > 30 h.
+[Unit]
+Description=Nightly PTEC Supabase backup
+
+[Timer]
+OnCalendar=*-*-* 03:20:00
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

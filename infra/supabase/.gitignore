@@ -1,0 +1,7 @@
+.env
+.env.*
+!.env.example
+volumes/
+.state/
+backups/*
+!backups/.gitkeep
