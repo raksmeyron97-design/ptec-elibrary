@@ -44,6 +44,7 @@ was right about the destination but wrong or incomplete in seven places.
 | 5 | Copy Cloud auth settings | **Google OAuth exists only in the Cloud dashboard** — `supabase/config.toml` has no `[auth.external.google]`. SMTP, templates, rate limits, captcha, MFA are dashboard state too. | Every Auth setting becomes GoTrue env in `infra/supabase/.env` and must be transcribed from the dashboard during preparation; Google Console needs a second redirect URI. |
 | 6 | CSP already env-aware | `lib/csp.ts` hardcodes `https://*.supabase.co wss://*.supabase.co`; its env escape hatch fires only for `http://` URLs. `app/sw.ts` matches `hostname.endsWith("supabase.co")`. Neither has a test. | An https self-hosted origin would be **blocked by connect-src** on every page — the single largest cutover risk. Fixed in Phase C. |
 | 7 | Sessions survive | The auth cookie is named `sb-<first-hostname-label>-auth-token` by supabase-js. `ufeymdoqksojwyysicun` → `supabase`. | **Every user is signed out once at cutover** regardless of secret reuse. Expected, one-time, communicated. |
+| 8 | Email templates are in the repo | `supabase/templates/{confirmation,recovery,magic_link}.html` are **committed as zero-byte files**; the bilingual templates exist only in the Cloud dashboard. Verified on staging: GoTrue sent an email with the Khmer subject and an **empty body**. | Export the three templates from Dashboard → Auth → Email Templates into those files before cutover; `infra/supabase/scripts/preflight.sh` refuses to start with empty templates. |
 
 Two further facts that decide the design:
 
@@ -231,6 +232,7 @@ cleanup after `verify-db` confirms no `file_url` points there),
 
 ## 7. What could break at cutover (ranked)
 
+0. Blank auth emails — the templates in the repo are empty (finding 8); preflight now blocks on it.
 1. CSP blocks the new origin (fixed in Phase C; verified by unit test + browser).
 2. Image built against the old URL still cached on the box (`deploy.sh` pulls
    by digest; cutover checklist verifies `NEXT_PUBLIC_SUPABASE_URL` inside the

@@ -28,7 +28,7 @@ here is triggered from a coding environment or from CI._
 | E2 | `scripts/migration/preflight.sh` against Cloud | PASS; note extension schemas, MFA-secret verdict, publication tables, GoTrue version ≤ v2.195.0 |
 | E3 | `scripts/migration/dump-cloud.sh` (read-only) | manifest row counts match the dashboard's; directory chmod 700 |
 | E4 | `scripts/migration/restore-selfhosted.sh reports/migration/dump-<ts>` | finishes; row counts equal the manifest |
-| E5 | `verify-db.sh --cloud`, `--selfhosted`, `--compare` | report says PASS (sequence values excluded) |
+| E5 | `verify-db.sh --cloud`, `--selfhosted`, `--compare` | report says PASS (sequence values excluded). Expected residue: the two `public_resource_*_health` views' definition text re-serialises differently after a restore (same SQL, different pretty-print) — verify by eye, not a defect |
 | E6 | `verify-auth.sh` with `TEST_EMAIL/TEST_PASSWORD` of a throwaway account (captcha disabled on staging) | PASS incl. refresh + logout |
 | E7 | App image built with `NEXT_PUBLIC_SUPABASE_URL=http://<box-lan-ip>:8000` (or the `dev` server on a laptop pointed at the box), `.env` with `SUPABASE_INTERNAL_URL` | `verify-api.sh` PASS; browser: login, Google OAuth (needs a real https hostname — do on E8), MFA verify, PDF reader, upload, download-restricted book, admin, comments presence, offline shell |
 | E8 | Tunnel hostname live (`supabase.storage-ptec.online` → `http://kong:8000`), `SUPABASE_PUBLIC_URL` switched to it, GoTrue restarted, Google redirect URI added | `verify-auth.sh` through the public URL PASS; Google sign-in round-trips on a staging app hostname |
@@ -47,7 +47,14 @@ Mark each PASS / WARN / BLOCKER. **Any BLOCKER = no cutover.**
 - [ ] Google Cloud Console lists BOTH redirect URIs (Cloud and self-hosted)
 - [ ] GoTrue env transcribed from the Cloud dashboard: SMTP (Gmail App
       Password), rate limits, OTP expiry, password policy, leaked-password
-      check, captcha secret, MFA; `supabase/templates/*.html` served
+      check, captcha secret, MFA
+- [ ] **Email templates exported** from Dashboard → Authentication → Email
+      Templates into `supabase/templates/{confirmation,recovery,magic_link}.html`
+      (the files in the repo are EMPTY today — staging sent blank emails), then
+      committed; `preflight.sh` fails on an empty template. Verify on staging
+      with `docker-compose.dev.yml` (Mailpit at 127.0.0.1:8025): the recovery
+      mail must carry a link of the shape
+      `<SUPABASE_PUBLIC_URL>/auth/v1/verify?token=…&type=recovery&redirect_to=…`
 - [ ] `ADDITIONAL_REDIRECT_URLS` contains `https://library.ptec.edu.kh/**` (and
       the Vercel standby hostname if it must keep working)
 - [ ] Cloudflare: WebSockets on; no Access policy on the Supabase hostname;
@@ -83,8 +90,11 @@ new image goes live.
    tunnel hostname; tunnel profile on): `docker compose --profile tunnel up -d`,
    `healthcheck.sh`.
 4. `scripts/migration/restore-selfhosted.sh reports/migration/dump-<T> --force`
-   (the staging data from Phase E is what `--force` clears; confirm the
-   container name when asked).
+   (the staging data from Phase E is what `--force` clears; type the container
+   name when asked — `--yes` exists for scripted rehearsals only). The dump's
+   `CREATE SCHEMA public` line is neutralised by the scripts; `session_replication_role
+   = replica` makes FK order and the circular `security_incidents` constraint
+   irrelevant during data load.
 5. `verify-db.sh --selfhosted && verify-db.sh --compare` → PASS.
 6. `verify-auth.sh` through `https://supabase.storage-ptec.online` → PASS.
 
