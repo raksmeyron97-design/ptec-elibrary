@@ -1,0 +1,153 @@
+# Self-Hosted Supabase — Production Cutover Runbook
+
+_The controlled move of `library.ptec.edu.kh` from Supabase Cloud to the
+self-hosted stack in `infra/supabase/`. Read the audit first
+(`SELF_HOSTED_SUPABASE_MIGRATION_AUDIT.md`); keep the rollback runbook open
+(`SELF_HOSTED_SUPABASE_ROLLBACK.md`). Every command is run by a human; nothing
+here is triggered from a coding environment or from CI._
+
+**Decisions this runbook assumes** (change them consciously, not by accident):
+
+1. The Cloud JWT secret, anon key and service-role key are **reused** at cutover
+   (`generate-secrets.sh --jwt-secret … --anon-key … --service-key …`).
+   Restored refresh tokens stay valid, analytics HMACs stay continuous, and the
+   only value that changes in GitHub/box/Vercel is `NEXT_PUBLIC_SUPABASE_URL`.
+2. The production schema comes from **`pg_dump` of Cloud**, not from replaying
+   the migration chain (hosted drift). The CLI history table travels with it,
+   so `infra/supabase/scripts/migrate.sh` continues from the same point.
+3. The Cloud project is **kept alive, untouched, for at least 30 days** after
+   cutover. It is the rollback target.
+4. Every user signs in once more after cutover (cookie name changes from
+   `sb-<ref>-auth-token` to `sb-supabase-auth-token`). Announce it.
+
+## Phase E — staging validation (done before any production date is set)
+
+| Step | Command / action | Pass criterion |
+|---|---|---|
+| E1 | Stack up on the box with `SUPABASE_PUBLIC_URL=http://127.0.0.1:8000`, no tunnel, `docker-compose.dev.yml` (Mailpit) | `infra/supabase/scripts/healthcheck.sh` → STACK HEALTHY |
+| E2 | `scripts/migration/preflight.sh` against Cloud | PASS; note extension schemas, MFA-secret verdict, publication tables, GoTrue version ≤ v2.195.0 |
+| E3 | `scripts/migration/dump-cloud.sh` (read-only) | manifest row counts match the dashboard's; directory chmod 700 |
+| E4 | `scripts/migration/restore-selfhosted.sh reports/migration/dump-<ts>` | finishes; row counts equal the manifest |
+| E5 | `verify-db.sh --cloud`, `--selfhosted`, `--compare` | report says PASS (sequence values excluded) |
+| E6 | `verify-auth.sh` with `TEST_EMAIL/TEST_PASSWORD` of a throwaway account (captcha disabled on staging) | PASS incl. refresh + logout |
+| E7 | App image built with `NEXT_PUBLIC_SUPABASE_URL=http://<box-lan-ip>:8000` (or the `dev` server on a laptop pointed at the box), `.env` with `SUPABASE_INTERNAL_URL` | `verify-api.sh` PASS; browser: login, Google OAuth (needs a real https hostname — do on E8), MFA verify, PDF reader, upload, download-restricted book, admin, comments presence, offline shell |
+| E8 | Tunnel hostname live (`supabase.storage-ptec.online` → `http://kong:8000`), `SUPABASE_PUBLIC_URL` switched to it, GoTrue restarted, Google redirect URI added | `verify-auth.sh` through the public URL PASS; Google sign-in round-trips on a staging app hostname |
+| E9 | `benchmark.mjs --label cloud-baseline` (production today) and `--label selfhosted-staging` | numbers recorded in the report; no probe regresses by more than 2× |
+| E10 | `backup-db.sh` then `restore-test.sh` | RESTORE TEST PASS; `ops_events` shows `backup_db ok` |
+| E11 | Kill and restart the stack (`docker compose down && up -d`) | health returns; data intact; `db-config` volume preserved |
+
+Any FAIL blocks scheduling. Record results in
+`SELF_HOSTED_SUPABASE_MIGRATION_REPORT.md`.
+
+## Phase F — readiness checklist
+
+Mark each PASS / WARN / BLOCKER. **Any BLOCKER = no cutover.**
+
+- [ ] E1–E11 PASS, with dates
+- [ ] Google Cloud Console lists BOTH redirect URIs (Cloud and self-hosted)
+- [ ] GoTrue env transcribed from the Cloud dashboard: SMTP (Gmail App
+      Password), rate limits, OTP expiry, password policy, leaked-password
+      check, captcha secret, MFA; `supabase/templates/*.html` served
+- [ ] `ADDITIONAL_REDIRECT_URLS` contains `https://library.ptec.edu.kh/**` (and
+      the Vercel standby hostname if it must keep working)
+- [ ] Cloudflare: WebSockets on; no Access policy on the Supabase hostname;
+      cache bypass for it (API responses must never be edge-cached)
+- [ ] GitHub: new values ready but NOT yet applied — `NEXT_PUBLIC_SUPABASE_URL`
+      (variable); anon/service keys unchanged under decision 1
+- [ ] Box `.env` prepared as `.env.selfhosted` (URL, `SUPABASE_INTERNAL_URL`,
+      `COMPOSE_FILE`), and current `.env` copied to `.env.cloud` with
+      `IMAGE_TAG=sha-<current image>` (rollback input)
+- [ ] `infra/supabase/.env` chmod 600; `preflight.sh` PASS with the production
+      values (https public URL, captcha on, Google on)
+- [ ] Backups timer enabled and one manual `backup-db.sh` succeeded on the box
+- [ ] Vercel warm standby: decide — repoint its env to the new Supabase too
+      (keeps failover coherent) or leave on Cloud (then it is a rollback path,
+      not a standby). Write the decision down.
+- [ ] Announcement drafted: "sign in again after <time>"
+- [ ] Rollback rehearsed once on staging (`scripts/migration/rollback.sh --dry-run`)
+- [ ] Two people available for the window; the professor's DNS is NOT touched
+
+## Phase G — cutover timeline
+
+Choose a low-traffic window (early morning, Phnom Penh). "T" is the moment the
+new image goes live.
+
+**T-30 — freeze and final dump**
+1. Pause writers: in the Supabase dashboard set Auth → *Disable new signups*
+   temporarily; ask staff to stop editing (announcement). Readers keep reading.
+2. `scripts/migration/dump-cloud.sh` → `reports/migration/dump-<T>`.
+   Verify `manifest.txt` counts against yesterday's staging numbers.
+
+**T-20 — restore**
+3. On the box, stack up with production `infra/supabase/.env` (public URL =
+   tunnel hostname; tunnel profile on): `docker compose --profile tunnel up -d`,
+   `healthcheck.sh`.
+4. `scripts/migration/restore-selfhosted.sh reports/migration/dump-<T> --force`
+   (the staging data from Phase E is what `--force` clears; confirm the
+   container name when asked).
+5. `verify-db.sh --selfhosted && verify-db.sh --compare` → PASS.
+6. `verify-auth.sh` through `https://supabase.storage-ptec.online` → PASS.
+
+**T-10 — configuration**
+7. GitHub → Settings → Variables: `NEXT_PUBLIC_SUPABASE_URL=https://supabase.storage-ptec.online`.
+   Remove the `SUPABASE_DB_URL` secret (migrate.yml switches to self-hosted mode).
+   Keep the Cloud value written down in the password manager.
+8. Box: `cp .env .env.cloud` (add `IMAGE_TAG=sha-<running>` to it), then
+   replace `.env` with `.env.selfhosted`. Do **not** `compose up` yet.
+
+**T-5 — build**
+9. Merge/push the release commit (or `workflow_dispatch` Docker Publish). The
+   build prerenders against the NEW Supabase through the tunnel — if the
+   tunnel is down the build fails here, safely, before anything changes.
+10. Wait for the image digest in the workflow summary.
+
+**T-0 — go live**
+11. Box: `sudo ./deploy/deploy.sh --force`. deploy.sh runs
+    `infra/supabase/scripts/migrate.sh` (should report "schema is current" —
+    the history table came with the dump), then rolls the image.
+12. `docker exec ptec-elibrary env | grep SUPABASE` shows the internal URL;
+    `curl -s http://127.0.0.1:3000/api/health` → `"db":"ok","auth":"ok"`.
+
+**T+5 — smoke tests** (`scripts/migration/verify-api.sh` first, then a human)
+- [ ] Home `/`, `/km` — content renders, counts match
+- [ ] `/books`, `/theses`, `/publications` — lists and filters
+- [ ] Login with password (captcha) — succeeds, session persists on reload
+- [ ] Google OAuth — round-trips to `/auth/callback`
+- [ ] Admin login → MFA verify → `/admin` dashboard loads
+- [ ] Search `/search?q=…` English and Khmer; "found inside" hits
+- [ ] AI search / Ask — deterministic answer and a model answer
+- [ ] Book detail → PDF reader streams; range requests OK
+- [ ] Upload a small PDF in `/admin/books/upload` (delete it after)
+- [ ] A `read online only` book refuses `/download` with the audited 403
+- [ ] Comments on a post: typing presence shows for a second browser
+- [ ] `/dashboard` (reader) and `/profile`
+- [ ] `/api/health` 200; deep probe shows latencies and `backupAgeHours`
+- [ ] Service worker installs; offline shell served with network off
+13. Re-enable signups in GoTrue if they were paused (they are enabled by env —
+    the pause was on Cloud, which no longer matters).
+
+**T+30 — observe**
+- UptimeRobot green; `uptime.yml` green; Telegram quiet
+- `docker stats` — no container near its limit; `db` under 1 GB
+- `monitor.sh --fast` twice
+- `benchmark.mjs --label selfhosted-prod` and compare with `cloud-baseline`
+- Next morning: `backup_db ok` in `ops_events`; the JSONL backup timer also ok
+
+**T+1 day … T+30 days**
+- Keep Cloud alive and unchanged. Do not delete it.
+- After 7 clean days: remove the Cloud redirect URI from Google Console,
+  delete `.env.cloud` from the box (keep the password-manager copy), drop the
+  `*.supabase.co` literals from `lib/csp.ts`, `next.config.ts` and `lib/zima.ts`
+  (after `verify-db` confirmed no `file_url` on Supabase Storage), and update
+  the privacy copy in `messages/*.json`.
+- After 30 days: pause the Cloud project (pausing keeps a restorable copy;
+  deletion is a separate, deliberate decision).
+
+## Performance measurement
+
+Run `node scripts/migration/benchmark.mjs --label cloud-baseline` **before**
+T-30 from the box (and once from a laptop), and `--label selfhosted-prod`
+at T+30 from the same places. Report all of: `supabase.rest` p50/p95 (gateway
++ DB), `app.health.db` (app → DB from inside the container — the number the
+migration was meant to improve), `app.ttfb.*`, `app.api.search*`. A claim of
+"faster" needs those two files side by side; nothing else counts.

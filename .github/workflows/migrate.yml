@@ -11,6 +11,14 @@
 # (IPv6-only, unreachable from GitHub runners) and NOT the transaction
 # pooler on 6543 (breaks prepared statements / advisory locks).
 #
+# SELF-HOSTED MODE (docs/SELF_HOSTED_SUPABASE_CUTOVER.md): the self-hosted
+# Postgres publishes no port, so nothing on GitHub can reach it. Once the
+# secret is REMOVED at cutover this workflow reports that migrations are
+# applied on the box by infra/supabase/scripts/migrate.sh (invoked by
+# deploy/deploy.sh before every image roll) and exits green — it does not
+# fail, and it does not try. The e2e job in ci.yml keeps proving on every PR
+# that the chain applies cleanly from the baseline.
+#
 # First run bootstraps supabase_migrations.schema_migrations from
 # supabase/applied-baseline-2026-07-16.txt (every version in that manifest
 # was verified applied on the hosted DB on 2026-07-16 via object probes);
@@ -40,18 +48,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check secret
+      - name: Detect mode
+        id: mode
         run: |
           if [ -z "${{ secrets.SUPABASE_DB_URL }}" ]; then
-            echo "::error::SUPABASE_DB_URL secret is not configured — see supabase/MIGRATIONS.md"
-            exit 1
+            echo "mode=self-hosted" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Self-hosted Supabase mode"
+              echo
+              echo "No \`SUPABASE_DB_URL\` secret: the database is self-hosted and publishes no"
+              echo "port. Migrations under \`supabase/migrations/\` are applied on the ZimaOS box by"
+              echo "\`infra/supabase/scripts/migrate.sh\`, which \`deploy/deploy.sh\` runs before it"
+              echo "rolls a new image forward. Nothing was applied from this workflow."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "mode=cloud" >> "$GITHUB_OUTPUT"
           fi
 
       - uses: actions/setup-node@v4
+        if: steps.mode.outputs.mode == 'cloud'
         with:
           node-version: 22
 
       - name: Bootstrap migration history (no-op after first run)
+        if: steps.mode.outputs.mode == 'cloud'
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
@@ -59,22 +79,24 @@ jobs:
           node scripts/migrations/bootstrap-history.mjs
 
       - uses: supabase/setup-cli@v1
+        if: steps.mode.outputs.mode == 'cloud'
         with:
           version: latest
 
       - name: Dry run (PR)
-        if: github.event_name == 'pull_request'
+        if: steps.mode.outputs.mode == 'cloud' && github.event_name == 'pull_request'
         run: supabase db push --dry-run --include-all --db-url "$SUPABASE_DB_URL"
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
       - name: Apply migrations (main)
-        if: github.event_name != 'pull_request'
+        if: steps.mode.outputs.mode == 'cloud' && github.event_name != 'pull_request'
         run: echo Y | supabase db push --include-all --db-url "$SUPABASE_DB_URL"
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
       - name: Show final history
+        if: steps.mode.outputs.mode == 'cloud'
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: supabase migration list --db-url "$SUPABASE_DB_URL" | tail -15

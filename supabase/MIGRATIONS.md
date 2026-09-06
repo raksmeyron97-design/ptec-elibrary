@@ -26,6 +26,22 @@ pipeline existed, so the first workflow run executes
 `supabase/applied-baseline-2026-07-16.txt` (verified live via object probes
 on 2026-07-16) as applied without running any SQL. It is a no-op afterwards.
 
+## Self-hosted pipeline (box) — added 2026-09-06
+
+When the database is the self-hosted stack (`infra/supabase/`), it publishes
+no port, so `migrate.yml` cannot reach it and goes green as a no-op (the
+`SUPABASE_DB_URL` secret is removed at cutover). Migrations are applied **on
+the box** by `infra/supabase/scripts/migrate.sh`, which `deploy/deploy.sh`
+runs before every image roll: `git pull --ff-only`, dry-run, then each pending
+file in one transaction together with its row in
+`supabase_migrations.schema_migrations` — the same table the CLI uses, so
+`supabase migration list --db-url …` still agrees. A failed migration aborts
+the deploy and pages Sev 2. The PR-time proof that a migration applies from
+the baseline remains the `e2e` job in `ci.yml`.
+
+Files must stay free of explicit `BEGIN`/`COMMIT` and psql meta-commands
+(they run under `--single-transaction`); none do today.
+
 ## Creating a new migration
 
 ```bash
