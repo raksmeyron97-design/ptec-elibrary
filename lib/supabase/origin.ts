@@ -74,3 +74,31 @@ export function isSupabaseHost(hostname: string, configured: string | null | und
   if (configured && hostname === configured) return true;
   return hostname.endsWith(".supabase.co");
 }
+
+/**
+ * The auth cookie's name, derived from the PUBLIC URL only.
+ *
+ * @supabase/ssr defaults the name to `sb-<first hostname label>-auth-token` of
+ * whatever URL each client was built with. The browser client is built with
+ * NEXT_PUBLIC_SUPABASE_URL and the server clients with SUPABASE_INTERNAL_URL
+ * when it is set — so on the box the browser wrote `sb-supabase-auth-token`
+ * while the server looked for `sb-kong-auth-token`, every server-side
+ * `getUser()` saw no session, and MFA enrolment failed with "missing sub
+ * claim". Naming the cookie from the public URL on every client makes the
+ * internal URL what it was meant to be: a transport detail. Deriving rather
+ * than hard-coding keeps local and CI stacks (ref "127") and Cloud (ref
+ * "<project>") on the same rule, which e2e/utils/auth.ts also relies on.
+ */
+export function authCookieName(
+  publicUrl: string | undefined = process.env.NEXT_PUBLIC_SUPABASE_URL,
+): string {
+  let ref = "supabase";
+  try {
+    const host = new URL(publicUrl ?? "").hostname;
+    ref = host.split(".")[0] || ref;
+  } catch {
+    // no/malformed URL: a stable fallback beats a throw here (see file header)
+  }
+  return `sb-${ref}-auth-token`;
+}
+
