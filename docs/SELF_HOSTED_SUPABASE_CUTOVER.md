@@ -8,10 +8,19 @@ here is triggered from a coding environment or from CI._
 
 **Decisions this runbook assumes** (change them consciously, not by accident):
 
-1. The Cloud JWT secret, anon key and service-role key are **reused** at cutover
-   (`generate-secrets.sh --jwt-secret … --anon-key … --service-key …`).
-   Restored refresh tokens stay valid, analytics HMACs stay continuous, and the
-   only value that changes in GitHub/box/Vercel is `NEXT_PUBLIC_SUPABASE_URL`.
+1. The Cloud **JWT secret** is reused (`generate-secrets.sh --jwt-secret …`), so
+   restored refresh tokens stay valid and analytics HMACs stay continuous. The
+   **API keys are not**: Cloud issues `sb_publishable_…` / `sb_secret_…` keys
+   that its own gateway maps to roles, while the self-hosted Kong matches the
+   `apikey` header against the JWT-format `ANON_KEY` / `SERVICE_ROLE_KEY` in
+   `infra/supabase/.env` and PostgREST needs a JWT in the Bearer header.
+   Verified 2026-09-06 with read-only count queries: the `sb_*` keys answer
+   401 on the self-hosted stack and the generated JWTs answer 401 on Cloud. So
+   at cutover the app's anon and service keys switch to the stack's JWT pair —
+   `deploy/cutover-selfhost-env.sh` copies them from the stack's own env on the
+   box — and the GitHub **variable** `NEXT_PUBLIC_SUPABASE_ANON_KEY` plus the
+   **secret** `SUPABASE_SERVICE_ROLE_KEY` carry the same pair when the image is
+   built. Rollback restores the `sb_*` keys with the Cloud URL (`.env.cloud`).
 2. The production schema comes from **`pg_dump` of Cloud**, not from replaying
    the migration chain (hosted drift). The CLI history table travels with it,
    so `infra/supabase/scripts/migrate.sh` continues from the same point.
@@ -60,10 +69,10 @@ Mark each PASS / WARN / BLOCKER. **Any BLOCKER = no cutover.**
 - [ ] Cloudflare: WebSockets on; no Access policy on the Supabase hostname;
       cache bypass for it (API responses must never be edge-cached)
 - [ ] GitHub: new values ready but NOT yet applied — `NEXT_PUBLIC_SUPABASE_URL`
-      (variable); anon/service keys unchanged under decision 1
-- [ ] Box `.env` prepared as `.env.selfhosted` (URL, `SUPABASE_INTERNAL_URL`,
-      `COMPOSE_FILE`), and current `.env` copied to `.env.cloud` with
-      `IMAGE_TAG=sha-<current image>` (rollback input)
+      and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (variables), `SUPABASE_SERVICE_ROLE_KEY`
+      (secret): the stack's JWT keys, per decision 1
+- [ ] `deploy/cutover-selfhost-env.sh --dry-run` on the box shows the expected
+      five-line diff and names the running image's `sha-` tag for `.env.cloud`
 - [ ] `infra/supabase/.env` chmod 600; `preflight.sh` PASS with the production
       values (https public URL, captcha on, Google on)
 - [ ] Backups timer enabled and one manual `backup-db.sh` succeeded on the box
@@ -99,11 +108,19 @@ new image goes live.
 6. `verify-auth.sh` through `https://supabase.storage-ptec.online` → PASS.
 
 **T-10 — configuration**
-7. GitHub → Settings → Variables: `NEXT_PUBLIC_SUPABASE_URL=https://supabase.storage-ptec.online`.
-   Remove the `SUPABASE_DB_URL` secret (migrate.yml switches to self-hosted mode).
-   Keep the Cloud value written down in the password manager.
-8. Box: `cp .env .env.cloud` (add `IMAGE_TAG=sha-<running>` to it), then
-   replace `.env` with `.env.selfhosted`. Do **not** `compose up` yet.
+7. GitHub → Settings. Variables: `NEXT_PUBLIC_SUPABASE_URL=https://supabase.storage-ptec.online`,
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY=<stack ANON_KEY (JWT)>`. Secrets:
+   `SUPABASE_SERVICE_ROLE_KEY=<stack SERVICE_ROLE_KEY (JWT)>` (the image build
+   prerenders with it), and the secret copies of `NEXT_PUBLIC_SUPABASE_URL` /
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY` that `check-file-health.yml` reads. Remove
+   the `SUPABASE_DB_URL` secret (migrate.yml switches to self-hosted mode).
+   Keep every Cloud value written down in the password manager.
+8. Box: `sudo ./deploy/cutover-selfhost-env.sh --dry-run`, read the diff, then
+   `sudo ./deploy/cutover-selfhost-env.sh`. It writes `.env.cloud` first
+   (pinned to the running image's `sha-` tag), then changes exactly five
+   keys in `.env` — URL, `SUPABASE_INTERNAL_URL`, `COMPOSE_FILE`, and the two
+   API keys read from `infra/supabase/.env` after a live check that the stack
+   accepts them. Do **not** `compose up` yet.
 
 **T-5 — build**
 9. Merge/push the release commit (or `workflow_dispatch` Docker Publish). The

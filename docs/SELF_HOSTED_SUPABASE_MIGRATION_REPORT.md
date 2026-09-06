@@ -74,7 +74,7 @@ compatible with the CLI's history table (`supabase/MIGRATIONS.md`).
 ## 6. Authentication, OAuth, CSP, PWA, CI, backups, monitoring
 
 - **Auth**: GoTrue env mirrors `supabase/config.toml` plus the dashboard-only
-  items (SMTP, captcha, MFA, rate limits, Google). JWT secret and keys reused
+  items (SMTP, captcha, MFA, rate limits, Google). JWT secret reused; API keys are per-backend (Cloud `sb_*` keys are refused by Kong, the stack's JWT keys by Cloud — see the cutover runbook, decision 1)
   from Cloud at cutover (decision, cutover runbook). Cookie renames once.
 - **Google OAuth**: add `https://supabase.storage-ptec.online/auth/v1/callback`
   as a second authorised redirect URI in Google Cloud Console; keep the Cloud

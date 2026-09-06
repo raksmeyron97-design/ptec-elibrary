@@ -19,8 +19,21 @@
 #                  rollback brings back the Cloud-pointing build, not whatever
 #                  :main has become since. Never overwritten once it exists.
 #   .env         — NEXT_PUBLIC_SUPABASE_URL, SUPABASE_INTERNAL_URL and
-#                  COMPOSE_FILE set to the self-hosted values; every other line
-#                  unchanged and in its original order.
+#                  COMPOSE_FILE set to the self-hosted values, and the two API
+#                  KEYS replaced (see below); every other line unchanged and in
+#                  its original order.
+#
+# WHY THE KEYS CHANGE TOO. Cloud issues its keys in the new `sb_publishable_…`
+# / `sb_secret_…` format and its gateway maps them to roles; the self-hosted
+# Kong authenticates the `apikey` header by string match against the JWT-format
+# keys in infra/supabase/.env (ANON_KEY / SERVICE_ROLE_KEY, both signed with the
+# reused JWT secret), and PostgREST needs a real JWT in the Bearer header.
+# Verified 2026-09-06: `sb_*` keys → 401 on the self-hosted stack; the legacy
+# JWTs → 401 on Cloud. So the JWT SECRET is what is reused (sessions stay
+# valid); the API keys are per-backend, and this script takes the self-hosted
+# pair straight from infra/supabase/.env on the same box so they cannot be
+# mistyped. The GitHub variable NEXT_PUBLIC_SUPABASE_ANON_KEY must carry the
+# same anon JWT when the image is built (it is baked into the browser bundle).
 set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -31,6 +44,7 @@ CONTAINER="${CONTAINER:-ptec-elibrary}"
 SELF_URL="${SELF_URL:-https://supabase.storage-ptec.online}"
 INTERNAL_URL="${INTERNAL_URL:-http://kong:8000}"
 COMPOSE_FILES="docker-compose.yml:docker-compose.selfhost.yml"
+STACK_ENV="${STACK_ENV:-$APP_DIR/infra/supabase/.env}"
 
 MODE=apply
 for a in "$@"; do
@@ -43,6 +57,10 @@ done
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 [ -f "$ENV_FILE" ] || die "$ENV_FILE not found — run from the app checkout on the box"
+
+# The self-hosted API keys: the stack's own, from the file Kong reads them from.
+stack_value() { grep -E "^$1=" "$STACK_ENV" 2>/dev/null | head -1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//'; }
+is_jwt() { case "$1" in eyJ*.*.*) return 0 ;; *) return 1 ;; esac; }
 
 # ── rollback ────────────────────────────────────────────────────────────────
 if [ "$MODE" = rollback ]; then
@@ -80,9 +98,23 @@ set_kv() {
   mv "$file.tmp" "$file"
 }
 
+if [ "$MODE" != rollback ]; then
+  [ -f "$STACK_ENV" ] || die "$STACK_ENV not found — the Supabase stack's env is where the API keys come from"
+  ANON="$(stack_value ANON_KEY)"; SERVICE="$(stack_value SERVICE_ROLE_KEY)"
+  is_jwt "$ANON" || die "ANON_KEY in $STACK_ENV is not a JWT (got '${ANON:0:12}…'); Kong's key-auth expects the generated JWT keys"
+  is_jwt "$SERVICE" || die "SERVICE_ROLE_KEY in $STACK_ENV is not a JWT"
+  # The keys must actually open the stack before they go into the app's env.
+  if command -v curl >/dev/null 2>&1; then
+    code="$(curl -s -m 15 -o /dev/null -w '%{http_code}' "$SELF_URL/rest/v1/books?select=count" -H "apikey: $ANON" -H "Authorization: Bearer $ANON" -H "Prefer: count=exact" || echo 000)"
+    [ "$code" = 200 ] || [ "$code" = 206 ] || die "$SELF_URL rejected the stack's ANON_KEY (HTTP $code) — fix the stack before switching the app"
+  fi
+fi
+
 work="$(mktemp)"
 cp "$ENV_FILE" "$work"
 set_kv "$work" NEXT_PUBLIC_SUPABASE_URL "$SELF_URL"
+set_kv "$work" NEXT_PUBLIC_SUPABASE_ANON_KEY "$ANON"
+set_kv "$work" SUPABASE_SERVICE_ROLE_KEY "$SERVICE"
 set_kv "$work" SUPABASE_INTERNAL_URL "$INTERNAL_URL"
 set_kv "$work" COMPOSE_FILE "$COMPOSE_FILES"
 
@@ -120,6 +152,10 @@ chmod 600 "$ENV_FILE" 2>/dev/null || true
 bad="$(grep -vE '^\s*(#|$)' "$ENV_FILE" | grep -vE '^[A-Za-z_][A-Za-z0-9_]*=' || true)"
 [ -z "$bad" ] || die "malformed lines after edit:\n$bad"
 for k in NEXT_PUBLIC_SUPABASE_URL SUPABASE_INTERNAL_URL COMPOSE_FILE; do
-  printf '  %-26s %s\n' "$k" "$(grep -E "^$k=" "$ENV_FILE" | head -1 | cut -d= -f2-)"
+  printf '  %-30s %s\n' "$k" "$(grep -E "^$k=" "$ENV_FILE" | head -1 | cut -d= -f2-)"
+done
+for k in NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY; do
+  v="$(grep -E "^$k=" "$ENV_FILE" | head -1 | cut -d= -f2-)"
+  printf '  %-30s %s… (%d chars)\n' "$k" "${v:0:12}" "${#v}"
 done
 echo "done — next: sudo ./deploy/deploy.sh --force"

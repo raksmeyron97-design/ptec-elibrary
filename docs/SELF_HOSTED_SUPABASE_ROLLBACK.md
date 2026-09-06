@@ -4,6 +4,10 @@ _How to put `library.ptec.edu.kh` back on Supabase Cloud, and how to recover
 the self-hosted database from its own backups. Written before cutover;
 rehearsed on staging; kept current for 30 days after cutover._
 
+> Fast path for the app tier: `sudo ./deploy/cutover-selfhost-env.sh --rollback`
+> restores `.env` from `.env.cloud` (Cloud URL, `sb_*` keys, pinned `IMAGE_TAG`,
+> no `COMPOSE_FILE`), then `sudo ./deploy/deploy.sh --force`.
+
 ## 1. When to roll back
 
 Roll back **immediately**, without debugging, if within the first hours any of
