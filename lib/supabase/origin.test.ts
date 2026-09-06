@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { isSupabaseHost, serverSupabaseUrl, supabaseOrigins } from "./origin";
+import { authCookieName, isSupabaseHost, serverSupabaseUrl, supabaseOrigins } from "./origin";
 
 const saved = { ...process.env };
 afterEach(() => {
@@ -67,3 +67,19 @@ describe("isSupabaseHost", () => {
     expect(isSupabaseHost("supabase.co.evil.example", null)).toBe(false);
   });
 });
+
+describe("authCookieName", () => {
+  it("names the cookie after the PUBLIC host's first label, like @supabase/ssr does", () => {
+    expect(authCookieName("https://supabase.storage-ptec.online")).toBe("sb-supabase-auth-token");
+    expect(authCookieName("https://ufeymdoqksojwyysicun.supabase.co")).toBe("sb-ufeymdoqksojwyysicun-auth-token");
+    expect(authCookieName("http://127.0.0.1:54331")).toBe("sb-127-auth-token");
+  });
+  it("never depends on the internal URL, and never throws", () => {
+    // The browser only ever sees the public URL; the cookie name must not
+    // change because the server was told to call kong directly.
+    expect(authCookieName("https://supabase.storage-ptec.online")).not.toBe("sb-kong-auth-token");
+    expect(authCookieName(undefined)).toBe("sb-supabase-auth-token");
+    expect(authCookieName("not a url")).toBe("sb-supabase-auth-token");
+  });
+});
+

@@ -1,4 +1,5 @@
-import type { CookieOptions } from "@supabase/ssr";
+import type { CookieOptionsWithName } from "@supabase/ssr";
+import { authCookieName } from "@/lib/supabase/origin";
 
 /**
  * Cookie options for every Supabase auth client in the app — the browser
@@ -21,8 +22,16 @@ import type { CookieOptions } from "@supabase/ssr";
  * `sameSite: "lax"` is load-bearing and deliberately unchanged: the Google
  * OAuth flow returns to /auth/callback as a top-level cross-site navigation,
  * and "strict" would withhold the cookies on exactly that request.
+ *
+ * `name` is set explicitly, from the PUBLIC URL (`authCookieName`). Left to
+ * @supabase/ssr, each client names the cookie after the URL IT was given —
+ * and with SUPABASE_INTERNAL_URL=http://kong:8000 the server clients looked
+ * for `sb-kong-auth-token` while the browser wrote `sb-supabase-auth-token`.
+ * Found at the self-hosted cutover (2026-09-06): every server-side session
+ * read came back empty and MFA enrolment failed with "missing sub claim".
  */
-export const AUTH_COOKIE_OPTIONS: CookieOptions = {
+export const AUTH_COOKIE_OPTIONS: CookieOptionsWithName = {
+  name: authCookieName(),
   secure: process.env.NODE_ENV === "production",
   sameSite: "lax",
   path: "/",
