@@ -48,7 +48,9 @@ pgtool() { # pgtool <psql|pg_dump|pg_restore> <url> [args...]
   if command -v "$tool" >/dev/null 2>&1; then "$tool" "$url" "$@"; return; fi
   local u="$url"
   [ "$(uname)" = Darwin ] && u="${u//127.0.0.1/host.docker.internal}" && u="${u//localhost/host.docker.internal}"
-  docker run --rm -i --network host -e PGCONNECT_TIMEOUT=15 "$PG_CLIENT_IMAGE" "$tool" "$u" "$@"
+  # PG_CLIENT_NETWORK lets a staging rehearsal point the client at a container
+  # on the Supabase network (e.g. postgres://…@supabase-db:5432/postgres).
+  docker run --rm -i --network "${PG_CLIENT_NETWORK:-host}" -e PGCONNECT_TIMEOUT=15 "$PG_CLIENT_IMAGE" "$tool" "$u" "$@"
 }
 
 # psql against the self-hosted database: URL if given, else docker exec.
