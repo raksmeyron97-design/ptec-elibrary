@@ -15,10 +15,10 @@ select table_name||'.'||column_name||' '||data_type||' '||is_nullable||' '||coal
 select conrelid::regclass::text||' '||conname||' '||contype::text||' '||pg_get_constraintdef(oid) from pg_constraint where connamespace='public'::regnamespace order by 1;
 \echo === indexes (public)
 select schemaname||'.'||indexname||' '||regexp_replace(indexdef, '^CREATE (UNIQUE )?INDEX \S+ ON ', 'ON ') from pg_indexes where schemaname='public' order by indexname;
-\echo === functions (public)
-select p.proname||'('||pg_get_function_identity_arguments(p.oid)||') secdef='||p.prosecdef::text||' lang='||l.lanname||' md5='||md5(p.prosrc) from pg_proc p join pg_namespace n on n.oid=p.pronamespace join pg_language l on l.oid=p.prolang where n.nspname='public' order by 1;
-\echo === function grants (public)
-select p.proname||' '||coalesce(array_to_string(p.proacl,','),'(default)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' order by 1;
+\echo === functions (public, extension-owned excluded)
+select p.proname||'('||pg_get_function_identity_arguments(p.oid)||') secdef='||p.prosecdef::text||' lang='||l.lanname||' md5='||md5(p.prosrc) from pg_proc p join pg_namespace n on n.oid=p.pronamespace join pg_language l on l.oid=p.prolang where n.nspname='public' and not exists (select 1 from pg_depend d where d.objid=p.oid and d.deptype='e') order by 1;
+\echo === function grants (public, extension-owned excluded)
+select p.proname||' '||coalesce(array_to_string(p.proacl,','),'(default)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and not exists (select 1 from pg_depend d where d.objid=p.oid and d.deptype='e') order by 1;
 \echo === triggers
 select t.tgrelid::regclass::text||' '||t.tgname||' '||pg_get_triggerdef(t.oid) from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where not t.tgisinternal and (n.nspname='public' or t.tgrelid='auth.users'::regclass) order by 1;
 \echo === views (public)

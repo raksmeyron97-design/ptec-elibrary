@@ -27,8 +27,8 @@ snapshot() { # snapshot <label> <psql-fn>
   log "snapshot $label → $out"
   "$fn" -At -v ON_ERROR_STOP=1 < "$SQL" > "$out"
   # DB latency, measured server-side round trip from this client (3 samples).
-  { echo "=== db latency ms (select 1 x3, select count(*) from books x3)"; for i in 1 2 3; do s=$(date +%s%N); "$fn" -Atc 'select 1' >/dev/null; echo $(( ($(date +%s%N)-s)/1000000 )); done; for i in 1 2 3; do s=$(date +%s%N); "$fn" -Atc 'select count(*) from public.books' >/dev/null; echo $(( ($(date +%s%N)-s)/1000000 )); done; } >> "$out"
-  wc -l < "$out" | xargs -I{} log "{} lines"
+  { echo "=== db latency ms (select 1 x3, select count(*) from books x3)"; for i in 1 2 3; do s=$(epoch_ms); "$fn" -Atc 'select 1' >/dev/null; echo $(( $(epoch_ms) - s )); done; for i in 1 2 3; do s=$(epoch_ms); "$fn" -Atc 'select count(*) from public.books' >/dev/null; echo $(( $(epoch_ms) - s )); done; } >> "$out"
+  log "$(wc -l < "$out" | tr -d ' ') lines"
 }
 
 case "$mode" in
@@ -46,9 +46,9 @@ case "$mode" in
       echo "## Row counts"; echo; echo '| table | cloud | self-hosted | ok |'; echo '|---|---|---|---|'
       awk '/=== row counts/{f=1;next} /===/{f=0} f' "$A" | while read -r t n; do m=$(awk -v t="$t" '/=== row counts/{f=1;next} /===/{f=0} f&&$1==t{print $2}' "$B"); printf '| %s | %s | %s | %s |\n' "$t" "$n" "${m:-missing}" "$([ "$n" = "$m" ] && echo ✓ || echo ✗)"; done
       echo; echo "## Section sizes (lines)"; echo; echo '| section | cloud | self-hosted |'; echo '|---|---|---|'
-      for s in extensions "tables (public) with rls flag" "columns (public)" "constraints (public)" "indexes (public)" "functions (public)" triggers "views (public)" "policies (public)" "table grants (public)" "realtime publication" "vector columns" "migration history"; do
+      for s in extensions "tables (public) with rls flag" "columns (public)" "constraints (public)" "indexes (public)" "functions (public, extension-owned excluded)" triggers "views (public)" "policies (public)" "table grants (public)" "realtime publication" "vector columns" "migration history"; do
         a=$(awk -v s="=== $s" '$0==s{f=1;next} /^===/{f=0} f' "$A" | wc -l | tr -d ' '); b=$(awk -v s="=== $s" '$0==s{f=1;next} /^===/{f=0} f' "$B" | wc -l | tr -d ' '); printf '| %s | %s | %s |\n' "$s" "$a" "$b"; done
-      echo; echo "## DB latency (ms, from the verifying host)"; echo; echo '```'; echo "cloud:"; sed -n '/=== db latency/,$p' "$A" | tail -n +2 | paste -sd' '; echo "self-hosted:"; sed -n '/=== db latency/,$p' "$B" | tail -n +2 | paste -sd' '; echo '```'
+      echo; echo "## DB latency (ms, from the verifying host)"; echo; echo '```'; echo "cloud:"; sed -n '/=== db latency/,$p' "$A" | tail -n +2 | paste -sd' ' -; echo "self-hosted:"; sed -n '/=== db latency/,$p' "$B" | tail -n +2 | paste -sd' ' -; echo '```'
       echo; echo "## Structural diff (sequence values and latency excluded)"; echo; echo '```diff'; head -200 "$V/diff-$TS.txt"; [ "$(wc -l < "$V/diff-$TS.txt")" -gt 200 ] && echo "… (truncated; full diff in diff-$TS.txt)"; echo '```'
     } > "$R"
     log "$verdict"; log "report: $R" ;;

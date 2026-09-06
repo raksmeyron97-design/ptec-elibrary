@@ -2,7 +2,8 @@
 # Restore a dump-cloud.sh directory into the self-hosted database.
 #
 #   ./restore-selfhosted.sh reports/migration/dump-<ts>          # refuses a non-empty target
-#   ./restore-selfhosted.sh reports/migration/dump-<ts> --force  # wipe public + auth data first
+#   ./restore-selfhosted.sh reports/migration/dump-<ts> --force  # wipe public + auth data first (asks to confirm)
+#   ./restore-selfhosted.sh <dir> --force --yes                   # no prompt (scripted rehearsals only)
 #
 # Preconditions (checked): the self-hosted stack is up, GoTrue has already run
 # its own migrations (auth schema exists), public schema is empty. Order:
@@ -19,7 +20,8 @@ set -euo pipefail
 SCRIPT_NAME=restore-selfhosted
 . "$(dirname "$0")/common.sh"
 require_cmd docker
-DUMP="${1:-}"; FORCE=0; [ "${2:-}" = "--force" ] && FORCE=1
+DUMP="${1:-}"; FORCE=0; YES=0
+for a in "${@:2}"; do case "$a" in --force) FORCE=1;; --yes) YES=1;; *) die "unknown argument: $a";; esac; done
 [ -d "$DUMP" ] || die "usage: restore-selfhosted.sh <dump dir> [--force]"
 for f in 00-extensions.sql 10-schema.sql 20-auth-triggers.sql 30-data-public.sql 40-data-auth.sql 50-publication.sql; do [ -f "$DUMP/$f" ] || die "missing $DUMP/$f"; done
 (cd "$DUMP" && sha256 -c --quiet <(sed -n '/--- sha256/,$p' manifest.txt | tail -n +2)) || die "sha256 mismatch — the dump was modified after it was written"
@@ -31,7 +33,12 @@ nusers=$(selfhost_psql -Atc "select count(*) from auth.users")
 if [ "$ntab" != 0 ] || [ "$nusers" != 0 ]; then
   [ $FORCE -eq 1 ] || die "target is not empty (public tables: $ntab, auth.users: $nusers). Re-run with --force to DROP public objects and DELETE auth data first."
   warn "--force: dropping public schema objects and deleting auth data on the SELF-HOSTED database"
-  read -r -p "Type the container name ($SELFHOST_DB_CONTAINER) to confirm: " ans; [ "$ans" = "$SELFHOST_DB_CONTAINER" ] || die "aborted"
+  # Read the confirmation from the terminal, not stdin: earlier `docker exec -i`
+  # calls have already drained a piped stdin, which made `read` fail silently.
+  if [ $YES -eq 0 ]; then
+    read -r -p "Type the container name ($SELFHOST_DB_CONTAINER) to confirm: " ans < /dev/tty || die "no terminal to confirm on (use --yes for a scripted run)"
+    [ "$ans" = "$SELFHOST_DB_CONTAINER" ] || die "aborted"
+  fi
   selfhost_psql -v ON_ERROR_STOP=1 -q <<'SQL'
 drop schema public cascade; create schema public;
 grant usage on schema public to postgres, anon, authenticated, service_role;
@@ -44,7 +51,8 @@ fi
 
 t0=$(date +%s)
 log "1/6 extensions";      selfhost_psql -v ON_ERROR_STOP=1 -q < "$DUMP/00-extensions.sql"
-log "2/6 schema";          selfhost_psql -v ON_ERROR_STOP=1 -q --single-transaction < "$DUMP/10-schema.sql"
+# Belt and braces for dumps taken before dump-cloud.sh neutralised CREATE SCHEMA public.
+log "2/6 schema";          sed -E 's/^CREATE SCHEMA "?public"?;$/-- &/' "$DUMP/10-schema.sql" | selfhost_psql -v ON_ERROR_STOP=1 -q --single-transaction
 log "3/6 auth.users triggers"; selfhost_psql -v ON_ERROR_STOP=1 -q --single-transaction < "$DUMP/20-auth-triggers.sql"
 log "4/6 data (public)";   { echo "set session_replication_role = replica;"; cat "$DUMP/30-data-public.sql"; } | selfhost_psql -v ON_ERROR_STOP=1 -q --single-transaction
 log "4/6 data (auth)";     { echo "set session_replication_role = replica;"; cat "$DUMP/40-data-auth.sql"; } | selfhost_psql -v ON_ERROR_STOP=1 -q --single-transaction

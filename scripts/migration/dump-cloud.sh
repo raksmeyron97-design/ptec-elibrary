@@ -29,14 +29,18 @@ log "→ $OUT"
 
 extra_schemas="${EXTRA_SCHEMAS:-}"   # comma-separated custom schemas beyond public,supabase_migrations
 schema_args=(--schema=public --schema=supabase_migrations)
-IFS=, read -ra xs <<<"$extra_schemas"; for s in "${xs[@]}"; do [ -n "$s" ] && schema_args+=(--schema="$s"); done
+IFS=, read -ra xs <<<"$extra_schemas"; for s in ${xs[@]+"${xs[@]}"}; do [ -n "$s" ] && schema_args+=(--schema="$s"); done
 
 log "00 extensions (with their Cloud schemas)"
 cloud_psql -Atc "select format('create extension if not exists %I with schema %I;', e.extname, n.nspname) from pg_extension e join pg_namespace n on n.oid=e.extnamespace where e.extname in ('vector','pg_trgm','pgcrypto','unaccent','uuid-ossp','pg_stat_statements') order by 1" > "$OUT/00-extensions.sql"
 cat "$OUT/00-extensions.sql" | sed 's/^/    /'
 
 log "10 schema (public + supabase_migrations, grants and RLS included, owners kept)"
-pgtool pg_dump "$CLOUD_DB_URL" --schema-only --no-comments=false "${schema_args[@]}" --quote-all-identifiers > "$OUT/10-schema.sql"
+pgtool pg_dump "$CLOUD_DB_URL" --schema-only "${schema_args[@]}" --quote-all-identifiers > "$OUT/10-schema.sql"
+# pg_dump 15+ emits CREATE SCHEMA "public"; the target already has it (every
+# Supabase image does), so the statement would abort the single-transaction
+# restore. Neutralise it here so the artifact restores as written.
+sed -i.bak -E 's/^CREATE SCHEMA "?public"?;$/-- & (schema exists on the target)/' "$OUT/10-schema.sql" && rm -f "$OUT/10-schema.sql.bak"
 
 log "20 triggers on auth.users"
 {
