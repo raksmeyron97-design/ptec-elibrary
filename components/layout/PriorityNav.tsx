@@ -179,6 +179,11 @@ function MoreMenuRow({
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
+      // Never prefetch the route you are standing on. Prefetch is speculative
+      // work for a navigation that might happen; for the active link there is
+      // no navigation to save. MEASURED: the homepage's own RSC payload is
+      // 73.6 KB compressed, and the header alone asked for it on every load.
+      prefetch={active ? false : undefined}
       className={className}
       onClick={onNavigate}
     >
@@ -476,6 +481,10 @@ export default function PriorityNav({
                 <Link
                   href={entry.href}
                   aria-current={linkActive ? "page" : undefined}
+                  // See the note in NavItemLink: the active route is the one
+                  // navigation that cannot happen, so it is the one prefetch
+                  // that can only ever be wasted.
+                  prefetch={linkActive ? false : undefined}
                   className={cx(
                     NAV_TRIGGER_CLASS,
                     NAV_TRIGGER_FOCUS_CLASS,

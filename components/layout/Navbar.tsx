@@ -143,8 +143,15 @@ export default async function Navbar() {
                      the avatar can never be pushed off-viewport. */}
         <div className="mx-auto grid h-16 max-w-[1536px] grid-cols-[minmax(0,auto)_minmax(0,1fr)_auto] items-center gap-1.5 px-3 sm:px-5 lg:h-[72px] xl:gap-3 xl:px-8">
           {/* Zone 1: brand */}
+          {/* Brand mark. `prefetch={false}` deliberately: this is the way
+              BACK to the homepage, not a destination a reader is heading for,
+              and on the homepage itself it is a link to the page you are
+              already standing on. Either way it speculatively pulls the
+              largest RSC payload on the site — 73.6 KB compressed — on every
+              single page load, header included. */}
           <Link
             href="/"
+            prefetch={false}
             className="group flex min-w-0 items-center gap-2 sm:gap-3"
           >
             <div className="shrink-0 scale-90 sm:scale-100 origin-left">
