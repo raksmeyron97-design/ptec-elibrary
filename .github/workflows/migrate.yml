@@ -78,10 +78,14 @@ jobs:
           npm i --no-save --no-audit --no-fund pg
           node scripts/migrations/bootstrap-history.mjs
 
+      # Pinned + authenticated for the same reason as ci.yml's e2e job: the
+      # unauthenticated "resolve latest release" call is rate limited per
+      # runner IP, and a migration apply is the worst place to discover it.
       - uses: supabase/setup-cli@v1
         if: steps.mode.outputs.mode == 'cloud'
         with:
-          version: latest
+          version: 2.116.0
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Dry run (PR)
         if: steps.mode.outputs.mode == 'cloud' && github.event_name == 'pull_request'
