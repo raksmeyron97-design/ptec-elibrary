@@ -14,6 +14,8 @@ import { config } from "dotenv";
 config({ path: ".env.local", quiet: true });
 config({ path: ".env", quiet: true });
 
+import fs from "node:fs";
+import path from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { analyzeTextHealth, type TextDamageReason } from "../lib/semantic/text-quality";
 
@@ -193,6 +195,10 @@ async function main() {
   console.log("--------------------------------------------------------\n");
 
   const damagedBooks = results.filter((r) => r.verdict === "damaged");
+  const jsonPath = path.resolve(__dirname, "damaged-khmer-books.json");
+  fs.writeFileSync(jsonPath, JSON.stringify(damagedBooks, null, 2));
+  console.log(`💾 Saved ${damagedBooks.length} damaged books to ${jsonPath}`);
+
   if (damagedBooks.length > 0) {
     console.log(`Top ${Math.min(15, damagedBooks.length)} Damaged Books for Pilot Inspection:`);
     for (const b of damagedBooks.slice(0, 15)) {

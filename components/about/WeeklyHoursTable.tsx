@@ -153,9 +153,13 @@ export default function WeeklyHoursTable({
             return (
               <tr key={row.id} className={isToday ? "bg-surface-brand-soft" : undefined}>
                 {/* scope="row" makes the day the header for its hours cell. */}
+                {/* A transparent rail on every row keeps the column aligned;
+                    today's turns gold, beside the text badge below. */}
                 <th
                   scope="row"
-                  className="px-4 py-3.5 text-sm font-medium text-text-heading sm:px-5"
+                  className={`border-l-[3px] px-4 py-3.5 text-sm font-medium text-text-heading sm:px-5 ${
+                    isToday ? "border-l-gold-500" : "border-l-transparent"
+                  }`}
                 >
                   <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span lang={row.lang} className="about-wrap">

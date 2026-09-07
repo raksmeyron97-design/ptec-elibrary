@@ -113,7 +113,11 @@ export default function DdcExplorer({
                     className="mt-1.5 block h-1.5 w-full overflow-hidden rounded-full bg-paper"
                   >
                     <span
-                      className="block h-full rounded-full bg-brand/70 transition-[width] duration-300 group-hover:bg-brand motion-reduce:transition-none"
+                      className={`block h-full rounded-full bg-gradient-to-r transition-[width] duration-300 motion-reduce:transition-none ${
+                        isSelected
+                          ? "from-brand to-gold-500"
+                          : "from-brand to-brand/55 group-hover:to-brand"
+                      }`}
                       style={{ width: barWidth(category.titles, max) }}
                     />
                   </span>

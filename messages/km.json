@@ -193,6 +193,8 @@
     "eBooks": "សៀវភៅ",
     "digitalLibraryTitle": "បណ្ណាល័យឌីជីថល",
     "digitalLibrarySubtitle": "ស្វែងរកធនធានសិក្សា",
+    "digitalLibraryExternalGroup": "បណ្ណាល័យខាងក្រៅ",
+    "digitalLibrarySearchAll": "ស្វែងរកក្នុងបណ្ណាល័យទាំងមូល",
     "digitalLibraryBooksDescription": "សៀវភៅអេឡិចត្រូនិក និងឯកសារបង្រៀន",
     "digitalLibraryThesesDescription": "សារណា និងការស្រាវជ្រាវសិក្សា",
     "digitalLibraryPublicationsDescription": "ទស្សនាវដ្តី របាយការណ៍ និងអត្ថបទ",
@@ -208,6 +210,7 @@
     "aboutDropdownSubtitle": "ស្វែងយល់អំពីបណ្ណាល័យរបស់យើង",
     "aboutGroupGeneral": "ទូទៅ",
     "aboutGroupLibraryInfo": "ព័ត៌មានបណ្ណាល័យ",
+    "aboutViewAll": "មើលទំព័រអំពីយើងទាំងអស់",
     "contact": "ទំនាក់ទំនង",
     "libraryRules": "បទបញ្ជាបណ្ណាល័យ",
     "libraryTimings": "ម៉ោងបម្រើសេវាកម្ម",
@@ -7320,7 +7323,9 @@
       "rules": "សមាជិកភាព រយៈពេលខ្ចី ការផាកពិន័យ និងសុជីវធម៌។",
       "timings": "ម៉ោងបើកទ្វារ ម៉ោងរដូវប្រឡង និងថ្ងៃឈប់សម្រាក។",
       "collection": "ធនធានដែលបណ្ណាល័យមាន តាមមុខវិជ្ជា និងភាសា។",
-      "team": "បុគ្គលិកដែលបម្រើសេវាកម្មបណ្ណាល័យប្រចាំថ្ងៃ។"
+      "team": "បុគ្គលិកដែលបម្រើសេវាកម្មបណ្ណាល័យប្រចាំថ្ងៃ។",
+      "contact": "សួរសំណួរ ផ្ដល់មតិយោបល់ ឬស្វែងរកអាសយដ្ឋានបណ្ណាល័យ។",
+      "committee": "គណៈកម្មាធិការដែលដឹកនាំគោលនយោបាយ និងការអភិវឌ្ឍបណ្ណាល័យ។"
     },
     "pager": {
       "label": "ទំព័រអំពីបណ្ណាល័យ",

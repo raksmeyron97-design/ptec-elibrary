@@ -15,6 +15,7 @@ import { EBOOKS_BASE_PATH } from "@/lib/admin/ebooks-url";
 import { findBookDuplicates } from "@/lib/books/duplicate-detection/service";
 import { normalizeTaxonomyValue } from "@/lib/books/duplicate-detection/normalize";
 import { getSession, transition } from "@/lib/uploads/session";
+import { ensureAuthorSlug } from "@/lib/authors/slug";
 import { uploadLog } from "@/lib/uploads/log";
 
 /** Parse comma-separated tag string from FormData into a clean string[] */
@@ -450,6 +451,10 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
       .single();
     if (authorError) throw new Error(`Author error: ${authorError.message}`);
     authorId = authorRow.id;
+    // The upsert deliberately writes only the name (see ensureAuthorSlug):
+    // without this the row keeps slug = NULL and middleware's gate 404s the
+    // author's own page.
+    await ensureAuthorSlug(supabase, authorRow.id, author);
   }
 
   // Look up existing category first; only insert if not found
@@ -751,6 +756,7 @@ export async function updateBook(bookId: string, formData: FormData) {
       .single();
     if (authorError) throw new Error(`Author error: ${authorError.message}`);
     editAuthorId = authorRow.id;
+    await ensureAuthorSlug(supabase, authorRow.id, author);
   }
 
   // Look up existing category first; only insert if not found

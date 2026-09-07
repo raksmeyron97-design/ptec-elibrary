@@ -485,13 +485,20 @@ async function main() {
     return;
   }
 
-  const { data: fileRows, error: fileError } = await db
-    .from("book_files")
-    .select("id, book_id, file_url")
-    .in("book_id", rows.map((b) => b.id));
-  if (fileError) throw fileError;
+  const bookIds = rows.map((b) => b.id);
+  const fileRows: FileRow[] = [];
+  const BATCH_SIZE = 50;
+  for (let i = 0; i < bookIds.length; i += BATCH_SIZE) {
+    const chunk = bookIds.slice(i, i + BATCH_SIZE);
+    const { data, error: fileError } = await db
+      .from("book_files")
+      .select("id, book_id, file_url")
+      .in("book_id", chunk);
+    if (fileError) throw fileError;
+    if (data) fileRows.push(...(data as FileRow[]));
+  }
   const filesByBook = new Map<string, FileRow[]>();
-  for (const f of (fileRows ?? []) as FileRow[]) {
+  for (const f of fileRows) {
     filesByBook.set(f.book_id, [...(filesByBook.get(f.book_id) ?? []), f]);
   }
 

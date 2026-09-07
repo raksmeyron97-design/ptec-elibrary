@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { SITE_URL } from "@/lib/seo/site";
 import {
   resolveOrgIdentity,
   type OrgIdentity,
 } from "@/lib/system-settings/org-identity";
+
+/** The shared social card, same asset every detail-page builder falls back to. */
+export const LISTING_FALLBACK_OG_IMAGE = `${SITE_URL}/og-default.png`;
 
 /**
  * Metadata for paginated listing pages (/books, /theses, /posts, …).
@@ -16,6 +20,12 @@ import {
  *   near-duplicate filter permutations don't pollute search results.
  * - Pages beyond the last result page (?page=999) are `noindex, follow` too —
  *   an empty grid is not a useful index entry (pass `outOfRange`).
+ * - Every listing gets a social image. `image` is optional, but its DEFAULT is
+ *   the site card rather than nothing: /theses, /theses/summary, /catalogs,
+ *   /publications and /paths were each shipping with no og:image at all
+ *   (verified live 2026-09-07) purely because they did not pass one, so a
+ *   share of any of them rendered as a bare link. Detail pages have used this
+ *   same fallback since book-seo.ts; a listing had no reason to differ.
  */
 export function buildListingMetadata({
   path,
@@ -59,7 +69,8 @@ export function buildListingMetadata({
   const pathWithQuery = page > 1 ? `${path}?page=${page}` : path;
   const alternates = localeAlternates(pathWithQuery, locale);
   const pagedTitle = page > 1 ? `${title} — ${pageLabel} ${page}` : title;
-  const images = image ? [{ url: image, alt: imageAlt ?? org.siteName }] : undefined;
+  const social = image ?? LISTING_FALLBACK_OG_IMAGE;
+  const images = [{ url: social, alt: imageAlt ?? org.siteName }];
 
   return {
     title: pagedTitle,
@@ -80,7 +91,7 @@ export function buildListingMetadata({
       card: "summary_large_image",
       title: `${pagedTitle} | ${org.libraryName}`,
       description,
-      images: image ? [image] : undefined,
+      images: [social],
     },
   };
 }

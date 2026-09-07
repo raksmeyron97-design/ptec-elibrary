@@ -32,7 +32,7 @@ import "server-only";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
-import { slugify } from "@/lib/books";
+import { addressableAuthorSlug } from "@/lib/authors/slug";
 import { TAGS } from "@/lib/cache/revalidate";
 
 export type AuthorDirectoryEntry = {
@@ -125,7 +125,10 @@ async function loadAuthorDirectory(): Promise<AuthorDirectoryEntry[]> {
   ) => {
     const cleanName = name?.replace(/\s+/g, " ").trim();
     if (!cleanName) return;
-    const slug = rawSlug || slugify(cleanName);
+    // NULL slug (column present, value missing) means middleware's gate will
+    // 404 this profile, so the hub must not link it — see
+    // addressableAuthorSlug(). A MISSING column still falls back to the name.
+    const slug = addressableAuthorSlug(rawSlug, cleanName);
     if (!slug) return;
 
     const byName = opts.aliases.length > 0 ? opts.aliases : [nameKey(cleanName)];
