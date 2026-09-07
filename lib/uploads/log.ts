@@ -87,12 +87,20 @@ export function uploadEvent(entry: {
   totalChunks?: number;
   retryCount?: number;
   errorCode?: UploadErrorCode;
+  /**
+   * The storage backend's own HTTP status when IT refused the file. Without
+   * it a ZIMA_UPLOAD_FAILED row cannot say whether Zima answered 429 (quota),
+   * 413 (size) or 5xx — and the reconciler later overwrites the session's
+   * error_message, so this row is the only durable place the answer survives.
+   */
+  upstreamStatus?: number;
 }): void {
   const detail: Record<string, string | number | boolean> = { event: entry.event };
   if (entry.bytes != null) detail.bytes = entry.bytes;
   if (entry.totalChunks != null) detail.total_chunks = entry.totalChunks;
   if (entry.retryCount != null) detail.retry_count = entry.retryCount;
   if (entry.errorCode) detail.error_code = entry.errorCode;
+  if (entry.upstreamStatus != null) detail.upstream_status = entry.upstreamStatus;
   logAppEvent({
     kind: "storage_operation",
     status: entry.status,

@@ -22,7 +22,7 @@ npm run doctor       # react-doctor diagnostics
 npm run pwa:assets   # Regenerate iOS launch images + maskable icons (prebuild verifies with --check)
 npm run check:hero   # Verify public/hero/ variants match the source (also a prebuild + CI gate)
 npx tsx scripts/embed-library.ts       # Backfill pgvector embeddings for AI search
-npx tsx scripts/check-file-health.ts   # Out-of-band sweep of book/thesis file+cover URLs → file_health table
+npx tsx scripts/check-file-health.ts   # Out-of-band sweep of book/thesis file+cover URLs → file_health table (needs ZIMA_API_KEY: anonymous /files reads are capped at 300/min and a sweep is ~540 requests; a 429 is recorded as `unknown`, never `broken` — lib/file-health/check.ts)
 ```
 
 `postinstall` copies PDF.js assets via `scripts/copy-pdf-assets.mjs`. `prebuild` gates the build on `check:hero` + `generate-pwa-assets --check`.

@@ -26,6 +26,12 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Zima meters /files reads per IP: 300/min anonymous, 3000/min with a
+          # recognised key. A sweep is ~540 requests, so without these the run
+          # is rate limited from request ~300 on (those rows are recorded as
+          # `unknown`, not `broken`, and the job exits 2 to say so).
+          ZIMA_API_URL: ${{ secrets.ZIMA_API_URL }}
+          ZIMA_API_KEY: ${{ secrets.ZIMA_API_KEY }}
           # Uncomment and configure these if you still have legacy bare-key file_urls in R2
           # R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           # R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
