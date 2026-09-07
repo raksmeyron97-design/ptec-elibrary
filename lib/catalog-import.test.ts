@@ -19,6 +19,7 @@ import {
   refreshRowStatus,
   groupKey,
   IMPORT_LIMITS,
+  IMPORT_FIELDS,
   DEFAULT_IMPORT_OPTIONS,
   type ValidatedRow,
   type ImportRowResult,
@@ -246,6 +247,136 @@ describe("validateRow", () => {
   it("bad year and bad copies are errors", () => {
     expect(validateRow({ ...GOOD_ROW, year: "20" }, 2).status).toBe("error");
     expect(validateRow({ ...GOOD_ROW, copies_total: "-2" }, 2).status).toBe("error");
+  });
+});
+
+// ── DDC (migration 0140) ─────────────────────────────────────────────────────
+//
+// The field this collection was actually blocked on: PMB exports a Dewey class
+// per title, and before 0140 it had nowhere to go but shelf_location.
+
+describe("ddc: header auto-mapping", () => {
+  it("maps the canonical header at confidence 1 with no manual step", () => {
+    const [m] = autoMapHeaders(["ddc"], [["372.7"]]);
+    expect(m.destination).toBe("ddc");
+    expect(m.confidence).toBe(1);
+    expect(m.manuallyChanged).toBe(false);
+  });
+
+  it("maps every documented alias", () => {
+    const aliases = [
+      "dewey", "dewey_decimal", "ddc_number", "classification", "class_number",
+      "call_no", "callnumber", "call_number", "លេខរៀបចំ", "ddc_code",
+      // Header normalization also folds spaces/hyphens/case into the alias.
+      "Dewey Decimal", "DDC-Number", "Call Number",
+    ];
+    for (const alias of aliases) {
+      const [m] = autoMapHeaders([alias], [["372.7"]]);
+      expect(m.destination, `alias "${alias}"`).toBe("ddc");
+      expect(m.confidence, `alias "${alias}"`).toBeGreaterThanOrEqual(0.9);
+    }
+  });
+
+  it("sits immediately before shelf_location in the field order", () => {
+    // The import template and every derived CSV header follow IMPORT_FIELDS.
+    const fields = IMPORT_FIELDS as readonly string[];
+    expect(fields.indexOf("ddc")).toBe(fields.indexOf("shelf_location") - 1);
+  });
+
+  it("does not steal the shelf_location column", () => {
+    const m = autoMapHeaders(["ddc", "shelf_location"], [["372.7", "A-1-01"]]);
+    expect(m[0].destination).toBe("ddc");
+    expect(m[1].destination).toBe("shelf_location");
+  });
+
+  it("claims ddc once — a second call-number column is left for manual review", () => {
+    // `call_number` is a ddc alias because the wizard has no copy-level
+    // call-number field. If a file carries both, the canonical column wins and
+    // the other must not be silently mapped somewhere else.
+    const m = autoMapHeaders(["ddc", "call_number"], [["372.7", "372.7 BIL"]]);
+    expect(m[0].destination).toBe("ddc");
+    expect(m[1].destination).toBe("ignore");
+  });
+});
+
+describe("ddc: validation", () => {
+  it("blank stays null and raises nothing", () => {
+    const r = validateRow({ ...GOOD_ROW, ddc: "  " }, 2);
+    expect(r.normalized.ddc).toBeNull();
+    expect(r.status).toBe("ready");
+  });
+
+  it("keeps real values, including Khmer local codes", () => {
+    expect(validateRow({ ...GOOD_ROW, ddc: "372.7 BIL" }, 2).normalized.ddc).toBe("372.7 BIL");
+    expect(validateRow({ ...GOOD_ROW, ddc: "ស.គ" }, 2).normalized.ddc).toBe("ស.គ");
+    expect(validateRow({ ...GOOD_ROW, ddc: "320.09 ប្រាជ្ញ" }, 2).status).toBe("ready");
+  });
+
+  it("accepts 80 characters and rejects 81", () => {
+    expect(validateRow({ ...GOOD_ROW, ddc: "A".repeat(80) }, 2).status).toBe("ready");
+    const long = validateRow({ ...GOOD_ROW, ddc: "A".repeat(81) }, 2);
+    expect(long.status).toBe("error");
+    expect(long.issues.some((i) => i.code === "FIELD_TOO_LONG" && i.field === "ddc")).toBe(true);
+  });
+});
+
+describe("ddc: end-to-end through the wizard pipeline", () => {
+  it("survives applyMappings → validateRow → buildImportGroups", () => {
+    const headers = ["title", "author", "ddc", "shelf_location"];
+    const rows = [["Introduction to Law", "John Smith", " 372.7   BIL ", "A-1-01"]];
+    const mappings = autoMapHeaders(headers, rows);
+    const mapped = applyMappings(rows[0], mappings);
+    expect(mapped.ddc).toBe(" 372.7   BIL ");
+
+    const validated = validateRow(mapped, 2);
+    expect(validated.normalized.ddc).toBe("372.7 BIL"); // whitespace collapsed
+
+    const { groups } = buildImportGroups([validated], { defaultOneCopy: true });
+    expect(groups).toHaveLength(1);
+    // ddc is book-level: it rides on the group's book record, never on a copy.
+    expect(groups[0].book.ddc).toBe("372.7 BIL");
+    expect(groups[0].copies[0]).not.toHaveProperty("ddc");
+  });
+
+  it("the failed-rows CSV still lines up with IMPORT_FIELDS", () => {
+    const rows: ValidatedRow[] = [validateRow({ title: "T", author: "", ddc: "372.7" }, 2)];
+    const csv = buildFailedRowsCsv(rows, new Map());
+    const [header, row] = csv.trim().split("\r\n");
+    expect(header.split(",")).toHaveLength(IMPORT_FIELDS.length + 3);
+    expect(row.split(",")).toHaveLength(IMPORT_FIELDS.length + 3);
+    expect(header).toContain("ddc,shelf_location");
+    // The rejected row round-trips its ddc back out for re-import.
+    expect(row).toContain("372.7");
+  });
+});
+
+describe("ddc: a file without the column is unchanged", () => {
+  // The regression that matters most: every existing CSV must import exactly
+  // as it did before 0140 — no new warning, no new error, no status change.
+  it("adds no issue and leaves ddc null", () => {
+    const r = validateRow(GOOD_ROW, 2);
+    expect(r.normalized.ddc).toBeNull();
+    expect(r.status).toBe("ready");
+    expect(r.issues).toEqual([]);
+  });
+
+  it("produces the same verdict as the same row carrying a blank ddc", () => {
+    const without = validateRow(GOOD_ROW, 2);
+    const withBlank = validateRow({ ...GOOD_ROW, ddc: "" }, 2);
+    expect(withBlank.normalized).toEqual(without.normalized);
+    expect(withBlank.issues).toEqual(without.issues);
+    expect(withBlank.status).toBe(without.status);
+  });
+
+  it("maps a legacy header set exactly as before", () => {
+    const m = autoMapHeaders(
+      ["title", "author", "isbn", "shelf_location", "barcode"],
+      [["T", "A", "978-0-306-40615-7", "A-1-01", "33697"]],
+    );
+    expect(m.map((x) => x.destination)).toEqual([
+      "title", "author", "isbn", "shelf_location", "barcode",
+    ]);
+    expect(m.every((x) => x.confidence === 1)).toBe(true);
   });
 });
 

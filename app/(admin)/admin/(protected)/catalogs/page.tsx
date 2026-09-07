@@ -85,6 +85,7 @@ export default async function AdminCatalogsPage({
         `isbn.ilike.%${safe}%`,
         `category.ilike.%${safe}%`,
         `department.ilike.%${safe}%`,
+        `ddc.ilike.%${safe}%`,
         `shelf_location.ilike.%${safe}%`,
         `accession_number.ilike.%${safe}%`,
       ].join(",")
@@ -110,6 +111,11 @@ export default async function AdminCatalogsPage({
     case "category":
       query = query
         .order("category", { ascending: true, nullsFirst: false })
+        .order("title", { ascending: true });
+      break;
+    case "ddc":
+      query = query
+        .order("ddc", { ascending: true, nullsFirst: false })
         .order("title", { ascending: true });
       break;
     case "available":
@@ -239,7 +245,7 @@ export default async function AdminCatalogsPage({
             <thead>
               <tr className="border-b border-divider bg-paper/60 text-left">
                 <th scope="col" className="w-16 px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-text-muted">Cover</th>
-                {["Title / Author", "Category", "Shelf", "Availability", "Copies", "Actions"].map((h) => (
+                {["Title / Author", "Category", "DDC", "Shelf", "Availability", "Copies", "Actions"].map((h) => (
                   <th key={h} scope="col" className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">
                     {h}
                   </th>
@@ -249,7 +255,7 @@ export default async function AdminCatalogsPage({
             <tbody className="divide-y divide-slate-50">
               {pageBooks.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-16 text-center text-text-muted">
+                  <td colSpan={7} className="px-4 py-16 text-center text-text-muted">
                     {q
                       ? <>No books matched <span className="font-semibold text-text-muted">&ldquo;{q}&rdquo;</span>. Try a different search.</>
                       : <>No books yet. Click &ldquo;Add Book&rdquo; or import CSV to get started.</>}
@@ -283,6 +289,12 @@ export default async function AdminCatalogsPage({
                     {/* Category */}
                     <td className="whitespace-nowrap px-4 py-3 text-text-muted">
                       {book.category ?? <span className="text-text-muted">—</span>}
+                    </td>
+                    {/* DDC — the subject class of the work (0140) */}
+                    <td className="whitespace-nowrap px-4 py-3">
+                      {book.ddc
+                        ? <span className="font-mono text-xs text-text-body">{book.ddc}</span>
+                        : <span className="text-text-muted">—</span>}
                     </td>
                     {/* Shelf */}
                     <td className="px-4 py-3">

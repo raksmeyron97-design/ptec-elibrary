@@ -343,7 +343,7 @@ async function fillMissingFields(
 ): Promise<boolean> {
   const { data: existing } = await supabase
     .from("catalog_books")
-    .select("isbn, publisher, year, category, department, shelf_location, description, accession_number, cover_url, keywords")
+    .select("isbn, publisher, year, category, department, ddc, shelf_location, description, accession_number, cover_url, keywords")
     .eq("id", bookId)
     .single();
   if (!existing) return false;
@@ -354,6 +354,7 @@ async function fillMissingFields(
   if (!existing.year && n.year) patch.year = n.year;
   if (!existing.category && n.category) patch.category = n.category;
   if (!existing.department && n.department) patch.department = n.department;
+  if (!existing.ddc && n.ddc) patch.ddc = n.ddc;
   if (!existing.shelf_location && n.shelf_location) patch.shelf_location = n.shelf_location;
   if (!existing.description && n.description) patch.description = n.description;
   if (!existing.accession_number && n.accession_number) patch.accession_number = n.accession_number;
@@ -495,6 +496,7 @@ async function importGroup(
     language: n.language,
     category: n.category,
     department: n.department,
+    ddc: n.ddc,
     shelf_location: n.shelf_location,
     description: n.description,
     accession_number: n.accession_number,

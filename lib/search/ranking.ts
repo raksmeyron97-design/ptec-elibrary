@@ -75,6 +75,8 @@ export type SearchResult = {
   copiesAvailable?: number | null;
   copiesTotal?: number | null;
   shelfLocation?: string | null;
+  /** Physical catalog only: Dewey Decimal class of the work (migration 0140). */
+  ddc?: string | null;
   score?: number;
   matchedFields?: string[];
   /** Learning-path variant only: total steps, module count, and estimated minutes. */

@@ -229,6 +229,7 @@ export default async function CatalogBookPage({
     { label: t("detail.isbn"),        value: formatIsbn(b.isbn) },
     { label: t("detail.publisher"),   value: b.publisher },
     { label: t("detail.category"),    value: b.category },
+    { label: t("detail.ddc"),         value: b.ddc },
     { label: t("detail.department"),  value: b.department },
     { label: t("detail.totalCopies"), value: stats.total > 0 ? String(stats.total) : null },
   ].filter((f) => f.value);
