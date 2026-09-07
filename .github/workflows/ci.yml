@@ -154,9 +154,18 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    # Pinned, and authenticated. `version: latest` made every e2e run depend on
+    # an unauthenticated GitHub API call to resolve the newest release, which
+    # is rate limited per runner IP — it failed with "Failed to resolve latest
+    # Supabase CLI release: rate limit exceeded" and killed the job 25 s in,
+    # before a single test ran. An exact version needs no resolution at all,
+    # and it also keeps a CLI release from changing what CI does overnight.
+    # github-token authenticates whatever calls remain (the action documents
+    # this input for exactly this failure).
     - uses: supabase/setup-cli@v1
       with:
-        version: latest
+        version: 2.116.0
+        github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Start local Supabase (applies migrations + seed)
       run: supabase start -x studio,imgproxy,logflare,vector
