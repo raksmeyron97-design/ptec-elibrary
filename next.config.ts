@@ -235,7 +235,31 @@ const nextConfig: NextConfig = {
           { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
         ],
       },
-      // Unversioned public images (logos, OG image, PWA icons): cache a day
+      // The PWA launch surface: the boot emblem and the 21 iOS startup images.
+      //
+      // The rule above SAYS "PWA icons" but its filename group never matched
+      // anything under /pwa/, so these fell through to Next's default for
+      // public files — MEASURED `public, max-age=0` at the origin, which is
+      // why Cloudflare was serving boot-emblem.webp on its own 4-hour default
+      // guess. This is the FIRST image request on every page load, so a
+      // returning reader was revalidating it before the shell could paint.
+      //
+      // Deliberately NOT `immutable`, unlike /hero/ above. These names are
+      // stable across regeneration (ipad-1024x1366-portrait.png is keyed by
+      // device, not by content), so `npm run pwa:assets` can change the bytes
+      // behind a name that never changes. Immutable belongs to hashed or
+      // hand-versioned filenames only; a year-long immutable cache on a name
+      // that can be rewritten is unfixable in the field.
+      {
+        source: "/pwa/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        ],
+      },
+      // Unversioned public images (logos, OG image): cache a day
       // at the edge/browser, serve stale for a week while revalidating.
       {
         source:
