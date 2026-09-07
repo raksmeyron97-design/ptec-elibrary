@@ -677,6 +677,12 @@ export async function deleteBook(bookId: string) {
     // deleted book stays in every reader's collection as a row that counts
     // toward the list's size and renders as nothing.
     supabase.from("reading_list_items").delete().eq("record_type", "book").eq("record_id", bookId),
+    // File-health rows (0065). Polymorphic and FK-less again. The out-of-band
+    // sweep only ever revisits records that still exist, so a row left here is
+    // never corrected: it counts toward the sidebar's "broken files" badge for
+    // good, and /admin/data-quality renders it with a null title and an edit
+    // link to a record that 404s — a defect a librarian cannot clear.
+    supabase.from("file_health").delete().eq("record_type", "book").eq("record_id", bookId),
   ]);
 
   await supabase.from("book_files").delete().eq("book_id", bookId);

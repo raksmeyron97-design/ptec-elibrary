@@ -50,6 +50,10 @@ const RETRIEVAL_TABLES = [
 /**
  * Polymorphic tables that are NOT derived text but carry the same obligation.
  *
+ * Two of them now, and both were cleared by nobody for the same reason: the
+ * RETRIEVAL_TABLES list above is scoped to "things that make a resource
+ * searchable", and neither of these is that.
+ *
  * The retrieval list above was scoped to "things that make a resource
  * searchable", and `reading_list_items` (0136) fell outside it and so was
  * cleared by nobody — even though its own migration writes the obligation
@@ -67,7 +71,16 @@ const RETRIEVAL_TABLES = [
  * unpublished resource is legitimately dropped from the search index. Only
  * deletion is common to both.
  */
-const READER_STATE_TABLES = ["reading_list_items"] as const;
+const READER_STATE_TABLES: Array<{ table: string; recordTypes: string[] }> = [
+  // Every resource type can be saved to a collection.
+  { table: "reading_list_items", recordTypes: ["book", "research", "publication"] },
+  // file_health (0065) predates publications and its CHECK constraint still
+  // reads `record_type in ('book','research')`, so the publication delete site
+  // must NOT be asked for one — an assertion that demanded it would be
+  // demanding a row that cannot exist. Applicability is declared per table
+  // rather than assumed uniform across DELETE_SITES.
+  { table: "file_health", recordTypes: ["book", "research"] },
+];
 
 function read(rel: string): string {
   return readFileSync(path.join(ROOT, rel), "utf8");
@@ -90,7 +103,8 @@ describe("deleting a resource clears everything that makes it searchable", () =>
   }
 
   for (const site of DELETE_SITES) {
-    for (const table of READER_STATE_TABLES) {
+    for (const { table, recordTypes } of READER_STATE_TABLES) {
+      if (!recordTypes.includes(site.recordType)) continue;
       it(`${site.label} deletes from ${table}`, () => {
         const source = read(site.file);
         expect(source).toContain(`from("${table}").delete()`);
