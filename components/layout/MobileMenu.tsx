@@ -147,7 +147,11 @@ export default function MobileMenu({ navLinks, locale, contact }: MobileMenuProp
           className="fixed right-0 top-0 z-[70] flex h-[100dvh] w-[min(100vw,390px)] flex-col bg-bg-surface pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] shadow-[-10px_0_32px_rgba(0,0,0,0.18)] outline-none"
         >
           <div className="flex shrink-0 items-center justify-between border-b border-divider px-4 py-3">
-            <Link href="/" onClick={closeDrawer} className="flex min-w-0 items-center gap-3">
+            {/* The drawer's brand mark. `prefetch={false}` because it is a
+                way BACK, not a destination a reader is on their way to — and
+                the homepage RSC payload it would speculatively pull is 73.6 KB
+                compressed, the largest single prefetch on the site. */}
+            <Link href="/" prefetch={false} onClick={closeDrawer} className="flex min-w-0 items-center gap-3">
               <Seal size={42} />
               <span className="min-w-0">
                 <span lang="km" className="block truncate font-khmer-serif text-[13px] font-bold leading-tight text-brand">
@@ -188,6 +192,9 @@ export default function MobileMenu({ navLinks, locale, contact }: MobileMenuProp
                       <Link
                         href={link.href}
                         aria-current={active ? "page" : undefined}
+                        // The active route is the one navigation that cannot
+                        // happen, so prefetching it is always wasted.
+                        prefetch={active ? false : undefined}
                         onClick={closeDrawer}
                         className={`flex min-h-12 items-center justify-between rounded-lg px-4 py-3 text-[15px] font-semibold transition-colors ${
                           active

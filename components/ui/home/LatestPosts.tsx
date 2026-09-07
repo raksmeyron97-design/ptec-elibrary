@@ -129,6 +129,11 @@ function FeaturedCard({ post, t, tPosts }: { post: LatestPost; t: any; tPosts: a
             src={post.coverUrl}
             alt={post.title}
             fill
+            // Without this Next defaults to 100vw, which on a 1920 desktop asked
+            // for a 1920px file to fill a 599px slot. MEASURED slot widths:
+            // 341 @375, 419 @1024, 537 @1280, 599 @1440 and @1920 (the panel is
+            // w-full below lg, then lg:w-[46%] of a container that caps ~1440).
+            sizes="(max-width: 1023px) 100vw, (max-width: 1440px) 46vw, 620px"
             className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
           />
         ) : (

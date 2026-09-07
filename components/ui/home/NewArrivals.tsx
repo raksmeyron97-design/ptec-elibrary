@@ -109,7 +109,13 @@ export default async function NewArrivals() {
                       author={item.author}
                       // Two per row on phones, four from lg — sized so a phone
                       // never downloads a desktop-width cover.
-                      sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 300px"
+                      //
+                      // MEASURED slot widths (CSS px): 162 @375, 211 @1024,
+                      // 275 @1280, 309 @1440+. The 30vw arm ran from 641 all
+                      // the way to 1024, where it asked for 307px to fill 211;
+                      // splitting it at 768 tracks the grid's own columns, and
+                      // the tail rises to 320 because the slot really is 309.
+                      sizes="(max-width: 640px) 45vw, (max-width: 768px) 33vw, (max-width: 1280px) 25vw, 320px"
                     />
                     <span
                       className={`absolute right-2 top-2 rounded-full border px-2 py-0.5 text-[10.5px] font-bold backdrop-blur-sm ${meta.badgeClass}`}

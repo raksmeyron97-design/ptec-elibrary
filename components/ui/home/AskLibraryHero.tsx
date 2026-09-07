@@ -339,6 +339,12 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
                   // chips — a chip that ignored it would silently widen the
                   // search the user just narrowed.
                   href={searchHref(term)}
+                  // Five chips, five DIFFERENT search results pages, all
+                  // prefetched the moment the hero scrolls into view: MEASURED
+                  // 39.4 KB compressed each, 197 KB total, to speculate on a
+                  // click that lands on at most one of them. They are a
+                  // suggestion, not a route the reader has committed to.
+                  prefetch={false}
                   // Deliberately still a link, not a <button>: it navigates, so
                   // keeping the href preserves middle-click and open-in-new-tab.
                   // The click also fills the field first, so if the navigation
