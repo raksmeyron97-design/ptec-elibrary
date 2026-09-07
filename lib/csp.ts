@@ -164,7 +164,11 @@ const SHARED_DIRECTIVES = [
   "form-action 'self'",
 ];
 
-const SCRIPT_HOSTS = "https://challenges.cloudflare.com https://va.vercel-scripts.com";
+// va.vercel-scripts.com is gone with <Analytics />/<SpeedInsights />: this
+// site is served from the ZimaOS box through Cloudflare, so /_vercel/insights
+// and /_vercel/speed-insights never existed here and both scripts 404'd on
+// every page load. An allowed script host nothing loads is only attack surface.
+const SCRIPT_HOSTS = "https://challenges.cloudflare.com";
 
 function assemble(scriptSrc: string): string {
   return [`script-src ${scriptSrc}`, ...SHARED_DIRECTIVES].join("; ");
