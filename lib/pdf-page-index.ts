@@ -211,7 +211,7 @@ export function budgetedBatches(
  * ends at a single row, which is the smallest unit that exists; if THAT times
  * out the failure is real and belongs to a human, so it propagates.
  */
-async function insertBatch(
+export async function insertBatch(
   db: SupabaseClient,
   recordType: PageRecordType,
   recordId: string,
@@ -246,7 +246,7 @@ async function insertBatch(
  * catches anything outside the observed range (a row from an older extraction
  * with more pages) and is cheap by then because the bulk is already gone.
  */
-async function deleteRecordPages(
+export async function deleteRecordPages(
   db: SupabaseClient,
   recordType: PageRecordType,
   recordId: string,
