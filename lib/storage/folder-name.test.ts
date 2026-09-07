@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  GENERAL_CATEGORY_SEGMENT,
   STORAGE_SEGMENT_BUDGET,
+  UNCATEGORIZED_SEGMENT,
   ZIMA_SEGMENT_MAX,
   buildStorageFolderName,
   clampStorageSegment,
@@ -9,9 +11,11 @@ import {
   describeStoragePathError,
   folderNameNote,
   isSafeStorageSegment,
+  storageCategorySegment,
   storageSegmentIssue,
 } from "./folder-name";
 import { bookFolder, makeUid, postFolder, publicationFolder, slugify, thesisFolder } from "@/lib/book-utils";
+import { normalizeCategorySlug } from "@/lib/cover-theme";
 
 /**
  * The storage server's own rule, copied verbatim from its
@@ -108,9 +112,10 @@ describe("buildStorageFolderName", () => {
   it("produces a valid folder for a long Khmer-only title", () => {
     const folder = bookFolder("ការអប់រំ", LONG_KHMER, UID);
     expect(serverAccepts(folder)).toBe(true);
-    // Both variable segments fell back rather than carrying Khmer, because a
-    // non-ASCII x-folder header is percent-encoded and then refused.
-    expect(folder).toBe(`books/uncategorized/book-${UID}`);
+    // Neither segment carries Khmer (a non-ASCII x-folder header is
+    // percent-encoded and then refused). The title falls back to `book-<uid>`;
+    // the category is TRANSLATED, not dropped — see storageCategorySegment.
+    expect(folder).toBe(`books/education/book-${UID}`);
   });
 
   it("handles a mixed Khmer/English title by keeping the English part", () => {
@@ -305,3 +310,88 @@ describe("the public URL slug is NEVER clamped by the storage budget", () => {
     expect(buildStorageFolderName(LONG_KHMER, UID, "book")).toBe(`book-${UID}`);
   });
 });
+
+describe("storageCategorySegment — the category shelf of books/<shelf>/<title-uid>", () => {
+  // Every category in the live library is Khmer. Before this mapping each one
+  // slugified to "" and every book was filed under books/uncategorized/.
+  it.each([
+    ["គណិតវិទ្យា", "mathematics"],
+    ["គរុកោសល្យ", "education"],
+    ["អប់រំ", "education"],
+    ["បច្ចេកវិទ្យា", "technology"],
+    ["ព័ត៌មានវិទ្យា", "technology"],
+    ["វិទ្យាសាស្ត្រ", "science"],
+    ["ភាសាខ្មែរ", "language"],
+    ["ភាសា", "language"],
+    ["ភាសាអង់គ្លេសសិក្សា", "language"],
+    ["ប្រវត្តិវិទ្យា", "history"],
+    ["ប្រវត្តិសាស្ត្រ", "history"],
+    ["ច្បាប់", "law"],
+    ["សេដ្ឋកិច្ច", "economics"],
+    ["ស្រាវជ្រាវ", "research"],
+    ["ស្រាវជ្រាវប្រតិបត្តិ", "research"],
+    ["ស្ថិតិ និងវិភាគទិន្នន័យ", "statistics"],
+    ["កម្មវិធីសិក្សា", "curriculum"],
+    ["គីមីវិទ្យា", "science"],
+    ["ជីវវិទ្យា", "science"],
+    ["រូបវិទ្យា", "science"],
+    ["អក្សរសិល្ប៍", "literature"],
+  ])("maps the Khmer category %s to the readable shelf %s", (khmer, shelf) => {
+    expect(storageCategorySegment(khmer)).toBe(shelf);
+    expect(bookFolder(khmer, LONG_KHMER, UID)).toBe(`books/${shelf}/book-${UID}`);
+  });
+
+  it("gives Khmer literature its own shelf rather than the shared literature one", () => {
+    expect(storageCategorySegment("អក្សរសាស្ត្រខ្មែរ")).toBe("khmer-literature");
+    expect(storageCategorySegment("អក្សរសាស្ត្រ")).toBe("literature");
+  });
+
+  it("shelves the storage-only categories the cover themes have no colour for", () => {
+    expect(storageCategorySegment("សុខភាព")).toBe("health");
+    expect(storageCategorySegment("វប្បធម៌")).toBe("culture");
+    expect(storageCategorySegment("ទស្សនវិជ្ជា")).toBe("philosophy");
+  });
+
+  it("files an unrecognised Khmer category under general, never uncategorized", () => {
+    expect(storageCategorySegment("ចំណេះដឹងទូទៅ")).toBe(GENERAL_CATEGORY_SEGMENT);
+    expect(storageCategorySegment("ចំណេះដឹងទូទៅ")).not.toBe(UNCATEGORIZED_SEGMENT);
+  });
+
+  it("reserves uncategorized for a book with no category at all", () => {
+    expect(storageCategorySegment("")).toBe(UNCATEGORIZED_SEGMENT);
+    expect(storageCategorySegment("   ")).toBe(UNCATEGORIZED_SEGMENT);
+    expect(storageCategorySegment(null)).toBe(UNCATEGORIZED_SEGMENT);
+    expect(storageCategorySegment(undefined)).toBe(UNCATEGORIZED_SEGMENT);
+    expect(bookFolder(null, "A Title", UID)).toBe(`books/uncategorized/a-title-${UID}`);
+  });
+
+  it("keeps the historical slug for a category that already has Latin letters", () => {
+    // Nothing already on disk under an English category is renamed by the rule.
+    expect(storageCategorySegment("Research Methods")).toBe("research-methods");
+    expect(storageCategorySegment("Mathematics")).toBe("mathematics");
+    expect(storageCategorySegment("Educational Research")).toBe("educational-research");
+    // Mixed: the Latin part wins, as it always did.
+    expect(storageCategorySegment("កម្មវិធី PISA")).toBe("pisa");
+    expect(storageCategorySegment(LONG_ASCII).length).toBeLessThanOrEqual(STORAGE_SEGMENT_BUDGET);
+  });
+
+  it("only ever emits a segment the storage server accepts", () => {
+    const inputs = [
+      "គណិតវិទ្យា", "អក្សរសាស្ត្រខ្មែរ", "ចំណេះដឹងទូទៅ", "សុខភាព", "", "Research Methods", "កម្មវិធី PISA", LONG_ASCII, LONG_KHMER,
+    ];
+    for (const input of inputs) {
+      const segment = storageCategorySegment(input);
+      expect(isSafeStorageSegment(segment), input).toBe(true);
+      expect(serverAccepts(`books/${segment}/book-${UID}`), input).toBe(true);
+    }
+  });
+
+  it("agrees with the cover theme wherever the theme has an opinion", () => {
+    // One vocabulary: the folder a book is filed in and the colour of its
+    // generated cover come from the same keyword table.
+    for (const khmer of ["គណិតវិទ្យា", "គរុកោសល្យ", "វិទ្យាសាស្ត្រ", "ច្បាប់", "សេដ្ឋកិច្ច", "ស្រាវជ្រាវ"]) {
+      expect(storageCategorySegment(khmer)).toBe(normalizeCategorySlug(khmer));
+    }
+  });
+});
+

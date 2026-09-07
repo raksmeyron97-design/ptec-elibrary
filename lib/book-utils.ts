@@ -6,7 +6,7 @@
 // ──────────────────────────────────────────────────────────────
 
 import { unicodeSlug } from "@/lib/slug";
-import { buildStorageFolderName, clampStorageSegment } from "@/lib/storage/folder-name";
+import { buildStorageFolderName, storageCategorySegment } from "@/lib/storage/folder-name";
 
 export type Book = {
   slug: string;
@@ -174,10 +174,15 @@ function fileExt(name: string, fallback = "bin") {
  * Edition)" is 116 characters slugified — produced a folder the storage server
  * refused with `400 {"error":"Invalid target folder"}`, so those books could
  * never be uploaded at all.
+ *
+ * The category segment is `storageCategorySegment()`: a Khmer category name
+ * maps to a readable Latin shelf (`mathematics`, `education`, …) instead of
+ * slugifying to nothing and collapsing every book into `uncategorized`.
+ * Existing rows are moved by scripts/reorganize-book-folders.ts; nothing here
+ * recomputes a stored `books.storage_folder`.
  */
 export function bookFolder(category: string | null | undefined, title: string, uid: string) {
-  const cat = clampStorageSegment((category ?? "").trim(), "uncategorized");
-  return `books/${cat}/${buildStorageFolderName(title, uid, "book")}`;
+  return `books/${storageCategorySegment(category)}/${buildStorageFolderName(title, uid, "book")}`;
 }
 
 /** The book's PDF key inside its folder. */
