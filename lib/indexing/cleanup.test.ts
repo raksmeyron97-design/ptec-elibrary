@@ -47,6 +47,28 @@ const RETRIEVAL_TABLES = [
   "resource_semantic_insights",
 ] as const;
 
+/**
+ * Polymorphic tables that are NOT derived text but carry the same obligation.
+ *
+ * The retrieval list above was scoped to "things that make a resource
+ * searchable", and `reading_list_items` (0136) fell outside it and so was
+ * cleared by nobody — even though its own migration writes the obligation
+ * down: "No foreign key, deliberately … the same cleanup obligation on the
+ * application, as resource_index_state (0133)."
+ *
+ * The consequence is not a leaked passage but a reader's collection that
+ * cannot be made right: `getMyReadingLists` counts every row, while the list
+ * page renders only items whose resource still resolves, so a deleted book
+ * left "12 saved" above 11 visible items permanently.
+ *
+ * Kept as a SEPARATE list rather than appended to RETRIEVAL_TABLES because the
+ * rule for the two groups differs. Unpublishing must NOT clear a saved item —
+ * hydrateItems keeps it so it returns when the resource does — whereas an
+ * unpublished resource is legitimately dropped from the search index. Only
+ * deletion is common to both.
+ */
+const READER_STATE_TABLES = ["reading_list_items"] as const;
+
 function read(rel: string): string {
   return readFileSync(path.join(ROOT, rel), "utf8");
 }
@@ -58,6 +80,19 @@ describe("deleting a resource clears everything that makes it searchable", () =>
         const source = read(site.file);
         // The delete must be present AND scoped to this resource's own
         // record_type — an unscoped delete would wipe another type's index.
+        expect(source).toContain(`from("${table}").delete()`);
+        const scoped = new RegExp(
+          `from\\("${table}"\\)\\s*\\.delete\\(\\)[\\s\\S]{0,120}?"${site.recordType}"`,
+        );
+        expect(source).toMatch(scoped);
+      });
+    }
+  }
+
+  for (const site of DELETE_SITES) {
+    for (const table of READER_STATE_TABLES) {
+      it(`${site.label} deletes from ${table}`, () => {
+        const source = read(site.file);
         expect(source).toContain(`from("${table}").delete()`);
         const scoped = new RegExp(
           `from\\("${table}"\\)\\s*\\.delete\\(\\)[\\s\\S]{0,120}?"${site.recordType}"`,
