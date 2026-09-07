@@ -104,7 +104,17 @@ export default function BookCard({ book, variant = "browse", priority = false }:
             category={book.category || book.department}
             seed={book.slug}
             variant="card"
-            sizes="(max-width:640px) 50vw, (max-width:768px) 33vw, (max-width:1024px) 25vw, (max-width:1280px) 20vw, 220px"
+            // MEASURED slot widths (CSS px): 162 @375, 211 @1024, 275 @1280,
+            // 309 @1440 and @1920 (the grid's container caps out ~1440).
+            //
+            // The old tail said 220px for a 309px slot — 29% UNDER. That cost
+            // nothing while `images.unoptimized` was set and every cover
+            // arrived at its full 800px, but once the optimizer honours
+            // `sizes` an under-declaration is a SOFT cover, so this is
+            // repairing a regression, not shaving bytes: desktop covers get
+            // slightly bigger here, and correct. Same reason 20vw -> 22vw at
+            // 1280, where the real slot is 275 and 20vw asked for 256.
+            sizes="(max-width:640px) 50vw, (max-width:768px) 33vw, (max-width:1024px) 25vw, (max-width:1280px) 22vw, 320px"
             priority={priority}
             imgClassName="transition-transform duration-500 group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
           />

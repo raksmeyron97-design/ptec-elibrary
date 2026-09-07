@@ -26,10 +26,26 @@ export const HERO_PHOTO_COUNT = 3;
  * a phone never downloads a desktop-width file for a photo that renders at a
  * third of the screen.
  */
+// MEASURED slot widths (CSS px, this page, five viewports):
+//
+//            375   1024   1280   1440   1920
+//   main     343    396    512    572    572
+//   bot-left 158    230    299    335    335
+//   floating 158    151    197    221    221
+//
+// Two corrections fall out of that. The container stops growing at ~1440, so a
+// bare vw tail keeps inflating past the point the slot does — 45vw asked for
+// 864px at 1920 to fill 572. And the `(max-width: 1024px)` arm was doing double
+// duty for phone AND tablet: at 1024 the grid has already gone side-by-side, so
+// 100vw/50vw/40vw asked for 2.2-2.7x the real slot right where the layout is
+// densest. Each now caps in px past 1440 and splits the phone case off at 640.
 const SIZES = [
-  "(max-width: 1024px) 100vw, 45vw", // main
-  "(max-width: 1024px) 50vw, 26vw",  // bottom-left
-  "(max-width: 1024px) 40vw, 18vw",  // floating
+  // 45vw declared 648px for a 572px slot at 1440 — only 13% over, but enough
+  // to cross the 1200 rung and fetch the 1920 variant at DPR 2. The 600px tail
+  // lands exactly on 1200 there, and on the same rung at 1920.
+  "(max-width: 640px) 100vw, (max-width: 1024px) 45vw, (max-width: 1280px) 42vw, 600px", // main
+  "(max-width: 640px) 50vw, (max-width: 1440px) 26vw, 340px",  // bottom-left
+  "(max-width: 640px) 45vw, (max-width: 1024px) 20vw, (max-width: 1440px) 18vw, 230px", // floating
 ];
 
 export default async function HeroPhotoGallery({
