@@ -72,10 +72,34 @@ export async function GET(request: NextRequest) {
   if (paths.error && paths.error.code !== "42703") {
     console.error("[/api/cron/publish-scheduled] paths update failed:", paths.error.message);
   }
-  // Refresh the public learning-paths cache so newly-published paths appear.
-  if ((paths.data ?? []).length > 0) {
-    const { revalidateLearningPath } = await import("@/lib/cache/revalidate");
-    for (const p of paths.data ?? []) revalidateLearningPath(p.slug);
+  /* Publishing a row is only half of going live.
+   *
+   * Every public surface these rows appear on is cached: the posts and books
+   * listings are unstable_cache entries tagged "posts"/"books" with 300–3600s
+   * lifetimes, and the thesis detail page is ISR at `revalidate = 3600`.
+   * Nothing about a status flip in Postgres reaches those caches, so a sweep
+   * that only wrote the rows left the content invisible for up to an hour
+   * after its scheduled time — which is the one thing scheduling exists to
+   * get right. Learning paths were revalidated here and the other three were
+   * not, so the same sweep behaved differently per resource type.
+   *
+   * Each helper busts that type's tags, both locale copies of its listing and
+   * detail page, and the homepage shelf it can appear on. A book reaching
+   * publication is a new arrival, not a metadata edit, so it takes
+   * affectsHome. */
+  const publishedByType = {
+    post: posts.data ?? [],
+    thesis: theses.data ?? [],
+    book: books.data ?? [],
+    path: paths.data ?? [],
+  };
+  if (Object.values(publishedByType).some((rows) => rows.length > 0)) {
+    const { revalidatePost, revalidateThesis, revalidateBook, revalidateLearningPath } =
+      await import("@/lib/cache/revalidate");
+    for (const p of publishedByType.post) revalidatePost(p.slug);
+    for (const t of publishedByType.thesis) revalidateThesis(t.slug);
+    for (const b of publishedByType.book) revalidateBook(b.slug, { affectsHome: true });
+    for (const p of publishedByType.path) revalidateLearningPath(p.slug);
   }
   if (posts.error && theses.error) {
     return NextResponse.json({ error: "Publish sweep failed" }, { status: 500 });
