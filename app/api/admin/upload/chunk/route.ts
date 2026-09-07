@@ -730,6 +730,9 @@ async function recordFinalizationFailure(
     latencyMs: Date.now() - started,
     totalChunks,
     errorCode: code,
+    // Keep Zima's own answer: 20 ZIMA_UPLOAD_FAILED rows from 2026-09-04 could
+    // not say whether storage had answered 429, 413 or 5xx.
+    upstreamStatus: isZimaUploadError(err) ? err.status : undefined,
   });
 }
 
