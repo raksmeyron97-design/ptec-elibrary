@@ -38,6 +38,7 @@
 // name that lands one character short of it is a name that breaks the next
 // time anything is appended to it.
 
+import { normalizeCategorySlug } from "@/lib/cover-theme";
 import { asciiSlug } from "@/lib/slug";
 
 /** Zima's hard per-segment limit. Exceeding it is a 400, never a truncation. */
@@ -131,6 +132,63 @@ export function clampStorageSegment(
   const slug = truncateSlug(asciiSlug(value ?? ""), budget);
   if (slug) return slug;
   return truncateSlug(asciiSlug(fallback), budget) || "files";
+}
+
+/** The category segment of a book that has no category at all. */
+export const UNCATEGORIZED_SEGMENT = "uncategorized";
+
+/** The category segment of a Khmer category no rule recognises. */
+export const GENERAL_CATEGORY_SEGMENT = "general";
+
+/**
+ * Storage-only additions to the cover-theme vocabulary. The cover themes are a
+ * closed set (each slug owns a colour pair that must pass WCAG AA), so a
+ * category with no theme of its own resolves to `general` there — which is
+ * the right cover, and the wrong folder: "health", "culture" and "philosophy"
+ * each hold real shelves in this library and deserve a folder of their own.
+ * Keyword matching mirrors `normalizeCategorySlug`: lower-cased substring,
+ * first match wins.
+ */
+const STORAGE_ONLY_CATEGORY_KEYWORDS: Array<[string, string[]]> = [
+  ["health", ["health", "សុខភាព"]],
+  ["culture", ["culture", "វប្បធម៌"]],
+  ["philosophy", ["philosoph", "ទស្សនវិជ្ជា"]],
+];
+
+/**
+ * The category segment of a book folder: `books/<THIS>/<title>-<uid>`.
+ *
+ * A category name with Latin letters keeps the slug it always had
+ * ("Research Methods" → `research-methods`), so nothing already on disk is
+ * renamed by this rule. A name with NO Latin letters — every category in the
+ * live library is Khmer — used to slugify to "" and fall back to
+ * `uncategorized`, which is how all 270 books ended up in one folder. It now
+ * resolves through the same keyword table the generated covers use
+ * (`normalizeCategorySlug`), so គណិតវិទ្យា → `mathematics`, គរុកោសល្យ →
+ * `education`, ច្បាប់ → `law`; a Khmer-literature category gets its own
+ * `khmer-literature` shelf rather than sharing `literature` with everything
+ * else; and a name no rule recognises lands in `general`, never in
+ * `uncategorized`, which is reserved for a book that has no category at all.
+ *
+ * The result is always ASCII and inside the segment budget.
+ */
+export function storageCategorySegment(category: string | null | undefined): string {
+  const name = (category ?? "").trim();
+  if (!name) return UNCATEGORIZED_SEGMENT;
+
+  // Already Latin: the historical behaviour, and the name every existing
+  // English-category folder was created with.
+  if (/[a-z]/i.test(name)) return clampStorageSegment(name, UNCATEGORIZED_SEGMENT);
+
+  const theme = normalizeCategorySlug(name);
+  if (theme === "literature" && name.includes("ខ្មែរ")) return "khmer-literature";
+  if (theme !== "general") return theme;
+
+  const lower = name.toLowerCase();
+  for (const [slug, keywords] of STORAGE_ONLY_CATEGORY_KEYWORDS) {
+    if (keywords.some((k) => lower.includes(k))) return slug;
+  }
+  return GENERAL_CATEGORY_SEGMENT;
 }
 
 /** True when this module produced (or could have produced) `segment`. */
