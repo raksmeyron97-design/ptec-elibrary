@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import type { AppRole } from "@/lib/types/roles";
-import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
+import { ADMIN_ROLES } from "@/lib/types/roles";
 
 async function getAuthUser() {
   const supabase = await createClient();
@@ -54,7 +54,14 @@ export async function deleteComment(
       .eq("id", user.id)
       .single();
 
-    const isAdmin = ADMIN_PANEL_ROLES.includes((profile?.role ?? "reader") as AppRole);
+    // ADMIN_ROLES, not ADMIN_PANEL_ROLES. This write runs under RLS on the
+    // anon client, and the only policy that lets anyone touch someone else's
+    // comment is "Admins can manage all comments" — `public.is_admin()`, which
+    // is `role IN ('admin','super_admin')`. Claiming the wider panel list here
+    // dropped the ownership filter for staff and librarians, whose UPDATE then
+    // matched zero rows; PostgREST reports no error for that, so the action
+    // returned success and the UI hid a comment that was never deleted.
+    const isAdmin = ADMIN_ROLES.includes((profile?.role ?? "reader") as AppRole);
 
     // Soft-delete: admins can delete any comment; users only their own
     let query = supabase
@@ -66,8 +73,15 @@ export async function deleteComment(
       query = query.eq("user_id", user.id);
     }
 
-    const { error } = await query;
+    // Ask for the affected rows back. A filter that matches nothing — someone
+    // else's comment, or one already gone — is NOT an error to PostgREST, so
+    // without this the caller cannot tell a completed delete from a refused
+    // one, and the only honest answer would be a guess.
+    const { data, error } = await query.select("id");
     if (error) return { error: error.message };
+    if (!data || data.length === 0) {
+      return { error: "You do not have permission to delete this comment." };
+    }
 
     revalidatePath(`/posts/${postSlug}`);
     return {};
@@ -132,7 +146,11 @@ export async function updateComment(
   try {
     const { supabase, user } = await getAuthUser();
 
-    const { error } = await supabase
+    // Same zero-row rule as deleteComment: the ownership filter refusing to
+    // match is not a PostgREST error, so an edit of a comment the user does
+    // not own would otherwise be reported as saved and then reappear
+    // unchanged on the next load.
+    const { data, error } = await supabase
       .from("post_comments")
       .update({
         body: trimmed,
@@ -140,9 +158,13 @@ export async function updateComment(
         is_edited: true,
       })
       .eq("id", commentId)
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .select("id");
 
     if (error) return { error: error.message };
+    if (!data || data.length === 0) {
+      return { error: "You do not have permission to edit this comment." };
+    }
 
     revalidatePath(`/posts/${postSlug}`);
     return {};
