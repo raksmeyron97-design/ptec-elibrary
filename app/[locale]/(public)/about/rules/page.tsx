@@ -2,12 +2,15 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import {
   Ban,
+  BookCopy,
   BookMarked,
+  Briefcase,
   ChevronDown,
   CircleAlert,
   CreditCard,
   Gavel,
   Globe2,
+  GraduationCap,
   Heart,
   Info,
   MessageCircleQuestion,
@@ -178,16 +181,32 @@ export default async function LibraryRulesPage({
           arrive with, answered before any prose. */}
       <AboutSection id="quick-reference" title={tr("quick.heading")}>
         <div className="grid gap-4 sm:grid-cols-3">
-          <InformationCard className="flex h-full flex-col border-surface-brand-line bg-surface-brand-soft">
+          <InformationCard className="relative flex h-full flex-col overflow-hidden border-surface-brand-line bg-surface-brand-soft">
+            <span
+              aria-hidden="true"
+              className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-brand to-gold-500"
+            />
+            <span
+              aria-hidden="true"
+              className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-brand text-brand-contrast"
+            >
+              <BookCopy className="h-5 w-5" />
+            </span>
             <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
               {tr("quick.maxItems")}
             </p>
-            <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight text-text-heading">
+            <p className="mt-2 text-4xl font-semibold tabular-nums tracking-tight text-brand">
               {tr("quick.maxItemsValue", { count: students?.maxItems ?? 5 })}
             </p>
           </InformationCard>
 
           <InformationCard className="flex h-full flex-col">
+            <span
+              aria-hidden="true"
+              className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10 text-brand"
+            >
+              <GraduationCap className="h-5 w-5" />
+            </span>
             <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
               {tr("quick.forStudents")}
             </p>
@@ -206,6 +225,12 @@ export default async function LibraryRulesPage({
           </InformationCard>
 
           <InformationCard className="flex h-full flex-col">
+            <span
+              aria-hidden="true"
+              className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10 text-brand"
+            >
+              <Briefcase className="h-5 w-5" />
+            </span>
             <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
               {tr("quick.forStaff")}
             </p>
@@ -340,13 +365,19 @@ export default async function LibraryRulesPage({
                     carried by the visible label below, so removing the
                     colour costs no meaning. */}
                 <span
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-paper"
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                    rule.kind === "dont" ? "bg-paper text-text-muted" : "bg-brand/10 text-brand"
+                  }`}
                   aria-hidden="true"
                 >
-                  <Icon className="h-4.5 w-4.5 text-text-muted" />
+                  <Icon className="h-5 w-5" />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                  <span
+                    className={`block text-[11px] font-semibold uppercase tracking-wide ${
+                      rule.kind === "dont" ? "text-text-muted" : "text-brand"
+                    }`}
+                  >
                     {rule.kind === "dont" ? tr("conduct.dont") : tr("conduct.do")}
                   </span>
                   <span

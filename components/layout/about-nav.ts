@@ -25,7 +25,21 @@ export type AboutNavItem = {
   href: string;
   icon: LucideIcon;
   group: AboutNavGroup;
+  /** Key inside the `about` namespace — the same one-line description the
+   *  About section's related-pages cards use, so the menu and the cards
+   *  can never describe a page two different ways. */
+  descriptionKey: `nav.${string}`;
 };
+
+/** Group order + heading keys, shared by the desktop popover and the mobile
+ *  accordion so the two can't group the same pages differently. */
+export const ABOUT_NAV_GROUPS = [
+  { id: "general", labelKey: "aboutGroupGeneral" },
+  { id: "library", labelKey: "aboutGroupLibraryInfo" },
+] satisfies Array<{
+  id: AboutNavGroup;
+  labelKey: "aboutGroupGeneral" | "aboutGroupLibraryInfo";
+}>;
 
 export const ABOUT_NAV_ITEMS = [
   {
@@ -33,42 +47,49 @@ export const ABOUT_NAV_ITEMS = [
     href: "/about/our-journey",
     icon: Milestone,
     group: "general",
+    descriptionKey: "nav.ourJourney",
   },
   {
     labelKey: "contact",
     href: "/contact",
     icon: Mail,
     group: "general",
+    descriptionKey: "nav.contact",
   },
   {
     labelKey: "libraryRules",
     href: "/about/rules",
     icon: ScrollText,
     group: "library",
+    descriptionKey: "nav.rules",
   },
   {
     labelKey: "libraryTimings",
     href: "/about/timings",
     icon: Clock3,
     group: "library",
+    descriptionKey: "nav.timings",
   },
   {
     labelKey: "libraryCollection",
     href: "/about/collection",
     icon: BookCopy,
     group: "library",
+    descriptionKey: "nav.collection",
   },
   {
     labelKey: "libraryCommittee",
     href: "/about/committee",
     icon: UsersRound,
     group: "library",
+    descriptionKey: "nav.committee",
   },
   {
     labelKey: "libraryTeam",
     href: "/about/team",
     icon: Users,
     group: "library",
+    descriptionKey: "nav.team",
   },
 ] satisfies AboutNavItem[];
 

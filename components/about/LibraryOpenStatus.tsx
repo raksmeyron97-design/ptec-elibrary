@@ -146,17 +146,31 @@ export default function LibraryOpenStatus({
   }
 
   return (
-    <div className={`rounded-2xl border p-5 shadow-sm sm:p-6 ${style.wrapper}`}>
+    <div className={`relative overflow-hidden rounded-2xl border p-5 shadow-sm sm:p-6 ${style.wrapper}`}>
+      <Icon
+        aria-hidden="true"
+        strokeWidth={1}
+        className={`pointer-events-none absolute -bottom-6 -right-6 h-32 w-32 opacity-[0.07] ${style.text}`}
+      />
       {/* The live region wraps only the sentence that changes. Wrapping the
           whole card would make a screen reader re-announce the heading and
           the timezone note every time the minute rolls over. */}
       <div role="status" aria-live="polite" aria-label={t("liveLabel")}>
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="inline-flex items-center gap-2">
-            {/* Colour is never alone: a dot, an icon AND the word. */}
-            <span className={`h-2.5 w-2.5 rounded-full ${style.dot}`} aria-hidden="true" />
+            {/* Colour is never alone: a dot, an icon AND the word. The dot
+                pulses only while open — a "live" cue for the one state that
+                is live — and holds still under reduced motion. */}
+            <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
+              {tone === "open" && (
+                <span
+                  className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 motion-reduce:hidden ${style.dot}`}
+                />
+              )}
+              <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${style.dot}`} />
+            </span>
             <Icon className={`h-5 w-5 ${style.text}`} aria-hidden="true" />
-            <span className={`text-xl font-semibold tracking-tight ${style.text}`}>
+            <span className={`text-2xl font-semibold tracking-tight sm:text-3xl ${style.text}`}>
               {headline}
             </span>
           </span>

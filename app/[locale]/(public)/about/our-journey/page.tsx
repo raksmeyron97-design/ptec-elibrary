@@ -7,6 +7,7 @@ import {
   BookOpenCheck,
   Globe2,
   Newspaper,
+  Quote,
   ScanLine,
   Sparkles,
   Target,
@@ -33,7 +34,6 @@ import {
   ContentLastUpdated,
   EmptyContentState,
   InformationCard,
-  NoticePanel,
 } from "@/components/about/primitives";
 
 // Institutional history changes rarely; the copy is compiled in. ISR keeps the
@@ -201,7 +201,7 @@ export default async function OurJourneyPage({
                   </span>
                   <div className="min-w-0">
                     {figure && (
-                      <p className="text-2xl font-semibold tabular-nums tracking-tight text-text-heading">
+                      <p className="text-3xl font-semibold tabular-nums tracking-tight text-brand">
                         {achievement.isMinimum && (
                           <span className="mr-1.5 align-middle text-sm font-medium text-text-muted">
                             {tj("achievements.minimumPrefix")}
@@ -265,15 +265,34 @@ export default async function OurJourneyPage({
 
       {/* ── Roadmap ──────────────────────────────────────────────────── */}
       <AboutSection id="roadmap" title={tj("roadmap.heading")}>
-        <NoticePanel tone="info" label={tj("roadmap.label")} className="mb-6">
-          <p className="font-medium text-text-heading">{tj("roadmap.goalLabel")}</p>
+        {/* The stated goal is the one sentence on this page worth a stage:
+            a navy plate with the gold edge, the same pairing as the hero.
+            The label is text, so the tone is not carried by colour alone. */}
+        <div className="relative mb-6 overflow-hidden rounded-2xl bg-blue-900 p-6 text-white shadow-sm sm:p-8">
+          <span
+            aria-hidden="true"
+            className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-gold-500 via-gold-300 to-gold-500/30"
+          />
+          <Quote
+            aria-hidden="true"
+            strokeWidth={1}
+            className="pointer-events-none absolute -right-6 -top-6 h-36 w-36 text-white/[0.07]"
+          />
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-gold-300">
+            <Target className="h-4 w-4" aria-hidden="true" />
+            {tj("roadmap.label")}
+          </p>
+          <p className="mt-4 text-sm text-white/70">{tj("roadmap.goalLabel")}</p>
           {goal && (
-            <p lang={goal.lang} className="about-wrap mt-1 text-base font-semibold text-text-heading">
+            <p
+              lang={goal.lang}
+              className="about-wrap mt-1 max-w-2xl text-2xl font-semibold leading-snug tracking-tight sm:text-3xl"
+            >
               “{goal.text}”
             </p>
           )}
-          <p className="mt-2 text-xs">{tj("roadmap.note")}</p>
-        </NoticePanel>
+          <p className="mt-5 text-xs text-white/60">{tj("roadmap.note")}</p>
+        </div>
 
         <ul className="grid gap-4 sm:grid-cols-2">
           {ROADMAP_ITEMS.map((item) => {
@@ -284,10 +303,10 @@ export default async function OurJourneyPage({
               <li key={item.id}>
                 <InformationCard className="flex h-full gap-4">
                   <span
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-paper"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/10"
                     aria-hidden="true"
                   >
-                    <Icon className="h-4.5 w-4.5 text-text-muted" />
+                    <Icon className="h-5 w-5 text-brand" />
                   </span>
                   <div className="min-w-0">
                     {title && (

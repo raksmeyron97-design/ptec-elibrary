@@ -119,11 +119,20 @@ function AboutHero({
   action,
   image,
   locale,
-}: AboutHeroProps & { breadcrumb: ReactNode; locale: AboutLocale }) {
+  watermark: Watermark,
+}: AboutHeroProps & {
+  breadcrumb: ReactNode;
+  locale: AboutLocale;
+  /** The page's own nav icon, drawn very large and very faint behind the
+   *  text when there is no photograph — so a text-only hero still has a
+   *  shape, and each page's is different. */
+  watermark?: LucideIcon;
+}) {
   return (
     <section className="relative overflow-hidden bg-blue-900">
-      {/* A single flat brand surface with one soft radial highlight —
-          not the stacked gradients + dot grid the old pages each re-declared. */}
+      {/* One flat brand surface, one soft radial highlight, and the gold
+          hairline that the header and footer already carry — the three
+          brand surfaces on a page now share one edge. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 opacity-70"
@@ -132,6 +141,17 @@ function AboutHero({
             "radial-gradient(120% 90% at 15% 0%, rgba(58,95,196,0.55) 0%, rgba(11,21,48,0) 60%)",
         }}
       />
+      {Watermark && !image && (
+        <Watermark
+          aria-hidden="true"
+          strokeWidth={1}
+          className="pointer-events-none absolute -bottom-10 right-4 hidden h-72 w-72 text-white/[0.06] sm:block lg:-bottom-14 lg:right-12 lg:h-96 lg:w-96"
+        />
+      )}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-gold-500 via-gold-300 to-gold-500/40"
+      />
       <div className="relative mx-auto max-w-[1240px] px-4 py-8 sm:px-6 sm:py-10 lg:py-14">
         {breadcrumb}
         <div
@@ -139,7 +159,8 @@ function AboutHero({
         >
           <div className="min-w-0">
             {badge && <div className="mb-4">{badge}</div>}
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gold-300">
+            <p className="flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.14em] text-gold-300">
+              <span aria-hidden="true" className="h-px w-6 bg-gold-400" />
               {category}
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-[2.75rem] lg:leading-[1.15]">
@@ -163,7 +184,7 @@ function AboutHero({
             <div className="mt-8 lg:mt-0">
               {/* Fixed aspect ratio + `fill` means the box is reserved before
                   the bytes arrive — no CLS when the photo decodes. */}
-              <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-white/15 bg-blue-950/40">
+              <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-white/15 bg-blue-950/40 shadow-[0_24px_48px_-24px_rgba(0,0,0,0.6)] ring-1 ring-gold-400/30 ring-offset-2 ring-offset-blue-900">
                 <Image
                   src={image.src}
                   alt={image.alt}
@@ -203,14 +224,31 @@ async function RelatedAboutPages({ current }: { current: AboutPageKey }) {
             <li key={item.key}>
               <Link
                 href={item.href}
-                className="group flex h-full flex-col rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm transition-colors hover:border-brand/40"
+                className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0"
               >
-                <Icon className="h-5 w-5 text-text-muted transition-colors group-hover:text-brand" aria-hidden="true" />
-                <span className="about-wrap mt-3 font-semibold text-text-heading group-hover:text-brand">
+                {/* Gold edge appears on hover — the same "current" cue the
+                    sub-navigation and the About menu use. */}
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-x-0 top-0 h-0.5 bg-gold-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100 motion-reduce:transition-none"
+                />
+                <span
+                  aria-hidden="true"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10 text-brand transition-colors duration-200 group-hover:bg-brand group-hover:text-brand-contrast motion-reduce:transition-none"
+                >
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span className="about-wrap mt-4 font-semibold text-text-heading group-hover:text-brand">
                   {tNav(item.labelKey)}
                 </span>
                 <span className="about-copy mt-1.5 text-sm text-text-muted">
                   {t(item.descriptionKey)}
+                </span>
+                <span aria-hidden="true" className="mt-auto flex items-center pt-4 text-brand">
+                  <ArrowRight
+                    className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none"
+                    aria-hidden="true"
+                  />
                 </span>
               </Link>
             </li>
@@ -237,9 +275,9 @@ async function AboutPagePagination({ current }: { current: AboutPageKey }) {
         <Link
           href={previous.href}
           rel="prev"
-          className="group flex min-h-11 items-center gap-3 rounded-2xl border border-divider bg-bg-surface p-4 text-left shadow-sm transition-colors hover:border-brand/40"
+          className="group flex min-h-11 items-center gap-3 rounded-2xl border border-divider bg-bg-surface p-4 text-left shadow-sm transition-colors hover:border-brand/40 hover:bg-surface-brand-soft"
         >
-          <ArrowLeft className="h-4 w-4 shrink-0 text-text-muted transition-colors group-hover:text-brand" aria-hidden="true" />
+          <ArrowLeft className="h-4 w-4 shrink-0 text-text-muted transition-[color,transform] group-hover:-translate-x-0.5 group-hover:text-brand motion-reduce:transition-none" aria-hidden="true" />
           <span className="min-w-0">
             <span className="block text-xs uppercase tracking-wide text-text-muted">
               {t("pager.previous")}
@@ -257,7 +295,7 @@ async function AboutPagePagination({ current }: { current: AboutPageKey }) {
         <Link
           href={next.href}
           rel="next"
-          className="group flex min-h-11 items-center justify-end gap-3 rounded-2xl border border-divider bg-bg-surface p-4 text-right shadow-sm transition-colors hover:border-brand/40 sm:col-start-2"
+          className="group flex min-h-11 items-center justify-end gap-3 rounded-2xl border border-divider bg-bg-surface p-4 text-right shadow-sm transition-colors hover:border-brand/40 hover:bg-surface-brand-soft sm:col-start-2"
         >
           <span className="min-w-0">
             <span className="block text-xs uppercase tracking-wide text-text-muted">
@@ -267,7 +305,7 @@ async function AboutPagePagination({ current }: { current: AboutPageKey }) {
               {tNav(next.labelKey)}
             </span>
           </span>
-          <ArrowRight className="h-4 w-4 shrink-0 text-text-muted transition-colors group-hover:text-brand" aria-hidden="true" />
+          <ArrowRight className="h-4 w-4 shrink-0 text-text-muted transition-[color,transform] group-hover:translate-x-0.5 group-hover:text-brand motion-reduce:transition-none" aria-hidden="true" />
         </Link>
       )}
     </nav>
@@ -312,6 +350,7 @@ export default async function AboutPageShell({
       <AboutHero
         {...hero}
         locale={locale}
+        watermark={navItem ? ICONS[navItem.icon] : undefined}
         breadcrumb={<AboutBreadcrumbs currentLabel={currentLabel} />}
       />
 

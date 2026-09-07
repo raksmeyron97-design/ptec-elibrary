@@ -1,5 +1,11 @@
 "use client";
 
+// components/layout/MobileDigitalLibraryAccordion.tsx
+//
+// The drawer's Digital Library section: the same active cues as the desktop
+// popover (DigitalLibraryDropdown) — navy icon tile, gold rail — minus the
+// per-item blurbs, which a 390px drawer has no room for.
+
 import Image from "next/image";
 import { useId, useState } from "react";
 import { ChevronDown, ExternalLink, LibraryBig } from "lucide-react";
@@ -76,15 +82,17 @@ export default function MobileDigitalLibraryAccordion({
           open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
         )}
       >
-        <ul className="min-h-0 overflow-hidden py-1 pl-4">
+        {/* `min-h-0 overflow-hidden` on the grid child is what lets the
+            0fr → 1fr row animate; keep it on this element. */}
+        <ul className="min-h-0 space-y-0.5 overflow-hidden py-1 pl-3 pr-1">
           {DIGITAL_LIBRARY_ITEMS.map((item) => {
             const ItemIcon = item.icon;
             const active = isDigitalLibraryItemActive(pathname, item);
             const className = cx(
-              "relative flex min-h-12 items-center gap-3 rounded-lg py-2.5 pl-3 pr-3 text-[14.5px] font-medium transition-colors",
+              "group relative flex min-h-12 items-center gap-3 rounded-lg py-2 pl-3 pr-3 text-[14.5px] font-medium transition-colors",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface",
               active
-                ? "bg-brand/10 text-brand"
+                ? "bg-brand/[0.08] text-brand dark:bg-brand/15"
                 : "text-text-body hover:bg-paper hover:text-brand-hover",
             );
 
@@ -93,28 +101,34 @@ export default function MobileDigitalLibraryAccordion({
                 <span
                   aria-hidden="true"
                   className={cx(
-                    "absolute left-0 top-2.5 h-[calc(100%-20px)] w-[3px] rounded-r-full",
-                    active ? "bg-brand" : "bg-transparent",
+                    "absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r-full",
+                    active ? "bg-accent" : "bg-transparent",
                   )}
                 />
-                {item.imageSrc ? (
-                  <Image
-                    src={item.imageSrc}
-                    alt=""
-                    width={20}
-                    height={20}
-                    className="h-5 w-5 shrink-0 rounded-md object-cover"
-                  />
-                ) : (
-                  <ItemIcon
-                    className={cx(
-                      "h-[18px] w-[18px] shrink-0",
-                      active ? "text-brand" : "text-text-muted",
-                    )}
-                    aria-hidden="true"
-                  />
-                )}
-                <span className="min-w-0 flex-1 break-words">
+                <span
+                  aria-hidden="true"
+                  className={cx(
+                    "flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg transition-colors",
+                    active
+                      ? "bg-brand text-brand-contrast"
+                      : "bg-paper text-text-muted group-hover:bg-brand/10 group-hover:text-brand dark:bg-white/[0.06]",
+                  )}
+                >
+                  {item.imageSrc ? (
+                    <Image
+                      src={item.imageSrc}
+                      alt=""
+                      width={32}
+                      height={32}
+                      className="h-8 w-8 object-cover"
+                    />
+                  ) : (
+                    <ItemIcon className="h-[17px] w-[17px]" />
+                  )}
+                </span>
+                <span
+                  className={cx("min-w-0 flex-1 break-words", active && "font-semibold")}
+                >
                   {t(item.labelKey)}
                 </span>
                 {item.external && (
