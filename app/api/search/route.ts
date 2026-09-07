@@ -14,13 +14,12 @@
 // model is asked only when it has something to add (§4.12).
 
 import { createServiceClient } from "@/lib/supabase/server";
-import { GoogleGenAI } from "@google/genai";
 import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy, isExpensiveSearchDisabled } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { clientIp } from "@/lib/client-ip";
-import { MODEL_IDS } from "@/lib/ai/models";
+import { getAIProvider } from "@/lib/ai/provider";
 import { allowPublicSummary } from "@/lib/ai/limits";
 import { coverUrlOf, embedQuery, urlFor } from "@/lib/ai/retrieval";
 import { filterTokens, orFilter, sanitizeFilterTerm } from "@/lib/ai/guardrails";
@@ -293,8 +292,8 @@ async function generateAnswer(
   titles: string[],
   passages: AIPassage[],
 ): Promise<{ text: string; inputTokens: number; outputTokens: number; model: string } | null> {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) return null;
+  const provider = getAIProvider();
+  if (!provider.chatConfigured()) return null;
 
   const org = await getOrgIdentity();
   // Compact: titles only, top three passages by page reference. No
@@ -311,19 +310,17 @@ async function generateAnswer(
     .filter(Boolean)
     .join("\n");
 
-  const model = MODEL_IDS.fast;
-  const ai = new GoogleGenAI({ apiKey: key });
-  const res = await ai.models.generateContent({
-    model,
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    config: { maxOutputTokens: SUMMARY_OUTPUT_TOKENS, thinkingConfig: { thinkingBudget: 0 } },
+  // Local first, Gemini when the box cannot (lib/ai/provider.ts). The
+  // `fast` tier maps to MODEL_IDS.fast on the cloud path.
+  const { text, trace, usage } = await provider.complete(prompt, [], {
+    tier: "fast",
+    maxOutputTokens: SUMMARY_OUTPUT_TOKENS,
   });
-  const text = res.text ?? "";
   return {
     text,
-    inputTokens: estimateTokens(prompt),
-    outputTokens: estimateTokens(text),
-    model,
+    inputTokens: usage.inputTokens ?? estimateTokens(prompt),
+    outputTokens: usage.outputTokens ?? estimateTokens(text),
+    model: `${trace.provider}:${trace.modelId}`,
   };
 }
 

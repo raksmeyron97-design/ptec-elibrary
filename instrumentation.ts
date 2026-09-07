@@ -36,6 +36,9 @@ const ENV_GROUPS: { group: string; critical: boolean; vars: string[] }[] = [
     vars: ["R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_ACCOUNT_ID", "R2_BUCKET_NAME"],
   },
   {
+    // Gemini stays required even with AI_PROVIDER=ollama: it is the text
+    // fallback, the embedding backend until the index is re-built, and the
+    // only OCR/vision provider (docs/LOCAL_AI_OLLAMA_SETUP.md).
     group: "AI search & assistant",
     critical: false,
     vars: ["GEMINI_API_KEY"],

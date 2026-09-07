@@ -27,6 +27,8 @@ export type AIRoute = "/api/ai" | "/api/ask" | "/api/chat" | "/api/search";
  *   fallback rate        count(detail ? 'fallback') / count(*)
  *   no-result rate       count(detail->>'result_count'='0') / count(*)
  *   zero-LLM rate        count(detail->>'tier'='none') / count(*)
+ *   local-AI share       count(detail->>'provider'='ollama') / count(detail->>'tier'<>'none')
+ *   provider fallback    count(detail->>'provider_fallback'='true') / count(detail->>'tier'<>'none')
  */
 export interface AIPerformanceContract {
   avgTokensPerRequest: number;
@@ -73,6 +75,10 @@ export function recordAiRequest(
     hallucinated_citations: t.hallucinatedCitations ?? 0,
   };
   if (t.fallback) detail.fallback = t.fallback;
+  // Who generated: the local box or the cloud, and whether the cloud stepped
+  // in for a failed local call. Enums and a flag only.
+  if (t.provider) detail.provider = t.provider;
+  if (t.providerFallback !== undefined) detail.provider_fallback = t.providerFallback;
 
   logAppEvent({ kind: "ai_request", status, route, latencyMs: t.latencyMs, detail });
 }

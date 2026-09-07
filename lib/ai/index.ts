@@ -2,12 +2,15 @@
 // Public surface of the AI core. Route handlers import from here; nothing
 // imports a route handler.
 //
-// `retrieval`, `limits`, `router` and `telemetry` are server-only (they touch
-// Supabase, Gemini or `server-only` itself). The rest is pure and unit-tested.
+// `retrieval`, `limits`, `router`, `telemetry` and `provider` are server-only
+// (they touch Supabase, a model provider or `server-only` itself). The rest is
+// pure and unit-tested.
 
 export * from "./response";
 export * from "./intent";
 export * from "./models";
+export * from "./provider-config";
+export * from "./circuit-breaker";
 export * from "./prompts";
 export * from "./token-budget";
 export * from "./citations";
