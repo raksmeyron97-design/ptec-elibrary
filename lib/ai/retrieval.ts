@@ -18,11 +18,11 @@
 
 import "server-only";
 
-import { GoogleGenAI } from "@google/genai";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSiteConfig } from "@/lib/system-settings/config";
 import { LIBRARY_INFO, type LibraryInfoTopic } from "@/lib/library-info";
 import { EMBEDDING_DIM, EMBEDDING_MODEL } from "./models";
+import { embeddingsConfigured, getAIProvider } from "./provider";
 import { cacheKey, cached } from "./cache";
 import { filterTokens, orFilter, sanitizeFilterTerm } from "./guardrails";
 import { normalizeQuery } from "./intent";
@@ -106,11 +106,6 @@ function emptyOutcome(): RetrievalOutcome {
 }
 
 // ── Embedding ─────────────────────────────────────────────────────────────────
-function l2normalize(values: number[]): number[] {
-  const mag = Math.sqrt(values.reduce((s, x) => s + x * x, 0)) || 1;
-  return values.map((x) => x / mag);
-}
-
 /**
  * Query-side embedding, cached by normalized text. Returns null rather than
  * throwing: every caller has a keyword path to fall back to, and an embedding
@@ -126,16 +121,12 @@ export async function embedQuery(
   const started = Date.now();
   try {
     const { value, hit } = await cached<number[] | null>("embedding", key, async () => {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) return null;
-      const ai = new GoogleGenAI({ apiKey });
-      const res = await ai.models.embedContent({
-        model: EMBEDDING_MODEL,
-        contents: normalized,
-        config: { outputDimensionality: EMBEDDING_DIM, taskType: "RETRIEVAL_QUERY" },
-      });
-      const values = res.embeddings?.[0]?.values;
-      return values?.length ? l2normalize(values) : null;
+      // The provider picks the backend (Ollama or Gemini) and guarantees the
+      // vector is in the index's space; the cache key above carries the
+      // model + dimension so a provider switch can never serve a stale one.
+      if (!embeddingsConfigured()) return null;
+      const vector = await getAIProvider().embedQuery(normalized);
+      return vector?.length ? vector : null;
     });
     return { vector: value, ms: hit ? 0 : Date.now() - started, cacheHit: hit };
   } catch (err) {
@@ -1054,7 +1045,7 @@ export async function retrieveEvidence(input: RetrieveEvidenceInput): Promise<Ev
 
   const scope = input.scope;
   const readiness = scope ? await getResourceReadiness(scope.recordType, scope.recordId) : null;
-  const semanticAllowed = readiness ? readiness.semanticReady : Boolean(process.env.GEMINI_API_KEY);
+  const semanticAllowed = readiness ? readiness.semanticReady : embeddingsConfigured();
 
   const key = cacheKey([
     "evidence",

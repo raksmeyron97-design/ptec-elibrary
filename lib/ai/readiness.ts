@@ -22,6 +22,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { readIndexState } from "@/lib/indexing/state";
 import type { IndexStatus } from "@/lib/indexing/state";
 import { cacheKey, cached } from "./cache";
+import { embeddingsConfigured } from "./provider";
 import type { EvidenceRecordType } from "./evidence";
 
 export interface ResourceReadiness {
@@ -90,7 +91,7 @@ export async function getResourceReadiness(
       pages,
       chunks,
       lexicalReady: pages > 0,
-      semanticReady: chunks > 0 && Boolean(process.env.GEMINI_API_KEY),
+      semanticReady: chunks > 0 && embeddingsConfigured(),
       isScan: state?.status === "no_text_layer",
     };
   });

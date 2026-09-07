@@ -122,12 +122,17 @@ export async function POST(req: Request) {
     }
 
     const started = Date.now();
-    const { stream: result, telemetry, sources } = plan;
+    const { stream: result, telemetry, sources, trace } = plan;
     void Promise.resolve(result.text)
       .then((text) => {
         const grounded = enforceGrounding(text ?? "", sources);
         recordAiRequest("/api/ai", "ok", {
           ...telemetry,
+          // The trace is final only now: the local provider may have handed
+          // this request to Gemini before the first byte.
+          model: trace.modelId,
+          provider: trace.provider,
+          providerFallback: trace.fellBack,
           latencyMs: telemetry.latencyMs + (Date.now() - started),
           outputTokens: Math.max(0, Math.round((text ?? "").length / 4)),
           totalTokens: telemetry.inputTokens + Math.round((text ?? "").length / 4),

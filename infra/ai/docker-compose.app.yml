@@ -1,0 +1,29 @@
+# Joins the app container to the local-AI network, so it can reach Ollama by
+# container name instead of through a published host port.
+#
+# From the repository root, once infra/ai is up:
+#
+#   docker compose -f docker-compose.yml -f infra/ai/docker-compose.app.yml up -d
+#   # with the tunnel:
+#   docker compose -f docker-compose.yml -f infra/ai/docker-compose.app.yml \
+#     --profile tunnel up -d
+#
+# and in the app's .env:
+#
+#   AI_PROVIDER=ollama
+#   OLLAMA_BASE_URL=http://ptec-ollama:11434/v1
+#
+# It is a separate file, not part of docker-compose.yml, for one reason: an
+# `external: true` network must already exist or EVERY `docker compose up`
+# fails. Keeping the join opt-in means a box that does not run local AI — or
+# one where the AI stack is stopped for maintenance — still deploys normally,
+# and the app falls back to Gemini on its own.
+
+services:
+  app:
+    networks: [web, ai]
+
+networks:
+  ai:
+    name: ptec-ai
+    external: true

@@ -4,7 +4,7 @@
 // a lightweight, already-ordered response.
 
 import { createServiceClient } from "@/lib/supabase/server";
-import { generateQueryEmbedding } from "@/lib/gemini-embeddings";
+import { embedQuery, embeddingsConfigured } from "@/lib/ai/provider";
 import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy, isExpensiveSearchDisabled } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
@@ -1129,9 +1129,9 @@ const SEMANTIC_MIN_SIMILARITY = 0.35;
 const SEMANTIC_SNIPPET_LEN = 230;
 
 async function semanticPassages(db: DB, q: string, limit = 6): Promise<PageHit[]> {
-  if (q.length < 4 || !process.env.GEMINI_API_KEY || isExpensiveSearchDisabled()) return [];
+  if (q.length < 4 || !embeddingsConfigured() || isExpensiveSearchDisabled()) return [];
   try {
-    const vec = await generateQueryEmbedding(q);
+    const vec = await embedQuery(q);
     const { data, error } = await db.rpc("match_book_chunks", {
       query_embedding: vec,
       match_count: limit * 2, // over-fetch: multiple chunks may share a record

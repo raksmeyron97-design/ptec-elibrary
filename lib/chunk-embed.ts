@@ -10,8 +10,9 @@
  *     extraction, so new/replaced uploads are embedded automatically.
  *   - scripts/embed-library.ts — CLI backfill / repair safety net.
  *
- * Server/Node only (needs SUPABASE_SERVICE_ROLE_KEY + GEMINI_API_KEY) —
- * never import from client components.
+ * Server/Node only (needs SUPABASE_SERVICE_ROLE_KEY plus whichever embedding
+ * backend AI_EMBED_PROVIDER names — lib/ai/provider.ts) — never import from
+ * client components.
  *
  * Khmer safety: chunk boundaries are chosen at whitespace when possible and
  * otherwise snapped to Intl.Segmenter grapheme-cluster boundaries, so a
@@ -27,7 +28,7 @@ export const CHUNK_SIZE = 1000;    // target chars per chunk (~ well under the e
 export const CHUNK_OVERLAP = 150;  // chars carried into the next chunk for context
 export const MIN_CHUNK_CHARS = 40; // fragments below this aren't worth a vector
 
-const EMBED_BATCH = 16;      // texts per Gemini embedContent call
+const EMBED_BATCH = 16;      // texts per embedding call (Gemini embedContent / Ollama /v1/embeddings)
 const EMBED_BATCH_DELAY_MS = 200; // pause between embed calls (rate-limit headroom)
 const INSERT_BATCH = 40;     // rows per insert (each carries a 768-dim vector)
 const PAGE_FETCH = 500;      // book_pages rows fetched per DB page
@@ -69,11 +70,13 @@ function retryDelayMs(err: unknown): number | null {
 }
 
 async function embedWithBackoff(texts: string[]): Promise<number[][]> {
-  const { generateDocumentEmbeddings } = await import("./gemini-embeddings");
+  // The provider, not Gemini directly: it embeds with whatever backend the
+  // index was built with and refuses a vector of the wrong dimension.
+  const { generateEmbedding } = await import("./ai/provider");
   let lastErr: unknown;
   for (let attempt = 0; ; attempt++) {
     try {
-      return await generateDocumentEmbeddings(texts);
+      return await generateEmbedding(texts);
     } catch (err) {
       lastErr = err;
       if (isDailyQuotaError(err) || attempt >= QUOTA_BACKOFFS_MS.length) break;

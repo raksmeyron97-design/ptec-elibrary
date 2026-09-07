@@ -111,6 +111,10 @@ export interface AITelemetry {
   hallucinatedCitations?: number;
   /** Set when a primary path failed and a degraded path answered instead. */
   fallback?: "keyword" | "no_llm" | "no_embedding" | "cache" | "error";
+  /** Which backend generated the answer (lib/ai/provider.ts). */
+  provider?: "ollama" | "gemini" | "mock";
+  /** True when the local provider failed or was skipped and Gemini answered. */
+  providerFallback?: boolean;
 }
 
 export interface AIResponse {

@@ -25,7 +25,15 @@
  * Env (.env.local):
  *   NEXT_PUBLIC_SUPABASE_URL  (or SUPABASE_URL)
  *   SUPABASE_SERVICE_ROLE_KEY
- *   GEMINI_API_KEY
+ *   AI_EMBED_PROVIDER (gemini → GEMINI_API_KEY; ollama → OLLAMA_BASE_URL +
+ *   OLLAMA_EMBED_MODEL) — lib/ai/provider.ts picks the backend.
+ *
+ * The embedding backend is bound to the INDEX: every vector column is
+ * declared at one dimensionality, and a vector from another model is noise
+ * against the rows already there. Before writing anything this script embeds
+ * one probe and runs it through match_book_chunks; a dimension mismatch means
+ * the staged migration (docs/LOCAL_AI_OLLAMA_SETUP.md §5) has not been applied
+ * for this provider, and the script stops there.
  */
 
 import { config } from "dotenv";
@@ -38,20 +46,25 @@ config({ path: ".env.local" });
 config();
 
 import { createClient } from "@supabase/supabase-js";
-import { GoogleGenAI } from "@google/genai";
 import { embedRecordChunks, isDailyQuotaError } from "../lib/chunk-embed";
+import { EMBEDDING_DIM, EMBEDDING_MODEL, EMBEDDING_PROVIDER } from "../lib/ai/models";
+import { getAIProvider } from "../lib/ai/provider";
 import type { PageRecordType } from "../lib/pdf-page-index";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-const GEMINI_KEY = process.env.GEMINI_API_KEY ?? "";
+const provider = getAIProvider();
 
-if (!SUPABASE_URL || !SERVICE_KEY || !GEMINI_KEY) {
-  console.error("✖ Missing env. Need NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY.");
+if (!SUPABASE_URL || !SERVICE_KEY || !provider.embeddingsConfigured()) {
+  console.error(
+    "✖ Missing env. Need NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and an embedding backend " +
+      "(AI_EMBED_PROVIDER=gemini needs GEMINI_API_KEY; AI_EMBED_PROVIDER=ollama needs OLLAMA_BASE_URL).",
+  );
   console.error("  Loaded:", {
     url: Boolean(SUPABASE_URL),
     service_key: Boolean(SERVICE_KEY),
-    gemini_key: Boolean(GEMINI_KEY),
+    embed_provider: EMBEDDING_PROVIDER,
+    embeddings_configured: provider.embeddingsConfigured(),
   });
   process.exit(1);
 }
@@ -62,31 +75,37 @@ const METADATA_ONLY = process.argv.includes("--metadata-only");
 const limitArg = process.argv.indexOf("--limit");
 const CHUNK_RECORD_LIMIT = limitArg !== -1 ? Number(process.argv[limitArg + 1]) || 0 : 0;
 
-const EMBED_MODEL = "gemini-embedding-001";
-const EMBED_DIM = 768; // must match the vector(768) columns
-const BATCH = 20; // texts per Gemini embed call
+const BATCH = 20; // texts per embedding call
 const PAGE = 200; // rows fetched per DB page
 
 const db = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
-const ai = new GoogleGenAI({ apiKey: GEMINI_KEY });
 
 // ── Embedding ────────────────────────────────────────────────────────────────
-function normalize(v: number[]): number[] {
-  const mag = Math.sqrt(v.reduce((s, x) => s + x * x, 0)) || 1;
-  return v.map((x) => x / mag);
+// lib/ai/provider.ts: the same backend, normalisation and dimension check the
+// application uses at query time, so document and query vectors cannot drift.
+async function embedBatch(texts: string[]): Promise<number[][]> {
+  return provider.generateEmbedding(texts);
 }
 
-async function embedBatch(texts: string[]): Promise<number[][]> {
-  const res = await ai.models.embedContent({
-    model: EMBED_MODEL,
-    contents: texts,
-    config: { outputDimensionality: EMBED_DIM, taskType: "RETRIEVAL_DOCUMENT" },
-  });
-  const embs = res.embeddings ?? [];
-  if (embs.length !== texts.length) {
-    throw new Error(`embedding count ${embs.length} != input ${texts.length}`);
+/**
+ * Refuse to write a single vector until the database agrees on the
+ * dimension. pgvector rejects a mismatched vector with
+ * "different vector dimensions", which is exactly what a bge-m3 vector does
+ * against a vector(768) column — better to hear it from one probe than from
+ * the first UPDATE of a 200-record run.
+ */
+async function assertIndexDimension(): Promise<void> {
+  console.log(`── Embedding backend: ${EMBEDDING_PROVIDER} / ${EMBEDDING_MODEL} @ ${EMBEDDING_DIM} dims ──`);
+  const [probe] = await embedBatch(["dimension probe"]);
+  const { error } = await db.rpc("match_book_chunks", { query_embedding: probe, match_count: 1, min_similarity: 0.99 });
+  if (error && /dimension/i.test(error.message)) {
+    console.error(`✖ The database's vector columns are not ${EMBEDDING_DIM}-dimensional: ${error.message}`);
+    console.error("  The embedding provider and the index disagree. Either set AI_EMBED_PROVIDER back to the model");
+    console.error("  the index was built with, or apply the staged migration first (docs/LOCAL_AI_OLLAMA_SETUP.md §5).");
+    process.exit(1);
   }
-  return embs.map((e) => normalize(e.values ?? []));
+  if (error) throw new Error(`match_book_chunks probe failed: ${error.message}`);
+  console.log(`  ✔ database accepts ${EMBEDDING_DIM}-dimensional vectors`);
 }
 
 function clean(s: unknown): string {
@@ -284,7 +303,7 @@ async function processChunks(): Promise<{ failed: number }> {
       failed++;
       console.log(`\r  [${done}/${targets.length}] ${key} — FAILED: ${err instanceof Error ? err.message.slice(0, 120) : err}`);
       if (isDailyQuotaError(err)) {
-        console.error("  ✖ Gemini DAILY embed quota exhausted — stopping; re-run when it resets (records embedded so far are kept).");
+        console.error("  ✖ DAILY embed quota exhausted — stopping; re-run when it resets (records embedded so far are kept).");
         break;
       }
     }
@@ -325,6 +344,7 @@ async function verify() {
 }
 
 (async () => {
+  await assertIndexDimension();
   let totalFailed = 0;
   if (!CHUNKS_ONLY) {
     for (const job of JOBS) {

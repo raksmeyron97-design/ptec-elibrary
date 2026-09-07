@@ -1,0 +1,126 @@
+# PTEC e-Library — local AI (Ollama) on ZimaOS.
+#
+#   cd infra/ai
+#   docker compose up -d
+#   ./scripts/init-models.sh          # pull qwen2.5:3b + bge-m3
+#   ./scripts/healthcheck.sh          # exit 0 when the daemon answers
+#
+# The app reaches this stack over the `ptec-ai` network by container name
+# (http://ptec-ollama:11434/v1). Bring the app up with the override that joins
+# it — see docker-compose.app.yml beside this file, and
+# docs/LOCAL_AI_OLLAMA_SETUP.md.
+#
+# EXPOSURE. Ollama has NO authentication: anything that can reach port 11434
+# can run inference, list models and pull new ones. So the published port
+# binds to 127.0.0.1 by default — reachable from the box itself (and from the
+# app through the shared Docker network, which does not use the published
+# port at all), never from the LAN or the internet. Set OLLAMA_BIND=0.0.0.0
+# only if you deliberately want other machines on the LAN to use it, and
+# never forward 11434 on the router.
+#
+# MEMORY. This box also runs self-hosted Supabase (~4.2 GB ceiling) and the
+# app (1 GB). qwen2.5:3b at Q4_K_M is ~2 GB of weights plus context; the limit
+# below leaves the rest of the stack intact and is what makes 3b rather than
+# 7b the default. OLLAMA_KEEP_ALIVE unloads the model after idle, so a library
+# with no AI traffic for ten minutes costs nothing but disk. Raise the limit
+# before raising the model size, and measure with `docker stats` — a model
+# that does not fit is not slow, it fails to load.
+
+name: ptec-ollama
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ptec-ollama
+    restart: unless-stopped
+    ports:
+      # host:container — loopback-bound unless OLLAMA_BIND says otherwise.
+      - "${OLLAMA_BIND:-127.0.0.1}:${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      # Model weights and the manifest cache. Several GB, and re-pulling them
+      # on a metered or slow link is the one thing you do not want a restart
+      # to cost — this is why it is a bind mount on /DATA and not a volume.
+      - ${OLLAMA_DATA_DIR:-/DATA/AppData/ptec-ollama}:/root/.ollama
+    environment:
+      # Listen on all interfaces INSIDE the container; the ports mapping above
+      # is what decides who can reach it from outside.
+      OLLAMA_HOST: "0.0.0.0:11434"
+      # Unload an idle model instead of holding its weights resident. The
+      # first request after an idle period pays the load again (~2-6 s for a
+      # 3B on CPU); every other request on this box gets the RAM back.
+      OLLAMA_KEEP_ALIVE: "${OLLAMA_KEEP_ALIVE:-10m}"
+      # One model resident at a time. With embeddings on Gemini (the default,
+      # see docs/LOCAL_AI_OLLAMA_SETUP.md §5) only the chat model ever loads,
+      # so this costs nothing; if you move embeddings local too, raise it to 2
+      # or every alternation between chat and embed reloads both.
+      OLLAMA_MAX_LOADED_MODELS: "${OLLAMA_MAX_LOADED_MODELS:-1}"
+      # Requests served concurrently by one loaded model. On CPU, two readers
+      # sharing the cores is slower for both than queueing; raise it only with
+      # a GPU.
+      OLLAMA_NUM_PARALLEL: "${OLLAMA_NUM_PARALLEL:-1}"
+      # Requests queued before the daemon starts refusing. A refusal is fast
+      # and the app falls back to Gemini; an unbounded queue would instead
+      # make every reader wait behind the first.
+      OLLAMA_MAX_QUEUE: "${OLLAMA_MAX_QUEUE:-16}"
+    networks: [ai]
+    healthcheck:
+      # The daemon ships no curl/wget, but it is a Go binary that can talk to
+      # itself: `ollama list` hits the same HTTP API this app does.
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          # Weights + KV cache + the daemon itself. See the MEMORY note above
+          # before changing it.
+          memory: ${OLLAMA_MEMORY_LIMIT:-5g}
+
+    # ── GPU (NVIDIA) ─────────────────────────────────────────────────────────
+    # ZimaOS boxes are CPU-only in the common configuration and this stack is
+    # written for that. If you HAVE an NVIDIA card:
+    #
+    #   1. Install the NVIDIA Container Toolkit on the host and restart Docker:
+    #        sudo apt install -y nvidia-container-toolkit
+    #        sudo nvidia-ctk runtime configure --runtime=docker
+    #        sudo systemctl restart docker
+    #   2. Verify the runtime sees the card:
+    #        docker run --rm --gpus all nvidia/cuda:12.4.0-base-ubuntu22.04 nvidia-smi
+    #   3. Uncomment the block below and `docker compose up -d`.
+    #   4. Confirm the model is actually on the GPU (not silently on CPU):
+    #        docker exec ptec-ollama ollama ps      # PROCESSOR column says GPU
+    #
+    # With a GPU, qwen2.5:7b becomes reasonable — set OLLAMA_CHAT_MODEL in the
+    # app's .env and pull it (scripts/init-models.sh CHAT_MODEL=qwen2.5:7b).
+    # The memory limit above bounds HOST RAM only; VRAM is the card's.
+    #
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+networks:
+  ai:
+    # A fixed name, because the app's compose joins it as an EXTERNAL network
+    # (docker-compose.app.yml). Without `name:` Compose would prefix it with
+    # this project's name and the app would be pointed at a network that does
+    # not exist under that name.
+    name: ptec-ai
+    driver: bridge
+
+x-casaos:
+  architectures:
+    - amd64
+    - arm64
+  main: ollama
+  description:
+    en_us: Ollama — local language models for the PTEC e-Library AI assistant
+  title:
+    en_us: PTEC Local AI (Ollama)

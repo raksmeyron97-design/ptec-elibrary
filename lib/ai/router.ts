@@ -14,8 +14,7 @@
 
 import "server-only";
 
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { generateText, streamText } from "ai";
+import { generateText, streamText, type LanguageModel } from "ai";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { buildSources, usedSources } from "./citations";
 import { compressConversation } from "./conversation";
@@ -42,6 +41,7 @@ import {
 } from "./retrieval";
 import { attachReferences, getCitationSource } from "./citation-source";
 import { isMockProvider, mockModel } from "./mock-model";
+import { getAIProvider, type ProviderTrace } from "./provider";
 import { sourceCount, type EvidenceRecordType } from "./evidence";
 import {
   EMPTY_RETRIEVAL,
@@ -49,6 +49,7 @@ import {
   buildGeneration,
   deterministicAnswer,
   retrievalModeFor,
+  type GenerationInput,
   type Plan,
   type RetrievalOutcome,
 } from "./plan";
@@ -287,14 +288,22 @@ async function plan(input: AssistantInput): Promise<Plan> {
 }
 
 // ── Stage 2: model generation (only when stage 1 could not answer) ────────────
-function googleModel(id: string) {
+/**
+ * The model for this generation, and a trace of who actually answered.
+ * lib/ai/provider.ts decides between the local Ollama box and Gemini and
+ * owns the fallback; this file never names a provider.
+ */
+function assistantModel(gen: GenerationInput): { model: LanguageModel; trace: ProviderTrace } {
   // The e2e seam. Gated on an env flag that production never sets, so the
   // assistant's surfaces are testable in CI (which has no key) without any
   // test reaching a billed provider. See lib/ai/mock-model.ts.
-  if (isMockProvider()) return mockModel();
-  const apiKey = process.env.GEMINI_API_KEY ?? process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-  if (!apiKey) throw new AIRequestError("unavailable", "GEMINI_API_KEY is not configured.");
-  return createGoogleGenerativeAI({ apiKey })(id);
+  if (isMockProvider()) {
+    return { model: mockModel(), trace: { provider: "mock", modelId: "mock", fellBack: false, primarySkipped: false } };
+  }
+  return getAIProvider().languageModel({
+    tier: gen.thinkingBudget > 0 ? "reasoning" : "fast",
+    geminiModelId: gen.model,
+  });
 }
 
 // ── Public entry points ───────────────────────────────────────────────────────
@@ -364,9 +373,10 @@ export async function runAssistant(
     estimateTokens(gen.system) +
     gen.messages.reduce((s, m) => s + estimateTokens(typeof m.content === "string" ? m.content : ""), 0);
 
+  const { model, trace } = assistantModel(gen);
   try {
     const result = await generateText({
-      model: googleModel(gen.model),
+      model,
       system: gen.system,
       messages: gen.messages,
       maxOutputTokens: gen.maxOutputTokens,
@@ -381,7 +391,9 @@ export async function runAssistant(
     const telemetry: AITelemetry = {
       ...baseTelemetry(),
       modelTier: gen.thinkingBudget > 0 ? "reasoning" : "fast",
-      model: gen.model,
+      model: trace.modelId,
+      provider: trace.provider,
+      providerFallback: trace.fellBack,
       inputTokens: usage?.inputTokens ?? inputTokens,
       outputTokens: usage?.outputTokens ?? estimateTokens(answer),
       totalTokens:
@@ -424,7 +436,13 @@ export async function runAssistant(
         remaining: input.remaining ?? null,
         deterministic: true,
       }),
-      telemetry: { ...baseTelemetry(), fallback: "error", latencyMs: Date.now() - started },
+      telemetry: {
+        ...baseTelemetry(),
+        fallback: "error",
+        provider: trace.provider,
+        providerFallback: trace.fellBack,
+        latencyMs: Date.now() - started,
+      },
     };
   }
 }
@@ -444,6 +462,12 @@ export type StreamPlan =
       /** Sources the answer is allowed to cite, for post-stream grounding. */
       sources: ReturnType<typeof buildSources>;
       results: AIResponse["results"];
+      /**
+       * Who is answering. Read it AFTER the stream has finished: the local
+       * provider may have handed the request to Gemini before the first byte,
+       * and only then does the trace say so.
+       */
+      trace: ProviderTrace;
     };
 
 export async function streamAssistant(input: AssistantInput): Promise<StreamPlan> {
@@ -464,8 +488,9 @@ export async function streamAssistant(input: AssistantInput): Promise<StreamPlan
     estimateTokens(gen.system) +
     gen.messages.reduce((s, m) => s + estimateTokens(typeof m.content === "string" ? m.content : ""), 0);
 
+  const { model, trace } = assistantModel(gen);
   const stream = streamText({
-    model: googleModel(gen.model),
+    model,
     system: gen.system,
     messages: gen.messages,
     maxOutputTokens: gen.maxOutputTokens,
@@ -477,10 +502,13 @@ export async function streamAssistant(input: AssistantInput): Promise<StreamPlan
     stream,
     sources,
     results: retrieval.results,
+    trace,
     telemetry: {
       intent: intent.intent,
       modelTier: gen.thinkingBudget > 0 ? "reasoning" : "fast",
-      model: gen.model,
+      model: trace.modelId,
+      provider: trace.provider,
+      providerFallback: trace.fellBack,
       locale: intent.locale,
       verbosity: intent.verbosity,
       inputTokens,

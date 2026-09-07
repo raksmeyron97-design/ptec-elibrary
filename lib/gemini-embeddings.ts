@@ -1,7 +1,11 @@
+// The GEMINI embedding backend. Call sites do not import this directly any
+// more: lib/ai/provider.ts chooses between it and the local Ollama backend
+// from AI_EMBED_PROVIDER, and enforces that the vectors match the index.
 import { GoogleGenAI } from "@google/genai";
+import { GEMINI_EMBEDDING_DIM, GEMINI_EMBEDDING_MODEL } from "@/lib/ai/provider-config";
 
-const EMBED_MODEL = "gemini-embedding-001";
-const EMBED_DIM = 768; // must match the vector(768) columns
+const EMBED_MODEL = GEMINI_EMBEDDING_MODEL;
+const EMBED_DIM = GEMINI_EMBEDDING_DIM; // must match the vector(768) columns
 
 function l2normalize(values: number[]): number[] {
   const mag = Math.sqrt(values.reduce((s, x) => s + x * x, 0)) || 1;
