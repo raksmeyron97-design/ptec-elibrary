@@ -6,6 +6,9 @@
 
 import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { rateLimit } from "@/lib/rate-limit";
+import { ratePolicy } from "@/lib/rate-limit-policy";
+import { logSecurityEvent } from "@/lib/security-log";
 import type { Review } from "@/app/actions/reviews";
 
 export type SubmitPublicationReviewResult =
@@ -25,6 +28,17 @@ export async function submitPublicationReview(
 
   if (!user) return { success: false, error: "You must be signed in to leave a review." };
 
+  /* The same rate limit the book twin has. This file says at the top that it
+     mirrors app/actions/reviews.ts, and it did — except for this, so one of
+     the two authenticated review endpoints was unthrottled. Same policy key,
+     so a burst spends one budget across both rather than one each. */
+  const { limit, windowMs } = ratePolicy("review");
+  const rl = await rateLimit(`review:${user.id}`, limit, windowMs);
+  if (!rl.success) {
+    logSecurityEvent({ type: "rate_limited", where: "submitPublicationReview", userId: user.id });
+    return { success: false, error: "You are reviewing too quickly. Please try again in a few minutes." };
+  }
+
   const rating = Number(formData.get("rating"));
   if (!rating || rating < 1 || rating > 5) {
     return { success: false, error: "Please select a rating between 1 and 5." };
@@ -36,6 +50,23 @@ export async function submitPublicationReview(
   }
 
   const supabase = createServiceClient();
+
+  /* Establish the target before writing — see the note in submitReview. The
+     id arrives from the client and everything below bypasses RLS. */
+  const { data: publication, error: pubError } = await supabase
+    .from("publications")
+    .select("id, slug")
+    .eq("id", publicationId)
+    .eq("is_published", true)
+    .maybeSingle();
+
+  if (pubError) {
+    console.error("[submitPublicationReview] publication lookup:", pubError);
+    return { success: false, error: "Could not submit your review. Please try again." };
+  }
+  if (!publication) {
+    return { success: false, error: "That publication is not available for review." };
+  }
 
   const { data: existing, error: selectError } = await supabase
     .from("publication_reviews")
@@ -73,7 +104,7 @@ export async function submitPublicationReview(
     }
   }
 
-  revalidatePath(`/publications/${publicationSlug}`);
+  revalidatePath(`/publications/${publication.slug ?? publicationSlug}`);
   return { success: true };
 }
 

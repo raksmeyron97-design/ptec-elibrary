@@ -54,6 +54,30 @@ export async function submitReview(
 
   const supabase = createServiceClient();
 
+  /* The book id and slug arrive from the client — a Server Action's arguments
+     are as caller-controlled as a request body — and everything below runs on
+     the service client, which bypasses RLS. So the target has to be
+     established here rather than assumed: without this a signed-in reader
+     could rate any uuid at all, including an unpublished draft, which would
+     then carry reviews and a rating the moment a librarian published it.
+
+     Resolving the row also gives us the slug from the DATABASE for the
+     revalidate call below, instead of trusting the one that was passed in. */
+  const { data: book, error: bookError } = await supabase
+    .from("books")
+    .select("id, slug")
+    .eq("id", bookId)
+    .eq("is_published", true)
+    .maybeSingle();
+
+  if (bookError) {
+    console.error("[submitReview] book lookup:", bookError);
+    return { success: false, error: "Could not submit your review. Please try again." };
+  }
+  if (!book) {
+    return { success: false, error: "That book is not available for review." };
+  }
+
   // Check if user already reviewed this book
   const { data: existing, error: selectError } = await supabase
     .from("reviews")
@@ -117,7 +141,7 @@ export async function submitReview(
     }
   }
 
-  revalidatePath(`/books/${bookSlug}`);
+  revalidatePath(`/books/${book.slug ?? bookSlug}`);
   return { success: true };
 }
 
