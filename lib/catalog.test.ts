@@ -9,6 +9,7 @@ import {
   formatIsbn,
   validatePublicationYear,
   validateBarcode,
+  validateDdc,
   sequenceValue,
   generateCopies,
   findInternalDuplicates,
@@ -153,6 +154,44 @@ describe("barcode validation", () => {
   it("rejects illegal characters and over-long values", () => {
     expect(validateBarcode("bad;code").ok).toBe(false);
     expect(validateBarcode("A".repeat(40)).ok).toBe(false);
+  });
+});
+
+describe("DDC validation", () => {
+  it("treats blank and whitespace-only as unclassified", () => {
+    expect(validateDdc("")).toEqual({ ok: true, ddc: null });
+    expect(validateDdc("   ")).toEqual({ ok: true, ddc: null });
+    expect(validateDdc(null)).toEqual({ ok: true, ddc: null });
+    expect(validateDdc(undefined)).toEqual({ ok: true, ddc: null });
+  });
+
+  it("accepts the shapes this collection actually holds", () => {
+    // Plain class, class + author mark, and the Khmer local codes PMB exported.
+    expect(validateDdc("372.7")).toEqual({ ok: true, ddc: "372.7" });
+    expect(validateDdc("895.922")).toEqual({ ok: true, ddc: "895.922" });
+    expect(validateDdc("372.7 BIL")).toEqual({ ok: true, ddc: "372.7 BIL" });
+    expect(validateDdc("320.09 ប្រាជ្ញ")).toEqual({ ok: true, ddc: "320.09 ប្រាជ្ញ" });
+    expect(validateDdc("ស.គ")).toEqual({ ok: true, ddc: "ស.គ" });
+    expect(validateDdc("ប.ល")).toEqual({ ok: true, ddc: "ប.ល" });
+    // A hand-written composite from the real export.
+    expect(validateDdc("428 - Standard English Usage GRA").ok).toBe(true);
+  });
+
+  it("trims and collapses whitespace", () => {
+    expect(validateDdc("  372.7   BIL  ")).toEqual({ ok: true, ddc: "372.7 BIL" });
+  });
+
+  it("accepts 80 characters and rejects 81", () => {
+    expect(validateDdc("A".repeat(80))).toEqual({ ok: true, ddc: "A".repeat(80) });
+    expect(validateDdc("A".repeat(81)).ok).toBe(false);
+  });
+
+  it("never enforces a numeric pattern — the collection is not numeric", () => {
+    // Guard against someone "tightening" this into /^[0-9.]+$/ later: every
+    // value below is real catalogue data.
+    for (const v of ["ស.គ", "372.7 BIL", "428 - ស្តង់ដា / Standard English Usage GRA"]) {
+      expect(validateDdc(v).ok).toBe(true);
+    }
   });
 });
 

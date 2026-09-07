@@ -299,7 +299,18 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
         {/* ── Library-specific ── */}
         <h2 className="text-sm font-semibold text-text-heading">{t("libraryDetails")}</h2>
 
+        {/* DDC and shelf location sit side by side so the distinction reads at
+            a glance: one classifies the work, the other locates the object. */}
         <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label={t("ddc")}
+            htmlFor="f-ddc"
+            error={fieldErrors.ddc}
+            hint={t("ddcHint")}
+          >
+            {(p) => <input {...p} name="ddc" placeholder="372.7 BIL" />}
+          </Field>
+
           <Field
             label={t("shelfLocation")}
             htmlFor="f-shelf"

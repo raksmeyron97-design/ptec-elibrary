@@ -259,11 +259,12 @@ function ResultCard({ result, query }: { result: SearchResult; query: string }) 
         )}
 
         {/* Physical copies: only what the catalog record itself states. */}
-        {result.type === "catalog" && (result.copiesTotal != null || result.shelfLocation) && (
+        {result.type === "catalog" && (result.copiesTotal != null || result.shelfLocation || result.ddc) && (
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] font-medium" style={{ color: "var(--ptec-text-muted)" }}>
             {result.copiesTotal != null && (
               <span>{t("copiesAvailable", { available: result.copiesAvailable ?? 0, total: result.copiesTotal })}</span>
             )}
+            {result.ddc && <span>· {t("ddc", { code: result.ddc })}</span>}
             {result.shelfLocation && <span>· {t("shelf", { location: result.shelfLocation })}</span>}
           </div>
         )}

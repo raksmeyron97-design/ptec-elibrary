@@ -12,6 +12,7 @@ const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: "title",     label: "Title (A–Z)" },
   { value: "author",    label: "Author (A–Z)" },
   { value: "category",  label: "Category" },
+  { value: "ddc",       label: "DDC" },
   { value: "available", label: "Most available" },
 ];
 

@@ -20,7 +20,7 @@ import {
   type WizardState,
 } from "./wizard-state";
 
-const OPTIONAL_SUMMARY = "isbn, year, language, category, department, shelf_location, copies_total, barcode …";
+const OPTIONAL_SUMMARY = "isbn, year, language, category, department, ddc, shelf_location, copies_total, barcode …";
 
 export default function StepUpload({ state, dispatch }: { state: WizardState; dispatch: Dispatch<WizardAction> }) {
   const fileInputRef = useRef<HTMLInputElement>(null);

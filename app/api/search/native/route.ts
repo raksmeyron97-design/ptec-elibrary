@@ -791,7 +791,7 @@ async function searchCatalog(db: DB, rawQ: string, filters: Filters, limit: numb
   const build = (or: string, rowLimit: number) => {
     let query: any = db
       .from("catalog_books")
-      .select("id, slug, title, cover_url, author, description, category, department, language, isbn, publisher, year, keywords, copies_available, copies_total, shelf_location, created_at", { count: "exact" })
+      .select("id, slug, title, cover_url, author, description, category, department, language, isbn, publisher, year, keywords, copies_available, copies_total, ddc, shelf_location, created_at", { count: "exact" })
       .eq("is_active", true);
     if (or) query = query.or(or);
 
@@ -805,7 +805,9 @@ async function searchCatalog(db: DB, rawQ: string, filters: Filters, limit: numb
 
   const { data, count, error } = await fetchPools(
     build,
-    orFilter(["title", "author", "description", "category", "department", "isbn", "publisher"], tokens),
+    // `ddc` is in the token pool because a librarian searching "372.7" is
+    // searching for a class, and sanitize() keeps the dot.
+    orFilter(["title", "author", "description", "category", "department", "isbn", "publisher", "ddc"], tokens),
     phraseFilter(["title", "author", "category"], prepared, filters, true, seedIds),
     limit,
   );
@@ -840,9 +842,10 @@ async function searchCatalog(db: DB, rawQ: string, filters: Filters, limit: numb
       availability: physicalAvailability({ copiesTotal: r.copies_total, copiesAvailable: r.copies_available }),
       copiesAvailable: hasCopyCounters ? (r.copies_available ?? 0) : null,
       copiesTotal: hasCopyCounters ? r.copies_total : null,
+      ddc: r.ddc?.trim() || null,
       shelfLocation: r.shelf_location?.trim() || null,
       actions: { view: `/catalogs/${r.slug ?? r.id}` },
-      searchableText: [r.title, r.author, r.category, r.department, r.description, r.isbn, r.publisher, keywords.join(" ")].filter(Boolean).join(" "),
+      searchableText: [r.title, r.author, r.category, r.department, r.description, r.isbn, r.publisher, r.ddc, keywords.join(" ")].filter(Boolean).join(" "),
       titleText: r.title,
       authorText: r.author ?? "",
       subjectText: [r.category, r.department].filter(Boolean).join(" "),

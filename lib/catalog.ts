@@ -26,6 +26,8 @@ export type CatalogBook = {
   language:         string;
   category:         string | null;
   department:       string | null;
+  /** Dewey Decimal class (0140). Describes the WORK; shelf_location is where the OBJECT sits. */
+  ddc:              string | null;
   shelf_location:   string | null;
   copies_total:     number;
   copies_available: number;
@@ -308,9 +310,25 @@ export function validateBarcode(raw: string | null | undefined): { ok: true; bar
   return { ok: true, barcode: b };
 }
 
+/**
+ * Dewey Decimal class. Deliberately NOT pattern-validated: this collection's
+ * real values include plain classes ("372.7"), class + author mark
+ * ("372.7 BIL", "660 គីម"), Khmer local codes ("ស.គ", "ប.ល") and hand-written
+ * composites. A numeric-only rule would reject the catalogue it describes.
+ * Whitespace is collapsed, blank is null, and only length can fail.
+ */
+export function validateDdc(raw: string | null | undefined): { ok: true; ddc: string | null } | { ok: false; error: string } {
+  const v = typeof raw === "string" ? raw.replace(/\s+/g, " ").trim() : "";
+  if (!v) return { ok: true, ddc: null };
+  if (v.length > MAX_TEXT.ddc) {
+    return { ok: false, error: `DDC must be at most ${MAX_TEXT.ddc} characters.` };
+  }
+  return { ok: true, ddc: v };
+}
+
 const MAX_TEXT: Record<string, number> = {
   title: 300, author: 200, publisher: 200, category: 100, department: 100,
-  shelf_location: 60, call_number: 80, accession_number: 60, description: 5000,
+  shelf_location: 60, call_number: 80, ddc: 80, accession_number: 60, description: 5000,
   notes: 500, holding_library: 120, condition: 60, edition: 60,
 };
 

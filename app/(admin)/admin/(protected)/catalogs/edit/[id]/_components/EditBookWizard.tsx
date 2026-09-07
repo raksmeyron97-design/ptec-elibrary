@@ -147,6 +147,7 @@ export default function EditBookWizard({
         <dl className="space-y-2 text-[13px]">
           <ContextRow label={te("contextAuthor")} value={book.author || "—"} />
           <ContextRow label={te("contextCategory")} value={book.category || "—"} />
+          <ContextRow label={te("contextDdc")} value={book.ddc || "—"} />
           <ContextRow label={te("contextShelf")} value={book.shelf_location || "—"} />
           <ContextRow label={te("contextCopies")} value={`${stats.available} / ${stats.total}`} />
         </dl>
@@ -408,16 +409,31 @@ export default function EditBookWizard({
           </button>
         </div>
 
-        <Field
-          label={t("shelfLocation")}
-          htmlFor="f-shelf"
-          error={fieldErrors.shelf_location}
-          hint={t("shelfHint")}
-        >
-          {(p) => (
-            <input {...p} name="shelf_location" defaultValue={book.shelf_location ?? ""} placeholder="A-3-12" />
-          )}
-        </Field>
+        {/* DDC and shelf location sit side by side so the distinction reads at
+            a glance: one classifies the work, the other locates the object. */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label={t("ddc")}
+            htmlFor="f-ddc"
+            error={fieldErrors.ddc}
+            hint={t("ddcHint")}
+          >
+            {(p) => (
+              <input {...p} name="ddc" defaultValue={book.ddc ?? ""} placeholder="372.7 BIL" />
+            )}
+          </Field>
+
+          <Field
+            label={t("shelfLocation")}
+            htmlFor="f-shelf"
+            error={fieldErrors.shelf_location}
+            hint={t("shelfHint")}
+          >
+            {(p) => (
+              <input {...p} name="shelf_location" defaultValue={book.shelf_location ?? ""} placeholder="A-3-12" />
+            )}
+          </Field>
+        </div>
       </div>
 
       <div

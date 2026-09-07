@@ -93,17 +93,35 @@ const fetchCatalogBooks = unstable_cache(
     .range(from, to);
 
   if (q) {
-    let kwIds: string[] = [];
+    const matchIds = new Set<string>();
+
     const { data: kwMatches } = await supabase
       .from("catalog_books")
       .select("id")
       .filter("keywords::text", "ilike", `%${q}%`)
       .eq("is_active", true);
-    kwIds = kwMatches?.map(r => r.id) ?? [];
-    
+    for (const r of kwMatches ?? []) matchIds.add(r.id);
+
+    // DDC is matched by its own pre-query rather than a clause in the `.or()`
+    // below, because `q` has had its dots stripped by the sanitizer above —
+    // "372.7" would arrive as "372 7" and match nothing. `ddcQ` keeps the dot
+    // (a DDC class is meaningless without it) and drops only the ILIKE
+    // wildcards and the characters that would break a PostgREST filter; it is
+    // safe here precisely because it is passed as a value to `.ilike()` rather
+    // than spliced into an `.or()` string.
+    const ddcQ = rawQ ? rawQ.replace(/[(),\\%_]/g, " ").replace(/\s+/g, " ").trim() : undefined;
+    if (ddcQ) {
+      const { data: ddcMatches } = await supabase
+        .from("catalog_books")
+        .select("id")
+        .ilike("ddc", `%${ddcQ}%`)
+        .eq("is_active", true);
+      for (const r of ddcMatches ?? []) matchIds.add(r.id);
+    }
+
     let orStr = `title.ilike.%${q}%,author.ilike.%${q}%,isbn.ilike.%${q}%,accession_number.ilike.%${q}%`;
-    if (kwIds.length > 0) {
-      orStr += `,id.in.(${kwIds.join(",")})`;
+    if (matchIds.size > 0) {
+      orStr += `,id.in.(${[...matchIds].join(",")})`;
     }
     query = query.or(orStr);
   }

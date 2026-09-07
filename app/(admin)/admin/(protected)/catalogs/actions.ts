@@ -94,6 +94,7 @@ function parseBookForm(formData: FormData): ParsedBook {
     publisher:        cleanText(formData.get("publisher"), "publisher"),
     category:         cleanText(formData.get("category"), "category"),
     department:       cleanText(formData.get("department"), "department"),
+    ddc:              cleanText(formData.get("ddc"), "ddc"),
     shelf_location:   cleanText(formData.get("shelf_location"), "shelf_location"),
     accession_number: cleanText(formData.get("accession_number"), "accession_number"),
   };
@@ -129,6 +130,7 @@ function parseBookForm(formData: FormData): ParsedBook {
       publisher: val("publisher"),
       category: val("category"),
       department: val("department"),
+      ddc: val("ddc"),
       shelf_location: val("shelf_location"),
       accession_number: val("accession_number"),
       description: (description as { ok: true; value: string | null }).value,

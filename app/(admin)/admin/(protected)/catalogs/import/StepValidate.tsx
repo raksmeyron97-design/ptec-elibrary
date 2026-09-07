@@ -379,6 +379,7 @@ function RowLine({
                     [tf("language"), row.normalized.language],
                     [tf("category"), row.normalized.category ?? "—"],
                     [tf("department"), row.normalized.department ?? "—"],
+                    [tf("ddc"), row.normalized.ddc ?? "—"],
                     [t("shelf"), row.normalized.shelf_location ?? "—"],
                     [tf("barcode"), row.normalized.barcode ?? "—"],
                     [tf("accession_number"), row.normalized.accession_number ?? "—"],
