@@ -1,5 +1,6 @@
 "use server";
 
+import { changedRow, NO_MATCH_MESSAGE } from "@/lib/db/changed-row";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import type { AppRole } from "@/lib/types/roles";
@@ -132,17 +133,25 @@ export async function updateComment(
   try {
     const { supabase, user } = await getAuthUser();
 
-    const { error } = await supabase
-      .from("post_comments")
-      .update({
-        body: trimmed,
-        updated_at: new Date().toISOString(),
-        is_edited: true,
-      })
-      .eq("id", commentId)
-      .eq("user_id", user.id);
+    const result = changedRow(
+      await supabase
+        .from("post_comments")
+        .update({
+          body: trimmed,
+          updated_at: new Date().toISOString(),
+          is_edited: true,
+        })
+        .eq("id", commentId)
+        .eq("user_id", user.id)
+        .select("id"),
+    );
 
-    if (error) return { error: error.message };
+    // A comment that is not this user's — or that moderation removed while the
+    // edit box was open — matches no row. That is not a saved edit, and the
+    // editor must not close as though it were.
+    if (!result.ok) {
+      return { error: result.reason === "error" ? result.message : NO_MATCH_MESSAGE };
+    }
 
     revalidatePath(`/posts/${postSlug}`);
     return {};

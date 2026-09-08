@@ -22,25 +22,47 @@ function ListCard({ list, onDelete, onUpdate }: {
   const [name, setName]       = useState(list.name);
   const [pub, setPub]         = useState(list.is_public);
   const [busy, setBusy]       = useState(false);
+  const [error, setError]     = useState<string | null>(null);
 
+  // Both handlers used to discard what the action returned and update local
+  // state unconditionally, so a failed save or delete still redrew the card as
+  // though it had worked — the list reappeared on the next load with no error
+  // shown and nothing logged.
   async function save() {
     if (!name.trim()) return;
     setBusy(true);
-    await updateReadingList(list.id, name.trim(), list.description ?? undefined, pub);
-    onUpdate(list.id, name.trim(), pub);
+    setError(null);
+    const res = await updateReadingList(list.id, name.trim(), list.description ?? undefined, pub);
     setBusy(false);
+    if (res?.error) { setError(res.error); return; }
+    onUpdate(list.id, name.trim(), pub);
     setEditing(false);
   }
 
   async function handleDelete() {
     if (!confirm(`Delete "${list.name}"? This cannot be undone.`)) return;
     setBusy(true);
-    await deleteReadingList(list.id);
+    setError(null);
+    const res = await deleteReadingList(list.id);
+    if (res?.error) { setBusy(false); setError(res.error); return; }
     onDelete(list.id);
   }
 
   return (
     <div className="group relative rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm transition hover:shadow-md">
+      {error && (
+        <p
+          role="alert"
+          className="mb-2 rounded-lg px-2.5 py-1.5 text-[12px] font-medium"
+          style={{
+            background: "var(--ptec-danger-soft)",
+            color: "var(--ptec-danger-text)",
+            border: "1px solid var(--ptec-danger-line)",
+          }}
+        >
+          {error}
+        </p>
+      )}
       {editing ? (
         <div className="flex flex-col gap-2">
           <input
