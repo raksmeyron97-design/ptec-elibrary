@@ -1,5 +1,6 @@
 "use server";
 
+import { changedRow, NO_MATCH_MESSAGE } from "@/lib/db/changed-row";
 import { createClient } from "@/lib/supabase/server";
 import {
   revalidateLocalizedPath as revalidatePath,
@@ -89,19 +90,19 @@ export async function updateReadingList(id: string, name: string, description?: 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  const { data, error } = await supabase
-    .from("reading_lists")
-    .update({ name: name.trim(), description: description?.trim() || null, is_public: isPublic })
-    .eq("id", id)
-    .eq("user_id", user.id)
-    .select("id");
+  const result = changedRow(
+    await supabase
+      .from("reading_lists")
+      .update({ name: name.trim(), description: description?.trim() || null, is_public: isPublic })
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .select("id"),
+  );
 
-  if (error) return { error: "Failed to update list." };
-  // Zero rows means this collection is not the caller's, or no longer exists.
-  // Nothing was renamed, and saying otherwise leaves the old name in the
-  // database and the new one on screen.
-  if ((data ?? []).length === 0) return { error: "List not found." };
-
+  if (!result.ok) {
+    if (result.reason === "error") return { error: "Failed to update list." };
+    return { error: NO_MATCH_MESSAGE };
+  }
   revalidatePath("/dashboard");
   revalidatePath(`/lists/${id}`);
   return { success: true };
@@ -113,19 +114,21 @@ export async function deleteReadingList(id: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  const { data, error } = await supabase
-    .from("reading_lists")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", user.id)
-    .select("id");
+  const result = changedRow(
+    await supabase
+      .from("reading_lists")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .select("id"),
+  );
 
-  if (error) return { error: "Failed to delete list." };
-
+  if (!result.ok) {
+    if (result.reason === "error") return { error: "Failed to delete list." };
+    return { error: NO_MATCH_MESSAGE };
+  }
   revalidatePath("/dashboard");
-  // A collection that was already gone still leaves the caller in the state
-  // they asked for, so this is a success — but `removed` says which happened.
-  return { success: true, removed: (data ?? []).length > 0 };
+  return { success: true };
 }
 
 // ── Get user's own lists ──────────────────────────────────────
@@ -304,30 +307,43 @@ export async function removeItemFromList(
   if (!user) return { error: "Not authenticated" };
   if (!(await ownedList(supabase, listId, user.id))) return { error: "List not found." };
 
-  let query = supabase
-    .from("reading_list_items")
-    .delete()
-    .eq("list_id", listId)
-    .eq("record_type", recordType)
-    .eq("record_id", recordId);
-  query = page === undefined ? query.is("page_number", null) : query.eq("page_number", page);
-
-  // The result was previously discarded entirely — `await query;` — so this
-  // returned `{ success: true }` whether the row went, the database refused
-  // the statement, or the connection dropped. The caller then removed the
-  // source from the collection on screen while it stayed in the database, and
-  // the student found it again on their next visit with no idea why.
-  const { data, error } = await query.select("id");
-  if (error) {
-    console.error("[removeItemFromList]", error.message);
+  // The result used to be discarded outright — `await query;` — so this
+  // returned success whether the row went, the database refused the statement,
+  // or the connection dropped. The caller then removed the source from the
+  // collection on screen while it stayed in the database, and the student
+  // found it again on their next visit with no idea why.
+  //
+  // lib/db/silent-mutation.test.ts did not catch it: its ownership predicate is
+  // `.eq("user_id", …)`, and this action is guarded by `ownedList()` above
+  // instead — an ownership check one call earlier is still an ownership check.
+  // OWNERSHIP_GUARDS there now covers that, which is why this is ONE chained
+  // statement rather than a builder assembled in stages: a `.select()` applied
+  // to a builder variable later is invisible to a scan that reads statements,
+  // and a rule that cannot see the code is not enforcing anything.
+  //
+  // `.filter()` rather than a staged `.is()`/`.eq()` because the two cases
+  // differ only in the operator: a plain save has a NULL page, an annotated
+  // one has an exact page, and the unique indexes (0136) are built to match.
+  const result = changedRow(
+    await supabase
+      .from("reading_list_items")
+      .delete()
+      .eq("list_id", listId)
+      .eq("record_type", recordType)
+      .eq("record_id", recordId)
+      .filter("page_number", page === undefined ? "is" : "eq", page ?? null)
+      .select("id"),
+  );
+  if (!result.ok && result.reason === "error") {
+    console.error("[removeItemFromList]", result.message);
     return { error: "Failed to remove." };
   }
 
   revalidateUserWorkspace(listId);
-  // `removed` distinguishes "we deleted it" from "it was not there". Both are
+  // `removed` separates "we deleted it" from "it was not there". Both are
   // successes — the caller wanted this resource out of this collection and it
   // is — but only the second is safe to treat as a no-op.
-  return { success: true, removed: (data ?? []).length > 0 };
+  return { success: true, removed: result.ok };
 }
 
 /** Edit the note on one saved item. */
@@ -346,21 +362,26 @@ export async function updateItemNote(itemId: string, note: string) {
     return { error: "Item not found." };
   }
 
-  const { data, error } = await supabase
-    .from("reading_list_items")
-    .update({ note: note.trim() || null })
-    .eq("id", itemId)
-    .select("id, note");
-  if (error) {
-    console.error("[updateItemNote]", error.message);
-    return { error: "Failed to save note." };
+  // Also invisible to the ownership scan, for the same reason: the guard is
+  // `ownedList()` above, not an `.eq("user_id", …)` on this statement.
+  const result = changedRow<{ id: string; note: string | null }>(
+    await supabase
+      .from("reading_list_items")
+      .update({ note: note.trim() || null })
+      .eq("id", itemId)
+      .select("id, note"),
+  );
+  if (!result.ok) {
+    if (result.reason === "error") {
+      console.error("[updateItemNote]", result.message);
+      return { error: "Failed to save note." };
+    }
+    // A zero-row update has not stored what the reader typed.
+    return { error: NO_MATCH_MESSAGE };
   }
-  // A zero-row update has not stored what the reader typed. Unlike a delete,
-  // there is no reading of this in which the caller's intent was satisfied.
-  if ((data ?? []).length === 0) return { error: "Item not found." };
 
   revalidateUserWorkspace((item as any).list_id);
-  return { success: true, note: (data as any)[0].note as string | null };
+  return { success: true, note: result.row.note };
 }
 
 /** Which of the caller's lists already hold this resource. */

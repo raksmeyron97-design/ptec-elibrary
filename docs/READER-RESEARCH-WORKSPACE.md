@@ -177,39 +177,39 @@ back to the nearest outline heading, then the page number.
 
 ## 5. Mutations must report what they changed
 
-> PostgREST does not treat a statement matching no rows as an error.
+> PostgREST answers an UPDATE or DELETE whose predicate matched no row with
+> `204 No Content` — `error: null`, `data: null`. That is byte-for-byte what a
+> successful single-row write returns.
 
-A delete or update scoped `.eq("user_id", user.id)` against someone else's id —
-or a row a second tab already removed — **succeeds, having changed nothing**.
 So `{ success: !error }` reports "done" for a request that did nothing, and the
-client updates its own state to match a database that never moved.
+client updates its own state to match a database that never moved. This was
+never a cross-user *write* — the scoping was always correct, and RLS backs the
+paths that do not use the service client. It was a cross-user **lie**, which is
+harder to notice, because the screen agrees with you until you reload.
 
-This was never a cross-user *write*: the scoping was always correct, and RLS
-backs the paths that do not use the service client. It was a cross-user **lie**,
-which is harder to notice, because the screen agrees with you until you reload.
-
-Five mutations had it: `deleteAnnotation`, `updateAnnotationNote`,
-`removeItemFromList` (which discarded its result outright), `updateReadingList`
-and `deleteReadingList`.
-
-**The rule now:** every mutation asks for its affected rows back and answers on
-the count. Delete and update then answer *differently* on zero rows:
+`changedRow()` (`lib/db/changed-row.ts`) owns the reasoning and the shape of the
+answer; `lib/db/silent-mutation.test.ts` enforces it as a source scan over
+`app/actions`. Delete and update then answer *differently* on zero rows:
 
 | | zero rows | why |
 |---|---|---|
 | delete | success, `removed: false` | The caller wanted the row gone. It is gone. |
-| update | **failure** | What they typed is stored nowhere. Saying otherwise loses it. |
+| update | **failure** (`NO_MATCH_MESSAGE`) | What they typed is stored nowhere. Saying otherwise loses it. |
 
-`lib/reader/mutation-truthfulness.test.ts` enforces the shape. It is a source
-scan because the defect is invisible to the alternatives: a mocked client
-returns whatever it was told to, and `{ success: boolean }` is a perfectly good
-type for a wrong answer. What *is* detectable is that a mutation which never
-asks for its affected rows cannot know whether it changed any. It checks per
-function (a filter built in stages puts the `.select()` on another line) and
-strips comments first — these files document the anti-pattern they avoid, and a
-scan reading prose as code would fail on the explanation of its own rule.
+### Two ways to slip past the scan
 
----
+**Ownership is not always in the predicate.** The scan looks for
+`.eq("user_id", …)`, and `removeItemFromList` / `updateItemNote` are guarded by
+`ownedList()` a call earlier — so both were missed while the five actions the
+regex *did* catch were fixed, one of them discarding its result outright
+(`await query;`). An ownership check a line earlier is still an ownership
+check; `OWNERSHIP_GUARDS` now matches the enclosing function too.
+
+**A mutation must be ONE chained statement.** The scan reads statements, so a
+`.select()` applied to a builder variable further down is invisible to it —
+which is why `removeItemFromList` uses `.filter("page_number", …)` rather than
+assembling `.is()`/`.eq()` in stages. A rule that cannot see the code is not
+enforcing anything.
 
 ## 6. Deletion
 

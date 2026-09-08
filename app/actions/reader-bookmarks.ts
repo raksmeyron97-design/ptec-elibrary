@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { changedRow, NO_MATCH_MESSAGE } from "@/lib/db/changed-row";
 import type { ResourceRecordType } from "@/app/actions/reading-lists";
 
 /**
@@ -13,13 +14,11 @@ import type { ResourceRecordType } from "@/app/actions/reading-lists";
  * collections (0136) were already server-side; bookmarks were the last
  * per-page thing a reader creates that lived nowhere durable.
  *
- * EVERY MUTATION HERE REPORTS WHAT ACTUALLY CHANGED. A PostgREST delete that
- * matches no rows is not an error — it succeeds, having done nothing — so
- * `{ success: !error }` reports a delete of someone else's bookmark, or of one
- * already gone, as a success. The client then removes the row from its list
- * and the reader watches a bookmark disappear that is still in the database.
- * Each write below asks for the affected rows back and says how many there
- * were.
+ * EVERY MUTATION HERE REPORTS WHAT ACTUALLY CHANGED, through `changedRow()`
+ * (`lib/db/changed-row.ts`), which owns the reasoning: PostgREST answers a
+ * statement that matched nothing with 204 / error:null / data:null, which is
+ * byte-for-byte a successful write. Delete and update then answer DIFFERENTLY
+ * on a zero-row result, and each says why below.
  *
  * OWNERSHIP is enforced twice, deliberately: every statement is scoped
  * `.eq("user_id", user.id)`, AND these run through the cookie-bound client, so
@@ -170,20 +169,22 @@ export async function removeReaderBookmark(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "Not authenticated" };
 
-  const { data, error } = await supabase
-    .from("reader_bookmarks")
-    .delete()
-    .eq("user_id", user.id)
-    .eq("record_type", recordType)
-    .eq("record_id", recordId)
-    .eq("page_number", page)
-    .select("id");
+  const result = changedRow(
+    await supabase
+      .from("reader_bookmarks")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("record_type", recordType)
+      .eq("record_id", recordId)
+      .eq("page_number", page)
+      .select("id"),
+  );
 
-  if (error) {
-    console.error("[removeReaderBookmark]", error.message);
+  if (!result.ok && result.reason === "error") {
+    console.error("[removeReaderBookmark]", result.message);
     return { success: false, error: "Could not remove bookmark." };
   }
-  return { success: true, removed: (data ?? []).length > 0 };
+  return { success: true, removed: result.ok };
 }
 
 /**
@@ -207,20 +208,23 @@ export async function setReaderBookmarkLabel(
 
   const trimmed = label.trim().slice(0, MAX_LABEL_LENGTH) || null;
 
-  const { data, error } = await supabase
-    .from("reader_bookmarks")
-    .update({ label: trimmed })
-    .eq("id", bookmarkId)
-    .eq("user_id", user.id)
-    .select(SELECT);
+  const result = changedRow<ReaderBookmark>(
+    await supabase
+      .from("reader_bookmarks")
+      .update({ label: trimmed })
+      .eq("id", bookmarkId)
+      .eq("user_id", user.id)
+      .select(SELECT),
+  );
 
-  if (error) {
-    console.error("[setReaderBookmarkLabel]", error.message);
-    return { success: false, error: "Could not rename bookmark." };
+  if (!result.ok) {
+    if (result.reason === "error") {
+      console.error("[setReaderBookmarkLabel]", result.message);
+      return { success: false, error: "Could not rename bookmark." };
+    }
+    return { success: false, error: NO_MATCH_MESSAGE };
   }
-  const row = (data ?? [])[0] as ReaderBookmark | undefined;
-  if (!row) return { success: false, error: "Bookmark not found." };
-  return { success: true, bookmark: row };
+  return { success: true, bookmark: result.row };
 }
 
 /**

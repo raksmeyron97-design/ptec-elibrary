@@ -1,24 +1,7 @@
 "use server";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-
-/**
- * Highlights and notes on a book's pages (migration 0047).
- *
- * EVERY MUTATION HERE REPORTS WHETHER A ROW ACTUALLY CHANGED. These run
- * through the RLS-bypassing service client, so `.eq("user_id", user.id)` is
- * the only thing scoping them to their owner — which it does correctly, and
- * which is why this was never a cross-user WRITE. What it was is a
- * cross-user LIE: a delete or update that matches no rows is not an error in
- * PostgREST, it succeeds having done nothing, so `{ success: !error }`
- * answered "saved" to a request that changed nothing at all. Someone else's
- * annotation id, an id already deleted in another tab, a stale list after a
- * sign-out — all three reported success, and the client then removed the row
- * from the panel or showed the new note, leaving the screen disagreeing with
- * the database until a reload.
- *
- * Each write below asks for the affected rows back and answers on the count.
- */
+import { changedRow, NO_MATCH_MESSAGE } from "@/lib/db/changed-row";
 
 export type Annotation = {
   id: string;
@@ -106,28 +89,30 @@ export async function deleteAnnotation(
   const { data: { user } } = await authClient.auth.getUser();
   if (!user) return { success: false, error: "Not authenticated" };
 
+  // The service client bypasses RLS, so `.eq("user_id", …)` is the ONLY thing
+  // standing between one reader and another's annotations. `.select()` makes
+  // that guard observable: without it a delete aimed at someone else's row
+  // returns 204/no error and this reported success.
   const supabase = createServiceClient();
-  const { data, error } = await supabase
-    .from("book_annotations")
-    .delete()
-    .eq("id", annotationId)
-    .eq("user_id", user.id)
-    .select("id");
+  const result = changedRow(
+    await supabase
+      .from("book_annotations")
+      .delete()
+      .eq("id", annotationId)
+      .eq("user_id", user.id)
+      .select("id"),
+  );
 
-  if (error) {
-    console.error("[deleteAnnotation]:", error);
-    return { success: false, error: "Failed to delete annotation." };
-  }
-  // Zero rows means this annotation is not the caller's, or is already gone.
-  // Either way nothing was deleted, and the panel must not be told otherwise.
-  if ((data ?? []).length === 0) {
-    return { success: false, error: "Annotation not found." };
+  if (!result.ok) {
+    if (result.reason === "error") {
+      console.error("[deleteAnnotation]:", result.message);
+      return { success: false, error: "Failed to delete annotation." };
+    }
+    return { success: false, error: NO_MATCH_MESSAGE };
   }
   return { success: true };
 }
 
-/** Edit the note attached to a highlight. Returns the stored row, so the
-    caller renders what the database holds rather than what it hoped it does. */
 export async function updateAnnotationNote(
   annotationId: string,
   noteContent: string
@@ -140,22 +125,28 @@ export async function updateAnnotationNote(
     return { success: false, error: "Note is too long." };
   }
 
+  // Returns the STORED row, not the submitted text. The two differ — the note
+  // is trimmed and `updated_at` moves — and rendering the optimistic version
+  // is how a panel comes to disagree with the database it is displaying.
   const supabase = createServiceClient();
-  const { data, error } = await supabase
-    .from("book_annotations")
-    .update({ note_content: noteContent.trim(), updated_at: new Date().toISOString() })
-    .eq("id", annotationId)
-    .eq("user_id", user.id)
-    .select("id, page_number, selected_text, note_content, highlight_color, created_at");
+  const result = changedRow<Annotation>(
+    await supabase
+      .from("book_annotations")
+      .update({ note_content: noteContent.trim(), updated_at: new Date().toISOString() })
+      .eq("id", annotationId)
+      .eq("user_id", user.id)
+      .select("id, page_number, selected_text, note_content, highlight_color, created_at"),
+  );
 
-  if (error) {
-    console.error("[updateAnnotationNote]:", error);
-    return { success: false, error: "Failed to save note." };
+  if (!result.ok) {
+    if (result.reason === "error") {
+      console.error("[updateAnnotationNote]:", result.message);
+      return { success: false, error: "Failed to save note." };
+    }
+    // A zero-row UPDATE has not reached the state the caller asked for: the
+    // text they typed is stored nowhere. Unlike a delete, there is no reading
+    // of this in which the request succeeded.
+    return { success: false, error: NO_MATCH_MESSAGE };
   }
-  const row = (data ?? [])[0] as Annotation | undefined;
-  // Unlike a delete, a zero-row update has NOT reached the state the caller
-  // asked for: what they typed is stored nowhere. Reporting success here is
-  // how a note is lost.
-  if (!row) return { success: false, error: "Annotation not found." };
-  return { success: true, annotation: row };
+  return { success: true, annotation: result.row };
 }

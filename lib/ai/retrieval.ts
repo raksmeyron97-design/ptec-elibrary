@@ -62,7 +62,35 @@ const SUBJECT_OVERVIEW_LIMIT = 10;
 /** Semantic thresholds. Chunks are held to a higher bar than work metadata
  *  because a weak page match produces a confident-sounding wrong citation. */
 const WORK_MIN_SIMILARITY = 0.25;
-const CHUNK_MIN_SIMILARITY = 0.3;
+/**
+ * The floor a chunk must clear to be evidence at all.
+ *
+ * This is an ABSOLUTE cosine cut-off in the embedding provider's own space,
+ * and that space is not centred at zero — so a value chosen to look small is
+ * not a weak filter, it is no filter. Measured against production (Gemini
+ * text-embedding-004, 270 books, `scripts/calibrate-chunk-threshold.ts`,
+ * 29 verified scoped questions vs 3 subjects the library does not hold):
+ *
+ *            top-1 similarity   min     p05     median   max
+ *   on-topic  (question the book answers)  0.684   0.698   0.753   0.826
+ *   off-topic (subject it does not hold)   0.611   0.616   0.662   0.704
+ *
+ * At the previous 0.3 the two are indistinguishable — 29/29 off-topic
+ * questions were admitted, every scoped question retrieved four passages
+ * whatever it asked, and `no-evidence correctness` measured 0/8: a question
+ * about zebrafish cardiac regeneration came back with four pages of a
+ * research-methods textbook, which is the raw material a confident wrong
+ * answer is written from.
+ *
+ * 0.70 is the measured knee: it keeps 27/29 on-topic top-1 hits and admits
+ * 1/29 off-topic. The distributions do overlap (on-topic min 0.684 sits below
+ * off-topic max 0.704), so this cannot be lossless in both directions; it is
+ * set where the loss is two weak semantic hits — both of which still have the
+ * lexical leg — rather than twenty-nine false ones. Re-measure with that
+ * script before moving it, and re-measure it AT ALL if the embedding provider
+ * changes: the number is a property of the model, not of the library.
+ */
+const CHUNK_MIN_SIMILARITY = 0.7;
 /** Keyword hits at or above this count make the semantic pass unnecessary. */
 const KEYWORD_SUFFICIENT = 3;
 /** Raw chars kept per retrieved passage before context compression trims it. */

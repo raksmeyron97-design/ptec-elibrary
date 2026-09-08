@@ -6294,7 +6294,7 @@
       "saving": "Saving…",
       "saved": "Saved",
       "error": "Autosave failed",
-      "savedToast": "Draft saved",
+      "savedToast": "Thesis saved",
       "lastSavedJustNow": "Last saved just now",
       "lastSavedMinutes": "Last saved {count, plural, one {# minute} other {# minutes}} ago",
       "lastSavedHours": "Last saved {count, plural, one {# hour} other {# hours}} ago",
