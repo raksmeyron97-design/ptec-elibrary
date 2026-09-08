@@ -81,3 +81,8 @@ async function main() {
   process.exitCode = failed ? 1 : 0;
 }
 main().catch((e) => { console.error(e); process.exit(1); });
+
+// This file has no imports, so `export {}` is what makes it a MODULE rather
+// than a global script — without it its top-level `BASE`/`UA`/`main` collide
+// with every other import-free script under tsc.
+export {};

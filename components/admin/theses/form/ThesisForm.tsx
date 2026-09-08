@@ -230,7 +230,7 @@ export default function ThesisForm({
   // ── Live validation (drives step nav badges + gates publish) ────────────
   const authorNamesJoined = authors.map((a) => a.trim()).filter(Boolean).join(", ");
   const referencesJoined = references.filter((r) => r.trim()).join("\n");
-  const effectiveFileUrl = pdfFile ? "pending" : (coverRemoved ? null : initial?.fileUrl ?? null);
+  const effectiveFileUrl = pdfFile ? "pending" : (initial?.fileUrl ?? null);
   const effectiveCoverUrl = coverFile ? "pending" : (coverRemoved ? null : initial?.coverUrl ?? null);
 
   const allPublishErrors: ThesisValidationErrors = useMemo(
@@ -632,7 +632,23 @@ export default function ThesisForm({
       if (isEdit && initial) {
         const result = await updateThesis(initial.id, dbData);
         if (!result.success) throw new Error(result.error);
-        router.push(`/admin/theses/edit/${initial.id}`);
+        // Reset UI — router.push() to the same URL is a no-op in App Router
+        // and does NOT re-mount the Client Component, so phase would stay
+        // "saving" forever. We reset it here instead.
+        setPhase("idle");
+        setUploadProgress("");
+        // Clear staged files — they are now persisted on the server.
+        setPdfFile(null);
+        setCoverFile(null);
+        setCoverPreview(null);
+        setSupplementaryNew([]);
+        dirtyRef.current = false;
+        setAutosaveStatus("saved");
+        setLastSavedAt(Date.now());
+        setTimeout(() => setAutosaveStatus((s) => (s === "saved" ? "idle" : s)), 2500);
+        toast.success(t("autosave.savedToast"));
+        // Refresh Server Component data (rank, verified_by, download count…)
+        // without a full navigation.
         router.refresh();
       } else {
         const result = await createThesis(dbData);
