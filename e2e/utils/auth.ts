@@ -114,3 +114,55 @@ export async function installSeededReaderSession(
     return false;
   }
 }
+
+/**
+ * Delete a seeded account's reader bookmarks, so a spec starts from a known
+ * state.
+ *
+ * WHY THIS IS NEEDED AT ALL: bookmarks became durable in migration 0141. They
+ * used to live only in `localStorage`, so clearing `ebook:*` keys reset them
+ * and every run started empty. Now they belong to the ACCOUNT — clearing the
+ * browser is exactly what the sync is designed to survive — so a previous
+ * run's bookmark is pulled back down on mount, and a spec that presses `b` to
+ * add one silently removes it instead. That is the correct product behaviour
+ * and a broken test fixture, which is the pair this function exists to
+ * separate. `openReader` already resets carried-over reading position for the
+ * same reason.
+ *
+ * Runs against PostgREST as the signed-in user, so RLS applies and this can
+ * only ever clear the account it authenticated as. Returns false rather than
+ * throwing when Supabase is unreachable — the caller is a fixture, and a spec
+ * should skip on a missing stack, not fail on one.
+ */
+export async function clearReaderBookmarks(
+  opts: { email?: string; password?: string } = {},
+): Promise<boolean> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anon) return false;
+
+  try {
+    const auth = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: { apikey: anon, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: opts.email ?? "student@ptec.local",
+        password: opts.password ?? "Password123!",
+      }),
+    });
+    if (!auth.ok) return false;
+    const { access_token: token } = await auth.json();
+    if (!token) return false;
+
+    // `user_id=not.is.null` matches every row this token can see, which RLS
+    // has already narrowed to the caller's own. PostgREST refuses an
+    // unfiltered DELETE, so the filter is required as well as harmless.
+    const res = await fetch(`${url}/rest/v1/reader_bookmarks?user_id=not.is.null`, {
+      method: "DELETE",
+      headers: { apikey: anon, Authorization: `Bearer ${token}` },
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}

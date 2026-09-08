@@ -872,6 +872,7 @@ export default function PDFViewer({
       numPages: pdf.numPages,
     };
     const fromLocal = resolveResumePage(resumeArgs);
+    const fromServer = serverResumePage(resumeArgs);
     // The server position, most precise first: the exact page it recorded
     // (0141), else the page implied by its percentage. The percentage path
     // re-derives from the REAL page count now that it is known — the `pages`
@@ -879,16 +880,30 @@ export default function PDFViewer({
     // (a 12-page file recorded as 320 pages resumed at "page 320", clamped to
     // the end of the book).
     const serverPct = resume.initialProgressPct;
-    let target =
-      serverResumePage(resumeArgs) ?? (serverPct > 0 ? pageFromPercent(serverPct, pdf.numPages) : 1);
+    let target = fromServer ?? (serverPct > 0 ? pageFromPercent(serverPct, pdf.numPages) : 1);
     if (fromLocal) target = fromLocal;
-    // A page named in the URL is not a resume at all — it is a destination.
-    // It therefore wins over both saved positions, and suppresses the
-    // "Welcome back" prompt below: the reader was not returning, they
-    // followed a link to a page and are exactly where they asked to be.
+    // A page named in the URL is a destination, not a resume, so it wins over
+    // both saved positions.
     const requested = resume.requestedPage;
     const linked = typeof requested === "number" && requested >= 1;
     if (linked) target = clamp(1, pdf.numPages, Math.floor(requested));
+
+    /* Whether the reader has a position to RETURN to — which is what the
+       "Welcome back" prompt is about, and it is not the same question as how
+       they arrived.
+
+       An earlier version suppressed the prompt whenever the URL named a page.
+       That was wrong the moment this component started writing `?page=N` into
+       its own address bar: every returning reader then arrives "linked", so
+       the suppression swallowed the prompt for the ordinary case rather than
+       the intended one — and took the "Start from beginning" escape with it.
+
+       The real distinction is whether there is a saved position at all. A
+       stranger following a citation to page 42 has none, and greeting them
+       with "Welcome back" would be a lie about a book they have never opened.
+       Someone reopening their own reading session has one, however they got
+       here. */
+    const hasSavedPosition = fromLocal !== null || fromServer !== null || serverPct > 0;
     if (target !== currentPageRef.current) {
       currentPageRef.current = target;
       setCurrentPage(target);
@@ -906,7 +921,7 @@ export default function PDFViewer({
       setScrollTop(top);
     });
     progress.markMaxProgressForPage(target, pdf.numPages);
-    if (!linked && shouldOfferContinue(target)) setResumePrompt(target);
+    if (hasSavedPosition && shouldOfferContinue(target)) setResumePrompt(target);
     const durationMs = elapsed();
     if (durationMs > 8000) reportReaderEvent("pdf_load_slow", { durationMs });
   };
