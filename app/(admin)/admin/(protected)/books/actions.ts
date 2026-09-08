@@ -676,6 +676,10 @@ export async function deleteBook(bookId: string) {
     // migration records the cleanup obligation that lands here. Without it a
     // deleted book stays in every reader's collection as a row that counts
     // toward the list's size and renders as nothing.
+    // Readers' bookmarks (0141). Polymorphic and FK-less for the same reason,
+    // and carrying the same obligation: a bookmark to a deleted book is a row
+    // in the panel that opens nothing.
+    supabase.from("reader_bookmarks").delete().eq("record_type", "book").eq("record_id", bookId),
     supabase.from("reading_list_items").delete().eq("record_type", "book").eq("record_id", bookId),
     // File-health rows (0065). Polymorphic and FK-less again. The out-of-band
     // sweep only ever revisits records that still exist, so a row left here is

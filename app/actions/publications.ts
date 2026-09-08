@@ -673,6 +673,8 @@ export async function deletePublication(id: string) {
   await supabase.from("resource_semantic_insights").delete().eq("record_type", "publication").eq("record_id", id);
   // Readers' saved items (0136) — see the note in deleteThesis.
   await supabase.from("reading_list_items").delete().eq("record_type", "publication").eq("record_id", id);
+  // Readers' bookmarks (0141) — see the note in deleteBook.
+  await supabase.from("reader_bookmarks").delete().eq("record_type", "publication").eq("record_id", id);
 
   const { error } = await supabase.from("publications").delete().eq("id", id);
   if (error) {

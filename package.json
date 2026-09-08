@@ -21,7 +21,8 @@
     "ai:benchmark": "tsx scripts/ai-benchmark.ts",
     "ai:local-check": "tsx scripts/test-local-ai.ts",
     "search:benchmark": "tsx scripts/search-benchmark.ts",
-    "retrieval:benchmark": "tsx --tsconfig scripts/tsconfig.benchmark.json scripts/retrieval-benchmark.ts"
+    "retrieval:benchmark": "tsx --tsconfig scripts/tsconfig.benchmark.json scripts/retrieval-benchmark.ts",
+    "reader:benchmark": "tsx scripts/reader-benchmark.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.83",

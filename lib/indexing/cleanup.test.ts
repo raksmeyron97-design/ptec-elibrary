@@ -50,7 +50,8 @@ const RETRIEVAL_TABLES = [
 /**
  * Polymorphic tables that are NOT derived text but carry the same obligation.
  *
- * Two of them now, and both were cleared by nobody for the same reason: the
+ * Three of them now, and the first two were cleared by nobody for the same
+ * reason: the
  * RETRIEVAL_TABLES list above is scoped to "things that make a resource
  * searchable", and neither of these is that.
  *
@@ -74,6 +75,15 @@ const RETRIEVAL_TABLES = [
 const READER_STATE_TABLES: Array<{ table: string; recordTypes: string[] }> = [
   // Every resource type can be saved to a collection.
   { table: "reading_list_items", recordTypes: ["book", "research", "publication"] },
+  // Reader bookmarks (0141) are polymorphic over the same three types and
+  // carry the same obligation. The consequence of missing one is smaller than
+  // a miscounted collection but the same in kind: a bookmark panel offering a
+  // page in a document that no longer exists, which opens nothing and cannot
+  // be explained. `book_annotations` deliberately does NOT appear in either
+  // list — it has a real `book_id references books(id) on delete cascade`, so
+  // the database clears it, and asserting a redundant delete here would make
+  // this file lie about where the guarantee comes from.
+  { table: "reader_bookmarks", recordTypes: ["book", "research", "publication"] },
   // file_health (0065) predates publications and its CHECK constraint still
   // reads `record_type in ('book','research')`, so the publication delete site
   // must NOT be asked for one — an assertion that demanded it would be
