@@ -466,6 +466,15 @@ export async function deleteThesis(id: string) {
   await supabase.from("book_chunks").delete().eq("record_type", "research").eq("record_id", id);
   await supabase.from("resource_index_state").delete().eq("record_type", "research").eq("record_id", id);
   await supabase.from("resource_semantic_insights").delete().eq("record_type", "research").eq("record_id", id);
+  // Readers' saved items (0136). Polymorphic and FK-less like the four above,
+  // and its migration states the same cleanup obligation. Deleting is right
+  // here where UNPUBLISHING is not: hydrateItems() deliberately keeps a row
+  // whose resource is merely hidden, so it returns when the resource does —
+  // but a deleted thesis never returns, and the row would count toward the
+  // collection's size forever while rendering as nothing.
+  await supabase.from("reading_list_items").delete().eq("record_type", "research").eq("record_id", id);
+  // File-health rows (0065) — see the note in deleteBook.
+  await supabase.from("file_health").delete().eq("record_type", "research").eq("record_id", id);
 
   const { error } = await supabase.from("research_reports").delete().eq("id", id);
 
@@ -799,6 +808,8 @@ export async function bulkUpdateTheses(
     await supabase.from("book_chunks").delete().eq("record_type", "research").in("record_id", ids);
     await supabase.from("resource_index_state").delete().eq("record_type", "research").in("record_id", ids);
     await supabase.from("resource_semantic_insights").delete().eq("record_type", "research").in("record_id", ids);
+    await supabase.from("reading_list_items").delete().eq("record_type", "research").in("record_id", ids);
+    await supabase.from("file_health").delete().eq("record_type", "research").in("record_id", ids);
     const { error, count } = await supabase.from("research_reports").delete({ count: "exact" }).in("id", ids);
 
     for (const row of rows ?? []) {

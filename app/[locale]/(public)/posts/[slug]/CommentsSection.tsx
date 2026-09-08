@@ -26,7 +26,15 @@ interface Props {
   initialComments: Comment[];
   commentCount: number;
   currentUserId: string | null;
+  /** Panel-role viewer: shows the staff badge and is allowed to see this
+   *  post before it is published. NOT sufficient to moderate a comment. */
   isAdmin: boolean;
+  /** May this viewer soft-delete somebody ELSE's comment? Narrower than
+   *  `isAdmin` on purpose: the delete runs under RLS, where only
+   *  `public.is_admin()` (admin / super_admin) may touch another user's row.
+   *  Offering the control to staff and librarians made it look as though the
+   *  comment had been removed when the write had matched nothing. */
+  canModerate: boolean;
 }
 
 /* ─── Helpers ─── */
@@ -337,15 +345,15 @@ function CommentForm({
 }
 
 /* ─── Single reply row ─── */
-function ReplyItem({ reply, currentUserId, isAdmin, postSlug, onDelete }: {
-  reply: Comment; currentUserId: string | null; isAdmin: boolean;
+function ReplyItem({ reply, currentUserId, canModerate, postSlug, onDelete }: {
+  reply: Comment; currentUserId: string | null; canModerate: boolean;
   postSlug: string; onDelete: () => void;
 }) {
   const { likes, liked, toggle } = useCommentLikes(reply.id, currentUserId);
   const [isDeleting, startDeleting] = useTransition();
   const [deleted, setDeleted] = useState(false);
   const authorName = getAuthorName(reply.author);
-  const canDelete = isAdmin || reply.user_id === currentUserId;
+  const canDelete = canModerate || reply.user_id === currentUserId;
 
   if (deleted) return null;
 
@@ -383,10 +391,11 @@ function ReplyItem({ reply, currentUserId, isAdmin, postSlug, onDelete }: {
 
 /* ─── Comment item ─── */
 function CommentItem({
-  comment, replies, currentUserId, isAdmin, postId, postSlug, onReplySuccess,
+  comment, replies, currentUserId, isAdmin, canModerate, postId, postSlug, onReplySuccess,
 }: {
   comment: Comment; replies: Comment[]; currentUserId: string | null;
-  isAdmin: boolean; postId: string; postSlug: string; onReplySuccess: () => void;
+  isAdmin: boolean; canModerate: boolean; postId: string; postSlug: string;
+  onReplySuccess: () => void;
 }) {
   const [showReply, setShowReply] = useState(false);
   const [showReplies, setShowReplies] = useState(true);
@@ -400,7 +409,7 @@ function CommentItem({
   const supabase = createClient();
 
   const authorName = getAuthorName(comment.author);
-  const canDelete = isAdmin || comment.user_id === currentUserId;
+  const canDelete = canModerate || comment.user_id === currentUserId;
   const canEdit   = comment.user_id === currentUserId;
   const isOwner   = comment.user_id === currentUserId;
 
@@ -546,7 +555,7 @@ function CommentItem({
           <div className="mt-3 flex flex-col gap-3 pl-2">
             {replies.map(reply => (
               <ReplyItem key={reply.id} reply={reply}
-                currentUserId={currentUserId} isAdmin={isAdmin}
+                currentUserId={currentUserId} canModerate={canModerate}
                 postSlug={postSlug} onDelete={onReplySuccess} />
             ))}
           </div>
@@ -558,7 +567,7 @@ function CommentItem({
 
 /* ─── Main export ─── */
 export default function CommentsSection({
-  postId, postSlug, initialComments, currentUserId, isAdmin,
+  postId, postSlug, initialComments, currentUserId, isAdmin, canModerate,
 }: Props) {
   const t = useTranslations("posts");
   const router = useRouter();
@@ -720,6 +729,7 @@ export default function CommentsSection({
               replies={repliesFor(comment.id)}
               currentUserId={currentUserId}
               isAdmin={isAdmin}
+              canModerate={canModerate}
               postId={postId}
               postSlug={postSlug}
               onReplySuccess={refresh}
