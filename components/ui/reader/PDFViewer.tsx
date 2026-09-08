@@ -66,6 +66,7 @@ import {
   pageFromPercent,
   parseLocalPosition,
   resolveResumePage,
+  serverResumePage,
   serverTimestamp,
   shouldOfferContinue,
 } from "@/lib/reader/resume";
@@ -104,6 +105,7 @@ import { useReaderGestures } from "./hooks/useReaderGestures";
 import { useReaderKeyboard } from "./hooks/useReaderKeyboard";
 import { useFocusModeTrap } from "./hooks/useFocusModeTrap";
 import { useReaderProgress } from "./hooks/useReaderProgress";
+import { useReaderPageUrl } from "./hooks/useReaderPageUrl";
 import { useReaderSearch } from "./hooks/useReaderSearch";
 import { useReaderOutline } from "./hooks/useReaderOutline";
 import { useReaderAnnotations, type AnnotationColor } from "./hooks/useReaderAnnotations";
@@ -152,6 +154,15 @@ export type PDFViewerProps = {
   /** When the server position was written (`reading_progress.last_read_at`),
    *  so a newer position on this device is not overridden by a stale one. */
   initialProgressAt?: string | null;
+  /** The EXACT page the server holds (`reading_progress.last_page`, 0141) and
+   *  the page count it was measured against. Null before that migration; the
+   *  resume path falls back to deriving a page from the percentage. */
+  initialServerPage?: number | null;
+  initialServerPageCount?: number | null;
+  /** A page named by the URL (`?page=N`). Outranks BOTH saved positions: it is
+   *  an explicit request from whoever followed the link — a bookmark, a shared
+   *  citation, an annotation — not a guess about where the reader stopped. */
+  requestedPage?: number | null;
   /** Set false to hide the download action for protected books. Default true.
    *  Presentation only — the server re-decides on every request. */
   allowDownload?: boolean;
@@ -198,6 +209,9 @@ export default function PDFViewer({
   initialProgressPct = 0,
   initialMaxProgressPct = 0,
   initialProgressAt = null,
+  initialServerPage = null,
+  initialServerPageCount = null,
+  requestedPage = null,
   allowDownload = true,
   isLoggedIn: isLoggedInProp = false,
   offline = false,
@@ -614,6 +628,9 @@ export default function PDFViewer({
     initialProgressPct,
     initialMaxProgressPct,
   });
+  // The dedicated reader route owns its URL; the embedded preview on the book
+  // detail page does not, so only "fill" writes `?page=N`.
+  useReaderPageUrl({ enabled: layout === "fill", page: currentPage, ready: pdfDoc !== null });
   const search = useReaderSearch({ pdfRef, docKey, navigate: navigateToPage, currentPageRef });
   const { entries: outline, resolvePage: resolveOutlinePage } = useReaderOutline(pdfDoc);
   const outlineIndex = useMemo(() => currentSectionIndex(outline, currentPage), [outline, currentPage]);
@@ -633,7 +650,14 @@ export default function PDFViewer({
   useEffect(() => {
     localPositionRef.current = parseLocalPosition(lsGet(READER_KEYS.position(bookId)));
   }, [bookId]);
-  const resumeInputs = useLatest({ initialProgressPct, initialProgressAt, isLoggedIn });
+  const resumeInputs = useLatest({
+    initialProgressPct,
+    initialProgressAt,
+    initialServerPage,
+    initialServerPageCount,
+    requestedPage,
+    isLoggedIn,
+  });
 
   /* ── Measure the viewport (ResizeObserver also catches focus mode
         + panel open/close, not just window resize) ──────────────── */
@@ -828,21 +852,35 @@ export default function PDFViewer({
       initialScrollDoneRef.current = false;
       return;
     }
+    const resume = resumeInputs.current;
     const local = localPositionRef.current ?? parseLocalPosition(lsGet(READER_KEYS.position(bookId)));
-    const fromLocal = resolveResumePage({
+    const resumeArgs = {
       local,
-      serverPct: resumeInputs.current.initialProgressPct,
-      serverAt: serverTimestamp(resumeInputs.current.initialProgressAt),
-      isLoggedIn: resumeInputs.current.isLoggedIn,
+      serverPct: resume.initialProgressPct,
+      serverPage: resume.initialServerPage,
+      serverPageCount: resume.initialServerPageCount,
+      serverAt: serverTimestamp(resume.initialProgressAt),
+      isLoggedIn: resume.isLoggedIn,
       numPages: pdf.numPages,
-    });
-    // The server stores a percentage. Re-derive the page from the REAL page
-    // count now that it is known — the `pages` column the placeholder used
-    // is metadata and can disagree with the file (a 12-page file recorded as
-    // 320 pages resumed at "page 320", clamped to the end of the book).
-    const serverPct = resumeInputs.current.initialProgressPct;
-    let target = serverPct > 0 ? pageFromPercent(serverPct, pdf.numPages) : 1;
+    };
+    const fromLocal = resolveResumePage(resumeArgs);
+    // The server position, most precise first: the exact page it recorded
+    // (0141), else the page implied by its percentage. The percentage path
+    // re-derives from the REAL page count now that it is known — the `pages`
+    // column the placeholder used is metadata and can disagree with the file
+    // (a 12-page file recorded as 320 pages resumed at "page 320", clamped to
+    // the end of the book).
+    const serverPct = resume.initialProgressPct;
+    let target =
+      serverResumePage(resumeArgs) ?? (serverPct > 0 ? pageFromPercent(serverPct, pdf.numPages) : 1);
     if (fromLocal) target = fromLocal;
+    // A page named in the URL is not a resume at all — it is a destination.
+    // It therefore wins over both saved positions, and suppresses the
+    // "Welcome back" prompt below: the reader was not returning, they
+    // followed a link to a page and are exactly where they asked to be.
+    const requested = resume.requestedPage;
+    const linked = typeof requested === "number" && requested >= 1;
+    if (linked) target = clamp(1, pdf.numPages, Math.floor(requested));
     if (target !== currentPageRef.current) {
       currentPageRef.current = target;
       setCurrentPage(target);
@@ -860,7 +898,7 @@ export default function PDFViewer({
       setScrollTop(top);
     });
     progress.markMaxProgressForPage(target, pdf.numPages);
-    if (shouldOfferContinue(target)) setResumePrompt(target);
+    if (!linked && shouldOfferContinue(target)) setResumePrompt(target);
     const durationMs = elapsed();
     if (durationMs > 8000) reportReaderEvent("pdf_load_slow", { durationMs });
   };

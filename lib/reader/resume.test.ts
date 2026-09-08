@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pageFromPercent, parseLocalPosition, resolveResumePage, serverTimestamp, shouldOfferContinue } from "./resume";
+import { pageFromPercent, parseLocalPosition, resolveResumePage, serverResumePage, serverTimestamp, shouldOfferContinue } from "./resume";
 
 describe("resolveResumePage", () => {
   const numPages = 500;
@@ -78,5 +78,81 @@ describe("parseLocalPosition", () => {
     expect(parseLocalPosition("not json")).toBeNull();
     expect(parseLocalPosition(null)).toBeNull();
     expect(parseLocalPosition("null")).toBeNull();
+  });
+});
+
+/* ── serverResumePage (0141) ────────────────────────────────────────────────
+   The server's EXACT page. Every case here is the cross-device one: what a
+   reader lands on when they continue on a second device, where the local
+   record does not exist. Before 0141 that always meant `pageFromPercent()`. */
+describe("serverResumePage", () => {
+  const base = { local: null, isLoggedIn: true, numPages: 500, serverPct: 0 } as const;
+
+  it("returns the exact page when the document is the length it was measured against", () => {
+    expect(
+      serverResumePage({ ...base, serverPct: 48, serverPage: 240, serverPageCount: 500 }),
+    ).toBe(240);
+  });
+
+  it("beats the percentage it is stored beside", () => {
+    // 48% of 500 rounds to page 240, but the reader was on 237 — three pages
+    // of a chapter they would otherwise have to find again.
+    const args = { ...base, serverPct: 47, serverPage: 237, serverPageCount: 500 };
+    expect(serverResumePage(args)).toBe(237);
+    expect(pageFromPercent(args.serverPct, args.numPages)).toBe(235);
+  });
+
+  it("re-derives proportionally when the file was replaced with a shorter one", () => {
+    // The classic hazard: page 240 of a 480-page file, replaced by a 12-page
+    // one. Clamping would land on page 12 — the END of the book, reported as
+    // "where you left off".
+    expect(
+      serverResumePage({ ...base, numPages: 12, serverPage: 240, serverPageCount: 480, serverPct: 50 }),
+    ).toBe(6);
+  });
+
+  it("re-derives proportionally when the file was replaced with a longer one", () => {
+    expect(
+      serverResumePage({ ...base, numPages: 1000, serverPage: 240, serverPageCount: 500, serverPct: 48 }),
+    ).toBe(480);
+  });
+
+  it("falls back to the percentage when no denominator was stored and the two disagree", () => {
+    // A page with no page count is only trustworthy if the percentage written
+    // with it agrees. 10% of 500 is page 50, not page 400.
+    expect(
+      serverResumePage({ ...base, serverPage: 400, serverPageCount: null, serverPct: 10 }),
+    ).toBeNull();
+  });
+
+  it("accepts a page with no denominator when the percentage agrees", () => {
+    expect(
+      serverResumePage({ ...base, serverPage: 250, serverPageCount: null, serverPct: 50 }),
+    ).toBe(250);
+  });
+
+  it("returns null for a pre-0141 row, so the caller keeps the old derivation", () => {
+    expect(serverResumePage({ ...base, serverPct: 48, serverPage: null })).toBeNull();
+    expect(serverResumePage({ ...base, serverPct: 48 })).toBeNull();
+  });
+
+  it("never speaks for a logged-out reader or an unloaded document", () => {
+    const args = { serverPage: 240, serverPageCount: 500, serverPct: 48, local: null };
+    expect(serverResumePage({ ...args, isLoggedIn: false, numPages: 500 })).toBeNull();
+    expect(serverResumePage({ ...args, isLoggedIn: true, numPages: 0 })).toBeNull();
+  });
+
+  it("rejects a nonsense page rather than clamping it into range", () => {
+    for (const bad of [0, -3, Number.NaN]) {
+      expect(
+        serverResumePage({ ...base, serverPage: bad, serverPageCount: 500, serverPct: 48 }),
+      ).toBeNull();
+    }
+  });
+
+  it("stays within the document when a stored page overruns a same-length count", () => {
+    expect(
+      serverResumePage({ ...base, numPages: 100, serverPage: 900, serverPageCount: 100, serverPct: 99 }),
+    ).toBe(100);
   });
 });

@@ -18,7 +18,26 @@ import { getSiteConfig } from "@/lib/system-settings/config";
 // viewer gets the whole viewport. The reader's own HUD carries the back link
 // and the title, so this page adds no chrome of its own.
 
-type ReadPageProps = { params: Promise<{ slug: string; locale: string }> };
+type ReadPageProps = {
+  params: Promise<{ slug: string; locale: string }>;
+  searchParams: Promise<{ page?: string | string[] }>;
+};
+
+/**
+ * `?page=N` — the reader's shareable position (§6). It names a destination,
+ * not a preference, so the viewer lets it outrank both saved positions.
+ *
+ * Parsed here rather than in the client so a malformed value never reaches
+ * the resume logic. An out-of-range page is clamped by the viewer once the
+ * REAL page count is known; the `pages` column is metadata and can disagree
+ * with the file, so it is not used to validate this.
+ */
+function parsePageParam(value: string | string[] | undefined): number | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : null;
+}
 
 const getReadableBook = unstable_cache(
   async (slug: string) => {
@@ -58,7 +77,7 @@ const getReadableBook = unstable_cache(
 );
 
 
-export async function generateMetadata({ params }: ReadPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: Pick<ReadPageProps, "params">): Promise<Metadata> {
   const { slug: rawSlug, locale } = await params;
   const slug = decodeSlugParam(rawSlug);
   const book = await getReadableBook(slug);
@@ -71,8 +90,8 @@ export async function generateMetadata({ params }: ReadPageProps): Promise<Metad
   };
 }
 
-export default async function BookReadPage({ params }: ReadPageProps) {
-  const { slug: rawSlug, locale } = await params;
+export default async function BookReadPage({ params, searchParams }: ReadPageProps) {
+  const [{ slug: rawSlug, locale }, query] = await Promise.all([params, searchParams]);
   // generateMetadata receives decoded params while the page body gets them
   // encoded — decodeSlugParam is idempotent, so normalize in both places.
   const slug = decodeSlugParam(rawSlug);
@@ -84,8 +103,12 @@ export default async function BookReadPage({ params }: ReadPageProps) {
   // whose PDF fetch would 401.
   const user = await getSessionUser();
   const prefix = locale === "km" ? "/km" : "";
+  const requestedPage = parsePageParam(query.page);
   if (!user) {
-    redirect(`/auth/login?callbackUrl=${encodeURIComponent(`${prefix}/books/${slug}/read`)}`);
+    // Carry the requested page through sign-in: a student following a shared
+    // citation to page 42 must land on page 42, not page 1, after logging in.
+    const target = `${prefix}/books/${slug}/read${requestedPage ? `?page=${requestedPage}` : ""}`;
+    redirect(`/auth/login?callbackUrl=${encodeURIComponent(target)}`);
   }
 
   const fileSrc = `/api/books/${book.dbId}/file`;
@@ -106,6 +129,9 @@ export default async function BookReadPage({ params }: ReadPageProps) {
         initialProgressPct={savedProgress?.progressPct ?? 0}
         initialMaxProgressPct={savedProgress?.maxProgressPct ?? 0}
         initialProgressAt={savedProgress?.lastReadAt ?? null}
+        initialServerPage={savedProgress?.lastPage ?? null}
+        initialServerPageCount={savedProgress?.lastPageCount ?? null}
+        requestedPage={requestedPage}
         // Library policy (0131), not a UI preference: the reader hides the
         // Download action for a read-online-only book. The refusal that
         // matters is the server's — /api/books/[slug]/download re-decides on

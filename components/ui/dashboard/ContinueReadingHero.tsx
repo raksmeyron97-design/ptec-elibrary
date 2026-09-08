@@ -3,6 +3,15 @@
 // the most-recently-opened in-progress book with its REAL progress_pct and
 // last_read_at (never a fabricated percentage). Falls back to an onboarding
 // state when the user has no reading_progress rows at all.
+//
+// "Continue" opens the READER at the exact page (§30), not the book's detail
+// page. It used to link to /books/<slug>, which asked a reader who had said
+// "continue" to find and press a second button, and then relied on whatever
+// resume the viewer could reconstruct. With `last_page` (0141) the exact page
+// is known server-side, so the link carries it as `?page=N` — which the read
+// route already accepts, and which the viewer treats as a destination rather
+// than a guess. Without a stored page the link is the plain reader URL and the
+// viewer resumes exactly as it did before.
 import { Link } from "@/i18n/navigation";
 import { BookOpen, Library, GraduationCap } from "lucide-react";
 import { getTranslations } from "next-intl/server";
@@ -17,6 +26,8 @@ export type ContinueReadingBook = {
   coverUrl: string | null;
   progressPct: number;
   lastReadAt: string | null;
+  /** Exact page from `reading_progress.last_page` (0141); null when unknown. */
+  lastPage?: number | null;
 };
 
 export default async function ContinueReadingHero({ book }: { book: ContinueReadingBook | null }) {
@@ -49,6 +60,10 @@ export default async function ContinueReadingHero({ book }: { book: ContinueRead
   }
 
   const pct = Math.max(0, Math.min(100, Math.round(book.progressPct)));
+  // Page 1 needs no parameter — a bare reader URL is the cleaner link, and
+  // the viewer starts there anyway.
+  const page = typeof book.lastPage === "number" && book.lastPage > 1 ? book.lastPage : null;
+  const continueHref = `/books/${book.slug}/read${page ? `?page=${page}` : ""}`;
 
   return (
     <section aria-label={t("continueReading")} className="overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
@@ -85,10 +100,15 @@ export default async function ContinueReadingHero({ book }: { book: ContinueRead
             <span className="shrink-0 text-[12.5px] font-bold tabular-nums text-brand">{t("progressPct", { pct })}</span>
           </div>
 
-          <Link href={`/books/${book.slug}`}
+          <Link href={continueHref}
             className="focus-field mt-4 inline-flex h-10 items-center gap-2 rounded-xl bg-brand px-5 text-[13.5px] font-semibold text-brand-contrast transition hover:bg-brand-hover">
             <BookOpen className="h-4 w-4" />
             {t("continueButton")}
+            {page && (
+              <span className="text-[12px] font-normal opacity-80 tabular-nums">
+                {t("continueAtPage", { page })}
+              </span>
+            )}
           </Link>
         </div>
       </div>
