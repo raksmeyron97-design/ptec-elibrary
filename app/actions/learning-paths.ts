@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { requireLibrarian } from "@/lib/auth/requireAdmin";
+import { requirePermission } from "@/lib/auth/requireAdmin";
 import { logAdminAction } from "@/app/actions/audit";
 import { revalidateLocalizedPath as revalidatePath, revalidateLearningPath } from "@/lib/cache/revalidate";
 import { slugify } from "@/lib/books";
@@ -689,7 +689,7 @@ export interface AdminPathRow extends LearningPathSummary {
 
 /** Admin-facing summary rows (all statuses), with the editor who last touched each. */
 export async function adminGetPaths(): Promise<AdminPathRow[]> {
-  const { supabase } = await requireLibrarian();
+  const { supabase } = await requirePermission("learning_paths", "read");
   const { data, error } = await supabase
     .from("learning_paths")
     .select(`${SUMMARY_SELECT}, updated_by`)
@@ -737,7 +737,7 @@ export interface AdminPathStats {
  * fabricated. Returns undefined learner fields gracefully on any read error.
  */
 export async function adminGetPathStats(): Promise<AdminPathStats> {
-  const { supabase } = await requireLibrarian();
+  const { supabase } = await requirePermission("learning_paths", "read");
 
   const [{ data: pathRows }, { data: enrollRows }] = await Promise.all([
     supabase.from("learning_paths").select("id, slug, title, status, featured"),
@@ -778,7 +778,7 @@ export async function adminGetPathStats(): Promise<AdminPathStats> {
 }
 
 export async function adminGetPathDetail(pathId: string): Promise<LearningPathDetail | null> {
-  const { supabase } = await requireLibrarian();
+  const { supabase } = await requirePermission("learning_paths", "read");
 
   const { data: path } = await supabase.from("learning_paths").select("*").eq("id", pathId).maybeSingle();
   if (!path) return null;
@@ -860,43 +860,43 @@ export async function savePath(
   pathId: string | null,
   input: PathInput,
 ): Promise<{ success: true; id: string; slug: string } | { error: string }> {
-  const { supabase, user } = await requireLibrarian();
-
-  const title = input.title.trim();
-  if (!title) return { error: "Title is required." };
-  if (input.modules.length === 0) return { error: "Add at least one module." };
-
-  const status: LearningPathStatus = input.status ?? (input.is_published ? "published" : "draft");
-
-  // Shared column payload (the trigger keeps is_published + timestamps in sync).
-  const columns = {
-    title,
-    title_km: input.title_km?.trim() || null,
-    description: input.description?.trim() || null,
-    description_km: input.description_km?.trim() || null,
-    audience: input.audience?.trim() || null,
-    cover_url: input.cover_url || null,
-    status,
-    featured: input.featured ?? false,
-    difficulty: input.difficulty ?? null,
-    subject: input.subject?.trim() || null,
-    language: input.language ?? null,
-    estimated_minutes: input.estimated_minutes ?? null,
-    outcomes: cleanBilingual(input.outcomes),
-    prerequisites: cleanBilingual(input.prerequisites),
-    tags: (input.tags ?? []).map((t) => t.trim()).filter(Boolean),
-    seo_title: input.seo_title?.trim() || null,
-    seo_description: input.seo_description?.trim() || null,
-    og_image_url: input.og_image_url?.trim() || null,
-    scheduled_at: status === "scheduled" ? input.scheduled_at ?? null : null,
-    updated_by: user.id,
-  };
-
-  let id = pathId;
-  let slug: string;
-  const isNew = !id;
-
   try {
+    const { supabase, user } = await requirePermission("learning_paths", "write");
+
+    const title = input.title.trim();
+    if (!title) return { error: "Title is required." };
+    if (input.modules.length === 0) return { error: "Add at least one module." };
+
+    const status: LearningPathStatus = input.status ?? (input.is_published ? "published" : "draft");
+
+    // Shared column payload (the trigger keeps is_published + timestamps in sync).
+    const columns = {
+      title,
+      title_km: input.title_km?.trim() || null,
+      description: input.description?.trim() || null,
+      description_km: input.description_km?.trim() || null,
+      audience: input.audience?.trim() || null,
+      cover_url: input.cover_url || null,
+      status,
+      featured: input.featured ?? false,
+      difficulty: input.difficulty ?? null,
+      subject: input.subject?.trim() || null,
+      language: input.language ?? null,
+      estimated_minutes: input.estimated_minutes ?? null,
+      outcomes: cleanBilingual(input.outcomes),
+      prerequisites: cleanBilingual(input.prerequisites),
+      tags: (input.tags ?? []).map((t) => t.trim()).filter(Boolean),
+      seo_title: input.seo_title?.trim() || null,
+      seo_description: input.seo_description?.trim() || null,
+      og_image_url: input.og_image_url?.trim() || null,
+      scheduled_at: status === "scheduled" ? input.scheduled_at ?? null : null,
+      updated_by: user.id,
+    };
+
+    let id = pathId;
+    let slug: string;
+    const isNew = !id;
+
     if (id) {
       const { data: existing, error: fetchErr } = await supabase
         .from("learning_paths").select("slug").eq("id", id).single();
@@ -947,14 +947,14 @@ export async function savePath(
       p_modules: modulesPayload,
     });
     if (rpcErr) return { error: rpcErr.message };
+
+    await logAdminAction(user.id, isNew ? "create" : "update", "learning_paths", id!, { slug, status });
+    revalidateLearningPath(slug);
+    revalidatePath("/admin/paths");
+    return { success: true, id: id!, slug };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to save path." };
   }
-
-  await logAdminAction(user.id, isNew ? "create" : "update", "learning_paths", id!, { slug, status });
-  revalidateLearningPath(slug);
-  revalidatePath("/admin/paths");
-  return { success: true, id: id!, slug };
 }
 
 /** Change a path's lifecycle status (publish / unpublish / archive / schedule). */
@@ -963,24 +963,28 @@ export async function setPathStatus(
   status: LearningPathStatus,
   scheduledAt?: string | null,
 ): Promise<{ success: true } | { error: string }> {
-  const { supabase, user } = await requireLibrarian();
-  const { data: existing } = await supabase.from("learning_paths").select("slug").eq("id", pathId).maybeSingle();
-  if (!existing) return { error: "Path not found." };
+  try {
+    const { supabase, user } = await requirePermission("learning_paths", "write");
+    const { data: existing } = await supabase.from("learning_paths").select("slug").eq("id", pathId).maybeSingle();
+    if (!existing) return { error: "Path not found." };
 
-  const { error } = await supabase
-    .from("learning_paths")
-    .update({
-      status,
-      scheduled_at: status === "scheduled" ? scheduledAt ?? null : null,
-      updated_by: user.id,
-    })
-    .eq("id", pathId);
-  if (error) return { error: error.message };
+    const { error } = await supabase
+      .from("learning_paths")
+      .update({
+        status,
+        scheduled_at: status === "scheduled" ? scheduledAt ?? null : null,
+        updated_by: user.id,
+      })
+      .eq("id", pathId);
+    if (error) return { error: error.message };
 
-  await logAdminAction(user.id, `status:${status}`, "learning_paths", pathId, { slug: existing.slug });
-  revalidateLearningPath(existing.slug);
-  revalidatePath("/admin/paths");
-  return { success: true };
+    await logAdminAction(user.id, `status:${status}`, "learning_paths", pathId, { slug: existing.slug });
+    revalidateLearningPath(existing.slug);
+    revalidatePath("/admin/paths");
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to update path status." };
+  }
 }
 
 /** Toggle the single manually-featured path. Featuring one un-features the rest. */
@@ -988,22 +992,26 @@ export async function setPathFeatured(
   pathId: string,
   featured: boolean,
 ): Promise<{ success: true } | { error: string }> {
-  const { supabase, user } = await requireLibrarian();
-  if (featured) {
-    // Only one featured path at a time.
-    await supabase.from("learning_paths").update({ featured: false }).eq("featured", true);
-  }
-  const { data: existing } = await supabase.from("learning_paths").select("slug").eq("id", pathId).maybeSingle();
-  const { error } = await supabase
-    .from("learning_paths")
-    .update({ featured, updated_by: user.id })
-    .eq("id", pathId);
-  if (error) return { error: error.message };
+  try {
+    const { supabase, user } = await requirePermission("learning_paths", "write");
+    if (featured) {
+      // Only one featured path at a time.
+      await supabase.from("learning_paths").update({ featured: false }).eq("featured", true);
+    }
+    const { data: existing } = await supabase.from("learning_paths").select("slug").eq("id", pathId).maybeSingle();
+    const { error } = await supabase
+      .from("learning_paths")
+      .update({ featured, updated_by: user.id })
+      .eq("id", pathId);
+    if (error) return { error: error.message };
 
-  await logAdminAction(user.id, featured ? "feature" : "unfeature", "learning_paths", pathId);
-  revalidateLearningPath(existing?.slug ?? null);
-  revalidatePath("/admin/paths");
-  return { success: true };
+    await logAdminAction(user.id, featured ? "feature" : "unfeature", "learning_paths", pathId);
+    revalidateLearningPath(existing?.slug ?? null);
+    revalidatePath("/admin/paths");
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to update featured status." };
+  }
 }
 
 /** Archive a path — the default, reversible alternative to deletion. */
@@ -1061,20 +1069,24 @@ export async function bulkSetPathStatus(
   pathIds: string[],
   status: LearningPathStatus,
 ): Promise<{ success: true; count: number } | { error: string }> {
-  const { supabase, user } = await requireLibrarian();
-  if (pathIds.length === 0) return { success: true, count: 0 };
+  try {
+    const { supabase, user } = await requirePermission("learning_paths", "write");
+    if (pathIds.length === 0) return { success: true, count: 0 };
 
-  const { data, error } = await supabase
-    .from("learning_paths")
-    .update({ status, scheduled_at: null, updated_by: user.id })
-    .in("id", pathIds)
-    .select("slug");
-  if (error) return { error: error.message };
+    const { data, error } = await supabase
+      .from("learning_paths")
+      .update({ status, scheduled_at: null, updated_by: user.id })
+      .in("id", pathIds)
+      .select("slug");
+    if (error) return { error: error.message };
 
-  await logAdminAction(user.id, `bulk-status:${status}`, "learning_paths", undefined, { count: data?.length ?? 0 });
-  revalidateLearningPath();
-  revalidatePath("/admin/paths");
-  return { success: true, count: data?.length ?? 0 };
+    await logAdminAction(user.id, `bulk-status:${status}`, "learning_paths", undefined, { count: data?.length ?? 0 });
+    revalidateLearningPath();
+    revalidatePath("/admin/paths");
+    return { success: true, count: data?.length ?? 0 };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to update paths." };
+  }
 }
 
 /**
@@ -1083,15 +1095,19 @@ export async function bulkSetPathStatus(
  * modules, steps, enrollments and progress).
  */
 export async function deletePath(pathId: string): Promise<{ success: true } | { error: string }> {
-  const { supabase, user } = await requireLibrarian();
-  const { data: existing } = await supabase.from("learning_paths").select("slug, title").eq("id", pathId).maybeSingle();
-  const { error } = await supabase.from("learning_paths").delete().eq("id", pathId);
-  if (error) return { error: error.message };
+  try {
+    const { supabase, user } = await requirePermission("learning_paths", "write");
+    const { data: existing } = await supabase.from("learning_paths").select("slug, title").eq("id", pathId).maybeSingle();
+    const { error } = await supabase.from("learning_paths").delete().eq("id", pathId);
+    if (error) return { error: error.message };
 
-  await logAdminAction(user.id, "delete", "learning_paths", pathId, { slug: existing?.slug, title: existing?.title });
-  revalidateLearningPath(existing?.slug ?? null);
-  revalidatePath("/admin/paths");
-  return { success: true };
+    await logAdminAction(user.id, "delete", "learning_paths", pathId, { slug: existing?.slug, title: existing?.title });
+    revalidateLearningPath(existing?.slug ?? null);
+    revalidatePath("/admin/paths");
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to delete path." };
+  }
 }
 
 /** Lightweight resource search for the admin step picker (books/theses/catalog/publications). */
@@ -1099,34 +1115,38 @@ export async function searchStepResources(
   type: Exclude<StepResourceType, "external">,
   query: string,
 ): Promise<{ id: string; title: string; coverUrl: string | null; published: boolean }[]> {
-  await requireLibrarian();
-  const db = createServiceClient();
-  const q = query.trim();
-  if (!q) return [];
+  try {
+    await requirePermission("learning_paths", "read");
+    const db = createServiceClient();
+    const q = query.trim();
+    if (!q) return [];
 
-  const table =
-    type === "book" ? "books" :
-    type === "research" ? "research_reports" :
-    type === "publication" ? "publications" :
-    "catalog_books";
+    const table =
+      type === "book" ? "books" :
+      type === "research" ? "research_reports" :
+      type === "publication" ? "publications" :
+      "catalog_books";
 
-  // Physical catalog rows have no publish flag; the others do.
-  const hasPublishedFlag = table !== "catalog_books";
-  const { data, error } = await db
-    .from(table)
-    .select(hasPublishedFlag ? "id, title, cover_url, is_published" : "id, title, cover_url")
-    .ilike("title", `%${q}%`)
-    .limit(8);
+    // Physical catalog rows have no publish flag; the others do.
+    const hasPublishedFlag = table !== "catalog_books";
+    const { data, error } = await db
+      .from(table)
+      .select(hasPublishedFlag ? "id, title, cover_url, is_published" : "id, title, cover_url")
+      .ilike("title", `%${q}%`)
+      .limit(8);
 
-  if (error) {
-    console.error("[searchStepResources]", error.message);
+    if (error) {
+      console.error("[searchStepResources]", error.message);
+      return [];
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data ?? []).map((r: any) => ({
+      id: r.id,
+      title: r.title,
+      coverUrl: r.cover_url ?? null,
+      published: hasPublishedFlag ? !!r.is_published : true,
+    }));
+  } catch {
     return [];
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((r: any) => ({
-    id: r.id,
-    title: r.title,
-    coverUrl: r.cover_url ?? null,
-    published: hasPublishedFlag ? !!r.is_published : true,
-  }));
 }

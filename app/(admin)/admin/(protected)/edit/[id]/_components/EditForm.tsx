@@ -2,6 +2,8 @@
 
 import { useState, useRef } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/components/admin/kit";
 import { updateBook } from "@/app/(admin)/admin/(protected)/books/actions";
 import { replaceBookFile } from "@/app/actions/ebooks";
 import {
@@ -233,6 +235,8 @@ export default function EditForm({
   pageTitle: string;
   pageDescription: string;
 }) {
+  const router = useRouter();
+  const toast  = useToast();
   const [activeTab, setActiveTab] = useState<TabKey>("files");
   const [phase, setPhase]         = useState<Phase>("idle");
   /* Byte progress for whichever file is in flight, plus its name. */
@@ -433,12 +437,25 @@ export default function EditForm({
       setTransferName(null);
       formData.set("allowDownload", allowDownload ? "1" : "0");
       formData.set("downloadDisabledReason", allowDownload ? "" : downloadReason.trim());
-      await updateBook(initial.id, formData);
+      const result = await updateBook(initial.id, formData);
+      if ("error" in result && result.error) {
+        setPhase("idle");
+        setError(result.error);
+        toast.error(result.error);
+        return;
+      }
+      setPhase("idle");
+      setTransfer(null);
+      setTransferName(null);
+      toast.success("Book updated successfully");
+      router.refresh();
     } catch (err) {
       setPhase("idle");
       setTransfer(null);
       setTransferName(null);
-      setError(err instanceof Error ? err.message : "Update failed");
+      const msg = err instanceof Error ? err.message : "Update failed";
+      setError(msg);
+      toast.error(msg);
     }
   }
 

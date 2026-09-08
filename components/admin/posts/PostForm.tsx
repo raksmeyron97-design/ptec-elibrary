@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useToast } from "@/components/admin/kit";
 import { uploadToZima } from "@/app/actions/upload";
 import { createPost, updatePost, checkSlugAvailableAction } from "@/app/(admin)/admin/(protected)/posts/actions";
 import { autosavePostDraft, getPostDraft, discardPostDraft, type PostDraftKey, type PostDraftPayload } from "@/app/actions/post-drafts";
@@ -98,6 +100,8 @@ export default function PostForm({
   pageTitle: string;
   pageDescription: string;
 }) {
+  const router = useRouter();
+  const toast = useToast();
   const t = useTranslations("adminPostForm");
   const tSlug = useTranslations("adminPostForm.slug");
   const isEdit = !!initial;
@@ -399,9 +403,21 @@ export default function PostForm({
       if (draftTarget) discardPostDraft(draftTarget).catch(() => {});
 
       if (isEdit && initial) {
-        await updatePost(initial.id, payload);
+        const res = await updatePost(initial.id, payload);
+        if (res && !res.success) throw new Error(res.error);
+        setPhase("idle");
+        setUploadProgress("");
+        dirtyRef.current = false;
+        setAutosaveStatus("saved");
+        setTimeout(() => setAutosaveStatus((s) => (s === "saved" ? "idle" : s)), 2500);
+        toast.success(t("saveSuccess") || "Post saved");
+        router.refresh();
       } else {
-        await createPost(payload);
+        const res = await createPost(payload);
+        if (res && !res.success) throw new Error(res.error);
+        toast.success(t("saveSuccess") || "Post created");
+        if (res?.id) router.push(`/admin/posts/edit/${res.id}`);
+        else router.push("/admin/posts");
       }
     } catch (err) {
       setPhase("idle");

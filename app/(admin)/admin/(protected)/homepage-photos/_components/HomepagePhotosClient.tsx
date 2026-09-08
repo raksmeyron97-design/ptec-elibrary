@@ -141,20 +141,25 @@ export default function HomepagePhotosClient({ photos }: { photos: HomepagePhoto
     if (values.file) payload.set("file", values.file);
 
     startTransition(async () => {
-      const result =
-        modal.mode === "edit"
-          ? await updatePhotoMetadata(modal.photo.id, payload)
-          : await uploadPhoto(payload);
-      setModalBusy(false);
-      if ("error" in result) {
-        setModalError(result.error);
-        return;
+      try {
+        const result =
+          modal.mode === "edit"
+            ? await updatePhotoMetadata(modal.photo.id, payload)
+            : await uploadPhoto(payload);
+        if ("error" in result) {
+          setModalError(result.error);
+          return;
+        }
+        setModal(null);
+        toast.success(modal.mode === "edit" ? t("changesSaved") : t("uploadSuccess"));
+        // The server component owns the list; refetch rather than guessing the
+        // row the database just generated (id, order, derived dimensions).
+        router.refresh();
+      } catch (err) {
+        setModalError(err instanceof Error ? err.message : "Something went wrong.");
+      } finally {
+        setModalBusy(false);
       }
-      setModal(null);
-      toast.success(modal.mode === "edit" ? t("changesSaved") : t("uploadSuccess"));
-      // The server component owns the list; refetch rather than guessing the
-      // row the database just generated (id, order, derived dimensions).
-      router.refresh();
     });
   }
 
@@ -163,15 +168,20 @@ export default function HomepagePhotosClient({ photos }: { photos: HomepagePhoto
     if (!photo) return;
     setBusyId(photo.id);
     startTransition(async () => {
-      const result = await deletePhoto(photo.id);
-      setBusyId(null);
-      setConfirmDelete(null);
-      if ("error" in result) {
-        toast.error(result.error);
-        return;
+      try {
+        const result = await deletePhoto(photo.id);
+        setConfirmDelete(null);
+        if ("error" in result) {
+          toast.error(result.error);
+          return;
+        }
+        setList((current) => current.filter((p) => p.id !== photo.id));
+        toast.success(t("deleted"));
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to delete photo.");
+      } finally {
+        setBusyId(null);
       }
-      setList((current) => current.filter((p) => p.id !== photo.id));
-      toast.success(t("deleted"));
     });
   }
 

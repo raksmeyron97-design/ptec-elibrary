@@ -23,14 +23,15 @@ export * from "@/lib/admin/posts-shared";
 type ServiceClient = ReturnType<typeof createServiceClient>;
 
 export async function uniqueSlug(supabase: ServiceClient, base: string, ignoreId?: string): Promise<string> {
-  let slug = base || "post";
+  const safeBase = (base && base.trim()) || "post";
+  let slug = safeBase;
   let n = 1;
   while (true) {
     const { data } = await supabase.from("posts").select("id").eq("slug", slug).limit(1);
     const taken = (data ?? []).some((r: { id: string }) => r.id !== ignoreId);
     if (!taken) return slug;
     n += 1;
-    slug = `${base}-${n}`;
+    slug = `${safeBase}-${n}`;
   }
 }
 

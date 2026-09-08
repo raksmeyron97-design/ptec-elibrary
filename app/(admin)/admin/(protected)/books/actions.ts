@@ -2,7 +2,6 @@
 
 // app/admin/books/actions.ts
 import { revalidateLocalizedPath as revalidatePath, revalidateBook } from "@/lib/cache/revalidate";
-import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { requirePermission } from "@/lib/auth/requireAdmin";
 import { slugify } from "@/lib/books";
@@ -676,11 +675,11 @@ export async function deleteBook(bookId: string) {
     // migration records the cleanup obligation that lands here. Without it a
     // deleted book stays in every reader's collection as a row that counts
     // toward the list's size and renders as nothing.
+    supabase.from("reading_list_items").delete().eq("record_type", "book").eq("record_id", bookId),
     // Readers' bookmarks (0141). Polymorphic and FK-less for the same reason,
     // and carrying the same obligation: a bookmark to a deleted book is a row
     // in the panel that opens nothing.
     supabase.from("reader_bookmarks").delete().eq("record_type", "book").eq("record_id", bookId),
-    supabase.from("reading_list_items").delete().eq("record_type", "book").eq("record_id", bookId),
     // File-health rows (0065). Polymorphic and FK-less again. The out-of-band
     // sweep only ever revisits records that still exist, so a row left here is
     // never corrected: it counts toward the sidebar's "broken files" badge for
@@ -708,217 +707,240 @@ export async function deleteBook(bookId: string) {
 }
 
 // ── updateBook — handles cover URL update ────────────────────────
-export async function updateBook(bookId: string, formData: FormData) {
-  const { supabase, user } = await requirePermission("books", "write");
+export async function updateBook(
+  bookId: string,
+  formData: FormData,
+): Promise<{ error: string } | { success: true; slug: string }> {
+  try {
+    const { supabase, user } = await requirePermission("books", "write");
 
-  const title      = requiredText(formData, "title");
-  const author     = requiredText(formData, "author");
-  const department = requiredText(formData, "department");
-  const category   = requiredText(formData, "category");
-  const language   = requiredText(formData, "language");
-  const summary    = formData.get("summary")?.toString().trim() || "";
+    const title      = requiredText(formData, "title");
+    const author     = requiredText(formData, "author");
+    const department = requiredText(formData, "department");
+    const category   = requiredText(formData, "category");
+    const language   = requiredText(formData, "language");
+    const summary    = formData.get("summary")?.toString().trim() || "";
 
-  const isbn      = formData.get("isbn")?.toString().trim() || null;
-  const publisher = formData.get("publisher")?.toString().trim() || null;
-  const license   = formData.get("license")?.toString().trim() || null;
-  const year  = validatedYear(formData.get("year"));
-  const pages = Number(formData.get("pages")) || 1;
+    const isbn      = formData.get("isbn")?.toString().trim() || null;
+    const publisher = formData.get("publisher")?.toString().trim() || null;
+    const license   = formData.get("license")?.toString().trim() || null;
+    const year  = validatedYear(formData.get("year"));
+    const pages = Number(formData.get("pages")) || 1;
 
-  // Download policy (migration 0131). The form posts `allowDownload` as "1"/"0"
-  // on every submit; a payload without the key at all (an older build, or a
-  // caller that only means to change metadata) leaves the librarian's setting
-  // exactly as it found it rather than resetting it to "allowed".
-  const allowDownloadRaw = formData.get("allowDownload");
-  const allowDownload =
-    allowDownloadRaw === null ? null : allowDownloadRaw.toString() === "1";
-  const downloadReason = formData.get("downloadDisabledReason")?.toString().trim() || null;
+    // Download policy (migration 0131). The form posts `allowDownload` as "1"/"0"
+    // on every submit; a payload without the key at all (an older build, or a
+    // caller that only means to change metadata) leaves the librarian's setting
+    // exactly as it found it rather than resetting it to "allowed".
+    const allowDownloadRaw = formData.get("allowDownload");
+    const allowDownload =
+      allowDownloadRaw === null ? null : allowDownloadRaw.toString() === "1";
+    const downloadReason = formData.get("downloadDisabledReason")?.toString().trim() || null;
 
-  // SEO overrides (migration 0112): blank → null so the builder auto-generates.
-  const seoTitle       = formData.get("seo_title")?.toString().trim() || null;
-  const seoDescription = formData.get("seo_description")?.toString().trim() || null;
-  const ogImage        = formData.get("og_image")?.toString().trim() || null;
+    // SEO overrides (migration 0112): blank → null so the builder auto-generates.
+    const seoTitle       = formData.get("seo_title")?.toString().trim() || null;
+    const seoDescription = formData.get("seo_description")?.toString().trim() || null;
+    const ogImage        = formData.get("og_image")?.toString().trim() || null;
 
-  // coverUrl handling:
-  //   "__remove__" → set cover_url to null
-  //   "https://…"  → set new cover URL
-  //   absent/""    → keep existing (don't update cover_url)
-  const coverUrlRaw = formData.get("coverUrl")?.toString().trim();
-  const coverUpdate: { cover_url?: string | null } = {};
-  if (coverUrlRaw === "__remove__") {
-    coverUpdate.cover_url = null;
-  } else if (coverUrlRaw && coverUrlRaw.startsWith("http")) {
-    coverUpdate.cover_url = coverUrlRaw;
-  }
-  // else: no change to cover_url
+    // coverUrl handling:
+    //   "__remove__" → set cover_url to null
+    //   "https://…"  → set new cover URL
+    //   absent/""    → keep existing (don't update cover_url)
+    const coverUrlRaw = formData.get("coverUrl")?.toString().trim();
+    const coverUpdate: { cover_url?: string | null } = {};
+    if (coverUrlRaw === "__remove__") {
+      coverUpdate.cover_url = null;
+    } else if (coverUrlRaw && coverUrlRaw.startsWith("http")) {
+      coverUpdate.cover_url = coverUrlRaw;
+    }
+    // else: no change to cover_url
 
-  // Same canonical-author rule as the upload form: a verified picked id wins,
-  // otherwise upsert by name.
-  let editAuthorId: string | null = null;
-  const pickedEditAuthorId = formData.get("authorId")?.toString().trim();
-  if (pickedEditAuthorId && UUID_PATTERN.test(pickedEditAuthorId)) {
-    const { data: picked } = await supabase
-      .from("authors")
-      .select("id")
-      .eq("id", pickedEditAuthorId)
-      .maybeSingle();
-    if (picked) editAuthorId = picked.id;
-  }
-  if (!editAuthorId) {
-    const { data: authorRow, error: authorError } = await supabase
-      .from("authors")
-      .upsert({ name: author }, { onConflict: "name" })
-      .select("id")
-      .single();
-    if (authorError) throw new Error(`Author error: ${authorError.message}`);
-    editAuthorId = authorRow.id;
-    await ensureAuthorSlug(supabase, authorRow.id, author);
-  }
-
-  // Look up existing category first; only insert if not found
-  let categoryId: string;
-  const providedCategoryId = formData.get("categoryId")?.toString().trim();
-
-  if (providedCategoryId) {
-    categoryId = providedCategoryId;
-  } else {
-    const existingCat = await findTaxonomyByName(supabase, "categories", category);
-
-    if (existingCat) {
-      categoryId = existingCat.id;
-    } else {
-      const { data: newCat, error: catInsertErr } = await supabase
-        .from("categories")
-        .insert({ name: category, slug: slugify(category) })
+    // Same canonical-author rule as the upload form: a verified picked id wins,
+    // otherwise upsert by name.
+    let editAuthorId: string | null = null;
+    const pickedEditAuthorId = formData.get("authorId")?.toString().trim();
+    if (pickedEditAuthorId && UUID_PATTERN.test(pickedEditAuthorId)) {
+      const { data: picked } = await supabase
+        .from("authors")
+        .select("id")
+        .eq("id", pickedEditAuthorId)
+        .maybeSingle();
+      if (picked) editAuthorId = picked.id;
+    }
+    if (!editAuthorId) {
+      const { data: authorRow, error: authorError } = await supabase
+        .from("authors")
+        .upsert({ name: author }, { onConflict: "name" })
         .select("id")
         .single();
-      if (catInsertErr) {
-        const { data: retryCat } = await supabase
-          .from("categories").select("id").eq("name", category).single();
-        if (!retryCat) throw new Error(`Category error: ${catInsertErr.message}`);
-        categoryId = retryCat.id;
-      } else {
-        categoryId = newCat.id;
-      }
+      if (authorError) throw new Error(`Author error: ${authorError.message}`);
+      editAuthorId = authorRow.id;
+      await ensureAuthorSlug(supabase, authorRow.id, author);
     }
-  }
 
-  // Look up existing department first; only insert if not found
-  let departmentId: string;
-  const providedDepartmentId = formData.get("departmentId")?.toString().trim();
+    // Look up existing category first; only insert if not found
+    let categoryId: string;
+    const providedCategoryId = formData.get("categoryId")?.toString().trim();
 
-  if (providedDepartmentId) {
-    departmentId = providedDepartmentId;
-  } else {
-    const existingDept = await findTaxonomyByName(supabase, "departments", department);
-
-    if (existingDept) {
-      departmentId = existingDept.id;
+    if (providedCategoryId) {
+      categoryId = providedCategoryId;
     } else {
-      const { data: newDept, error: deptInsertErr } = await supabase
-        .from("departments")
-        .insert({ name: department, slug: slugify(department) })
-        .select("id")
-        .single();
-      if (deptInsertErr) {
-        const { data: retryDept } = await supabase
-          .from("departments").select("id").eq("name", department).single();
-        if (!retryDept) throw new Error(`Department error: ${deptInsertErr.message}`);
-        departmentId = retryDept.id;
+      const existingCat = await findTaxonomyByName(supabase, "categories", category);
+
+      if (existingCat) {
+        categoryId = existingCat.id;
       } else {
-        departmentId = newDept.id;
+        const { data: newCat, error: catInsertErr } = await supabase
+          .from("categories")
+          .insert({ name: category, slug: slugify(category) })
+          .select("id")
+          .single();
+        if (catInsertErr) {
+          const { data: retryCat } = await supabase
+            .from("categories")
+            .select("id")
+            .or(`name.eq."${category}",slug.eq."${slugify(category)}"`)
+            .maybeSingle();
+          if (!retryCat) {
+            const found = await findTaxonomyByName(supabase, "categories", category);
+            if (!found) throw new Error(`Category error: ${catInsertErr.message}`);
+            categoryId = found.id;
+          } else {
+            categoryId = retryCat.id;
+          }
+        } else {
+          categoryId = newCat.id;
+        }
       }
     }
-  }
 
-  // Previous value, for the audit trail below. `select("allow_download")` on a
-  // database without the column errors rather than returning undefined, so the
-  // read is tolerated and degrades to "unknown" (null) — which only costs the
-  // before/after detail in one audit row, never the update itself.
-  let previousAllowDownload: boolean | null = null;
-  if (allowDownload !== null) {
-    const { data: prev } = await supabase
-      .from("books")
-      .select("allow_download")
-      .eq("id", bookId)
-      .maybeSingle();
-    previousAllowDownload = (prev?.allow_download as boolean | undefined) ?? null;
-  }
+    // Look up existing department first; only insert if not found
+    let departmentId: string;
+    const providedDepartmentId = formData.get("departmentId")?.toString().trim();
 
-  const bookUpdate = {
-      title,
-      description:  summary,
-      author_id:    editAuthorId,
-      category_id:  categoryId,
-      department_id: departmentId,
-      language,
-      published_at: `${year}-01-01`,
-      department, // keep text column for now during transition
-      isbn,
-      publisher,
-      pages,
-      tags: parseTags(formData, "tags"),
-      seo_title: seoTitle,
-      seo_description: seoDescription,
-      og_image: ogImage,
-      ...(license ? { license } : {}),
-      ...(allowDownload === null
-        ? {}
-        : {
-            allow_download: allowDownload,
-            // The restriction message only exists while the restriction does.
-            download_disabled_reason: allowDownload ? null : downloadReason,
-          }),
-      ...coverUpdate, // only included if cover changed/removed
-  };
+    if (providedDepartmentId) {
+      departmentId = providedDepartmentId;
+    } else {
+      const existingDept = await findTaxonomyByName(supabase, "departments", department);
 
-  const runUpdate = (payload: Record<string, unknown>) =>
-    supabase.from("books").update(payload).eq("id", bookId).select("id, slug").single();
-
-  let { data: book, error: bookError } = await runUpdate(bookUpdate);
-
-  // A database that has not received 0131 rejects the whole UPDATE. Retry
-  // without the two policy columns so ordinary metadata editing survives — but
-  // only tell the librarian it worked if they were not actually trying to
-  // restrict the book, because silently discarding that decision would leave
-  // them believing a download is blocked when it is not.
-  if (bookError && (bookError.code === "42703" || bookError.code === "PGRST204")) {
-    if (allowDownload === false) {
-      throw new Error(
-        "Download permission could not be saved: this database has not had migration 0131 applied yet. " +
-          "Nothing was changed — apply the migration and try again.",
-      );
+      if (existingDept) {
+        departmentId = existingDept.id;
+      } else {
+        const { data: newDept, error: deptInsertErr } = await supabase
+          .from("departments")
+          .insert({ name: department, slug: slugify(department) })
+          .select("id")
+          .single();
+        if (deptInsertErr) {
+          const { data: retryDept } = await supabase
+            .from("departments")
+            .select("id")
+            .or(`name.eq."${department}",slug.eq."${slugify(department)}"`)
+            .maybeSingle();
+          if (!retryDept) {
+            const found = await findTaxonomyByName(supabase, "departments", department);
+            if (!found) throw new Error(`Department error: ${deptInsertErr.message}`);
+            departmentId = found.id;
+          } else {
+            departmentId = retryDept.id;
+          }
+        } else {
+          departmentId = newDept.id;
+        }
+      }
     }
-    const withoutPolicy: Record<string, unknown> = { ...bookUpdate };
-    delete withoutPolicy.allow_download;
-    delete withoutPolicy.download_disabled_reason;
-    ({ data: book, error: bookError } = await runUpdate(withoutPolicy));
+
+    // Previous value, for the audit trail below. `select("allow_download")` on a
+    // database without the column errors rather than returning undefined, so the
+    // read is tolerated and degrades to "unknown" (null) — which only costs the
+    // before/after detail in one audit row, never the update itself.
+    let previousAllowDownload: boolean | null = null;
+    if (allowDownload !== null) {
+      const { data: prev } = await supabase
+        .from("books")
+        .select("allow_download")
+        .eq("id", bookId)
+        .maybeSingle();
+      previousAllowDownload = (prev?.allow_download as boolean | undefined) ?? null;
+    }
+
+    const bookUpdate = {
+        title,
+        description:  summary,
+        author_id:    editAuthorId,
+        category_id:  categoryId,
+        department_id: departmentId,
+        language,
+        published_at: `${year}-01-01`,
+        department, // keep text column for now during transition
+        isbn,
+        publisher,
+        pages,
+        tags: parseTags(formData, "tags"),
+        seo_title: seoTitle,
+        seo_description: seoDescription,
+        og_image: ogImage,
+        ...(license ? { license } : {}),
+        ...(allowDownload === null
+          ? {}
+          : {
+              allow_download: allowDownload,
+              // The restriction message only exists while the restriction does.
+              download_disabled_reason: allowDownload ? null : downloadReason,
+            }),
+        ...coverUpdate, // only included if cover changed/removed
+    };
+
+    const runUpdate = (payload: Record<string, unknown>) =>
+      supabase.from("books").update(payload).eq("id", bookId).select("id, slug").single();
+
+    let { data: book, error: bookError } = await runUpdate(bookUpdate);
+
+    // A database that has not received 0131 rejects the whole UPDATE. Retry
+    // without the two policy columns so ordinary metadata editing survives — but
+    // only tell the librarian it worked if they were not actually trying to
+    // restrict the book, because silently discarding that decision would leave
+    // them believing a download is blocked when it is not.
+    if (bookError && (bookError.code === "42703" || bookError.code === "PGRST204")) {
+      if (allowDownload === false) {
+        throw new Error(
+          "Download permission could not be saved: this database has not had migration 0131 applied yet. " +
+            "Nothing was changed — apply the migration and try again.",
+        );
+      }
+      const withoutPolicy: Record<string, unknown> = { ...bookUpdate };
+      delete withoutPolicy.allow_download;
+      delete withoutPolicy.download_disabled_reason;
+      ({ data: book, error: bookError } = await runUpdate(withoutPolicy));
+    }
+    if (bookError) throw new Error(`Book update failed: ${bookError.message}`);
+    if (!book) throw new Error("Book update failed: the record no longer exists.");
+
+    await logAdminAction(user.id, "book.update", "books", bookId, { title });
+
+    // A change to who may take the file away is a security-relevant decision, not
+    // a metadata edit, so it gets its own audit row with the before/after values.
+    // Written only when the value actually moved. `previousAllowDownload` is null
+    // only when the column could not be read at all (pre-0131), where there is no
+    // transition to report.
+    if (
+      allowDownload !== null &&
+      previousAllowDownload !== null &&
+      allowDownload !== previousAllowDownload
+    ) {
+      await logAdminAction(user.id, "book.download_permission", "books", bookId, {
+        title,
+        from: previousAllowDownload,
+        to: allowDownload,
+      });
+    }
+
+    revalidateBook(book.slug, { affectsHome: true });
+    revalidatePath("/admin");
+    revalidatePath(EBOOKS_BASE_PATH);
+    return { success: true, slug: book.slug };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Book update failed" };
   }
-  if (bookError) throw new Error(`Book update failed: ${bookError.message}`);
-  if (!book) throw new Error("Book update failed: the record no longer exists.");
-
-  await logAdminAction(user.id, "book.update", "books", bookId, { title });
-
-  // A change to who may take the file away is a security-relevant decision, not
-  // a metadata edit, so it gets its own audit row with the before/after values.
-  // Written only when the value actually moved. `previousAllowDownload` is null
-  // only when the column could not be read at all (pre-0131), where there is no
-  // transition to report.
-  if (
-    allowDownload !== null &&
-    previousAllowDownload !== null &&
-    allowDownload !== previousAllowDownload
-  ) {
-    await logAdminAction(user.id, "book.download_permission", "books", bookId, {
-      title,
-      from: previousAllowDownload,
-      to: allowDownload,
-    });
-  }
-
-  revalidateBook(book.slug, { affectsHome: true });
-  revalidatePath("/admin");
-  revalidatePath(EBOOKS_BASE_PATH);
-  redirect(`/books/${book.slug}`);
 }
 
 // ── addCategory — create a new category (admin only, bypasses RLS) ──
