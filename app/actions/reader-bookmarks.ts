@@ -224,28 +224,51 @@ export async function setReaderBookmarkLabel(
 }
 
 /**
- * Move this device's `localStorage` bookmarks into the account, once.
+ * Reconcile this device's `localStorage` bookmarks with the account, once per
+ * document, and report who the account is.
  *
- * Called by the reader on first sync. Pages already bookmarked server-side are
- * left exactly as they are — `ignoreDuplicates` means an existing row keeps
- * its label rather than having it overwritten with null by a device that never
- * knew about it. Returns the full server set so the caller replaces its state
- * with the merged truth instead of guessing at it.
+ * THE OWNERSHIP DECISION IS MADE HERE, not in the browser, because this is
+ * where identity is actually known. A shared lab machine has one localStorage
+ * per origin and many readers: without this check, the next student to sign in
+ * would upload the previous student's bookmarks into their own account on
+ * first sync — silently, and with no way to tell afterwards which pages were
+ * whose. `lib/offline.ts` stamps downloaded books with their owning account
+ * for the same reason.
+ *
+ * Three cases, and the middle one is the whole point:
+ *
+ *   • `localOwner` is null — a record written before 0141. Trusted and
+ *     claimed: those pages predate multi-account sync, and they were already
+ *     visible to everyone using that browser, so uploading them is no worse
+ *     than the status quo and is what carries an existing reader's bookmarks
+ *     into their account.
+ *   • `localOwner` is SOMEONE ELSE — not uploaded, at all. The caller is given
+ *     this account's own bookmarks and told the new owner, and overwrites its
+ *     local record with them.
+ *   • `localOwner` is this account — the ordinary path.
+ *
+ * Pages already bookmarked server-side keep their labels: `ignoreDuplicates`
+ * means an existing row is left alone rather than having its label nulled by a
+ * device that never knew about it.
  */
-export async function migrateLocalBookmarks(
+export async function syncReaderBookmarks(
   recordType: ResourceRecordType,
   recordId: string,
-  pages: number[],
-): Promise<ReaderBookmark[]> {
-  if (validate(recordType, recordId)) return [];
+  localPages: number[],
+  localOwner: string | null,
+): Promise<{ ownerKey: string | null; bookmarks: ReaderBookmark[] }> {
+  if (validate(recordType, recordId)) return { ownerKey: null, bookmarks: [] };
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+  if (!user) return { ownerKey: null, bookmarks: [] };
 
-  const clean = [...new Set(pages)]
-    .filter((p) => Number.isFinite(p) && p >= 1 && Math.floor(p) === p)
-    .slice(0, MAX_BOOKMARKS_PER_RECORD);
+  const mine = localOwner === null || localOwner === user.id;
+  const clean = mine
+    ? [...new Set(localPages)]
+        .filter((p) => Number.isFinite(p) && p >= 1 && Math.floor(p) === p)
+        .slice(0, MAX_BOOKMARKS_PER_RECORD)
+    : [];
 
   if (clean.length > 0) {
     const { error } = await supabase.from("reader_bookmarks").upsert(
@@ -257,13 +280,13 @@ export async function migrateLocalBookmarks(
       })),
       { onConflict: "user_id,record_type,record_id,page_number", ignoreDuplicates: true },
     );
-    // A failed migration must not lose the device's bookmarks: the caller
-    // keeps its local set, and the next sync tries again.
-    if (error) {
-      console.error("[migrateLocalBookmarks]", error.message);
-      return getReaderBookmarks(recordType, recordId);
-    }
+    // A failed upload must not lose the device's bookmarks: the caller keeps
+    // its local set and the next open tries again.
+    if (error) console.error("[syncReaderBookmarks]", error.message);
   }
 
-  return getReaderBookmarks(recordType, recordId);
+  return {
+    ownerKey: user.id,
+    bookmarks: await getReaderBookmarks(recordType, recordId),
+  };
 }

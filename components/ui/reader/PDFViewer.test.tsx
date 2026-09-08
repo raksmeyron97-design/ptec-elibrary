@@ -504,7 +504,11 @@ describe("bookmarks", () => {
     key("b");
     key("b");
     key("b");
-    expect(JSON.parse(localStorage.getItem(`ebook:bm:${BOOK}`)!)).toEqual([1, 2]);
+    // The device record carries the pages AND the account they belong to
+    // (0141). `o` is null here: this viewer is signed out, so nothing was
+    // synced and the record is unclaimed — which is also the shape a pre-0141
+    // reader's bookmarks are read back as.
+    expect(JSON.parse(localStorage.getItem(`ebook:bm:${BOOK}`)!)).toEqual({ o: null, p: [1, 2] });
     fireEvent.click(screen.getAllByRole("button", { name: "Reader navigation" })[0]);
     fireEvent.click(screen.getByRole("tab", { name: "Bookmarks" }));
     const list = screen.getByRole("tabpanel");

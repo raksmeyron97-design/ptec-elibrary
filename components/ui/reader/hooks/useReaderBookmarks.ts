@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   addReaderBookmark,
-  migrateLocalBookmarks,
   removeReaderBookmark,
   setReaderBookmarkLabel,
+  syncReaderBookmarks,
   type ReaderBookmark,
 } from "@/app/actions/reader-bookmarks";
 import type { ResourceRecordType } from "@/app/actions/reading-lists";
-import { READER_KEYS, lsSet, loadBookmarks } from "../reader-config";
+import { loadBookmarkRecord, saveBookmarkRecord } from "../reader-config";
 
 /**
  * Bookmarks for the open document: instant on this device, durable on the
@@ -25,7 +25,12 @@ import { READER_KEYS, lsSet, loadBookmarks } from "../reader-config";
  *   • on mount, signed in, the device's pages are pushed up and the merged
  *     server set comes back — which is what carries the bookmarks an existing
  *     reader already has into their account, without asking them to do
- *     anything or telling them it happened;
+ *     anything or telling them it happened. The device record is STAMPED with
+ *     the account it belongs to, and the server refuses to upload pages
+ *     stamped for somebody else: a lab machine has one localStorage and many
+ *     readers, so without that check the next student to sign in would absorb
+ *     the previous student's bookmarks. `lib/offline.ts` stamps downloaded
+ *     books the same way, for the same reason;
  *   • every toggle updates local state immediately and reports to the server
  *     after, never before;
  *   • a rejected server write ROLLS THE LOCAL STATE BACK, because a bookmark
@@ -48,7 +53,12 @@ export function useReaderBookmarks({
       purely local by construction. */
   isLoggedIn: boolean;
 }) {
-  const [pages, setPages] = useState<number[]>(() => loadBookmarks(recordId));
+  const [pages, setPages] = useState<number[]>(() => loadBookmarkRecord(recordId).pages);
+  /** The account this device's record belongs to; null until the first sync,
+      and for a signed-out or offline reader. */
+  const [ownerKey, setOwnerKey] = useState<string | null>(
+    () => loadBookmarkRecord(recordId).owner,
+  );
   const [labels, setLabels] = useState<Map<number, string>>(() => new Map());
   const [ids, setIds] = useState<Map<number, string>>(() => new Map());
   const [error, setError] = useState<"save" | "remove" | "rename" | null>(null);
@@ -62,8 +72,8 @@ export function useReaderBookmarks({
      FROM the server: it is what the offline reader and the next cold start
      read, so it must not fall behind the account. */
   useEffect(() => {
-    lsSet(READER_KEYS.bookmarks(recordId), JSON.stringify(pages));
-  }, [pages, recordId]);
+    saveBookmarkRecord(recordId, { owner: ownerKey, pages });
+  }, [pages, ownerKey, recordId]);
 
   const applyServer = useCallback((rows: ReaderBookmark[]) => {
     setPages(sortPages(rows.map((r) => r.page_number)));
@@ -79,11 +89,17 @@ export function useReaderBookmarks({
     if (migratedRef.current === key) return;
     migratedRef.current = key;
 
+    const local = loadBookmarkRecord(recordId);
     let cancelled = false;
     setSyncing(true);
-    migrateLocalBookmarks(recordType, recordId, loadBookmarks(recordId))
-      .then((rows) => {
-        if (!cancelled) applyServer(rows);
+    syncReaderBookmarks(recordType, recordId, local.pages, local.owner)
+      .then(({ ownerKey: owner, bookmarks }) => {
+        if (cancelled) return;
+        // Order matters: claim the record for this account BEFORE writing the
+        // pages, so the persistence effect above cannot store another
+        // account's stamp alongside this account's bookmarks.
+        setOwnerKey(owner);
+        applyServer(bookmarks);
       })
       // A failed sync leaves the device's bookmarks alone and visible. They
       // are not lost; they are simply not yet in the account, and the next

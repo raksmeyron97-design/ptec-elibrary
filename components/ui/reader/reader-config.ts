@@ -34,7 +34,8 @@ export const READER_KEYS = {
   pageTransition: "ebook:reader:v2:pageTransition",
   /** Per-book exact reading position `{ p, pct }`. */
   position: (bookId: string) => `ebook:pos:${bookId}`,
-  /** Per-book bookmarks (page numbers). */
+  /** Per-book bookmarks. Historically a bare `number[]`; since 0141 a
+      `{ o, p }` record whose `o` names the account these pages belong to. */
   bookmarks: (bookId: string) => `ebook:bm:${bookId}`,
   /** Per-book page-1 aspect ratio, so the loading placeholder is the right shape. */
   aspect: (bookId: string) => `ebook:ar:${bookId}`,
@@ -95,15 +96,51 @@ export function loadReaderPageTransition(): ReaderPageTransition {
   return lsGet(READER_KEYS.pageTransition) === "off" ? "off" : "auto";
 }
 
-export function loadBookmarks(bookId: string): number[] {
+/** A device's bookmark record: the pages, and the account they belong to.
+
+    OWNERSHIP EXISTS BECAUSE DEVICES ARE SHARED. PTEC students read on lab
+    machines, and localStorage is per-origin, not per-account — so without a
+    stamp, the first reader to sign in after someone else would upload that
+    person's bookmarks into their OWN account on first sync. `lib/offline.ts`
+    carries the same stamp on downloaded books for the same reason.
+
+    `owner` is null for a record written before 0141. That is the migration
+    case and is deliberately trusted: those pages predate multi-account sync
+    and belong to whoever claims them first, which on a personal device is the
+    right answer and on a shared one is no worse than the status quo — they
+    were already visible to everyone using that browser. */
+export type BookmarkRecord = { owner: string | null; pages: number[] };
+
+const cleanPages = (input: unknown): number[] =>
+  Array.isArray(input)
+    ? Array.from(
+        new Set(input.filter((n): n is number => typeof n === "number" && n >= 1)),
+      ).sort((a, b) => a - b)
+    : [];
+
+export function loadBookmarkRecord(bookId: string): BookmarkRecord {
   try {
-    const arr = JSON.parse(lsGet(READER_KEYS.bookmarks(bookId)) ?? "[]");
-    return Array.isArray(arr)
-      ? Array.from(new Set(arr.filter((n): n is number => typeof n === "number" && n >= 1))).sort((a, b) => a - b)
-      : [];
+    const raw = JSON.parse(lsGet(READER_KEYS.bookmarks(bookId)) ?? "null");
+    // The pre-0141 shape is a bare array, and must keep working: a reader's
+    // existing bookmarks are what the first sync is FOR.
+    if (Array.isArray(raw)) return { owner: null, pages: cleanPages(raw) };
+    if (raw && typeof raw === "object") {
+      const o = (raw as { o?: unknown }).o;
+      return { owner: typeof o === "string" ? o : null, pages: cleanPages((raw as { p?: unknown }).p) };
+    }
+    return { owner: null, pages: [] };
   } catch {
-    return [];
+    return { owner: null, pages: [] };
   }
+}
+
+export function saveBookmarkRecord(bookId: string, record: BookmarkRecord): void {
+  lsSet(READER_KEYS.bookmarks(bookId), JSON.stringify({ o: record.owner, p: record.pages }));
+}
+
+/** Just the pages — what the offline reader and the panel actually render. */
+export function loadBookmarks(bookId: string): number[] {
+  return loadBookmarkRecord(bookId).pages;
 }
 
 export function loadAspectRatio(bookId: string): number | undefined {
