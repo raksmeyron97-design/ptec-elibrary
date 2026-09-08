@@ -129,33 +129,38 @@ export function slugify(value: string) {
 // same key instead of leaving orphaned files scattered around.
 // ──────────────────────────────────────────────────────────────
 
+let uidCounter = Math.floor(Math.random() * 1296);
+
 /**
- * Short, URL-safe unique id (8 chars) — the part of a storage folder name that
- * keeps two books apart.
+ * Per-book or per-post short folder suffix: 8 url-safe characters
+ * (`/^[a-z0-9]{8}$/`).
  *
- * Four time-derived characters keep folders roughly chronological, and four
- * random ones carry the uniqueness. The previous `Date.now().toString(36)`
- * alone gave every row built in the same millisecond the same id, and the bulk
- * importer builds all 86 jobs in one synchronous pass. That was survivable
- * while a folder name carried the whole title; it is not now that long titles
- * are truncated to a common prefix and the uid is the only thing left telling
- * two folders apart. Four base36 characters put a 500-row batch's collision
- * probability under 0.1%, against roughly 3 expected collisions with two.
+ * Four time-derived characters keep folders roughly chronological. To guarantee
+ * zero collisions across synchronous loops (e.g. bulk importer building 86+ jobs
+ * or batch tests in the same millisecond), the next two characters are an
+ * in-process counter cycling through 36^2 = 1,296 distinct values, followed by
+ * two random characters for cross-session entropy.
  */
 export function makeUid() {
   const time = Date.now().toString(36).slice(-4);
   const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
-  const bytes = new Uint8Array(4);
-  if (typeof globalThis.crypto?.getRandomValues === "function") {
-    globalThis.crypto.getRandomValues(bytes);
-  } else {
-    for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
-  }
+  const countPart = (uidCounter++ % 1296).toString(36).padStart(2, "0");
   let random = "";
-  // 256 % 36 != 0, so a plain modulo is very slightly biased toward the first
-  // four letters. Irrelevant for a collision-avoidance id, and not a secret.
-  for (const b of bytes) random += alphabet[b % alphabet.length];
-  return `${time}${random}`;
+  if (typeof globalThis.crypto?.getRandomValues === "function") {
+    const buf = new Uint8Array(8);
+    globalThis.crypto.getRandomValues(buf);
+    for (const b of buf) {
+      // 252 is 36 * 7. Dropping 252..255 eliminates modulo bias completely.
+      if (b < 252) {
+        random += alphabet[b % 36];
+        if (random.length === 2) break;
+      }
+    }
+  }
+  while (random.length < 2) {
+    random += alphabet[Math.floor(Math.random() * 36)];
+  }
+  return `${time}${countPart}${random}`;
 }
 
 /** Lower-cased file extension (no dot). Falls back to a sensible default. */
