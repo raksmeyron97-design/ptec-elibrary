@@ -635,8 +635,16 @@ export default function SearchPageClient({ departments, languages, categories }:
   // but the words are inside the documents. Without this the page rendered an
   // empty results area with the page hits stranded underneath it, which reads
   // as "nothing found" — the opposite of what happened.
+  // Which tabs render "found inside". This must agree with the tabs the API
+  // returns page hits FOR (`isPageBearing` in app/api/search/native/route.ts,
+  // page 1 only) — a tab missing here drops hits the server already paid to
+  // fetch, and a tab added here without the server change renders nothing.
+  // Theses and publications are supported server-side and can join by being
+  // listed here.
+  const showsPageHits = activeType === "all" || activeType === "book";
+
   const onlyInside =
-    results !== null && results.length === 0 && pageHits.length > 0 && !loading && activeType === "all";
+    results !== null && results.length === 0 && pageHits.length > 0 && !loading && showsPageHits;
 
   /** The "found inside" cards. Shared by the two placements below: leading the
    *  results when full-text is the only thing that matched, trailing them
@@ -1309,7 +1317,7 @@ export default function SearchPageClient({ departments, languages, categories }:
       )}
       {/* ── Found inside PDFs — trailing placement ────────────────────
           Some titles already matched, so these are supplementary. */}
-      {!loading && activeType === "all" && pageHits.length > 0 && !onlyInside && (
+      {!loading && showsPageHits && pageHits.length > 0 && !onlyInside && (
         <section className="mt-8" aria-labelledby="page-hits-heading">
           <h3
             id="page-hits-heading"

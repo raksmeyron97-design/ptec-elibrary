@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { changedRow } from "@/lib/db/changed-row";
 
 export type Annotation = {
   id: string;
@@ -84,14 +85,25 @@ export async function deleteAnnotation(
   const { data: { user } } = await authClient.auth.getUser();
   if (!user) return { success: false };
 
+  // The service client bypasses RLS, so `.eq("user_id", …)` is the ONLY thing
+  // standing between one reader and another's annotations. `.select()` makes
+  // that guard observable: without it a delete aimed at someone else's row
+  // returns 204/no error and this reported success.
   const supabase = createServiceClient();
-  const { error } = await supabase
-    .from("book_annotations")
-    .delete()
-    .eq("id", annotationId)
-    .eq("user_id", user.id);
+  const result = changedRow(
+    await supabase
+      .from("book_annotations")
+      .delete()
+      .eq("id", annotationId)
+      .eq("user_id", user.id)
+      .select("id"),
+  );
 
-  return { success: !error };
+  if (!result.ok) {
+    if (result.reason === "error") console.error("[deleteAnnotation]:", result.message);
+    return { success: false };
+  }
+  return { success: true };
 }
 
 export async function updateAnnotationNote(
@@ -103,11 +115,18 @@ export async function updateAnnotationNote(
   if (!user) return { success: false };
 
   const supabase = createServiceClient();
-  const { error } = await supabase
-    .from("book_annotations")
-    .update({ note_content: noteContent.trim(), updated_at: new Date().toISOString() })
-    .eq("id", annotationId)
-    .eq("user_id", user.id);
+  const result = changedRow(
+    await supabase
+      .from("book_annotations")
+      .update({ note_content: noteContent.trim(), updated_at: new Date().toISOString() })
+      .eq("id", annotationId)
+      .eq("user_id", user.id)
+      .select("id"),
+  );
 
-  return { success: !error };
+  if (!result.ok) {
+    if (result.reason === "error") console.error("[updateAnnotationNote]:", result.message);
+    return { success: false };
+  }
+  return { success: true };
 }

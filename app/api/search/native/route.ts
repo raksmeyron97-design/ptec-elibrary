@@ -102,6 +102,11 @@ export type PageHit = {
   matchType?: "exact" | "semantic";
 };
 
+/** Types that can have `book_pages` rows, and so can produce "found inside". */
+function isPageBearing(t: SearchResultType): t is PageHit["recordType"] {
+  return t === "book" || t === "research" || t === "publication";
+}
+
 export type SearchFacets = {
   subjects: string[];
   languages: string[];
@@ -1065,13 +1070,31 @@ async function fuzzySearch(db: DB, q: string, typeFilter?: SearchResultType, lim
     }));
 }
 
-async function searchPageContent(db: DB, q: string, limit = 6): Promise<PageHit[]> {
+/**
+ * "Found inside" — pages whose text carries the query verbatim.
+ *
+ * `recordType` narrows the scan to one type. It exists because the blended
+ * view and a type tab want different things from the same query: the blended
+ * view wants the best six hits across the library, while the Books tab wants
+ * the best six BOOK hits. Without it the tab could only filter this function's
+ * output, and by then the row budget has already been spent — a book's page
+ * hit crowded out of the 30-row scan by theses is not a book hit the tab can
+ * recover.
+ */
+async function searchPageContent(
+  db: DB,
+  q: string,
+  limit = 6,
+  recordType?: PageHit["recordType"],
+): Promise<PageHit[]> {
   if (q.length < 3) return [];
   try {
-    const { data, error } = await db
+    let request = db
       .from("book_pages")
       .select("record_type, record_id, page_no, content")
-      .ilike("content", `%${q}%`)
+      .ilike("content", `%${q}%`);
+    if (recordType) request = request.eq("record_type", recordType);
+    const { data, error } = await request
       .order("page_no", { ascending: true })
       .limit(30);
     if (error || !data?.length) return [];
@@ -1452,6 +1475,14 @@ export async function GET(req: Request) {
         }
       }
 
+      // "Found inside" on a type tab. Only the three types that HAVE page text
+      // can produce these, and only on page 1: the hits are a trailing aside
+      // to the first page of results, not a parallel list that paginates with
+      // them. Scoped to the tab's own type, so the Books tab spends its whole
+      // row budget on books.
+      const scopedPageHits =
+        page === 1 && isPageBearing(type) ? await searchPageContent(db, q, 6, type) : [];
+
       const counts: SearchCounts = {
         book: type === "book" ? effectiveCount : 0,
         research: type === "research" ? effectiveCount : 0,
@@ -1469,7 +1500,7 @@ export async function GET(req: Request) {
         hasMore: !fuzzy && effectiveCount > page * PAGE_SIZE_TYPE,
         fuzzy,
         didYouMean,
-        pageHits: [],
+        pageHits: scopedPageHits,
         facets: facetsOf(sorted),
         facetCounts,
         relatedSubjects: facetsOf(sorted).subjects.slice(0, 8),

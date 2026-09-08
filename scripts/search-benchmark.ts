@@ -105,6 +105,8 @@ const BASE = (flag("base") ?? process.env.SEARCH_BENCHMARK_BASE_URL ?? "http://l
 const ONLY = flag("category");
 // The route allows 30 requests per minute per IP (RL_SEARCH_NATIVE_PER_MIN).
 const DELAY_MS = Number(flag("delay") ?? 2_100);
+/** Ask for the type-scoped page (10 rows) so ranks 5..10 are measurable. */
+const DEPTH = process.argv.includes("--depth");
 const USER_AGENT = "ptec-search-benchmark/1.0 (bot; retrieval-quality run)";
 
 function slugOfUrl(url: string): string {
@@ -122,7 +124,37 @@ function matches(expect: Expect[], type: string, slug: string): boolean {
 }
 
 async function runQuery(query: Query): Promise<QueryOutcome> {
-  const url = `${BASE}/api/search/native?q=${encodeURIComponent(query.q)}`;
+  // WHY --depth EXISTS
+  // ──────────────────
+  // The blended view (no `type=`) returns PAGE_SIZE_ALL = 4 results PER TYPE,
+  // while `counts` reports the whole candidate pool. Measured against
+  // production at 270 books: `ទស្សនវិជ្ជា` reports counts.book = 18 and
+  // returns 4 rows. So in the default mode a rank of 5..10 is not merely
+  // unlikely, it is unrepresentable — and "Recall@10 = 83%" was really
+  // "Recall@4 = 83%" wearing a larger number's name.
+  //
+  // `--depth` asks for the type-scoped view (PAGE_SIZE_TYPE = 10) of the
+  // expected record's own type, which is the page a visitor lands on the
+  // moment they click that type's tab. Both modes are honest about a
+  // different surface, so both are kept: default = the blended landing view,
+  // --depth = ranking quality to position 10.
+  //
+  // `pdf_text` is not scoped, even under --depth. Its expected record
+  // surfaces in `pageHits` ("found inside"), and the type-scoped branch of
+  // the route USED to answer `pageHits: []` — scoping the category then
+  // scored R@1 17% / R@5 50% against a collection where the blended view
+  // scores 100%, an artefact of the request rather than of the ranking.
+  //
+  // The route now returns page hits on the page-bearing type tabs (page 1),
+  // so scoping this category is no longer wrong — but the default `--base`
+  // is production, and this exclusion is what keeps the suite honest against
+  // a deployment that predates that change. Drop it once the change is live
+  // everywhere this benchmark is pointed at.
+  const scopedType =
+    DEPTH && query.category !== "pdf_text" ? query.expect[0]?.type : undefined;
+  const url =
+    `${BASE}/api/search/native?q=${encodeURIComponent(query.q)}` +
+    (scopedType ? `&type=${encodeURIComponent(scopedType)}` : "");
   const started = performance.now();
   let status = 0;
   let body: ApiResponse = {};
@@ -222,6 +254,11 @@ function printTable(report: Report, baseline?: Report) {
   const widths = header.map((h, i) => Math.max(h.length, ...lines.map((l) => l[i].length)));
   const fmt = (cells: string[]) => cells.map((c, i) => c.padEnd(widths[i])).join("  ");
   console.log(`\nSearch benchmark — ${report.base} — ${report.collection} (query set v${report.querySetVersion})`);
+  console.log(
+    DEPTH
+      ? "mode: --depth (type-scoped page, 10 rows) — R@5/R@10 are measurable"
+      : "mode: blended landing view (4 rows per type) — ranks >4 are UNREPRESENTABLE; read R@5/R@10 as R@4",
+  );
   console.log(fmt(header));
   console.log(widths.map((w) => "-".repeat(w)).join("  "));
   for (const l of lines) console.log(fmt(l));

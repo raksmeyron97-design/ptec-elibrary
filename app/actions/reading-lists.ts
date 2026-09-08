@@ -1,5 +1,6 @@
 "use server";
 
+import { changedRow, NO_MATCH_MESSAGE } from "@/lib/db/changed-row";
 import { createClient } from "@/lib/supabase/server";
 import {
   revalidateLocalizedPath as revalidatePath,
@@ -89,13 +90,19 @@ export async function updateReadingList(id: string, name: string, description?: 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  const { error } = await supabase
-    .from("reading_lists")
-    .update({ name: name.trim(), description: description?.trim() || null, is_public: isPublic })
-    .eq("id", id)
-    .eq("user_id", user.id);
+  const result = changedRow(
+    await supabase
+      .from("reading_lists")
+      .update({ name: name.trim(), description: description?.trim() || null, is_public: isPublic })
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .select("id"),
+  );
 
-  if (error) return { error: "Failed to update list." };
+  if (!result.ok) {
+    if (result.reason === "error") return { error: "Failed to update list." };
+    return { error: NO_MATCH_MESSAGE };
+  }
   revalidatePath("/dashboard");
   revalidatePath(`/lists/${id}`);
   return { success: true };
@@ -107,13 +114,19 @@ export async function deleteReadingList(id: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  const { error } = await supabase
-    .from("reading_lists")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", user.id);
+  const result = changedRow(
+    await supabase
+      .from("reading_lists")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .select("id"),
+  );
 
-  if (error) return { error: "Failed to delete list." };
+  if (!result.ok) {
+    if (result.reason === "error") return { error: "Failed to delete list." };
+    return { error: NO_MATCH_MESSAGE };
+  }
   revalidatePath("/dashboard");
   return { success: true };
 }
