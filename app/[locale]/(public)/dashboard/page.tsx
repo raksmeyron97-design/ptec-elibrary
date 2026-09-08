@@ -68,13 +68,26 @@ async function readingProgressRows(
   userId: string,
   bookFields: string,
 ) {
+  // The column list is built at runtime, so PostgREST cannot infer the row
+  // type from it (the same reason the read page casts its defensive select).
+  // The shape is asserted here, once, instead of at each of a dozen reads.
+  type ProgressRow = {
+    book_id: string;
+    progress_pct: number;
+    last_read_at: string | null;
+    last_page?: number | null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    books: any;
+  };
+
   const run = (columns: string) =>
     supabase
       .from("reading_progress")
       .select(`${columns}, books ( ${bookFields} )`)
       .eq("user_id", userId)
       .gt("progress_pct", 0)
-      .order("last_read_at", { ascending: false });
+      .order("last_read_at", { ascending: false })
+      .returns<ProgressRow[]>();
 
   const withPage = await run("book_id, progress_pct, last_read_at, last_page");
   if (!withPage.error) return withPage;
@@ -130,7 +143,7 @@ export default async function DashboardPage() {
       ...mapRowToBook(p.books as any),
       progressPct: p.progress_pct,
       lastReadAt: p.last_read_at,
-      lastPage: (p as any).last_page ?? null,
+      lastPage: p.last_page ?? null,
     }];
   });
 

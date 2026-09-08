@@ -372,7 +372,9 @@ describe("reading progress", () => {
       vi.advanceTimersByTime(1600);
     });
     expect(saveReadingProgress).toHaveBeenCalledTimes(1);
-    expect(saveReadingProgress).toHaveBeenCalledWith(BOOK, 100);
+    // The EXACT page travels with the percentage (0141), so a second device
+    // resumes on page 3 rather than near it.
+    expect(saveReadingProgress).toHaveBeenCalledWith(BOOK, 100, { page: 3, pageCount: 3 });
     // The device record keeps the exact page and notes what the server ACKNOWLEDGED.
     await act(async () => {});
     expect(JSON.parse(localStorage.getItem(`ebook:pos:${BOOK}`)!)).toMatchObject({ p: 3, pct: 100, s: 100 });
@@ -388,7 +390,9 @@ describe("reading progress", () => {
     expect(url).toBe("/api/reader/progress");
     expect(init.method).toBe("POST");
     expect(init.keepalive).toBe(true);
-    expect(JSON.parse(init.body as string)).toEqual({ bookId: BOOK, progressPct: 33 });
+    // The teardown beacon carries the exact page too — this is the path that
+    // fires when a reader closes the tab, so it is the one that must not lose it.
+    expect(JSON.parse(init.body as string)).toEqual({ bookId: BOOK, page: 1, pageCount: 3, progressPct: 33 });
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
   });
 
@@ -406,7 +410,9 @@ describe("reading progress", () => {
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("/api/reader/progress");
     expect(init.keepalive).toBe(true);
-    expect(JSON.parse(init.body as string)).toEqual({ bookId: BOOK, progressPct: 67 });
+    // The teardown beacon carries the exact page too — this is the path that
+    // fires when a reader closes the tab, so it is the one that must not lose it.
+    expect(JSON.parse(init.body as string)).toEqual({ bookId: BOOK, page: 2, pageCount: 3, progressPct: 67 });
     // The record must be on disk BEFORE the document goes away — a `.then()`
     // would never run, so the marker is written synchronously in the handler.
     expect(JSON.parse(localStorage.getItem(`ebook:pos:${BOOK}`)!)).toMatchObject({ p: 2, s: 67 });
@@ -760,7 +766,7 @@ describe("reading progress under a failing network", () => {
       vi.advanceTimersByTime(1_700);
     });
     expect(saveReadingProgress).toHaveBeenCalledTimes(2);
-    expect(saveReadingProgress).toHaveBeenLastCalledWith(BOOK, 100);
+    expect(saveReadingProgress).toHaveBeenLastCalledWith(BOOK, 100, { page: 3, pageCount: 3 });
   });
 
   it("flushes a position the server never got as soon as the link returns", async () => {
@@ -781,7 +787,7 @@ describe("reading progress under a failing network", () => {
     await act(async () => {
       vi.advanceTimersByTime(1_700);
     });
-    expect(saveReadingProgress).toHaveBeenCalledWith(BOOK, 67);
+    expect(saveReadingProgress).toHaveBeenCalledWith(BOOK, 67, { page: 2, pageCount: 3 });
   });
 });
 

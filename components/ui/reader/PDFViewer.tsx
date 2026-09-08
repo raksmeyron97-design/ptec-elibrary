@@ -76,7 +76,6 @@ import {
   READER_KEYS,
   READER_THEMES,
   loadAspectRatio,
-  loadBookmarks,
   loadNativePageWidth,
   loadReaderFitMode,
   loadReaderPageTransition,
@@ -105,6 +104,7 @@ import { useReaderGestures } from "./hooks/useReaderGestures";
 import { useReaderKeyboard } from "./hooks/useReaderKeyboard";
 import { useFocusModeTrap } from "./hooks/useFocusModeTrap";
 import { useReaderProgress } from "./hooks/useReaderProgress";
+import { useReaderBookmarks } from "./hooks/useReaderBookmarks";
 import { useReaderPageUrl } from "./hooks/useReaderPageUrl";
 import { useReaderSearch } from "./hooks/useReaderSearch";
 import { useReaderOutline } from "./hooks/useReaderOutline";
@@ -255,14 +255,13 @@ export default function PDFViewer({
   const [theme, setTheme] = useState<ReaderTheme>(loadReaderTheme);
   const [pageTransition, setPageTransition] = useState<ReaderPageTransition>(loadReaderPageTransition);
   const [rotation, setRotation] = useState<number>(() => loadReaderRotation(bookId));
-  const [bookmarks, setBookmarks] = useState<number[]>(() => loadBookmarks(bookId));
+
   useEffect(() => lsSet(READER_KEYS.viewMode, viewMode), [viewMode]);
   useEffect(() => lsSet(READER_KEYS.fitMode, fitMode), [fitMode]);
   useEffect(() => lsSet(READER_KEYS.theme, theme), [theme]);
   useEffect(() => lsSet(READER_KEYS.zoom, String(zoomScale)), [zoomScale]);
   useEffect(() => lsSet(READER_KEYS.pageTransition, pageTransition), [pageTransition]);
   useEffect(() => lsSet(READER_KEYS.rotation(bookId), String(rotation)), [rotation, bookId]);
-  useEffect(() => lsSet(READER_KEYS.bookmarks(bookId), JSON.stringify(bookmarks)), [bookmarks, bookId]);
 
   /* ── Layout measurement ─────────────────────────────────────── */
   const [containerWidth, setContainerWidth] = useState<number>();
@@ -631,6 +630,10 @@ export default function PDFViewer({
   // The dedicated reader route owns its URL; the embedded preview on the book
   // detail page does not, so only "fill" writes `?page=N`.
   useReaderPageUrl({ enabled: layout === "fill", page: currentPage, ready: pdfDoc !== null });
+  // Local-first, account-durable (0141). `isLoggedIn` is already
+  // `prop && !offline`, so the offline reader stays purely local.
+  const bookmarkStore = useReaderBookmarks({ recordId: bookId, isLoggedIn });
+  const bookmarks = bookmarkStore.bookmarks;
   const search = useReaderSearch({ pdfRef, docKey, navigate: navigateToPage, currentPageRef });
   const { entries: outline, resolvePage: resolveOutlinePage } = useReaderOutline(pdfDoc);
   const outlineIndex = useMemo(() => currentSectionIndex(outline, currentPage), [outline, currentPage]);
@@ -796,11 +799,16 @@ export default function PDFViewer({
     [geomRef],
   );
   const isBookmarked = bookmarks.includes(currentPage);
+  const toggleBookmarkPage = bookmarkStore.toggle;
   const toggleBookmark = useCallback(() => {
     const p = currentPageRef.current;
-    setBookmarks((bm) => (bm.includes(p) ? bm.filter((x) => x !== p) : [...bm, p].sort((a, b) => a - b)));
+    // Announce the intent, not the outcome: the local change is synchronous
+    // and the server round-trip is not, and a screen reader must not wait on
+    // the network to hear what a tap did. A rejected write rolls the state
+    // back and surfaces in the panel, where it can be explained.
     announce(t(bookmarks.includes(p) ? "bookmarkRemoved" : "bookmarkAdded"));
-  }, [announce, t, bookmarks]);
+    void toggleBookmarkPage(p);
+  }, [announce, t, bookmarks, toggleBookmarkPage]);
 
   /* ── Panel ──────────────────────────────────────────────────── */
   const openPanel = useCallback((tab: PanelTabId) => {
@@ -1292,8 +1300,13 @@ export default function PDFViewer({
         bookmarks={bookmarks}
         currentPage={currentPage}
         sectionFor={sectionFor}
+        labelFor={bookmarkStore.labelFor}
+        canLabel={bookmarkStore.canLabel}
+        pending={bookmarkStore.pending}
+        error={bookmarkStore.error}
         onSelect={(p) => { navigateToPage(p); afterPick(); }}
-        onRemove={(p) => setBookmarks((bm) => bm.filter((x) => x !== p))}
+        onRemove={bookmarkStore.remove}
+        onRename={bookmarkStore.rename}
         onAddCurrent={toggleBookmark}
         fmt={fmt}
       />
