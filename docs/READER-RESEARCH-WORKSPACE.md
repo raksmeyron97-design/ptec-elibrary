@@ -138,6 +138,18 @@ layered underneath:
    without asking them to do anything, and without telling them it happened.
    Existing rows keep their labels (`ignoreDuplicates`), so a device that never
    knew about a label cannot null it.
+
+   **The record is stamped with the account it belongs to**, and the decision
+   is made on the server (`syncReaderBookmarks`), because the browser cannot
+   know which account it is talking to. `localStorage` is per-origin, not per
+   account: on a lab PC, an unstamped sync would upload the previous student's
+   bookmarks into the next student's account, silently and unrecoverably.
+   Pages stamped for someone else are **not uploaded at all** — the caller is
+   handed this account's own bookmarks and the new owner. An *unstamped*
+   record (pre-0141) is trusted and claimed: those pages predate multi-account
+   sync and were already visible to everyone using that browser, so uploading
+   them is no worse than the status quo, and it is what makes the migration
+   work at all. `lib/offline.ts` stamps downloaded books the same way.
 2. **Every toggle** updates local state first and reports to the server after.
 3. **A rejected write rolls local state back** — a bookmark that shows in the
    panel and does not exist in the account is the failure this table exists to
