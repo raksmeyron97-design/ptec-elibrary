@@ -139,13 +139,17 @@ async function runQuery(query: Query): Promise<QueryOutcome> {
   // different surface, so both are kept: default = the blended landing view,
   // --depth = ranking quality to position 10.
   //
-  // `pdf_text` is deliberately NOT scoped, even under --depth. Its expected
-  // record surfaces in `pageHits` ("found inside"), and the type-scoped
-  // branch of the route answers `pageHits: []` (native/route.ts) — so
-  // scoping that category would not measure a deeper page, it would measure
-  // a surface that no longer contains the answer. Scoping it scored
-  // R@1 17% / R@5 50% against the same collection where the blended view
-  // scores 100%: an artefact of the request, not of the ranking.
+  // `pdf_text` is not scoped, even under --depth. Its expected record
+  // surfaces in `pageHits` ("found inside"), and the type-scoped branch of
+  // the route USED to answer `pageHits: []` — scoping the category then
+  // scored R@1 17% / R@5 50% against a collection where the blended view
+  // scores 100%, an artefact of the request rather than of the ranking.
+  //
+  // The route now returns page hits on the page-bearing type tabs (page 1),
+  // so scoping this category is no longer wrong — but the default `--base`
+  // is production, and this exclusion is what keeps the suite honest against
+  // a deployment that predates that change. Drop it once the change is live
+  // everywhere this benchmark is pointed at.
   const scopedType =
     DEPTH && query.category !== "pdf_text" ? query.expect[0]?.type : undefined;
   const url =
