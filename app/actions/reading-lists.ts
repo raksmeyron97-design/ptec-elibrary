@@ -89,13 +89,19 @@ export async function updateReadingList(id: string, name: string, description?: 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("reading_lists")
     .update({ name: name.trim(), description: description?.trim() || null, is_public: isPublic })
     .eq("id", id)
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .select("id");
 
   if (error) return { error: "Failed to update list." };
+  // Zero rows means this collection is not the caller's, or no longer exists.
+  // Nothing was renamed, and saying otherwise leaves the old name in the
+  // database and the new one on screen.
+  if ((data ?? []).length === 0) return { error: "List not found." };
+
   revalidatePath("/dashboard");
   revalidatePath(`/lists/${id}`);
   return { success: true };
@@ -107,15 +113,19 @@ export async function deleteReadingList(id: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("reading_lists")
     .delete()
     .eq("id", id)
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .select("id");
 
   if (error) return { error: "Failed to delete list." };
+
   revalidatePath("/dashboard");
-  return { success: true };
+  // A collection that was already gone still leaves the caller in the state
+  // they asked for, so this is a success — but `removed` says which happened.
+  return { success: true, removed: (data ?? []).length > 0 };
 }
 
 // ── Get user's own lists ──────────────────────────────────────
@@ -301,10 +311,23 @@ export async function removeItemFromList(
     .eq("record_type", recordType)
     .eq("record_id", recordId);
   query = page === undefined ? query.is("page_number", null) : query.eq("page_number", page);
-  await query;
+
+  // The result was previously discarded entirely — `await query;` — so this
+  // returned `{ success: true }` whether the row went, the database refused
+  // the statement, or the connection dropped. The caller then removed the
+  // source from the collection on screen while it stayed in the database, and
+  // the student found it again on their next visit with no idea why.
+  const { data, error } = await query.select("id");
+  if (error) {
+    console.error("[removeItemFromList]", error.message);
+    return { error: "Failed to remove." };
+  }
 
   revalidateUserWorkspace(listId);
-  return { success: true };
+  // `removed` distinguishes "we deleted it" from "it was not there". Both are
+  // successes — the caller wanted this resource out of this collection and it
+  // is — but only the second is safe to treat as a no-op.
+  return { success: true, removed: (data ?? []).length > 0 };
 }
 
 /** Edit the note on one saved item. */
@@ -323,14 +346,21 @@ export async function updateItemNote(itemId: string, note: string) {
     return { error: "Item not found." };
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("reading_list_items")
     .update({ note: note.trim() || null })
-    .eq("id", itemId);
-  if (error) return { error: "Failed to save note." };
+    .eq("id", itemId)
+    .select("id, note");
+  if (error) {
+    console.error("[updateItemNote]", error.message);
+    return { error: "Failed to save note." };
+  }
+  // A zero-row update has not stored what the reader typed. Unlike a delete,
+  // there is no reading of this in which the caller's intent was satisfied.
+  if ((data ?? []).length === 0) return { error: "Item not found." };
 
   revalidateUserWorkspace((item as any).list_id);
-  return { success: true };
+  return { success: true, note: (data as any)[0].note as string | null };
 }
 
 /** Which of the caller's lists already hold this resource. */

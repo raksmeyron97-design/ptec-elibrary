@@ -1333,8 +1333,11 @@ export default function PDFViewer({
         loading={notes.loading}
         error={notes.error}
         pendingDelete={notes.pendingDelete}
+        pendingEdit={notes.pendingEdit}
+        canEdit={isLoggedIn}
         onSelect={(p) => { navigateToPage(p); afterPick(); }}
         onRemove={notes.remove}
+        onEdit={notes.edit}
         fmt={fmt}
       />
     );

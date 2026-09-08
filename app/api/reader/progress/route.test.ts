@@ -53,12 +53,28 @@ describe("POST /api/reader/progress", () => {
     expect(res.status).toBe(204);
     expect(await res.text()).toBe("");
     expect(res.headers.get("cache-control")).toBe("private, no-store");
-    expect(upsertReadingProgress).toHaveBeenCalledWith(USER, BOOK, 42);
+    // A body with no page still saves the percentage: the exact page (0141)
+    // is optional, and a client that does not send one must not be refused.
+    expect(upsertReadingProgress).toHaveBeenCalledWith(USER, BOOK, 42, { page: null, pageCount: null });
   });
 
   it("takes the user from the SESSION, never from the body", async () => {
     await POST(post({ bookId: BOOK, progressPct: 10, userId: "11111111-1111-4111-8111-111111111111" }));
-    expect(upsertReadingProgress).toHaveBeenCalledWith(USER, BOOK, 10);
+    expect(upsertReadingProgress).toHaveBeenCalledWith(USER, BOOK, 10, { page: null, pageCount: null });
+  });
+
+  it("carries the exact page when the beacon sends one", async () => {
+    await POST(post({ bookId: BOOK, progressPct: 42, page: 210, pageCount: 500 }));
+    expect(upsertReadingProgress).toHaveBeenCalledWith(USER, BOOK, 42, { page: 210, pageCount: 500 });
+  });
+
+  it("drops a malformed page rather than refusing the request", async () => {
+    // This endpoint is a teardown beacon. Rejecting the whole request over an
+    // optional field would lose the percentage too — the exact loss it exists
+    // to prevent.
+    const res = await POST(post({ bookId: BOOK, progressPct: 42, page: -3, pageCount: "many" }));
+    expect(res.status).toBe(204);
+    expect(upsertReadingProgress).toHaveBeenCalledWith(USER, BOOK, 42, { page: null, pageCount: null });
   });
 
   it("refuses an anonymous caller without opening a service client", async () => {

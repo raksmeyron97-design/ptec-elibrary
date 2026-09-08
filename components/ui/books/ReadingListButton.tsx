@@ -2,10 +2,30 @@
 
 import { useState, useEffect, useRef } from "react";
 import { BookMarked, Plus, Check, ChevronDown, X, Loader2 } from "lucide-react";
-import { getMyReadingLists, addItemToList, removeItemFromList, createReadingList } from "@/app/actions/reading-lists";
+import {
+  getMyReadingLists,
+  getListsContainingItem,
+  addItemToList,
+  removeItemFromList,
+  createReadingList,
+} from "@/app/actions/reading-lists";
 import type { ReadingList, ResourceRecordType } from "@/app/actions/reading-lists";
 import { useSession } from "@/components/providers/SessionProvider";
 
+/**
+ * Add a resource to one or more research collections.
+ *
+ * WHICH COLLECTIONS ALREADY HOLD IT is loaded when the menu opens, not
+ * assumed from a prop. `initialListIds` is an optimisation for the book detail
+ * page, which resolves it server-side; every OTHER mount — theses and
+ * publications, through ActionButtons — passed nothing, so the menu opened
+ * with every collection unticked no matter what was in them. Clicking an
+ * already-saved collection then inserted a duplicate, hit the unique index
+ * (0136), came back `already_in_list`, and the handler's `if (!res.error)`
+ * dropped it: no tick appeared, no message appeared, and the control read as
+ * broken. It was not broken — it was correctly refusing a duplicate and
+ * failing to say so.
+ */
 interface Props {
   /** Any published resource — a collection holds all three types. */
   recordId: string;
@@ -31,6 +51,7 @@ export default function ReadingListButton({
   const [inLists, setInLists] = useState<Set<string>>(new Set(initialListIds));
   const [loading, setLoading] = useState(false);
   const [busy, setBusy]     = useState<string | null>(null);
+  const [error, setError]   = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName]   = useState("");
   const ref = useRef<HTMLDivElement>(null);
@@ -47,22 +68,39 @@ export default function ReadingListButton({
   async function handleOpen() {
     if (!isLoggedIn) { window.location.href = "/auth/login"; return; }
     setOpen((v) => !v);
-    if (!open && lists.length === 0) {
-      setLoading(true);
-      const data = await getMyReadingLists();
-      setLists(data);
-      setLoading(false);
-    }
+    if (open) return;
+    setError(null);
+    // Membership is re-read on every open, even when the lists are cached:
+    // the resource may have been saved or removed from another tab, or from
+    // the collection page, since this menu last ran.
+    setLoading(true);
+    const [data, containing] = await Promise.all([
+      lists.length === 0 ? getMyReadingLists() : Promise.resolve(lists),
+      getListsContainingItem(recordType, recordId),
+    ]);
+    setLists(data);
+    setInLists(new Set(containing));
+    setLoading(false);
   }
 
   async function toggle(listId: string) {
     setBusy(listId);
+    setError(null);
     if (inLists.has(listId)) {
-      await removeItemFromList(listId, recordType, recordId);
-      setInLists((s) => { const n = new Set(s); n.delete(listId); return n; });
+      const res = await removeItemFromList(listId, recordType, recordId);
+      if (res.error) setError(res.error);
+      else setInLists((s) => { const n = new Set(s); n.delete(listId); return n; });
     } else {
       const res = await addItemToList(listId, recordType, recordId);
-      if (!res.error) setInLists((s) => new Set([...s, listId]));
+      // `already_in_list` is the unique index doing its job: the resource is
+      // in this collection exactly once, which is the state the reader asked
+      // for. Tick it rather than reporting a failure — a duplicate save is a
+      // no-op, not an error the reader has to understand.
+      if (!res.error || res.error === "already_in_list") {
+        setInLists((s) => new Set([...s, listId]));
+      } else {
+        setError(res.error);
+      }
     }
     setBusy(null);
   }
@@ -74,8 +112,16 @@ export default function ReadingListButton({
     if (res.success && res.id) {
       const fresh = await getMyReadingLists();
       setLists(fresh);
-      await addItemToList(res.id, recordType, recordId);
-      setInLists((s) => new Set([...s, res.id!]));
+      const added = await addItemToList(res.id, recordType, recordId);
+      // The collection exists either way; only tick it if the resource
+      // actually went in, so the menu cannot claim a save that did not happen.
+      if (!added.error || added.error === "already_in_list") {
+        setInLists((s) => new Set([...s, res.id!]));
+      } else {
+        setError(added.error);
+      }
+    } else if (res.error) {
+      setError(res.error);
     }
     setNewName("");
     setCreating(false);
@@ -111,6 +157,12 @@ export default function ReadingListButton({
               <X className="h-4 w-4" />
             </button>
           </div>
+
+          {error && (
+            <p role="alert" className="border-b border-divider px-4 py-2 text-[12px] leading-5 text-danger">
+              {error}
+            </p>
+          )}
 
           <div className="max-h-60 overflow-y-auto py-1.5">
             {loading ? (
