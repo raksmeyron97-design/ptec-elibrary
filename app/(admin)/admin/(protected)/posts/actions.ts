@@ -165,152 +165,165 @@ function readFeatured(formData: FormData): boolean {
 }
 
 // ── createPost ────────────────────────────────────────────────────
-export async function createPost(formData: FormData) {
-  const { supabase, user } = await requirePermission("posts", "write");
-  await enforceRateLimit(user.id);
+export async function createPost(
+  formData: FormData,
+): Promise<{ success: true; id: string; slug: string } | { success: false; error: string }> {
+  try {
+    const { supabase, user } = await requirePermission("posts", "write");
+    await enforceRateLimit(user.id);
 
-  const title = requiredText(formData, "title");
-  const content = requiredText(formData, "content");
-  const category = normalizeCategory(requiredText(formData, "category"));
-  const excerpt = deriveExcerpt(content, formData.get("excerpt")?.toString() ?? null);
-  const coverUrls = parseCoverUrls(formData);
-  const coverMeta = parseCoverMeta(formData);
-  const tags = parseTags(formData);
-  const { status, scheduledAt, visibility } = readPublishFields(formData);
-  const eventFields = readEventFields(formData, category);
-  const featured = readFeatured(formData);
+    const title = requiredText(formData, "title");
+    const content = requiredText(formData, "content");
+    const category = normalizeCategory(requiredText(formData, "category"));
+    const excerpt = deriveExcerpt(content, formData.get("excerpt")?.toString() ?? null);
+    const coverUrls = parseCoverUrls(formData);
+    const coverMeta = parseCoverMeta(formData);
+    const tags = parseTags(formData);
+    const { status, scheduledAt, visibility } = readPublishFields(formData);
+    const eventFields = readEventFields(formData, category);
+    const featured = readFeatured(formData);
 
-  const requestedSlug = formData.get("slug")?.toString().trim();
-  const slugBase = slugify(requestedSlug || title);
+    const requestedSlug = formData.get("slug")?.toString().trim();
+    const slugBase = slugify(requestedSlug || title);
 
-  const errors = validatePost({
-    title, slug: slugBase || "post", category, content, excerpt, tags, status, scheduledAt,
-    event: {
-      startAt: eventFields.event_start_at,
-      endAt: eventFields.event_end_at,
-      registrationUrl: eventFields.event_registration_url,
-      registrationDeadline: eventFields.event_registration_deadline,
-    },
-  });
-  const firstError = firstValidationError(errors);
-  if (firstError) throw new Error(firstError);
+    const errors = validatePost({
+      title, slug: slugBase || "post", category, content, excerpt, tags, status, scheduledAt,
+      event: {
+        startAt: eventFields.event_start_at,
+        endAt: eventFields.event_end_at,
+        registrationUrl: eventFields.event_registration_url,
+        registrationDeadline: eventFields.event_registration_deadline,
+      },
+    });
+    const firstError = firstValidationError(errors);
+    if (firstError) throw new Error(firstError);
 
-  const slug = await uniqueSlug(supabase, slugBase);
+    const slug = await uniqueSlug(supabase, slugBase);
 
-  const { data: post, error: postError } = await supabase
-    .from("posts")
-    .insert({
-      title,
-      slug,
-      content,
-      excerpt,
-      cover_url: coverUrls[0] ?? null,
-      cover_urls: coverUrls,
-      cover_meta: coverMeta,
-      category,
-      tags,
-      author_id: user.id,
-      status,
-      scheduled_at: scheduledAt,
-      visibility,
-      featured,
-      ...((await eventColumnsAvailable()) ? eventFields : {}),
-      seo_title: formData.get("seoTitle")?.toString().trim() || null,
-      seo_description: formData.get("seoDescription")?.toString().trim() || null,
-      og_image: formData.get("ogImage")?.toString().trim() || null,
-    })
-    .select("id, slug")
-    .single();
-  if (postError) throw new Error(`Post error: ${postError.message}`);
+    const { data: post, error: postError } = await supabase
+      .from("posts")
+      .insert({
+        title,
+        slug,
+        content,
+        excerpt,
+        cover_url: coverUrls[0] ?? null,
+        cover_urls: coverUrls,
+        cover_meta: coverMeta,
+        category,
+        tags,
+        author_id: user.id,
+        status,
+        scheduled_at: scheduledAt,
+        visibility,
+        featured,
+        ...((await eventColumnsAvailable()) ? eventFields : {}),
+        seo_title: formData.get("seoTitle")?.toString().trim() || null,
+        seo_description: formData.get("seoDescription")?.toString().trim() || null,
+        og_image: formData.get("ogImage")?.toString().trim() || null,
+      })
+      .select("id, slug")
+      .single();
+    if (postError) throw new Error(`Post error: ${postError.message}`);
 
-  const meta = await requestMeta();
-  await logAdminAction(user.id, "post.create", "posts", post.id, { title, status, ...meta });
+    const meta = await requestMeta();
+    await logAdminAction(user.id, "post.create", "posts", post.id, { title, status, ...meta });
 
-  revalidatePost(post.slug);
-  revalidatePath("/admin/posts");
-  redirect(`/admin/posts/edit/${post.id}`);
+    revalidatePost(post.slug);
+    revalidatePath("/admin/posts");
+    return { success: true, id: post.id, slug: post.slug };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Failed to create post" };
+  }
 }
 
 // ── updatePost ────────────────────────────────────────────────────
-export async function updatePost(postId: string, formData: FormData) {
-  const { supabase, user } = await requirePermission("posts", "write");
-  await enforceRateLimit(user.id);
+export async function updatePost(
+  postId: string,
+  formData: FormData,
+): Promise<{ success: true; id: string; slug: string } | { success: false; error: string }> {
+  try {
+    const { supabase, user } = await requirePermission("posts", "write");
+    await enforceRateLimit(user.id);
 
-  const title = requiredText(formData, "title");
-  const content = requiredText(formData, "content");
-  const category = normalizeCategory(requiredText(formData, "category"));
-  const excerpt = deriveExcerpt(content, formData.get("excerpt")?.toString() ?? null);
-  const coverUrls = parseCoverUrls(formData);
-  const coverMeta = parseCoverMeta(formData);
-  const tags = parseTags(formData);
-  const { status, scheduledAt, visibility } = readPublishFields(formData);
-  const eventFields = readEventFields(formData, category);
-  const featured = readFeatured(formData);
+    const title = requiredText(formData, "title");
+    const content = requiredText(formData, "content");
+    const category = normalizeCategory(requiredText(formData, "category"));
+    const excerpt = deriveExcerpt(content, formData.get("excerpt")?.toString() ?? null);
+    const coverUrls = parseCoverUrls(formData);
+    const coverMeta = parseCoverMeta(formData);
+    const tags = parseTags(formData);
+    const { status, scheduledAt, visibility } = readPublishFields(formData);
+    const eventFields = readEventFields(formData, category);
+    const featured = readFeatured(formData);
 
-  const requestedSlug = formData.get("slug")?.toString().trim();
-  const slugBase = slugify(requestedSlug || title);
+    const requestedSlug = formData.get("slug")?.toString().trim();
+    const slugBase = slugify(requestedSlug || title);
 
-  const errors = validatePost({
-    title, slug: slugBase || "post", category, content, excerpt, tags, status, scheduledAt,
-    event: {
-      startAt: eventFields.event_start_at,
-      endAt: eventFields.event_end_at,
-      registrationUrl: eventFields.event_registration_url,
-      registrationDeadline: eventFields.event_registration_deadline,
-    },
-  });
-  const firstError = firstValidationError(errors);
-  if (firstError) throw new Error(firstError);
+    const errors = validatePost({
+      title, slug: slugBase || "post", category, content, excerpt, tags, status, scheduledAt,
+      event: {
+        startAt: eventFields.event_start_at,
+        endAt: eventFields.event_end_at,
+        registrationUrl: eventFields.event_registration_url,
+        registrationDeadline: eventFields.event_registration_deadline,
+      },
+    });
+    const firstError = firstValidationError(errors);
+    if (firstError) throw new Error(firstError);
 
-  // Fetch existing URLs so we can delete ones that were removed from storage
-  const { data: existing } = await supabase
-    .from("posts")
-    .select("cover_url, cover_urls")
-    .eq("id", postId)
-    .single();
+    // Fetch existing URLs so we can delete ones that were removed from storage
+    const { data: existing } = await supabase
+      .from("posts")
+      .select("cover_url, cover_urls")
+      .eq("id", postId)
+      .single();
 
-  const oldUrls: string[] =
-    (existing?.cover_urls as string[] | null) ?? (existing?.cover_url ? [existing.cover_url] : []);
+    const oldUrls: string[] =
+      (existing?.cover_urls as string[] | null) ?? (existing?.cover_url ? [existing.cover_url] : []);
 
-  const removedUrls = oldUrls.filter((u) => !coverUrls.includes(u));
-  for (const u of removedUrls) {
-    await zimaDelete(u).catch(() => null);
+    const removedUrls = oldUrls.filter((u) => !coverUrls.includes(u));
+    for (const u of removedUrls) {
+      await zimaDelete(u).catch(() => null);
+    }
+
+    const slug = await uniqueSlug(supabase, slugBase, postId);
+
+    const { data: post, error: postError } = await supabase
+      .from("posts")
+      .update({
+        title,
+        slug,
+        content,
+        excerpt,
+        category,
+        tags,
+        status,
+        scheduled_at: scheduledAt,
+        visibility,
+        featured,
+        ...((await eventColumnsAvailable()) ? eventFields : {}),
+        cover_url: coverUrls[0] ?? null,
+        cover_urls: coverUrls,
+        cover_meta: coverMeta,
+        seo_title: formData.get("seoTitle")?.toString().trim() || null,
+        seo_description: formData.get("seoDescription")?.toString().trim() || null,
+        og_image: formData.get("ogImage")?.toString().trim() || null,
+      })
+      .eq("id", postId)
+      .select("id, slug")
+      .single();
+    if (postError) throw new Error(`Post update failed: ${postError.message}`);
+
+    const meta = await requestMeta();
+    await logAdminAction(user.id, "post.update", "posts", post.id, { title, status, ...meta });
+
+    revalidatePost(post.slug);
+    revalidatePath("/admin/posts");
+    return { success: true, id: post.id, slug: post.slug };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Failed to update post" };
   }
-
-  const slug = await uniqueSlug(supabase, slugBase, postId);
-
-  const { data: post, error: postError } = await supabase
-    .from("posts")
-    .update({
-      title,
-      slug,
-      content,
-      excerpt,
-      category,
-      tags,
-      status,
-      scheduled_at: scheduledAt,
-      visibility,
-      featured,
-      ...((await eventColumnsAvailable()) ? eventFields : {}),
-      cover_url: coverUrls[0] ?? null,
-      cover_urls: coverUrls,
-      cover_meta: coverMeta,
-      seo_title: formData.get("seoTitle")?.toString().trim() || null,
-      seo_description: formData.get("seoDescription")?.toString().trim() || null,
-      og_image: formData.get("ogImage")?.toString().trim() || null,
-    })
-    .eq("id", postId)
-    .select("id, slug")
-    .single();
-  if (postError) throw new Error(`Post update failed: ${postError.message}`);
-
-  const meta = await requestMeta();
-  await logAdminAction(user.id, "post.update", "posts", post.id, { title, status, ...meta });
-
-  revalidatePost(post.slug);
-  revalidatePath("/admin/posts");
-  redirect(`/admin/posts/edit/${postId}`);
 }
 
 // ── deletePost ────────────────────────────────────────────────────
