@@ -1,11 +1,7 @@
 {
-  "version": 1,
-  "collection": "PTEC e-Library public collection, labelled 2026-09-04 (215 published books; no theses/publications/catalog rows yet)",
-  "notes": [
-    "Expectations are real published slugs. A query counts as found when any expected record appears.",
-    "mixed/subject queries accept every record the query legitimately names (a category or a title phrase).",
-    "pdf_text phrases were verified verbatim in book_pages; Khmer page text is not benchmarked because legacy-font OCR in those PDFs is not searchable text."
-  ],
+  "version": 2,
+  "collection": "PTEC e-Library public collection, subject labels refreshed 2026-09-08 (270 published books)",
+  "notes": "Subject labels refreshed 2026-09-08 by scripts/refresh-subject-labels.ts: a book is a correct answer to a subject query when its own title carries the term or it is filed under that category. Tags are deliberately excluded — see that script's header.",
   "queries": [
     {
       "id": "title_en-001",
@@ -996,6 +992,34 @@
         {
           "type": "book",
           "slug": "សៀវភៅអនុគមន៍អិចស្ប៉ូណង់ស្យែល"
+        },
+        {
+          "type": "book",
+          "slug": "វិធីសាស្ត្របង្រៀនគណិតវិទ្យាផ្នែកចំនួន-ថ្នាក់ទី១"
+        },
+        {
+          "type": "book",
+          "slug": "វិធីសាស្ត្របង្រៀនគណិតវិទ្យាផ្នែកចំនួន-ថ្នាក់ទី៦"
+        },
+        {
+          "type": "book",
+          "slug": "ឯកសារជំនួយស្មារតីតេស្ត-pisa-d-គណិតវិទ្យា"
+        },
+        {
+          "type": "book",
+          "slug": "គណិតវិទ្យា-ថ្នាក់ទី៣-សៀវភៅលំហាត់-ភាគ១"
+        },
+        {
+          "type": "book",
+          "slug": "វិធីសាស្ត្របង្រៀនគណិតវិទ្យាផ្នែកចំនួន-ថ្នាក់ទី៥"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូ-គណិតវិទ្យា-ថ្នាក់ទី៣"
+        },
+        {
+          "type": "book",
+          "slug": "វិធីសាស្ត្របង្រៀនគណិតវិទ្យាផ្នែកចំនួន-ថ្នាក់ទី២"
         }
       ]
     },
@@ -1031,6 +1055,10 @@
         {
           "type": "book",
           "slug": "សៀវភៅពិសោធគីមីវិទ្យា-ភាគ២"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅគ្រប់គ្រងបន្ទប់ពិសោធន៍គីមីវិទ្យា"
         }
       ]
     },
@@ -1081,6 +1109,14 @@
         {
           "type": "book",
           "slug": "អន្តរកម្មសម្រាប់វិទ្យាសាស្ត្ររូបវិទ្យា-សៀវភៅសម្រាប់សិស្ស-ភាគ៣"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំពិសោធន៍រូបវិទ្យា"
+        },
+        {
+          "type": "book",
+          "slug": "កម្មវិធីសិក្សាលម្អិត-សម្រាប់កម្មវិធីអប់រំគ្រូបង្រៀនអនុវិទ្យាល័យតាមប្រព័ន្ធ-បរិញ្ញាបត្រ-១-មុខវិជ្ជា-វិធីសាស្ត្រ១-ឯកទេស-រូបវិទ្យា"
         }
       ]
     },
@@ -1100,6 +1136,34 @@
         {
           "type": "book",
           "slug": "ប្រវត្តិសាស្ត្រកម្ពុជាប្រជាធិបតេយ្យ-2nd-edition"
+        },
+        {
+          "type": "book",
+          "slug": "ប្រវត្តិសាស្ត្រប្រទេសកម្ពុជា"
+        },
+        {
+          "type": "book",
+          "slug": "ប្រវត្តិវិទ្យា-ថ្នាក់ទី១២"
+        },
+        {
+          "type": "book",
+          "slug": "សង្គ្រាមត្រជាក់-១៩៤៧-១៩៩១"
+        },
+        {
+          "type": "book",
+          "slug": "សម័យក្រោយអង្គរ-ចតុមុខ-លង្វែក-និងឧដុង្គ"
+        },
+        {
+          "type": "book",
+          "slug": "ប្រវត្តិសាស្ត្រខ្មែរ-សម្រាប់មធ្យមនិងឧត្តមសិក្សា"
+        },
+        {
+          "type": "book",
+          "slug": "ប្រវត្តិសាស្ត្រខ្មែរ-ពាក្យកាព្យរបស់-ឌឿ-វ៉ាន់"
+        },
+        {
+          "type": "book",
+          "slug": "ហែម-ចៀវ-វីរបុរសជាតិ"
         }
       ]
     },
@@ -1119,6 +1183,18 @@
         {
           "type": "book",
           "slug": "រដ្ឋបាលសាធារណៈ"
+        },
+        {
+          "type": "book",
+          "slug": "ច្បាប់ការទូត-diplomatic-law"
+        },
+        {
+          "type": "book",
+          "slug": "សទ្ទានុក្រមពាក្យច្បាប់-និងរដ្ឋបាល"
+        },
+        {
+          "type": "book",
+          "slug": "សទ្ទានុក្រមពាក្យច្បាប់-រដ្ឋប្បវេណី-និងនីតិវិធីរដ្ឋប្បវេណី"
         }
       ]
     },
@@ -1142,6 +1218,18 @@
         {
           "type": "book",
           "slug": "ឯកសារជំនួយ-ស្តីពី-ការអប់រំ-និងការលើកកម្ពស់សុខភាព"
+        },
+        {
+          "type": "book",
+          "slug": "អប់រំសុខភាព-សម្រាប់គ្រូ-ថ្នាក់ទី១១"
+        },
+        {
+          "type": "book",
+          "slug": "សុខភាពនៅក្នុងដៃរបស់យើង-សម្រាប់វិទ្យាសាស្ត្រជីវវិទ្យា"
+        },
+        {
+          "type": "book",
+          "slug": "វិធីសាស្ត្រគ្រប់គ្រងកំហឹង"
         }
       ]
     },
@@ -1157,6 +1245,34 @@
         {
           "type": "book",
           "slug": "មនុស្សលោក-2nd-edition"
+        },
+        {
+          "type": "book",
+          "slug": "មាគ៌ាជីវិត"
+        },
+        {
+          "type": "book",
+          "slug": "មេរៀនសង្ខេបទស្សនវិជ្ជា-ថ្នាក់ទី-១១"
+        },
+        {
+          "type": "book",
+          "slug": "តាវ-តឺជីង-dao-de-jing"
+        },
+        {
+          "type": "book",
+          "slug": "មគ្គុទ្ទេសក៍ជីវិត"
+        },
+        {
+          "type": "book",
+          "slug": "សទ្ទានុក្រមទស្សនវិជ្ជា"
+        },
+        {
+          "type": "book",
+          "slug": "កម្ម-អ្នកសាងលោកពិត"
+        },
+        {
+          "type": "book",
+          "slug": "សកលចិន្តា-ធម្មបាល"
         }
       ]
     },
@@ -1180,6 +1296,26 @@
         {
           "type": "book",
           "slug": "សៀវភៅគ្រូ-អក្ខរកម្មឌីជីថល-កម្រិតមធ្យម"
+        },
+        {
+          "type": "book",
+          "slug": "អេឡិចត្រូនិចសម្រាប់ថ្នាក់ទី៧-៨-៩-ស្ទែម"
+        },
+        {
+          "type": "book",
+          "slug": "ការអប់រំព័ត៌មានវិទ្យា"
+        },
+        {
+          "type": "book",
+          "slug": "ការប្រើប្រាស់បច្ចេកវិទ្យាឌីជីថលជួយដល់ការរៀន-និងបង្រៀន"
+        },
+        {
+          "type": "book",
+          "slug": "educational-technology-a-primer-for-the-21st-century"
+        },
+        {
+          "type": "book",
+          "slug": "សទ្ទានុក្រមវិទ្យាសាស្រ្ត-និងបច្ចេកវិទ្យា"
         }
       ]
     },
@@ -1223,6 +1359,22 @@
         {
           "type": "book",
           "slug": "phrasebook-for-writing-papers-and-research-in-english-4th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "essential-english-for-foreign-students-book-4"
+        },
+        {
+          "type": "book",
+          "slug": "essential-english-for-foreign-students-book-3"
+        },
+        {
+          "type": "book",
+          "slug": "essential-english-for-foreign-students-book-2"
+        },
+        {
+          "type": "book",
+          "slug": "essential-english-for-foreign-students-book-1"
         }
       ]
     },
