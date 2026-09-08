@@ -103,9 +103,20 @@ that lacks them (`42703` / `PGRST204`). This is load-bearing in two places:
 ## 3. `?page=N`
 
 The read route accepts it, survives the sign-in redirect with it, and the
-viewer treats it as a **destination**: it outranks both saved positions and
-suppresses the "Welcome back" prompt, because someone following a link to page
-42 is not returning to anything.
+viewer treats it as a **destination**: it outranks both saved positions.
+
+It does **not** suppress the "Welcome back" prompt, and the reason is worth
+recording because the first attempt got it backwards. Suppressing on
+"the URL named a page" reads correctly until you notice that this component
+*writes* `?page=N` into its own address bar — from then on every returning
+reader arrives "linked", so the suppression fired for the ordinary case rather
+than the intended one, and took the "Start from beginning" escape with it.
+
+The prompt is about whether there is a position to **return to**, which is a
+different question from how the reader arrived. It is gated on
+`hasSavedPosition` — a local record, an exact server page, or a stored
+percentage. A stranger following a citation to page 42 has none, and greeting
+them with "Welcome back" would be a lie about a book they have never opened.
 
 The reader keeps it current with a debounced `history.replaceState`
 (`useReaderPageUrl`). Three reasons for that API and not the router:
@@ -282,3 +293,18 @@ out in one table and diffs each against `docs/reader-performance/`.
   omitted rather than offered and then dropped.
 * **`reading_list_books` is still in place**, backfilled from and no longer
   written to. Retiring it is a later migration's job.
+
+---
+
+## 10. Testing note: durable state changes what a fixture must reset
+
+`e2e/reader-ux.spec.ts` used to reset bookmarks by clearing `ebook:*` from
+`localStorage`. Since 0141 that no longer works — surviving a cleared browser
+is exactly what the sync is for — so a previous run's bookmark was pulled back
+down on mount and the spec's `b` keypress removed one instead of adding one.
+Correct product behaviour; broken fixture.
+
+`clearReaderBookmarks()` (`e2e/utils/auth.ts`) resets it through PostgREST as
+the signed-in user, so RLS confines it to the account it authenticated as. Any
+future per-account state needs the same treatment, for the same reason
+`openReader` already resets carried-over reading position.
