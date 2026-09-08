@@ -24,8 +24,23 @@
  * EXIT CODE is 1 only on a REGRESSION beyond the noise band, never on a
  * missing report: a machine without the fixtures should say so and stop, not
  * fail a build with a number it does not have.
+ *
+ * WALL-CLOCK IS ONLY COMPARED WITHIN ONE ENVIRONMENT. The Playwright suite
+ * runs against whatever `npm run dev` serves, and a Turbopack dev server is
+ * several times slower to first paint than a production build — measured here
+ * at 22 s versus a 4 s baseline for the same 10 MB document, with every one of
+ * the spec's own assertions passing. Reporting that as a 451% regression is
+ * how a report stops being read. So each run records the environment it was
+ * measured in, and a timing row against a baseline from a DIFFERENT
+ * environment prints "n/a" rather than a percentage.
+ *
+ * Byte counts, memory and element counts are compared regardless: they are
+ * properties of what the reader decided to fetch and mount, and they do not
+ * move because the server was slower. Those are also the numbers this project
+ * actually gates on.
  */
 import { spawnSync } from "node:child_process";
+import { cpus, platform } from "node:os";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -58,6 +73,53 @@ type Metric = {
   /** Lower is better for everything here; kept explicit so it is not assumed. */
   lowerIsBetter: true;
 };
+
+/** How a run was produced. Timings are only meaningful against a baseline
+    recorded the same way. */
+type RunEnv = {
+  /** "dev" = Turbopack dev server (the Playwright default), "prod" = a
+      production build was present and served the run. */
+  mode: "dev" | "prod";
+  platform: string;
+  cpus: number;
+  recordedAt: string;
+};
+
+const ENV_FILE = "run-env.json";
+
+function readEnv(dir: string): RunEnv | null {
+  const file = path.join(dir, ENV_FILE);
+  if (!existsSync(file)) return null;
+  try {
+    const v = JSON.parse(readFileSync(file, "utf8")) as RunEnv;
+    return v && (v.mode === "dev" || v.mode === "prod") ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeEnv(dir: string): void {
+  // Playwright's `webServer` runs `npm run dev` unless the suite was pointed
+  // at an already-running origin, so a run is "prod" only when the caller says
+  // so — never guessed from the presence of a stale .next directory.
+  const mode: RunEnv["mode"] = process.env.READER_BENCH_MODE === "prod" ? "prod" : "dev";
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    path.join(dir, ENV_FILE),
+    JSON.stringify(
+      { mode, platform: platform(), cpus: cpus().length, recordedAt: new Date().toISOString() },
+      null,
+      2,
+    ) + "\n",
+  );
+}
+
+/** Two runs are comparable on WALL-CLOCK only when both name the same mode. An
+    unstamped baseline (every baseline committed before this tool existed) is
+    unknown, and unknown is not a match. */
+function timingsComparable(a: RunEnv | null, b: RunEnv | null): boolean {
+  return !!a && !!b && a.mode === b.mode;
+}
 
 const num = (v: unknown): number | null =>
   typeof v === "number" && Number.isFinite(v) ? v : null;
@@ -160,6 +222,7 @@ function report(project: string): number {
   const current = metricsFor(REPORT_DIR, project);
   const baseline = metricsFor(BASELINE_DIR, project);
   const baseByKey = new Map(baseline.map((m) => [`${m.group}/${m.name}`, m]));
+  const canCompareTimings = timingsComparable(readEnv(REPORT_DIR), readEnv(BASELINE_DIR));
 
   if (current.length === 0) {
     console.log(`\n  ${project}: no measurements found in reports/reader-performance/.`);
@@ -189,7 +252,12 @@ function report(project: string): number {
     const base = baseByKey.get(`${m.group}/${m.name}`);
     let change = "—";
     let flag = "";
-    if (base && base.value > 0) {
+    // A timing measured on a dev server against a baseline from a production
+    // build is not a comparison. Say so, rather than printing a number that
+    // reads like a regression and is really a different server.
+    if (m.unit === "ms" && base && !canCompareTimings) {
+      change = "n/a";
+    } else if (base && base.value > 0) {
       const pct = ((m.value - base.value) / base.value) * 100;
       const band = m.unit === "ms" ? NOISE_PCT : NOISE_PCT_BYTES;
       change = `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
@@ -227,6 +295,9 @@ function main() {
     if (run.status !== 0) {
       console.log("\n  (the spec reported failures — measurements below are from that run)");
     }
+    // Stamp AFTER the run, so the environment recorded is the one that
+    // produced the reports sitting in that directory.
+    writeEnv(REPORT_DIR);
   }
 
   const projects = projectsIn(REPORT_DIR);
@@ -245,10 +316,10 @@ function main() {
     let saved = 0;
     for (const f of readdirSync(REPORT_DIR)) {
       if (!f.endsWith(".json")) continue;
-      writeFileSync(
-        path.join(BASELINE_DIR, `baseline-${saveName}-${f}`),
-        readFileSync(path.join(REPORT_DIR, f)),
-      );
+      // The environment stamp keeps its own name, not a per-baseline one:
+      // it describes the whole directory, and metricsFor() never reads it.
+      const target = f === ENV_FILE ? ENV_FILE : `baseline-${saveName}-${f}`;
+      writeFileSync(path.join(BASELINE_DIR, target), readFileSync(path.join(REPORT_DIR, f)));
       saved++;
     }
     console.log(`Saved ${saved} report(s) as baseline "${saveName}".`);
@@ -259,6 +330,19 @@ function main() {
   console.log(`  measurements: reports/reader-performance/`);
   console.log(`  baseline:     docs/reader-performance/`);
   console.log(`  noise band:   ±${NOISE_PCT}% wall-clock, ±${NOISE_PCT_BYTES}% bytes and memory`);
+
+  const here = readEnv(REPORT_DIR);
+  const there = readEnv(BASELINE_DIR);
+  console.log(
+    `  this run:     ${here ? `${here.mode} server, ${here.platform}, ${here.cpus} cpus` : "unrecorded"}`,
+  );
+  console.log(`  baseline:     ${there ? `${there.mode} server` : "unrecorded (pre-dates this tool)"}`);
+  if (!timingsComparable(here, there)) {
+    console.log(
+      "  → wall-clock rows show n/a: the two runs were not measured the same way.\n" +
+        "    Bytes, memory and counts are still compared — they do not move with server speed.",
+    );
+  }
 
   let regressions = 0;
   for (const project of projects) regressions += report(project);
