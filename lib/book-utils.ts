@@ -129,9 +129,7 @@ export function slugify(value: string) {
 // same key instead of leaving orphaned files scattered around.
 // ──────────────────────────────────────────────────────────────
 
-let uidCounter = typeof globalThis.crypto?.getRandomValues === "function"
-  ? (globalThis.crypto.getRandomValues(new Uint16Array(1))[0] % 1296)
-  : Math.floor(Math.random() * 1296);
+let uidCounter = Math.floor(Math.random() * 1296);
 
 /**
  * Per-book or per-post short folder suffix: 8 url-safe characters
@@ -141,20 +139,27 @@ let uidCounter = typeof globalThis.crypto?.getRandomValues === "function"
  * zero collisions across synchronous loops (e.g. bulk importer building 86+ jobs
  * or batch tests in the same millisecond), the next two characters are an
  * in-process counter cycling through 36^2 = 1,296 distinct values, followed by
- * two cryptographically random characters for cross-session entropy.
+ * two random characters for cross-session entropy.
  */
 export function makeUid() {
   const time = Date.now().toString(36).slice(-4);
   const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
   const countPart = (uidCounter++ % 1296).toString(36).padStart(2, "0");
-  const bytes = new Uint8Array(2);
-  if (typeof globalThis.crypto?.getRandomValues === "function") {
-    globalThis.crypto.getRandomValues(bytes);
-  } else {
-    for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
-  }
   let random = "";
-  for (const b of bytes) random += alphabet[b % alphabet.length];
+  if (typeof globalThis.crypto?.getRandomValues === "function") {
+    const buf = new Uint8Array(8);
+    globalThis.crypto.getRandomValues(buf);
+    for (const b of buf) {
+      // 252 is 36 * 7. Dropping 252..255 eliminates modulo bias completely.
+      if (b < 252) {
+        random += alphabet[b % 36];
+        if (random.length === 2) break;
+      }
+    }
+  }
+  while (random.length < 2) {
+    random += alphabet[Math.floor(Math.random() * 36)];
+  }
   return `${time}${countPart}${random}`;
 }
 
