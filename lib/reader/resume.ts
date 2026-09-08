@@ -3,12 +3,21 @@
    Two sources, with different precision:
      • this device's localStorage holds the EXACT page (and the % it was), but
        knows nothing about other devices;
-     • the server holds a rounded PERCENTAGE (≈5-page error on a 500-page
-       book), synced from every device the reader signs in on.
+     • the server holds a rounded PERCENTAGE, synced from every device the
+       reader signs in on — and, since migration 0141, the EXACT page too.
 
    The exact page wins unless the server has clearly moved on — the book was
    read further on another device — in which case the server's position is the
-   more recent one and must not be overwritten by a stale local page. */
+   more recent one and must not be overwritten by a stale local page.
+
+   WHEN THE SERVER WINS, IT NOW WINS PRECISELY. Before 0141 the server held
+   only `progress_pct`, so deferring to it meant `pageFromPercent()` — one
+   percentage point is five pages of a 500-page book, and a reader continuing
+   on their phone landed near, not at, where they stopped on the lab PC. The
+   server row now carries `last_page`, and `serverPage()` below prefers it.
+   Every input is optional and every path falls back to the old derivation, so
+   a row written before 0141 (or by a client that sends no page) resumes
+   exactly as it did. */
 
 export type LocalPosition = {
   p?: number;
@@ -23,6 +32,12 @@ export type ResumeInput = {
   local: LocalPosition;
   /** Server progress %, 0 when unknown or logged out. */
   serverPct: number;
+  /** Exact page the server holds (0141). Null before that migration, or when
+      the row predates it. */
+  serverPage?: number | null;
+  /** Page count `serverPage` was measured against, so a replaced file of a
+      different length is detectable. */
+  serverPageCount?: number | null;
   /** When the server position was written (ms since epoch), if known. */
   serverAt?: number | null;
   isLoggedIn: boolean;
@@ -70,6 +85,44 @@ export function resolveResumePage(input: ResumeInput): number | null {
     Math.abs(pct - serverPct) <= RESUME_TOLERANCE_PCT;
   if (!useLocal) return null;
   return Math.max(1, Math.min(numPages, p));
+}
+
+/** The exact page the SERVER holds (0141), or null when it cannot be trusted
+    and the caller should fall back to `pageFromPercent()`.
+
+    A stored page is only meaningful against the document it was measured in,
+    and the file behind a book can be replaced. Two defences, in order:
+
+      • `serverPageCount` known and different from the document now loaded —
+        the file changed length, so the page is re-derived proportionally
+        rather than used raw. Page 240 of 480 becomes page 6 of 12, not
+        "page 240 clamped to 12", which is the end of the book.
+
+      • `serverPageCount` unknown (a row written by a client that sent only a
+        page) — the percentage stored alongside it becomes the cross-check.
+        The two server values are written together and must agree; when they
+        do not, the row is inconsistent and the percentage, which every
+        pre-0141 reader already trusted, wins. */
+export function serverResumePage(input: ResumeInput): number | null {
+  const { serverPage, serverPageCount, serverPct, numPages, isLoggedIn } = input;
+  if (!isLoggedIn || !numPages) return null;
+  if (typeof serverPage !== "number" || !Number.isFinite(serverPage)) return null;
+  const page = Math.floor(serverPage);
+  if (page < 1) return null;
+
+  const clamp = (n: number) => Math.max(1, Math.min(numPages, n));
+
+  if (typeof serverPageCount === "number" && serverPageCount > 0) {
+    if (serverPageCount === numPages) return clamp(page);
+    // Different document length: keep the reader's PLACE, not their index.
+    return clamp(Math.round((page / serverPageCount) * numPages));
+  }
+
+  // No denominator. Trust the page only where the percentage agrees with it.
+  if (page > numPages) return null;
+  const impliedPct = Math.round((page / numPages) * 100);
+  if (Math.abs(impliedPct - serverPct) > RESUME_TOLERANCE_PCT) return null;
+  return clamp(page);
 }
 
 /** Page implied by a server percentage (the rounded fallback). */

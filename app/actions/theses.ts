@@ -474,6 +474,8 @@ export async function deleteThesis(id: string) {
   // collection's size forever while rendering as nothing.
   await supabase.from("reading_list_items").delete().eq("record_type", "research").eq("record_id", id);
   // File-health rows (0065) — see the note in deleteBook.
+  // Readers' bookmarks (0141) — same shape, same obligation as the line above.
+  await supabase.from("reader_bookmarks").delete().eq("record_type", "research").eq("record_id", id);
   await supabase.from("file_health").delete().eq("record_type", "research").eq("record_id", id);
 
   const { error } = await supabase.from("research_reports").delete().eq("id", id);
@@ -810,6 +812,7 @@ export async function bulkUpdateTheses(
     await supabase.from("resource_semantic_insights").delete().eq("record_type", "research").in("record_id", ids);
     await supabase.from("reading_list_items").delete().eq("record_type", "research").in("record_id", ids);
     await supabase.from("file_health").delete().eq("record_type", "research").in("record_id", ids);
+    await supabase.from("reader_bookmarks").delete().eq("record_type", "research").in("record_id", ids);
     const { error, count } = await supabase.from("research_reports").delete({ count: "exact" }).in("id", ids);
 
     for (const row of rows ?? []) {

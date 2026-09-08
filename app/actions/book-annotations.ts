@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { changedRow } from "@/lib/db/changed-row";
+import { changedRow, NO_MATCH_MESSAGE } from "@/lib/db/changed-row";
 
 export type Annotation = {
   id: string;
@@ -11,6 +11,10 @@ export type Annotation = {
   highlight_color: "yellow" | "green" | "blue" | "pink";
   created_at: string;
 };
+
+/** A note is a margin note, not a document. The cap is generous and exists so
+    a scripted client cannot use the column as storage. */
+const MAX_NOTE_LENGTH = 5_000;
 
 export async function getBookAnnotations(bookId: string): Promise<Annotation[]> {
   const authClient = await createClient();
@@ -80,10 +84,10 @@ export async function addAnnotation(
 
 export async function deleteAnnotation(
   annotationId: string
-): Promise<{ success: boolean }> {
+): Promise<{ success: boolean; error?: string }> {
   const authClient = await createClient();
   const { data: { user } } = await authClient.auth.getUser();
-  if (!user) return { success: false };
+  if (!user) return { success: false, error: "Not authenticated" };
 
   // The service client bypasses RLS, so `.eq("user_id", …)` is the ONLY thing
   // standing between one reader and another's annotations. `.select()` makes
@@ -100,8 +104,11 @@ export async function deleteAnnotation(
   );
 
   if (!result.ok) {
-    if (result.reason === "error") console.error("[deleteAnnotation]:", result.message);
-    return { success: false };
+    if (result.reason === "error") {
+      console.error("[deleteAnnotation]:", result.message);
+      return { success: false, error: "Failed to delete annotation." };
+    }
+    return { success: false, error: NO_MATCH_MESSAGE };
   }
   return { success: true };
 }
@@ -109,24 +116,37 @@ export async function deleteAnnotation(
 export async function updateAnnotationNote(
   annotationId: string,
   noteContent: string
-): Promise<{ success: boolean }> {
+): Promise<{ success: boolean; annotation?: Annotation; error?: string }> {
   const authClient = await createClient();
   const { data: { user } } = await authClient.auth.getUser();
-  if (!user) return { success: false };
+  if (!user) return { success: false, error: "Not authenticated" };
 
+  if (noteContent.length > MAX_NOTE_LENGTH) {
+    return { success: false, error: "Note is too long." };
+  }
+
+  // Returns the STORED row, not the submitted text. The two differ — the note
+  // is trimmed and `updated_at` moves — and rendering the optimistic version
+  // is how a panel comes to disagree with the database it is displaying.
   const supabase = createServiceClient();
-  const result = changedRow(
+  const result = changedRow<Annotation>(
     await supabase
       .from("book_annotations")
       .update({ note_content: noteContent.trim(), updated_at: new Date().toISOString() })
       .eq("id", annotationId)
       .eq("user_id", user.id)
-      .select("id"),
+      .select("id, page_number, selected_text, note_content, highlight_color, created_at"),
   );
 
   if (!result.ok) {
-    if (result.reason === "error") console.error("[updateAnnotationNote]:", result.message);
-    return { success: false };
+    if (result.reason === "error") {
+      console.error("[updateAnnotationNote]:", result.message);
+      return { success: false, error: "Failed to save note." };
+    }
+    // A zero-row UPDATE has not reached the state the caller asked for: the
+    // text they typed is stored nowhere. Unlike a delete, there is no reading
+    // of this in which the request succeeded.
+    return { success: false, error: NO_MATCH_MESSAGE };
   }
-  return { success: true };
+  return { success: true, annotation: result.row };
 }

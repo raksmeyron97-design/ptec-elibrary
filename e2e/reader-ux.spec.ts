@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { installSeededReaderSession } from "./utils/auth";
+import { clearReaderBookmarks, installSeededReaderSession } from "./utils/auth";
 import { makeTestPdf } from "./utils/pdf";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -69,10 +69,14 @@ function readerAccount(isMobile: boolean, isolated = false): string {
 
 async function openReader(page: Page, isMobile: boolean, opts: { isolatedAccount?: boolean } = {}) {
   await stubBookFile(page);
-  const signedIn = await installSeededReaderSession(page, {
-    email: readerAccount(isMobile, opts.isolatedAccount),
-  });
+  const email = readerAccount(isMobile, opts.isolatedAccount);
+  const signedIn = await installSeededReaderSession(page, { email });
   test.skip(!signedIn, "seeded reader session unavailable — is the local Supabase stack up?");
+  // Bookmarks are durable per ACCOUNT since 0141, so clearing localStorage
+  // below no longer resets them — surviving a cleared browser is precisely
+  // what that sync is for. Without this, a previous run's bookmark syncs back
+  // and a spec that presses "b" to ADD one silently removes it instead.
+  await clearReaderBookmarks({ email });
   await page.goto(`/books/${BOOK_SLUG}/read`);
   await page.evaluate(() => {
     for (const k of Object.keys(localStorage)) if (k.startsWith("ebook:")) localStorage.removeItem(k);
@@ -228,8 +232,16 @@ test.describe("PDF reader", () => {
     await expect(page.getByText("Welcome back")).toBeVisible();
     await page.getByRole("button", { name: "Start from beginning" }).click();
     await expect(pageIndicator(page)).toHaveAttribute("aria-label", "Page 1 of 40");
-    const bookmarks = await page.evaluate(() => Object.entries(localStorage).find(([k]) => k.startsWith("ebook:bm:"))?.[1]);
-    expect(bookmarks).toBe("[3]");
+    // The device record carries the pages AND the account they belong to
+    // (0141): localStorage is per-origin, not per-account, so a shared lab
+    // machine must not upload one reader's bookmarks into the next reader's
+    // account. Assert the pages, and that the record is claimed.
+    const raw = await page.evaluate(
+      () => Object.entries(localStorage).find(([k]) => k.startsWith("ebook:bm:"))?.[1],
+    );
+    const record = JSON.parse(raw ?? "null");
+    expect(record.p).toEqual([3]);
+    expect(typeof record.o).toBe("string");
   });
 
   test("every HUD control is touch-sized on a phone and the panel is a bottom sheet", async ({ page, isMobile }) => {

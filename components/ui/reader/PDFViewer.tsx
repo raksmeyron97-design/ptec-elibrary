@@ -66,6 +66,7 @@ import {
   pageFromPercent,
   parseLocalPosition,
   resolveResumePage,
+  serverResumePage,
   serverTimestamp,
   shouldOfferContinue,
 } from "@/lib/reader/resume";
@@ -75,7 +76,6 @@ import {
   READER_KEYS,
   READER_THEMES,
   loadAspectRatio,
-  loadBookmarks,
   loadNativePageWidth,
   loadReaderFitMode,
   loadReaderPageTransition,
@@ -104,6 +104,8 @@ import { useReaderGestures } from "./hooks/useReaderGestures";
 import { useReaderKeyboard } from "./hooks/useReaderKeyboard";
 import { useFocusModeTrap } from "./hooks/useFocusModeTrap";
 import { useReaderProgress } from "./hooks/useReaderProgress";
+import { useReaderBookmarks } from "./hooks/useReaderBookmarks";
+import { useReaderPageUrl } from "./hooks/useReaderPageUrl";
 import { useReaderSearch } from "./hooks/useReaderSearch";
 import { useReaderOutline } from "./hooks/useReaderOutline";
 import { useReaderAnnotations, type AnnotationColor } from "./hooks/useReaderAnnotations";
@@ -152,6 +154,15 @@ export type PDFViewerProps = {
   /** When the server position was written (`reading_progress.last_read_at`),
    *  so a newer position on this device is not overridden by a stale one. */
   initialProgressAt?: string | null;
+  /** The EXACT page the server holds (`reading_progress.last_page`, 0141) and
+   *  the page count it was measured against. Null before that migration; the
+   *  resume path falls back to deriving a page from the percentage. */
+  initialServerPage?: number | null;
+  initialServerPageCount?: number | null;
+  /** A page named by the URL (`?page=N`). Outranks BOTH saved positions: it is
+   *  an explicit request from whoever followed the link — a bookmark, a shared
+   *  citation, an annotation — not a guess about where the reader stopped. */
+  requestedPage?: number | null;
   /** Set false to hide the download action for protected books. Default true.
    *  Presentation only — the server re-decides on every request. */
   allowDownload?: boolean;
@@ -198,6 +209,9 @@ export default function PDFViewer({
   initialProgressPct = 0,
   initialMaxProgressPct = 0,
   initialProgressAt = null,
+  initialServerPage = null,
+  initialServerPageCount = null,
+  requestedPage = null,
   allowDownload = true,
   isLoggedIn: isLoggedInProp = false,
   offline = false,
@@ -241,14 +255,13 @@ export default function PDFViewer({
   const [theme, setTheme] = useState<ReaderTheme>(loadReaderTheme);
   const [pageTransition, setPageTransition] = useState<ReaderPageTransition>(loadReaderPageTransition);
   const [rotation, setRotation] = useState<number>(() => loadReaderRotation(bookId));
-  const [bookmarks, setBookmarks] = useState<number[]>(() => loadBookmarks(bookId));
+
   useEffect(() => lsSet(READER_KEYS.viewMode, viewMode), [viewMode]);
   useEffect(() => lsSet(READER_KEYS.fitMode, fitMode), [fitMode]);
   useEffect(() => lsSet(READER_KEYS.theme, theme), [theme]);
   useEffect(() => lsSet(READER_KEYS.zoom, String(zoomScale)), [zoomScale]);
   useEffect(() => lsSet(READER_KEYS.pageTransition, pageTransition), [pageTransition]);
   useEffect(() => lsSet(READER_KEYS.rotation(bookId), String(rotation)), [rotation, bookId]);
-  useEffect(() => lsSet(READER_KEYS.bookmarks(bookId), JSON.stringify(bookmarks)), [bookmarks, bookId]);
 
   /* ── Layout measurement ─────────────────────────────────────── */
   const [containerWidth, setContainerWidth] = useState<number>();
@@ -614,6 +627,13 @@ export default function PDFViewer({
     initialProgressPct,
     initialMaxProgressPct,
   });
+  // The dedicated reader route owns its URL; the embedded preview on the book
+  // detail page does not, so only "fill" writes `?page=N`.
+  useReaderPageUrl({ enabled: layout === "fill", page: currentPage, ready: pdfDoc !== null });
+  // Local-first, account-durable (0141). `isLoggedIn` is already
+  // `prop && !offline`, so the offline reader stays purely local.
+  const bookmarkStore = useReaderBookmarks({ recordId: bookId, isLoggedIn });
+  const bookmarks = bookmarkStore.bookmarks;
   const search = useReaderSearch({ pdfRef, docKey, navigate: navigateToPage, currentPageRef });
   const { entries: outline, resolvePage: resolveOutlinePage } = useReaderOutline(pdfDoc);
   const outlineIndex = useMemo(() => currentSectionIndex(outline, currentPage), [outline, currentPage]);
@@ -633,7 +653,14 @@ export default function PDFViewer({
   useEffect(() => {
     localPositionRef.current = parseLocalPosition(lsGet(READER_KEYS.position(bookId)));
   }, [bookId]);
-  const resumeInputs = useLatest({ initialProgressPct, initialProgressAt, isLoggedIn });
+  const resumeInputs = useLatest({
+    initialProgressPct,
+    initialProgressAt,
+    initialServerPage,
+    initialServerPageCount,
+    requestedPage,
+    isLoggedIn,
+  });
 
   /* ── Measure the viewport (ResizeObserver also catches focus mode
         + panel open/close, not just window resize) ──────────────── */
@@ -772,11 +799,16 @@ export default function PDFViewer({
     [geomRef],
   );
   const isBookmarked = bookmarks.includes(currentPage);
+  const toggleBookmarkPage = bookmarkStore.toggle;
   const toggleBookmark = useCallback(() => {
     const p = currentPageRef.current;
-    setBookmarks((bm) => (bm.includes(p) ? bm.filter((x) => x !== p) : [...bm, p].sort((a, b) => a - b)));
+    // Announce the intent, not the outcome: the local change is synchronous
+    // and the server round-trip is not, and a screen reader must not wait on
+    // the network to hear what a tap did. A rejected write rolls the state
+    // back and surfaces in the panel, where it can be explained.
     announce(t(bookmarks.includes(p) ? "bookmarkRemoved" : "bookmarkAdded"));
-  }, [announce, t, bookmarks]);
+    void toggleBookmarkPage(p);
+  }, [announce, t, bookmarks, toggleBookmarkPage]);
 
   /* ── Panel ──────────────────────────────────────────────────── */
   const openPanel = useCallback((tab: PanelTabId) => {
@@ -828,21 +860,50 @@ export default function PDFViewer({
       initialScrollDoneRef.current = false;
       return;
     }
+    const resume = resumeInputs.current;
     const local = localPositionRef.current ?? parseLocalPosition(lsGet(READER_KEYS.position(bookId)));
-    const fromLocal = resolveResumePage({
+    const resumeArgs = {
       local,
-      serverPct: resumeInputs.current.initialProgressPct,
-      serverAt: serverTimestamp(resumeInputs.current.initialProgressAt),
-      isLoggedIn: resumeInputs.current.isLoggedIn,
+      serverPct: resume.initialProgressPct,
+      serverPage: resume.initialServerPage,
+      serverPageCount: resume.initialServerPageCount,
+      serverAt: serverTimestamp(resume.initialProgressAt),
+      isLoggedIn: resume.isLoggedIn,
       numPages: pdf.numPages,
-    });
-    // The server stores a percentage. Re-derive the page from the REAL page
-    // count now that it is known — the `pages` column the placeholder used
-    // is metadata and can disagree with the file (a 12-page file recorded as
-    // 320 pages resumed at "page 320", clamped to the end of the book).
-    const serverPct = resumeInputs.current.initialProgressPct;
-    let target = serverPct > 0 ? pageFromPercent(serverPct, pdf.numPages) : 1;
+    };
+    const fromLocal = resolveResumePage(resumeArgs);
+    const fromServer = serverResumePage(resumeArgs);
+    // The server position, most precise first: the exact page it recorded
+    // (0141), else the page implied by its percentage. The percentage path
+    // re-derives from the REAL page count now that it is known — the `pages`
+    // column the placeholder used is metadata and can disagree with the file
+    // (a 12-page file recorded as 320 pages resumed at "page 320", clamped to
+    // the end of the book).
+    const serverPct = resume.initialProgressPct;
+    let target = fromServer ?? (serverPct > 0 ? pageFromPercent(serverPct, pdf.numPages) : 1);
     if (fromLocal) target = fromLocal;
+    // A page named in the URL is a destination, not a resume, so it wins over
+    // both saved positions.
+    const requested = resume.requestedPage;
+    const linked = typeof requested === "number" && requested >= 1;
+    if (linked) target = clamp(1, pdf.numPages, Math.floor(requested));
+
+    /* Whether the reader has a position to RETURN to — which is what the
+       "Welcome back" prompt is about, and it is not the same question as how
+       they arrived.
+
+       An earlier version suppressed the prompt whenever the URL named a page.
+       That was wrong the moment this component started writing `?page=N` into
+       its own address bar: every returning reader then arrives "linked", so
+       the suppression swallowed the prompt for the ordinary case rather than
+       the intended one — and took the "Start from beginning" escape with it.
+
+       The real distinction is whether there is a saved position at all. A
+       stranger following a citation to page 42 has none, and greeting them
+       with "Welcome back" would be a lie about a book they have never opened.
+       Someone reopening their own reading session has one, however they got
+       here. */
+    const hasSavedPosition = fromLocal !== null || fromServer !== null || serverPct > 0;
     if (target !== currentPageRef.current) {
       currentPageRef.current = target;
       setCurrentPage(target);
@@ -860,7 +921,7 @@ export default function PDFViewer({
       setScrollTop(top);
     });
     progress.markMaxProgressForPage(target, pdf.numPages);
-    if (shouldOfferContinue(target)) setResumePrompt(target);
+    if (hasSavedPosition && shouldOfferContinue(target)) setResumePrompt(target);
     const durationMs = elapsed();
     if (durationMs > 8000) reportReaderEvent("pdf_load_slow", { durationMs });
   };
@@ -1254,8 +1315,13 @@ export default function PDFViewer({
         bookmarks={bookmarks}
         currentPage={currentPage}
         sectionFor={sectionFor}
+        labelFor={bookmarkStore.labelFor}
+        canLabel={bookmarkStore.canLabel}
+        pending={bookmarkStore.pending}
+        error={bookmarkStore.error}
         onSelect={(p) => { navigateToPage(p); afterPick(); }}
-        onRemove={(p) => setBookmarks((bm) => bm.filter((x) => x !== p))}
+        onRemove={bookmarkStore.remove}
+        onRename={bookmarkStore.rename}
         onAddCurrent={toggleBookmark}
         fmt={fmt}
       />
@@ -1282,8 +1348,11 @@ export default function PDFViewer({
         loading={notes.loading}
         error={notes.error}
         pendingDelete={notes.pendingDelete}
+        pendingEdit={notes.pendingEdit}
+        canEdit={isLoggedIn}
         onSelect={(p) => { navigateToPage(p); afterPick(); }}
         onRemove={notes.remove}
+        onEdit={notes.edit}
         fmt={fmt}
       />
     );

@@ -14,12 +14,17 @@ export const PROGRESS_BEACON_URL = "/api/reader/progress";
  * Send the position with a request the browser finishes even if the document
  * is torn down mid-flight. Returns nothing: nobody is left to read a reply.
  */
-function sendProgressBeacon(bookId: string, progressPct: number): void {
+function sendProgressBeacon(
+  bookId: string,
+  progressPct: number,
+  page: number,
+  pageCount: number,
+): void {
   try {
     void fetch(PROGRESS_BEACON_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bookId, progressPct }),
+      body: JSON.stringify({ bookId, progressPct, page, pageCount }),
       keepalive: true,
       // Same-origin only: the endpoint refuses a cross-origin POST anyway.
       credentials: "same-origin",
@@ -31,10 +36,16 @@ function sendProgressBeacon(bookId: string, progressPct: number): void {
 
 /**
  * Reading progress: the exact page on this device (localStorage, debounced)
- * and a rounded percentage on the server (debounced further, flushed when the
- * tab is hidden). Nothing here runs per scroll frame — the inputs are the
- * committed `currentPage`, which the scroll handler already throttles to one
- * update per animation frame and only when the page actually changes.
+ * and — on the server — a rounded percentage AND, since 0141, that same exact
+ * page. Both server writes are debounced, and flushed when the tab is hidden.
+ *
+ * THE PAGE IS SENT WITH THE PERCENTAGE, never on its own schedule. They
+ * describe one position, so a transport that carried one without the other
+ * would let them disagree in the database, and `serverResumePage()` uses the
+ * percentage to sanity-check the page. Nothing here runs per scroll frame —
+ * the inputs are the committed `currentPage`, which the scroll handler already
+ * throttles to one update per animation frame, and only when the page
+ * actually changes.
  *
  * `isLoggedIn` is already `prop && !offline`, so the offline reader never
  * reaches the server.
@@ -90,9 +101,15 @@ export function useReaderProgress({
   const progressPct = numPages > 0 ? Math.round((currentPage / numPages) * 100) : 0;
   const progressRef = useRef(progressPct);
   const numPagesRef = useRef(numPages);
+  // The exact page, mirrored for the two paths that run outside render: the
+  // debounced autosave and the teardown flush, which must send the page the
+  // reader is on at the moment they fire, not the one captured when the
+  // effect was scheduled.
+  const currentPageRef = useRef(currentPage);
   useEffect(() => {
     progressRef.current = progressPct;
     numPagesRef.current = numPages;
+    currentPageRef.current = currentPage;
     lastSavedRef.current = lastSaved;
   });
 
@@ -152,8 +169,10 @@ export function useReaderProgress({
       const previous = lastSavedRef.current;
       lastSavedRef.current = progressPct;
       setLastSaved(progressPct);
+      const page = currentPageRef.current;
+      const pages = numPagesRef.current;
       startTransition(() => {
-        void saveReadingProgress(bookId, progressPct).then(
+        void saveReadingProgress(bookId, progressPct, { page, pageCount: pages }).then(
           () => markSynced(progressPct),
           () => {
             // Not saved. Restore the marker so the next page turn — or the
@@ -199,7 +218,7 @@ export function useReaderProgress({
         // rule simply falls through to its timestamp/tolerance branches —
         // which is where it stood before this marker existed.
         markSynced(pct);
-        sendProgressBeacon(bookId, pct);
+        sendProgressBeacon(bookId, pct, currentPageRef.current, numPagesRef.current);
       }
     };
     const onVisibility = () => {
@@ -219,8 +238,10 @@ export function useReaderProgress({
     const previous = lastSavedRef.current;
     lastSavedRef.current = pct;
     setLastSaved(pct);
+    const page = currentPageRef.current;
+    const pages = numPagesRef.current;
     startTransition(() => {
-      void saveReadingProgress(bookId, pct).then(
+      void saveReadingProgress(bookId, pct, { page, pageCount: pages }).then(
         () => markSynced(pct),
         () => {
           if (lastSavedRef.current === pct) {

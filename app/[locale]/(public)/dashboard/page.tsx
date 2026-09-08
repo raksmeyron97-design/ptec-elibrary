@@ -52,6 +52,49 @@ function greetingBand(hour: number): GreetingBand {
   return "greetingEvening";
 }
 
+/**
+ * In-progress rows, newest first, with `last_page` (0141) when the database
+ * has it.
+ *
+ * Asked for defensively and retried WITHOUT the column, because this select
+ * also carries the embedded book rows the whole "My library" section is built
+ * from: on a database that predates 0141 an unknown column fails the entire
+ * query, and the dashboard would lose Continue Reading, the shelves and the
+ * counts to gain an exact page. The page is the enhancement; everything else
+ * is the page.
+ */
+async function readingProgressRows(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  bookFields: string,
+) {
+  // The column list is built at runtime, so PostgREST cannot infer the row
+  // type from it (the same reason the read page casts its defensive select).
+  // The shape is asserted here, once, instead of at each of a dozen reads.
+  type ProgressRow = {
+    book_id: string;
+    progress_pct: number;
+    last_read_at: string | null;
+    last_page?: number | null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    books: any;
+  };
+
+  const run = (columns: string) =>
+    supabase
+      .from("reading_progress")
+      .select(`${columns}, books ( ${bookFields} )`)
+      .eq("user_id", userId)
+      .gt("progress_pct", 0)
+      .order("last_read_at", { ascending: false })
+      .returns<ProgressRow[]>();
+
+  const withPage = await run("book_id, progress_pct, last_read_at, last_page");
+  if (!withPage.error) return withPage;
+  if (withPage.error.code !== "42703" && withPage.error.code !== "PGRST204") return withPage;
+  return run("book_id, progress_pct, last_read_at");
+}
+
 export default async function DashboardPage() {
   const t = await getTranslations("dashboard");
   const locale = await getLocale();
@@ -73,12 +116,7 @@ export default async function DashboardPage() {
       .eq("id", user.id)
       .single<Profile>(),
     getSavedBooks(),
-    supabase
-      .from("reading_progress")
-      .select(`book_id, progress_pct, last_read_at, books ( ${BOOK_FIELDS} )`)
-      .eq("user_id", user.id)
-      .gt("progress_pct", 0)
-      .order("last_read_at", { ascending: false }),
+    readingProgressRows(supabase, user.id, BOOK_FIELDS),
     getMyReadingLists(),
     getReadingStats(),
     getNewContentForSubscriptions().catch(() => []),
@@ -101,7 +139,12 @@ export default async function DashboardPage() {
 
   const inProgressBooks: any[] = inProgress.slice(0, 8).flatMap((p) => {
     if (!p.books) return [];
-    return [{ ...mapRowToBook(p.books as any), progressPct: p.progress_pct, lastReadAt: p.last_read_at }];
+    return [{
+      ...mapRowToBook(p.books as any),
+      progressPct: p.progress_pct,
+      lastReadAt: p.last_read_at,
+      lastPage: p.last_page ?? null,
+    }];
   });
 
   const completedBooks: any[] = completed.slice(0, 6).flatMap((p) => {
@@ -122,6 +165,7 @@ export default async function DashboardPage() {
         coverUrl: inProgressBooks[0].coverUrl ?? null,
         progressPct: inProgressBooks[0].progressPct,
         lastReadAt: inProgressBooks[0].lastReadAt ?? null,
+        lastPage: inProgressBooks[0].lastPage ?? null,
       }
     : null;
 

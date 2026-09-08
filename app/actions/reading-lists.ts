@@ -307,17 +307,43 @@ export async function removeItemFromList(
   if (!user) return { error: "Not authenticated" };
   if (!(await ownedList(supabase, listId, user.id))) return { error: "List not found." };
 
-  let query = supabase
-    .from("reading_list_items")
-    .delete()
-    .eq("list_id", listId)
-    .eq("record_type", recordType)
-    .eq("record_id", recordId);
-  query = page === undefined ? query.is("page_number", null) : query.eq("page_number", page);
-  await query;
+  // The result used to be discarded outright — `await query;` — so this
+  // returned success whether the row went, the database refused the statement,
+  // or the connection dropped. The caller then removed the source from the
+  // collection on screen while it stayed in the database, and the student
+  // found it again on their next visit with no idea why.
+  //
+  // lib/db/silent-mutation.test.ts did not catch it: its ownership predicate is
+  // `.eq("user_id", …)`, and this action is guarded by `ownedList()` above
+  // instead — an ownership check one call earlier is still an ownership check.
+  // OWNERSHIP_GUARDS there now covers that, which is why this is ONE chained
+  // statement rather than a builder assembled in stages: a `.select()` applied
+  // to a builder variable later is invisible to a scan that reads statements,
+  // and a rule that cannot see the code is not enforcing anything.
+  //
+  // `.filter()` rather than a staged `.is()`/`.eq()` because the two cases
+  // differ only in the operator: a plain save has a NULL page, an annotated
+  // one has an exact page, and the unique indexes (0136) are built to match.
+  const result = changedRow(
+    await supabase
+      .from("reading_list_items")
+      .delete()
+      .eq("list_id", listId)
+      .eq("record_type", recordType)
+      .eq("record_id", recordId)
+      .filter("page_number", page === undefined ? "is" : "eq", page ?? null)
+      .select("id"),
+  );
+  if (!result.ok && result.reason === "error") {
+    console.error("[removeItemFromList]", result.message);
+    return { error: "Failed to remove." };
+  }
 
   revalidateUserWorkspace(listId);
-  return { success: true };
+  // `removed` separates "we deleted it" from "it was not there". Both are
+  // successes — the caller wanted this resource out of this collection and it
+  // is — but only the second is safe to treat as a no-op.
+  return { success: true, removed: result.ok };
 }
 
 /** Edit the note on one saved item. */
@@ -336,14 +362,26 @@ export async function updateItemNote(itemId: string, note: string) {
     return { error: "Item not found." };
   }
 
-  const { error } = await supabase
-    .from("reading_list_items")
-    .update({ note: note.trim() || null })
-    .eq("id", itemId);
-  if (error) return { error: "Failed to save note." };
+  // Also invisible to the ownership scan, for the same reason: the guard is
+  // `ownedList()` above, not an `.eq("user_id", …)` on this statement.
+  const result = changedRow<{ id: string; note: string | null }>(
+    await supabase
+      .from("reading_list_items")
+      .update({ note: note.trim() || null })
+      .eq("id", itemId)
+      .select("id, note"),
+  );
+  if (!result.ok) {
+    if (result.reason === "error") {
+      console.error("[updateItemNote]", result.message);
+      return { error: "Failed to save note." };
+    }
+    // A zero-row update has not stored what the reader typed.
+    return { error: NO_MATCH_MESSAGE };
+  }
 
   revalidateUserWorkspace((item as any).list_id);
-  return { success: true };
+  return { success: true, note: result.row.note };
 }
 
 /** Which of the caller's lists already hold this resource. */

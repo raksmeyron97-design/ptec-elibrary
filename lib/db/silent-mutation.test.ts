@@ -29,6 +29,24 @@ const ACTIONS_DIR = join(process.cwd(), "app/actions");
 const OWNERSHIP = /\.eq\(\s*["'](user_id|owner_id|admin_id|created_by)["']/;
 
 /**
+ * Functions that establish ownership BEFORE the statement runs, so the
+ * mutation itself carries no `user_id` predicate and the regex above cannot
+ * see it.
+ *
+ * This blind spot was real, not theoretical: `removeItemFromList` and
+ * `updateItemNote` in reading-lists.ts are guarded by `ownedList()` one call
+ * earlier, and both were left reporting success for a no-op — one of them
+ * discarding its result entirely (`await query;`) — while the five actions the
+ * regex did catch were being fixed. An ownership check a line earlier is still
+ * an ownership check, and a statement it guards still cannot tell "removed"
+ * from "was never there".
+ *
+ * Matched against the whole FUNCTION rather than the statement, since the
+ * guard and the mutation are by definition not on the same line.
+ */
+const OWNERSHIP_GUARDS = /\b(ownedList|requireOwnedSession|assertOwns\w*)\s*\(/;
+
+/**
  * Statements that may match zero rows as a matter of course, where that is
  * the intended end state rather than a failure. Each is listed with why.
  */
@@ -51,9 +69,20 @@ function tsFiles(dir: string): string[] {
 }
 
 /** Every `.update(`/`.delete(` chain in a file, as source text. */
-function mutationStatements(src: string): { line: number; text: string }[] {
+/** The enclosing function's source, so a guard called before the statement is
+    visible to the ownership test. Bounded backwards to the nearest
+    declaration — a whole file would let any guard vouch for any statement. */
+function enclosingFunction(lines: string[], at: number): string {
+  let start = at;
+  while (start > 0 && !/^(export )?(async )?function |^\s*(const|let) \w+ = (async )?\(/.test(lines[start])) {
+    start--;
+  }
+  return lines.slice(start, at + 1).join("\n");
+}
+
+function mutationStatements(src: string): { line: number; text: string; scope: string }[] {
   const lines = src.split("\n");
-  const out: { line: number; text: string }[] = [];
+  const out: { line: number; text: string; scope: string }[] = [];
   for (let i = 0; i < lines.length; i++) {
     if (!/\.(update|delete)\(/.test(lines[i])) continue;
     let start = i;
@@ -62,7 +91,11 @@ function mutationStatements(src: string): { line: number; text: string }[] {
     for (let k = i; k < Math.min(i + 16, lines.length); k++) {
       if (lines[k].trimEnd().endsWith(";")) { end = k; break; }
     }
-    out.push({ line: start + 1, text: lines.slice(start, end + 1).join("\n") });
+    out.push({
+      line: start + 1,
+      text: lines.slice(start, end + 1).join("\n"),
+      scope: enclosingFunction(lines, start),
+    });
   }
   return out;
 }
@@ -73,8 +106,10 @@ describe("ownership-scoped mutations report what they changed", () => {
 
     for (const file of tsFiles(ACTIONS_DIR)) {
       const src = readFileSync(file, "utf8");
-      for (const { line, text } of mutationStatements(src)) {
-        if (!OWNERSHIP.test(text)) continue;
+      for (const { line, text, scope } of mutationStatements(src)) {
+        // Either the statement carries the ownership predicate, or something
+        // earlier in the same function established it.
+        if (!OWNERSHIP.test(text) && !OWNERSHIP_GUARDS.test(scope)) continue;
         if (IDEMPOTENT_BY_DESIGN.some((t) => text.includes(`"${t}"`))) continue;
         if (text.includes(".select(")) continue; // it asks — that is the rule
         offenders.push(`${file.replace(process.cwd() + "/", "")}:${line}`);

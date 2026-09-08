@@ -18,7 +18,7 @@
  *   • the user comes from the session cookie, NEVER from the body, so a caller
  *     can only ever move their own position;
  *   • a cross-origin POST is refused (Server Actions get this for free);
- *   • the body is size-capped and both fields are validated before any query;
+ *   • the body is size-capped and every field is validated before any query;
  *   • it is rate limited per user;
  *   • the service client is opened only AFTER authentication succeeds.
  */
@@ -50,9 +50,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
   }
 
-  const { bookId, progressPct } = (body ?? {}) as {
+  const { bookId, progressPct, page, pageCount } = (body ?? {}) as {
     bookId?: unknown;
     progressPct?: unknown;
+    page?: unknown;
+    pageCount?: unknown;
   };
 
   if (typeof bookId !== "string" || !UUID_RE.test(bookId)) {
@@ -77,7 +79,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Too many requests." }, { status: 429 });
   }
 
-  const saved = await upsertReadingProgress(user.id, bookId, progressPct);
+  // The exact page (0141) is OPTIONAL on this endpoint and a bad value is
+  // dropped rather than refused: this is a teardown beacon, and rejecting the
+  // request would lose the percentage too — the very loss the endpoint exists
+  // to prevent. `upsertReadingProgress` validates again before writing.
+  const optionalPage = (value: unknown): number | null =>
+    typeof value === "number" && Number.isFinite(value) && value > 0
+      ? Math.floor(value)
+      : null;
+
+  const saved = await upsertReadingProgress(user.id, bookId, progressPct, {
+    page: optionalPage(page),
+    pageCount: optionalPage(pageCount),
+  });
   if (!saved) {
     return NextResponse.json({ error: "Could not save progress." }, { status: 500 });
   }
