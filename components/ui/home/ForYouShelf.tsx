@@ -47,7 +47,10 @@ export default async function ForYouShelf({ popularBooks }: { popularBooks: Book
             </span>
             <SectionTitle as="h2" id="popular-title" className="!mb-0">{t("popularTitle")}</SectionTitle>
           </div>
-          <Link href="/books?sort=downloads" className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-brand transition-colors hover:text-gold-700 sm:inline-flex">
+          {/* "See all" — a signpost, not a committed destination. All three of these
+   point at the same /books?sort=downloads route, whose RSC payload is a MEASURED
+   52.2 KB compressed, spent on a maybe-click. */}
+          <Link href="/books?sort=downloads" prefetch={false} className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-brand transition-colors hover:text-gold-700 sm:inline-flex">
             {t("popularViewAll")}
             <ArrowRight className="h-4 w-4" aria-hidden />
           </Link>

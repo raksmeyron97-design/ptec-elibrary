@@ -40,9 +40,14 @@ installDomMatrixPolyfill();
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? "";
 
-if (!SUPABASE_URL || !SERVICE_KEY || !GEMINI_API_KEY) {
+const GEMINI_KEYS = [
+  process.env.GEMINI_API_KEY,
+  process.env.GEMINI_API_KEY_2,
+  process.env.GEMINI_API_KEY_3,
+].filter((k): k is string => !!k && k.trim().length > 0);
+
+if (!SUPABASE_URL || !SERVICE_KEY || GEMINI_KEYS.length === 0) {
   console.error("✖ Missing env: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and GEMINI_API_KEY are required.");
   process.exit(1);
 }
@@ -51,7 +56,15 @@ const db: SupabaseClient = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { persistSession: false },
 });
 
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+console.log(`🔑 Configured Gemini Key Pool with ${GEMINI_KEYS.length} key(s) for OCR round-robin.`);
+const aiClients = GEMINI_KEYS.map((apiKey) => new GoogleGenAI({ apiKey }));
+let clientIndex = 0;
+function nextAiClient(): { ai: GoogleGenAI; keyIdx: number } {
+  const keyIdx = clientIndex % aiClients.length;
+  const ai = aiClients[keyIdx];
+  clientIndex++;
+  return { ai, keyIdx: keyIdx + 1 };
+}
 
 const argv = process.argv.slice(2);
 const has = (flag: string) => argv.includes(flag);
@@ -96,12 +109,13 @@ type ExtractedPage = {
   content: string;
 };
 
-async function withRetry<T>(label: string, fn: () => Promise<T>, maxRetries = 4): Promise<T> {
-  const backoffs = [3000, 8000, 20000, 45000];
+async function withRetry<T>(label: string, fn: (ai: GoogleGenAI) => Promise<T>, maxRetries = 5): Promise<T> {
+  const backoffs = [2000, 5000, 10000, 20000, 40000];
   let lastErr: unknown;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const { ai, keyIdx } = nextAiClient();
     try {
-      return await fn();
+      return await fn(ai);
     } catch (err: any) {
       lastErr = err;
       if (attempt === maxRetries) break;
@@ -112,9 +126,14 @@ async function withRetry<T>(label: string, fn: () => Promise<T>, maxRetries = 4)
         err?.message?.includes("ResourceExhausted") ||
         err?.message?.includes("quota");
 
-      const delay = isRateLimit ? (attempt + 1) * 30000 : (backoffs[attempt] ?? 15000);
+      const delay = isRateLimit && aiClients.length > 1
+        ? 2000
+        : isRateLimit
+        ? (attempt + 1) * 20000
+        : (backoffs[attempt] ?? 10000);
+
       console.warn(
-        `    ⚠ [${label}] ${isRateLimit ? "Rate limit (429)" : "failed"} (${err instanceof Error ? err.message : err}). Backing off for ${delay / 1000}s...`,
+        `    ⚠ [${label}] Key #${keyIdx} ${isRateLimit ? "Rate limit (429)" : "failed"} (${err instanceof Error ? err.message : err}). ${aiClients.length > 1 && isRateLimit ? "Switching to next key..." : `Backing off for ${delay / 1000}s...`}`,
       );
       await new Promise((r) => setTimeout(r, delay));
     }
@@ -139,7 +158,7 @@ async function transcribePageBatch(
 ): Promise<ExtractedPage[]> {
   const pageRangeStr = startPage === endPage ? `Page ${startPage}` : `Pages ${startPage} to ${endPage}`;
 
-  return await withRetry(`OCR ${pageRangeStr}`, async () => {
+  return await withRetry(`OCR ${pageRangeStr}`, async (ai) => {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       config: {
@@ -166,7 +185,22 @@ async function transcribePageBatch(
 
     const rawJson = response.text || "[]";
     try {
-      const parsed = JSON.parse(rawJson);
+      let parsed: any;
+      try {
+        parsed = JSON.parse(rawJson);
+      } catch {
+        // Escape literal unescaped control characters within JSON string literals
+        // [\s\S] rather than `.` + the /s flag: dotAll needs an ES2018 target and
+        // this project compiles to ES2017, so `/gs` fails `tsc --noEmit` (TS1501),
+        // which is a CI gate. Same semantics — the class matches newlines too.
+        const fixed = rawJson.replace(/"([^"\\]*(\\[\s\S][^"\\]*)*)"/g, (match) => {
+          return match
+            .replace(/\n/g, "\\n")
+            .replace(/\r/g, "\\r")
+            .replace(/\t/g, "\\t");
+        });
+        parsed = JSON.parse(fixed);
+      }
       if (!Array.isArray(parsed)) return [];
       return parsed.map((item: any) => ({
         pageNo: Number(item.pageNo),

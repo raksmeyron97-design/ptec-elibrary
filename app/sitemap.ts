@@ -1,12 +1,12 @@
 import { MetadataRoute } from 'next';
 import { createServiceClient } from '@/lib/supabase/server';
-import { slugify } from '@/lib/books';
 import { sitemapLastmod } from '@/lib/seo/book-seo';
 import { localeUrls } from '@/lib/seo/alternates';
 import { isIndexableEnvironment } from '@/lib/seo/indexing';
 import { getSiteConfig } from '@/lib/system-settings/config';
 import { getIndexableSubjects } from '@/lib/subjects';
 import { validateSitemapEntry } from '@/lib/seo/validate';
+import { addressableAuthorSlug } from '@/lib/authors/slug';
 
 // Revalidate hourly so the sitemap picks up newly published content
 // without being frozen at build time.
@@ -308,13 +308,20 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
   // The stored profile slug wins over the name-derived one: an admin who
   // corrects an author's slug must not have the sitemap keep advertising the
   // URL that no longer resolves.
+  //
+  // A row whose `slug` column exists but is NULL is deliberately DROPPED
+  // rather than given a name-derived URL: middleware gates /authors/<slug> on
+  // author_profiles_public (0126), which is `where slug is not null`, so that
+  // URL is a hard 404 at the edge. 154 of the 157 author URLs this file
+  // emitted were exactly that (measured 2026-09-07). addressableAuthorSlug()
+  // owns the rule, including why a MISSING column still gets the fallback.
   const authorSlugSet = new Map<string, string | null>();
   for (const a of authors) {
-    const slug = a.slug || slugify(a.name);
+    const slug = addressableAuthorSlug(a.slug, a.name);
     if (slug) authorSlugSet.set(slug, a.created_at ?? null);
   }
   for (const a of publicationAuthors) {
-    const slug = a.slug || slugify(a.full_name);
+    const slug = addressableAuthorSlug(a.slug, a.full_name);
     if (slug && !authorSlugSet.has(slug)) authorSlugSet.set(slug, a.created_at ?? null);
   }
   const authorUrls: MetadataRoute.Sitemap = [...authorSlugSet.entries()].map(([slug, createdAt]) =>

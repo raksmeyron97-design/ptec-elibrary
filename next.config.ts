@@ -235,7 +235,31 @@ const nextConfig: NextConfig = {
           { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
         ],
       },
-      // Unversioned public images (logos, OG image, PWA icons): cache a day
+      // The PWA launch surface: the boot emblem and the 21 iOS startup images.
+      //
+      // The rule above SAYS "PWA icons" but its filename group never matched
+      // anything under /pwa/, so these fell through to Next's default for
+      // public files — MEASURED `public, max-age=0` at the origin, which is
+      // why Cloudflare was serving boot-emblem.webp on its own 4-hour default
+      // guess. This is the FIRST image request on every page load, so a
+      // returning reader was revalidating it before the shell could paint.
+      //
+      // Deliberately NOT `immutable`, unlike /hero/ above. These names are
+      // stable across regeneration (ipad-1024x1366-portrait.png is keyed by
+      // device, not by content), so `npm run pwa:assets` can change the bytes
+      // behind a name that never changes. Immutable belongs to hashed or
+      // hand-versioned filenames only; a year-long immutable cache on a name
+      // that can be rewritten is unfixable in the field.
+      {
+        source: "/pwa/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        ],
+      },
+      // Unversioned public images (logos, OG image): cache a day
       // at the edge/browser, serve stale for a week while revalidating.
       {
         source:
@@ -266,11 +290,51 @@ const nextConfig: NextConfig = {
     ];
   },
   images: {
-    unoptimized: true,
-    formats: ["image/avif", "image/webp"],
+    // NOT `unoptimized: true`. That one flag made every <Image> render a bare
+    // <img> with the raw src — no `srcset`, and no `sizes` either, since Next
+    // only emits one alongside the other. Measured on the live homepage at
+    // 375px/DPR 2: 68 <img>, ZERO with a srcset, every cover arriving at its
+    // full 800px intrinsic width into a 114-162px slot. ~1.17 MB of covers to
+    // paint ~110 KB worth of pixels, on 4G, on the phones this library is for.
+    //
+    // The components were never the problem: SmartBookCover already renders
+    // `fill` + `sizes`, and every call site passes one. The flag overrode all
+    // of it. Per-call-site opt-out still works and is still correct for
+    // arbitrary external URLs — see CatalogCard, which passes `unoptimized`.
+    //
+    // Enabling this puts the optimizer on the ZimaOS box (read_only, 1 GB, and
+    // .next/cache is a tmpfs — so variants are RAM-backed and re-made after
+    // every deploy). That is affordable ONLY because of `formats` below.
+    formats: ["image/webp"],
+    // WebP only — AVIF is a measured LOSS for this collection, not a win.
+    //
+    // Covers are ALREADY WebP and land in small slots, which is the regime
+    // where AVIF's overhead stops paying for itself. Measured with this repo's
+    // own sharp on a real 800x1035 cover (51.3 KB source):
+    //
+    //   228w  webp   5.3 KB   35 ms      456w  webp  18.5 KB   67 ms
+    //   228w  avif   7.3 KB  353 ms      456w  avif  24.9 KB  356 ms
+    //
+    // 38% BIGGER and 10x slower to encode. Since the tmpfs cache is wiped on
+    // every deploy, that 10x is paid again on every release, on a home server.
+    // Re-add AVIF only if the sources stop being WebP or the slots get large.
     // Covers change rarely; cache transformed variants for 31 days.
     minimumCacheTTL: 2678400,
     qualities: [70, 75],
+    // Trimmed from the default [640, 750, 828, 1080, 1200, 1920, 2048, 3840].
+    // Nothing here is displayed above 1920, and `w` is attacker-controlled on
+    // /_next/image: leaving 3840 in the allowlist buys nothing but lets anyone
+    // make this box UPSCALE an 800px cover to 4K, repeatedly, into a RAM cache.
+    deviceSizes: [640, 828, 1080, 1200, 1920],
+    // The cover ladder. Every cover on the site occupies a 112-300px slot, so
+    // at DPR 2-3 the useful band is ~224-450px — where the default imageSizes
+    // ([32, 48, 64, 96, 128, 256, 384]) jump straight from 256 to 384 to 640.
+    //
+    // These MUST all stay below deviceSizes[0]; the docs are explicit, and
+    // Next builds the srcset from both lists concatenated, so a value above it
+    // would shadow a device breakpoint. That is why the ladder tops out at 512
+    // rather than the 456+ rungs a naive reading of the slot math suggests.
+    imageSizes: [96, 128, 160, 192, 224, 256, 320, 384, 448, 512],
     remotePatterns: [
       // Supabase Storage
       {

@@ -4,7 +4,7 @@ import NextLink from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import type { AppRole } from "@/lib/types/roles";
-import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
+import { ADMIN_PANEL_ROLES, ADMIN_ROLES } from "@/lib/types/roles";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import JsonLd from "@/components/seo/JsonLd";
@@ -186,10 +186,19 @@ export default async function PostDetailPage({
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
+  // Two different questions, deliberately kept apart. `isAdmin` is "may this
+  // viewer see the post before it is published, and wear the staff badge".
+  // `canModerateComments` is "may they delete somebody else's comment", which
+  // RLS restricts to public.is_admin() — admin / super_admin. Answering both
+  // with ADMIN_PANEL_ROLES showed staff and librarians a delete control whose
+  // write matched no rows and reported success.
   let isAdmin = false;
+  let canModerateComments = false;
   if (user) {
     const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-    isAdmin = ADMIN_PANEL_ROLES.includes((profile?.role ?? "reader") as AppRole);
+    const role = (profile?.role ?? "reader") as AppRole;
+    isAdmin = ADMIN_PANEL_ROLES.includes(role);
+    canModerateComments = ADMIN_ROLES.includes(role);
   }
 
   // Event columns only exist once migration 0099 is applied; selecting them
@@ -585,6 +594,7 @@ export default async function PostDetailPage({
             commentCount={post.comment_count ?? 0}
             currentUserId={user?.id ?? null}
             isAdmin={isAdmin}
+            canModerate={canModerateComments}
           />
         </div>
 

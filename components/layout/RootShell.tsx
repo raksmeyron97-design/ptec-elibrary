@@ -1,6 +1,4 @@
 import { Suspense } from "react";
-import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import { getMessages, getTranslations } from "next-intl/server";
 
 // The site stylesheet. This used to be imported by app/layout.tsx; when that
@@ -208,8 +206,6 @@ export default async function RootShell({
           <PTECShellReadyMarker />
           <UpdateAvailable />
           <PushNotificationOnboarding />
-          <Analytics />
-          <SpeedInsights />
           <Suspense fallback={null}>
             <SearchModal />
           </Suspense>

@@ -136,8 +136,9 @@ export function SectionHeading({
     <div className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-3">
+          {/* Navy-to-gold: the page's one recurring brand signature. */}
           <span
-            className="mt-1.5 h-6 w-1 shrink-0 rounded-full bg-brand"
+            className="mt-1.5 h-6 w-1 shrink-0 rounded-full bg-gradient-to-b from-brand via-brand to-gold-500"
             aria-hidden="true"
           />
           <div className="min-w-0">
@@ -251,17 +252,29 @@ export function StatCard({
   const hasValue = value !== null && value !== "";
   return (
     <InformationCard
-      className={`flex h-full flex-col ${emphasis ? "border-surface-brand-line bg-surface-brand-soft" : ""}`}
+      className={`relative flex h-full flex-col overflow-hidden ${
+        emphasis ? "border-surface-brand-line bg-surface-brand-soft" : ""
+      }`}
     >
-      {Icon && (
-        <Icon
-          className={`mb-3 h-5 w-5 ${emphasis ? "text-brand" : "text-text-muted"}`}
+      {emphasis && (
+        <span
           aria-hidden="true"
+          className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-brand to-gold-500"
         />
       )}
+      {Icon && (
+        <span
+          aria-hidden="true"
+          className={`mb-4 flex h-10 w-10 items-center justify-center rounded-xl ${
+            emphasis ? "bg-brand text-brand-contrast" : "bg-brand/10 text-brand"
+          }`}
+        >
+          <Icon className="h-5 w-5" />
+        </span>
+      )}
       <p
-        className={`about-wrap text-2xl font-semibold tabular-nums tracking-tight sm:text-3xl ${
-          hasValue ? "text-text-heading" : "text-text-muted"
+        className={`about-wrap text-3xl font-semibold tabular-nums tracking-tight sm:text-4xl ${
+          hasValue ? (emphasis ? "text-brand" : "text-text-heading") : "text-text-muted"
         }`}
       >
         {hasValue ? value : (fallback ?? "—")}

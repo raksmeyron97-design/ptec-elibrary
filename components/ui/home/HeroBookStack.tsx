@@ -170,6 +170,7 @@ export default function HeroBookStack({ books }: Props) {
       {/* ── Floating accent: Download icon → Most downloaded ── */}
       <Link
         href="/books?sort=downloads"
+        prefetch={false}
         aria-label="Most downloaded books"
         className="absolute -left-5 bottom-16 z-20 flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-bg-surface/[0.06] shadow-lg backdrop-blur-md transition-all hover:bg-bg-surface/[0.12] hover:scale-110"
       >

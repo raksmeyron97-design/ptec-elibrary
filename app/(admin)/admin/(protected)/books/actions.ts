@@ -15,6 +15,7 @@ import { EBOOKS_BASE_PATH } from "@/lib/admin/ebooks-url";
 import { findBookDuplicates } from "@/lib/books/duplicate-detection/service";
 import { normalizeTaxonomyValue } from "@/lib/books/duplicate-detection/normalize";
 import { getSession, transition } from "@/lib/uploads/session";
+import { ensureAuthorSlug } from "@/lib/authors/slug";
 import { uploadLog } from "@/lib/uploads/log";
 
 /** Parse comma-separated tag string from FormData into a clean string[] */
@@ -450,6 +451,10 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
       .single();
     if (authorError) throw new Error(`Author error: ${authorError.message}`);
     authorId = authorRow.id;
+    // The upsert deliberately writes only the name (see ensureAuthorSlug):
+    // without this the row keeps slug = NULL and middleware's gate 404s the
+    // author's own page.
+    await ensureAuthorSlug(supabase, authorRow.id, author);
   }
 
   // Look up existing category first; only insert if not found
@@ -667,6 +672,17 @@ export async function deleteBook(bookId: string) {
     supabase.from("book_chunks").delete().eq("record_type", "book").eq("record_id", bookId),
     supabase.from("resource_index_state").delete().eq("record_type", "book").eq("record_id", bookId),
     supabase.from("resource_semantic_insights").delete().eq("record_type", "book").eq("record_id", bookId),
+    // Readers' saved items (0136). Also polymorphic with no FK, and its own
+    // migration records the cleanup obligation that lands here. Without it a
+    // deleted book stays in every reader's collection as a row that counts
+    // toward the list's size and renders as nothing.
+    supabase.from("reading_list_items").delete().eq("record_type", "book").eq("record_id", bookId),
+    // File-health rows (0065). Polymorphic and FK-less again. The out-of-band
+    // sweep only ever revisits records that still exist, so a row left here is
+    // never corrected: it counts toward the sidebar's "broken files" badge for
+    // good, and /admin/data-quality renders it with a null title and an edit
+    // link to a record that 404s — a defect a librarian cannot clear.
+    supabase.from("file_health").delete().eq("record_type", "book").eq("record_id", bookId),
   ]);
 
   await supabase.from("book_files").delete().eq("book_id", bookId);
@@ -751,6 +767,7 @@ export async function updateBook(bookId: string, formData: FormData) {
       .single();
     if (authorError) throw new Error(`Author error: ${authorError.message}`);
     editAuthorId = authorRow.id;
+    await ensureAuthorSlug(supabase, authorRow.id, author);
   }
 
   // Look up existing category first; only insert if not found

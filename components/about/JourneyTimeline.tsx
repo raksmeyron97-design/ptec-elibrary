@@ -43,7 +43,9 @@ export default function JourneyTimeline({
     .sort((a, b) => a.displayOrder - b.displayOrder);
 
   return (
-    <ol className="relative space-y-8 border-l border-divider pl-6 sm:space-y-10 sm:pl-8">
+    // The rule is a gradient that fades out past the last entry — the history
+    // is open-ended, and a hard line ending in mid-air said "cut off".
+    <ol className="relative space-y-6 pl-7 before:absolute before:bottom-0 before:left-0 before:top-2 before:w-px before:bg-gradient-to-b before:from-brand before:via-divider before:to-transparent sm:space-y-8 sm:pl-9">
       {published.map((milestone) => {
         const title = localized(milestone.title, locale);
         const description = localized(milestone.description, locale);
@@ -52,18 +54,19 @@ export default function JourneyTimeline({
           <li key={milestone.id} className="relative">
             {/* The dot sits on the border line: half its width to the left of
                 the padding edge, so it is centred on the 1px rule. */}
+            {/* Navy dot with a soft gold halo, centred on the 1px rule. */}
             <span
               aria-hidden="true"
-              className="absolute -left-[1.8125rem] top-1.5 h-3 w-3 rounded-full border-2 border-paper bg-brand sm:-left-[2.3125rem]"
+              className="absolute -left-[2.0625rem] top-4 h-3.5 w-3.5 rounded-full border-2 border-paper bg-brand shadow-[0_0_0_4px_rgba(221,176,34,0.28)] sm:-left-[2.5625rem]"
             />
-            <div className="flex flex-col gap-1.5 sm:flex-row sm:items-baseline sm:gap-5">
-              <p className="shrink-0 sm:w-20">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-5">
+              <p className="shrink-0 pt-2.5 sm:w-20">
                 <span className="sr-only">{yearLabel}: </span>
-                <span className="text-sm font-semibold tabular-nums text-brand">
+                <span className="inline-flex items-center rounded-full bg-brand px-2.5 py-0.5 text-sm font-semibold tabular-nums text-brand-contrast">
                   {milestone.year}
                 </span>
               </p>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm">
                 {title && (
                   <h3
                     lang={title.lang}
@@ -103,7 +106,7 @@ export default function JourneyTimeline({
       <li className="relative">
         <span
           aria-hidden="true"
-          className="absolute -left-[1.8125rem] top-1.5 h-3 w-3 rounded-full border-2 border-dashed border-border-strong bg-paper sm:-left-[2.3125rem]"
+          className="absolute -left-[2.0625rem] top-1.5 h-3.5 w-3.5 rounded-full border-2 border-dashed border-border-strong bg-paper sm:-left-[2.5625rem]"
         />
         <div className="sm:ml-25">
           <p className="text-sm font-medium text-text-muted">{moreComingTitle}</p>
