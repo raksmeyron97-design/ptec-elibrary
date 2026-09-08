@@ -32,20 +32,34 @@ function ListCard({ list, onDelete, onUpdate }: {
     if (!name.trim()) return;
     setBusy(true);
     setError(null);
-    const res = await updateReadingList(list.id, name.trim(), list.description ?? undefined, pub);
-    setBusy(false);
-    if (res?.error) { setError(res.error); return; }
-    onUpdate(list.id, name.trim(), pub);
-    setEditing(false);
+    try {
+      const res = await updateReadingList(list.id, name.trim(), list.description ?? undefined, pub);
+      if (res?.error) { setError(res.error); return; }
+      onUpdate(list.id, name.trim(), pub);
+      setEditing(false);
+    } catch {
+      // A Server Action can reject before it returns anything — a dropped
+      // connection, a serialization failure. Without this the card keeps the
+      // caller's optimistic state and stays disabled forever.
+      setError("Could not reach the server. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleDelete() {
     if (!confirm(`Delete "${list.name}"? This cannot be undone.`)) return;
     setBusy(true);
     setError(null);
-    const res = await deleteReadingList(list.id);
-    if (res?.error) { setBusy(false); setError(res.error); return; }
-    onDelete(list.id);
+    try {
+      const res = await deleteReadingList(list.id);
+      if (res?.error) { setError(res.error); return; }
+      onDelete(list.id);
+    } catch {
+      setError("Could not reach the server. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -138,12 +152,21 @@ export default function ReadingListsSection({ initialLists }: Props) {
   const [newName, setNewName]   = useState("");
   const [newPub, setNewPub]     = useState(false);
   const [busy, setBusy]         = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   async function handleCreate() {
     if (!newName.trim()) return;
     setBusy(true);
-    const res = await createReadingList(newName.trim(), undefined, newPub);
-    if (res.success && res.id) {
+    setCreateError(null);
+    try {
+      const res = await createReadingList(newName.trim(), undefined, newPub);
+      // A failed create used to fall straight through to the reset below: the
+      // form cleared, the creator closed, no list appeared and nothing said
+      // why. Keep the typed name so the reader can retry it.
+      if (!res.success || !res.id) {
+        setCreateError(res.error ?? "Could not create the list. Please try again.");
+        return;
+      }
       setLists((prev) => [{
         id: res.id!,
         user_id: "",
@@ -155,8 +178,12 @@ export default function ReadingListsSection({ initialLists }: Props) {
         updated_at: new Date().toISOString(),
         book_count: 0,
       }, ...prev]);
+      setNewName(""); setNewPub(false); setCreating(false);
+    } catch {
+      setCreateError("Could not reach the server. Please try again.");
+    } finally {
+      setBusy(false);
     }
-    setNewName(""); setNewPub(false); setCreating(false); setBusy(false);
   }
 
   function handleDelete(id: string) {
@@ -189,6 +216,19 @@ export default function ReadingListsSection({ initialLists }: Props) {
       {creating && (
         <div className="mb-4 rounded-2xl border border-brand/30 bg-brand/5 p-4">
           <p className="mb-3 text-[13px] font-semibold text-text-heading">Create a new list</p>
+          {createError && (
+            <p
+              role="alert"
+              className="mb-3 rounded-lg px-2.5 py-1.5 text-[12px] font-medium"
+              style={{
+                background: "var(--ptec-danger-soft)",
+                color: "var(--ptec-danger-text)",
+                border: "1px solid var(--ptec-danger-line)",
+              }}
+            >
+              {createError}
+            </p>
+          )}
           <div className="flex flex-col gap-3">
             <input
               autoFocus
