@@ -26,11 +26,26 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "paths" });
+  // With no published paths this page renders only "No learning paths published
+  // yet" — a soft-404 that was indexable and sitemap-advertised. getCollection-
+  // Stats() is one cached row (the page body already reads it), and a NULL read
+  // means "unknown", not "empty", so only a hard 0 withholds the index entry.
+  //
+  // All three reads are independent once `locale` is known, so they run
+  // together — adding the stats read must not serialize this metadata path.
+  const [t, stats, org] = await Promise.all([
+    getTranslations({ locale, namespace: "paths" }),
+    getCollectionStats(),
+    getOrgIdentity(),
+  ]);
   return buildPathsListingMetadata(
     locale,
-    { title: t("seoTitle"), description: t("seoDescription") },
-    await getOrgIdentity(),
+    {
+      title: t("seoTitle"),
+      description: t("seoDescription"),
+      isEmpty: stats?.learningPaths === 0,
+    },
+    org,
   );
 }
 

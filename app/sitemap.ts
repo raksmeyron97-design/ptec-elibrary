@@ -258,17 +258,38 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
   // Listing/informational pages are evergreen navigation, not resources with a
   // single significant-update time — so they carry a changeFrequency/priority
   // hint but NO lastmod (a fabricated per-deploy timestamp is worse than none).
+  //
+  // COLLECTION HUBS ARE CONDITIONAL. A hub with nothing to list renders an
+  // empty state ("No publications are currently available", "No learning paths
+  // published yet") — the same soft-404 as an empty subject page, and the same
+  // reason subjectHubUrls/authorHubUrls below are already gated on their
+  // contents. /publications and /paths were both live, indexable and in this
+  // sitemap with zero rows behind them (verified on production 2026-09-09);
+  // they sat in this array rather than being gated because the rule had only
+  // ever been applied to the two hubs that were added after it was learned.
+  //
+  // The counts come from the arrays this function already fetched, so gating
+  // every hub costs no additional query. /theses/summary rides on the thesis
+  // count because it is a view over exactly those rows.
+  const hub = (
+    path: string,
+    count: number,
+    opts: { changeFrequency: Entry['changeFrequency']; priority: number },
+  ): MetadataRoute.Sitemap => (count > 0 ? [entry(path, opts)] : []);
+
   const staticUrls: MetadataRoute.Sitemap = [
-    // The canonical homepage is the locale root — /home 308s here.
+    // The canonical homepage is the locale root — /home 308s here. Always
+    // advertised: it is the site, not a collection listing.
     entry('/', { changeFrequency: 'daily', priority: 1.0 }),
-    entry('/books', { changeFrequency: 'daily', priority: 0.9 }),
-    entry('/theses', { changeFrequency: 'daily', priority: 0.9 }),
-    entry('/theses/summary', { changeFrequency: 'daily', priority: 0.6 }),
-    entry('/catalogs', { changeFrequency: 'weekly', priority: 0.8 }),
-    entry('/posts', { changeFrequency: 'daily', priority: 0.8 }),
-    entry('/publications', { changeFrequency: 'daily', priority: 0.9 }),
-    entry('/paths', { changeFrequency: 'weekly', priority: 0.8 }),
-    // Informational pages — rarely change
+    ...hub('/books', books.length, { changeFrequency: 'daily', priority: 0.9 }),
+    ...hub('/theses', reports.length, { changeFrequency: 'daily', priority: 0.9 }),
+    ...hub('/theses/summary', reports.length, { changeFrequency: 'daily', priority: 0.6 }),
+    ...hub('/catalogs', catalogBooks.length, { changeFrequency: 'weekly', priority: 0.8 }),
+    ...hub('/posts', posts.length, { changeFrequency: 'daily', priority: 0.8 }),
+    ...hub('/publications', publications.length, { changeFrequency: 'daily', priority: 0.9 }),
+    ...hub('/paths', paths.length, { changeFrequency: 'weekly', priority: 0.8 }),
+    // Informational pages — rarely change, and each is real content regardless
+    // of how many resources the library holds, so none of them is gated.
     ...[
       '/about',
       '/about/collection',

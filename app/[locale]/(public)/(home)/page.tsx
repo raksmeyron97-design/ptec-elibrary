@@ -76,10 +76,16 @@ export async function generateMetadata({
   //
   // twitter:* is set explicitly because Next falls back to the page <title>
   // otherwise, which would silently undo the split on X/Twitter cards.
+  //
+  // One object, used for both `alternates.canonical` and `openGraph.url`. The
+  // homepage was the ONLY openGraphBase() caller that never set og:url — all
+  // ten others do — because openGraphBase cannot supply it: it does not know
+  // the page's path. Verified absent on / and /km live, 2026-09-09.
+  const alternates = localeAlternates("/", locale);
   return {
     title: t("seoTitle"),
     description: t("seoDescription"),
-    alternates: localeAlternates("/", locale),
+    alternates,
     // openGraphBase carries siteName, og:locale and the reciprocal
     // og:locale:alternate. Next does NOT deep-merge `openGraph` — declaring one
     // here replaces the layout's entirely — which is exactly how this page
@@ -90,6 +96,7 @@ export async function generateMetadata({
       title: t("ogTitle"),
       description: t("ogDescription"),
       type: "website",
+      url: alternates.canonical,
     },
     twitter: {
       title: t("ogTitle"),

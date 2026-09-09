@@ -58,3 +58,44 @@ describe("parsePageParam", () => {
     expect(parsePageParam("5")).toBe(5);
   });
 });
+
+describe("buildListingMetadata — an empty collection is not an index entry", () => {
+  // /publications was live, indexable and advertised in sitemap.xml while the
+  // table held zero rows, rendering only "No publications are currently
+  // available" (verified on production 2026-09-09). That is the same soft-404
+  // the project already refuses to submit for empty subjects and empty entity
+  // hubs; the rule simply had no way to reach a listing page.
+  it("marks a listing with no rows at all noindex, follow", () => {
+    const meta = buildListingMetadata({ ...base, isEmpty: true });
+    expect(meta.robots).toEqual({ index: false, follow: true });
+  });
+
+  it("still lets crawlers follow out of an empty listing", () => {
+    const meta = buildListingMetadata({ ...base, isEmpty: true });
+    expect(meta.robots).toMatchObject({ follow: true });
+  });
+
+  it("leaves a populated, unfiltered listing indexable (robots omitted)", () => {
+    expect(buildListingMetadata({ ...base, isEmpty: false }).robots).toBeUndefined();
+    expect(buildListingMetadata(base).robots).toBeUndefined();
+  });
+
+  it("is independent of hasFilters — a filter matching nothing is NOT an empty collection", () => {
+    // hasFilters already covers "this filter matched nothing". isEmpty is the
+    // different claim that the collection itself holds no rows; conflating them
+    // would noindex /books the first time someone searched it for a typo.
+    const filtered = buildListingMetadata({ ...base, hasFilters: true, isEmpty: false });
+    expect(filtered.robots).toEqual({ index: false, follow: true });
+    const emptyUnfiltered = buildListingMetadata({ ...base, hasFilters: false, isEmpty: true });
+    expect(emptyUnfiltered.robots).toEqual({ index: false, follow: true });
+  });
+
+  it("keeps canonical and hreflang on an empty listing — noindex, not unreachable", () => {
+    const meta = buildListingMetadata({ ...base, isEmpty: true });
+    expect(meta.alternates?.canonical).toBe("https://library.ptec.edu.kh/theses");
+    expect(meta.alternates?.languages).toMatchObject({
+      en: "https://library.ptec.edu.kh/theses",
+      km: "https://library.ptec.edu.kh/km/theses",
+    });
+  });
+});

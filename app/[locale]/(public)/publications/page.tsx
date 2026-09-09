@@ -49,11 +49,25 @@ export async function generateMetadata({
   searchParams: Promise<SP>;
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
-  const params = await searchParams;
-  const { locale } = await routeParams;
+  // Everything that does not need `locale` starts at once; only the
+  // translations wait on it. getCollectionStats() reads one row from
+  // public_resource_statistics, cached under the `collection-stats` tag and
+  // already read by the page body, so adding it costs no extra query and — in
+  // this shape — no extra latency either.
+  const [params, { locale }, stats, org] = await Promise.all([
+    searchParams,
+    routeParams,
+    getCollectionStats(),
+    getOrgIdentity(),
+  ]);
   const tSeo = await getTranslations({ locale, namespace: "publications" });
   return buildListingMetadata({
-    org: await getOrgIdentity(),
+    org,
+    // An empty collection renders only "No publications are currently
+    // available" — a soft-404, and it was indexable and in the sitemap while
+    // the table held zero rows. A NULL stats read means "unknown", not
+    // "empty": only a hard 0 withholds the index entry.
+    isEmpty: stats?.publications === 0,
     path: "/publications",
     locale,
     title: tSeo("seoTitle"),

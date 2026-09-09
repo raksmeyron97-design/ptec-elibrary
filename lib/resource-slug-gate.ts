@@ -114,6 +114,20 @@ export const RESOURCE_GATES = {
   // — i.e. the previous soft-404 behaviour, which is the correct deploy-window
   // outcome.
   authors: { table: "author_profiles_public", publishedColumn: "is_published" },
+  // Learning paths gate on is_published — the trigger-maintained mirror of the
+  // `status` lifecycle (0111), the same shape posts use above. `status` itself
+  // is not a boolean, so it cannot bind to this gate's `=eq.true` filter, and
+  // the RLS policy anon actually reads ("Public can view published paths",
+  // 0063) predicates on is_published too, so the snapshot and the policy agree
+  // by construction.
+  //
+  // Without this entry /paths/<anything> answered HTTP 200 with the layout's
+  // indexable robots value and a bare "PTEC Library" title: the page calls
+  // notFound(), but paths/[slug]/loading.tsx streams the 200 first, so the
+  // status is committed before the lookup runs. That is the same soft-404 the
+  // five gates above exist to close, on the one public resource type that was
+  // never added to the list.
+  paths: { table: "learning_paths", publishedColumn: "is_published" },
 } as const satisfies Record<string, ResourceGateConfig>;
 
 /** Pure resolution against a snapshot — unit-tested. */
