@@ -173,10 +173,34 @@ export function getPrivateSeoPaths(): string[] {
  * `getPrivateSeoPaths()` expanded across every locale prefix, formatted as
  * robots.txt `Disallow` values.
  *
- * Both the bare prefix and its trailing-slash form are emitted: the bare form
- * covers the segment root under every robots.txt parser, and the slash form
- * states the descendant intent explicitly rather than relying on prefix
- * matching that would also catch an unrelated sibling.
+ * Two forms per prefix, and the ANCHOR on the first one is load-bearing:
+ *
+ *   `/auth$`  — the segment root, and ONLY the segment root
+ *   `/auth/`  — everything beneath it
+ *
+ * Together they are the exact robots.txt translation of what
+ * isPrivateSurfacePath() means: `path === prefix || path.startsWith(prefix + "/")`.
+ *
+ * ── Why the `$` is not optional ──────────────────────────────────────────────
+ *
+ * A robots.txt rule is a PREFIX match with no implicit end anchor. This
+ * function used to emit a bare `/auth`, which therefore matched `/authors`,
+ * `/authors/adrian-wallwork`, and every other author URL — and because Google
+ * resolves a conflict by LONGEST matching rule (ties going to Allow), the
+ * group's own `Allow: /` (length 1) lost to `Disallow: /auth` (length 5).
+ * The result: the author hub and all 157 author profiles were disallowed for
+ * every crawler, while sitemap.xml went on advertising them. Found by Search
+ * Console live inspection, not by reading this file.
+ *
+ * `$` is a standard robots.txt special character (RFC 9309 §2.2.3, which
+ * requires crawlers to support `#`, `$` and `*`). A parser that ignored it
+ * would simply fail to match the segment root — leaving `/auth` itself
+ * crawlable while `/auth/*` stays blocked by the second rule. That is a
+ * non-existent route, and metadata robots + the X-Robots-Tag header are the
+ * real protection either way, so the degraded case costs nothing.
+ *
+ * The trailing-slash form deliberately carries NO anchor: it is the descendant
+ * rule, and anchoring it would block only the literal directory URL.
  *
  * The locale cross-product mirrors middleware exactly. Middleware strips a
  * `/km` prefix from ANY path before calling isPrivateSurfacePath(), so
@@ -187,7 +211,7 @@ export function getLocalizedPrivateSeoPaths(): string[] {
   const out: string[] = [];
   for (const prefix of getPrivateSeoPaths()) {
     for (const locale of ["", ...URL_LOCALE_PREFIXES]) {
-      out.push(`${locale}${prefix}`, `${locale}${prefix}/`);
+      out.push(`${locale}${prefix}$`, `${locale}${prefix}/`);
     }
   }
   return out;

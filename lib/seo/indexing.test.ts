@@ -165,13 +165,29 @@ describe("private-path derivation (single source of truth)", () => {
     expect(getPrivateSeoPaths()).toEqual([...PRIVATE_PATH_PREFIXES]);
   });
 
-  it("covers every prefix in both locale forms", () => {
+  it("covers every prefix in both locale forms, with the segment root ANCHORED", () => {
+    // The anchor is the fix for a real outage: a bare `/auth` is a robots.txt
+    // PREFIX rule, so it matched /authors and blocked all 157 author profiles.
+    // `/auth$` is the segment root only; `/auth/` is its descendants.
     const paths = getLocalizedPrivateSeoPaths();
     for (const prefix of PRIVATE_PATH_PREFIXES) {
-      expect(paths).toContain(prefix);
+      expect(paths).toContain(`${prefix}$`);
       expect(paths).toContain(`${prefix}/`);
-      expect(paths).toContain(`/km${prefix}`);
+      expect(paths).toContain(`/km${prefix}$`);
       expect(paths).toContain(`/km${prefix}/`);
+    }
+  });
+
+  it("never emits an unanchored segment root — that is the /authors bug", () => {
+    const paths = getLocalizedPrivateSeoPaths();
+    for (const path of paths) {
+      const isDescendantRule = path.endsWith("/");
+      const isAnchoredRoot = path.endsWith("$");
+      expect(
+        isDescendantRule || isAnchoredRoot,
+        `${path} is an unanchored prefix rule — it silently blocks every sibling ` +
+          `route that starts with the same characters`,
+      ).toBe(true);
     }
   });
 
@@ -183,8 +199,9 @@ describe("private-path derivation (single source of truth)", () => {
   it("every derived path classifies as private once its locale prefix is stripped", () => {
     for (const path of getLocalizedPrivateSeoPaths()) {
       const stripped = path.startsWith("/km") ? path.slice(3) : path;
-      // Trailing-slash forms are the descendant rule; compare the bare segment.
-      const bare = stripped.endsWith("/") ? stripped.slice(0, -1) : stripped;
+      // Two rule shapes: `/auth/` (descendants) and `/auth$` (segment root).
+      // Strip either marker to recover the bare segment.
+      const bare = stripped.replace(/[/$]$/, "");
       expect(isPrivateSurfacePath(bare), path).toBe(true);
     }
   });
@@ -195,7 +212,7 @@ describe("private-path derivation (single source of truth)", () => {
     // makes both classes of drift impossible — this pins that.
     for (const path of getLocalizedPrivateSeoPaths()) {
       const stripped = path.startsWith("/km") ? path.slice(3) : path;
-      const bare = stripped.endsWith("/") ? stripped.slice(0, -1) : stripped;
+      const bare = stripped.replace(/[/$]$/, "");
       expect(PRIVATE_PATH_PREFIXES as readonly string[]).toContain(bare);
     }
   });
