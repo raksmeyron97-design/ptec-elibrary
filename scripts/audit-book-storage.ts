@@ -85,11 +85,24 @@ interface ZimaEntry {
  */
 async function listFolder(folder: string): Promise<ZimaEntry[]> {
   for (let attempt = 1; ; attempt++) {
-    const res = await fetch(`${ZIMA_API_URL}/api/files`, {
-      method: "POST",
-      headers: { "x-api-key": ZIMA_API_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ folder }),
-    });
+    // A THROWN fetch is transient too — network blip, timeout, a connection
+    // the origin dropped after a long run of requests. check.ts records that
+    // case as "a null status" and retries it; dying here would abort the audit
+    // just as surely as an unhandled 429 did, and did (`✖ fetch failed`).
+    let res: Response;
+    try {
+      res = await fetch(`${ZIMA_API_URL}/api/files`, {
+        method: "POST",
+        headers: { "x-api-key": ZIMA_API_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ folder }),
+      });
+    } catch (err) {
+      if (attempt >= MAX_PROBE_ATTEMPTS) throw err;
+      const delay = retryDelayMs(attempt);
+      console.log(`  … network error on "${folder}" — waiting ${Math.round(delay / 1000)}s`);
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
     if (res.status === 404) return [];
     if (res.ok) {
       const json = await res.json();
