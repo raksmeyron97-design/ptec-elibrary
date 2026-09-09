@@ -64,14 +64,164 @@ describe("app/robots.ts — one source of truth for the private-path policy", ()
     expect(src).toMatch(/sitemap:\s*`\$\{SITE_URL\}\/sitemap\.xml`/);
   });
 
-  it("emits both the bare and trailing-slash form of every private prefix", () => {
+  it("emits an anchored segment root plus a descendant rule for every private prefix", () => {
     const paths = getLocalizedPrivateSeoPaths();
     for (const prefix of PRIVATE_PATH_PREFIXES) {
       for (const locale of ["", "/km"]) {
-        expect(paths).toContain(`${locale}${prefix}`);
+        expect(paths).toContain(`${locale}${prefix}$`);
         expect(paths).toContain(`${locale}${prefix}/`);
       }
     }
+  });
+});
+
+// ── What robots.txt actually DOES to our URLs ────────────────────────────────
+//
+// The tests above pin the SHAPE of the rules. Shape was never the problem: the
+// rules looked entirely reasonable and blocked the author hub and all 157
+// author profiles anyway, because a robots.txt rule is a PREFIX match with no
+// implicit end anchor — so `Disallow: /auth` matched `/authors`. Google then
+// resolves a conflict by the LONGEST matching rule, so the group's own
+// `Allow: /` (length 1) lost to `Disallow: /auth` (length 5).
+//
+// Nothing in this repository could see that, because nothing evaluated the
+// rules the way a crawler does. This block does. It is the regression test for
+// the defect; the shape assertions above are only its supporting detail.
+
+/** Escape a literal for embedding in a RegExp. */
+function escapeLiteral(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Does one robots.txt pattern match `path`?
+ *
+ * Prefix match by default; `*` matches any run of characters; a trailing `$`
+ * anchors the end of the URL (RFC 9309 §2.2.3).
+ */
+function ruleMatches(pattern: string, path: string): boolean {
+  let body = pattern;
+  let anchored = false;
+  if (body.endsWith("$")) {
+    anchored = true;
+    body = body.slice(0, -1);
+  }
+  const source = `^${body.split("*").map(escapeLiteral).join(".*")}${anchored ? "$" : ""}`;
+  return new RegExp(source).test(path);
+}
+
+type Rule = { allow: boolean; pattern: string };
+
+/**
+ * Google's conflict resolution: the most specific (longest) matching rule
+ * wins; a tie goes to Allow; no match at all means allowed.
+ */
+function isCrawlable(path: string, rules: Rule[]): boolean {
+  let best: { length: number; allow: boolean } | null = null;
+  for (const rule of rules) {
+    if (!ruleMatches(rule.pattern, path)) continue;
+    const length = rule.pattern.replace(/\$$/, "").length;
+    if (!best || length > best.length || (length === best.length && rule.allow)) {
+      best = { length, allow: rule.allow };
+    }
+  }
+  return best ? best.allow : true;
+}
+
+describe("robots.txt — evaluated the way a crawler evaluates it", () => {
+  // The `User-Agent: *` group exactly as app/robots.ts builds it: a blanket
+  // Allow, plus the derived private Disallow list. This is the group that
+  // governs Googlebot.
+  const rules: Rule[] = [
+    { allow: true, pattern: "/" },
+    ...getLocalizedPrivateSeoPaths().map((pattern) => ({ allow: false, pattern })),
+  ];
+
+  const PUBLIC_URLS = [
+    "/",
+    "/books",
+    "/books/educational-psychology-14th-edition-global-edition",
+    "/authors",
+    "/authors/adrian-wallwork",
+    "/authors/សិត-សេង",
+    "/subjects",
+    "/subjects/អប់រំ",
+    "/theses",
+    "/theses/summary",
+    "/publications",
+    "/paths",
+    "/paths/foundation-of-mathematics",
+    "/posts",
+    "/catalogs",
+    "/about",
+    "/about/team",
+    "/about/team/someone",
+    "/contact",
+    "/policy",
+    "/privacy",
+    "/search",
+    "/llms.txt",
+    "/sitemap.xml",
+  ];
+
+  it.each(PUBLIC_URLS.flatMap((u) => [[u], [u === "/" ? "/km" : `/km${u}`]]))(
+    "leaves the public URL %s crawlable",
+    (url) => {
+      expect(
+        isCrawlable(url, rules),
+        `${url} is disallowed by robots.txt. The sitemap advertises it, so this ` +
+          `is a URL we ask crawlers to fetch and then forbid them from fetching.`,
+      ).toBe(true);
+    },
+  );
+
+  const PRIVATE_URLS = [
+    "/admin",
+    "/admin/books/upload",
+    "/auth",
+    "/auth/login",
+    "/api",
+    "/api/health",
+    "/dashboard",
+    "/profile",
+    "/lists",
+    "/lists/abc",
+    "/offline-books",
+    "/offline-reader",
+  ];
+
+  it.each(PRIVATE_URLS.flatMap((u) => [[u], [`/km${u}`]]))(
+    "still blocks the private URL %s",
+    (url) => {
+      expect(isCrawlable(url, rules), `${url} is crawlable — it must not be`).toBe(false);
+    },
+  );
+
+  // The general form of the defect, independent of which routes exist today.
+  // /auth vs /authors is the instance that shipped; a later /list vs /lists or
+  // /api vs /apidocs would be the same mistake with a different name.
+  it.each(PRIVATE_PATH_PREFIXES.map((p) => [p]))(
+    "does not let %s swallow a sibling route that merely starts with it",
+    (prefix) => {
+      for (const sibling of [`${prefix}s`, `${prefix}-guide`, `${prefix}ors`]) {
+        expect(
+          isCrawlable(sibling, rules),
+          `${sibling} is blocked by the rule for ${prefix} — an unanchored ` +
+            `prefix rule is matching a sibling route`,
+        ).toBe(true);
+      }
+    },
+  );
+
+  it("blocks a private root exactly, without an implicit wildcard", () => {
+    // Sanity-check the matcher itself against the two shapes we emit, so a bug
+    // in the harness cannot make the assertions above vacuously pass.
+    expect(ruleMatches("/auth$", "/auth")).toBe(true);
+    expect(ruleMatches("/auth$", "/authors")).toBe(false);
+    expect(ruleMatches("/auth/", "/auth/login")).toBe(true);
+    expect(ruleMatches("/auth/", "/authors")).toBe(false);
+    // ...and that the OLD, unanchored rule really did match /authors.
+    expect(ruleMatches("/auth", "/authors")).toBe(true);
   });
 });
 
