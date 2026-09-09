@@ -20,6 +20,13 @@ export const LISTING_FALLBACK_OG_IMAGE = `${SITE_URL}/og-default.png`;
  *   near-duplicate filter permutations don't pollute search results.
  * - Pages beyond the last result page (?page=999) are `noindex, follow` too —
  *   an empty grid is not a useful index entry (pass `outOfRange`).
+ * - A listing whose WHOLE collection is empty is `noindex, follow` as well
+ *   (pass `isEmpty`). /publications was live, indexable and in the sitemap
+ *   while rendering "No publications are currently available" (verified on
+ *   production 2026-09-09) — a soft-404 by the same definition that already
+ *   keeps empty subjects and empty entity hubs out of the index. This is about
+ *   the collection having no rows at all, NOT about a filter matching nothing:
+ *   that case is already covered by `hasFilters`.
  * - Every listing gets a social image. `image` is optional, but its DEFAULT is
  *   the site card rather than nothing: /theses, /theses/summary, /catalogs,
  *   /publications and /paths were each shipping with no og:image at all
@@ -39,6 +46,7 @@ export function buildListingMetadata({
   imageAlt,
   pageLabel = "Page",
   outOfRange = false,
+  isEmpty = false,
   org: orgArg,
 }: {
   /** Route path starting with "/", e.g. "/books". */
@@ -61,6 +69,9 @@ export function buildListingMetadata({
   pageLabel?: string;
   /** True when the requested page is past the last page of results. */
   outOfRange?: boolean;
+  /** True when the collection itself holds nothing to list (no rows at all,
+   *  independent of any filter) — the page renders only an empty state. */
+  isEmpty?: boolean;
   /** Resolved published identity — `await getOrgIdentity()`. Drives the
    *  Open Graph site name and the "| <library>" title suffix. */
   org?: OrgIdentity;
@@ -76,7 +87,8 @@ export function buildListingMetadata({
     title: pagedTitle,
     description,
     alternates,
-    robots: hasFilters || outOfRange ? { index: false, follow: true } : undefined,
+    robots:
+      hasFilters || outOfRange || isEmpty ? { index: false, follow: true } : undefined,
     openGraph: {
       title: `${pagedTitle} | ${org.libraryName}`,
       description,
