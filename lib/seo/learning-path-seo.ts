@@ -119,17 +119,40 @@ export function buildPathMetadata(
   };
 }
 
+/**
+ * Metadata for the /paths collection listing.
+ *
+ * Two things this builder has to get right that its siblings get from
+ * buildListingMetadata():
+ *
+ *  * `images`. Every other public listing falls back to the shared site card;
+ *    /paths was the ONLY one shipping with no og:image at all (verified live
+ *    2026-09-09), because the fallback was added to buildListingMetadata and
+ *    this builder is a separate one. A share of /paths rendered as a bare link.
+ *
+ *  * `isEmpty`. A hub with no published paths renders only "No learning paths
+ *    published yet" — a soft-404 — and was indexable and in the sitemap while
+ *    the table held zero rows. Same rule as empty subjects and empty entity
+ *    hubs: `noindex, follow`, so the links are still crawled but the empty page
+ *    is not indexed.
+ */
 export function buildPathsListingMetadata(
   locale: string,
-  { title, description }: { title: string; description: string },
+  {
+    title,
+    description,
+    isEmpty = false,
+  }: { title: string; description: string; isEmpty?: boolean },
   orgArg?: OrgIdentity,
 ): Metadata {
   const org = resolveOrgIdentity(orgArg);
   const alternates = localeAlternates("/paths", locale);
+  const images = [{ url: FALLBACK_OG_IMAGE, alt: org.siteName }];
   return {
     title,
     description,
     alternates,
+    ...(isEmpty ? { robots: { index: false, follow: true } } : {}),
     openGraph: {
       title: `${title} | ${org.libraryName}`,
       description,
@@ -138,11 +161,13 @@ export function buildPathsListingMetadata(
       siteName: org.siteName,
       locale: locale === "km" ? "km_KH" : "en_US",
       alternateLocale: locale === "km" ? "en_US" : "km_KH",
+      images,
     },
     twitter: {
       card: "summary_large_image",
       title: `${title} | ${org.libraryName}`,
       description,
+      images: [FALLBACK_OG_IMAGE],
     },
   };
 }

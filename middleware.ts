@@ -427,6 +427,7 @@ export async function middleware(request: NextRequest) {
     // so /about/team/<slug> matches while /about/team itself does not.
     ["about/team", RESOURCE_GATES["about/team"]],
     ["authors", RESOURCE_GATES.authors],
+    ["paths", RESOURCE_GATES.paths],
   ] as const) {
     const match = pathWithoutLocale.match(
       new RegExp(`^/${segment}/([^/]+)$`),

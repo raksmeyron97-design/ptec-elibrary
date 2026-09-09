@@ -47,7 +47,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug: rawSlug, locale } = await params;
   const slug = decodeSlugParam(rawSlug);
   const path = await getPathBySlug(slug);
-  if (!path) return {};
+  // The edge gate (RESOURCE_GATES.paths) turns an unknown slug into a real 404
+  // before this runs, but it FAILS OPEN by design — a Supabase hiccup at the
+  // edge lets the request through. Returning {} here inherited the layout's
+  // indexable robots value, so the fail-open window served an indexable
+  // soft-404. `noindex, follow` is what /subjects/[slug] already returns for
+  // the same situation.
+  if (!path) return { robots: { index: false, follow: true } };
   return buildPathMetadata(toPathSeoInput(path), locale, await getOrgIdentity());
 }
 

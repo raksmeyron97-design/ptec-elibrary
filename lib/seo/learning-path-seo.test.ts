@@ -6,6 +6,8 @@ import {
   buildPathMetadata,
   pathCourseJsonLd,
   pathsCollectionJsonLd,
+  buildPathsListingMetadata,
+  FALLBACK_OG_IMAGE,
   type LearningPathSeoInput,
 } from "./learning-path-seo";
 
@@ -94,5 +96,49 @@ describe("pathCanonicalUrl", () => {
   it("is locale-correct", () => {
     expect(pathCanonicalUrl("x", "en")).toBe(`${SITE}/paths/x`);
     expect(pathCanonicalUrl("x", "km")).toBe(`${SITE}/km/paths/x`);
+  });
+});
+
+describe("buildPathsListingMetadata — the /paths collection listing", () => {
+  const copy = { title: "Teacher Learning Paths", description: "Curated reading paths." };
+
+  it("always carries a social image", () => {
+    // Every other public listing falls back to the shared site card through
+    // buildListingMetadata. /paths uses THIS builder, which never received the
+    // fallback, so it was the one listing on the site emitting no og:image at
+    // all — verified live 2026-09-09. A share of /paths rendered as a bare URL.
+    const meta = buildPathsListingMetadata("en", copy);
+    expect(meta.openGraph?.images).toEqual([
+      { url: FALLBACK_OG_IMAGE, alt: expect.any(String) },
+    ]);
+    expect(meta.twitter?.images).toEqual([FALLBACK_OG_IMAGE]);
+  });
+
+  it("carries the social image in Khmer too", () => {
+    const meta = buildPathsListingMetadata("km", copy);
+    expect(meta.openGraph?.images).toEqual([
+      { url: FALLBACK_OG_IMAGE, alt: expect.any(String) },
+    ]);
+  });
+
+  it("marks an empty collection noindex, follow", () => {
+    // With zero published paths the page renders only "No learning paths
+    // published yet" — a soft-404 that was indexable and in the sitemap.
+    const meta = buildPathsListingMetadata("en", { ...copy, isEmpty: true });
+    expect(meta.robots).toEqual({ index: false, follow: true });
+  });
+
+  it("leaves a populated collection indexable (robots omitted)", () => {
+    expect(buildPathsListingMetadata("en", copy).robots).toBeUndefined();
+    expect(buildPathsListingMetadata("en", { ...copy, isEmpty: false }).robots).toBeUndefined();
+  });
+
+  it("keeps canonical + reciprocal hreflang in both locales", () => {
+    const en = buildPathsListingMetadata("en", { ...copy, isEmpty: true });
+    const km = buildPathsListingMetadata("km", { ...copy, isEmpty: true });
+    expect(en.alternates?.canonical).toBe(`${SITE}/paths`);
+    expect(km.alternates?.canonical).toBe(`${SITE}/km/paths`);
+    expect(en.openGraph?.url).toBe(`${SITE}/paths`);
+    expect(km.openGraph?.url).toBe(`${SITE}/km/paths`);
   });
 });

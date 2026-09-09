@@ -208,3 +208,64 @@ describe("[slug] route params are decoded before any lookup", () => {
     },
   );
 });
+
+// ── Every declared gate is actually wired into middleware ────────────────────
+//
+// A gate is two halves: a RESOURCE_GATES entry and a line in middleware's
+// dispatch loop. Either half alone does nothing, and the failure is silent —
+// the route keeps answering HTTP 200 with not-found content, which is the
+// soft-404 this whole module exists to prevent.
+//
+// /paths had NEITHER half. It answered 200 with the layout's indexable robots
+// value and a bare "PTEC Library" title for any slug at all, because
+// paths/[slug]/loading.tsx streams the 200 before notFound() ever runs.
+describe("middleware wires every gate RESOURCE_GATES declares", () => {
+  const middleware = fs
+    .readFileSync(path.join(__dirname, "..", "middleware.ts"), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1 ");
+
+  it.each(Object.keys(RESOURCE_GATES).map((k) => [k]))(
+    "dispatches /%s/<slug> through its gate",
+    (segment) => {
+      const dotted = `["${segment}", RESOURCE_GATES.${segment}]`;
+      const bracketed = `["${segment}", RESOURCE_GATES["${segment}"]]`;
+      expect(
+        middleware.includes(dotted) || middleware.includes(bracketed),
+        `RESOURCE_GATES.${segment} is declared but middleware never dispatches ` +
+          `to it — /${segment}/<unknown> still answers 200 with not-found content`,
+      ).toBe(true);
+    },
+  );
+
+  it("declares no dispatch for a gate that does not exist", () => {
+    const dispatched = [...middleware.matchAll(/\["([^"]+)", RESOURCE_GATES[.[]/g)].map(
+      (m) => m[1],
+    );
+    expect(dispatched.length).toBe(Object.keys(RESOURCE_GATES).length);
+    for (const segment of dispatched) {
+      expect(Object.keys(RESOURCE_GATES)).toContain(segment);
+    }
+  });
+});
+
+describe("learning paths gate", () => {
+  it("reads learning_paths.is_published — the trigger-maintained mirror of `status` (0111)", () => {
+    // `status` is an enum, not a boolean, so it cannot bind to this gate's
+    // =eq.true filter; is_published is also the column the anon RLS policy
+    // ("Public can view published paths", 0063) predicates on, so the edge
+    // snapshot and the policy agree by construction.
+    expect(RESOURCE_GATES.paths).toEqual({
+      table: "learning_paths",
+      publishedColumn: "is_published",
+    });
+  });
+
+  it("declares no reserved segments — /paths has no static child route besides [slug]", () => {
+    expect(RESOURCE_GATES.paths).not.toHaveProperty("reserved");
+  });
+
+  it("declares no redirect map — a path slug change retires the old URL", () => {
+    expect(RESOURCE_GATES.paths).not.toHaveProperty("redirectTable");
+  });
+});
