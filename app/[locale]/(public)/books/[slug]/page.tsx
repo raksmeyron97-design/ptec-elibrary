@@ -711,6 +711,7 @@ async function ReaderSection({
       // that would be refused.
       allowDownload={book.allowDownload !== false}
       isLoggedIn={!!user}
+      accountId={user?.id ?? null}
       requireAuthToView
       reportEmail={(await getSiteConfig()).email}
       fullReaderHref={`/books/${book.slug}/read`}

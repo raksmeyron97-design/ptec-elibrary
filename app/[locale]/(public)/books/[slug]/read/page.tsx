@@ -139,6 +139,10 @@ export default async function BookReadPage({ params, searchParams }: ReadPagePro
         // experience than not offering it.
         allowDownload={book.allowDownload !== false}
         isLoggedIn={!!user}
+        // Stamps this device's saved position with the account reading now, so
+        // the next student to sign in on a shared machine is not resumed onto
+        // the previous one's page (and does not autosave it as their own).
+        accountId={user?.id ?? null}
         reportEmail={siteConfig.email}
         backHref={`${prefix}/books/${slug}`}
         citation={citation}

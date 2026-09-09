@@ -75,6 +75,42 @@ otherwise                 →  server: last_page, else pageFromPercent()
 Every new input is optional and every branch has a fallback, so a row written
 before 0141 resumes exactly as it did.
 
+### The device record names its owner
+
+The table above is decided *before* any of it, on one question: **does this
+device's record belong to the reader who is here now?**
+
+`localStorage` is per-origin, not per-account, and signing out is a server
+route that clears cookies and touches no local storage — so on a lab PC the
+record routinely outlives the reader who wrote it. Every branch above would
+otherwise hand it to the next one, and `serverPct === 0` — the state of someone
+opening a book for the *first* time — takes the local page unconditionally. The
+consequence was not cosmetic: the next student landed on the previous
+student's page, and `useReaderProgress` autosaved it into *their* account 1.5 s
+later, unprompted, as a fact about a book they had never opened.
+
+So the record carries `o`, the account it belongs to, and the rule is the one
+`syncReaderBookmarks` already applies to an unstamped bookmark record:
+
+* stamped for **someone else** — not resumed from, not synced from. The reader
+  starts where their own account says they are, which for a first open is page 1.
+* **unstamped** (written before this) — trusted and claimed. That is what
+  carries an existing reader's position forward rather than discarding it.
+* **no account to compare against** — the offline reader and the signed-out
+  thesis/publication previews behave exactly as they always did.
+
+Taking over another account's record also drops its `s`: that field names a
+percentage *their* account was synced to, and inheriting it would make the
+clock-free branch above assert this device is level with a server row it has
+never written.
+
+`isForeignRecord()` in `lib/reader/resume.ts` is the single predicate, used by
+both the read path (`resolveResumePage`) and the write path
+(`useReaderProgress`). Pinned by `lib/reader/shared-device-resume.test.ts` and
+`components/ui/reader/hooks/useReaderProgress-ownership.test.ts` — the two
+halves are load-bearing together, because a stamp nothing writes is a check
+that never fires.
+
 ### Transports
 
 Unchanged in number, extended in payload — the page always travels *with* the

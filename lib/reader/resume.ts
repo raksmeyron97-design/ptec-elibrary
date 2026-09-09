@@ -26,6 +26,10 @@ export type LocalPosition = {
   t?: number;
   /** The percentage this device last successfully sent to the server. */
   s?: number;
+  /** The account this record belongs to. Undefined on a record written before
+      stamping existed — trusted and claimed, exactly as an unstamped bookmark
+      record is (`syncReaderBookmarks`). */
+  o?: string;
 } | null;
 
 export type ResumeInput = {
@@ -41,6 +45,10 @@ export type ResumeInput = {
   /** When the server position was written (ms since epoch), if known. */
   serverAt?: number | null;
   isLoggedIn: boolean;
+  /** The signed-in account, when the surface knows it. Null/undefined on the
+      offline reader and the signed-out thesis/publication previews, which
+      have no account to disagree with. */
+  accountId?: string | null;
   /** Real page count from the loaded document (the `pages` column is unreliable). */
   numPages: number;
 };
@@ -53,6 +61,20 @@ export const RESUME_TOLERANCE_PCT = 2;
     case (one page turn, then the tab closes before the 1.5 s autosave). */
 const CLOCK_SLACK_MS = 1000;
 
+/** Whether this device's record belongs to a DIFFERENT account than the one
+    reading now.
+
+    Only a definite disagreement counts. An unstamped record (`o` undefined)
+    predates stamping and is claimed; an unknown reader (`accountId` null — the
+    offline reader, a signed-out preview) has no identity to disagree with, so
+    those surfaces behave exactly as they always did. */
+export function isForeignRecord(
+  local: LocalPosition,
+  accountId: string | null | undefined,
+): boolean {
+  return !!local?.o && !!accountId && local.o !== accountId;
+}
+
 /** The page to land on, or null to keep the caller's default (page 1 or the
     server-derived page).
 
@@ -64,8 +86,17 @@ const CLOCK_SLACK_MS = 1000;
     timestamps the older rule applies: agree within tolerance, or defer to
     the server as the position read further elsewhere. */
 export function resolveResumePage(input: ResumeInput): number | null {
-  const { local, serverPct, serverAt, isLoggedIn, numPages } = input;
+  const { local, serverPct, serverAt, isLoggedIn, accountId, numPages } = input;
   if (!numPages) return null;
+  // A device record stamped for ANOTHER account is not this reader's to resume
+  // from. localStorage is per-origin and sign-out clears cookies, not storage,
+  // so on a shared lab machine this record routinely outlives the reader who
+  // wrote it — and every branch below would otherwise hand it to the next one:
+  // `serverPct === 0` is exactly the state of someone opening the book for the
+  // first time. The stamp must therefore be checked BEFORE any of them.
+  // Unstamped records predate stamping and are claimed, the same migration
+  // rule `syncReaderBookmarks` applies to an unstamped bookmark record.
+  if (isForeignRecord(local, accountId)) return null;
   const p = typeof local?.p === "number" ? Math.floor(local.p) : 0;
   if (p < 1) return null;
   const pct = typeof local?.pct === "number" ? local.pct : 0;
@@ -142,12 +173,15 @@ export function parseLocalPosition(raw: string | null): LocalPosition {
   try {
     const v = JSON.parse(raw) as unknown;
     if (!v || typeof v !== "object") return null;
-    const o = v as { p?: unknown; pct?: unknown; t?: unknown; s?: unknown };
+    const o = v as { p?: unknown; pct?: unknown; t?: unknown; s?: unknown; o?: unknown };
     return {
       p: typeof o.p === "number" ? o.p : undefined,
       pct: typeof o.pct === "number" ? o.pct : undefined,
       t: typeof o.t === "number" ? o.t : undefined,
       s: typeof o.s === "number" ? o.s : undefined,
+      // A non-string stamp is dropped rather than stored: a record that cannot
+      // name its owner is treated as unowned, never as owned by something odd.
+      o: typeof o.o === "string" ? o.o : undefined,
     };
   } catch {
     return null;

@@ -19,6 +19,9 @@ type PDFReaderLauncherProps = {
   initialProgressAt?: string | null;
   allowDownload?: boolean;
   isLoggedIn?: boolean;
+  /** Forwarded to the viewer, which stamps this device's saved position with
+   *  it. See PDFViewer's `accountId`. */
+  accountId?: string | null;
   fullReaderHref?: string;
   /** Published support address for the broken-file report link. */
   reportEmail?: string | null;
@@ -40,6 +43,7 @@ export default function PDFReaderLauncher({
   initialProgressAt = null,
   allowDownload = true,
   isLoggedIn = false,
+  accountId = null,
   fullReaderHref,
   reportEmail,
   requireAuthToView = false,
@@ -77,6 +81,7 @@ export default function PDFReaderLauncher({
         initialProgressAt={initialProgressAt}
         allowDownload={allowDownload}
         isLoggedIn={isLoggedIn}
+        accountId={accountId}
         reportEmail={reportEmail}
         onClose={() => setOpen(false)}
         fullReaderHref={fullReaderHref ? (locale === "km" ? `/km${fullReaderHref}` : fullReaderHref) : undefined}
