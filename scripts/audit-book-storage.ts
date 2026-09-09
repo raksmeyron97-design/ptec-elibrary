@@ -152,7 +152,11 @@ async function main() {
   console.log("→ Reading book rows…");
   const { data: books, error } = await supabase
     .from("books")
-    .select("id, title, slug, file_url, cover_url, storage_folder, is_published, created_at")
+    // NOT `file_url`: `books` has no such column. A book's PDF lives in
+    // `book_files.file_url` (fetched below), and asking for it here failed the
+    // whole audit with `column books.file_url does not exist` — after the
+    // storage listing had already been paid for.
+    .select("id, title, slug, cover_url, storage_folder, is_published, created_at")
     .order("created_at", { ascending: false });
   if (error) throw new Error(`books query failed: ${error.message}`);
 
@@ -161,10 +165,8 @@ async function main() {
   // Every storage path any row claims.
   const referenced = new Set<string>();
   for (const row of books ?? []) {
-    for (const url of [row.file_url, row.cover_url]) {
-      const p = url ? toStoragePath(url) : null;
-      if (p) referenced.add(p);
-    }
+    const p = row.cover_url ? toStoragePath(row.cover_url as string) : null;
+    if (p) referenced.add(p);
   }
   for (const bf of bookFiles ?? []) {
     const p = bf.file_url ? toStoragePath(bf.file_url) : null;
@@ -196,15 +198,31 @@ async function main() {
   }
 
   // ── Orphan rows: a book whose PDF is not on disk ──
+  // A book's PDFs, from the table that actually holds them. Reading this off
+  // `books` was the bug above, and it was not only a failed query: `row.file_url`
+  // is undefined for every row, so `if (!p) return true` would have reported
+  // ALL 270 books as orphans the moment the query stopped erroring.
+  const pdfPathsByBook = new Map<string, string[]>();
+  for (const bf of bookFiles ?? []) {
+    if (!bf.file_url) continue;
+    const p = toStoragePath(bf.file_url);
+    if (!p) continue;
+    const list = pdfPathsByBook.get(bf.book_id) ?? [];
+    list.push(p);
+    pdfPathsByBook.set(bf.book_id, list);
+  }
+
   const orphanRows = (books ?? []).filter((row) => {
-    const p = row.file_url ? toStoragePath(row.file_url) : null;
     // A recorded folder that still holds files is proof the book's bytes exist
     // even when the stored URL shape is one this script cannot resolve.
     const folder = row.storage_folder as string | null;
     if (folder && files.some((f) => f.path.startsWith(`${folder}/`))) return false;
-    if (!p) return true; // no file at all
-    if (!p.startsWith("books/")) return false; // legacy R2 — out of scope here
-    return !onDisk.has(p);
+    const paths = pdfPathsByBook.get(row.id as string) ?? [];
+    if (paths.length === 0) return true; // no file row at all
+    // Legacy R2 keys are out of scope here; only judge paths under books/.
+    const managed = paths.filter((p) => p.startsWith("books/"));
+    if (managed.length === 0) return false;
+    return managed.every((p) => !onDisk.has(p));
   });
 
   console.log("");
