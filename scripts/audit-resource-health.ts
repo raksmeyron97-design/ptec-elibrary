@@ -50,12 +50,30 @@ async function allRows<T>(
   db: any,
   table: string,
   columns: string,
+  // REQUIRED, and must be UNIQUE for the rows being swept.
+  //
+  // A `.range()` loop is a sequence of independent LIMIT/OFFSET queries. With
+  // no ORDER BY, Postgres is free to return a different row order per query,
+  // so a row can land in two pages (counted twice) or in none (dropped). This
+  // is not theoretical: measured against production `book_chunks`, an
+  // unordered sweep fetched all 132,270 rows but only 90,335 were DISTINCT —
+  // 41,935 duplicates, and 29,691 rows returned by one sweep were absent from
+  // the next. Books whose chunks all fell in a skipped window then read as
+  // `not_embedded`, so this report answered 231 / 230 / 234 ai_ready on three
+  // consecutive runs against a database that was not changing.
+  //
+  // It is a parameter rather than a default because the right key is
+  // per-table: `resource_index_state` has no `id` column at all.
+  orderBy: string[],
   shape: (q: any) => any = (q) => q,
 ): Promise<T[]> {
+  if (orderBy.length === 0) throw new Error(`${table}: allRows needs a unique ordering`);
   const out: T[] = [];
   let from = 0;
   for (;;) {
-    const { data, error } = await shape(db.from(table).select(columns)).range(from, from + 999);
+    let q = shape(db.from(table).select(columns));
+    for (const col of orderBy) q = q.order(col, { ascending: true });
+    const { data, error } = await q.range(from, from + 999);
     if (error) throw new Error(`${table}: ${error.message}`);
     if (!data?.length) break;
     out.push(...(data as T[]));
@@ -72,12 +90,12 @@ async function main() {
     { auth: { persistSession: false } },
   );
 
-  const books = await allRows<any>(db, "books", "id,slug,title,description,category_id,author_id,cover_url,is_published", (q) =>
+  const books = await allRows<any>(db, "books", "id,slug,title,description,category_id,author_id,cover_url,is_published", ["id"], (q) =>
     q.eq("is_published", true));
-  const files = await allRows<any>(db, "book_files", "book_id,file_url");
-  const states = await allRows<any>(db, "resource_index_state", "record_type,record_id,status,failure_kind");
-  const pages = await allRows<any>(db, "book_pages", "record_id", (q) => q.eq("record_type", "book"));
-  const chunks = await allRows<any>(db, "book_chunks", "record_id,embedding", (q) => q.eq("record_type", "book"));
+  const files = await allRows<any>(db, "book_files", "book_id,file_url", ["id"]);
+  const states = await allRows<any>(db, "resource_index_state", "record_type,record_id,status,failure_kind", ["record_type", "record_id"]);
+  const pages = await allRows<any>(db, "book_pages", "record_id", ["id"], (q) => q.eq("record_type", "book"));
+  const chunks = await allRows<any>(db, "book_chunks", "record_id,embedding", ["id"], (q) => q.eq("record_type", "book"));
 
   const fileFor = new Map<string, string>();
   for (const f of files) if (f.file_url && !fileFor.has(f.book_id)) fileFor.set(f.book_id, f.file_url);
