@@ -43,6 +43,8 @@ config({ path: ".env.local" });
 config();
 
 import { createClient } from "@supabase/supabase-js";
+import { isSizeTruncated, sizeRatio } from "../lib/file-health/pdf-integrity";
+import { MAX_PROBE_ATTEMPTS, isTransientStatus, retryDelayMs } from "../lib/file-health/check";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -69,16 +71,37 @@ interface ZimaEntry {
   url: string | null;
 }
 
+/**
+ * List one folder, waiting out a rate limit rather than dying on it.
+ *
+ * Zima meters `/api/files` per client IP. This script walks EVERY book folder,
+ * which is ~270 list calls in a tight loop, so it reliably crossed the ceiling
+ * partway through and threw — the whole audit aborted around
+ * `books/health/book-8c23w3gz` with `429 ... retryAfterSeconds: 50` and
+ * produced no report at all. A rate limit is "not now", never "not there";
+ * treating it as fatal is the same mistake lib/file-health/check.ts exists to
+ * document, so this reuses that module's own tested backoff rather than
+ * inventing a second one.
+ */
 async function listFolder(folder: string): Promise<ZimaEntry[]> {
-  const res = await fetch(`${ZIMA_API_URL}/api/files`, {
-    method: "POST",
-    headers: { "x-api-key": ZIMA_API_KEY, "Content-Type": "application/json" },
-    body: JSON.stringify({ folder }),
-  });
-  if (res.status === 404) return [];
-  if (!res.ok) throw new Error(`list "${folder}" failed (${res.status}): ${await res.text()}`);
-  const json = await res.json();
-  return (json.items ?? json.files ?? json) as ZimaEntry[];
+  for (let attempt = 1; ; attempt++) {
+    const res = await fetch(`${ZIMA_API_URL}/api/files`, {
+      method: "POST",
+      headers: { "x-api-key": ZIMA_API_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ folder }),
+    });
+    if (res.status === 404) return [];
+    if (res.ok) {
+      const json = await res.json();
+      return (json.items ?? json.files ?? json) as ZimaEntry[];
+    }
+    if (!isTransientStatus(res.status) || attempt >= MAX_PROBE_ATTEMPTS) {
+      throw new Error(`list "${folder}" failed (${res.status}): ${await res.text()}`);
+    }
+    const delay = retryDelayMs(attempt, res.headers.get("retry-after"));
+    console.log(`  … ${res.status} on "${folder}" — waiting ${Math.round(delay / 1000)}s`);
+    await new Promise((r) => setTimeout(r, delay));
+  }
 }
 
 /** Every file under `books/`, keyed by its storage path. */
@@ -120,7 +143,7 @@ async function main() {
     .order("created_at", { ascending: false });
   if (error) throw new Error(`books query failed: ${error.message}`);
 
-  const { data: bookFiles } = await supabase.from("book_files").select("book_id, file_url");
+  const { data: bookFiles } = await supabase.from("book_files").select("book_id, file_url, file_size_kb, format");
 
   // Every storage path any row claims.
   const referenced = new Set<string>();
@@ -181,6 +204,45 @@ async function main() {
     for (const e of entries) console.log(`      ${e.name}`);
   }
   if (orphanFiles.length) console.log(`  total ${(bytes / 1024 / 1024).toFixed(1)} MB reclaimable`);
+
+  // ── Truncated files: on disk, referenced, and INCOMPLETE ──
+  //
+  // The orphan checks above ask whether a book's bytes exist. This asks
+  // whether all of them do. Both numbers are already in hand — the storage
+  // listing carries `size`, the row carries `file_size_kb` — so this costs no
+  // extra request, which is the reason it lives here rather than in the
+  // file-health sweep (that sweep is rate-limited against Zima and a second
+  // request per file is what once produced 104 false "broken" verdicts).
+  //
+  // A truncated PDF is worse than a missing one: it serves 200, carries a
+  // valid %PDF- header, and fails only when a reader tries to open it.
+  const sizeOnDisk = new Map(files.map((f) => [f.path, f.size || 0]));
+  const bookById = new Map((books ?? []).map((row) => [row.id, row]));
+  const truncated: { row: Record<string, unknown>; declaredKb: number; actual: number }[] = [];
+  for (const bf of bookFiles ?? []) {
+    if (String(bf.format ?? "").toLowerCase() === "epub") continue;
+    const path = bf.file_url ? toStoragePath(bf.file_url) : null;
+    if (!path) continue;
+    const actual = sizeOnDisk.get(path);
+    if (actual === undefined) continue; // absent is the ORPHAN ROWS case
+    if (!isSizeTruncated(bf.file_size_kb, actual)) continue;
+    const row = bookById.get(bf.book_id);
+    if (row) truncated.push({ row, declaredKb: bf.file_size_kb as number, actual });
+  }
+
+  console.log("");
+  console.log(`TRUNCATED      ${truncated.length} file(s) smaller than the size recorded for them`);
+  for (const t of truncated) {
+    const flag = t.row.is_published ? "PUBLISHED" : "draft";
+    const pct = ((sizeRatio(t.declaredKb, t.actual) ?? 0) * 100).toFixed(1);
+    console.log(`  [${flag}] ${t.row.slug ?? t.row.id} — ${t.row.title}`);
+    console.log(`      recorded ${(t.declaredKb / 1024).toFixed(2)} MiB, stored ${(t.actual / 1048576).toFixed(2)} MiB (${pct}%)`);
+    console.log(`      /admin/edit/${t.row.id}`);
+  }
+  if (truncated.length) {
+    console.log("  → These open in no PDF reader. Re-upload the source from /admin/edit/<id>;");
+    console.log("    re-indexing cannot repair a file whose bytes are missing.");
+  }
 
   console.log("");
   console.log(`ORPHAN ROWS    ${orphanRows.length} book row(s) with no file in storage`);
