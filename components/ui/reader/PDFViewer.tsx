@@ -167,6 +167,12 @@ export type PDFViewerProps = {
    *  Presentation only — the server re-decides on every request. */
   allowDownload?: boolean;
   isLoggedIn?: boolean;
+  /** The signed-in account, when the surface knows it. The device's reading
+   *  position is stamped with it and refuses to resume a different account —
+   *  localStorage is per-origin and sign-out clears cookies, not storage, so
+   *  on a shared lab machine the record outlives the reader who wrote it. The
+   *  bookmark record is stamped the same way, and for the same reason. */
+  accountId?: string | null;
   /** Offline reading mode: the bytes came out of Cache Storage and there is no
    *  network to talk to. Every server round-trip (progress sync, annotations,
    *  download counting, reader telemetry) is switched off — offline they would
@@ -214,6 +220,7 @@ export default function PDFViewer({
   requestedPage = null,
   allowDownload = true,
   isLoggedIn: isLoggedInProp = false,
+  accountId: accountIdProp = null,
   offline = false,
   reportEmail,
   backHref,
@@ -226,6 +233,9 @@ export default function PDFViewer({
   // here — rather than sprinkling `&& !offline` through twenty call sites — is
   // what makes the offline reader provably network-free.
   const isLoggedIn = isLoggedInProp && !offline;
+  // Derived the same way: the offline reader has no session to speak for, so
+  // it writes and reads an unstamped record exactly as it did before.
+  const accountId = offline ? null : accountIdProp;
   const t = useTranslations("reader");
   const locale = useLocale();
   const fmt = useCallback((n: number | string) => localizeDigits(n, locale), [locale]);
@@ -621,6 +631,7 @@ export default function PDFViewer({
   const progress = useReaderProgress({
     bookId,
     isLoggedIn,
+    accountId,
     ready: pdfDoc !== null,
     numPages,
     currentPage,
@@ -660,6 +671,7 @@ export default function PDFViewer({
     initialServerPageCount,
     requestedPage,
     isLoggedIn,
+    accountId,
   });
 
   /* ── Measure the viewport (ResizeObserver also catches focus mode
@@ -869,6 +881,7 @@ export default function PDFViewer({
       serverPageCount: resume.initialServerPageCount,
       serverAt: serverTimestamp(resume.initialProgressAt),
       isLoggedIn: resume.isLoggedIn,
+      accountId: resume.accountId,
       numPages: pdf.numPages,
     };
     const fromLocal = resolveResumePage(resumeArgs);

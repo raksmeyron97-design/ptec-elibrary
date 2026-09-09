@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { saveReadingProgress } from "@/app/actions/reading-progress";
 import { READER_KEYS, lsGet, lsSet } from "../reader-config";
-import { parseLocalPosition } from "@/lib/reader/resume";
+import { isForeignRecord, parseLocalPosition } from "@/lib/reader/resume";
 
 export const AUTOSAVE_MS = 1500;
 export const LOCAL_POSITION_DEBOUNCE_MS = 400;
@@ -76,6 +76,7 @@ function sendProgressBeacon(
 export function useReaderProgress({
   bookId,
   isLoggedIn,
+  accountId,
   ready,
   numPages,
   currentPage,
@@ -84,6 +85,10 @@ export function useReaderProgress({
 }: {
   bookId: string;
   isLoggedIn: boolean;
+  /** The account this session belongs to, so the device record can say whose
+      position it holds. Null on the offline reader and the signed-out
+      previews, which keep writing an unstamped record. */
+  accountId?: string | null;
   /** The document has loaded: `numPages` and `currentPage` are real. */
   ready: boolean;
   numPages: number;
@@ -129,7 +134,12 @@ export function useReaderProgress({
      rule uses `t` and `s` to tell "newer here" from "read further elsewhere". */
   const writePosition = useCallback(
     (page: number, pages: number, synced?: number) => {
-      const prev = parseLocalPosition(lsGet(READER_KEYS.position(bookId)));
+      const stored = parseLocalPosition(lsGet(READER_KEYS.position(bookId)));
+      // Taking over a record left by another account on a shared machine: its
+      // `s` names a percentage THEIR account was synced to, and carrying that
+      // forward would make `syncedHere` claim this device is level with a
+      // server row it has never written. Start clean instead.
+      const prev = isForeignRecord(stored, accountId) ? null : stored;
       lsSet(
         READER_KEYS.position(bookId),
         JSON.stringify({
@@ -137,10 +147,13 @@ export function useReaderProgress({
           pct: Math.round((page / pages) * 100),
           t: Date.now(),
           s: synced ?? prev?.s,
+          // Stamped with the reader who is actually here, so the next account
+          // to sign in on this browser is not resumed onto their page.
+          o: accountId ?? prev?.o,
         }),
       );
     },
-    [bookId],
+    [bookId, accountId],
   );
 
   /* Persist the exact page (debounced) for next-visit resume. */
@@ -156,9 +169,12 @@ export function useReaderProgress({
   const markSynced = useCallback(
     (pct: number) => {
       const prev = parseLocalPosition(lsGet(READER_KEYS.position(bookId)));
+      // Never re-adopt a page from another account's record: the acknowledged
+      // position belongs to whoever is reading, not to whoever left it here.
+      if (isForeignRecord(prev, accountId)) return;
       if (prev?.p && numPagesRef.current) writePosition(prev.p, numPagesRef.current, pct);
     },
-    [bookId, writePosition],
+    [bookId, accountId, writePosition],
   );
 
   /* Auto-save to the server (debounced). */
