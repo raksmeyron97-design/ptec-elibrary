@@ -392,11 +392,21 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "imagedelivery.net",
       },
-      // Wildcard Cloudflare R2 public buckets
-      {
-        protocol: "https",
-        hostname: "*.r2.dev",
-      },
+      // NO WILDCARD `*.r2.dev` HERE, deliberately.
+      //
+      // Any r2.dev subdomain is registrable by anyone with a Cloudflare
+      // account, so a wildcard turns /_next/image into a fetcher for
+      // attacker-supplied bytes: the optimizer must DECODE whatever an
+      // allowlisted host returns, which is the reachable half of the AVIF
+      // image-decoder RCE class (GHSA-2xp9-vwfh-vxw4). Verified against
+      // production: `/_next/image?url=https://pub-<random>.r2.dev/x.avif`
+      // answered 401 (upstream propagated = fetched), while a non-allowlisted
+      // host answers 400.
+      //
+      // It also bought nothing. Every books.cover_url and book_files.file_url
+      // in production (270 of each) points at storage-ptec.online, and the one
+      // r2.dev row left in the collection — a single profiles.avatar_url — is
+      // on the pub-859a15… bucket named explicitly above.
       // Zima Storage API — allow both http and https since the server may serve either
       {
         protocol: "https",
