@@ -19,6 +19,7 @@
     "pwa:assets": "node scripts/generate-pwa-assets.mjs",
     "og:assets": "node scripts/generate-og-image.mjs",
     "ai:benchmark": "tsx scripts/ai-benchmark.ts",
+    "ai:answer-benchmark": "tsx --tsconfig scripts/tsconfig.benchmark.json scripts/ai-answer-benchmark.ts",
     "ai:local-check": "tsx scripts/test-local-ai.ts",
     "search:benchmark": "tsx scripts/search-benchmark.ts",
     "retrieval:benchmark": "tsx --tsconfig scripts/tsconfig.benchmark.json scripts/retrieval-benchmark.ts",

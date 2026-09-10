@@ -2,9 +2,21 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "paths": {
-      "@/*": ["../*"],
-      "server-only": ["./shims/server-only.ts"]
+      "@/*": [
+        "../*"
+      ],
+      "server-only": [
+        "./shims/server-only.ts"
+      ],
+      "next/cache": [
+        "./shims/next-cache.ts"
+      ]
     }
   },
-  "include": ["retrieval-benchmark.ts", "shims/*.ts", "../lib/**/*.ts"]
+  "include": [
+    "retrieval-benchmark.ts",
+    "ai-answer-benchmark.ts",
+    "shims/*.ts",
+    "../lib/**/*.ts"
+  ]
 }
