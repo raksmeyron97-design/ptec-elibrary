@@ -86,6 +86,63 @@ async function embedWithBackoff(texts: string[]): Promise<number[][]> {
   throw lastErr;
 }
 
+/**
+ * Is this database error worth trying again?
+ *
+ * Postgres cancels a statement that outruns `statement_timeout` and PostgREST
+ * relays it verbatim (SQLSTATE 57014). On the self-hosted box that happens to
+ * a `book_chunks` insert under concurrent load: the table carries an HNSW
+ * index over 130k+ 768-dim vectors, so index maintenance for a 40-row batch is
+ * not free, and a busy moment is enough to cross the limit.
+ *
+ * It is transient by definition — the same statement is accepted moments
+ * later, verified in production: two records (326 and 1,205 chunks) failed
+ * here and both succeeded, unchanged, on the very next run.
+ */
+function isRetryableDbError(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes("statement timeout") ||   // 57014, the measured case
+    m.includes("canceling statement") ||
+    m.includes("57014") ||
+    m.includes("deadlock detected") ||   // 40P01
+    m.includes("could not serialize") || // 40001
+    m.includes("connection") ||
+    m.includes("timeout")
+  );
+}
+
+/** Backoffs for a transient DB write. Short — the retry is cheap, unlike the embedding. */
+const DB_RETRY_BACKOFFS_MS = [500, 2_000, 6_000];
+
+/**
+ * Insert one batch, retrying a transient failure.
+ *
+ * WHY THIS EXISTS. Every embedding is computed before the first write, so by
+ * the time a batch is inserted the record has already cost a full slice of a
+ * metered daily quota. Without a retry, one cancelled statement threw all of
+ * that away and left the record unembedded, so the next run paid for the same
+ * vectors again — measured: 1,531 chunks embedded twice for zero rows written.
+ *
+ * It also protects a record that ALREADY had chunks. The inserts run after the
+ * delete, so a failure part-way through the batches leaves that record holding
+ * a partial chunk set and nothing recorded to say so — a silently truncated
+ * document that still answers searches, with most of itself missing.
+ */
+async function insertBatchWithRetry(
+  db: SupabaseClient,
+  rows: Record<string, unknown>[],
+): Promise<void> {
+  for (let attempt = 0; ; attempt++) {
+    const { error } = await db.from("book_chunks").insert(rows);
+    if (!error) return;
+    if (attempt >= DB_RETRY_BACKOFFS_MS.length || !isRetryableDbError(error.message)) {
+      throw new Error(error.message);
+    }
+    await sleep(DB_RETRY_BACKOFFS_MS[attempt]);
+  }
+}
+
 /** Grapheme-cluster start offsets for `text`, plus text.length as sentinel. */
 function graphemeBoundaries(text: string): number[] {
   const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
@@ -236,8 +293,7 @@ export async function embedRecordChunks(opts: {
       content: c.content,
       embedding: vectors[i + k],
     }));
-    const { error } = await db.from("book_chunks").insert(batch);
-    if (error) throw new Error(error.message);
+    await insertBatchWithRetry(db, batch);
   }
 
   return { embedded: true, chunks: chunks.length, pages: pages.length };
