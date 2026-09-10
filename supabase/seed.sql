@@ -20,7 +20,14 @@ VALUES
   ('00000000-0000-0000-0000-000000000000', '11111111-1111-1111-1111-111111111111', 'authenticated', 'authenticated', 'admin@ptec.local', crypt('Password123!', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false),
   ('00000000-0000-0000-0000-000000000000', '22222222-2222-2222-2222-222222222222', 'authenticated', 'authenticated', 'librarian@ptec.local', crypt('Password123!', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false),
   ('00000000-0000-0000-0000-000000000000', '33333333-3333-3333-3333-333333333333', 'authenticated', 'authenticated', 'staff@ptec.local', crypt('Password123!', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false),
-  ('00000000-0000-0000-0000-000000000000', '44444444-4444-4444-4444-444444444444', 'authenticated', 'authenticated', 'student@ptec.local', crypt('Password123!', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false)
+  ('00000000-0000-0000-0000-000000000000', '44444444-4444-4444-4444-444444444444', 'authenticated', 'authenticated', 'student@ptec.local', crypt('Password123!', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false),
+  -- A SECOND ordinary reader, and the only reason it exists is that one
+  -- reader cannot test cross-account isolation. Every user-owned table in
+  -- this schema is guarded by an RLS policy of the shape
+  -- `user_id = auth.uid()`, and a policy like that is indistinguishable from
+  -- no policy at all until two different users ask for the same row.
+  -- lib/rls-cross-account.test.ts drives A→B and B→A with these two.
+  ('00000000-0000-0000-0000-000000000000', '55555555-5555-5555-5555-555555555555', 'authenticated', 'authenticated', 'student2@ptec.local', crypt('Password123!', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', false)
 ON CONFLICT (id) DO NOTHING;
 
 -- GoTrue scans these token columns into non-nullable Go strings. They have no
@@ -36,7 +43,7 @@ UPDATE auth.users SET
   phone_change               = coalesce(phone_change, ''),
   phone_change_token         = coalesce(phone_change_token, ''),
   reauthentication_token     = coalesce(reauthentication_token, '')
-WHERE email IN ('admin@ptec.local', 'librarian@ptec.local', 'staff@ptec.local', 'student@ptec.local');
+WHERE email IN ('admin@ptec.local', 'librarian@ptec.local', 'staff@ptec.local', 'student@ptec.local', 'student2@ptec.local');
 
 -- GoTrue resolves password logins through auth.identities, so every seeded
 -- account needs a matching email identity or sign-in returns "invalid
@@ -46,7 +53,7 @@ SELECT u.id::text, u.id,
        jsonb_build_object('sub', u.id::text, 'email', u.email, 'email_verified', true, 'phone_verified', false),
        'email', now(), now(), now()
 FROM auth.users u
-WHERE u.email IN ('admin@ptec.local', 'librarian@ptec.local', 'staff@ptec.local', 'student@ptec.local')
+WHERE u.email IN ('admin@ptec.local', 'librarian@ptec.local', 'staff@ptec.local', 'student@ptec.local', 'student2@ptec.local')
 ON CONFLICT (provider, provider_id) DO NOTHING;
 
 -- ============================================================================
@@ -64,7 +71,8 @@ VALUES
   ('11111111-1111-1111-1111-111111111111', 'admin@ptec.local',     'Super Admin',    'super_admin'::user_role::text, true),
   ('22222222-2222-2222-2222-222222222222', 'librarian@ptec.local', 'Head Librarian', 'librarian'::user_role::text,   false),
   ('33333333-3333-3333-3333-333333333333', 'staff@ptec.local',     'Content Staff',  'staff'::user_role::text,       false),
-  ('44444444-4444-4444-4444-444444444444', 'student@ptec.local',   'Student Reader', 'reader'::user_role::text,      false)
+  ('44444444-4444-4444-4444-444444444444', 'student@ptec.local',   'Student Reader', 'reader'::user_role::text,      false),
+  ('55555555-5555-5555-5555-555555555555', 'student2@ptec.local',  'Second Reader',  'reader'::user_role::text,      false)
 ON CONFLICT (id) DO UPDATE SET
   role           = EXCLUDED.role,
   email          = EXCLUDED.email,
