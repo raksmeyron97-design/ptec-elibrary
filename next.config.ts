@@ -3,6 +3,7 @@ import withSerwistInit from "@serwist/next";
 import withNextIntl from 'next-intl/plugin';
 // Relative import: path aliases are not resolved inside next.config.ts.
 import { isIndexableEnvironment, NOINDEX_HEADER_VALUE } from "./lib/seo/indexing";
+import { subjectSlugRedirectRules } from "./lib/seo/subject-slug-redirects";
 
 const withNextIntlPlugin = withNextIntl('./i18n/request.ts');
 
@@ -194,6 +195,18 @@ const nextConfig: NextConfig = {
     "/**": ["./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"],
   },
   turbopack: {},
+  // Nine subject URLs changed when migration 0142 replaced their generated
+  // `book-<epoch>` slugs with the Khmer slug the app mints today. They hold
+  // ~200 of 270 published books and are indexed, so the old URLs 301 rather
+  // than 404.
+  //
+  // Config redirects run BEFORE middleware, which is why this works and why
+  // both locale forms are listed explicitly: middleware has not stripped /km
+  // at this point. lib/seo/subject-slug-redirects.ts is the one source of
+  // truth, shared with the migration and pinned by its tests.
+  async redirects() {
+    return subjectSlugRedirectRules();
+  },
   async rewrites() {
     return {
       beforeFiles: [
