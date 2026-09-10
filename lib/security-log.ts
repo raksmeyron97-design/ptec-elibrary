@@ -79,7 +79,7 @@ export type SecuritySink = (event: NormalizedSecurityEvent) => void;
  * Next's webpack build instantiates this module once per chunk that imports
  * it, and each instantiation gets its own copy of every module-level binding.
  * Measured on a production build of this repo, `lib/security-log.ts` was
- * emitted into FOUR server chunks. `instrumentation.ts` registered the durable
+ * emitted into THREE server chunks. `instrumentation.ts` registered the durable
  * sink into the one copy it happened to load; every route handler read a
  * different copy whose `sink` was still `null`. `sink?.(normalized)` is a
  * silent no-op on `null`, so:
