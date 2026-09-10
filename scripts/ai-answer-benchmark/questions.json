@@ -1,0 +1,1936 @@
+{
+ "generatedAt": "2026-09-10T10:27:19.722Z",
+ "corpusBooks": 268,
+ "questions": [
+  {
+   "id": "fact-001",
+   "category": "factual_lookup",
+   "question": "Who wrote \"Doing Action Research in English Language Teaching\"?",
+   "locale": "en",
+   "expectIntent": [
+    "author_search"
+   ],
+   "sources": [
+    "doing-action-research-in-english-language-teaching"
+   ],
+   "templateOk": true,
+   "note": "a byline is a catalogue fact; a model here would be pure cost"
+  },
+  {
+   "id": "fact-002",
+   "category": "factual_lookup",
+   "question": "Who wrote \"Effective School Management (4th Edition)\"?",
+   "locale": "en",
+   "expectIntent": [
+    "author_search"
+   ],
+   "sources": [
+    "effective-school-management-4th-edition"
+   ],
+   "templateOk": true,
+   "note": "a byline is a catalogue fact; a model here would be pure cost"
+  },
+  {
+   "id": "fact-003",
+   "category": "factual_lookup",
+   "question": "Who wrote \"Practical Research Methods\"?",
+   "locale": "en",
+   "expectIntent": [
+    "author_search"
+   ],
+   "sources": [
+    "practical-research-methods"
+   ],
+   "templateOk": true,
+   "note": "a byline is a catalogue fact; a model here would be pure cost"
+  },
+  {
+   "id": "fact-004",
+   "category": "factual_lookup",
+   "question": "Who wrote \"From Teacher to Manager: Managing Language Teaching Organizations\"?",
+   "locale": "en",
+   "expectIntent": [
+    "author_search"
+   ],
+   "sources": [
+    "from-teacher-to-manager-managing-language-teaching-organizations"
+   ],
+   "templateOk": true,
+   "note": "a byline is a catalogue fact; a model here would be pure cost"
+  },
+  {
+   "id": "fact-005",
+   "category": "factual_lookup",
+   "question": "Who wrote \"Action Research Series Volume 1\"?",
+   "locale": "en",
+   "expectIntent": [
+    "author_search"
+   ],
+   "sources": [
+    "action-research-series-volume-1"
+   ],
+   "templateOk": true,
+   "note": "a byline is a catalogue fact; a model here would be pure cost"
+  },
+  {
+   "id": "fact-006",
+   "category": "factual_lookup",
+   "question": "Who wrote \"English for Writing Research Papers (2nd Edition)\"?",
+   "locale": "en",
+   "expectIntent": [
+    "author_search"
+   ],
+   "sources": [
+    "english-for-writing-research-papers-2nd-edition"
+   ],
+   "templateOk": true,
+   "note": "a byline is a catalogue fact; a model here would be pure cost"
+  },
+  {
+   "id": "fact-007",
+   "category": "factual_lookup",
+   "question": "Who wrote \"Competency-based Language Teaching in Higher Education\"?",
+   "locale": "en",
+   "expectIntent": [
+    "author_search"
+   ],
+   "sources": [
+    "competency-based-language-teaching-in-higher-education"
+   ],
+   "templateOk": true,
+   "note": "a byline is a catalogue fact; a model here would be pure cost"
+  },
+  {
+   "id": "fact-008",
+   "category": "factual_lookup",
+   "question": "Who wrote \"Key Ideas in Educational Research\"?",
+   "locale": "en",
+   "expectIntent": [
+    "author_search"
+   ],
+   "sources": [
+    "key-ideas-in-educational-research"
+   ],
+   "templateOk": true,
+   "note": "a byline is a catalogue fact; a model here would be pure cost"
+  },
+  {
+   "id": "fact-009",
+   "category": "factual_lookup",
+   "question": "Who wrote \"English for Writing Research Papers\"?",
+   "locale": "en",
+   "expectIntent": [
+    "author_search"
+   ],
+   "sources": [
+    "english-for-writing-research-papers"
+   ],
+   "templateOk": true,
+   "note": "a byline is a catalogue fact; a model here would be pure cost"
+  },
+  {
+   "id": "fact-010",
+   "category": "factual_lookup",
+   "question": "Who wrote \"Essentials of Research Design and Methodology\"?",
+   "locale": "en",
+   "expectIntent": [
+    "author_search"
+   ],
+   "sources": [
+    "essentials-of-research-design-and-methodology"
+   ],
+   "templateOk": true,
+   "note": "a byline is a catalogue fact; a model here would be pure cost"
+  },
+  {
+   "id": "exact-001",
+   "category": "exact_book",
+   "question": "Do you have the book \"Qualitative Research from Start to Finish (2nd Edition)\"?",
+   "locale": "en",
+   "expectIntent": [
+    "book_search"
+   ],
+   "sources": [
+    "qualitative-research-from-start-to-finish-2nd-edition"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "exact-002",
+   "category": "exact_book",
+   "question": "Do you have the book \"Handbook of Methodological Approaches to Community-Based Research\"?",
+   "locale": "en",
+   "expectIntent": [
+    "book_search"
+   ],
+   "sources": [
+    "handbook-of-methodological-approaches-to-community-based-research"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "exact-003",
+   "category": "exact_book",
+   "question": "Do you have the book \"Interviewing as Qualitative Research (3rd Edition)\"?",
+   "locale": "en",
+   "expectIntent": [
+    "book_search"
+   ],
+   "sources": [
+    "interviewing-as-qualitative-research-3rd-edition"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "exact-004",
+   "category": "exact_book",
+   "question": "Do you have the book \"Qualitative Data Analysis with NVivo (2nd Edition)\"?",
+   "locale": "en",
+   "expectIntent": [
+    "book_search"
+   ],
+   "sources": [
+    "qualitative-data-analysis-with-nvivo-2nd-edition"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "exact-005",
+   "category": "exact_book",
+   "question": "Do you have the book \"Introducing English for Research Publication Purposes\"?",
+   "locale": "en",
+   "expectIntent": [
+    "book_search"
+   ],
+   "sources": [
+    "introducing-english-for-research-publication-purposes"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "exact-006",
+   "category": "exact_book",
+   "question": "Do you have the book \"Methodology of Educational Research and Statistics\"?",
+   "locale": "en",
+   "expectIntent": [
+    "book_search"
+   ],
+   "sources": [
+    "methodology-of-educational-research-and-statistics"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "exact-007",
+   "category": "exact_book",
+   "question": "Do you have the book \"Operations Research: An Introduction (10th Edition, Global Edition)\"?",
+   "locale": "en",
+   "expectIntent": [
+    "book_search"
+   ],
+   "sources": [
+    "operations-research-an-introduction-10th-edition-global-edition"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "exact-008",
+   "category": "exact_book",
+   "question": "Do you have the book \"PhraseBook for Writing Papers and Research in English (4th Edition)\"?",
+   "locale": "en",
+   "expectIntent": [
+    "book_search"
+   ],
+   "sources": [
+    "phrasebook-for-writing-papers-and-research-in-english-4th-edition"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "exact-009",
+   "category": "exact_book",
+   "question": "Do you have the book \"Research Methods in Education (8th Edition)\"?",
+   "locale": "en",
+   "expectIntent": [
+    "book_search"
+   ],
+   "sources": [
+    "research-methods-in-education-8th-edition"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "exact-010",
+   "category": "exact_book",
+   "question": "Do you have the book \"Data Analysis and Hypothesis Testing Using Python\"?",
+   "locale": "en",
+   "expectIntent": [
+    "book_search"
+   ],
+   "sources": [
+    "data-analysis-and-hypothesis-testing-using-python"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "def-001",
+   "category": "definition",
+   "question": "What is action research?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question",
+    "general_knowledge"
+   ],
+   "sources": [
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "research-methods-in-education-8th-edition",
+    "social-research-methods-qualitative-and-quantitative-7th-edition",
+    "action-research-series-volume-3",
+    "handbook-of-methodological-approaches-to-community-based-research",
+    "qualitative-research-from-start-to-finish"
+   ],
+   "expectGrounded": true,
+   "note": "verified: 6 books in the collection have pages containing \"action research\" | routing label accepts general_knowledge: the catch-all is an evidence-first path (lib/ai/router.ts), so the LABEL staying general_knowledge while the answer is retrieved and cited is correct behaviour, not a miss."
+  },
+  {
+   "id": "def-002",
+   "category": "definition",
+   "question": "What is formative assessment?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question",
+    "general_knowledge"
+   ],
+   "sources": [
+    "integrating-teaching-learning-and-action-research",
+    "pedagogy-and-practice-leadership-guide",
+    "educational-psychology-14th-edition-global-edition",
+    "action-research-for-teacher-candidates",
+    "action-research-series-volume-3",
+    "educational-research-contemporary-issues-and-practical-approaches"
+   ],
+   "expectGrounded": true,
+   "note": "verified: 6 books in the collection have pages containing \"formative assessment\" | routing label accepts general_knowledge: the catch-all is an evidence-first path (lib/ai/router.ts), so the LABEL staying general_knowledge while the answer is retrieved and cited is correct behaviour, not a miss."
+  },
+  {
+   "id": "def-003",
+   "category": "definition",
+   "question": "What is triangulation?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question",
+    "general_knowledge"
+   ],
+   "sources": [
+    "research-methods-in-education-8th-edition",
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "how-to-design-and-evaluate-research-in-education-8th-edition",
+    "qualitative-research-from-start-to-finish",
+    "social-research-methods-4th-edition",
+    "handbook-of-methodological-approaches-to-community-based-research"
+   ],
+   "expectGrounded": true,
+   "note": "verified: 6 books in the collection have pages containing \"triangulation\" | routing label accepts general_knowledge: the catch-all is an evidence-first path (lib/ai/router.ts), so the LABEL staying general_knowledge while the answer is retrieved and cited is correct behaviour, not a miss."
+  },
+  {
+   "id": "def-004",
+   "category": "definition",
+   "question": "What is validity?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question",
+    "general_knowledge"
+   ],
+   "sources": [
+    "qualitative-research-from-start-to-finish",
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "research-methods-in-education-8th-edition",
+    "english-for-writing-research-papers-2nd-edition",
+    "essentials-of-research-design-and-methodology",
+    "how-to-design-and-evaluate-research-in-education-8th-edition"
+   ],
+   "expectGrounded": true,
+   "note": "verified: 6 books in the collection have pages containing \"validity\" | routing label accepts general_knowledge: the catch-all is an evidence-first path (lib/ai/router.ts), so the LABEL staying general_knowledge while the answer is retrieved and cited is correct behaviour, not a miss."
+  },
+  {
+   "id": "def-005",
+   "category": "definition",
+   "question": "What is reliability?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question",
+    "general_knowledge"
+   ],
+   "sources": [
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "research-methods-in-education-8th-edition",
+    "methods-in-educational-research-from-theory-to-practice",
+    "essentials-of-research-design-and-methodology",
+    "how-to-design-and-evaluate-research-in-education-8th-edition",
+    "from-teacher-to-manager-managing-language-teaching-organizations"
+   ],
+   "expectGrounded": true,
+   "note": "verified: 6 books in the collection have pages containing \"reliability\" | routing label accepts general_knowledge: the catch-all is an evidence-first path (lib/ai/router.ts), so the LABEL staying general_knowledge while the answer is retrieved and cited is correct behaviour, not a miss."
+  },
+  {
+   "id": "def-006",
+   "category": "definition",
+   "question": "What is sampling?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question",
+    "general_knowledge"
+   ],
+   "sources": [
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "research-methods-in-education-8th-edition",
+    "english-for-writing-research-papers-2nd-edition",
+    "how-to-design-and-evaluate-research-in-education-8th-edition",
+    "qualitative-research-from-start-to-finish",
+    "fundamental-of-research-methodology-and-statistics"
+   ],
+   "expectGrounded": true,
+   "note": "verified: 6 books in the collection have pages containing \"sampling\" | routing label accepts general_knowledge: the catch-all is an evidence-first path (lib/ai/router.ts), so the LABEL staying general_knowledge while the answer is retrieved and cited is correct behaviour, not a miss."
+  },
+  {
+   "id": "def-007",
+   "category": "definition",
+   "question": "What is interviews?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question",
+    "general_knowledge"
+   ],
+   "sources": [
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "research-methods-in-education-8th-edition",
+    "essentials-of-research-design-and-methodology",
+    "how-to-design-and-evaluate-research-in-education-8th-edition",
+    "handbook-of-methodological-approaches-to-community-based-research",
+    "qualitative-research-from-start-to-finish"
+   ],
+   "expectGrounded": true,
+   "note": "verified: 6 books in the collection have pages containing \"interviews\" | routing label accepts general_knowledge: the catch-all is an evidence-first path (lib/ai/router.ts), so the LABEL staying general_knowledge while the answer is retrieved and cited is correct behaviour, not a miss."
+  },
+  {
+   "id": "def-008",
+   "category": "definition",
+   "question": "What is focus group?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question",
+    "general_knowledge"
+   ],
+   "sources": [
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "research-methods-in-education-8th-edition",
+    "how-to-design-and-evaluate-research-in-education-8th-edition",
+    "essentials-of-research-design-and-methodology",
+    "from-teacher-to-manager-managing-language-teaching-organizations",
+    "handbook-of-methodological-approaches-to-community-based-research"
+   ],
+   "expectGrounded": true,
+   "note": "verified: 6 books in the collection have pages containing \"focus group\" | routing label accepts general_knowledge: the catch-all is an evidence-first path (lib/ai/router.ts), so the LABEL staying general_knowledge while the answer is retrieved and cited is correct behaviour, not a miss."
+  },
+  {
+   "id": "def-009",
+   "category": "definition",
+   "question": "What is grounded theory?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question",
+    "general_knowledge"
+   ],
+   "sources": [
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "research-methods-in-education-8th-edition",
+    "handbook-of-methodological-approaches-to-community-based-research",
+    "qualitative-research-from-start-to-finish",
+    "social-research-methods-4th-edition",
+    "social-research-methods-qualitative-and-quantitative-7th-edition"
+   ],
+   "expectGrounded": true,
+   "note": "verified: 6 books in the collection have pages containing \"grounded theory\" | routing label accepts general_knowledge: the catch-all is an evidence-first path (lib/ai/router.ts), so the LABEL staying general_knowledge while the answer is retrieved and cited is correct behaviour, not a miss."
+  },
+  {
+   "id": "def-010",
+   "category": "definition",
+   "question": "What is case study?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question",
+    "general_knowledge"
+   ],
+   "sources": [
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "research-methods-in-education-8th-edition",
+    "action-research-series-volume-3",
+    "from-teacher-to-manager-managing-language-teaching-organizations",
+    "qualitative-research-from-start-to-finish",
+    "fundamental-of-research-methodology-and-statistics"
+   ],
+   "expectGrounded": true,
+   "note": "verified: 6 books in the collection have pages containing \"case study\" | routing label accepts general_knowledge: the catch-all is an evidence-first path (lib/ai/router.ts), so the LABEL staying general_knowledge while the answer is retrieved and cited is correct behaviour, not a miss."
+  },
+  {
+   "id": "def-011",
+   "category": "definition",
+   "question": "What is questionnaire?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question",
+    "general_knowledge"
+   ],
+   "sources": [
+    "research-methods-in-education-8th-edition",
+    "action-research-series-volume-3",
+    "from-teacher-to-manager-managing-language-teaching-organizations",
+    "fundamental-of-research-methodology-and-statistics",
+    "social-research-methods-qualitative-and-quantitative-7th-edition",
+    "qualitative-research-from-start-to-finish"
+   ],
+   "expectGrounded": true,
+   "note": "verified: 6 books in the collection have pages containing \"questionnaire\" | routing label accepts general_knowledge: the catch-all is an evidence-first path (lib/ai/router.ts), so the LABEL staying general_knowledge while the answer is retrieved and cited is correct behaviour, not a miss."
+  },
+  {
+   "id": "def-012",
+   "category": "definition",
+   "question": "What is literature review?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question",
+    "general_knowledge"
+   ],
+   "sources": [
+    "research-methods-in-education-8th-edition",
+    "english-for-writing-research-papers-2nd-edition",
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "essentials-of-research-design-and-methodology",
+    "action-research-series-volume-3",
+    "qualitative-research-from-start-to-finish"
+   ],
+   "expectGrounded": true,
+   "note": "verified: 6 books in the collection have pages containing \"literature review\" | routing label accepts general_knowledge: the catch-all is an evidence-first path (lib/ai/router.ts), so the LABEL staying general_knowledge while the answer is retrieved and cited is correct behaviour, not a miss."
+  },
+  {
+   "id": "expl-001",
+   "category": "explanation",
+   "question": "Explain ethics as the library's books describe it.",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "research-methods-in-education-8th-edition",
+    "essentials-of-research-design-and-methodology",
+    "qualitative-research-from-start-to-finish",
+    "fundamental-of-research-methodology-and-statistics",
+    "how-to-design-and-evaluate-research-in-education-8th-edition"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "expl-002",
+   "category": "explanation",
+   "question": "Explain classroom management as the library's books describe it.",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "quality-of-teaching-and-learning-in-response-to-21st-century-education-selected-action-research-reports-12-4-student-teachers-batch-3-academic-year-2024-2025",
+    "pedagogy-and-practice-leadership-guide",
+    "authentic-problem-solving-and-learning-in-the-21st-century",
+    "teacher-education-in-the-21st-century",
+    "transforming-teacher-education",
+    "action-research-series-volume-2"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "expl-003",
+   "category": "explanation",
+   "question": "Explain reflective practice as the library's books describe it.",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "research-methods-in-education-8th-edition",
+    "qualitative-research-and-evaluation-methods-4th-edition",
+    "research-methods-in-education-5th-edition",
+    "research-methods-in-education-6th-edition",
+    "action-research-for-teacher-candidates",
+    "action-research-in-practice-partnerships-for-social-justice-in-education"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "expl-004",
+   "category": "explanation",
+   "question": "Explain lesson planning as the library's books describe it.",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "action-research-series-volume-3",
+    "integrating-teaching-learning-and-action-research",
+    "teaching-and-learning-strategies-for-the-thinking-classroom",
+    "action-research-series-volume-2",
+    "pedagogy-and-practice-leadership-guide",
+    "របៀបប្រើបញ្ញាសិប្បនិម្មិត-ai-ជាជំនួយរៀបចំប្លង់មេរៀន"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "expl-005",
+   "category": "explanation",
+   "question": "Explain differentiated instruction as the library's books describe it.",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "educational-psychology-14th-edition-global-edition",
+    "action-research-in-education-a-practical-guide",
+    "educational-research-competencies-for-analysis-12th-edition",
+    "educating-for-the-21st-century",
+    "educational-research-competencies-for-analysis-10th-edition",
+    "ឯកសារស្ដីពីការអប់រំបរិយាបន្នសម្រាប់គរុសិស្ស"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "expl-006",
+   "category": "explanation",
+   "question": "Explain scaffolding as the library's books describe it.",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "សុខភាពនៅក្នុងដៃរបស់យើង-សម្រាប់វិទ្យាសាស្ត្រជីវវិទ្យា",
+    "action-research-series-volume-3",
+    "pedagogy-and-practice-leadership-guide",
+    "curriculum-models-for-the-21st-century",
+    "authentic-problem-solving-and-learning-in-the-21st-century",
+    "educational-technology-a-primer-for-the-21st-century"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "expl-007",
+   "category": "explanation",
+   "question": "Explain assessment for learning as the library's books describe it.",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "pedagogy-and-practice-leadership-guide",
+    "teacher-education-in-the-21st-century",
+    "action-research-series-volume-3",
+    "integrating-teaching-learning-and-action-research",
+    "transforming-teacher-education",
+    "educational-psychology-14th-edition-global-edition"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "expl-008",
+   "category": "explanation",
+   "question": "Explain inclusive education as the library's books describe it.",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "educating-for-the-21st-century",
+    "ឯកសារស្ដីពីការអប់រំបរិយាបន្នសម្រាប់គរុសិស្ស",
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "research-methods-in-education-8th-edition",
+    "qualitative-research-from-start-to-finish",
+    "qualitative-research-from-start-to-finish-2nd-edition"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "expl-009",
+   "category": "explanation",
+   "question": "Explain qualitative research as the library's books describe it.",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "research-methods-in-education-8th-edition",
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "essentials-of-research-design-and-methodology",
+    "how-to-design-and-evaluate-research-in-education-8th-edition",
+    "qualitative-research-from-start-to-finish"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "expl-010",
+   "category": "explanation",
+   "question": "Explain quantitative research as the library's books describe it.",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "research-methods-in-education-8th-edition",
+    "how-to-design-and-evaluate-research-in-education-8th-edition",
+    "qualitative-research-from-start-to-finish",
+    "social-research-methods-qualitative-and-quantitative-7th-edition",
+    "social-research-methods-4th-edition"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "concept-001",
+   "category": "concept",
+   "question": "What does the literature say about action research?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "research-methods-in-education-8th-edition",
+    "social-research-methods-qualitative-and-quantitative-7th-edition",
+    "action-research-series-volume-3",
+    "handbook-of-methodological-approaches-to-community-based-research",
+    "qualitative-research-from-start-to-finish"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "concept-002",
+   "category": "concept",
+   "question": "What does the literature say about formative assessment?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "integrating-teaching-learning-and-action-research",
+    "pedagogy-and-practice-leadership-guide",
+    "educational-psychology-14th-edition-global-edition",
+    "action-research-for-teacher-candidates",
+    "action-research-series-volume-3",
+    "educational-research-contemporary-issues-and-practical-approaches"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "concept-003",
+   "category": "concept",
+   "question": "What does the literature say about triangulation?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "research-methods-in-education-8th-edition",
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "how-to-design-and-evaluate-research-in-education-8th-edition",
+    "qualitative-research-from-start-to-finish",
+    "social-research-methods-4th-edition",
+    "handbook-of-methodological-approaches-to-community-based-research"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "concept-004",
+   "category": "concept",
+   "question": "What does the literature say about validity?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "qualitative-research-from-start-to-finish",
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "research-methods-in-education-8th-edition",
+    "english-for-writing-research-papers-2nd-edition",
+    "essentials-of-research-design-and-methodology",
+    "how-to-design-and-evaluate-research-in-education-8th-edition"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "concept-005",
+   "category": "concept",
+   "question": "What does the literature say about reliability?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "research-methods-in-education-8th-edition",
+    "methods-in-educational-research-from-theory-to-practice",
+    "essentials-of-research-design-and-methodology",
+    "how-to-design-and-evaluate-research-in-education-8th-edition",
+    "from-teacher-to-manager-managing-language-teaching-organizations"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "concept-006",
+   "category": "concept",
+   "question": "What does the literature say about sampling?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "research-methods-in-education-8th-edition",
+    "english-for-writing-research-papers-2nd-edition",
+    "how-to-design-and-evaluate-research-in-education-8th-edition",
+    "qualitative-research-from-start-to-finish",
+    "fundamental-of-research-methodology-and-statistics"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "concept-007",
+   "category": "concept",
+   "question": "What does the literature say about interviews?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "research-methods-in-education-8th-edition",
+    "essentials-of-research-design-and-methodology",
+    "how-to-design-and-evaluate-research-in-education-8th-edition",
+    "handbook-of-methodological-approaches-to-community-based-research",
+    "qualitative-research-from-start-to-finish"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "concept-008",
+   "category": "concept",
+   "question": "What does the literature say about focus group?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "research-methods-in-education-8th-edition",
+    "how-to-design-and-evaluate-research-in-education-8th-edition",
+    "essentials-of-research-design-and-methodology",
+    "from-teacher-to-manager-managing-language-teaching-organizations",
+    "handbook-of-methodological-approaches-to-community-based-research"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "concept-009",
+   "category": "concept",
+   "question": "What does the literature say about grounded theory?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "research-methods-in-education-8th-edition",
+    "handbook-of-methodological-approaches-to-community-based-research",
+    "qualitative-research-from-start-to-finish",
+    "social-research-methods-4th-edition",
+    "social-research-methods-qualitative-and-quantitative-7th-edition"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "concept-010",
+   "category": "concept",
+   "question": "What does the literature say about case study?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "research-methods-in-education-8th-edition",
+    "action-research-series-volume-3",
+    "from-teacher-to-manager-managing-language-teaching-organizations",
+    "qualitative-research-from-start-to-finish",
+    "fundamental-of-research-methodology-and-statistics"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "multi-001",
+   "category": "multi_document",
+   "question": "Across the library's books, how is questionnaire handled?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "research-methods-in-education-8th-edition",
+    "action-research-series-volume-3",
+    "from-teacher-to-manager-managing-language-teaching-organizations",
+    "fundamental-of-research-methodology-and-statistics",
+    "social-research-methods-qualitative-and-quantitative-7th-edition",
+    "qualitative-research-from-start-to-finish"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "multi-002",
+   "category": "multi_document",
+   "question": "Across the library's books, how is literature review handled?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "research-methods-in-education-8th-edition",
+    "english-for-writing-research-papers-2nd-edition",
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "essentials-of-research-design-and-methodology",
+    "action-research-series-volume-3",
+    "qualitative-research-from-start-to-finish"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "multi-003",
+   "category": "multi_document",
+   "question": "Across the library's books, how is ethics handled?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "research-methods-in-education-8th-edition",
+    "essentials-of-research-design-and-methodology",
+    "qualitative-research-from-start-to-finish",
+    "fundamental-of-research-methodology-and-statistics",
+    "how-to-design-and-evaluate-research-in-education-8th-edition"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "multi-004",
+   "category": "multi_document",
+   "question": "Across the library's books, how is classroom management handled?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "quality-of-teaching-and-learning-in-response-to-21st-century-education-selected-action-research-reports-12-4-student-teachers-batch-3-academic-year-2024-2025",
+    "pedagogy-and-practice-leadership-guide",
+    "authentic-problem-solving-and-learning-in-the-21st-century",
+    "teacher-education-in-the-21st-century",
+    "transforming-teacher-education",
+    "action-research-series-volume-2"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "multi-005",
+   "category": "multi_document",
+   "question": "Across the library's books, how is reflective practice handled?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "research-methods-in-education-8th-edition",
+    "qualitative-research-and-evaluation-methods-4th-edition",
+    "research-methods-in-education-5th-edition",
+    "research-methods-in-education-6th-edition",
+    "action-research-for-teacher-candidates",
+    "action-research-in-practice-partnerships-for-social-justice-in-education"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "multi-006",
+   "category": "multi_document",
+   "question": "Across the library's books, how is lesson planning handled?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "action-research-series-volume-3",
+    "integrating-teaching-learning-and-action-research",
+    "teaching-and-learning-strategies-for-the-thinking-classroom",
+    "action-research-series-volume-2",
+    "pedagogy-and-practice-leadership-guide",
+    "របៀបប្រើបញ្ញាសិប្បនិម្មិត-ai-ជាជំនួយរៀបចំប្លង់មេរៀន"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "multi-007",
+   "category": "multi_document",
+   "question": "Across the library's books, how is differentiated instruction handled?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "educational-psychology-14th-edition-global-edition",
+    "action-research-in-education-a-practical-guide",
+    "educational-research-competencies-for-analysis-12th-edition",
+    "educating-for-the-21st-century",
+    "educational-research-competencies-for-analysis-10th-edition",
+    "ឯកសារស្ដីពីការអប់រំបរិយាបន្នសម្រាប់គរុសិស្ស"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "multi-008",
+   "category": "multi_document",
+   "question": "Across the library's books, how is scaffolding handled?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "សុខភាពនៅក្នុងដៃរបស់យើង-សម្រាប់វិទ្យាសាស្ត្រជីវវិទ្យា",
+    "action-research-series-volume-3",
+    "pedagogy-and-practice-leadership-guide",
+    "curriculum-models-for-the-21st-century",
+    "authentic-problem-solving-and-learning-in-the-21st-century",
+    "educational-technology-a-primer-for-the-21st-century"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "multi-009",
+   "category": "multi_document",
+   "question": "Across the library's books, how is assessment for learning handled?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "pedagogy-and-practice-leadership-guide",
+    "teacher-education-in-the-21st-century",
+    "action-research-series-volume-3",
+    "integrating-teaching-learning-and-action-research",
+    "transforming-teacher-education",
+    "educational-psychology-14th-edition-global-edition"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "multi-010",
+   "category": "multi_document",
+   "question": "Across the library's books, how is inclusive education handled?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "educating-for-the-21st-century",
+    "ឯកសារស្ដីពីការអប់រំបរិយាបន្នសម្រាប់គរុសិស្ស",
+    "qualitative-inquiry-and-research-design-4th-edition",
+    "research-methods-in-education-8th-edition",
+    "qualitative-research-from-start-to-finish",
+    "qualitative-research-from-start-to-finish-2nd-edition"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "cmp-001",
+   "category": "comparison",
+   "question": "Compare \"Doing Action Research in English Language Teaching\" and \"Effective School Management (4th Edition)\"",
+   "locale": "en",
+   "expectIntent": [
+    "document_compare"
+   ],
+   "sources": [
+    "doing-action-research-in-english-language-teaching",
+    "effective-school-management-4th-edition"
+   ]
+  },
+  {
+   "id": "cmp-002",
+   "category": "comparison",
+   "question": "Compare \"Practical Research Methods\" and \"From Teacher to Manager: Managing Language Teaching Organizations\"",
+   "locale": "en",
+   "expectIntent": [
+    "document_compare"
+   ],
+   "sources": [
+    "practical-research-methods",
+    "from-teacher-to-manager-managing-language-teaching-organizations"
+   ]
+  },
+  {
+   "id": "cmp-003",
+   "category": "comparison",
+   "question": "Compare \"Action Research Series Volume 1\" and \"English for Writing Research Papers (2nd Edition)\"",
+   "locale": "en",
+   "expectIntent": [
+    "document_compare"
+   ],
+   "sources": [
+    "action-research-series-volume-1",
+    "english-for-writing-research-papers-2nd-edition"
+   ]
+  },
+  {
+   "id": "cmp-004",
+   "category": "comparison",
+   "question": "Compare \"Competency-based Language Teaching in Higher Education\" and \"Key Ideas in Educational Research\"",
+   "locale": "en",
+   "expectIntent": [
+    "document_compare"
+   ],
+   "sources": [
+    "competency-based-language-teaching-in-higher-education",
+    "key-ideas-in-educational-research"
+   ]
+  },
+  {
+   "id": "cmp-005",
+   "category": "comparison",
+   "question": "Compare \"English for Writing Research Papers\" and \"Essentials of Research Design and Methodology\"",
+   "locale": "en",
+   "expectIntent": [
+    "document_compare"
+   ],
+   "sources": [
+    "english-for-writing-research-papers",
+    "essentials-of-research-design-and-methodology"
+   ]
+  },
+  {
+   "id": "cmp-006",
+   "category": "comparison",
+   "question": "Compare \"Qualitative Research from Start to Finish (2nd Edition)\" and \"Handbook of Methodological Approaches to Community-Based Research\"",
+   "locale": "en",
+   "expectIntent": [
+    "document_compare"
+   ],
+   "sources": [
+    "qualitative-research-from-start-to-finish-2nd-edition",
+    "handbook-of-methodological-approaches-to-community-based-research"
+   ]
+  },
+  {
+   "id": "cmp-007",
+   "category": "comparison",
+   "question": "Compare \"Interviewing as Qualitative Research (3rd Edition)\" and \"Qualitative Data Analysis with NVivo (2nd Edition)\"",
+   "locale": "en",
+   "expectIntent": [
+    "document_compare"
+   ],
+   "sources": [
+    "interviewing-as-qualitative-research-3rd-edition",
+    "qualitative-data-analysis-with-nvivo-2nd-edition"
+   ]
+  },
+  {
+   "id": "cmp-008",
+   "category": "comparison",
+   "question": "Compare \"Introducing English for Research Publication Purposes\" and \"Methodology of Educational Research and Statistics\"",
+   "locale": "en",
+   "expectIntent": [
+    "document_compare"
+   ],
+   "sources": [
+    "introducing-english-for-research-publication-purposes",
+    "methodology-of-educational-research-and-statistics"
+   ]
+  },
+  {
+   "id": "single-001",
+   "category": "single_document",
+   "question": "What does this book say about action research?",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "qualitative-inquiry-and-research-design-4th-edition"
+   },
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "qualitative-inquiry-and-research-design-4th-edition"
+   ],
+   "expectGrounded": true,
+   "note": "verified pages: 37, 69, 76, 666"
+  },
+  {
+   "id": "single-002",
+   "category": "single_document",
+   "question": "What does this book say about formative assessment?",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "pedagogy-and-practice-leadership-guide"
+   },
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "pedagogy-and-practice-leadership-guide"
+   ],
+   "expectGrounded": true,
+   "note": "verified pages: 85, 191, 406, 411"
+  },
+  {
+   "id": "single-003",
+   "category": "single_document",
+   "question": "What does this book say about triangulation?",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "how-to-design-and-evaluate-research-in-education-8th-edition"
+   },
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "how-to-design-and-evaluate-research-in-education-8th-edition"
+   ],
+   "expectGrounded": true,
+   "note": "verified pages: 21, 457, 503, 505"
+  },
+  {
+   "id": "single-004",
+   "category": "single_document",
+   "question": "What does this book say about validity?",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "english-for-writing-research-papers-2nd-edition"
+   },
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "english-for-writing-research-papers-2nd-edition"
+   ],
+   "expectGrounded": true,
+   "note": "verified pages: 167, 178, 179, 197"
+  },
+  {
+   "id": "single-005",
+   "category": "single_document",
+   "question": "What does this book say about reliability?",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "how-to-design-and-evaluate-research-in-education-8th-edition"
+   },
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "how-to-design-and-evaluate-research-in-education-8th-edition"
+   ],
+   "expectGrounded": true,
+   "note": "verified pages: 503, 505, 506, 602"
+  },
+  {
+   "id": "single-006",
+   "category": "single_document",
+   "question": "What does this book say about sampling?",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "fundamental-of-research-methodology-and-statistics"
+   },
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "fundamental-of-research-methodology-and-statistics"
+   ],
+   "expectGrounded": true,
+   "note": "verified pages: 8, 27, 53, 70"
+  },
+  {
+   "id": "single-007",
+   "category": "single_document",
+   "question": "What does this book say about interviews?",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "qualitative-inquiry-and-research-design-4th-edition"
+   },
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "qualitative-inquiry-and-research-design-4th-edition"
+   ],
+   "expectGrounded": true,
+   "note": "verified pages: 31, 36, 41, 47"
+  },
+  {
+   "id": "single-008",
+   "category": "single_document",
+   "question": "What does this book say about focus group?",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "research-methods-in-education-8th-edition"
+   },
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "research-methods-in-education-8th-edition"
+   ],
+   "expectGrounded": true,
+   "note": "verified pages: 12, 75, 188, 198"
+  },
+  {
+   "id": "single-009",
+   "category": "single_document",
+   "question": "What does this book say about grounded theory?",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "handbook-of-methodological-approaches-to-community-based-research"
+   },
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "handbook-of-methodological-approaches-to-community-based-research"
+   ],
+   "expectGrounded": true,
+   "note": "verified pages: 6, 24, 38, 41"
+  },
+  {
+   "id": "single-010",
+   "category": "single_document",
+   "question": "What does this book say about case study?",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "from-teacher-to-manager-managing-language-teaching-organizations"
+   },
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "from-teacher-to-manager-managing-language-teaching-organizations"
+   ],
+   "expectGrounded": true,
+   "note": "verified pages: 6, 52, 53, 66"
+  },
+  {
+   "id": "single-011",
+   "category": "single_document",
+   "question": "What does this book say about questionnaire?",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "social-research-methods-qualitative-and-quantitative-7th-edition"
+   },
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "social-research-methods-qualitative-and-quantitative-7th-edition"
+   ],
+   "expectGrounded": true,
+   "note": "verified pages: 355, 358, 359, 360"
+  },
+  {
+   "id": "single-012",
+   "category": "single_document",
+   "question": "What does this book say about literature review?",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "qualitative-research-from-start-to-finish"
+   },
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "qualitative-research-from-start-to-finish"
+   ],
+   "expectGrounded": true,
+   "note": "verified pages: 14, 70, 82, 83"
+  },
+  {
+   "id": "sum-001",
+   "category": "summary",
+   "question": "Summarize this book",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "action-research-series-volume-3"
+   },
+   "expectIntent": [
+    "resource_summary"
+   ],
+   "sources": [
+    "action-research-series-volume-3"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "sum-002",
+   "category": "summary",
+   "question": "Summarize this book",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "action-research-in-teacher-development"
+   },
+   "expectIntent": [
+    "resource_summary"
+   ],
+   "sources": [
+    "action-research-in-teacher-development"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "sum-003",
+   "category": "summary",
+   "question": "Summarize this book",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "education-research-in-the-public-interest"
+   },
+   "expectIntent": [
+    "resource_summary"
+   ],
+   "sources": [
+    "education-research-in-the-public-interest"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "sum-004",
+   "category": "summary",
+   "question": "Summarize this book",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "spss-explained"
+   },
+   "expectIntent": [
+    "resource_summary"
+   ],
+   "sources": [
+    "spss-explained"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "sum-005",
+   "category": "summary",
+   "question": "Summarize this book",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "english-for-research-usage-style-and-grammar"
+   },
+   "expectIntent": [
+    "resource_summary"
+   ],
+   "sources": [
+    "english-for-research-usage-style-and-grammar"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "sum-006",
+   "category": "summary",
+   "question": "Summarize this book",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "fundamental-of-research-methodology-and-statistics"
+   },
+   "expectIntent": [
+    "resource_summary"
+   ],
+   "sources": [
+    "fundamental-of-research-methodology-and-statistics"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "km-001",
+   "category": "khmer",
+   "question": "តើបណ្ណាល័យបើកម៉ោងប៉ុន្មាន?",
+   "locale": "km",
+   "expectIntent": [
+    "faq"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "km-002",
+   "category": "khmer",
+   "question": "តើបណ្ណាល័យស្ថិតនៅឯណា?",
+   "locale": "km",
+   "expectIntent": [
+    "faq"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "km-003",
+   "category": "khmer",
+   "question": "តើមានសៀវភៅប៉ុន្មានក្នុងបណ្ណាល័យ?",
+   "locale": "km",
+   "expectIntent": [
+    "faq"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "km-004",
+   "category": "khmer",
+   "question": "រកសៀវភៅអំពីការស្រាវជ្រាវសកម្មភាព",
+   "locale": "km",
+   "expectIntent": [
+    "book_search",
+    "thesis_search"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "km-005",
+   "category": "khmer",
+   "question": "ណែនាំសៀវភៅអំពីវិធីសាស្ត្របង្រៀន",
+   "locale": "km",
+   "expectIntent": [
+    "book_search"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "km-006",
+   "category": "khmer",
+   "question": "តើសៀវភៅនេះនិយាយអំពីអ្វី?",
+   "locale": "km",
+   "scope": {
+    "recordType": "book",
+    "slug": "doing-action-research-in-english-language-teaching"
+   },
+   "expectIntent": [
+    "book_detail",
+    "resource_summary"
+   ],
+   "sources": [
+    "doing-action-research-in-english-language-teaching"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "km-007",
+   "category": "khmer",
+   "question": "សង្ខេបសៀវភៅនេះ",
+   "locale": "km",
+   "scope": {
+    "recordType": "book",
+    "slug": "doing-action-research-in-english-language-teaching"
+   },
+   "expectIntent": [
+    "resource_summary"
+   ],
+   "sources": [
+    "doing-action-research-in-english-language-teaching"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "km-008",
+   "category": "khmer",
+   "question": "តើមានអ្វីនៅក្នុងសៀវភៅនេះ?",
+   "locale": "km",
+   "scope": {
+    "recordType": "book",
+    "slug": "doing-action-research-in-english-language-teaching"
+   },
+   "expectIntent": [
+    "resource_summary"
+   ],
+   "sources": [
+    "doing-action-research-in-english-language-teaching"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "km-009",
+   "category": "khmer",
+   "question": "តើអក្សរសិល្ប៍និយាយអំពី sampling?",
+   "locale": "km",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "km-010",
+   "category": "khmer",
+   "question": "ស្វែងរកសារណាអំពីការអប់រំ",
+   "locale": "km",
+   "expectIntent": [
+    "thesis_search",
+    "book_search"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "mix-001",
+   "category": "mixed_language",
+   "question": "តើសៀវភៅនេះនិយាយអ្វីអំពី action research?",
+   "locale": "km",
+   "scope": {
+    "recordType": "book",
+    "slug": "qualitative-inquiry-and-research-design-4th-edition"
+   },
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "qualitative-inquiry-and-research-design-4th-edition"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "mix-002",
+   "category": "mixed_language",
+   "question": "តើសៀវភៅនេះនិយាយអ្វីអំពី formative assessment?",
+   "locale": "km",
+   "scope": {
+    "recordType": "book",
+    "slug": "pedagogy-and-practice-leadership-guide"
+   },
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "pedagogy-and-practice-leadership-guide"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "mix-003",
+   "category": "mixed_language",
+   "question": "តើសៀវភៅនេះនិយាយអ្វីអំពី triangulation?",
+   "locale": "km",
+   "scope": {
+    "recordType": "book",
+    "slug": "how-to-design-and-evaluate-research-in-education-8th-edition"
+   },
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "how-to-design-and-evaluate-research-in-education-8th-edition"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "mix-004",
+   "category": "mixed_language",
+   "question": "តើសៀវភៅនេះនិយាយអ្វីអំពី validity?",
+   "locale": "km",
+   "scope": {
+    "recordType": "book",
+    "slug": "english-for-writing-research-papers-2nd-edition"
+   },
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "english-for-writing-research-papers-2nd-edition"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "mix-005",
+   "category": "mixed_language",
+   "question": "តើសៀវភៅនេះនិយាយអ្វីអំពី reliability?",
+   "locale": "km",
+   "scope": {
+    "recordType": "book",
+    "slug": "how-to-design-and-evaluate-research-in-education-8th-edition"
+   },
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "how-to-design-and-evaluate-research-in-education-8th-edition"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "mix-006",
+   "category": "mixed_language",
+   "question": "តើសៀវភៅនេះនិយាយអ្វីអំពី sampling?",
+   "locale": "km",
+   "scope": {
+    "recordType": "book",
+    "slug": "fundamental-of-research-methodology-and-statistics"
+   },
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "sources": [
+    "fundamental-of-research-methodology-and-statistics"
+   ],
+   "expectGrounded": true
+  },
+  {
+   "id": "none-001",
+   "category": "no_answer",
+   "question": "What does the literature say about zebrafish cardiac regeneration?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "expectNoAnswer": true,
+   "note": "verified: 0 pages in the collection contain this phrase"
+  },
+  {
+   "id": "none-002",
+   "category": "no_answer",
+   "question": "What does the literature say about quantum chromodynamics?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "expectNoAnswer": true,
+   "note": "verified: 0 pages in the collection contain this phrase"
+  },
+  {
+   "id": "none-003",
+   "category": "no_answer",
+   "question": "What does the literature say about byzantine fault tolerance?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "expectNoAnswer": true,
+   "note": "verified: 0 pages in the collection contain this phrase"
+  },
+  {
+   "id": "none-004",
+   "category": "no_answer",
+   "question": "What does the literature say about mycorrhizal symbiosis?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "expectNoAnswer": true,
+   "note": "verified: 0 pages in the collection contain this phrase"
+  },
+  {
+   "id": "none-005",
+   "category": "no_answer",
+   "question": "What does the literature say about cryptocurrency mining rigs?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "expectNoAnswer": true,
+   "note": "verified: 0 pages in the collection contain this phrase"
+  },
+  {
+   "id": "none-006",
+   "category": "no_answer",
+   "question": "What does the literature say about aortic valve replacement?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "expectNoAnswer": true,
+   "note": "verified: 0 pages in the collection contain this phrase"
+  },
+  {
+   "id": "none-007",
+   "category": "no_answer",
+   "question": "What does the literature say about submarine hull design?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "expectNoAnswer": true,
+   "note": "verified: 0 pages in the collection contain this phrase"
+  },
+  {
+   "id": "none-008",
+   "category": "no_answer",
+   "question": "What does the literature say about photolithography steppers?",
+   "locale": "en",
+   "expectIntent": [
+    "pdf_question"
+   ],
+   "expectNoAnswer": true,
+   "note": "verified: 0 pages in the collection contain this phrase"
+  },
+  {
+   "id": "faq-001",
+   "category": "library_faq",
+   "question": "What are the library's opening hours?",
+   "locale": "en",
+   "expectIntent": [
+    "faq"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "faq-002",
+   "category": "library_faq",
+   "question": "Where is the PTEC library located?",
+   "locale": "en",
+   "expectIntent": [
+    "faq"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "faq-003",
+   "category": "library_faq",
+   "question": "How do I contact the library?",
+   "locale": "en",
+   "expectIntent": [
+    "faq"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "faq-004",
+   "category": "library_faq",
+   "question": "How many books do you have?",
+   "locale": "en",
+   "expectIntent": [
+    "faq"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "faq-005",
+   "category": "library_faq",
+   "question": "What are the library rules?",
+   "locale": "en",
+   "expectIntent": [
+    "faq"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "faq-006",
+   "category": "library_faq",
+   "question": "How do I become a member?",
+   "locale": "en",
+   "expectIntent": [
+    "faq"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "cite-001",
+   "category": "citation",
+   "question": "How do I cite this in APA?",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "introduction-to-research-in-education-8th-edition"
+   },
+   "expectIntent": [
+    "citation"
+   ],
+   "sources": [
+    "introduction-to-research-in-education-8th-edition"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "cite-002",
+   "category": "citation",
+   "question": "How do I cite this in APA?",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "a-z-of-digital-research-methods"
+   },
+   "expectIntent": [
+    "citation"
+   ],
+   "sources": [
+    "a-z-of-digital-research-methods"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "cite-003",
+   "category": "citation",
+   "question": "How do I cite this in APA?",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "english-for-academic-research-writing-exercises"
+   },
+   "expectIntent": [
+    "citation"
+   ],
+   "sources": [
+    "english-for-academic-research-writing-exercises"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "cite-004",
+   "category": "citation",
+   "question": "How do I cite this in APA?",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "methodological-advances-in-educational-effectiveness-research"
+   },
+   "expectIntent": [
+    "citation"
+   ],
+   "sources": [
+    "methodological-advances-in-educational-effectiveness-research"
+   ],
+   "templateOk": true
+  },
+  {
+   "id": "cite-005",
+   "category": "citation",
+   "question": "How do I cite this in APA?",
+   "locale": "en",
+   "scope": {
+    "recordType": "book",
+    "slug": "qualitative-research-methods-collecting-evidence"
+   },
+   "expectIntent": [
+    "citation"
+   ],
+   "sources": [
+    "qualitative-research-methods-collecting-evidence"
+   ],
+   "templateOk": true
+  }
+ ]
+}
