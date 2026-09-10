@@ -3,10 +3,13 @@
 **Property:** `https://library.ptec.edu.kh`
 **Written:** 2026-09-09, alongside `docs/SEO-PRODUCTION-PASS-VERIFICATION.md`
 
-> **NOT VERIFIED.** Nobody with Search Console access ran any of this. Every
-> item below is an instruction, not a result. Do not restate anything here as a
-> finding — the audit that produced this checklist had no Search Console access
-> and made no claim about indexing, impressions or coverage.
+> **Mostly NOT VERIFIED.** This is an instruction list, not a results list. The
+> audit that wrote it had no Search Console access and makes no claim about
+> indexing, impressions or coverage — do not restate anything here as a finding.
+>
+> **One exception, 2026-09-10:** a Live Inspection WAS run after the robots.txt
+> fix (#166) and reported *URL is available to Google*, with **Breadcrumbs** and
+> **ProfilePage** valid. That is a real result. Everything else remains a to-do.
 
 ---
 
@@ -17,6 +20,7 @@ both need a re-crawl before the old signals disappear:
 
 | Change | What GSC showed before | What to expect after |
 |---|---|---|
+| **`Disallow: /auth` no longer blocks `/authors`** (#166) | the author hub + **157 profiles** reported *Blocked by robots.txt* | crawlable; **verified 2026-09-10** — see the banner above |
 | `/paths/<unknown>` now 404s at the edge | arbitrary `/paths/*` URLs indexable at 200 | "Not found (404)" — correct |
 | `/publications`, `/paths` withheld from the sitemap while empty | 2 indexable hubs with no content | dropped from the sitemap; `noindex, follow` on the page |
 
@@ -43,6 +47,10 @@ Neither is an error to "fix" in GSC. Both are the intended new state.
 ## 3. robots.txt
 
 - [ ] Open **Settings → robots.txt** and confirm the fetched file matches the app's output.
+- [ ] Confirm every private `Disallow` is **anchored** (`/auth$`) or a descendant
+      rule (`/auth/`). An unanchored `/auth` is a PREFIX match and blocks
+      `/authors` — that shipped, and cost the author hub plus 157 profiles until
+      #166. `docs/SEO-PRODUCTION-PASS-VERIFICATION.md` §11 has the detail.
 - [ ] Confirm there is **no** Cloudflare-injected `Disallow: /`.
       This was a real, shipped incident (`docs/…cloudflare-robots-override`) and
       the symptom is unmistakable: a uniform Lighthouse/SEO score across every

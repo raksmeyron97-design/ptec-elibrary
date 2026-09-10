@@ -3,18 +3,28 @@
 | | |
 |---|---|
 | **Repository** | `raksmeyron97-design/ptec-elibrary` |
-| **Branch** | `fix/production-validation-2026-09-09` |
+| **Branch** | the work was committed on `fix/chunk-embed-transient-write` (a concurrent agent had switched the shared checkout mid-session), then isolated onto `fix/seo-production-pass` and merged as `c6f819b` (#162). An earlier revision of this row named `fix/production-validation-2026-09-09`, which never contained the commit. |
 | **Commit at audit start** | `d47ac62` (working tree clean) |
 | **Base at commit time** | `3549f01` — three unrelated commits landed on the branch from concurrent work during this pass; `getPathBySlug()` was re-checked against the current tree and still hard-filters `status = 'published'`, so the gate assumption holds |
 | **Production host** | `https://library.ptec.edu.kh` |
 | **Deployment** | self-hosted Docker on ZimaOS behind Cloudflare Tunnel |
 | **Date** | 2026-09-09 |
 | **Baseline** | `docs/SEO-PRODUCTION-PASS-BASELINE.md` |
-| **Search Console** | `docs/SEO-SEARCH-CONSOLE-CHECKLIST.md` — **NOT VERIFIED**, no access |
+| **Search Console** | `docs/SEO-SEARCH-CONSOLE-CHECKLIST.md`. **NOT VERIFIED at the time of this report**; a Live Inspection was run on 2026-09-10 — see §11 |
 
 Status vocabulary: **PASS / WARN / FAIL / NOT VERIFIED / DEFERRED**.
 No claim below is made from source reading alone — every production statement
 comes from an inspected HTTP response.
+
+> ### ⚠️ Superseded in part — read §11 first
+>
+> One day after this report, Search Console found that `robots.txt` was blocking
+> the author hub and all 157 author profiles. **This report marked robots.txt
+> PASS** (§3 F-2/F-3, §5). That verdict was wrong, and the way it was reached is
+> the more useful finding: every check asserted the *shape* of the rules, and
+> nothing evaluated them the way a crawler does. **§11 records the defect, the
+> fix, and the method change.** The robots rows below are left as written rather
+> than quietly corrected.
 
 ---
 
@@ -109,7 +119,7 @@ related subjects, an author links to their works.
 |---|---|---|
 | F-1 | Empty subjects in sitemap | **PASS** — 23/23 populated; `getIndexableSubjects()` gates it |
 | F-2 | Cloudflare `robots.txt` override | **PASS** — live file is the app's output; no managed `Disallow: /` |
-| F-3 | Duplicate private-path lists | **PASS** — derived from `getLocalizedPrivateSeoPaths()`; now pinned by a test (N-5) |
+| F-3 | Duplicate private-path lists | **PASS — but see §11.** One source of truth, correctly derived. What was never checked is what that source *emits*: the rules blocked /authors. |
 | F-4 | Missing `/subjects` hub | **PASS** — 200, indexable, CollectionPage, 23 crawlable links |
 | F-5 | Breadcrumb links | **PASS** — 0 bad breadcrumb URLs across 468 BreadcrumbLists |
 | F-6 | False Khmer hreflang on subjects | **PASS** — `/km/subjects/*` fully Khmer (title, description, H1, breadcrumbs) |
@@ -228,8 +238,8 @@ cannot trip the rule that prevents it.
 
 | Area | Status | Basis |
 |---|---|---|
-| Robots (code) | **PASS** | Single source of truth, now test-pinned |
-| Robots (production edge) | **PASS** | Live `robots.txt` is the app's output; no Cloudflare override |
+| Robots (code) | ~~PASS~~ → **FAIL, fixed 2026-09-10** | See §11. The rules were derived from one source and shape-pinned by tests, and still blocked 157 URLs |
+| Robots (production edge) | **PASS** | Live `robots.txt` is the app's output; no Cloudflare override. (That the *output itself* was wrong is §11 — a separate defect from the CDN override this row tracks.) |
 | Sitemap | **PASS** (was WARN) | 478/478 → 200; empty hubs now withheld |
 | Canonical | **PASS** | 0 errors across 478 pages |
 | Hreflang | **PASS** | 0 pages missing `en`+`km`+`x-default`; 40/40 Khmer alternates → 200 |
@@ -420,3 +430,135 @@ positive**: `getTranslations({ locale, … })` is flagged as an "independent"
 await, but `locale` is bound by the `Promise.all` destructuring immediately
 above it, so it cannot start earlier. It was not suppressed, and the code was
 not contorted to silence it.
+
+---
+
+## 11. Addendum, 2026-09-10 — `robots.txt` was blocking every author URL
+
+**Merged as `02a923c` (#166). Confirmed fixed on production and in Search Console.**
+
+### What was wrong
+
+A robots.txt rule is a **prefix match with no implicit end anchor**.
+`getLocalizedPrivateSeoPaths()` emitted a bare `/auth`, which therefore matched
+`/authors`, `/authors/<slug>`, and every other author URL. Google resolves a
+conflict by the **longest matching rule** (ties going to Allow), so the group's
+own `Allow: /` — length 1 — lost to `Disallow: /auth` — length 5:
+
+```
+User-Agent: *
+Allow: /            ← length 1
+Disallow: /auth     ← length 5, longest match wins → /authors/* BLOCKED
+```
+
+The author hub and all **157 author profiles** were disallowed for every
+crawler, while `sitemap.xml` went on advertising them. Found by a Search Console
+Live Inspection, not by anything in this repository.
+
+`/auth` → `/authors` was the only live collision. Every other private prefix
+(`/admin`, `/api`, `/dashboard`, `/profile`, `/lists`, `/offline-books`,
+`/offline-reader`) happened to have no public sibling sharing its opening
+characters — luck, not design.
+
+### Blast radius — crawl blocking, not de-indexing
+
+Only `app/robots.ts` consumes that list. `isPrivateSurfacePath()` — which drives
+middleware's `X-Robots-Tag`, the metadata robots, and the sitemap's
+private-URL validator — already matched on the correct exact-or-descendant rule
+(`path === prefix || path.startsWith(prefix + "/")`) and never classified
+`/authors` as private. **Nothing was noindexed that should not have been.**
+
+### The fix
+
+The rules now state exactly what `isPrivateSurfacePath()` means, in two parts:
+
+```
+Disallow: /auth$    the segment root, and only the segment root
+Disallow: /auth/    everything beneath it
+```
+
+`$` is a standard robots.txt special character (RFC 9309 §2.2.3 requires
+crawlers to support `#`, `$` and `*`). A parser that ignored it would fail to
+match the segment root only — leaving a non-existent `/auth` crawlable while
+`/auth/*` stays blocked by the second rule, with metadata robots and the
+`X-Robots-Tag` header as the real protection either way. The trailing-slash form
+deliberately carries **no** anchor: it is the descendant rule, and anchoring it
+would match only the literal directory URL.
+
+### Why this report said PASS — the method failure
+
+This is the part worth keeping.
+
+Every check that touched robots.txt asserted the **shape** of the rules:
+`expect(paths).toContain("/auth")`. §5 recorded PASS on that basis, and the
+regression test added by this very pass (N-5, `lib/seo/robots-sitemap-policy.test.ts`)
+asserted the bare form explicitly — so it did not merely fail to catch the
+defect, it **pinned it in place** and would have failed anyone's fix.
+
+Shape was never the problem. The rules looked entirely reasonable and blocked
+157 URLs anyway. Nothing in the repository evaluated them the way a crawler
+does, so no amount of source review would have surfaced it.
+
+**The generalisation:** when a config file is *interpreted by someone else's
+engine* — robots.txt, CSP, nginx, `.gitignore`, glob patterns — assert on the
+**engine's semantics**, never on the text emitted.
+
+### What the test does now
+
+`lib/seo/robots-sitemap-policy.test.ts` carries a robots.txt matcher (prefix
+semantics, `*`, `$`, longest-rule-wins with ties to Allow) applied to the real
+`User-Agent: *` group, asserting:
+
+- every public URL stays crawlable — including `/authors`, `/authors/<slug>` and
+  the Khmer-slugged `/authors/សិត-សេង`, in **both locales**;
+- every private URL stays blocked;
+- **the general form, not this instance**: for every private prefix, sibling
+  routes that merely start with the same characters are not swallowed, so a
+  future `/list` vs `/lists` or `/api` vs `/apidocs` cannot repeat it;
+- the matcher is itself pinned against the old unanchored rule, so a bug in the
+  harness cannot make the assertions above pass vacuously.
+
+**The test was verified to fail on the defect** by reverting the emitter: 15
+failures, naming `/authors`, `/km/authors` and `/authors/សិត-សេង` explicitly. A
+regression test that does not fail on the bug it describes is worth nothing, so
+that check mattered more than the green run.
+
+### Production verification
+
+Live `robots.txt` parsed and evaluated with Google's rules, before and after the
+deploy:
+
+| URL | Before | After |
+|---|---|---|
+| `/authors` | ❌ blocked by `/auth` | ✅ crawlable |
+| `/authors/adrian-wallwork` | ❌ blocked by `/auth` | ✅ crawlable |
+| `/authors/សិត-សេង` | ❌ blocked by `/auth` | ✅ crawlable |
+| `/km/authors` | ❌ blocked by `/km/auth` | ✅ crawlable |
+| `/km/authors/adrian-wallwork` | ❌ blocked by `/km/auth` | ✅ crawlable |
+
+All 11 private surfaces remained blocked throughout, now via the anchored rules.
+Author pages still return 200; `/admin` and `/dashboard` still 307 with
+`noindex, nofollow`.
+
+**The invariant now measured, in full:** every URL the sitemap advertises — 474
+`<loc>` entries plus their hreflang alternates, **948 distinct URLs** — is
+crawlable. **0 blocked.** Asking a crawler to fetch a URL while forbidding it is
+the contradiction that shipped unnoticed, so that contradiction, rather than the
+rule text, is what gets checked.
+
+### Search Console — now **PASS**
+
+The §9 action "re-submit robots.txt and re-run Live Inspection" was completed on
+2026-09-10. Live Inspection reports **URL is available to Google**, with
+**Breadcrumbs** and **ProfilePage** both valid. This is the one claim in this
+report that could not be made from inside the repository, and it is the one that
+closes the defect.
+
+### What this does not change
+
+The scope was `/authors` only, and it was measured rather than assumed. Every
+other finding in this report was re-verified against live production during the
+fix and stands: 474/474 sitemap URLs 200, zero canonical errors, zero hreflang
+errors, zero orphan pages, zero JSON-LD parse failures, and the N-1…N-4 fixes
+confirmed live (`/paths/<unknown>` 404s; `/paths` and `/publications` are absent
+from the sitemap while empty).
