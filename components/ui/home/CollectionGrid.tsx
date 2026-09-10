@@ -17,13 +17,20 @@
 // without their count line rather than the section disappearing. The count is
 // the supporting detail; the four links are the point, and a reader who cannot
 // see "380 theses" can still get to the theses.
+//
+// A count of ZERO is dropped too, the same rule <TrustBar> applies to its
+// tiles. The card still links — the collection exists and the nav lists it —
+// but "0 items" printed under two of four collections on the homepage told
+// every first-time visitor the library was mostly empty shelves, which is
+// neither the message nor, as the collection grows, the truth for long.
 import { Link } from "@/i18n/navigation";
-import { getTranslations, getLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { getCollectionStats } from "@/lib/collection-stats";
 import {
   DIGITAL_LIBRARY_ITEMS,
   type DigitalLibraryLabelKey,
 } from "@/components/layout/digital-library-nav";
+import { HomeSection, SectionHeader } from "./HomeSection";
 
 /** Collection → the getCollectionStats() field that counts it. `svaLibrary` is
  *  absent deliberately: it is somebody else's catalogue and we do not know (or
@@ -58,135 +65,117 @@ const ArrowIcon = (
 );
 
 export default async function CollectionGrid() {
-  const [t, tNav, locale, stats] = await Promise.all([
+  const [t, tNav, stats] = await Promise.all([
     getTranslations("home"),
     getTranslations("nav"),
-    getLocale(),
     getCollectionStats(),
   ]);
 
-  const latinEyebrow = locale === "en" ? "uppercase tracking-[0.2em]" : "tracking-normal";
   const internal = DIGITAL_LIBRARY_ITEMS.filter((item) => !item.external);
   const sva = DIGITAL_LIBRARY_ITEMS.find((item) => item.external);
 
   return (
-    <section
-      className="border-b border-divider/60 bg-bg-surface"
-      aria-labelledby="collection-grid-title"
-    >
-      <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-14 md:px-12 md:py-16">
-        {/* ── Header ── */}
-        <div className="mb-8">
-          <div className="mb-2 flex items-center gap-3">
-            <span
-              className="h-[3px] w-7 rounded-full bg-gradient-to-r from-accent to-brand"
-              aria-hidden
-            />
-            <span className={`text-[11px] font-bold text-accent-text ${latinEyebrow}`}>
-              {t("collectionsGridEyebrow")}
-            </span>
-          </div>
-          <h2
-            id="collection-grid-title"
-            className="font-khmer-serif font-bold leading-tight tracking-tight text-text-heading"
-            style={{ fontSize: "clamp(22px, 2.4vw, 32px)" }}
-          >
-            {t("collectionsGridTitle")}
-          </h2>
-        </div>
+    <HomeSection surface="paper" labelledBy="collection-grid-title">
+      <SectionHeader
+        id="collection-grid-title"
+        tone="accent"
+        eyebrow={t("collectionsGridEyebrow")}
+        title={t("collectionsGridTitle")}
+      />
 
-        {/* ── The four PTEC collections ── */}
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {internal.map((item) => {
-            const { labelKey, descriptionKey, href, icon: Icon } = item;
-            const field = COUNT_FIELD[labelKey];
-            const count = stats && field ? stats[field] : null;
-            const label = tNav(labelKey);
+      {/* ── The four PTEC collections ──
+          Two per row on phones: four stacked cards measured 1,160 px on a
+          375 px screen for four labels and a count each. */}
+      <ul className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        {internal.map((item) => {
+          const { labelKey, descriptionKey, href, icon: Icon } = item;
+          const field = COUNT_FIELD[labelKey];
+          const count = stats && field ? stats[field] : null;
+          const label = tNav(labelKey);
 
-            return (
-              <li key={labelKey}>
-                <Link
-                  href={href}
-                  aria-label={t("collectionsGridCardLabel", { collection: label })}
-                  className="group flex h-full min-h-[168px] flex-col rounded-xl border border-divider bg-paper p-5 transition-all duration-200 hover:-translate-y-1 hover:border-brand/40 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
-                >
-                  <span
-                    className={`mb-4 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-105 ${PLATE[labelKey]}`}
-                    aria-hidden
-                  >
-                    <Icon className="h-6 w-6" strokeWidth={1.9} />
-                  </span>
-
-                  <span className="block font-khmer-serif text-[16px] font-bold leading-snug text-text-heading transition-colors group-hover:text-brand">
-                    {label}
-                  </span>
-                  <span className="mt-1 block text-[13px] leading-relaxed text-text-muted">
-                    {tNav(descriptionKey)}
-                  </span>
-
-                  <span className="mt-auto flex items-center justify-between gap-2 pt-4">
-                    {/* No count line at all when the stats view is down —
-                        never a "0", which would read as an empty collection. */}
-                    <span className="text-[12.5px] font-semibold text-text-muted">
-                      {count === null ? "" : t("collectionsGridItemCount", { count })}
-                    </span>
-                    {ArrowIcon}
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-
-        {/* ── SVA Library — a partner catalogue, not ours ──
-            Visually separated (dashed border, full width, own row) so nobody
-            reads it as a fifth PTEC collection.
-
-            The "opens in a new tab" note is real text, not an icon-only cue,
-            and it sits INSIDE the link — so it is already part of the computed
-            accessible name. It deliberately carries no aria-describedby: the
-            Chrome a11y tree showed that pointing one at this same span made it
-            both the name's tail and the description, so a screen reader
-            announced "…បើកក្នុងផ្ទាំងថ្មី" twice in a row. */}
-        {sva && (
-          <div className="mt-4">
-            <a
-              href={sva.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex min-h-[76px] flex-col gap-3 rounded-xl border border-dashed border-divider bg-paper px-5 py-4 transition-all duration-200 hover:border-brand/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 sm:flex-row sm:items-center sm:gap-4"
-            >
-              <span
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${PLATE.svaLibrary}`}
-                aria-hidden
+          return (
+            <li key={labelKey}>
+              <Link
+                href={href}
+                aria-label={t("collectionsGridCardLabel", { collection: label })}
+                className="group flex h-full min-h-[148px] flex-col rounded-xl border border-divider bg-bg-surface p-4 transition-all duration-200 hover:-translate-y-1 hover:border-brand/40 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 sm:min-h-[168px] sm:p-5"
               >
-                <sva.icon className="h-5 w-5" strokeWidth={1.9} />
-              </span>
-
-              <span className="min-w-0 flex-1">
-                <span className="block font-khmer-serif text-[15px] font-bold leading-snug text-text-heading transition-colors group-hover:text-brand">
-                  {tNav(sva.labelKey)}
-                </span>
-                <span className="mt-0.5 block text-[13px] leading-relaxed text-text-muted">
-                  {tNav(sva.descriptionKey)}
-                </span>
-              </span>
-
-              <span className="inline-flex shrink-0 items-center gap-1.5 text-[12px] font-semibold text-text-muted">
-                <svg
-                  className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden
+                <span
+                  className={`mb-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-105 sm:mb-4 sm:h-12 sm:w-12 ${PLATE[labelKey]}`}
+                  aria-hidden
                 >
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                  <polyline points="15 3 21 3 21 9" />
-                  <line x1="10" y1="14" x2="21" y2="3" />
-                </svg>
-                {t("collectionsGridExternal")}
+                  <Icon className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.9} />
+                </span>
+
+                <span className="block font-khmer-serif text-[15px] font-bold leading-snug text-text-heading transition-colors group-hover:text-brand sm:text-[16px]">
+                  {label}
+                </span>
+                <span className="mt-1 block text-[12.5px] leading-relaxed text-text-muted sm:text-[13px]">
+                  {tNav(descriptionKey)}
+                </span>
+
+                <span className="mt-auto flex items-center justify-between gap-2 pt-3 sm:pt-4">
+                  {/* No count line when the stats view is down OR the count
+                      is zero — see the header comment. */}
+                  <span className="text-[12.5px] font-semibold text-text-muted">
+                    {count ? t("collectionsGridItemCount", { count }) : ""}
+                  </span>
+                  {ArrowIcon}
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* ── SVA Library — a partner catalogue, not ours ──
+          Visually separated (dashed border, full width, own row) so nobody
+          reads it as a fifth PTEC collection.
+
+          The "opens in a new tab" note is real text, not an icon-only cue,
+          and it sits INSIDE the link — so it is already part of the computed
+          accessible name. It deliberately carries no aria-describedby: the
+          Chrome a11y tree showed that pointing one at this same span made it
+          both the name's tail and the description, so a screen reader
+          announced "…បើកក្នុងផ្ទាំងថ្មី" twice in a row. */}
+      {sva && (
+        <div className="mt-3 sm:mt-4">
+          <a
+            href={sva.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex min-h-[76px] flex-col gap-3 rounded-xl border border-dashed border-divider bg-bg-surface px-4 py-4 transition-all duration-200 hover:border-brand/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 sm:flex-row sm:items-center sm:gap-4 sm:px-5"
+          >
+            <span
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${PLATE.svaLibrary}`}
+              aria-hidden
+            >
+              <sva.icon className="h-5 w-5" strokeWidth={1.9} />
+            </span>
+
+            <span className="min-w-0 flex-1">
+              <span className="block font-khmer-serif text-[15px] font-bold leading-snug text-text-heading transition-colors group-hover:text-brand">
+                {tNav(sva.labelKey)}
               </span>
-            </a>
-          </div>
-        )}
-      </div>
-    </section>
+              <span className="mt-0.5 block text-[13px] leading-relaxed text-text-muted">
+                {tNav(sva.descriptionKey)}
+              </span>
+            </span>
+
+            <span className="inline-flex shrink-0 items-center gap-1.5 text-[12.5px] font-semibold text-text-muted">
+              <svg
+                className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden
+              >
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+              {t("collectionsGridExternal")}
+            </span>
+          </a>
+        </div>
+      )}
+    </HomeSection>
   );
 }

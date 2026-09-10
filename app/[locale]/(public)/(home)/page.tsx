@@ -313,7 +313,10 @@ export default async function HomePage() {
                 <div className="absolute inset-x-0 bottom-0 h-40 bg-[radial-gradient(ellipse_80%_60%_at_50%_100%,rgba(37,99,235,0.18),transparent)]" />
               </div>
               <div className="relative scale-110">
-                <HeroBookStack books={heroBooks} />
+                <HeroBookStack
+                  books={heroBooks}
+                  labels={{ browseAll: t("ctaBrowse"), mostDownloaded: t("heroMostDownloaded") }}
+                />
               </div>
             </div>
 
@@ -324,6 +327,36 @@ export default async function HomePage() {
         <div className="h-px w-full bg-gradient-to-r from-transparent via-gold-400/80 to-transparent" />
       </section>
 
+      {/* ════════ THE ORDER BELOW THE HERO ════════════════════════════════
+          Three passes over one question: what does a reader who just landed
+          need next?
+
+          1. ORIENT — TrustBar (how big is this?), StartWithGoal (what am I
+             here to do?), CollectionGrid (what is in it?).
+          2. DISCOVER — the shelves, in decreasing generality: popular, the
+             full tabbed browse, by subject, newest, most-read research.
+          3. ACT / VISIT — contribute, read the news, see the place, come in,
+             ask a question, sign up.
+
+          Two moves against the previous order, both measured on a 375 px
+          phone against the live site:
+
+          • The photo gallery LEFT slot 2. It put 876 px of photographs
+            between the search box and the first book cover, so the first
+            cover sat five screens down. It now introduces <NarrativeCards>
+            and <LibraryNow> — the bands about the physical library — which
+            is the subject the photographs are actually about.
+          • <GrowTheCollection> MOVED AFTER discovery. "Tell us what's
+            missing" is a question for a reader who has just looked and not
+            found it, not for one who has seen nothing yet.
+
+          Backgrounds alternate paper / surface down the page and every card
+          wears the opposite ground, so a card is never invisible on its own
+          band. Each band declares its own `surface` (see HomeSection.tsx)
+          because the optional bands hide themselves and the page cannot know
+          at render time which neighbours survive; where one does hide, two
+          same-coloured bands meet and their divider still separates them. */}
+
       {/* ════════ TRUST BAR — verifiable figures, directly under the hero ════
           Deliberately NOT wrapped in .cv-auto: it sits in the initial viewport
           on most desktops, where content-visibility would defer work the
@@ -331,59 +364,35 @@ export default async function HomePage() {
           getCollectionStats(); nothing here is estimated. */}
       <TrustBar />
 
-      {/* ════════ LIFE AT THE LIBRARY — admin-managed photo mosaic ════════
-          Editorial, not decorative: it answers "is this place actually used?"
-          right after <TrustBar> quantifies the collection. Content comes from
-          /admin/homepage-photos, so a new term's photos need no deploy. The
-          section removes itself entirely when no photos are active. */}
-      <div className="cv-auto">
-        <HeroPhotoGallery photos={mosaicPhotos} totalCount={galleryPhotos.length} />
-      </div>
-
-      {/* ════════ START WITH YOUR GOAL — task-first discovery, slot 2 ════════
+      {/* ════════ START WITH YOUR GOAL — task-first discovery ════════════════
           Wired to real learning paths (or curated routes); no data round-trip
           beyond the paths already fetched above, so it renders immediately. */}
       <StartWithGoal paths={paths} />
 
+      {/* Below-the-fold sections are wrapped in .cv-auto (content-visibility)
+          so the browser skips their layout/paint work until scrolled near. */}
+
       {/* ════════ BROWSE BY COLLECTION — the four collections as equal cards ══
-          Answers "what is actually in here?" immediately after <TrustBar>
-          quantifies it, for the reader who cannot yet name what they want and
-          so has nothing to type into the hero search. Collections and counts
-          are read from the nav config and getCollectionStats() respectively —
-          see the component header. */}
+          Answers "what is actually in here?" for the reader who cannot yet
+          name what they want and so has nothing to type into the hero search.
+          Collections and counts are read from the nav config and
+          getCollectionStats() respectively — see the component header. */}
       <div className="cv-auto">
-        <Suspense fallback={<div className="h-96 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
+        <Suspense fallback={<div className="h-96 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
           <CollectionGrid />
         </Suspense>
       </div>
 
-      {/* Below-the-fold sections are wrapped in .cv-auto (content-visibility)
-          so the browser skips their layout/paint work until scrolled near. */}
-
-      {/* ════════ FOR YOU ════════
+      {/* ════════ POPULAR / CONTINUE READING ════════
           The public "popular" shelf is server-rendered into the prerendered
-          HTML; ContinueReadingSwap replaces it after hydration for the signed-in
-          users who have reading in progress. Deciding this server-side is what
-          used to make the whole homepage dynamic. */}
+          HTML; ContinueReadingSwap replaces it after hydration for the
+          signed-in users who have reading in progress. Deciding this
+          server-side is what used to make the whole homepage dynamic. */}
       <ContinueReadingSwap>
         <ForYouShelf popularBooks={trendingBooks} />
       </ContinueReadingSwap>
 
-      {/* ════════ GROW THE COLLECTION — the contribution band ════════
-          Replaces "This week at PTEC" / "New and noteworthy", which was a fifth
-          view of the same handful of books the shelves above already showed
-          (audit: 32 resource links on this page resolved to 16 unique items).
-          This slot now ASKS rather than displays, because the collection's real
-          constraint is its size — 112 books but one thesis and one publication.
-          Both doors land in the existing /admin/book-requests queue via the
-          `kind` column from migration 0119. */}
-      <div className="cv-auto">
-        <Suspense fallback={<div className="h-80 animate-pulse border-b border-divider bg-paper" aria-hidden />}>
-          <GrowTheCollection />
-        </Suspense>
-      </div>
-
-      {/* ════════ COLLECTION PREVIEW — ≤8 cards, 4-per-row ════════ */}
+      {/* ════════ COLLECTION PREVIEW — ≤8 cards, 4-per-row, tabbed ════════ */}
       <div className="cv-auto">
         <Suspense fallback={<BrowseBooksSkeleton />}>
           <BrowseBooksSection trendingBooks={trendingBooks} />
@@ -392,7 +401,7 @@ export default async function HomePage() {
 
       {/* ════════ BROWSE BY SUBJECT ════════ */}
       <div className="cv-auto">
-        <Suspense fallback={<div className="h-48 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
+        <Suspense fallback={<div className="h-48 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
           <CategoryGrid />
         </Suspense>
       </div>
@@ -402,7 +411,7 @@ export default async function HomePage() {
           replaced by <GrowTheCollection>, this is the only curated-by-date
           band left, so it no longer has a sibling to differentiate from. */}
       <div className="cv-auto">
-        <Suspense fallback={<div className="h-72 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
+        <Suspense fallback={<div className="h-72 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
           <NewArrivals />
         </Suspense>
       </div>
@@ -411,6 +420,19 @@ export default async function HomePage() {
       <div className="cv-auto">
         <Suspense fallback={<div className="h-64 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
           <TrendingResearch />
+        </Suspense>
+      </div>
+
+      {/* ════════ GROW THE COLLECTION — the contribution band ════════
+          Replaces "This week at PTEC" / "New and noteworthy", which was a fifth
+          view of the same handful of books the shelves above already showed
+          (audit: 32 resource links on this page resolved to 16 unique items).
+          This slot ASKS rather than displays, because the collection's real
+          constraint is its size. Both doors land in the existing
+          /admin/book-requests queue via the `kind` column from migration 0119. */}
+      <div className="cv-auto">
+        <Suspense fallback={<div className="h-80 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
+          <GrowTheCollection />
         </Suspense>
       </div>
 
@@ -424,11 +446,19 @@ export default async function HomePage() {
         </Suspense>
       </div>
 
+      {/* ════════ LIFE AT THE LIBRARY — admin-managed photo mosaic ════════
+          Editorial, not decorative: it answers "is this place actually used?"
+          Content comes from /admin/homepage-photos, so a new term's photos
+          need no deploy. The section removes itself entirely when no photos
+          are active. Together with <NarrativeCards> below it, it introduces
+          <LibraryNow> — these are photographs of the room that section is
+          inviting the reader into. */}
+      <div className="cv-auto">
+        <HeroPhotoGallery photos={mosaicPhotos} totalCount={galleryPhotos.length} />
+      </div>
+
       {/* ════════ FOCUS / DISCOVER / CONNECT — the gallery's second half ════
-          Placed here rather than directly under the mosaic on purpose: it
-          leads into <LibraryNow>, which is the physical-library bridge, so
-          the photos of the reading room introduce the section about visiting
-          it. Needs all three slots filled or it renders nothing. */}
+          Needs all three slots filled or it renders nothing. */}
       <div className="cv-auto">
         <NarrativeCards photos={narrativePhotos} />
       </div>

@@ -516,7 +516,8 @@
     "growCancel": "Cancel",
     "growSubmitting": "Submitting…",
     "growClose": "Close",
-    "askHintKeyboard": "Press / to start typing."
+    "askHintKeyboard": "Press / to start typing.",
+    "heroMostDownloaded": "Most downloaded books"
   },
   "books": {
     "title": "Books",

@@ -21,6 +21,7 @@ import {
 } from "@/lib/library-hours";
 import { activeClosure } from "@/lib/system-settings/hours";
 import type { HoursClosure } from "@/lib/system-settings/types";
+import { HomeSection, SectionHeader } from "./HomeSection";
 
 export default function LibraryNow({
   openingHoursSpec,
@@ -96,37 +97,27 @@ export default function LibraryNow({
     "inline-flex min-h-[40px] items-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-semibold text-brand transition-colors hover:bg-brand/8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand";
 
   return (
-    <section className="border-b border-divider/60 bg-paper" aria-labelledby="library-now-title">
-      <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-14 md:px-12 md:py-16">
-        {/* ── Header ── */}
-        <div className="mb-8 max-w-2xl">
-          <div className="mb-2 flex items-center gap-3">
-            <span className="h-[3px] w-7 rounded-full bg-gradient-to-r from-brand to-accent" aria-hidden />
-            <span
-              className={`text-[11px] font-bold text-brand ${locale === "en" ? "uppercase tracking-[0.2em]" : "tracking-normal"}`}
-            >
-              {t("libraryNowEyebrow")}
-            </span>
-          </div>
-          <h2
-            id="library-now-title"
-            className="font-khmer-serif font-bold leading-tight tracking-tight text-text-heading"
-            style={{ fontSize: "clamp(22px, 2.4vw, 32px)" }}
-          >
-            {t("libraryNowTitle")}
-          </h2>
-          <p className="mt-2 text-[14.5px] leading-relaxed text-text-muted">{t("libraryNowBody")}</p>
-        </div>
+    <HomeSection surface="surface" labelledBy="library-now-title">
+      <SectionHeader
+        id="library-now-title"
+        eyebrow={t("libraryNowEyebrow")}
+        title={t("libraryNowTitle")}
+        lede={t("libraryNowBody")}
+      />
 
         <div className="grid gap-4 md:grid-cols-2">
           {/* ── Digital ── */}
-          <div className="flex flex-col rounded-2xl border border-divider bg-bg-surface p-6">
+          <div className="flex flex-col rounded-2xl border border-divider bg-paper p-6">
             <div className="flex items-start justify-between gap-3">
               <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand/8 text-brand" aria-hidden>
                 <Globe className="h-[22px] w-[22px]" strokeWidth={1.9} />
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/12 px-2.5 py-1 text-[12px] font-bold text-emerald-700 dark:text-emerald-300">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+              {/* Status surface tokens, not a hand-written green triplet: the old
+                  pair measured 4.37:1 in light mode, under the 4.5:1 floor for 12 px
+                  bold. The tokens resolve per theme, which is also why there is no
+                  `dark:` variant here — see lib/status-tokens.test.ts. */}
+              <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2.5 py-1 text-[12px] font-bold text-success-text">
+                <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden />
                 {t("libraryNowDigitalStatus")}
               </span>
             </div>
@@ -144,7 +135,7 @@ export default function LibraryNow({
           </div>
 
           {/* ── Physical ── */}
-          <div className="flex flex-col rounded-2xl border border-divider bg-bg-surface p-6">
+          <div className="flex flex-col rounded-2xl border border-divider bg-paper p-6">
             <div className="flex items-start justify-between gap-3">
               <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/12 text-accent-text" aria-hidden>
                 <MapPin className="h-[22px] w-[22px]" strokeWidth={1.9} />
@@ -154,11 +145,11 @@ export default function LibraryNow({
                 <span
                   className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-bold ${
                     isOpen
-                      ? "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300"
+                      ? "bg-success-soft text-success-text"
                       : "bg-text-muted/12 text-text-muted"
                   }`}
                 >
-                  <Dot className={`h-4 w-4 ${isOpen ? "text-emerald-500" : "text-text-muted"}`} aria-hidden strokeWidth={6} />
+                  <Dot className={`h-4 w-4 ${isOpen ? "text-success" : "text-text-muted"}`} aria-hidden strokeWidth={6} />
                   {isOpen ? t("libraryNowOpen") : t("libraryNowClosed")}
                 </span>
               ) : (
@@ -218,7 +209,6 @@ export default function LibraryNow({
             </div>
           </div>
         </div>
-      </div>
-    </section>
+    </HomeSection>
   );
 }

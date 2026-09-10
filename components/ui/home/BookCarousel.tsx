@@ -8,6 +8,12 @@ type Props = {
   children: ReactNode[];
   /** Tailwind width per item, responsive. Defaults to book-card sizing. */
   itemClassName?: string;
+  /**
+   * `from-*` utility for the edge fades — it must match the band the carousel
+   * sits on, or the fade reads as a grey smear over a white section (which is
+   * exactly how it rendered on the homepage's surface-coloured shelf).
+   */
+  edgeClassName?: string;
   className?: string;
   "aria-label"?: string;
 };
@@ -20,6 +26,7 @@ type Props = {
 export default function BookCarousel({
   children,
   itemClassName = "w-[150px] sm:w-[180px] lg:w-[200px]",
+  edgeClassName = "from-paper",
   className = "",
   ...rest
 }: Props) {
@@ -72,13 +79,13 @@ export default function BookCarousel({
       {/* Edge fade masks (desktop) */}
       <div
         aria-hidden
-        className={`pointer-events-none absolute inset-y-0 left-0 hidden w-16 bg-gradient-to-r from-paper to-transparent transition-opacity sm:block ${
+        className={`pointer-events-none absolute inset-y-0 left-0 hidden w-16 bg-gradient-to-r ${edgeClassName} to-transparent transition-opacity sm:block ${
           atStart ? "opacity-0" : "opacity-100"
         }`}
       />
       <div
         aria-hidden
-        className={`pointer-events-none absolute inset-y-0 right-0 hidden w-16 bg-gradient-to-l from-paper to-transparent transition-opacity sm:block ${
+        className={`pointer-events-none absolute inset-y-0 right-0 hidden w-16 bg-gradient-to-l ${edgeClassName} to-transparent transition-opacity sm:block ${
           atEnd ? "opacity-0" : "opacity-100"
         }`}
       />

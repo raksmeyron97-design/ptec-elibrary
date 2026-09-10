@@ -8,9 +8,10 @@
 import { Link } from "@/i18n/navigation";
 import NextLink from "next/link";
 import { isLocaleScoped } from "@/lib/routing/locale-scope";
-import { getTranslations, getLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import JsonLd from "@/components/seo/JsonLd";
 import AnimatedAccordion from "@/components/ui/animations/AnimatedAccordion";
+import { HomeSection, SectionHeader } from "./HomeSection";
 
 type FaqItem = {
   q: string;
@@ -20,8 +21,7 @@ type FaqItem = {
 };
 
 export default async function FaqSection() {
-  const [t, locale] = await Promise.all([getTranslations("home"), getLocale()]);
-  const latinEyebrow = locale === "en" ? "uppercase tracking-[0.2em]" : "tracking-normal";
+  const t = await getTranslations("home");
 
   const items: FaqItem[] = [
     { q: t("faqQ1"), a: t("faqA1"), href: "/policy" },
@@ -46,25 +46,14 @@ export default async function FaqSection() {
   const columns = [items.slice(0, 3), items.slice(3)];
 
   return (
-    <section className="border-b border-divider/60 bg-paper" aria-labelledby="faq-title">
+    <HomeSection surface="paper" labelledBy="faq-title">
       <JsonLd data={faqSchema} />
-      <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-14 md:px-12 md:py-16">
-        {/* ── Header ── */}
-        <div className="mb-8">
-          <div className="mb-2 flex items-center gap-3">
-            <span className="h-[3px] w-7 rounded-full bg-gradient-to-r from-accent to-brand" aria-hidden />
-            <span className={`text-[11px] font-bold text-accent-text ${latinEyebrow}`}>
-              {t("faqEyebrow")}
-            </span>
-          </div>
-          <h2
-            id="faq-title"
-            className="font-khmer-serif font-bold leading-tight tracking-tight text-text-heading"
-            style={{ fontSize: "clamp(22px, 2.4vw, 32px)" }}
-          >
-            {t("faqTitle")}
-          </h2>
-        </div>
+      <SectionHeader
+        id="faq-title"
+        tone="accent"
+        eyebrow={t("faqEyebrow")}
+        title={t("faqTitle")}
+      />
 
         {/* ── Accordions ── */}
         <div className="grid gap-x-8 gap-y-3 md:grid-cols-2 md:items-start">
@@ -105,7 +94,6 @@ export default async function FaqSection() {
             </div>
           ))}
         </div>
-      </div>
-    </section>
+    </HomeSection>
   );
 }

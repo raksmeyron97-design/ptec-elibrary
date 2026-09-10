@@ -3,14 +3,19 @@
 // browsing is the #2 discovery path after search, so it sits directly under
 // the publications rail. Tiles land on pre-filtered results, not a menu.
 //
+// Two tiles per row on phones: eight stacked full-width tiles measured
+// 1,029 px on a 375 px screen for eight short labels. Icon, name and count
+// still fit a half-width tile; only the arrow steps aside.
+//
 // The subjects are the library's REAL departments (getDepartmentCountsCached),
 // never a hand-written list. A static list would drift from the collection and
 // send readers to empty result pages; here a subject exists on the homepage
 // exactly when it has something to show, and the count is the true one.
 import { Link } from "@/i18n/navigation";
 import { getDepartmentCountsCached } from "@/lib/home-data";
-import { getTranslations, getLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { StaggerGrid, StaggerItem } from "@/components/ui/animations/StaggerGrid";
+import { HomeSection, SectionHeader } from "./HomeSection";
 import {
   GraduationCap,
   FlaskConical,
@@ -85,87 +90,77 @@ export default async function CategoryGrid() {
   const departments = await getDepartmentCountsCached();
   if (departments.length === 0) return null;
 
-  const [t, locale] = await Promise.all([getTranslations("home"), getLocale()]);
-  const latinEyebrow = locale === "en" ? "uppercase tracking-[0.2em]" : "tracking-normal";
+  const t = await getTranslations("home");
   const themes = assignThemes(departments.map((d) => d.name));
 
+  const tile =
+    "group flex h-full min-h-[72px] items-center gap-3 rounded-xl border border-divider px-3.5 py-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 sm:min-h-[92px] sm:gap-4 sm:px-5 sm:py-4";
+
   return (
-    <section className="border-b border-divider/60 bg-paper" aria-labelledby="category-grid-title">
-      <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-14 md:px-12 md:py-16">
-        {/* ── Header ── */}
-        <div className="mb-8">
-          <div className="mb-2 flex items-center gap-3">
-            <span className="h-[3px] w-7 rounded-full bg-gradient-to-r from-accent to-brand" aria-hidden />
-            <span className={`text-[11px] font-bold text-accent-text ${latinEyebrow}`}>
-              {t("categoriesEyebrow")}
-            </span>
-          </div>
-          <h2
-            id="category-grid-title"
-            className="font-khmer-serif font-bold leading-tight tracking-tight text-text-heading"
-            style={{ fontSize: "clamp(22px, 2.4vw, 32px)" }}
-          >
-            {t("categoriesSectionTitle")}
-          </h2>
-        </div>
+    <HomeSection surface="surface" labelledBy="category-grid-title">
+      <SectionHeader
+        id="category-grid-title"
+        tone="accent"
+        eyebrow={t("categoriesEyebrow")}
+        title={t("categoriesSectionTitle")}
+      />
 
-        {/* ── Tiles ── */}
-        <StaggerGrid as="ul" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {departments.map(({ name, count }, i) => {
-            const { Icon, plate } = themes[i];
-            return (
-              <StaggerItem as="li" key={name}>
-                <Link
-                  href={`/books?dept=${encodeURIComponent(name)}`}
-                  aria-label={t("categoriesCardLabel", { subject: name })}
-                  className="group flex min-h-[92px] items-center gap-4 rounded-xl border border-divider bg-bg-surface px-5 py-4 transition-all duration-200 hover:-translate-y-1 hover:border-brand/40 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
-                >
-                  <span
-                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-105 ${plate}`}
-                    aria-hidden
-                  >
-                    <Icon className="h-6 w-6" strokeWidth={1.9} />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-khmer-serif text-[15px] font-bold leading-snug text-text-heading line-clamp-2 transition-colors group-hover:text-brand">
-                      {name}
-                    </span>
-                    <span className="mt-0.5 block text-[12.5px] font-medium text-text-muted">
-                      {t("categoriesItemCount", { count })}
-                    </span>
-                  </span>
-                  <svg
-                    className="h-4 w-4 shrink-0 text-text-muted transition-all group-hover:translate-x-0.5 group-hover:text-brand"
-                    viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}
-                    strokeLinecap="round" strokeLinejoin="round" aria-hidden
-                  >
-                    <path d="M5 12h14M13 6l6 6-6 6" />
-                  </svg>
-                </Link>
-              </StaggerItem>
-            );
-          })}
-
-          {/* All-subjects tile */}
-          <StaggerItem as="li">
-            <Link
-              href="/books"
-              className="group flex min-h-[92px] items-center justify-between gap-3 rounded-xl border border-brand/25 bg-brand/5 px-5 py-4 transition-all duration-200 hover:-translate-y-1 hover:border-brand hover:bg-brand/10 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
-            >
-              <span className="text-[14px] font-bold text-brand">
-                {t("categoriesAll")}
-              </span>
-              <svg
-                className="h-4 w-4 shrink-0 text-brand transition-transform group-hover:translate-x-0.5"
-                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}
-                strokeLinecap="round" strokeLinejoin="round" aria-hidden
+      {/* ── Tiles ── */}
+      <StaggerGrid as="ul" className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+        {departments.map(({ name, count }, i) => {
+          const { Icon, plate } = themes[i];
+          return (
+            <StaggerItem as="li" key={name}>
+              <Link
+                href={`/books?dept=${encodeURIComponent(name)}`}
+                aria-label={t("categoriesCardLabel", { subject: name })}
+                className={`${tile} bg-paper hover:border-brand/40`}
               >
-                <path d="M5 12h14M13 6l6 6-6 6" />
-              </svg>
-            </Link>
-          </StaggerItem>
-        </StaggerGrid>
-      </div>
-    </section>
+                <span
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-105 sm:h-12 sm:w-12 ${plate}`}
+                  aria-hidden
+                >
+                  <Icon className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.9} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-khmer-serif text-[14px] font-bold leading-snug text-text-heading line-clamp-2 transition-colors group-hover:text-brand sm:text-[15px]">
+                    {name}
+                  </span>
+                  <span className="mt-0.5 block text-[12.5px] font-medium text-text-muted">
+                    {t("categoriesItemCount", { count })}
+                  </span>
+                </span>
+                <svg
+                  className="hidden h-4 w-4 shrink-0 text-text-muted transition-all group-hover:translate-x-0.5 group-hover:text-brand sm:block"
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}
+                  strokeLinecap="round" strokeLinejoin="round" aria-hidden
+                >
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+              </Link>
+            </StaggerItem>
+          );
+        })}
+
+        {/* All-subjects tile */}
+        <StaggerItem as="li">
+          <Link
+            href="/books"
+            className={`${tile} justify-between border-brand/25 bg-brand/5 hover:border-brand hover:bg-brand/10`}
+          >
+            <span className="text-[14px] font-bold text-brand">
+              {t("categoriesAll")}
+            </span>
+            <svg
+              className="h-4 w-4 shrink-0 text-brand transition-transform group-hover:translate-x-0.5"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}
+              strokeLinecap="round" strokeLinejoin="round" aria-hidden
+            >
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          </Link>
+        </StaggerItem>
+      </StaggerGrid>
+    </HomeSection>
   );
 }
