@@ -584,11 +584,24 @@ function authSurface(where: string, target?: string): string {
 const SECRET_PATTERNS: { re: RegExp; label: string }[] = [
   { re: /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+/g, label: "[jwt]" },
   { re: /\bsb[ps]?_[A-Za-z0-9_-]{20,}/g, label: "[supabase-key]" },
-  { re: /\b(?:sk|pk|rk)_[A-Za-z0-9]{16,}/g, label: "[api-key]" },
+  // The charset allows `_` AFTER the prefix on purpose. `sk_[A-Za-z0-9]{16,}`
+  // does not match `sk_live_NOT_A_REAL_KEY_000000` — the underscore in the
+  // environment segment ends the run four characters in — which is the shape
+  // every provider that uses this prefix actually issues.
+  { re: /\b(?:sk|pk|rk)_[A-Za-z0-9_]{16,}/g, label: "[api-key]" },
   { re: /\bAIza[0-9A-Za-z_-]{20,}/g, label: "[google-key]" },
   { re: /\b\d{8,10}:[A-Za-z0-9_-]{30,}/g, label: "[telegram-token]" },
   { re: /\bghp_[A-Za-z0-9]{20,}/g, label: "[github-token]" },
   { re: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, label: "[email]" },
+  // An HTTP auth scheme and the credential after it, which is SPACE-separated
+  // and therefore invisible to the key/value rule below.
+  //
+  // This is the gap that mattered: `authorization: Bearer sk_live_…` matched
+  // the key/value rule, whose `\S+` consumed the word "Bearer" — the scheme,
+  // not the secret — and stopped, leaving the credential in the clear in a
+  // durable row and in any Telegram message built from it. Placed BEFORE the
+  // key/value rule so the credential is gone before the scheme is.
+  { re: /\b(?:bearer|basic|digest|token)\s+[A-Za-z0-9._~+/=-]{8,}/gi, label: "[redacted]" },
   // Any bearer/authorization value, whatever its shape.
   { re: /\b(?:bearer|authorization|apikey|api_key|token|password|passwd|secret)\s*[:=]\s*\S+/gi, label: "[redacted]" },
 ];
