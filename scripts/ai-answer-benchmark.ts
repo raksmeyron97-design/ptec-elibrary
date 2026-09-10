@@ -49,6 +49,11 @@
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { config } from "dotenv";
+import {
+  diagnoseAnswer,
+  modelReasoningAssessable,
+  type AnswerDiagnosis,
+} from "../lib/ai/answer-failure";
 
 config({ path: ".env.local" });
 config({ path: ".env" });
@@ -65,6 +70,7 @@ const VERBOSE = has("--verbose");
 const JSON_OUT = has("--json");
 const ONLY = valueOf("--category");
 const COMPARE = valueOf("--compare");
+const DIAGNOSE = has("--diagnose");
 
 // The mock is opt-OUT: a benchmark that silently bills the provider on every
 // local run is a benchmark nobody runs.
@@ -105,6 +111,13 @@ interface Row {
   latencyMs: number;
   answer: string;
   citedSlugs: string[];
+  /** Slugs the question was labelled against, for the diagnostic trace. */
+  expectedSlugs: string[];
+  /** Which pipeline stage is responsible when this question failed. */
+  diagnosis: AnswerDiagnosis | null;
+  retrievalMode: string | null;
+  /** Where the answer came from: a template, or a generated reply. */
+  answerClass: "template" | "generated" | "refusal" | "empty";
 }
 
 /** A refusal, in either language, from lib/ai/templates.ts or the model. */
@@ -181,12 +194,43 @@ async function main() {
     // answer — a byline and an APA reference are templates on purpose.
     const unwantedTemplate = deterministic && !q.templateOk && !q.expectNoAnswer;
 
+    const routingOk = q.expectIntent.includes(telemetry?.intent ?? "");
+    const refusal = isRefusal(answer);
+    const answerClass: Row["answerClass"] = !answer.trim()
+      ? "empty"
+      : refusal
+        ? "refusal"
+        : deterministic
+          ? "template"
+          : "generated";
+
+    // The classification is a function of what was MEASURED above — never of
+    // the answer's prose, and never of which stage seems likeliest.
+    const diagnosis = diagnoseAnswer({
+      routingOk,
+      retrievalDisabled: (telemetry?.retrievalMode ?? "lookup") === "lookup" && (telemetry?.evidenceCount ?? 0) === 0,
+      deterministic,
+      templateAcceptable: q.templateOk === true,
+      expectNoAnswer: q.expectNoAnswer === true,
+      answeredAsRefusal: refusal,
+      evidenceCount: telemetry?.evidenceCount ?? 0,
+      expectedSourceFound: retrievalOk !== false,
+      contextPrecision,
+      // Only a question scoped to ONE record has an exhaustive label.
+      expectedSourcesExhaustive: Boolean(q.scope),
+      expectGrounded: q.expectGrounded === true,
+      grounded: sources.length > 0,
+      hallucinatedCitations: telemetry?.hallucinatedCitations ?? 0,
+      answerNonEmpty: answer.trim().length > 0,
+      modelAnswered: !deterministic && LIVE,
+    });
+
     rows.push({
       id: q.id,
       category: q.category,
       question: q.question,
       intent: telemetry?.intent ?? "error",
-      routingOk: q.expectIntent.includes(telemetry?.intent ?? ""),
+      routingOk,
       deterministic,
       unwantedTemplate,
       evidenceCount: telemetry?.evidenceCount ?? 0,
@@ -202,6 +246,10 @@ async function main() {
       latencyMs: Date.now() - started,
       answer,
       citedSlugs,
+      expectedSlugs: expected,
+      diagnosis,
+      retrievalMode: telemetry?.retrievalMode ?? null,
+      answerClass,
     });
 
     if (VERBOSE) {
@@ -270,6 +318,50 @@ async function main() {
       const grouped = new Map<string, number>();
       for (const r of bad) grouped.set(`${r.category}: → ${r.intent}`, (grouped.get(`${r.category}: → ${r.intent}`) ?? 0) + 1);
       for (const [k, v] of [...grouped].sort((a, b) => b[1] - a[1])) console.log(`  ${String(v).padStart(3)}  ${k}`);
+    }
+
+    // ── Failure diagnosis (--diagnose) ──────────────────────────────────────
+    const failures = rows.filter((r) => r.diagnosis !== null);
+    if (failures.length) {
+      const byStage = new Map<string, number>();
+      for (const r of failures) {
+        const k = `${r.diagnosis!.letter} — ${r.diagnosis!.stage}`;
+        byStage.set(k, (byStage.get(k) ?? 0) + 1);
+      }
+      console.log(`\nfailure stages — ${failures.length} of ${rows.length} questions`);
+      for (const [k, v] of [...byStage].sort((a, b) => b[1] - a[1])) {
+        console.log(`  ${String(v).padStart(3)}  ${k}`);
+      }
+      if (!modelReasoningAssessable(LIVE)) {
+        // A zero that means "we did not look" must not read like a clean bill
+        // of health. This is the §29 guard rail, printed rather than assumed.
+        console.log(
+          "  note: F — MODEL_REASONING is NOT ASSESSABLE in this run. No model reasoned about\n" +
+            "        anything under the mock provider, so its absence here is not evidence that the\n" +
+            "        model is fine. Re-run with --live to put that question to a model.",
+        );
+      }
+    }
+
+    if (DIAGNOSE) {
+      console.log(`\n${"─".repeat(100)}\nPER-QUESTION TRACE — every failing case, stage by stage\n${"─".repeat(100)}`);
+      for (const r of failures) {
+        console.log(
+          `\n[${r.diagnosis!.letter}] ${r.id}  (${r.category})\n` +
+            `  question   ${r.question}\n` +
+            `  routing    intent=${r.intent} ${r.routingOk ? "✓" : "✗ (expected another)"}  mode=${r.retrievalMode ?? "—"}\n` +
+            `  retrieval  ${r.evidenceCount} passage(s), ${r.sourceCount} cited source(s)` +
+            `${r.contextPrecision !== null ? `, context precision ${Math.round(r.contextPrecision * 100)}%` : ""}\n` +
+            `  expected   ${r.expectedSlugs.length ? r.expectedSlugs.slice(0, 3).join(", ") : "(unlabelled)"}\n` +
+            `  actual     ${r.citedSlugs.length ? r.citedSlugs.slice(0, 3).join(", ") : "(none cited)"}\n` +
+            `  answer     ${r.answerClass}, ${r.answerChars} chars, ${r.hallucinated} hallucinated citation(s)\n` +
+            `  → ${r.diagnosis!.stage}: ${r.diagnosis!.reason}\n` +
+            `  → fix in:  ${r.diagnosis!.remedy}\n` +
+            `  answer text: ${r.answer.slice(0, 160).replace(/\s+/g, " ")}`,
+        );
+      }
+    } else if (failures.length) {
+      console.log("  (re-run with --diagnose for the per-question trace)");
     }
 
     const unwanted = rows.filter((r) => r.unwantedTemplate);
