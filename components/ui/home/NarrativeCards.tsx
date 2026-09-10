@@ -6,8 +6,9 @@
 // Renders nothing unless all three slots are filled: two cards in a
 // three-column grid leaves a hole, and a single card reads as a mistake.
 import Image from "next/image";
-import { getTranslations, getLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import type { PublicHomepagePhoto } from "@/lib/types/homepage-photo";
+import { HomeSection, SectionHeader } from "./HomeSection";
 
 /** Headings are fixed editorial copy, not per-photo captions: they name the
  *  three things the library is for, and translate as a set. */
@@ -23,29 +24,20 @@ export default async function NarrativeCards({
 }) {
   if (photos.length < NARRATIVE_PHOTO_COUNT) return null;
 
-  const [t, locale] = await Promise.all([getTranslations("home"), getLocale()]);
-  const latinEyebrow = locale === "en" ? "uppercase tracking-[0.2em]" : "tracking-normal";
+  const t = await getTranslations("home");
   const cards = photos.slice(0, NARRATIVE_PHOTO_COUNT);
 
   return (
-    <section className="border-b border-divider/60 bg-bg-surface" aria-labelledby="narrative-title">
-      <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-14 md:px-12 md:py-16">
-        <div className="mb-8 max-w-2xl">
-          <div className="mb-2 flex items-center gap-3">
-            <span className="h-[3px] w-7 rounded-full bg-gradient-to-r from-brand to-accent" aria-hidden />
-            <span className={`text-[11px] font-bold text-brand ${latinEyebrow}`}>
-              {t("narrativeEyebrow")}
-            </span>
-          </div>
-          <h2
-            id="narrative-title"
-            className="font-khmer-serif font-bold leading-tight tracking-tight text-text-heading"
-            style={{ fontSize: "clamp(22px, 2.4vw, 32px)" }}
-          >
-            {t("narrativeTitle")}
-          </h2>
-          <p className="mt-2 text-[14.5px] leading-relaxed text-text-muted">{t("narrativeBody")}</p>
-        </div>
+    /* Shares <HeroPhotoGallery>'s paper ground on purpose: the two bands are
+       two halves of one gallery, and a colour change between them would
+       assert a break in subject that isn't there. */
+    <HomeSection surface="paper" labelledBy="narrative-title">
+      <SectionHeader
+        id="narrative-title"
+        eyebrow={t("narrativeEyebrow")}
+        title={t("narrativeTitle")}
+        lede={t("narrativeBody")}
+      />
 
         <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map((photo, i) => (
@@ -53,9 +45,9 @@ export default async function NarrativeCards({
               key={photo.id}
               // motion-safe: the lift and the zoom are decorative, and a reader
               // who asked their OS for reduced motion gets neither.
-              className="group overflow-hidden rounded-xl border border-divider bg-paper transition-shadow hover:shadow-lg motion-safe:transition-all motion-safe:duration-300 motion-safe:hover:-translate-y-1"
+              className="group overflow-hidden rounded-xl border border-divider bg-bg-surface transition-shadow hover:shadow-lg motion-safe:transition-all motion-safe:duration-300 motion-safe:hover:-translate-y-1"
             >
-              <div className="relative aspect-[16/10] overflow-hidden bg-bg-surface">
+              <div className="relative aspect-[16/10] overflow-hidden bg-paper">
                 <Image
                   src={photo.url}
                   alt={photo.alt}
@@ -83,7 +75,6 @@ export default async function NarrativeCards({
             </li>
           ))}
         </ul>
-      </div>
-    </section>
+    </HomeSection>
   );
 }

@@ -3,11 +3,18 @@
 // asymmetric photo mosaic drawn from the admin-managed gallery (migration
 // 0118, /admin/homepage-photos).
 //
-// It sits BELOW the hero and is deliberately not the hero itself: the hero
+// It sits in the page's second half, beside the physical-library bridge, and
+// is deliberately not the hero itself: the hero
 // background is the LCP element and is served from pre-generated local
 // variants (public/hero/*) that can be preloaded at build time. An
 // admin-uploadable remote URL cannot be, so promoting these photos into the
 // hero would trade a measured 1.98 s FCP for an unbounded one.
+//
+// It used to sit directly under the trust bar, ahead of every band that shows
+// a book: on a 375 px phone that put 876 px of photographs between the search
+// box and the first cover, and the first cover five screens down. Photos of
+// the reading room introduce the section about VISITING it, so they lead
+// into <NarrativeCards> and <LibraryNow> instead.
 //
 // Renders nothing when the gallery is empty — an empty photo frame says less
 // about the library than no section at all.
@@ -16,6 +23,7 @@ import Image from "next/image";
 import { getTranslations, getLocale } from "next-intl/server";
 import { ArrowRight } from "lucide-react";
 import type { PublicHomepagePhoto } from "@/lib/types/homepage-photo";
+import { HomeSection } from "./HomeSection";
 
 /** Photos consumed by the mosaic. The rest feed <NarrativeCards> and the
  *  "+N more" badge. Mirrors HERO_SLOTS in the admin grid. */
@@ -63,9 +71,11 @@ export default async function HeroPhotoGallery({
   const [main, second, third] = photos.slice(0, HERO_PHOTO_COUNT);
   const remaining = Math.max(0, totalCount - photos.slice(0, HERO_PHOTO_COUNT).length);
 
+  // This band keeps its own two-column header (copy beside the mosaic), so it
+  // uses the section shell but not <SectionHeader>; the eyebrow and title
+  // below are typographically identical to it.
   return (
-    <section className="border-b border-divider/60 bg-paper" aria-labelledby="library-life-title">
-      <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-14 md:px-12 md:py-16">
+    <HomeSection surface="paper" labelledBy="library-life-title">
         <div className="grid items-center gap-8 lg:grid-cols-5 lg:gap-12">
 
           {/* ── Copy ── */}
@@ -174,7 +184,6 @@ export default async function HeroPhotoGallery({
           </div>
 
         </div>
-      </div>
-    </section>
+    </HomeSection>
   );
 }

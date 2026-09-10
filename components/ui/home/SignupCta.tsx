@@ -29,17 +29,25 @@ export default async function SignupCta() {
   // users with the exact figure beside it in an .sr-only span, which is what
   // produced "110+115 Digital resources" wherever text content was read
   // instead of pixels. One number, one label, one element.
+  //
+  // A category at ZERO is left out — the same rule <TrustBar> and
+  // <CollectionGrid> apply. The arithmetic below the total still holds
+  // without it (a zero contributes nothing to the sum), and a closing banner
+  // that says "0 Publications" is an argument against the sign-up it is
+  // asking for. The total is always shown.
   const figures =
     stats === null
       ? null
-      : ([
-          // Total first, then the categories that sum to it — so the
-          // arithmetic is visible and checkable on the page itself.
-          { key: "total", value: stats.totalDigitalResources, label: t("statDigitalResources"), href: "/books" },
-          { key: "books", value: stats.books, label: t("statEbooks"), href: "/books" },
-          { key: "theses", value: stats.theses, label: t("statTheses"), href: "/theses" },
-          { key: "publications", value: stats.publications, label: t("statPublications"), href: "/publications" },
-        ] as const);
+      : (
+          [
+            // Total first, then the categories that sum to it — so the
+            // arithmetic is visible and checkable on the page itself.
+            { key: "total", value: stats.totalDigitalResources, label: t("statDigitalResources"), href: "/books" },
+            { key: "books", value: stats.books, label: t("statEbooks"), href: "/books" },
+            { key: "theses", value: stats.theses, label: t("statTheses"), href: "/theses" },
+            { key: "publications", value: stats.publications, label: t("statPublications"), href: "/publications" },
+          ] as const
+        ).filter((f) => f.key === "total" || f.value > 0);
 
   return (
     <section className="hero-ink relative overflow-hidden">
@@ -111,7 +119,7 @@ export default async function SignupCta() {
             to the statistics list below, which labels it; repeating it here
             under a second wording ("educational resources") was half of the
             homepage's apparent inconsistency. */}
-        <p className="mx-auto mt-5 max-w-xl text-[15px] leading-[1.75] text-blue-100/75 sm:text-[16px]">
+        <p className="mx-auto mt-5 max-w-xl text-[15px] leading-[1.75] text-blue-100/85 sm:text-[16px]">
           {t("ctaBodyNoCount")}
         </p>
 
@@ -169,7 +177,7 @@ export default async function SignupCta() {
                   <dd className="text-[26px] font-bold leading-none tabular-nums text-white">
                     {formatCount(value, locale)}
                   </dd>
-                  <dt className="mt-1.5 text-[12px] text-blue-200/60">
+                  <dt className="mt-1.5 text-[12.5px] text-blue-200/80">
                     <Link
                       href={href}
                       className="rounded transition-colors hover:text-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
@@ -185,7 +193,7 @@ export default async function SignupCta() {
 
         {/* Non-numeric proof points — kept separate from the statistics list
             so no label/number pairing can be misread across the two. */}
-        <p className="mt-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[12px] text-blue-200/50">
+        <p className="mt-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[12.5px] text-blue-200/70">
           <span>{t("ctaStatOpenAccess")}</span>
           <span aria-hidden>·</span>
           <span>{t("ctaStatBilingual")}</span>

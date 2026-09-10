@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Link } from "@/i18n/navigation";
 import Image from "next/image";
-import { SectionTitle } from "@/components/ui/core/SectionTitle";
 import { useTranslations, useLocale } from 'next-intl';
 import { formatPtecDate } from "@/lib/posts/event-status";
+import { HomeSection, SectionHeader, SectionMobileLink } from "./HomeSection";
 
 export type LatestPost = {
   id: string;
@@ -114,7 +114,7 @@ function FeaturedCard({ post, t, tPosts }: { post: LatestPost; t: any; tPosts: a
   return (
     <Link
       href={`/posts/${post.slug}`}
-      className="group relative flex flex-col overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-brand/20 hover:shadow-xl hover:shadow-brand/5 lg:flex-row"
+      className="group relative flex flex-col overflow-hidden rounded-2xl border border-divider bg-paper shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-brand/20 hover:shadow-xl hover:shadow-brand/5 lg:flex-row"
     >
       {/* Animated top bar on hover */}
       <span
@@ -183,7 +183,7 @@ function SmallCard({ post, tPosts }: { post: LatestPost; tPosts: any }) {
   return (
     <Link
       href={`/posts/${post.slug}`}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-brand/20 hover:shadow-md"
+      className="group flex flex-col overflow-hidden rounded-2xl border border-divider bg-paper shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-brand/20 hover:shadow-md"
     >
       {/* Image */}
       <div className="relative aspect-[16/9] w-full overflow-hidden">
@@ -221,58 +221,31 @@ export default function LatestPosts({ posts }: Props) {
 
   const [featured, ...rest] = posts;
   const smallCards = rest.slice(0, 3);
+  const viewAll = { href: "/posts", label: t('viewAllPosts') };
 
   return (
-    <section className="border-t border-divider/60 bg-paper py-10 sm:py-14 md:py-20">
-      <div className="mx-auto max-w-[1400px] px-4 md:px-12">
-        {/* Header */}
-        <div className="mb-10 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="mb-2 flex items-center gap-3">
-              <span className="h-[3px] w-7 rounded-full bg-gradient-to-r from-brand to-accent" aria-hidden />
-              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand">{t('stayUpdated')}</span>
-            </div>
-            <SectionTitle as="h2" className="!mb-2 mt-1">{t('latestInsights')}</SectionTitle>
-            <p className="max-w-lg text-[14px] leading-relaxed text-text-muted sm:text-[15px]">
-              {t('discoverLatest')}
-            </p>
-          </div>
-          <Link
-            href="/posts"
-            className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-brand transition-colors hover:text-gold-700 sm:inline-flex"
-          >
-            {t('viewAllPosts')}
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M5 12h14M13 6l6 6-6 6" />
-            </svg>
-          </Link>
+    <HomeSection surface="surface" labelledBy="latest-posts-title">
+      <SectionHeader
+        id="latest-posts-title"
+        eyebrow={t('stayUpdated')}
+        title={t('latestInsights')}
+        lede={t('discoverLatest')}
+        action={viewAll}
+      />
+
+      {/* Featured card — full width, horizontal on desktop */}
+      <FeaturedCard post={featured} t={t} tPosts={tPosts} />
+
+      {/* 3-column small cards below */}
+      {smallCards.length > 0 && (
+        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-5">
+          {smallCards.map((post) => (
+            <SmallCard key={post.id} post={post} tPosts={tPosts} />
+          ))}
         </div>
+      )}
 
-        {/* Featured card — full width, horizontal on desktop */}
-        <FeaturedCard post={featured} t={t} tPosts={tPosts} />
-
-        {/* 3-column small cards below */}
-        {smallCards.length > 0 && (
-          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-5">
-            {smallCards.map((post) => (
-              <SmallCard key={post.id} post={post} tPosts={tPosts} />
-            ))}
-          </div>
-        )}
-
-        {/* View all — mobile only (desktop version is in the header row).
-            min-h-11 because px-6 py-2.5 alone measured 42 px at 360 px, 2 px
-            under the 44 px minimum touch target. */}
-        <div className="mt-10 text-center sm:hidden">
-          <Link
-            href="/posts"
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-divider/60 bg-bg-surface px-6 py-2.5 text-sm font-semibold text-text-heading shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand/30 hover:bg-brand/5 hover:text-brand hover:shadow-md"
-          >
-            {t('viewAllPosts')}
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-          </Link>
-        </div>
-      </div>
-    </section>
+      <SectionMobileLink {...viewAll} />
+    </HomeSection>
   );
 }

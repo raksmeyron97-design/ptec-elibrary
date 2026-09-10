@@ -521,7 +521,8 @@
     "growCancel": "បោះបង់",
     "growSubmitting": "កំពុងដាក់ស្នើ…",
     "growClose": "បិទ",
-    "askHintKeyboard": "ចុច / ដើម្បីចាប់ផ្ដើម។"
+    "askHintKeyboard": "ចុច / ដើម្បីចាប់ផ្ដើម។",
+    "heroMostDownloaded": "សៀវភៅដែលទាញយកច្រើនបំផុត"
   },
   "books": {
     "title": "សៀវភៅ",

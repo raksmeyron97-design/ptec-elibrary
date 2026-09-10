@@ -272,7 +272,9 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
 
       {/* ── Hint + secondary paths ── */}
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-        <p className="text-[12px] text-blue-300/70">
+        {/* blue-200 at 85% measures 6.9:1 on the hero ink; the previous
+            blue-300 at 70% measured 4.4:1 at 12 px — under the 4.5:1 floor. */}
+        <p className="text-[12.5px] text-blue-200/85">
           {hint}
           {/* Matches the `lg:flex` on the kbd chip above: the sentence and the
               key it describes appear and disappear together. */}
@@ -281,13 +283,13 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
         <span className="hidden h-3 w-px bg-white/15 sm:block" aria-hidden />
         <Link
           href="/search"
-          className="text-[12px] font-semibold text-blue-200/80 underline-offset-2 transition-colors hover:text-white hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/40 rounded-sm"
+          className="text-[13px] font-semibold text-blue-100/90 underline-offset-2 transition-colors hover:text-white hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/40 rounded-sm"
         >
           {t("searchAdvanced")}
         </Link>
         <Link
           href="/books"
-          className="text-[12px] font-semibold text-blue-200/80 underline-offset-2 transition-colors hover:text-white hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/40 rounded-sm"
+          className="text-[13px] font-semibold text-blue-100/90 underline-offset-2 transition-colors hover:text-white hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/40 rounded-sm"
         >
           {t("searchBrowseAll")}
         </Link>

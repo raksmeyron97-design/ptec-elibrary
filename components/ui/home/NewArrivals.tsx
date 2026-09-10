@@ -10,6 +10,7 @@ import { Link } from "@/i18n/navigation";
 import { getTranslations, getLocale } from "next-intl/server";
 import { getRecentAdditions, type RecentItem, type RecentItemType } from "@/lib/home-data";
 import RecentCover from "./RecentCover";
+import { HomeSection, SectionHeader } from "./HomeSection";
 
 // Route + badge per type. Both reuse what the rest of the site already
 // established — the palette and labels are the search results' TYPE_BADGE, so
@@ -69,28 +70,15 @@ export default async function NewArrivals() {
     getTranslations("search"),
     getLocale(),
   ]);
-  const latinEyebrow = locale === "en" ? "uppercase tracking-[0.2em]" : "tracking-normal";
 
   return (
-    <section className="border-b border-divider/60 bg-bg-surface" aria-labelledby="new-arrivals-title">
-      <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-14 md:px-12 md:py-16">
-        {/* ── Header ── */}
-        <div className="mb-8">
-          <div className="mb-2 flex items-center gap-3">
-            <span className="h-[3px] w-7 rounded-full bg-gradient-to-r from-brand to-accent" aria-hidden />
-            <span className={`text-[11px] font-bold text-brand ${latinEyebrow}`}>
-              {t("newArrivalsEyebrow")}
-            </span>
-          </div>
-          <h2
-            id="new-arrivals-title"
-            className="font-khmer-serif font-bold leading-tight tracking-tight text-text-heading"
-            style={{ fontSize: "clamp(22px, 2.4vw, 32px)" }}
-          >
-            {t("newArrivalsTitle")}
-          </h2>
-          <p className="mt-2 text-[14.5px] leading-relaxed text-text-muted">{t("newArrivalsBody")}</p>
-        </div>
+    <HomeSection surface="paper" labelledBy="new-arrivals-title">
+      <SectionHeader
+        id="new-arrivals-title"
+        eyebrow={t("newArrivalsEyebrow")}
+        title={t("newArrivalsTitle")}
+        lede={t("newArrivalsBody")}
+      />
 
         {/* ── Cards ── */}
         <ul className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4">
@@ -100,9 +88,9 @@ export default async function NewArrivals() {
               <li key={`${item.type}-${item.id}`}>
                 <Link
                   href={`${meta.hrefBase}/${item.slug}`}
-                  className="group flex h-full flex-col overflow-hidden rounded-2xl border border-divider bg-paper transition-all hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-[0_12px_36px_-12px_rgba(11,21,53,0.25)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  className="group flex h-full flex-col overflow-hidden rounded-2xl border border-divider bg-bg-surface transition-all hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-[0_12px_36px_-12px_rgba(11,21,53,0.25)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
-                  <div className="relative aspect-[3/4] w-full overflow-hidden bg-bg-surface">
+                  <div className="relative aspect-[3/4] w-full overflow-hidden bg-paper">
                     <RecentCover
                       src={item.coverUrl}
                       title={item.title}
@@ -140,7 +128,6 @@ export default async function NewArrivals() {
             );
           })}
         </ul>
-      </div>
-    </section>
+    </HomeSection>
   );
 }
