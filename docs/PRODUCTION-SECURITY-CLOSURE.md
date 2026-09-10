@@ -405,9 +405,12 @@ touched a test to make it pass.
 deployed to the ZimaOS container:
 
 ```bash
-# 1. Raise an event, deliberately.
+# 1. Raise an event, deliberately. Any value that is NOT the real CRON_SECRET
+#    works — the point is to be refused, so never paste the real one here.
+WRONG_SECRET=not-the-cron-secret
+
 curl -s -o /dev/null -w '%{http_code}\n' \
-  -H 'Authorization: Bearer $WRONG_SECRET' \
+  -H "Authorization: Bearer $WRONG_SECRET" \
   https://library.ptec.edu.kh/api/cron/cleanup          # expect 401
 
 # 2. Confirm it was PERSISTED, not just logged.
