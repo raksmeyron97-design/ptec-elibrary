@@ -87,11 +87,28 @@ export function queryTerms(query: string, max = 6): string[] {
  * One term out of four is not an answer: "zebrafish cardiac regeneration
  * protocols" matched research-methods pages on the word "protocols" alone,
  * and a page cited for that reason is exactly the raw material a confident
- * wrong answer is written from. A question with several terms must see at
- * least two of them, or the phrase itself.
+ * wrong answer is written from.
+ *
+ * A FIXED floor of two cannot express that, because it says the same thing
+ * about a two-word question and a six-word one. Measured with
+ * scripts/ai-answer-benchmark.ts against production, over eight subjects
+ * verified to appear on ZERO pages of the collection: at the fixed floor,
+ * "cryptocurrency mining rigs" was answered from a page about readability
+ * formulas and "submarine hull design" from a chapter-summary page — each
+ * admitted on two ordinary words while the word that made the question that
+ * question ("cryptocurrency", "submarine") appeared nowhere. A two-term
+ * question was worse still: one incidental match was enough.
+ *
+ * So the floor is a MAJORITY of the question's terms, and a two-term question
+ * needs both. That is the weakest rule that makes "shares one common word with
+ * this page" stop counting as evidence, and the phrase bonus in
+ * `lexicalScore` still lets a page carrying the whole phrase win outright.
+ * The semantic leg is unaffected and continues to cover paraphrase.
  */
 export function minLexicalScore(terms: readonly string[]): number {
-  return terms.length >= 3 ? 2 : 1;
+  if (terms.length <= 1) return 1;
+  if (terms.length === 2) return 2;
+  return Math.ceil(terms.length * 0.6);
 }
 
 /**
@@ -169,7 +186,20 @@ export const EVIDENCE_LIMITS: Record<RetrievalMode, EvidenceLimits> = {
   citation: { candidates: 0, evidence: 0, perResource: 0, budgetTokens: 0 },
   pdf_exact: { candidates: 12, evidence: 3, perResource: 1, budgetTokens: 900 },
   semantic: { candidates: 12, evidence: 3, perResource: 1, budgetTokens: 900 },
-  hybrid: { candidates: 12, evidence: 3, perResource: 1, budgetTokens: 900 },
+  // `hybrid` is the CROSS-COLLECTION research question — "what does the
+  // literature say about validity" — and it was the thinnest allowance in this
+  // table: three passages, one per record, 900 tokens, less than a single
+  // document's own summary gets. That is backwards, and it was measurable.
+  // Against production (98 labelled questions, scripts/retrieval-benchmark):
+  // once the query stopped carrying its own question frame the candidate pool
+  // for these questions roughly doubled (12 → 24 rows), top-1 accuracy rose
+  // 20% → 30% — and Recall@5 FELL 55% → 45%, because a better pool was still
+  // being squeezed through three slots with a one-per-record cap that evicted
+  // correct pages. Six passages at two per record still guarantees at least
+  // three distinct sources whenever the pool holds them, which is the property
+  // `perResource: 1` was protecting, while letting a book that genuinely
+  // answers the question contribute its second page.
+  hybrid: { candidates: 18, evidence: 5, perResource: 2, budgetTokens: 1_400 },
   scoped: { candidates: 16, evidence: 4, perResource: 4, budgetTokens: 1_200 },
   summary: { candidates: 20, evidence: 5, perResource: 5, budgetTokens: 1_400 },
   multi_document: { candidates: 10, evidence: 6, perResource: 3, budgetTokens: 1_800 },

@@ -27,12 +27,45 @@ export function sanitizeFilterTerm(input: string): string {
     .slice(0, 200);
 }
 
-/** Tokens for a multi-term ilike fan-out, longest-first, deduped, capped. */
+/**
+ * Words a query is worth searching for, longest-first, deduped, capped.
+ *
+ * Two rules, and each one was a defect.
+ *
+ * FUNCTION WORDS ARE NOT SEARCH TERMS. `%to%` and `%from%` match nearly every
+ * description in the collection, so an `.or()` built from them returns the
+ * table rather than the answer. Measured with scripts/ai-answer-benchmark.ts:
+ * "Do you have the book \"Qualitative Research from Start to Finish\"" produced
+ * the tokens `from`, `Start`, `to` and the named book did not appear in the
+ * results at all.
+ *
+ * ORDER IS BY SPECIFICITY, NOT BY POSITION. The cap used to keep the FIRST
+ * `max` tokens, so a long title lost exactly the words that distinguish it —
+ * "Key Ideas in Educational Research" spent two of its five slots on "Key" and
+ * "in" and never reached "Educational".
+ *
+ * The whole phrase always leads, because a title typed verbatim is the
+ * strongest signal there is, and the raw words are kept as a fallback for a
+ * query that is nothing but short words.
+ */
+const FILTER_STOPWORDS = new Set([
+  "the", "a", "an", "and", "or", "but", "of", "in", "on", "at", "to", "for",
+  "from", "with", "by", "as", "is", "are", "was", "were", "be", "been", "it",
+  "its", "this", "that", "these", "those", "do", "does", "did", "you", "your",
+  "i", "we", "us", "me", "my", "any", "some", "all", "have", "has", "had",
+]);
+
 export function filterTokens(query: string, max = 6): string[] {
   const q = sanitizeFilterTerm(query);
   if (!q) return [];
   const words = q.split(/\s+/).filter((w) => w.length >= 2);
-  return Array.from(new Set([q, ...words])).slice(0, max);
+  const informative = words
+    .filter((w) => !FILTER_STOPWORDS.has(w.toLowerCase()))
+    .sort((a, b) => b.length - a.length);
+  // A query made entirely of short function words ("do you have it") still has
+  // to search for something.
+  const chosen = informative.length ? informative : words;
+  return Array.from(new Set([q, ...chosen])).slice(0, max);
 }
 
 /** Build a PostgREST `.or()` clause over (fields × tokens). */

@@ -218,3 +218,50 @@ describe("output budgets", () => {
     expect(MAX_OUTPUT_TOKENS.normal).toBeLessThanOrEqual(350);
   });
 });
+
+
+describe("the general-knowledge rider follows the EVIDENCE, not the label", () => {
+  const org = { siteName: "PTEC Library", institutionName: "PTEC" };
+
+  it("still disclaims when the collection really has nothing", () => {
+    const system = buildSystemPrompt({
+      org,
+      intent: "general_knowledge",
+      locale: "en",
+      verbosity: "normal",
+      hasEvidence: false,
+    });
+    expect(system).toMatch(/outside the library's catalogue/i);
+  });
+
+  it("stops disclaiming once the collection has answered", () => {
+    // `general_knowledge` is the CATCH-ALL, so a question about a subject the
+    // library holds lands there whenever it matched no keyword table. Handing
+    // the model six cited pages from the catalogue while telling it the
+    // question is "outside the library's catalogue" asks it to contradict its
+    // own evidence — and told the reader something measurably false for every
+    // "What is <topic>?" question in scripts/ai-answer-benchmark.ts.
+    const system = buildSystemPrompt({
+      org,
+      intent: "general_knowledge",
+      locale: "en",
+      verbosity: "normal",
+      hasEvidence: true,
+    });
+    expect(system).not.toMatch(/outside the library's catalogue/i);
+    expect(system).toMatch(/cite each claim/i);
+  });
+
+  it("leaves every other intent's rider alone whatever the evidence", () => {
+    for (const hasEvidence of [true, false]) {
+      const system = buildSystemPrompt({
+        org,
+        intent: "book_search",
+        locale: "en",
+        verbosity: "normal",
+        hasEvidence,
+      });
+      expect(system).toMatch(/result cards are rendered by the interface/i);
+    }
+  });
+});

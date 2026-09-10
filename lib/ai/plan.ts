@@ -90,6 +90,11 @@ export function retrievalModeFor(intent: IntentResult): RetrievalMode {
     case "pdf_question":
       // A question asked from a resource page is answered from THAT document.
       return intent.slug ? "scoped" : "hybrid";
+    case "general_knowledge":
+      // The catch-all retrieves across the collection before concluding the
+      // library has nothing (lib/ai/router.ts). The mode has to say so, or the
+      // evidence it retrieved gets a zero-token budget in `buildGeneration`.
+      return "hybrid";
     default:
       return "lookup";
   }
@@ -230,6 +235,7 @@ export function buildGeneration(p: Plan, org: PromptOrg): GenerationInput {
     intent: intent.intent,
     locale: intent.locale,
     verbosity: intent.verbosity,
+    hasEvidence: p.retrieval.passages.length > 0,
   });
 
   // The evidence budget is a property of the MODE, not a constant: a
