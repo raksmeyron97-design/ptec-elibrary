@@ -469,7 +469,23 @@ async function readWithProgress(
       /* already released */
     }
   }
-  void totalBytes;
+  // A stream can end EARLY and cleanly — a proxy that truncates, a tunnel that
+  // closes mid-object, a storage backend answering a partial body with a full
+  // length. The browser usually raises that as a stream error, but not always,
+  // and the declared length is the only thing that can tell the difference
+  // between "the file" and "the first 40 KB of the file". Catching it here is
+  // what keeps a prefix from being stored, verified as non-empty, and listed as
+  // "Available offline" — a broken book discovered only once the reader has no
+  // network left to repair it from.
+  //
+  // Only when the server actually declared a length: a chunked response has
+  // nothing to compare against, and refusing those would break every one.
+  if (totalBytes !== null && received !== totalBytes) {
+    throw new OfflineSaveError(
+      "network",
+      `incomplete download: got ${received} of ${totalBytes} bytes`,
+    );
+  }
   return new Blob(chunks, { type: res.headers.get("content-type") ?? "application/pdf" });
 }
 
