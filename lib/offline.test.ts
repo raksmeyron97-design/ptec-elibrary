@@ -189,6 +189,82 @@ describe("downloadOfflineBook — the save contract", () => {
     expect(getOfflineBooks()).toEqual([]);
   });
 
+  /*
+   * A SHORT BODY IS NOT A BOOK.
+   *
+   * The server declares Content-Length; the stream can still end early — a
+   * proxy that truncates, a tunnel that closes the stream cleanly mid-file, a
+   * storage backend that answers a partial object with a full length. The
+   * browser usually turns that into a stream error, but not always, and this
+   * path used to discard the declared total outright (`void totalBytes`) and
+   * verify only that SOMETHING was stored. A 40 KB prefix of a 4 MB book then
+   * became a "saved" book: the record said 4 MB, the offline library said
+   * "Available offline", and the reader opened it to a broken document with no
+   * network to repair it from.
+   *
+   * Truncation must be caught while the network is still there, so the save
+   * fails loudly and the reader retries — not after the user has walked away
+   * from Wi-Fi.
+   */
+  it("refuses a truncated body even when the server declared a full length", async () => {
+    vi.stubGlobal("fetch", async () =>
+      new Response(new Uint8Array(40_000).fill(37), {
+        status: 200,
+        headers: { "content-type": "application/pdf", "content-length": String(4_000_000) },
+      }),
+    );
+    await expect(downloadOfflineBook(input())).rejects.toMatchObject({ code: "network" });
+    expect(getOfflineBooks()).toEqual([]);
+    expect(bookCache()?.entries.size ?? 0).toBe(0);
+  });
+
+  it("refuses a body LONGER than the server declared", async () => {
+    // Length disagreement in either direction means the bytes are not the
+    // object the server described; storing them and calling the book saved is
+    // the failure this check exists to prevent.
+    vi.stubGlobal("fetch", async () =>
+      new Response(new Uint8Array(8192).fill(37), {
+        status: 200,
+        headers: { "content-type": "application/pdf", "content-length": "4096" },
+      }),
+    );
+    await expect(downloadOfflineBook(input())).rejects.toMatchObject({ code: "network" });
+    expect(getOfflineBooks()).toEqual([]);
+    expect(bookCache()?.entries.size ?? 0).toBe(0);
+  });
+
+  it("recovers on retry: a rejected truncation leaves nothing that blocks a clean save", async () => {
+    vi.stubGlobal("fetch", async () =>
+      new Response(new Uint8Array(1024).fill(37), {
+        status: 200,
+        headers: { "content-type": "application/pdf", "content-length": "4096" },
+      }),
+    );
+    await expect(downloadOfflineBook(input())).rejects.toMatchObject({ code: "network" });
+    expect(bookCache()?.entries.size ?? 0).toBe(0);
+
+    // Same book, same device, the network now behaving.
+    vi.stubGlobal("fetch", async () => pdfResponse(4096));
+    const rec = await downloadOfflineBook(input());
+    expect(rec.sizeBytes).toBe(4096);
+    expect(isOfflineBookSaved("book-1")).toBe(true);
+    await expect(isOfflineBookAvailable(rec)).resolves.toBe(true);
+    expect(getOfflineBooks()).toHaveLength(1);
+  });
+
+  it("still accepts a body the server sent no length for", async () => {
+    // Chunked / no Content-Length is legitimate: there is nothing to compare
+    // against, and refusing it would break every such response.
+    vi.stubGlobal("fetch", async () =>
+      new Response(new Uint8Array(2048).fill(37), {
+        status: 200,
+        headers: { "content-type": "application/pdf" },
+      }),
+    );
+    const rec = await downloadOfflineBook(input());
+    expect(rec.sizeBytes).toBe(2048);
+  });
+
   it("refuses an empty file", async () => {
     vi.stubGlobal("fetch", async () =>
       new Response(new Uint8Array(0), { status: 200, headers: { "content-type": "application/pdf" } }),

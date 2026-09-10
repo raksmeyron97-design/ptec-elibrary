@@ -233,9 +233,19 @@ export default function PDFViewer({
   // here — rather than sprinkling `&& !offline` through twenty call sites — is
   // what makes the offline reader provably network-free.
   const isLoggedIn = isLoggedInProp && !offline;
-  // Derived the same way: the offline reader has no session to speak for, so
-  // it writes and reads an unstamped record exactly as it did before.
-  const accountId = offline ? null : accountIdProp;
+  // NOT derived from `offline`, deliberately — the two answer different
+  // questions. `isLoggedIn` is "may I spend a request", and offline the answer
+  // is always no. `accountId` is "whose reading is this", and offline the
+  // answer is known: the account that downloaded the book (lib/offline.ts keeps
+  // it as the record's `ownerKey`, which OfflineBookReader passes in).
+  //
+  // Nulling it here wrote an UNSTAMPED position record, which then outlived
+  // sign-out and was claimable by the next account under the pre-0141
+  // migration rule — so a downloaded book read offline handed its page to the
+  // next student on a shared machine. A caller with genuinely no account (a
+  // signed-out thesis/publication preview, a legacy download with no
+  // ownerKey) still passes null and still writes an unstamped record.
+  const accountId = accountIdProp;
   const t = useTranslations("reader");
   const locale = useLocale();
   const fmt = useCallback((n: number | string) => localizeDigits(n, locale), [locale]);

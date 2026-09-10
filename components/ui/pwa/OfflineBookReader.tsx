@@ -134,6 +134,10 @@ export default function OfflineBookReader({ bookId }: { bookId: string | null })
           offline
           allowDownload
           isLoggedIn={false}
+          // No session to spend offline, but the owner IS known: this is the
+          // account that downloaded the book. Without it the saved position is
+          // written unstamped and the next account on this device claims it.
+          accountId={state.book.ownerKey}
           backHref={libraryHref}
           layout="fill"
         />

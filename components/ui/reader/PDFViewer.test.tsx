@@ -328,6 +328,125 @@ describe("offline mode", () => {
     expect(sendBeacon).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  /*
+   * STAMPS THE SAVED POSITION EVEN THOUGH IT NEVER TALKS TO A SERVER.
+   *
+   * `isLoggedIn` and `accountId` answer different questions, and the offline
+   * reader is exactly where they diverge: there is no session to spend on a
+   * request (isLoggedIn false, by construction), but the account that
+   * downloaded the book IS known — lib/offline.ts records it as the book's
+   * `ownerKey`, which is what OfflineBookReader passes here.
+   *
+   * Deriving the stamp from `offline` instead nulled it, so the offline reader
+   * wrote an UNSTAMPED `ebook:pos` record. That record outlives sign-out
+   * (localStorage is per-origin; /auth/signout clears cookies only), and
+   * `isForeignRecord()` treats unstamped as claimable — correctly, because
+   * that is the pre-0141 migration path. The two rules composed into a leak
+   * the online reader had already been fixed against: on a lab PC, reader A
+   * read a downloaded book to page 29 offline, signed out, and the next
+   * student to open that book online landed on page 29, was greeted "Welcome
+   * back", and had 71% written into THEIR account. Reproduced in production
+   * before this test existed.
+   *
+   * `reconcileOfflineOwnership()` does not cover it: it purges the downloaded
+   * BYTES and the offline record on sign-in, and did so correctly — the
+   * reading position is a different key that it has no business touching.
+   */
+  it("stamps the device's saved position with the account that owns the download", async () => {
+    const OWNER = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    renderViewer({ offline: true, isLoggedIn: false, accountId: OWNER, initialProgressPct: 0 });
+    await loaded();
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 700));
+    });
+
+    const raw = window.localStorage.getItem(`ebook:pos:${BOOK}`);
+    expect(raw).toBeTruthy();
+    expect(JSON.parse(raw!).o).toBe(OWNER);
+    // Still no network, whatever the stamp says.
+    expect(saveReadingProgress).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  /* ── D2: the offline reader must honour the SAME ownership predicate as the
+        online one, on BOTH the read path and the write path. ───────────── */
+
+  it("does not resume a foreign account's offline position", async () => {
+    const ALICE = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const BOB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    // Alice read this download to the last page on this shared machine.
+    localStorage.setItem(`ebook:pos:${BOOK}`, JSON.stringify({ p: 3, pct: 100, o: ALICE }));
+    renderViewer({ offline: true, isLoggedIn: false, accountId: BOB });
+    await loaded();
+    expect(pageIndicatorText()).toBe("Page 1 of 3");
+    expect(screen.queryByText("Welcome back")).toBeNull();
+  });
+
+  it("still resumes the account that owns the download", async () => {
+    const BOB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    localStorage.setItem(`ebook:pos:${BOOK}`, JSON.stringify({ p: 3, pct: 100, o: BOB }));
+    renderViewer({ offline: true, isLoggedIn: false, accountId: BOB });
+    await loaded();
+    expect(pageIndicatorText()).toBe("Page 3 of 3");
+  });
+
+  it("keeps resuming an unstamped record — a pre-fix download must not lose its place", async () => {
+    localStorage.setItem(`ebook:pos:${BOOK}`, JSON.stringify({ p: 3, pct: 100 }));
+    renderViewer({ offline: true, isLoggedIn: false, accountId: null });
+    await loaded();
+    expect(pageIndicatorText()).toBe("Page 3 of 3");
+  });
+
+  it("never writes a foreign account's page back as its own", async () => {
+    const ALICE = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const BOB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    // `s` is Alice's acknowledged percentage. Inheriting it would make the
+    // clock-free branch of resolveResumePage claim this device is level with a
+    // server row it has never written.
+    localStorage.setItem(`ebook:pos:${BOOK}`, JSON.stringify({ p: 3, pct: 100, s: 100, o: ALICE }));
+    renderViewer({ offline: true, isLoggedIn: false, accountId: BOB });
+    await loaded();
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 700));
+    });
+    const rec = JSON.parse(localStorage.getItem(`ebook:pos:${BOOK}`)!);
+    expect(rec.o).toBe(BOB);
+    expect(rec.p).toBe(1);          // Bob's actual page, not Alice's 3
+    expect(rec.s).toBeUndefined();  // Alice's sync marker is dropped, not inherited
+    expect(saveReadingProgress).not.toHaveBeenCalled();
+  });
+
+  it("keeps the stamp across a re-entry into the reader", async () => {
+    const BOB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const first = renderViewer({ offline: true, isLoggedIn: false, accountId: BOB });
+    await loaded();
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 700));
+    });
+    first.unmount();
+
+    renderViewer({ offline: true, isLoggedIn: false, accountId: BOB });
+    await loaded();
+    expect(pageIndicatorText()).toBe("Page 2 of 3");
+    expect(JSON.parse(localStorage.getItem(`ebook:pos:${BOOK}`)!).o).toBe(BOB);
+  });
+
+  it("leaves the record unstamped when the download has no owner", async () => {
+    // A pre-v2 offline record carries ownerKey: null. Nothing to stamp with,
+    // and inventing one would make a legacy download unreadable.
+    renderViewer({ offline: true, isLoggedIn: false, accountId: null, initialProgressPct: 0 });
+    await loaded();
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 700));
+    });
+    const raw = window.localStorage.getItem(`ebook:pos:${BOOK}`);
+    expect(raw).toBeTruthy();
+    expect(JSON.parse(raw!).o).toBeUndefined();
+  });
 });
 
 describe("download permission", () => {
