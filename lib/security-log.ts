@@ -72,16 +72,129 @@ export interface SecurityEvent {
 
 export type SecuritySink = (event: NormalizedSecurityEvent) => void;
 
-let sink: SecuritySink | null = null;
+/**
+ * THE REGISTRY IS PROCESS-GLOBAL, NOT MODULE-LOCAL, AND THAT IS THE WHOLE FIX.
+ *
+ * `let sink = null` at module scope looks like a singleton and is not one.
+ * Next's webpack build instantiates this module once per chunk that imports
+ * it, and each instantiation gets its own copy of every module-level binding.
+ * Measured on a production build of this repo, `lib/security-log.ts` was
+ * emitted into FOUR server chunks. `instrumentation.ts` registered the durable
+ * sink into the one copy it happened to load; every route handler read a
+ * different copy whose `sink` was still `null`. `sink?.(normalized)` is a
+ * silent no-op on `null`, so:
+ *
+ *   • the console line was written            (the emitter is module-local too)
+ *   • registration reported success           (it really did succeed — over there)
+ *   • no error was thrown or logged           (there was no error)
+ *   • `security_events` stayed at zero rows   (for months)
+ *
+ * Reproduced end to end against a local production build on 2026-09-10: three
+ * invalid-bearer requests to /api/cron/cleanup → three 401s → three
+ * `evt:"security"` console lines → zero rows.
+ *
+ * A `Symbol.for` key is resolved through the cross-realm symbol registry, so
+ * every duplicated copy of this module — in any chunk, in any bundle — reaches
+ * the same object. Nothing else about the architecture changes: the wiring
+ * stays inverted, this file stays free of `server-only`, and the sink is still
+ * installed by `instrumentation.ts` and by nobody else.
+ */
+const REGISTRY_KEY = Symbol.for("ptec.security-log.registry");
+
+interface SinkRegistry {
+  sink: SecuritySink | null;
+  registeredAt: string | null;
+  /** One id per module INSTANTIATION. Size > 1 means the module is duplicated. */
+  instances: Set<string>;
+  /** Events normalized and logged to stdout. */
+  emitted: number;
+  /** Events actually handed to a durable sink. */
+  delivered: number;
+  /** Events that found no sink installed — the failure this fix exists for. */
+  undelivered: number;
+  /** Whether the "nothing is being persisted" warning has already been said. */
+  warned: boolean;
+}
+
+function registry(): SinkRegistry {
+  const g = globalThis as typeof globalThis & { [REGISTRY_KEY]?: SinkRegistry };
+  return (g[REGISTRY_KEY] ??= {
+    sink: null,
+    registeredAt: null,
+    instances: new Set<string>(),
+    emitted: 0,
+    delivered: 0,
+    undelivered: 0,
+    warned: false,
+  });
+}
+
+/** This copy of the module. Registered so duplication is countable, not guessed. */
+const INSTANCE_ID = `${process.pid}:${Math.random().toString(36).slice(2, 10)}`;
+registry().instances.add(INSTANCE_ID);
 
 /** Install the durable sink. Passing null removes it (used by tests). */
 export function registerSecuritySink(next: SecuritySink | null): void {
-  sink = next;
+  const r = registry();
+  r.sink = next;
+  r.registeredAt = next ? new Date().toISOString() : null;
+  // A sink arriving after events were already dropped is worth saying out
+  // loud: it dates the gap for whoever reads the logs afterwards.
+  if (next && r.undelivered > 0) {
+    console.warn(
+      `[security-log] durable sink installed after ${r.undelivered} event(s) had already gone unpersisted`,
+    );
+  }
+  r.warned = false;
 }
 
 /** Exported for tests only. */
 export function _getSecuritySink(): SecuritySink | null {
-  return sink;
+  return registry().sink;
+}
+
+/**
+ * Whether security events are actually reaching durable storage, and the
+ * counters behind that answer.
+ *
+ * This exists because the previous failure was undetectable from anywhere
+ * except container stdout: the sink's own documented failure modes all degrade
+ * to "the console line is still the record", and a sink that was never
+ * installed does not even produce a failure to degrade from. `installed:false`
+ * with `emitted > 0` is precisely the state that went unnoticed, and
+ * `moduleInstances > 1` names its cause.
+ */
+export interface SecuritySinkHealth {
+  installed: boolean;
+  registeredAt: string | null;
+  emitted: number;
+  delivered: number;
+  undelivered: number;
+  /** Copies of this module in the process. 1 is healthy; more is the bug above. */
+  moduleInstances: number;
+}
+
+export function getSecuritySinkHealth(): SecuritySinkHealth {
+  const r = registry();
+  return {
+    installed: r.sink !== null,
+    registeredAt: r.registeredAt,
+    emitted: r.emitted,
+    delivered: r.delivered,
+    undelivered: r.undelivered,
+    moduleInstances: r.instances.size,
+  };
+}
+
+/** Exported for tests only — clears the process-global registry. */
+export function _resetSecuritySinkRegistry(): void {
+  const r = registry();
+  r.sink = null;
+  r.registeredAt = null;
+  r.emitted = 0;
+  r.delivered = 0;
+  r.undelivered = 0;
+  r.warned = false;
 }
 
 // ── Spike detection ──────────────────────────────────────────────────────────
@@ -168,15 +281,51 @@ export function logSecurityEvent(event: SecurityEvent): void {
   try {
     const normalized = normalizeEvent(event as SecurityEventInput);
     emit(normalized);
-    try {
-      sink?.(normalized);
-    } catch {
-      // A failing sink must never break the request, and must never prevent
-      // the console line — which is the fallback record when the DB is the
-      // thing that is broken.
-    }
+    deliver(normalized);
     trackSpike(event.type, event.where);
   } catch {
     // Logging must never break the request path.
+  }
+}
+
+/**
+ * Hand the event to the durable sink, and account for what happened.
+ *
+ * The accounting is the point. Before this, "no sink installed" and "sink
+ * wrote the row" were the same code path with the same silence, so a
+ * production process could log security events to stdout for months while
+ * `security_events` stayed empty and nothing anywhere said so.
+ *
+ * The warning is emitted ONCE per registry state, not per event: an incident
+ * is exactly when this path runs thousands of times, and a per-event warning
+ * would bury the very events it is complaining about.
+ */
+function deliver(normalized: NormalizedSecurityEvent): void {
+  const r = registry();
+  r.emitted += 1;
+
+  const current = r.sink;
+  if (!current) {
+    r.undelivered += 1;
+    if (!r.warned) {
+      r.warned = true;
+      console.error(
+        "[security-log] NO DURABLE SINK INSTALLED — security events are being written to stdout only. " +
+          "Detection, incidents and alerting all read `security_events`, so none of them will fire. " +
+          `(module instances: ${r.instances.size}; see getSecuritySinkHealth())`,
+      );
+    }
+    return;
+  }
+
+  try {
+    current(normalized);
+    r.delivered += 1;
+  } catch {
+    // A failing sink must never break the request, and must never prevent the
+    // console line — which is the fallback record when the DB is the thing
+    // that is broken. It is still counted as undelivered, so the health check
+    // does not report a write that did not happen.
+    r.undelivered += 1;
   }
 }

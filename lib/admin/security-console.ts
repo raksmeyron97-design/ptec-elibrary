@@ -12,6 +12,7 @@ import {
   type Severity,
 } from "@/lib/security/model";
 import { securityConfigSnapshot } from "@/lib/security/config";
+import { getSecuritySinkHealth } from "@/lib/security-log";
 
 /**
  * Read model for /admin/security — the operational console.
@@ -340,6 +341,42 @@ function buildMonitoringStatus(input: {
   const { tablesMissing, eventRows, deliveries } = input;
   const has = (type: string) => eventRows.some((r) => r.event_type === type);
   const services: ServiceStatus[] = [];
+
+  // What the EMITTER in this process has actually managed to persist.
+  //
+  // "No events in the window" is ambiguous on its own — a quiet Sunday and a
+  // pipeline that has been writing to stdout for three months look identical,
+  // and for months they were identical. These counters resolve it: a sink that
+  // was never installed reports `installed: false` with a non-zero emitted
+  // count, and `moduleInstances > 1` names the cause.
+  //
+  // Process-scoped by construction. On a single-container deployment that is
+  // the whole answer; behind several instances it describes the one that
+  // rendered this page, which is why the row says so.
+  const sink = getSecuritySinkHealth();
+  services.push({
+    name: "Event persistence",
+    state: tablesMissing
+      ? "down"
+      : !sink.installed && sink.emitted > 0
+        ? "down"
+        : sink.undelivered > 0
+          ? "degraded"
+          : sink.installed
+            ? "ok"
+            : "unknown",
+    detail: tablesMissing
+      ? "security_events table absent (migration 0127 pending)"
+      : !sink.installed && sink.emitted > 0
+        ? `NOT PERSISTING — ${sink.emitted} event(s) written to stdout only since this instance started. Detection, incidents and alerting all read security_events, so none of them can fire.`
+        : !sink.installed
+          ? "No durable sink registered yet on this instance and no events raised since it started"
+          : `${sink.delivered} of ${sink.emitted} event(s) handed to the durable sink since this instance started` +
+            (sink.undelivered > 0 ? ` — ${sink.undelivered} were not` : "") +
+            (sink.moduleInstances > 1
+              ? ` (warning: ${sink.moduleInstances} copies of the emitter module in this process)`
+              : ""),
+  });
 
   services.push({
     name: "Event collection",
