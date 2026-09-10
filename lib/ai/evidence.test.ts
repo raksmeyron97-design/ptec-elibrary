@@ -6,6 +6,7 @@ import {
   dedupePages,
   diversify,
   fuseEvidence,
+  minLexicalScore,
   sourceCount,
   spreadPages,
   type RetrievedEvidence,
@@ -143,7 +144,15 @@ describe("EVIDENCE_LIMITS", () => {
 
   it("buys depth for scoped modes and breadth for comparison", () => {
     expect(EVIDENCE_LIMITS.scoped.perResource).toBeGreaterThanOrEqual(EVIDENCE_LIMITS.scoped.evidence);
-    expect(EVIDENCE_LIMITS.hybrid.perResource).toBe(1);
+    // The breadth rule, stated as the property rather than as one number.
+    // `hybrid.perResource` was pinned at exactly 1, which is the strictest
+    // possible reading of "prefer several sources" and also stopped a book
+    // that genuinely answers the question from contributing a second page.
+    // What must hold is that no single record can take half the evidence —
+    // that is what keeps an unscoped answer drawing on at least three
+    // sources, and it is true of the old shape (1 of 3) and the new one
+    // (2 of 5) alike.
+    expect(EVIDENCE_LIMITS.hybrid.perResource).toBeLessThan(EVIDENCE_LIMITS.hybrid.evidence / 2);
     expect(EVIDENCE_LIMITS.multi_document.evidence).toBeGreaterThan(EVIDENCE_LIMITS.hybrid.evidence);
   });
 
@@ -155,7 +164,66 @@ describe("EVIDENCE_LIMITS", () => {
   });
 
   it("raises the context ceiling only as far as the evidence needs", () => {
-    expect(contextCeilingFor("hybrid", 2_000)).toBe(2_000);
+    // A mode whose evidence fits under the base ceiling does not raise it…
+    expect(contextCeilingFor("lookup", 2_000)).toBe(2_000);
+    expect(contextCeilingFor("pdf_exact", 2_000)).toBe(2_000);
+    // …and a mode that carries a real evidence budget raises it by exactly
+    // that budget plus the fixed 1,100 the prompt and history need — never
+    // to some larger round number. `hybrid` is in this group now: a
+    // cross-collection research question retrieves passages, so it has to pay
+    // for them the same way a comparison does.
+    expect(contextCeilingFor("hybrid", 2_000)).toBe(EVIDENCE_LIMITS.hybrid.budgetTokens + 1_100);
     expect(contextCeilingFor("multi_document", 2_000)).toBe(2_900);
+  });
+});
+
+
+describe("minLexicalScore — a page must share the QUESTION, not a word", () => {
+  it("needs both terms of a two-term question", () => {
+    // One incidental match was enough before: "cryptocurrency mining rigs"
+    // was answered from a page about readability formulas, and "submarine
+    // hull design" from a chapter-summary page, on ordinary words while the
+    // word that made each question that question appeared nowhere.
+    expect(minLexicalScore(["sampling", "interviews"])).toBe(2);
+  });
+
+  it("needs a majority of a longer question's terms", () => {
+    expect(minLexicalScore(["cryptocurrency", "mining", "rigs"])).toBe(2);
+    expect(minLexicalScore(["a", "b", "c", "d"])).toBe(3);
+    expect(minLexicalScore(["a", "b", "c", "d", "e", "f"])).toBe(4);
+  });
+
+  it("still admits a single-term question on one match", () => {
+    // This is the shape a stripped question takes — "sampling", "validity" —
+    // and it is also the only shape a mixed Khmer/English question can take
+    // once its frame is removed.
+    expect(minLexicalScore(["validity"])).toBe(1);
+    expect(minLexicalScore([])).toBe(1);
+  });
+
+  it("never demands more matches than the question has terms", () => {
+    for (let n = 1; n <= 6; n++) {
+      const terms = Array.from({ length: n }, (_, i) => `t${i}`);
+      expect(minLexicalScore(terms)).toBeLessThanOrEqual(n);
+      expect(minLexicalScore(terms)).toBeGreaterThanOrEqual(1);
+    }
+  });
+});
+
+describe("the cross-collection mode is not the thinnest one", () => {
+  it("gives an unscoped research question more evidence than a bare lookup", () => {
+    // `hybrid` answers "what does the literature say about X" across the whole
+    // collection and used to get three passages at one per record — less than
+    // a single document's own summary. Measured against production, that
+    // squeezed a 24-row candidate pool through three slots.
+    expect(EVIDENCE_LIMITS.hybrid.evidence).toBeGreaterThan(EVIDENCE_LIMITS.pdf_exact.evidence);
+    expect(EVIDENCE_LIMITS.hybrid.candidates).toBeGreaterThan(EVIDENCE_LIMITS.pdf_exact.candidates);
+  });
+
+  it("keeps at least three sources reachable in every unscoped mode", () => {
+    for (const mode of ["pdf_exact", "semantic", "hybrid"] as const) {
+      const { evidence, perResource } = EVIDENCE_LIMITS[mode];
+      expect(Math.ceil(evidence / perResource)).toBeGreaterThanOrEqual(3);
+    }
   });
 });

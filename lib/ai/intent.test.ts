@@ -11,9 +11,13 @@ import {
   classifyIntent,
   detectLanguage,
   detectVerbosity,
+  extractAuthorQuery,
+  extractCompareTargets,
   extractPage,
   extractQuery,
   normalizeQuery,
+  quotedSpans,
+  unwrapQuoted,
 } from "./intent";
 
 describe("detectLanguage", () => {
@@ -459,5 +463,107 @@ describe("questions about the resource in front of the reader", () => {
     expect(classifyIntent("cite this book", onBook).intent).toBe("citation");
     expect(classifyIntent("show me similar books", onBook).intent).toBe("related_books");
     expect(classifyIntent("what is this book about?", onBook).intent).toBe("book_detail");
+  });
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Regressions found by scripts/ai-answer-benchmark.ts against the production
+// corpus. Each of these was a question a reader asks constantly, answered
+// wrongly, and each failure was silent — the assistant produced a confident,
+// well-formed, useless reply rather than an error.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("a quoted title is a title, not part of the query", () => {
+  it("unwraps every quote style a reader actually types", () => {
+    expect(unwrapQuoted('"Practical Research Methods"')).toBe("Practical Research Methods");
+    expect(unwrapQuoted("\u201cPractical Research Methods\u201d")).toBe("Practical Research Methods");
+    expect(unwrapQuoted("\u00abPractical Research Methods\u00bb")).toBe("Practical Research Methods");
+    expect(unwrapQuoted("Practical Research Methods")).toBe("Practical Research Methods");
+  });
+
+  it('answers "who wrote \"X\"?" about X, not about the string \"X\"', () => {
+    // This searched the AUTHOR index for a name that included the quotation
+    // marks, so every quoted title answered "I couldn't find an author named
+    // …" for a book that is on the shelf. All ten benchmark cases failed.
+    expect(extractAuthorQuery('Who wrote "Practical Research Methods"?')).toBe("Practical Research Methods");
+    expect(extractAuthorQuery("Who wrote Practical Research Methods?")).toBe("Practical Research Methods");
+  });
+
+  it("drops the determiner and collection noun in front of a quoted title", () => {
+    expect(extractQuery('Do you have the book "Key Ideas in Educational Research"?')).toBe(
+      "Key Ideas in Educational Research",
+    );
+  });
+
+  it("keeps a bare topic untouched", () => {
+    expect(extractQuery("Do you have books about teaching literature?")).toBe("teaching literature");
+  });
+});
+
+describe("comparison targets", () => {
+  it("believes the reader's quotation marks over the word 'and'", () => {
+    // "Essentials of Research Design and Methodology" contains the separator
+    // the split relies on, so an unquoted split produced three parts, no
+    // targets, and the question fell through to a catalogue search.
+    expect(
+      extractCompareTargets(
+        'Compare "English for Writing Research Papers" and "Essentials of Research Design and Methodology"',
+      ),
+    ).toEqual(["English for Writing Research Papers", "Essentials of Research Design and Methodology"]);
+    expect(
+      classifyIntent(
+        'Compare "English for Writing Research Papers" and "Essentials of Research Design and Methodology"',
+      ).intent,
+    ).toBe("document_compare");
+  });
+
+  it("still refuses to guess when only one work is named", () => {
+    expect(extractCompareTargets("compare these")).toEqual([]);
+  });
+
+  it("finds each quoted span", () => {
+    expect(quotedSpans('Compare "A book" and "Another book"')).toEqual(["A book", "Another book"]);
+    expect(quotedSpans("nothing quoted here")).toEqual([]);
+  });
+});
+
+describe("a cross-collection research question retrieves on its topic", () => {
+  it("strips the English question frame", () => {
+    // The frame contributed its own lexical terms ("literature", "library"),
+    // which pushed the term count to three and made the page-match floor
+    // demand two — so every page that discussed the topic without also using
+    // the word "literature" was discarded, and the lexical leg returned zero.
+    expect(extractQuery("What does the library's literature say about validity?")).toBe("validity");
+    expect(extractQuery("What do the books say about classroom management?")).toBe("classroom management");
+    expect(extractQuery("According to the literature, how is reliability established?")).toBe(
+      "how is reliability established",
+    );
+  });
+
+  it("still routes it to the document path", () => {
+    expect(classifyIntent("What does the library's literature say about validity?").intent).toBe("pdf_question");
+    expect(classifyIntent("Explain ethics as the library's books describe it.").intent).toBe("pdf_question");
+  });
+
+  it("leaves literature as a TOPIC alone", () => {
+    // A teacher-education collection holds books about teaching literature;
+    // blacklisting the word would have made them unfindable.
+    expect(extractQuery("books about children's literature")).toBe("children's literature");
+    expect(classifyIntent("Do you have books about teaching literature?").intent).toBe("book_search");
+  });
+
+  it("strips the Khmer deictic frame so the Latin topic survives", () => {
+    // Khmer has no word boundaries, so the whole frame enters as ONE lexical
+    // term that an English page can never contain. Any rule requiring more
+    // than one term to match then rejected every page.
+    expect(extractQuery("តើសៀវភៅនេះនិយាយអ្វីអំពី sampling?")).toBe("sampling");
+    expect(extractQuery("តើឯកសារនេះនិយាយអំពី ethics?")).toBe("ethics");
+  });
+
+  it("does not reduce a Khmer question to a bare interrogative", () => {
+    // "សៀវភៅនេះនិយាយអំពីអ្វី" is "what is this book about" — stripping the
+    // frame leaves "អ្វី" ("what"), which is not a topic to retrieve on.
+    expect(extractQuery("សៀវភៅនេះនិយាយអំពីអ្វី?")).not.toBe("អ្វី");
   });
 });

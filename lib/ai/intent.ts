@@ -175,10 +175,28 @@ const LIBRARY_WORDS = ["library", "ptec", "catalog", "catalogue", "បណ្ណ�
 // front of it varies and an article is not what makes the question one:
 // "what does the library's literature say about sampling" and "what does the
 // literature say about sampling" are the same request.
+// Entries pair a SOURCE noun with a CONTENT verb. Both halves matter: the noun
+// is what makes the question about the collection rather than about one book,
+// and the verb is what makes it a question about what those sources SAY rather
+// than a request for the shelf.
+//
+// The verb side was originally just "say/show". That is one of several ways to
+// ask the same thing, and the others all fell through to the catalogue search
+// one table below — measured with scripts/ai-answer-benchmark.ts, all ten
+// "Explain X as the library's books describe it" questions were answered with
+// "I found 6 books related to …" and a row of covers, retrieving no page
+// evidence at all. The verbs added here are the ones `CONTENT_VERBS` already
+// lists for the same question asked while standing on a document.
 const LITERATURE_WORDS = [
   "literature say", "literature says", "books say", "sources say",
   "authors say", "studies say", "research say", "research says",
   "research show", "research shows", "scholarship say",
+  "literature describe", "literature describes", "literature discuss",
+  "literature discusses", "literature explain", "literature explains",
+  "books describe", "books discuss", "books cover", "books explain",
+  "books define", "books teach", "sources describe", "sources discuss",
+  "authors describe", "authors discuss", "studies show", "studies describe",
+  "research describe", "research describes", "research explain",
   "according to the literature", "in the literature",
   "across the collection", "across the library", "across these books",
   "អក្សរសិល្ប៍និយាយ", "ការស្រាវជ្រាវបង្ហាញ",
@@ -392,11 +410,110 @@ const KHMER_LEAD_STRIP = [
   /^(អំពី|ស្តីពី|ស្ដីពី)\s*/u,
 ];
 
+/**
+ * The frame around a cross-collection research question — the LITERATURE_WORDS
+ * phrasing — stripped down to the topic it asks about.
+ *
+ * This is not cosmetic, and it is the reason the cross-document path
+ * underperformed the moment it started being reached. `intent.query` is what
+ * `retrieveEvidence` embeds AND what `queryTerms` splits into lexical terms,
+ * and the frame contributes terms of its own: "what does the library's
+ * literature say about validity" yields ["literature", "validity", "library"],
+ * three terms, which makes `minLexicalScore` demand TWO matches on a page. A
+ * page that discusses validity — and does not happen to also use the words
+ * "literature" or "library" — scores 1 and is dropped. Measured against
+ * production: the lexical leg returned ZERO rows for that question over a
+ * corpus holding many pages on validity, and the same question phrased without
+ * "library's" (two terms, floor 1) retrieved normally. The frame also drags
+ * ranking toward literature-review chapters and away from the topic.
+ *
+ * Stripping the FRAME rather than blacklisting the word is what keeps
+ * "literature" usable as a topic in its own right — this is a teacher-education
+ * collection, and "teaching literature" is a subject it holds.
+ */
+const LITERATURE_LEAD_STRIP = [
+  /^(?:so\s+)?what\s+(?:do|does)\s+(?:the\s+)?(?:library'?s?\s+|collection'?s?\s+)?(?:literature|books?|sources?|authors?|studies|research|scholarship)\s+(?:say|says|show|shows|tell\s+us|suggest|suggests)\s*(?:about|on|regarding|concerning)?\s*/i,
+  /^according\s+to\s+(?:the\s+)?literature\s*[,:]?\s*/i,
+  /^in\s+the\s+literature\s*[,:]?\s*/i,
+  /^across\s+(?:the\s+)?(?:collection|library|these\s+books)\s*[,:]?\s*/i,
+  /^(?:តើ\s*)?(?:អក្សរសិល្ប៍|ការស្រាវជ្រាវ)\s*(?:និយាយ|បង្ហាញ)\s*(?:អំពី|ស្តីពី|ស្ដីពី|ពី)?\s*/u,
+];
+
+/**
+ * The Khmer equivalent: "តើសៀវភៅនេះនិយាយអ្វីអំពី X" — "what does this book say
+ * about X". Everything before X points at the document in hand and names no
+ * topic.
+ *
+ * This is the same defect as the English frame above and it bites harder,
+ * because Khmer has no word boundaries: `queryTerms` cannot split the frame,
+ * so the WHOLE clause enters as one term. On an English document that term can
+ * never match, and any lexical rule that requires more than one term to match
+ * then rejects every page — measured, the mixed-language category fell from
+ * 80% to 40% recall for exactly this reason. Stripping the frame leaves the
+ * Latin topic word the reader actually asked about, which is also what should
+ * be embedded for the semantic leg.
+ *
+ * A Khmer-only question strips to nothing and `extractQuery` falls back to the
+ * original text, so the overview path that handles "តើសៀវភៅនេះនិយាយអំពីអ្វី"
+ * is untouched.
+ */
+const KHMER_DEICTIC_STRIP =
+  /^(?:តើ\s*)?(?:សៀវភៅ|ឯកសារ|អត្ថបទ|និក្ខេបបទ|របាយការណ៍|ស្នាដៃ)\s*នេះ\s*(?:និយាយ|ពន្យល់|រៀបរាប់|បង្ហាញ|អធិប្បាយ|មាន)?\s*(?:អ្វី|អី)?\s*(?:អំពី|ស្តីពី|ស្ដីពី|ពី|នៅក្នុង)\s*/u;
+
+/**
+ * A title the reader put in quotation marks, unwrapped.
+ *
+ * Quoting a title is how a reader disambiguates one, and every extraction path
+ * used to carry the quote characters straight through into the lookup:
+ * `Who wrote "Practical Research Methods"?` searched the author index for the
+ * literal string `"Practical Research Methods"` — quotes included — and
+ * answered "I couldn't find an author named …" for a book sitting on the
+ * shelf. Measured with scripts/ai-answer-benchmark.ts, all ten `Who wrote "X"?`
+ * questions failed this way, and so did the quoted book lookups.
+ *
+ * Straight, curly and Khmer «…» forms, because readers use all three.
+ */
+const QUOTE_PAIRS: [string, string][] = [
+  ['"', '"'], ["\u201c", "\u201d"], ["'", "'"], ["\u2018", "\u2019"], ["\u00ab", "\u00bb"],
+];
+
+export function unwrapQuoted(text: string): string {
+  const t = text.trim();
+  for (const [open, close] of QUOTE_PAIRS) {
+    if (t.length >= 2 && t.startsWith(open) && t.endsWith(close)) return t.slice(1, -1).trim();
+  }
+  return t;
+}
+
+/** Every quoted span in the text, in order. */
+export function quotedSpans(text: string): string[] {
+  const out: string[] = [];
+  const re = /["\u201c\u00ab]([^"\u201c\u201d\u00ab\u00bb]{2,120})["\u201d\u00bb]/gu;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) out.push(m[1].trim());
+  return out;
+}
+
+/** A leading determiner plus a collection noun — "the book X", "a thesis Y". */
+const DETERMINER_NOUN =
+  /^(?:the|a|an)\s+(?:e-?books?|books?|thesis|theses|dissertations?|publications?|documents?|reports?|titles?)\s+/i;
+
 export function extractQuery(text: string): string {
   let out = text.trim().replace(/^តើ\s*/u, "").replace(/[?？។៕]+$/u, "").trim();
+  // The literature frame is stripped FIRST: it is a whole interrogative clause,
+  // and the generic lead patterns below would only nibble at its edges.
+  for (const re of LITERATURE_LEAD_STRIP) out = out.replace(re, "").trim();
+  // Keep the strip only when a TOPIC survives it. "សៀវភៅនេះនិយាយអំពីអ្វី"
+  // ("what is this book about") reduces to the bare interrogative "អ្វី",
+  // which is not a topic and would be embedded and searched for as if it were.
+  const deicticStripped = out.replace(KHMER_DEICTIC_STRIP, "").trim();
+  if (deicticStripped && !/^(?:អ្វី|អី|អ្វីខ្លះ|អ្វីៗ)$/u.test(deicticStripped)) out = deicticStripped;
   for (const re of [...LEAD_STRIP, ...KHMER_LEAD_STRIP]) out = out.replace(re, "").trim();
   // Trailing "ទេ?" / "please" are politeness, not topic.
   out = out.replace(/\s*(ទេ|ដែរ|បានទេ)\s*$/u, "").replace(/\s*please\s*$/i, "").trim();
+  out = out.replace(DETERMINER_NOUN, "").trim();
+  // Last, so it unwraps whatever the scaffolding strips left behind.
+  out = unwrapQuoted(out);
   return out || text.trim();
 }
 
@@ -410,9 +527,14 @@ const AUTHOR_SCAFFOLD = [
 
 /** The person a question names, with the question's scaffolding removed. */
 export function extractAuthorQuery(text: string): string {
-  let out = extractQuery(text);
+  // A quoted title survives `extractQuery` only when the quotes wrap the WHOLE
+  // remaining string; "who wrote \"X\"" still has the verb in front of them at
+  // that point, so the span is taken directly when the reader quoted one.
+  const quoted = quotedSpans(text);
+  let out = quoted.length === 1 ? quoted[0] : extractQuery(text);
   for (const re of AUTHOR_SCAFFOLD) out = out.replace(re, " ");
-  return out.replace(/^[\s?,.:;-]+|[\s?,.:;-]+$/g, "").replace(/\s+/g, " ").trim();
+  out = out.replace(/^[\s?,.:;-]+|[\s?,.:;-]+$/g, "").replace(/\s+/g, " ").trim();
+  return unwrapQuoted(out);
 }
 
 const SUBJECT_SCAFFOLD = [
@@ -448,6 +570,13 @@ const COMPARE_LEAD =
  * the failure a comparison must not have.
  */
 export function extractCompareTargets(text: string): string[] {
+  // Quoted targets are unambiguous, and splitting on " and " is not: a title
+  // like "Essentials of Research Design and Methodology" contains the very
+  // separator the split relies on, producing three parts and therefore no
+  // comparison at all. When the reader quoted exactly two works, believe them.
+  const quoted = quotedSpans(text);
+  if (quoted.length === 2) return quoted;
+
   const stripped = extractQuery(text).replace(COMPARE_LEAD, "").trim();
   if (!stripped) return [];
   const parts = stripped

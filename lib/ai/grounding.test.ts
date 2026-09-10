@@ -172,6 +172,36 @@ describe("filter sanitization", () => {
     expect(filterTokens("")).toHaveLength(0);
     expect(filterTokens("%%%")).toHaveLength(0);
   });
+
+  // ── What the catalogue pool is actually built from ────────────────────────
+  // Found by scripts/ai-answer-benchmark.ts: "Do you have the book
+  // \"Qualitative Research from Start to Finish\"" produced the tokens `from`,
+  // `Start`, `to` — and the named book did not appear in the results at all.
+
+  it("drops function words that would match every row", () => {
+    const tokens = filterTokens("Qualitative Research from Start to Finish");
+    expect(tokens).not.toContain("from");
+    expect(tokens).not.toContain("to");
+    expect(tokens).toContain("Qualitative");
+  });
+
+  it("keeps the distinguishing words when the cap binds", () => {
+    // The cap used to keep the FIRST tokens, so "Key Ideas in Educational
+    // Research" spent slots on "Key" and "in" and never reached "Educational".
+    expect(filterTokens("Key Ideas in Educational Research", 3)).toContain("Educational");
+  });
+
+  it("always leads with the whole phrase", () => {
+    expect(filterTokens("teaching literature")[0]).toBe("teaching literature");
+  });
+
+  it("still searches for something when the query is all function words", () => {
+    expect(filterTokens("do you have it").length).toBeGreaterThan(1);
+  });
+
+  it("leaves a Khmer query — which has no word boundaries — as one term", () => {
+    expect(filterTokens("សៀវភៅអំពីការស្រាវជ្រាវ")).toEqual(["សៀវភៅអំពីការស្រាវជ្រាវ"]);
+  });
 });
 
 describe("inbound validation", () => {

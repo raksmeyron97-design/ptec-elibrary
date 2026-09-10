@@ -63,7 +63,7 @@ import {
   type ResultKind,
 } from "./response";
 import * as T from "./templates";
-import { MAX_PASSAGES, MAX_PASSAGES_DETAILED, estimateTokens } from "./token-budget";
+import { MAX_PASSAGES_DETAILED, estimateTokens } from "./token-budget";
 
 export interface AssistantInput {
   messages: InboundMessage[];
@@ -89,8 +89,31 @@ async function retrieveFor(
 
   switch (intent.intent) {
     case "unsupported":
-    case "general_knowledge":
       return { retrieval: EMPTY_RETRIEVAL, facts: [] };
+
+    case "general_knowledge":
+      // ASK THE COLLECTION BEFORE DECLARING IT HAS NOTHING.
+      //
+      // This is the catch-all — a question that matched no keyword table — and
+      // it used to retrieve nothing and then tell the model to say the answer
+      // "is not from the library's collection". For a bare topical question,
+      // which is the most natural way a student asks one, that was simply
+      // false: measured with scripts/ai-answer-benchmark.ts against
+      // production, all twelve "What is <topic>?" questions landed here and
+      // were disclaimed as outside the catalogue, while every one of those
+      // topics has pages in six or more books on the shelf.
+      //
+      // The evidence decides instead of the keyword table. When passages come
+      // back the answer is grounded and cited like any other document question
+      // (lib/ai/prompts.ts picks the rider from the evidence, not the label);
+      // when none do, the reader gets exactly the general-knowledge answer with
+      // the disclaimer they get today. `retrieveEvidence` already refuses to
+      // invent evidence for a subject the library does not hold — that is the
+      // no-evidence guarantee the retrieval benchmark measures at 100%.
+      //
+      // Cost: one embedding and two queries, on a path that was already paying
+      // for a model call. It does not add a model call to anything.
+      return { retrieval: await searchPassages(intent.query), facts: [] };
 
     case "faq": {
       const fact = await getLibraryFact(intent.topic!, intent.locale);
@@ -223,9 +246,11 @@ async function retrieveFor(
         };
       }
       return {
+        // Depth is the MODE's to decide (EVIDENCE_LIMITS.hybrid); an explicitly
+        // deep question buys a little more on top of it.
         retrieval: await searchPassages(
           intent.query,
-          intent.verbosity === "detailed" ? MAX_PASSAGES_DETAILED : MAX_PASSAGES,
+          intent.verbosity === "detailed" ? MAX_PASSAGES_DETAILED : undefined,
         ),
         facts: [],
       };

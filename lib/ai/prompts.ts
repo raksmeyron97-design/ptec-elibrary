@@ -63,12 +63,32 @@ export function buildSystemPrompt(opts: {
   intent: AIIntent;
   locale: AILocale;
   verbosity: Verbosity;
+  /** True when retrieval produced passages the model may cite. */
+  hasEvidence?: boolean;
 }): string {
   const parts = [base(opts.org, opts.locale)];
-  const rider = MODE_RIDER[opts.intent];
-  if (rider) parts.push(rider);
+  parts.push(riderFor(opts.intent, opts.hasEvidence === true));
   parts.push(LENGTH_RIDER[opts.verbosity]);
-  return parts.join("\n");
+  return parts.filter(Boolean).join("\n");
+}
+
+/**
+ * The rider for this request.
+ *
+ * `general_knowledge` is the only intent whose rider depends on the RETRIEVAL
+ * rather than on the label, and it has to be: it is the catch-all, so a
+ * question about a subject the library holds lands there whenever it matched no
+ * keyword table. Telling the model "this question is outside the library's
+ * catalogue" while handing it six cited pages FROM that catalogue asks it to
+ * contradict its own evidence — and telling the reader so was measurably false
+ * for every "What is <topic>?" question in scripts/ai-answer-benchmark.ts.
+ *
+ * So: evidence present → answer it the way every other document question is
+ * answered, with citations. No evidence → the disclaimer, unchanged.
+ */
+function riderFor(intent: AIIntent, hasEvidence: boolean): string {
+  if (intent === "general_knowledge" && hasEvidence) return MODE_RIDER.pdf_question ?? "";
+  return MODE_RIDER[intent] ?? "";
 }
 
 /** Warning appended when the incoming text tripped the injection detector. */

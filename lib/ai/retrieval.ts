@@ -26,7 +26,7 @@ import { embeddingsConfigured, getAIProvider } from "./provider";
 import { cacheKey, cached } from "./cache";
 import { filterTokens, orFilter, sanitizeFilterTerm } from "./guardrails";
 import { normalizeQuery } from "./intent";
-import { MAX_PASSAGES, MAX_RESULTS } from "./token-budget";
+import { MAX_RESULTS } from "./token-budget";
 import type { AILocale, ResultKind, SearchResult } from "./response";
 import type { CompactWork } from "./context";
 import { EMPTY_RETRIEVAL, type RetrievalOutcome } from "./plan";
@@ -51,6 +51,7 @@ import type { AuthorWork } from "@/lib/authors/types";
 import { getIndexableSubjects, getSubjectDetail, type SubjectItem } from "@/lib/subjects";
 import { personNameKey } from "@/lib/books/duplicate-detection/normalize";
 import { normalizeSearchText } from "@/lib/search/normalize";
+import { rankWorks } from "./work-ranking";
 
 const COVERS_URL = process.env.NEXT_PUBLIC_R2_COVERS_URL ?? "";
 
@@ -91,6 +92,9 @@ const WORK_MIN_SIMILARITY = 0.25;
  * changes: the number is a property of the model, not of the library.
  */
 const CHUNK_MIN_SIMILARITY = 0.7;
+/** How many candidates each pool fetches per result shown, so the scorer has
+ *  something to choose from. */
+const CANDIDATE_FACTOR = 6;
 /** Keyword hits at or above this count make the semantic pass unnecessary. */
 const KEYWORD_SUFFICIENT = 3;
 /** Raw chars kept per retrieved passage before context compression trims it. */
@@ -176,8 +180,12 @@ async function keywordBooks(db: Db, query: string, limit: number) {
     .select("slug, title, cover_url, description, department, published_at, authors(name), categories(name)")
     .eq("is_published", true)
     .or(orFilter(["title", "description"], tokens))
+    // Popularity orders the POOL, not the answer. Fetching exactly `limit`
+    // rows here made downloads the ranking: an exactly-named title that is not
+    // among the most-downloaded books sharing a word with the query never
+    // reached the caller at all. `rankWorks` scores what this returns.
     .order("download_count", { ascending: false })
-    .limit(limit);
+    .limit(limit * CANDIDATE_FACTOR);
   if (error) {
     console.error("[ai/retrieval] books keyword search:", error.message);
     return [];
@@ -194,7 +202,7 @@ async function keywordTheses(db: Db, query: string, limit: number) {
     .eq("is_published", true)
     .or(orFilter(["title", "abstract", "author_names"], tokens))
     .order("view_count", { ascending: false })
-    .limit(limit);
+    .limit(limit * CANDIDATE_FACTOR);
   if (error) {
     console.error("[ai/retrieval] theses keyword search:", error.message);
     return [];
@@ -211,7 +219,7 @@ async function keywordPosts(db: Db, query: string, limit: number) {
     .eq("is_published", true)
     .or(orFilter(["title", "excerpt"], tokens))
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .limit(limit * CANDIDATE_FACTOR);
   if (error) {
     console.error("[ai/retrieval] posts keyword search:", error.message);
     return [];
@@ -397,7 +405,14 @@ export async function searchWorks(
       fallback = "keyword";
     }
 
-    const capped = rows.slice(0, limit);
+    // ONE ordering decision, over the merged pool, before anything is cut.
+    // Each leg arrives in its own table's popularity/recency order, which says
+    // nothing about which of them answers the question.
+    const ranked = rankWorks(
+      rows.map((r) => ({ ...r, title: r.result.title, author: r.result.author })),
+      query,
+    );
+    const capped = ranked.slice(0, limit);
     return {
       results: capped.map((r) => r.result),
       works: capped.map((r) => r.work),
@@ -430,8 +445,14 @@ export async function searchWorks(
  */
 export async function searchPassages(
   rawQuery: string,
-  limit = MAX_PASSAGES,
+  limit?: number,
 ): Promise<RetrievalOutcome> {
+  // The default is the MODE's own allowance, not a separate constant.
+  // `MAX_PASSAGES` (3) used to be the default here, which silently overrode
+  // `EVIDENCE_LIMITS.hybrid.evidence` — so the one table that is supposed to
+  // hold "the token bill of every mode" did not govern the path the router
+  // actually takes, and scripts/retrieval-benchmark.ts (which calls
+  // `retrieveEvidence` directly) measured a budget production never used.
   return retrieveEvidence({ query: rawQuery, mode: "hybrid", limit });
 }
 
