@@ -69,6 +69,8 @@ const LIVE = has("--live");
 const VERBOSE = has("--verbose");
 const JSON_OUT = has("--json");
 const ONLY = valueOf("--category");
+/** Comma-separated question ids — a small, deliberate set for a --live run. */
+const IDS = valueOf("--ids")?.split(",").map((s) => s.trim()).filter(Boolean);
 const COMPARE = valueOf("--compare");
 const DIAGNOSE = has("--diagnose");
 
@@ -111,6 +113,8 @@ interface Row {
   latencyMs: number;
   answer: string;
   citedSlugs: string[];
+  /** Every record the retrieved evidence came from, cited or not. */
+  evidenceSlugs: string[];
   /** Slugs the question was labelled against, for the diagnostic trace. */
   expectedSlugs: string[];
   /** Which pipeline stage is responsible when this question failed. */
@@ -135,12 +139,35 @@ function pct(n: number, d: number): string {
   return d === 0 ? "—" : `${Math.round((n / d) * 100)}%`;
 }
 
+function slugOfUrl(url: string | undefined): string {
+  if (!url) return "";
+  return url.split("?")[0].split("#")[0].split("/").filter(Boolean).pop() ?? "";
+}
+
+// ── Degraded-run detection ──────────────────────────────────────────────────
+// A run during which the embedding provider was unreachable completes with
+// exit 0 and a plausible table: measured 2026-09-11, ~25 consecutive `fetch
+// failed` embeddings turned definition retrieval from 92% into 33% while the
+// pipeline under test was unchanged. The retrieval layer logs each failure and
+// carries on (by design — a request must degrade, not break), so the only way
+// the benchmark can tell a degraded run from a regression is to count those
+// log lines itself and refuse to present the numbers as comparable.
+let embeddingFailures = 0;
+const originalError = console.error;
+console.error = (...args: unknown[]) => {
+  const text = args.map(String).join(" ");
+  if (/embedding failed|semantic chunks:|match_library:/.test(text)) embeddingFailures++;
+  originalError(...args);
+};
+
 async function main() {
   const fixture = JSON.parse(
     readFileSync("scripts/ai-answer-benchmark/questions.json", "utf8"),
   ) as { generatedAt: string; corpusBooks: number; questions: Question[] };
 
-  const all = fixture.questions.filter((q) => !ONLY || q.category === ONLY);
+  const all = fixture.questions.filter(
+    (q) => (!ONLY || q.category === ONLY) && (!IDS || IDS.includes(q.id)),
+  );
 
   // Imported late: these modules read process.env at load, and AI_MOCK_PROVIDER
   // has to be set before `lib/ai/models.ts` and the provider resolve.
@@ -172,7 +199,10 @@ async function main() {
 
     const answer = response?.answer ?? "";
     const sources = response?.sources ?? [];
-    const citedSlugs = [...new Set(sources.map((s) => (s as { slug?: string }).slug).filter(Boolean) as string[])];
+    // A Source carries a url, not a slug; the slug is its last path segment.
+    // (Reading a `slug` field that does not exist printed "(none cited)" for
+    // every generated answer in the diagnostic trace.)
+    const citedSlugs = [...new Set(sources.map((s) => slugOfUrl(s.url)).filter(Boolean))];
     const evidenceSlugs = [
       ...new Set(
         (response?.results ?? []).map((r) => (r as { slug?: string }).slug).filter(Boolean) as string[],
@@ -246,6 +276,7 @@ async function main() {
       latencyMs: Date.now() - started,
       answer,
       citedSlugs,
+      evidenceSlugs,
       expectedSlugs: expected,
       diagnosis,
       retrievalMode: telemetry?.retrievalMode ?? null,
@@ -290,10 +321,30 @@ async function main() {
 
   const overall = agg(rows);
   const byCategory = Object.fromEntries(cats.map((c) => [c, agg(rows.filter((r) => r.category === c))]));
+  const latencies = rows.map((r) => r.latencyMs).sort((a, b) => a - b);
+  const quantile = (q: number) => latencies[Math.min(latencies.length - 1, Math.floor(latencies.length * q))] ?? 0;
+  const report = {
+    generatedAt: new Date().toISOString(),
+    live: LIVE,
+    corpus: `${fixture.corpusBooks} published books, labelled ${fixture.generatedAt.slice(0, 10)}`,
+    /** Embedding/vector failures logged during the run. Non-zero = not comparable. */
+    degraded: embeddingFailures,
+    latency: { p50Ms: quantile(0.5), p95Ms: quantile(0.95) },
+    overall,
+    byCategory,
+    rows,
+  };
 
   if (JSON_OUT) {
-    console.log(JSON.stringify({ generatedAt: new Date().toISOString(), live: LIVE, overall, byCategory, rows }, null, 1));
+    console.log(JSON.stringify(report, null, 1));
   } else {
+    if (embeddingFailures > 0) {
+      console.log(
+        `\n!! DEGRADED RUN: ${embeddingFailures} embedding/vector failure(s) were logged. The semantic leg was\n` +
+          `!! missing for those questions, so these numbers describe the outage, not the pipeline.\n` +
+          `!! Do not compare them against a baseline; re-run.`,
+      );
+    }
     console.log(
       `\nAI answer benchmark — ${LIVE ? "LIVE provider" : "mock model (offline)"} — ${rows.length} questions` +
         `\ncorpus fixture: ${fixture.corpusBooks} published books, labelled ${fixture.generatedAt.slice(0, 10)}\n`,
@@ -311,6 +362,7 @@ async function main() {
     for (const c of cats) line(c, byCategory[c]);
     console.log("-".repeat(head.length));
     line("ALL", overall);
+    console.log(`\nlatency p50 ${report.latency.p50Ms} ms · p95 ${report.latency.p95Ms} ms · tok-out ${overall.tokOut}/question`);
 
     const bad = rows.filter((r) => !r.routingOk);
     if (bad.length) {
@@ -353,7 +405,8 @@ async function main() {
             `  retrieval  ${r.evidenceCount} passage(s), ${r.sourceCount} cited source(s)` +
             `${r.contextPrecision !== null ? `, context precision ${Math.round(r.contextPrecision * 100)}%` : ""}\n` +
             `  expected   ${r.expectedSlugs.length ? r.expectedSlugs.slice(0, 3).join(", ") : "(unlabelled)"}\n` +
-            `  actual     ${r.citedSlugs.length ? r.citedSlugs.slice(0, 3).join(", ") : "(none cited)"}\n` +
+            `  evidence   ${r.evidenceSlugs.length ? r.evidenceSlugs.slice(0, 4).join(", ") : "(none)"}\n` +
+            `  cited      ${r.citedSlugs.length ? r.citedSlugs.slice(0, 3).join(", ") : "(none cited)"}\n` +
             `  answer     ${r.answerClass}, ${r.answerChars} chars, ${r.hallucinated} hallucinated citation(s)\n` +
             `  → ${r.diagnosis!.stage}: ${r.diagnosis!.reason}\n` +
             `  → fix in:  ${r.diagnosis!.remedy}\n` +
@@ -381,8 +434,8 @@ async function main() {
   }
 
   mkdirSync("scripts/ai-answer-benchmark/results", { recursive: true });
-  const path = `scripts/ai-answer-benchmark/results/${new Date().toISOString().replace(/[:.]/g, "-")}${LIVE ? "-live" : ""}.json`;
-  writeFileSync(path, JSON.stringify({ generatedAt: new Date().toISOString(), live: LIVE, overall, byCategory, rows }, null, 1));
+  const path = `scripts/ai-answer-benchmark/results/${new Date().toISOString().replace(/[:.]/g, "-")}${LIVE ? "-live" : ""}${embeddingFailures ? "-DEGRADED" : ""}.json`;
+  writeFileSync(path, JSON.stringify(report, null, 1));
   if (!JSON_OUT) console.log(`\nWrote ${path}`);
 }
 
