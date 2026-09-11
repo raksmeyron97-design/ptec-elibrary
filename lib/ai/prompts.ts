@@ -60,8 +60,11 @@ const MODE_RIDER: Partial<Record<AIIntent, Rider>> = {
     "The result cards are rendered by the interface. Summarise what the items cover in one sentence.",
   related_books:
     "Explain in one sentence what these titles have in common with the one the reader is viewing.",
+  // The passages of a summary are a SAMPLE of the document by design, so the
+  // thin-evidence sentence must not apply to them — measured live, the model
+  // opened three of three summaries with it and then summarised anyway.
   resource_summary: (locale) =>
-    `Summarise ONLY what the numbered passages contain, and say which parts of the document you did not see; do not describe chapters or findings no passage mentions. ${evidenceRule(locale)}`,
+    `The numbered passages are a sample of the document. Summarise what they contain, say plainly that they are a sample and which parts you did not see, and do not describe chapters or findings no passage mentions. Cite each claim as ${locale === "km" ? "(ចំណងជើង, ទំព័រ N)" : "(Title, p. N)"}, using only a page shown beside that title.`,
   document_compare: (locale) =>
     `Compare using only the numbered passages — labelled by document, or grouped by concept when a FACTS line says so. Give each side's position, then the key differences; if one side has no passages, say so instead of inferring it. ${evidenceRule(locale)}`,
   author_search:

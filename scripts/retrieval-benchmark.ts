@@ -442,7 +442,11 @@ async function main() {
       const slug = slugOf(e.url);
       if (!expected.has(slug)) return;
       const pages = expected.get(slug);
-      if (!pages || pages.length === 0 || pages.includes(e.page)) rank = i + 1;
+      // A merged run of adjacent pages (lib/ai/evidence.ts mergeAdjacentPages)
+      // covers every page from `page` to `pageEnd`; the labelled page may be
+      // any of them.
+      const end = (e as { pageEnd?: number }).pageEnd ?? e.page;
+      if (!pages || pages.length === 0 || pages.some((p) => p >= e.page && p <= end)) rank = i + 1;
     });
 
     // Leakage, not coverage: citing a record the question did not name is a

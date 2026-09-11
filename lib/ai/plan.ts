@@ -308,13 +308,20 @@ export function buildGeneration(p: Plan, org: PromptOrg): GenerationInput {
   const model = modelIdFor(tier) ?? modelIdFor("fast")!;
 
   const isFormatting = intent.intent.endsWith("_search");
+  const thinkingBudget = thinkingBudgetFor(tier);
+  const textBudget = isFormatting ? SEARCH_FORMAT_OUTPUT_TOKENS : MAX_OUTPUT_TOKENS[intent.verbosity];
   return {
     system,
     messages,
     model,
-    thinkingBudget: thinkingBudgetFor(tier),
-    maxOutputTokens: isFormatting
-      ? SEARCH_FORMAT_OUTPUT_TOKENS
-      : MAX_OUTPUT_TOKENS[intent.verbosity],
+    thinkingBudget,
+    // Gemini counts its thinking tokens AGAINST maxOutputTokens. On the
+    // reasoning tier (every evidence question with three or more passages)
+    // a 512-token thinking budget inside a 350-token output cap left ~10
+    // tokens for the answer: measured live, "What is action research?" came
+    // back as 75 characters ending mid-sentence with finishReason=length
+    // and usage {textTokens: 10, reasoningTokens: 336}. The mock never sees
+    // this. The text budget is the reader's; thinking is paid on top.
+    maxOutputTokens: textBudget + thinkingBudget,
   };
 }
