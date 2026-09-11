@@ -8,10 +8,12 @@ import {
   mitigateIncident,
   resolveIncident,
   silenceIncident,
-  SILENCE_OPTIONS,
   unsilenceIncident,
 } from "../../actions";
-import type { IncidentStatus } from "@/lib/security/incident-policy";
+import {
+  SILENCE_OPTIONS,
+  type IncidentStatus,
+} from "@/lib/security/incident-policy";
 
 /**
  * Incident response controls.

@@ -58,6 +58,13 @@ export const LIVE_STATUSES: readonly IncidentStatus[] = [
   "mitigating",
 ];
 
+/** Silence windows an operator can choose in the UI. */
+export const SILENCE_OPTIONS = [
+  { minutes: 60, label: "1 hour" },
+  { minutes: 240, label: "4 hours" },
+  { minutes: 1440, label: "24 hours" },
+] as const;
+
 export function isLive(status: IncidentStatus): boolean {
   return LIVE_STATUSES.includes(status);
 }
