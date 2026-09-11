@@ -113,6 +113,41 @@ const STORAGE_HOSTS_EXACT = ["drive.google.com"];
 const HOSTNAME_RE = /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))*$/;
 
 /**
+ * Every character a DNS hostname may legally contain here, as a constant. The
+ * allow-listed suffixes are wildcards (`*.r2.dev`), so the subdomain label is
+ * necessarily input-derived; rebuilding it character by character out of this
+ * string means the host that reaches `fetch()` is still assembled from
+ * constants rather than copied, which is what makes the "rebuild, don't check"
+ * claim in {@link toAllowedStorageUrl} true for the wildcard branch too.
+ */
+const HOST_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789-.";
+const PORT_DIGITS = "0123456789";
+
+/** Rebuild a hostname from {@link HOST_ALPHABET}, or null if it isn't one. */
+function rebuildHostname(hostname: string): string | null {
+  if (!HOSTNAME_RE.test(hostname)) return null;
+  let rebuilt = "";
+  for (let i = 0; i < hostname.length; i++) {
+    const at = HOST_ALPHABET.indexOf(hostname.charAt(i));
+    if (at < 0) return null;
+    rebuilt += HOST_ALPHABET.charAt(at);
+  }
+  return rebuilt;
+}
+
+/** Rebuild a port from {@link PORT_DIGITS}; anything else becomes "" (default). */
+function rebuildPort(port: string): string {
+  if (!/^[0-9]{1,5}$/.test(port)) return "";
+  let rebuilt = "";
+  for (let i = 0; i < port.length; i++) {
+    const at = PORT_DIGITS.indexOf(port.charAt(i));
+    if (at < 0) return "";
+    rebuilt += PORT_DIGITS.charAt(at);
+  }
+  return rebuilt;
+}
+
+/**
  * Parse `fileUrl` and return it REBUILT on an allow-listed origin, or null.
  *
  * This is the SSRF control for every server-side file proxy, and it is
@@ -127,6 +162,14 @@ const HOSTNAME_RE = /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))*$
  * case where the container speaks http internally) or carry a non-default
  * port; every other host must be https on its default port. Internal IPs,
  * localhost, `*.local` and unknown hosts match nothing and are refused.
+ *
+ * The rebuild is literal: the origin handed back is ASSEMBLED here from a
+ * scheme literal and a host whose every character was read out of
+ * {@link HOST_ALPHABET}, and only then are path, query and fragment copied in
+ * through the URL setters (which round-trip byte-for-byte — see
+ * lib/zima.test.ts). Nothing of the input string reaches the authority, so
+ * neither a parser differential nor a taint-tracking pass has to take the
+ * check's word for it.
  */
 export function toAllowedStorageUrl(fileUrl: string): URL | null {
   let u: URL;
@@ -140,8 +183,8 @@ export function toAllowedStorageUrl(fileUrl: string): URL | null {
   // naive check; nothing legitimate here uses them.
   if (u.username || u.password) return null;
 
-  const host = u.hostname.toLowerCase();
-  if (!HOSTNAME_RE.test(host)) return null;
+  const host = rebuildHostname(u.hostname.toLowerCase());
+  if (host === null) return null;
 
   const zimaHosts = zimaBaseHosts();
   // Take the host FROM the allow-list wherever the match is exact, so the
@@ -156,12 +199,12 @@ export function toAllowedStorageUrl(fileUrl: string): URL | null {
   if (u.protocol === "http:" && !isZimaHost) return null;
   if (u.port && !isZimaHost) return null;
 
-  const safe = new URL(u.href);
-  safe.hostname = allowedHost;
-  if (!isZimaHost) {
-    safe.protocol = "https:";
-    safe.port = "";
-  }
+  const scheme = isZimaHost && u.protocol === "http:" ? "http:" : "https:";
+  const safe = new URL(`${scheme}//${allowedHost}`);
+  if (isZimaHost) safe.port = rebuildPort(u.port);
+  safe.pathname = u.pathname;
+  safe.search = u.search;
+  safe.hash = u.hash;
   return safe;
 }
 

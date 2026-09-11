@@ -8,6 +8,7 @@ import { embedQuery, embeddingsConfigured } from "@/lib/ai/provider";
 import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy, isExpensiveSearchDisabled } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
+import { scrubLogValue } from "@/lib/log-safe";
 import { classifySignatures } from "@/lib/security/model";
 import { bookDownloadAllowed } from "@/lib/books/access";
 import { resolveDownloadAccess } from "@/lib/publications/access";
@@ -1188,7 +1189,7 @@ async function semanticPassages(db: DB, q: string, limit = 6): Promise<PageHit[]
     }
     return hits;
   } catch (err) {
-    console.error("[native-search/semantic]", err);
+    console.error("[native-search/semantic]", scrubLogValue(err));
     return [];
   }
 }

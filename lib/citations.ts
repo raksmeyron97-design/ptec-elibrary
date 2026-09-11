@@ -56,22 +56,32 @@ function oneLine(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
+/** Every character BibTeX reads as syntax, mapped to its escaped form. */
+const BIBTEX_ESCAPES: Record<string, string> = {
+  "&": "\\&",
+  "%": "\\%",
+  $: "\\$",
+  "#": "\\#",
+  _: "\\_",
+  "~": "\\textasciitilde{}",
+  "^": "\\textasciicircum{}",
+  "\\": "\\textbackslash{}",
+};
+
 /**
  * LaTeX-escape a BibTeX field value. Input braces are dropped first — classic
  * BibTeX counts even backslash-escaped braces toward balance, so `\{` could
- * still corrupt the entry. Backslashes are place-held so the replacements
- * (which introduce their own balanced braces) aren't double-escaped.
+ * still corrupt the entry.
+ *
+ * The escape itself is ONE pass over the string. A chain of `.replace()` calls
+ * has to hide backslashes behind a placeholder while the other rules run (their
+ * replacements introduce backslashes of their own), and any placeholder is a
+ * character the input is then no longer allowed to contain — a literal NUL in a
+ * title used to come back out as `\textbackslash{}`. A single pass with a lookup
+ * has no intermediate state to collide with.
  */
 function escapeBibtex(value: string): string {
-  return oneLine(
-    value
-      .replace(/[{}]/g, "")
-      .replace(/\\/g, "\u0000")
-      .replace(/([&%$#_])/g, "\\$1")
-      .replace(/~/g, "\\textasciitilde{}")
-      .replace(/\^/g, "\\textasciicircum{}")
-      .replace(/\u0000/g, "\\textbackslash{}"),
-  );
+  return oneLine(value.replace(/[{}]/g, "").replace(/[&%$#_~^\\]/g, (ch) => BIBTEX_ESCAPES[ch]));
 }
 
 /** DOIs/URLs are copied verbatim by reference managers — never LaTeX-escape

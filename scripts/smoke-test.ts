@@ -52,7 +52,9 @@ async function main() {
 
   for (const c of CHECKS) {
     const started = Date.now();
-    let status = 0, bodyOk = "—", statusText = "";
+    let status = 0;
+    let bodyOk: string;
+    let statusText: string;
     try {
       const res = await fetch(`${BASE}${c.path}`, { headers: { "user-agent": UA }, redirect: "manual" });
       status = res.status;

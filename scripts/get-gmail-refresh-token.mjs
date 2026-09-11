@@ -74,7 +74,11 @@ const server = http.createServer(async (req, res) => {
 
     if (error || !code) {
       res.writeHead(400, { "Content-Type": "text/plain" }).end(`Authorization failed: ${error ?? "no code returned"}`);
-      console.error("Authorization failed:", error ?? "no code returned");
+      // `error` is whatever Google put in the query string, and this line lands
+      // in an operator's terminal — a CRLF in it would forge a log line. Removed
+      // rather than replaced with a space: see lib/log-safe.ts on why the empty
+      // replacement is the one a static analyser recognises.
+      console.error("Authorization failed:", (error ?? "no code returned").replace(/[\r\n]/g, "").slice(0, 200));
       server.close();
       process.exit(1);
     }

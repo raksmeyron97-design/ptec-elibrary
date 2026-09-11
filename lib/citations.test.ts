@@ -302,6 +302,14 @@ describe('bibtex (generic)', () => {
     expect(entry.fields.author).toBe("O'Brien \\& Sons");
   });
 
+  // The old chained-replace escape hid backslashes behind a NUL placeholder,
+  // so a title that actually contained one came back out as a backslash.
+  it('leaves a literal NUL in the input alone instead of turning it into a backslash', () => {
+    const withNul: CitationWork = { ...fullBookWork, title: 'Before\u0000after' };
+    const entry = parseBibTeXEntry(bibtex(withNul));
+    expect(entry.fields.title).not.toContain('textbackslash');
+  });
+
   it('never LaTeX-escapes DOI and URL fields', () => {
     const withDoi: CitationWork = { ...thesisWork, doi: '10.1234/ptec_2023#7' };
     const entry = parseBibTeXEntry(bibtex(withDoi));

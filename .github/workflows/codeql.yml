@@ -48,9 +48,10 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: javascript-typescript
-          # security-extended adds queries with lower confidence; start with
-          # the default suite to keep alerts high-signal, widen deliberately.
-          queries: security-and-quality
+          # Suite selection and the analysis scope both live in the config
+          # file, so a scope decision is reviewable next to its justification
+          # rather than buried in a workflow `with:` block.
+          config-file: ./.github/codeql/codeql-config.yml
 
       - name: Analyze
         uses: github/codeql-action/analyze@v3
