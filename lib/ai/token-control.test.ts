@@ -168,12 +168,20 @@ describe("prompt size", () => {
   const org = { siteName: "PTEC e-Library", institutionName: "Phnom Penh Teacher Education College" };
 
   it("keeps every system prompt small enough to leave room for evidence", () => {
+    // 240/270, not 200: AI Brain 2 added three policy lines the prompt had
+    // left implicit — the three kinds of claim, the exact thin-evidence
+    // sentence, and the page-belongs-to-its-title rule. The Khmer bound is
+    // higher only because the same sentence tokenises ~2× denser (0.55
+    // tokens/char); the policy is identical. `contextCeilingFor` reserves
+    // 1,100 tokens for system + history + question above the evidence budget,
+    // so even the Khmer prompt leaves 830 for the rest.
+    const BOUND = { en: 240, km: 270 } as const;
     for (const intent of [
       "faq", "book_search", "thesis_search", "pdf_question", "general_knowledge",
     ] as const) {
       for (const locale of ["en", "km"] as const) {
         const p = buildSystemPrompt({ org, intent, locale, verbosity: "normal" });
-        expect(estimateTokens(p)).toBeLessThan(200);
+        expect(estimateTokens(p), `${intent}/${locale}`).toBeLessThan(BOUND[locale]);
       }
     }
   });

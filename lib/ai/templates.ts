@@ -8,6 +8,7 @@
 // hallucinate. The result cards carry the substance (§14).
 
 import { toKhmerDigits } from "./citations";
+import { NO_EVIDENCE_SENTENCE } from "./prompts";
 import type { AILocale, SearchResult } from "./response";
 
 function n(count: number, locale: AILocale): string {
@@ -282,9 +283,11 @@ export function relatedLead(count: number, locale: AILocale): string {
 
 /** Retrieval produced no page evidence for a document question. */
 export function noEvidence(locale: AILocale): string {
+  // The same opening sentence the model is told to use (lib/ai/prompts.ts),
+  // so a refusal is one recognisable thing whichever path produced it.
   return locale === "km"
-    ? "ខ្ញុំរកមិនឃើញអត្ថបទនៅក្នុងឯកសាររបស់បណ្ណាល័យ ដែលឆ្លើយសំណួរនេះទេ។ សូមសាកល្បងសួរឱ្យជាក់លាក់ជាងនេះ ឬបញ្ជាក់ចំណងជើងឯកសារ។"
-    : "I couldn’t find a passage in the library’s documents that answers that. Try asking more specifically, or name the document you mean.";
+    ? `${NO_EVIDENCE_SENTENCE.km} សូមសាកល្បងសួរឱ្យជាក់លាក់ជាងនេះ ឬបញ្ជាក់ចំណងជើងឯកសារដែលអ្នកចង់សួរ។`
+    : `${NO_EVIDENCE_SENTENCE.en} Try asking more specifically, or name the document you mean.`;
 }
 
 /** The model was unavailable but retrieval succeeded (§26). */
