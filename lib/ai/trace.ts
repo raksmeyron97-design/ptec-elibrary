@@ -95,6 +95,8 @@ export interface AITrace {
     provider: string | null;
     model: string | null;
     latencyMs: number;
+    /** "length" = the output cap cut the answer; the reader saw a truncated reply. */
+    finishReason: string | null;
   };
 }
 
@@ -190,6 +192,7 @@ export function buildTrace(
       provider: telemetry.provider ?? null,
       model: telemetry.model ?? null,
       latencyMs: telemetry.latencyMs,
+      finishReason: telemetry.finishReason ?? null,
     },
   };
 }

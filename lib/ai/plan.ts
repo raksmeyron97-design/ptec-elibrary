@@ -122,6 +122,9 @@ export interface Plan {
   injection: boolean;
 }
 
+/** How many times the nominal thinking budget the output cap leaves room for. */
+export const THINKING_HEADROOM = 2;
+
 /** Title-match bands that mean "this IS the work", not "this starts like it". */
 const EXACT_BANDS: ReadonlySet<string> = new Set(["exact", "normalized", "edition"]);
 
@@ -321,7 +324,11 @@ export function buildGeneration(p: Plan, org: PromptOrg): GenerationInput {
     // tokens for the answer: measured live, "What is action research?" came
     // back as 75 characters ending mid-sentence with finishReason=length
     // and usage {textTokens: 10, reasoningTokens: 336}. The mock never sees
-    // this. The text budget is the reader's; thinking is paid on top.
-    maxOutputTokens: textBudget + thinkingBudget,
+    // this. The text budget is the reader's; thinking is paid on top — and
+    // paid TWICE over, because gemini-3.5-flash treats the budget as a
+    // guide rather than a cap (a fourth live run still cut two answers at
+    // text + 1× budget). A cap on the answer is what this is; the thinking
+    // headroom is not a target the model spends up to.
+    maxOutputTokens: textBudget + THINKING_HEADROOM * thinkingBudget,
   };
 }

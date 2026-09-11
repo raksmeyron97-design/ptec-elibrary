@@ -477,6 +477,7 @@ export async function runAssistant(
       groundedCitations: grounded.grounded.length,
       hallucinatedCitations: grounded.hallucinated.length,
       quotedCitations: grounded.quoted.length,
+      finishReason: result.finishReason,
     };
 
     const metadata = {

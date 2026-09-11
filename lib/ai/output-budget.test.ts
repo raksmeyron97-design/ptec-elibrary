@@ -9,7 +9,7 @@
 // benchmark cannot see this; this test pins the arithmetic.
 
 import { describe, expect, it } from "vitest";
-import { buildGeneration, type Plan } from "./plan";
+import { THINKING_HEADROOM, buildGeneration, type Plan } from "./plan";
 import { classifyIntent } from "./intent";
 import { compressConversation } from "./conversation";
 import { MAX_OUTPUT_TOKENS, SEARCH_FORMAT_OUTPUT_TOKENS } from "./token-budget";
@@ -50,7 +50,7 @@ describe("maxOutputTokens leaves the whole text budget to the answer", () => {
     const gen = buildGeneration(planFor("What is action research?", 5), ORG);
     expect(gen.thinkingBudget).toBe(thinkingBudgetFor("reasoning"));
     expect(gen.thinkingBudget).toBeGreaterThan(0);
-    expect(gen.maxOutputTokens).toBe(MAX_OUTPUT_TOKENS.normal + gen.thinkingBudget);
+    expect(gen.maxOutputTokens).toBe(MAX_OUTPUT_TOKENS.normal + THINKING_HEADROOM * gen.thinkingBudget);
   });
 
   it("charges nothing extra when there is no thinking", () => {
@@ -61,6 +61,6 @@ describe("maxOutputTokens leaves the whole text budget to the answer", () => {
 
   it("keeps the smaller cap for formatting a result list", () => {
     const gen = buildGeneration(planFor("find me books about reading", 0), ORG);
-    expect(gen.maxOutputTokens).toBe(SEARCH_FORMAT_OUTPUT_TOKENS + gen.thinkingBudget);
+    expect(gen.maxOutputTokens).toBe(SEARCH_FORMAT_OUTPUT_TOKENS + THINKING_HEADROOM * gen.thinkingBudget);
   });
 });

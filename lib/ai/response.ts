@@ -113,6 +113,8 @@ export interface AITelemetry {
   hallucinatedCitations?: number;
   /** Citation-shaped strings repeated from inside a passage — stripped, not invented. */
   quotedCitations?: number;
+  /** Why generation stopped: "length" means the answer was cut by the output cap. */
+  finishReason?: string;
   /** Set when a primary path failed and a degraded path answered instead. */
   fallback?: "keyword" | "no_llm" | "no_embedding" | "cache" | "error";
   /** Which backend generated the answer (lib/ai/provider.ts). */

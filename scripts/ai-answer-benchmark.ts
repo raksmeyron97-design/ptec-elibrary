@@ -389,6 +389,10 @@ async function main() {
     console.log("-".repeat(head.length));
     line("ALL", overall);
     console.log(`\nlatency p50 ${report.latency.p50Ms} ms · p95 ${report.latency.p95Ms} ms · tok-out ${overall.tokOut}/question`);
+    const truncated = rows.filter((r) => r.trace?.outcome.finishReason === "length");
+    if (truncated.length) {
+      console.log(`\n!! ${truncated.length} answer(s) were CUT by the output cap (finishReason=length): ${truncated.map((r) => r.id).join(", ")}`);
+    }
 
     const bad = rows.filter((r) => !r.routingOk);
     if (bad.length) {
