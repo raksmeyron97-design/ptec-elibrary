@@ -10,19 +10,26 @@
 
 ## **PASS WITH WARNINGS**
 
-The warning that made the previous audit "with warnings" is **closed**: the
-security-event sink's root cause is proven, fixed, and verified end to end
-against a real production build — 0 rows → 3 rows → a detected incident. The
-authorization gap the audit could not close is now closed **at the database
+**Deployed and verified in production.** The warning that made the previous
+audit "with warnings" is **closed**: the security-event sink's root cause is
+proven and fixed, and the whole chain now runs on the live system — 0 rows →
+18 rows → `SEC-20260911-001` opened at severity 2 → Telegram alert delivered.
+The pipeline immediately began capturing real production activity it had been
+silently dropping for months. Full evidence in
+[Production Deployment Verification](#production-deployment-verification).
+
+The authorization gap the audit could not close is now closed **at the database
 boundary** by 39 executable cross-account probes, having been unverifiable
 before for want of a second account.
 
-It is not a clean PASS, and the reason is stated rather than buried: **the fix
-has not yet run in production.** Everything below was reproduced and verified
-against a production *build* driving the local stack. The production container
-is still running the old code, so `security_events` on
-`supabase.storage-ptec.online` is still at zero rows until this branch is
-deployed. One post-deploy check closes it (§6).
+Two warnings remain, neither production-blocking and neither a code defect:
+
+1. **Detection latency.** `security-scan` is configured for every 5 minutes;
+   GitHub Actions ran it **once in 2.5 hours**. Events persist immediately, but
+   incident creation and alerting can lag by up to an hour.
+2. **Production cross-account (IDOR) testing** was not performed with two real
+   non-admin sessions — none were available. Evidence is the 39-probe suite
+   against a stack running the identical migration chain.
 
 ---
 
@@ -442,3 +449,142 @@ audit are on `audit/final-production-reliability-2` and are inherited unchanged.
 **No model was trained, fine-tuned, replaced or prompted around a benchmark.**
 The §29 precondition remains unmet, and §4 now records exactly what evidence
 would meet it.
+
+---
+
+## Production Deployment Verification
+
+**Everything above this heading is LOCAL VERIFIED. Everything below it is
+PRODUCTION VERIFIED.** The two are never combined.
+
+| | |
+|---|---|
+| Production commit | `4f89f58` |
+| PR | [#171](https://github.com/raksmeyron97-design/ptec-elibrary/pull/171), rebase-merged (8 commits preserved) |
+| Merged at | 2026-09-10 15:12:10 UTC |
+| Image | `Build and push to GHCR` — run `34494042077`, success |
+| Deploy landed | asset fingerprint `webpack-b3de94ae…` → `webpack-fd8494d1…`, `Last-Modified: 2026-09-10 16:24:26 GMT` |
+| Verified at | 2026-09-11 00:26–00:50 UTC |
+
+### Security event persistence — PASS
+
+```
+BEFORE (pre-deploy, 15:13 UTC)   security_events 0 rows · security_incidents 0 rows
+PROBE  (00:26:43 UTC)            3 × GET /api/cron/cleanup, invalid bearer → 401, 401, 401
+AFTER  (00:26 UTC)               security_events 11 rows
+```
+
+The three probe events are present with the right shape:
+
+```
+2026-09-11T00:26:45  sev2  cron_auth_failed  /api/cron/cleanup  blocked  actor=anonymous
+2026-09-11T00:26:44  sev2  cron_auth_failed  /api/cron/cleanup  blocked  actor=anonymous
+2026-09-11T00:26:44  sev2  cron_auth_failed  /api/cron/cleanup  blocked  actor=anonymous
+```
+
+They are not alone, and that is the stronger evidence: the pipeline immediately
+began recording **real** production activity it had been silently dropping for
+months — a `csp_violation` from the tunnel's fallback hostname at 22:18, and a
+run of `mfa_required` events from the admin layout between 00:37 and 00:46 as
+an administrator signed in. By 00:50 the table held **18 rows**.
+
+### Event → incident chain — PASS
+
+The detection pass was dispatched (`gh workflow run cron.yml -f job=security-scan`,
+run `34547118395`, success) and opened:
+
+```
+SEC-20260911-001   open   sev2   cron_auth_failed
+"Scheduled-job endpoint probed with a bad secret"
+events=4   first_seen=2026-09-10T23:53:09   alert_count=1
+reason: "4 request(s) to a /api/cron/* route with a wrong or missing bearer secret.
+         The routes refused them. If this was not your own misconfiguration,
+         rotate CRON_SECRET (docs/RUNBOOKS.md §I10)."
+runbook: docs/RUNBOOKS.md §I10
+```
+
+`alert_count=1` means the Telegram notification was **delivered**, so the chain
+is verified end to end in production: event → persisted → detected → finding →
+incident → alert.
+
+> **Action for a human, and it is not an attack.** `SEC-20260911-001` is open
+> and was raised by this verification. The bearer values were synthetic
+> (`audit-probe-invalid-secret-2026-09-11`); **no rotation of `CRON_SECRET` is
+> needed.** Acknowledge and resolve it in `/admin/security`.
+
+### Redaction — PASS
+
+Across every persisted event and the incident:
+
+```
+REDACTION: clean — no credential material in any persisted row
+  detail   : [null, null, null, null, "directive=img-src blocked=…/og-default.png"]
+  metadata : [{}, {}, {}, {}, {}]
+  ip_hash  : [null, null, null, null, null]   rawIPs=0
+INCIDENT REDACTION: clean
+```
+
+Checked for `sk_live_`, `Bearer sk_`, `eyJ`, `ghp_`, `AIza` and the probe's own
+synthetic bearer value. None present in any row. No raw IP addresses.
+
+### Sink health — PASS (by evidence), NOT visually confirmed
+
+The rows exist, which is the property the health row reports: with
+`installed:false` there would be nothing to read. The `/admin/security` →
+Monitoring health → **Event persistence** row was **not** opened in a browser —
+that needs an administrator session this verification did not have. See
+Limitations.
+
+### Regression — PASS
+
+18 routes, all correct, and **faster than pre-deploy**:
+
+| | pre-deploy | post-deploy |
+|---|---|---|
+| `/` | 1.09 s | **0.47 s** |
+| `/books` | 0.80 s | **0.42 s** |
+| `/authors` | 1.23 s | **0.41 s** |
+| `/api/health` | 1.21 s | **0.46 s** |
+
+`/dashboard`, `/profile`, `/admin` → 307 to login. Book detail → 200. Anonymous
+PDF → **401**. All five `/api/cron/*` → **401**. `/api/health` →
+`{"db":"ok","auth":"ok","storage":"ok"}`.
+
+### CI note — a flaky test, determined rather than assumed
+
+`ci / e2e` failed on main and gated the image build, so nothing deployed until
+it was resolved. The failing test was
+`e2e/reader-performance.spec.ts › "network drop: … reading resumes when the link
+returns"` — expected `Page 150 of 200`, got `Page 1 of 200`, on the initial run
+and both retries.
+
+It was determined to be non-deterministic, not a regression, on four pieces of
+evidence:
+
+1. The **identical tree** passed `e2e` on the PR 30 minutes earlier (rebase
+   merge — byte-identical content).
+2. The last three deploys to main all had `e2e` green.
+3. **Zero** of the twelve source files this branch changes is imported anywhere
+   in `components/ui/reader/`, `lib/reader/` or the book read page — verified by
+   import scan, not asserted.
+4. Re-running the same job on the same commit passed.
+
+The job was re-run. No check was disabled, no ignore rule added, no threshold
+relaxed, and the workflow was not modified.
+
+### Finding raised during verification — detection latency
+
+`security-scan` is documented and configured to run **every 5 minutes**
+(`*/5 * * * *` in `.github/workflows/cron.yml`). GitHub Actions is not honouring
+that: in the 2.5 hours observed, the job ran **once** (23:11:56 UTC). A
+`cron_auth_failed` event at 23:53 was still unscanned 33 minutes later, and the
+incident only opened once the pass was dispatched by hand.
+
+The consequence is real but bounded: events are persisted immediately and
+nothing is lost, but **detection, incident creation and alerting can be delayed
+by up to an hour** rather than the documented five minutes. GitHub throttles
+high-frequency schedules on low-activity repositories. Options, in order of
+robustness: run the sweep from the box's own systemd timer (already documented
+as the alternative in `docs/ZIMAOS-DEPLOYMENT.md`), or accept and document the
+real cadence. **Not fixed here** — it is a scheduling-platform issue, not a code
+defect, and changing it is outside this branch's scope.
