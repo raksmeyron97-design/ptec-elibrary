@@ -86,6 +86,8 @@ export interface AITrace {
     hallucinated: number;
     quoted: number;
     attached: number;
+    /** The citation strings grounding removed, verbatim — what the model wrote that no passage supports. */
+    removed: string[];
   };
   outcome: {
     answerClass: "template" | "generated" | "refusal";
@@ -116,7 +118,7 @@ export function buildTrace(
   plan: Plan,
   response: AIResponse,
   telemetry: AITelemetry,
-  extra: { inputTokens: number; grounded: number; hallucinated: number; quoted: number },
+  extra: { inputTokens: number; grounded: number; hallucinated: number; quoted: number; removed?: string[] },
 ): AITrace {
   const { intent, retrieval } = plan;
   const parsed = intent.parsed;
@@ -180,6 +182,7 @@ export function buildTrace(
       hallucinated: extra.hallucinated,
       quoted: extra.quoted,
       attached: response.sources?.length ?? 0,
+      removed: extra.removed ?? [],
     },
     outcome: {
       answerClass: REFUSAL.test(answer) ? "refusal" : telemetry.deterministic ? "template" : "generated",

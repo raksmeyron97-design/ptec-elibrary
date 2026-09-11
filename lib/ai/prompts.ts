@@ -65,8 +65,12 @@ const MODE_RIDER: Partial<Record<AIIntent, Rider>> = {
   // opened three of three summaries with it and then summarised anyway.
   resource_summary: (locale) =>
     `The numbered passages are a sample of the document. Summarise what they contain, say plainly that they are a sample and which parts you did not see, and do not describe chapters or findings no passage mentions. Cite each claim as ${locale === "km" ? "(ចំណងជើង, ទំព័រ N)" : "(Title, p. N)"}, using only a page shown beside that title.`,
+  // One side with no passages is stated as missing and the other side is
+  // still compared against it; that alone is not thin evidence (measured
+  // live: the model opened a two-book comparison with the refusal sentence
+  // because one book had no passages on the question).
   document_compare: (locale) =>
-    `Compare using only the numbered passages — labelled by document, or grouped by concept when a FACTS line says so. Give each side's position, then the key differences; if one side has no passages, say so instead of inferring it. ${evidenceRule(locale)}`,
+    `Compare using only the numbered passages — labelled by document, or grouped by concept when a FACTS line says so. Give each side's position, then the key differences. A side with no passages is stated as missing and is not a reason for the insufficient-evidence sentence. ${evidenceRule(locale)}`,
   author_search:
     "The result cards are rendered by the interface. Say in one sentence what this author's listed works cover; do not invent biography, roles or affiliations.",
   subject_search:

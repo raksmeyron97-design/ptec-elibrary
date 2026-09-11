@@ -499,6 +499,7 @@ export async function runAssistant(
       grounded: grounded.grounded.length,
       hallucinated: grounded.hallucinated.length,
       quoted: grounded.quoted.length,
+      removed: [...grounded.hallucinated, ...grounded.quoted].map((c) => c.raw),
     });
     emitTrace(chain);
     return { response, telemetry, trace: chain };

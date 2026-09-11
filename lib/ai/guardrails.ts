@@ -178,7 +178,17 @@ export function isDuplicateTurn(messages: readonly InboundMessage[]): boolean {
 
 // A range ("pp. 44–45") is read as its first page: a merged run of adjacent
 // pages is one passage, and its first page is the one the source card opens.
-const CITATION_RE = /\(([^()]{1,120}?),\s*(?:pp?\.?|pages?|ទំព័រ)\s*([\d០-៩]{1,4})(?:\s*[–-]\s*[\d០-៩]{1,4})?\)/giu;
+// The title may carry ONE level of parentheses — "(8th Edition)" is in half
+// the collection's titles — and the markup a model wraps it in (*italics*,
+// quotes) is stripped before comparison.
+const CITATION_RE =
+  /\(((?:[^()]|\([^()]*\)){1,140}?),\s*(?:pp?\.?|pages?|ទំព័រ)\s*([\d០-៩]{1,4})(?:\s*[–-]\s*[\d០-៩]{1,4})?(?:\s*[,;]\s*[\d០-៩]{1,4}(?:\s*[–-]\s*[\d០-៩]{1,4})?)*\)/giu;
+// The form a model actually writes most often: the title in the prose, then a
+// bare page in parentheses — `*Social Research Methods* says … (p. 35)`. The
+// page belongs to the nearest title named before it (enforceGrounding decides
+// which); with no title named, it cannot be verified and is removed.
+const BARE_PAGE_RE =
+  /\((?:pp?\.?|pages?|ទំព័រ)\s*([\d០-៩]{1,4})(?:\s*[–-]\s*[\d០-៩]{1,4})?(?:\s*[,;]\s*[\d០-៩]{1,4}(?:\s*[–-]\s*[\d០-៩]{1,4})?)*\)/giu;
 const KHMER_DIGITS = "០១២៣៤៥៦៧៨៩";
 
 function toArabic(s: string): number {
@@ -187,22 +197,32 @@ function toArabic(s: string): number {
 
 export interface ExtractedCitation {
   raw: string;
+  /** The title as written, or "" for a bare page citation awaiting attribution. */
   title: string;
   page: number;
+  /** Where the citation sits in the answer, so a bare page can find its title. */
+  index?: number;
 }
 
 export function extractCitations(answer: string): ExtractedCitation[] {
   const out: ExtractedCitation[] = [];
   for (const m of answer.matchAll(CITATION_RE)) {
     const page = toArabic(m[2]);
-    if (Number.isFinite(page)) out.push({ raw: m[0], title: m[1].trim(), page });
+    if (Number.isFinite(page)) out.push({ raw: m[0], title: m[1].trim(), page, index: m.index });
   }
-  return out;
+  for (const m of answer.matchAll(BARE_PAGE_RE)) {
+    const page = toArabic(m[1]);
+    if (Number.isFinite(page)) out.push({ raw: m[0], title: "", page, index: m.index });
+  }
+  return out.sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
 }
 
 function normTitle(s: string): string {
-  return s.toLowerCase().replace(/["“”'’]/g, "").replace(/\s+/g, " ").trim();
+  return s.toLowerCase().replace(/["“”'’«»*_]/g, "").replace(/\s+/g, " ").trim();
 }
+
+/** How far back (in characters) a bare page citation may look for its title. */
+const BARE_PAGE_REACH = 400;
 
 export interface GroundingResult {
   /** Answer with unsupported citations removed. */
@@ -235,10 +255,12 @@ export function enforceGrounding(
   const quotedIn = (raw: string) => passageTexts.some((t) => t.includes(raw));
 
   const allowedPages = new Map<string, Set<number>>();
+  const titleOf = new Map<string, string>();
   for (const s of allowed) {
     if (s.page === undefined) continue;
     const key = normTitle(s.title);
     if (!allowedPages.has(key)) allowedPages.set(key, new Set());
+    titleOf.set(key, s.title);
     // A merged run of adjacent pages (lib/ai/evidence.ts) may be cited at any
     // page inside it — every one of those pages was retrieved.
     for (const page of sourcePages(s)) allowedPages.get(key)!.add(page);
@@ -249,11 +271,27 @@ export function enforceGrounding(
   const quoted: ExtractedCitation[] = [];
   let out = answer;
   for (const c of cites) {
-    const key = normTitle(c.title);
+    let key = normTitle(c.title);
+    if (!key) {
+      // A bare `(p. N)`: the page belongs to the title named most recently
+      // before it — the way a model writes `*Title* says … (p. 35)`. Nothing
+      // named within reach means nothing to verify against.
+      const at = c.index ?? 0;
+      const before = normTitle(answer.slice(Math.max(0, at - BARE_PAGE_REACH), at));
+      let best: { key: string; at: number } | null = null;
+      for (const k of allowedPages.keys()) {
+        const found = before.lastIndexOf(k);
+        if (found >= 0 && (!best || found > best.at)) best = { key: k, at: found };
+      }
+      if (best) {
+        key = best.key;
+        c.title = titleOf.get(best.key) ?? best.key;
+      }
+    }
     // Retrieval titles are the authority; accept a citation whose title is a
     // prefix/substring of a retrieved one (models shorten long titles).
-    let pages: Set<number> | undefined = allowedPages.get(key);
-    if (!pages) {
+    let pages: Set<number> | undefined = key ? allowedPages.get(key) : undefined;
+    if (!pages && key) {
       for (const [k, v] of allowedPages) {
         if (k.includes(key) || key.includes(k)) { pages = v; break; }
       }

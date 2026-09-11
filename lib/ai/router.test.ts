@@ -289,7 +289,7 @@ describe("trace", () => {
     expect(trace.question.frame).toBeDefined();
     expect(trace.retrieval.strategy).toMatch(/^evidence:|^lookup:|^template:/);
     expect(trace.outcome.answerClass).toBe("refusal");
-    expect(trace.citations).toEqual({ grounded: 0, hallucinated: 0, quoted: 0, attached: 0 });
+    expect(trace.citations).toEqual({ grounded: 0, hallucinated: 0, quoted: 0, attached: 0, removed: [] });
   });
 
   it("records what reached the model and how its citations were judged", async () => {

@@ -368,3 +368,51 @@ describe("quoted in-text references", () => {
     expect(r.quoted).toHaveLength(0);
   });
 });
+
+// ── AI Brain 2 live run: the forms a real model actually writes ─────────────
+describe("citation forms a live model writes", () => {
+  const LIVE = buildSources([
+    { title: "Research Methods in Education (8th Edition)", author: "Cohen", url: "/books/rme", page: 470, text: "…", similarity: 1 },
+    { title: "Social Research Methods (4th Edition)", author: "Bryman", url: "/books/srm", page: 35, pageEnd: 36, text: "…", similarity: 1 },
+  ]);
+
+  it("reads a title that itself contains parentheses", () => {
+    const r = enforceGrounding("Action research is small-scale (Research Methods in Education (8th Edition), p. 470).", LIVE);
+    expect(r.grounded).toHaveLength(1);
+    expect(r.hallucinated).toHaveLength(0);
+  });
+
+  it("ignores the markup a model wraps a title in", () => {
+    const r = enforceGrounding("It is small-scale (*Research Methods in Education (8th Edition)*, p. 470).", LIVE);
+    expect(r.grounded).toHaveLength(1);
+    expect(enforceGrounding('It is small-scale ("Research Methods in Education (8th Edition)", pp. 470–471).', LIVE).grounded).toHaveLength(1);
+  });
+
+  it("attributes a bare page to the title named most recently before it", () => {
+    const a = "*Social Research Methods (4th Edition)* stresses ethical sensitivity (p. 35–36). Then *Research Methods in Education (8th Edition)* covers internet ethics (p. 470).";
+    const r = enforceGrounding(a, LIVE);
+    expect(r.grounded.map((c) => [c.title, c.page])).toEqual([
+      ["Social Research Methods (4th Edition)", 35],
+      ["Research Methods in Education (8th Edition)", 470],
+    ]);
+    expect(r.hallucinated).toHaveLength(0);
+    expect(r.answer).toBe(a);
+  });
+
+  it("removes a bare page whose nearest title does not hold that page, and one with no title in reach", () => {
+    const r = enforceGrounding("*Social Research Methods (4th Edition)* says so (p. 470). Also (p. 12).", LIVE);
+    expect(r.grounded).toHaveLength(0);
+    expect(r.hallucinated).toHaveLength(2);
+    expect(r.answer).not.toMatch(/p\. 470|p\. 12/);
+  });
+
+  it("reads a Khmer page word with Arabic digits and a nested-paren title", () => {
+    const r = enforceGrounding("… (Research Methods in Education (8th Edition), ទំព័រ 470)។", LIVE);
+    expect(r.grounded).toHaveLength(1);
+  });
+
+  it("reads a page list as its first page", () => {
+    const r = enforceGrounding("Covers sampling (Research Methods in Education (8th Edition), pp. 470–471, 480).", LIVE);
+    expect(r.grounded).toHaveLength(1);
+  });
+});
