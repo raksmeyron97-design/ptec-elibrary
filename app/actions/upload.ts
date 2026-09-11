@@ -7,6 +7,7 @@ import { guardUploadContent } from "@/lib/upload-content-guard";
 import { logSecurityEvent } from "@/lib/security-log";
 import { describeStoragePathError } from "@/lib/storage/folder-name";
 import { uploadPermissionResource } from "@/lib/storage/permission-resource";
+import { scrubLogValue } from "@/lib/log-safe";
 
 const ALLOWED_FOLDERS = ["books", "posts", "research", "reports", "team", "avatars", "publications", "announcements"];
 
@@ -82,7 +83,7 @@ export async function uploadToZima(
     const publicUrl = await zimaUpload(optimizedFile, folder);
     return { publicUrl };
   } catch (error) {
-    console.error("[upload] Zima upload error:", error);
+    console.error("[upload] Zima upload error:", scrubLogValue(error));
     return { error: error instanceof Error ? error.message : "Upload failed" };
   }
 }

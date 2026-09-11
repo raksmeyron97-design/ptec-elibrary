@@ -22,6 +22,7 @@
 
 import { createHash } from "node:crypto";
 import type { IndexPdfResult, PageRecordType } from "../pdf-page-index";
+import { scrubLogValue } from "../log-safe";
 import {
   classifyFailure,
   nextAttemptAt,
@@ -273,7 +274,12 @@ export async function writeIndexState(
   state: IndexStateRecord,
   now: Date = new Date(),
 ): Promise<void> {
-  const safeId = state.recordId.replace(/[^\w-]/g, "");
+  // `recordId` arrives from a Server Action's route/form parameter, so it is
+  // scrubbed before it is interpolated into a log line. The narrowing to
+  // `[\w-]` is what a record id actually is; `scrubLogValue` runs first because
+  // it removes the line breaks EXPLICITLY, which is both the forging vector and
+  // the only shape a static analyser recognises as removing one.
+  const safeId = scrubLogValue(state.recordId).replace(/[^\w-]/g, "");
   const existing = await readIndexState(db, state.recordType, state.recordId);
   const kind = classifyFailure(state.status, sanitizeDetail(state.detail));
 
