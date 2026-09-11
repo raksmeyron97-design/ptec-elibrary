@@ -1,0 +1,379 @@
+{
+  "generatedAt": "2026-09-11T13:20:00.000Z",
+  "corpusBooks": 268,
+  "suite": "v2",
+  "notes": [
+    "AI Answer Benchmark 2.0 — permanent edge cases added by AI Brain 2 (docs/AI_BRAIN_2_AUDIT.md). The original 123 questions in questions.json are untouched; run both with `--suite all`.",
+    "Every label was verified against the live corpus on 2026-09-11 (read-only): ISBNs and titles are real `books` rows; topic sources are the books with the most `book_pages` rows containing the phrase; `no_answer` subjects were confirmed to appear on zero pages.",
+    "`sources` is a recall list, never exhaustive — a question may be answered well from an unlabelled book that also discusses the topic."
+  ],
+  "questions": [
+    {
+      "id": "v2-exact-001",
+      "category": "exact_book",
+      "question": "Do you have Research Methods in Education?",
+      "locale": "en",
+      "expectIntent": ["book_search"],
+      "sources": ["research-methods-in-education-8th-edition", "research-methods-in-education-6th-edition", "research-methods-in-education-5th-edition"],
+      "templateOk": true,
+      "note": "unquoted, no edition: any of the three held editions is the work"
+    },
+    {
+      "id": "v2-exact-002",
+      "category": "exact_book",
+      "question": "Is \"SPSS Explained\" available?",
+      "locale": "en",
+      "expectIntent": ["book_search"],
+      "sources": ["spss-explained"],
+      "templateOk": true,
+      "note": "availability frame with 'is X available'"
+    },
+    {
+      "id": "v2-exact-003",
+      "category": "exact_book",
+      "question": "do you have the book combining methods in educational and social research",
+      "locale": "en",
+      "expectIntent": ["book_search"],
+      "sources": ["combining-methods-in-educational-and-social-research"],
+      "templateOk": true,
+      "note": "lower-case, unquoted, no punctuation"
+    },
+    {
+      "id": "v2-exact-004",
+      "category": "exact_book",
+      "question": "Do you have The Action Research Guidebook: A Four-Step Process?",
+      "locale": "en",
+      "expectIntent": ["book_search"],
+      "sources": ["the-action-research-guidebook-a-four-step-process"],
+      "templateOk": true,
+      "note": "subtitle with a colon; 'action research' is a thesis keyword and must not steal it"
+    },
+    {
+      "id": "v2-exact-005",
+      "category": "exact_book",
+      "question": "តើមានសៀវភៅ រុក្ខវិទ្យា ទេ?",
+      "locale": "km",
+      "expectIntent": ["book_search"],
+      "sources": ["រុក្ខវិទ្យា-1"],
+      "templateOk": true,
+      "note": "Khmer title, Khmer availability frame"
+    },
+    {
+      "id": "v2-typo-001",
+      "category": "typo",
+      "question": "Do you have the book \"Practicl Reserch Methods\"?",
+      "locale": "en",
+      "expectIntent": ["book_search"],
+      "sources": ["practical-research-methods"],
+      "templateOk": true,
+      "note": "two single-character typos; resolved through the trigram RPC + fuzzy band"
+    },
+    {
+      "id": "v2-typo-002",
+      "category": "typo",
+      "question": "Who wrote Essentails of Research Design and Methodolgy?",
+      "locale": "en",
+      "expectIntent": ["author_search"],
+      "sources": ["essentials-of-research-design-and-methodology"],
+      "templateOk": true,
+      "note": "a transposition and a dropped letter in a title asked as an author lookup"
+    },
+    {
+      "id": "v2-typo-003",
+      "category": "typo",
+      "question": "What is validty?",
+      "locale": "en",
+      "expectIntent": ["pdf_question", "general_knowledge"],
+      "sources": ["qualitative-research-from-start-to-finish", "qualitative-inquiry-and-research-design-4th-edition", "research-methods-in-education-8th-edition", "english-for-writing-research-papers-2nd-edition", "essentials-of-research-design-and-methodology", "how-to-design-and-evaluate-research-in-education-8th-edition"],
+      "expectGrounded": true,
+      "note": "a misspelt CONCEPT: page text has no fuzzy matching, so only the semantic leg can answer this — expected to be the weakest typo case"
+    },
+    {
+      "id": "v2-isbn-001",
+      "category": "isbn",
+      "question": "0-415-27410-9",
+      "locale": "en",
+      "expectIntent": ["book_search"],
+      "sources": ["spss-explained"],
+      "templateOk": true,
+      "note": "ISBN-10 exactly as catalogued"
+    },
+    {
+      "id": "v2-isbn-002",
+      "category": "isbn",
+      "question": "Do you have ISBN 0471470538?",
+      "locale": "en",
+      "expectIntent": ["book_search"],
+      "sources": ["essentials-of-research-design-and-methodology"],
+      "templateOk": true,
+      "note": "ISBN-10 without hyphens inside a sentence; catalogued as 0-471-47053-8"
+    },
+    {
+      "id": "v2-isbn-003",
+      "category": "isbn",
+      "question": "9780415274104",
+      "locale": "en",
+      "expectIntent": ["book_search"],
+      "sources": ["spss-explained"],
+      "templateOk": true,
+      "note": "the ISBN-13 form of a book catalogued under its ISBN-10 (0-415-27410-9)"
+    },
+    {
+      "id": "v2-author-001",
+      "category": "author_title_ambiguity",
+      "question": "Who wrote SPSS Explained?",
+      "locale": "en",
+      "expectIntent": ["author_search"],
+      "sources": ["spss-explained"],
+      "templateOk": true,
+      "note": "unquoted title as an author lookup"
+    },
+    {
+      "id": "v2-author-002",
+      "category": "author_title_ambiguity",
+      "question": "Books by ជា សុទ្ធ",
+      "locale": "en",
+      "expectIntent": ["author_search"],
+      "sources": ["កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា១", "កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា២", "កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាចំណេះដឹងឯកទេសគណិតវិទ្យា"],
+      "templateOk": true,
+      "note": "a real Khmer author name in an English frame — a PERSON, not a title"
+    },
+    {
+      "id": "v2-author-003",
+      "category": "author_title_ambiguity",
+      "question": "Who is the author of Research Methods in Education (5th Edition)?",
+      "locale": "en",
+      "expectIntent": ["author_search"],
+      "sources": ["research-methods-in-education-5th-edition"],
+      "templateOk": true,
+      "note": "the edition is named: the 5th, not the more-downloaded 8th"
+    },
+    {
+      "id": "v2-km-001",
+      "category": "khmer",
+      "question": "សង្ខេបសៀវភៅនេះ",
+      "locale": "km",
+      "scope": { "recordType": "book", "slug": "រុក្ខវិទ្យា-1" },
+      "expectIntent": ["resource_summary"],
+      "sources": ["រុក្ខវិទ្យា-1"],
+      "expectGrounded": true,
+      "note": "Khmer-language book with 99 extracted pages"
+    },
+    {
+      "id": "v2-km-002",
+      "category": "khmer",
+      "question": "រកសៀវភៅអំពីគណិតវិទ្យា",
+      "locale": "km",
+      "expectIntent": ["book_search"],
+      "sources": ["កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា១", "កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា២", "កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាចំណេះដឹងឯកទេសគណិតវិទ្យា"],
+      "templateOk": true,
+      "note": "Khmer topic search; three titles contain គណិតវិទ្យា"
+    },
+    {
+      "id": "v2-km-003",
+      "category": "khmer",
+      "question": "តើការវាយតម្លៃគឺជាអ្វី?",
+      "locale": "km",
+      "expectIntent": ["pdf_question", "general_knowledge"],
+      "expectGrounded": false,
+      "templateOk": true,
+      "note": "a Khmer definition question ('what is assessment?') over a mostly-English corpus: routing must reach evidence; whether the semantic leg crosses the language is measured, not required"
+    },
+    {
+      "id": "v2-mix-001",
+      "category": "mixed_language",
+      "question": "តើសៀវភៅនេះនិយាយអ្វីអំពី focus group?",
+      "locale": "km",
+      "scope": { "recordType": "book", "slug": "research-methods-in-education-8th-edition" },
+      "expectIntent": ["pdf_question"],
+      "sources": ["research-methods-in-education-8th-edition"],
+      "expectGrounded": true,
+      "note": "verified pages in v1 single-008"
+    },
+    {
+      "id": "v2-mix-002",
+      "category": "mixed_language",
+      "question": "ពន្យល់អំពី phonics",
+      "locale": "km",
+      "expectIntent": ["pdf_question"],
+      "sources": ["methods-in-educational-research-from-theory-to-practice-2nd-edition", "how-to-design-and-evaluate-research-in-education-8th-edition", "introduction-to-research-in-education-8th-edition", "action-research-for-teacher-candidates"],
+      "expectGrounded": true,
+      "note": "Khmer explanation frame, Latin topic; 18 books carry the term"
+    },
+    {
+      "id": "v2-def-001",
+      "category": "definition",
+      "question": "What is peer assessment?",
+      "locale": "en",
+      "expectIntent": ["pdf_question", "general_knowledge"],
+      "sources": ["pedagogy-and-practice-leadership-guide", "action-research-series-volume-3", "educational-psychology-14th-edition-global-edition"],
+      "expectGrounded": true,
+      "note": "21+ pages across 10 books; the leadership guide carries 10 of them"
+    },
+    {
+      "id": "v2-expl-001",
+      "category": "explanation",
+      "question": "Explain lesson study",
+      "locale": "en",
+      "expectIntent": ["pdf_question"],
+      "sources": ["action-research-for-teacher-candidates", "quality-of-teaching-and-learning-in-response-to-21st-century-education-selected-action-research-reports-12-4-student-teachers-batch-3-academic-year-2024-2025", "authentic-problem-solving-and-learning-in-the-21st-century"],
+      "expectGrounded": true,
+      "note": "bare 'explain X' with no library frame; 64+ pages across 8 books"
+    },
+    {
+      "id": "v2-evid-001",
+      "category": "concept",
+      "question": "What does the literature say about teacher identity?",
+      "locale": "en",
+      "expectIntent": ["pdf_question"],
+      "sources": ["teacher-education-in-the-21st-century", "being-a-teacher-in-the-21st-century"],
+      "expectGrounded": true,
+      "note": "one book carries 27 of the 36 pages — density should put it first"
+    },
+    {
+      "id": "v2-evid-002",
+      "category": "multi_document",
+      "question": "How is motivation handled across the library's books?",
+      "locale": "en",
+      "expectIntent": ["pdf_question"],
+      "sources": ["educational-psychology-14th-edition-global-edition", "research-methods-in-education-8th-edition", "research-methods-in-education-6th-edition", "authentic-problem-solving-and-learning-in-the-21st-century", "introduction-to-research-in-education-8th-edition", "curriculum-models-for-the-21st-century"],
+      "expectGrounded": true,
+      "note": "frame with the collection noun at the END of the sentence"
+    },
+    {
+      "id": "v2-synth-001",
+      "category": "cross_book_synthesis",
+      "question": "Across the library's books, how is mixed methods handled?",
+      "locale": "en",
+      "expectIntent": ["pdf_question"],
+      "sources": ["research-design-qualitative-quantitative-and-mixed-methods-approaches", "research-design-qualitative-quantitative-and-mixed-methods-3rd-edition", "handbook-of-methodological-approaches-to-community-based-research", "research-methods-in-education-8th-edition", "research-design-quantitative-qualitative-and-arts-based-approaches", "social-research-methods-4th-edition"],
+      "expectGrounded": true,
+      "note": "400+ pages across 10 books — the answer should draw on several"
+    },
+    {
+      "id": "v2-synth-002",
+      "category": "cross_book_synthesis",
+      "question": "What does the literature say about phonics?",
+      "locale": "en",
+      "expectIntent": ["pdf_question"],
+      "sources": ["methods-in-educational-research-from-theory-to-practice-2nd-edition", "how-to-design-and-evaluate-research-in-education-8th-edition", "introduction-to-research-in-education-8th-edition", "action-research-for-teacher-candidates"],
+      "expectGrounded": true
+    },
+    {
+      "id": "v2-cmp-001",
+      "category": "comparison",
+      "question": "What is the difference between validity and reliability?",
+      "locale": "en",
+      "expectIntent": ["document_compare"],
+      "sources": ["qualitative-inquiry-and-research-design-4th-edition", "research-methods-in-education-8th-edition", "essentials-of-research-design-and-methodology", "how-to-design-and-evaluate-research-in-education-8th-edition", "qualitative-research-from-start-to-finish", "english-for-writing-research-papers-2nd-edition", "methods-in-educational-research-from-theory-to-practice", "from-teacher-to-manager-managing-language-teaching-organizations"],
+      "expectGrounded": true,
+      "note": "two CONCEPTS, not two works — each side retrieved on its own"
+    },
+    {
+      "id": "v2-cmp-002",
+      "category": "comparison",
+      "question": "Compare \"Research Methods in Education (5th Edition)\" and \"Research Methods in Education (8th Edition)\"",
+      "locale": "en",
+      "expectIntent": ["document_compare"],
+      "sources": ["research-methods-in-education-5th-edition", "research-methods-in-education-8th-edition"],
+      "expectGrounded": true,
+      "note": "two editions of one work — the edition must not be collapsed"
+    },
+    {
+      "id": "v2-sum-001",
+      "category": "summary",
+      "question": "Summarize SPSS Explained",
+      "locale": "en",
+      "expectIntent": ["resource_summary"],
+      "sources": ["spss-explained"],
+      "expectGrounded": true,
+      "note": "summary of a work named by title, not from its page (379 pages, 677 chunks)"
+    },
+    {
+      "id": "v2-cite-001",
+      "category": "citation_verification",
+      "question": "Quote what this book says about reliability",
+      "locale": "en",
+      "scope": { "recordType": "book", "slug": "how-to-design-and-evaluate-research-in-education-8th-edition" },
+      "expectIntent": ["pdf_question"],
+      "sources": ["how-to-design-and-evaluate-research-in-education-8th-edition"],
+      "expectGrounded": true,
+      "note": "verified pages in v1 single-005; every citation must name this book and a retrieved page"
+    },
+    {
+      "id": "v2-cite-002",
+      "category": "citation_verification",
+      "question": "According to Essentials of Research Design and Methodology, what is validity?",
+      "locale": "en",
+      "expectIntent": ["pdf_question"],
+      "sources": ["essentials-of-research-design-and-methodology"],
+      "expectGrounded": true,
+      "note": "the SOURCE is named in the question, not by the page the reader is on: retrieval must scope to it"
+    },
+    {
+      "id": "v2-single-001",
+      "category": "single_document",
+      "question": "Does this book discuss curriculum?",
+      "locale": "en",
+      "scope": { "recordType": "book", "slug": "curriculum-models-for-the-21st-century" },
+      "expectIntent": ["pdf_question"],
+      "sources": ["curriculum-models-for-the-21st-century"],
+      "expectGrounded": true,
+      "note": "80 pages of this book contain the term"
+    },
+    {
+      "id": "v2-none-001",
+      "category": "no_answer",
+      "question": "What does the literature say about sourdough starter?",
+      "locale": "en",
+      "expectIntent": ["pdf_question"],
+      "expectNoAnswer": true,
+      "note": "verified: 0 pages"
+    },
+    {
+      "id": "v2-none-002",
+      "category": "no_answer",
+      "question": "Explain kubernetes as the library's books describe it.",
+      "locale": "en",
+      "expectIntent": ["pdf_question"],
+      "expectNoAnswer": true,
+      "note": "verified: 0 pages; explanation frame"
+    },
+    {
+      "id": "v2-none-003",
+      "category": "no_answer",
+      "question": "What is orbital mechanics?",
+      "locale": "en",
+      "expectIntent": ["pdf_question", "general_knowledge"],
+      "expectNoAnswer": true,
+      "note": "verified: 0 pages; a bare definition question the library cannot answer must say so rather than answer from general knowledge"
+    },
+    {
+      "id": "v2-none-004",
+      "category": "no_answer",
+      "question": "Do you have the book \"Haemodialysis Nursing Handbook\"?",
+      "locale": "en",
+      "expectIntent": ["book_search"],
+      "expectNoAnswer": true,
+      "note": "a named work the catalogue does not hold: the answer must say so, not 'I found 5 books related to …'"
+    },
+    {
+      "id": "v2-ambig-001",
+      "category": "ambiguous",
+      "question": "research",
+      "locale": "en",
+      "expectIntent": ["general_knowledge", "book_search", "pdf_question"],
+      "templateOk": true,
+      "note": "one bare word: any evidence-first or catalogue path is acceptable; the assertion is that it routes and does not refuse"
+    },
+    {
+      "id": "v2-ambig-002",
+      "category": "ambiguous",
+      "question": "Can I borrow books?",
+      "locale": "en",
+      "expectIntent": ["faq"],
+      "templateOk": true,
+      "note": "borrowing FAQ phrased as a yes/no"
+    }
+  ]
+}
