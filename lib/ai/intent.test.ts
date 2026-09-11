@@ -536,8 +536,10 @@ describe("a cross-collection research question retrieves on its topic", () => {
     // the word "literature" was discarded, and the lexical leg returned zero.
     expect(extractQuery("What does the library's literature say about validity?")).toBe("validity");
     expect(extractQuery("What do the books say about classroom management?")).toBe("classroom management");
+    // The interrogative "how is" is frame, not topic: the lexical leg was
+    // asked for pages containing "how is reliability established" verbatim.
     expect(extractQuery("According to the literature, how is reliability established?")).toBe(
-      "how is reliability established",
+      "reliability established",
     );
   });
 
@@ -565,5 +567,110 @@ describe("a cross-collection research question retrieves on its topic", () => {
     // "សៀវភៅនេះនិយាយអំពីអ្វី" is "what is this book about" — stripping the
     // frame leaves "អ្វី" ("what"), which is not a topic to retrieve on.
     expect(extractQuery("សៀវភៅនេះនិយាយអំពីអ្វី?")).not.toBe("អ្វី");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI Brain 2 (docs/AI_BRAIN_2_AUDIT.md §2). Every case here was a benchmark
+// question answered wrongly on the live corpus, attributed to query
+// understanding. The frame is now read by construction (lib/ai/query.ts).
+// ─────────────────────────────────────────────────────────────────────────────
+describe("concept questions are answered from evidence, not from a collection keyword", () => {
+  it("routes 'What is X?' to page evidence even when X is a collection keyword", () => {
+    // "action research" is in THESIS_WORDS, so the question was a thesis search
+    // and the reader got "I couldn't find anything about 'What is action research'".
+    const r = classifyIntent("What is action research?");
+    expect(r.intent).toBe("pdf_question");
+    expect(r.query).toBe("action research");
+    expect(r.parsed?.frame).toBe("definition");
+  });
+
+  it("reduces an explanation frame to its topic", () => {
+    // The whole sentence reached retrieval; its terms were [describe, explain,
+    // library, ethics] and the floor demanded three of them on one page.
+    const r = classifyIntent("Explain ethics as the library's books describe it.");
+    expect(r.intent).toBe("pdf_question");
+    expect(r.query).toBe("ethics");
+    expect(extractQuery("Explain classroom management as the library's books describe it.")).toBe(
+      "classroom management",
+    );
+  });
+
+  it("reduces the 'across the library's books' frame to its topic", () => {
+    // Only "across the library" was recognised; the query became
+    // "'s books, how is scaffolding handled".
+    const r = classifyIntent("Across the library's books, how is scaffolding handled?");
+    expect(r.intent).toBe("pdf_question");
+    expect(r.query).toBe("scaffolding");
+    expect(extractQuery("Across the library's books, how is assessment for learning handled?")).toBe(
+      "assessment for learning",
+    );
+  });
+
+  it("reads 'according to the books, what is X' as evidence about X", () => {
+    const r = classifyIntent("According to the books, what is grounded theory?");
+    expect(r.intent).toBe("pdf_question");
+    expect(r.query).toBe("grounded theory");
+  });
+
+  it("reads the Khmer definition frames", () => {
+    expect(classifyIntent("តើការស្រាវជ្រាវសកម្មភាពគឺជាអ្វី?").query).toBe("ការស្រាវជ្រាវសកម្មភាព");
+    expect(classifyIntent("អ្វីទៅជាការវាយតម្លៃ?").intent).toBe("pdf_question");
+    expect(classifyIntent("ពន្យល់អំពី scaffolding").query).toBe("scaffolding");
+  });
+
+  it("does not claim the questions other tables own", () => {
+    expect(classifyIntent("What is the library's mission").intent).toBe("faq");
+    expect(classifyIntent("what is your phone number").intent).toBe("faq");
+    expect(classifyIntent("What is the difference between validity and reliability?").intent).toBe("document_compare");
+    expect(classifyIntent("what is this book about?", { slug: "a-book" }).intent).toBe("book_detail");
+    expect(classifyIntent("What are the main ideas?", { slug: "a-book" }).intent).toBe("resource_summary");
+    expect(classifyIntent("What books do you have about memory?").intent).toBe("book_search");
+  });
+});
+
+describe("library facts the table did not know", () => {
+  it("answers 'where is the PTEC library located' from the location fact", () => {
+    const r = classifyIntent("Where is the PTEC library located?");
+    expect(r.intent).toBe("faq");
+    expect(r.topic).toBe("location");
+  });
+
+  it("answers 'how do I become a member' from the membership fact", () => {
+    // Fell through to general_knowledge and was answered from an unrelated page.
+    const r = classifyIntent("How do I become a member?");
+    expect(r.intent).toBe("faq");
+    expect(r.topic).toBe("membership");
+  });
+});
+
+describe("named works and identifiers", () => {
+  it("carries a quoted title as an exact entity for the catalogue", () => {
+    const r = classifyIntent('Do you have the book "Interviewing as Qualitative Research (3rd Edition)"?');
+    expect(r.intent).toBe("book_search");
+    expect(r.parsed?.frame).toBe("availability");
+    expect(r.parsed?.titleCandidates).toEqual(["Interviewing as Qualitative Research (3rd Edition)"]);
+    expect(r.parsed?.exactEntityRequired).toBe(true);
+  });
+
+  it("reads 'who wrote X' as a WORK named X, never as a person named X", () => {
+    const r = classifyIntent('Who wrote "English for Writing Research Papers"?');
+    expect(r.intent).toBe("author_search");
+    expect(r.parsed?.frame).toBe("author_lookup");
+    expect(r.parsed?.titleCandidates).toEqual(["English for Writing Research Papers"]);
+  });
+
+  it("routes 'is X available' and a bare ISBN to the catalogue", () => {
+    expect(classifyIntent("Is Research Methods in Education available?").intent).toBe("book_search");
+    const isbn = classifyIntent("9781473946293");
+    expect(isbn.intent).toBe("book_search");
+    expect(isbn.parsed?.isbnCandidates).toEqual(["9781473946293"]);
+  });
+
+  it("keeps a Khmer 'books about X' as a topic search, not an availability check", () => {
+    const r = classifyIntent("តើមានសៀវភៅអំពីគរុកោសល្យទេ?");
+    expect(r.intent).toBe("book_search");
+    expect(r.parsed?.frame).toBe("none");
+    expect(r.query).toBe("គរុកោសល្យ");
   });
 });

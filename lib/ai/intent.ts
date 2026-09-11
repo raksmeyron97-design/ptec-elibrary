@@ -13,6 +13,7 @@
 
 import type { AIIntent, AILocale, Verbosity } from "./response";
 import type { LibraryInfoTopic } from "@/lib/library-info";
+import { CONCEPT_FRAMES, detectFrame, parseQuery, type AiQuery } from "./query";
 
 export interface IntentResult {
   intent: AIIntent;
@@ -36,6 +37,12 @@ export interface IntentResult {
   page?: number;
   /** True for greetings / thanks — answered from a template, never a model. */
   smalltalk?: boolean;
+  /**
+   * The structured reading of the question (lib/ai/query.ts): its frame, the
+   * topic with the frame removed, and the titles/authors/ISBNs it names.
+   * Retrieval reads the entity candidates; the trace records the rest.
+   */
+  parsed?: AiQuery;
 }
 
 /** Confidence at or above which the router may skip the LLM entirely. */
@@ -105,7 +112,11 @@ const FAQ_TOPICS: Array<[LibraryInfoTopic, string[]]> = [
     "when does the library open", "when is the library open", "business hours", "office hours",
     "open on", "schedule", "timing",
     "ម៉ោងបើក", "បើកម៉ោង", "បិទម៉ោង", "ម៉ោងធ្វើការ", "ម៉ោងបម្រើ", "ពេលវេលាបើក"]],
-  ["location", ["where is the library", "where are you located", "your address", "the address",
+  // "where is the PTEC library located" has the institution's name between
+  // "the" and "library", and neither "library located" nor "located" was in
+  // the table — measured, it fell through to the model with no fact attached.
+  ["location", ["where is the library", "where is the ptec library", "where is ptec library",
+    "library located", "library situated", "where are you located", "your address", "the address",
     "how do i get to", "directions to", "which building", "what floor",
     "ទីតាំង", "នៅឯណា", "នៅកន្លែងណា", "អាសយដ្ឋាន", "ស្ថិតនៅ"]],
   ["contact", ["contact", "phone number", "telephone", "email address", "reach you",
@@ -118,7 +129,8 @@ const FAQ_TOPICS: Array<[LibraryInfoTopic, string[]]> = [
     "can i eat", "can i drink", "penalty", "fine for", "prohibited",
     "ច្បាប់", "វិន័យ", "បទបញ្ជា", "ពិន័យ", "ហាមឃាត់"]],
   ["membership", ["membership", "member card", "library card", "how do i join",
-    "sign up for the library", "register at the library",
+    "become a member", "becoming a member", "join the library", "how to join",
+    "register as a member", "sign up for the library", "register at the library",
     "សមាជិក", "ប័ណ្ណសមាជិក", "ចុះឈ្មោះ"]],
   ["collection", ["how many books do you have", "size of the collection", "the collection",
     "what languages", "dewey", "ddc", "how many titles", "how many copies",
@@ -500,6 +512,13 @@ const DETERMINER_NOUN =
 
 export function extractQuery(text: string): string {
   let out = text.trim().replace(/^តើ\s*/u, "").replace(/[?？។៕]+$/u, "").trim();
+  // A CONCEPT question is read by construction (lib/ai/query.ts): "What is
+  // X", "Explain X as the library's books describe it", "Across the
+  // library's books, how is X handled" all reduce to X, which is what gets
+  // embedded and searched. The regex strips below remain for the shapes the
+  // frame reader does not claim.
+  const frame = detectFrame(out);
+  if (frame && CONCEPT_FRAMES.has(frame.frame)) out = frame.topic;
   // The literature frame is stripped FIRST: it is a whole interrogative clause,
   // and the generic lead patterns below would only nibble at its edges.
   for (const re of LITERATURE_LEAD_STRIP) out = out.replace(re, "").trim();
@@ -619,7 +638,8 @@ export function classifyIntent(raw: string, ctx: ClassifyContext = {}): IntentRe
   const verbosity = detectVerbosity(lower);
   const page = extractPage(text);
   const query = extractQuery(text);
-  const base = { locale, verbosity, query, slug: ctx.slug, slugType: ctx.slugType, page };
+  const parsed = parseQuery(text);
+  const base = { locale, verbosity, query, slug: ctx.slug, slugType: ctx.slugType, page, parsed };
 
   // 1. Academic-integrity decline — checked first so it can't be smuggled in
   //    behind a book-search phrasing.
@@ -702,7 +722,16 @@ export function classifyIntent(raw: string, ctx: ClassifyContext = {}): IntentRe
   if (page !== undefined || hits(lower, PDF_WORDS) || hits(lower, LITERATURE_WORDS)) {
     return { ...base, intent: "pdf_question", confidence: page !== undefined ? 0.85 : 0.7 };
   }
-
+  // 8a. A concept question — "What is X?", "Explain X", "how is X handled
+  //    across the collection" — is answered from page evidence, whatever
+  //    collection word X happens to contain. Before this, "What is action
+  //    research?" was a thesis search because "action research" is in
+  //    THESIS_WORDS, and the reader got "I couldn't find anything about 'What
+  //    is action research'". The frame is read by construction in
+  //    lib/ai/query.ts; `query` is already the bare topic.
+  if (CONCEPT_FRAMES.has(parsed.frame)) {
+    return { ...base, intent: "pdf_question", confidence: 0.75 };
+  }
   // 8b. Directory hubs. Checked before the catalog searches because "books by
   //    Creswell" and "action research by Mills" name a person, not a
   //    collection, and "what subjects do you have" names the subject index.
@@ -711,6 +740,14 @@ export function classifyIntent(raw: string, ctx: ClassifyContext = {}): IntentRe
   }
   if (hits(lower, AUTHOR_WORDS)) {
     return { ...base, query: extractAuthorQuery(text), intent: "author_search", confidence: 0.85 };
+  }
+
+  // 8c. An ISBN is a book identity, whatever words surround it; "Is X
+  //    available?" names a work. Both are catalogue lookups that must resolve
+  //    the exact record (retrieval reads `parsed.exactEntityRequired`). After
+  //    the hubs: "do you have books written by X" names a person.
+  if (parsed.isbnCandidates.length > 0 || parsed.frame === "availability") {
+    return { ...base, intent: "book_search", confidence: 0.85 };
   }
 
   // 9. Typed catalog searches. Thesis/post words are checked before book words

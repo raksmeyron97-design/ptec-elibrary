@@ -44,6 +44,17 @@ const QUESTION_WORDS = new Set([
   "will", "shall", "may", "might", "must", "have", "has", "had", "there",
   "here", "any", "some", "all", "more", "most", "other", "such", "than",
   "then", "also", "just", "only", "very", "much", "many",
+  // The verbs a question FRAME is built from. "Explain ethics as the
+  // library's books describe it" yielded [describe, explain, library,
+  // ethics] and required three of them on a page; a page about ethics that
+  // did not also say "describe" and "explain" was dropped. The frame reader
+  // (lib/ai/query.ts) now removes these before retrieval; listing them here
+  // is the second lock, for phrasings it does not recognise.
+  "explain", "explains", "explained", "describe", "describes", "described",
+  "discuss", "discusses", "discussed", "handle", "handles", "handled",
+  "cover", "covers", "covered", "define", "defines", "defined", "definition",
+  "meaning", "mean", "means", "according", "please", "understood",
+  "treated", "approached", "presented",
 ]);
 
 /**
@@ -112,6 +123,58 @@ export function minLexicalScore(terms: readonly string[]): number {
 }
 
 /**
+ * The terms a page must ALL contain before it is even a lexical candidate.
+ *
+ * The majority floor above was still not enough, and the eight no-answer
+ * subjects in scripts/ai-answer-benchmark.ts showed exactly how: "byzantine
+ * fault tolerance" admitted a page containing "fault" and "tolerance" (2 of
+ * 3 — a majority) while "byzantine" appeared nowhere in the library, and
+ * "aortic valve replacement" admitted an operations-research page on heart
+ * valve production. A three-word topic is ONE concept; a page missing a third
+ * of it is not evidence for it. So a topic of up to three content terms
+ * requires every one of them, and a longer question requires its three most
+ * specific (longest) terms — the ones that make the question that question.
+ * The phrase bonus in `lexicalScore` still lets a verbatim phrase win, and the
+ * semantic leg still covers paraphrase.
+ */
+export function requiredTerms(terms: readonly string[]): string[] {
+  return terms.slice(0, 3);
+}
+
+/**
+ * Does this page DEFINE the term, rather than merely mention it? "Validity
+ * is…", "triangulation refers to…", "a case study can be defined as…". A
+ * weak, explainable signal used only for definition/explanation questions,
+ * where the page that defines the concept is the page a reader wants first.
+ */
+export function definitionSignal(content: string, terms: readonly string[]): boolean {
+  const text = normalizeSearchText(content);
+  if (!text) return false;
+  for (const term of terms) {
+    if (hasKhmer(term) || term.length < 4) continue;
+    const re = new RegExp(
+      `\\b${term.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}s?\\b\\s+(?:is|are|was|refers to|means|can be defined|is defined|may be defined|describes|denotes|involves)\\b`,
+      "u",
+    );
+    if (re.test(text)) return true;
+  }
+  return false;
+}
+
+/** The explainable parts of a passage's rank. Present on evidence the new legs produced. */
+export interface EvidenceSignals {
+  /** Lexical agreement: +10 whole phrase, +1 per term, +3 when the page defines the term. */
+  lexical?: number;
+  /** Cosine similarity of the chunk to the question, when the semantic leg found it. */
+  semantic?: number;
+  /** How many pages of this record matched the topic — the record's strength as a source. */
+  density?: number;
+  definition?: boolean;
+  /** Reciprocal-rank fusion score. Comparable only within one retrieval. */
+  rrf?: number;
+}
+
+/**
  * How well a page answers the query, from the terms it contains.
  *
  * A page carrying the whole phrase is the strongest lexical evidence there
@@ -148,6 +211,10 @@ export interface RetrievedEvidence extends RetrievedPassage {
   score: number;
   /** Present for multi-document retrieval: which side of the comparison. */
   documentLabel?: string;
+  /** Why this passage ranks where it does — for the request trace, never the prompt. */
+  signals?: EvidenceSignals;
+  /** Last page of a merged run of adjacent pages; equals `page` when unmerged. */
+  pageEnd?: number;
 }
 
 /** How a question should be answered — decided before anything expensive runs. */
@@ -251,15 +318,22 @@ export function fuseEvidence(
         merged.set(key, { ...item });
         return;
       }
-      // Keep the verbatim window when one leg found the query literally.
+      // Keep the verbatim window when one leg found the query literally, and
+      // keep BOTH legs' signals so the trace can say why the page ranked.
+      const signals = { ...existing.signals, ...item.signals };
       if (existing.matchType !== "pdf_exact" && item.matchType === "pdf_exact") {
-        merged.set(key, { ...item });
+        merged.set(key, { ...item, signals });
+      } else {
+        merged.set(key, { ...existing, signals });
       }
     });
   }
 
   return [...merged.entries()]
-    .map(([key, item]) => ({ ...item, score: scores.get(key) ?? 0 }))
+    .map(([key, item]) => {
+      const score = scores.get(key) ?? 0;
+      return { ...item, score, signals: { ...item.signals, rrf: score } };
+    })
     .sort((a, b) => b.score - a.score || a.page - b.page || evidenceKey(a).localeCompare(evidenceKey(b)));
 }
 
