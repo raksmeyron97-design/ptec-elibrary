@@ -16,11 +16,12 @@ import "server-only";
 
 import { generateText, streamText, type LanguageModel } from "ai";
 import { getOrgIdentity } from "@/lib/system-settings/config";
-import { buildSources, usedSources } from "./citations";
+import { buildSources } from "./citations";
 import { compressConversation } from "./conversation";
 import {
   detectPromptInjection,
   enforceGrounding,
+  sourcesCited,
   type InboundMessage,
 } from "./guardrails";
 import { classifyIntent, type ClassifyContext, type IntentResult } from "./intent";
@@ -456,7 +457,9 @@ export async function runAssistant(
 
     const grounded = enforceGrounding(result.text ?? "", sources, retrieval.passages.map((x) => x.text));
     const answer = grounded.answer.trim() || T.noEvidence(intent.locale);
-    const cited = usedSources(answer, sources);
+    // The sources to attach are the ones grounding VERIFIED, not the ones a
+    // second scan of the prose happens to recognise.
+    const cited = sourcesCited(grounded.grounded, sources);
 
     const usage = result.usage;
     const telemetry: AITelemetry = {

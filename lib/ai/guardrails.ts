@@ -176,19 +176,27 @@ export function isDuplicateTurn(messages: readonly InboundMessage[]): boolean {
 // is enforced after generation rather than trusted from the prompt, because a
 // prompt rule is a request and a regex is a guarantee (§13).
 
-// A range ("pp. 44–45") is read as its first page: a merged run of adjacent
-// pages is one passage, and its first page is the one the source card opens.
-// The title may carry ONE level of parentheses — "(8th Edition)" is in half
-// the collection's titles — and the markup a model wraps it in (*italics*,
-// quotes) is stripped before comparison.
-const CITATION_RE =
-  /\(((?:[^()]|\([^()]*\)){1,140}?),\s*(?:pp?\.?|pages?|ទំព័រ)\s*([\d០-៩]{1,4})(?:\s*[–-]\s*[\d០-៩]{1,4})?(?:\s*[,;]\s*[\d០-៩]{1,4}(?:\s*[–-]\s*[\d០-៩]{1,4})?)*\)/giu;
-// The form a model actually writes most often: the title in the prose, then a
-// bare page in parentheses — `*Social Research Methods* says … (p. 35)`. The
-// page belongs to the nearest title named before it (enforceGrounding decides
-// which); with no title named, it cannot be verified and is removed.
-const BARE_PAGE_RE =
-  /\((?:pp?\.?|pages?|ទំព័រ)\s*([\d០-៩]{1,4})(?:\s*[–-]\s*[\d០-៩]{1,4})?(?:\s*[,;]\s*[\d០-៩]{1,4}(?:\s*[–-]\s*[\d០-៩]{1,4})?)*\)/giu;
+// HOW A CITATION IS READ. Three live runs against gemini-3.5-flash (docs/
+// AI-BRAIN-2-FINAL-REPORT.md §7) showed the forms a real model writes, and
+// none of them was the one form the old regex accepted:
+//
+//   (*Title (8th Edition)*, pp. 8–9; *Other Title*, p. 35)   two in one bracket
+//   *Title* says … (p. 35–36)                                bare page after the title in prose
+//   (p. 108, p. 110)                                          a page list with the word repeated
+//   (Creswell, pp. 6–8, 10–12)                                the author, APA-style
+//   ("Title", ទំព័រ 5, 18, 30)                                Khmer page word, Arabic digits
+//
+// So every parenthetical is split on ";" into parts, each part is read as
+// either `<title>, <pages>` or `<pages>` alone, and the page is ALWAYS the
+// first number named. A range is its first page (a merged run of adjacent
+// pages is one passage and its first page is the one the source card opens).
+// Titles keep one level of parentheses and lose the markup a model wraps them
+// in. Attribution — which retrieved source a part belongs to — is
+// enforceGrounding's job; this only reads.
+const PARENTHETICAL_RE = /\(((?:[^()]|\([^()]*\)){1,400}?)\)/gu;
+const PAGES_RE =
+  /^(?:pp?\.?|pages?|ទំព័រ)\s*([\d០-៩]{1,4})(?:\s*[–-]\s*[\d០-៩]{1,4})?(?:\s*[,;]\s*(?:(?:pp?\.?|pages?|ទំព័រ)\s*)?[\d០-៩]{1,4}(?:\s*[–-]\s*[\d០-៩]{1,4})?)*$/iu;
+const TITLED_RE = /^([\s\S]{1,160}?),\s*((?:pp?\.?|pages?|ទំព័រ)\s*[\d០-៩][\s\S]*)$/iu;
 const KHMER_DIGITS = "០១២៣៤៥៦៧៨៩";
 
 function toArabic(s: string): number {
@@ -196,8 +204,9 @@ function toArabic(s: string): number {
 }
 
 export interface ExtractedCitation {
+  /** The text to remove when unsupported: one part of a parenthetical. */
   raw: string;
-  /** The title as written, or "" for a bare page citation awaiting attribution. */
+  /** The title (or author) as written, or "" for a bare page awaiting attribution. */
   title: string;
   page: number;
   /** Where the citation sits in the answer, so a bare page can find its title. */
@@ -206,13 +215,27 @@ export interface ExtractedCitation {
 
 export function extractCitations(answer: string): ExtractedCitation[] {
   const out: ExtractedCitation[] = [];
-  for (const m of answer.matchAll(CITATION_RE)) {
-    const page = toArabic(m[2]);
-    if (Number.isFinite(page)) out.push({ raw: m[0], title: m[1].trim(), page, index: m.index });
-  }
-  for (const m of answer.matchAll(BARE_PAGE_RE)) {
-    const page = toArabic(m[1]);
-    if (Number.isFinite(page)) out.push({ raw: m[0], title: "", page, index: m.index });
+  for (const m of answer.matchAll(PARENTHETICAL_RE)) {
+    const inner = m[1];
+    let offset = (m.index ?? 0) + 1;
+    for (const part of inner.split(";")) {
+      const trimmed = part.trim();
+      const at = offset + part.indexOf(trimmed);
+      offset += part.length + 1;
+      if (!trimmed) continue;
+      const bare = PAGES_RE.exec(trimmed);
+      if (bare) {
+        const page = toArabic(bare[1]);
+        if (Number.isFinite(page)) out.push({ raw: trimmed, title: "", page, index: at });
+        continue;
+      }
+      const titled = TITLED_RE.exec(trimmed);
+      if (!titled) continue;
+      const pages = PAGES_RE.exec(titled[2].trim());
+      if (!pages) continue;
+      const page = toArabic(pages[1]);
+      if (Number.isFinite(page)) out.push({ raw: trimmed, title: titled[1].trim(), page, index: at });
+    }
   }
   return out.sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
 }
@@ -221,8 +244,50 @@ function normTitle(s: string): string {
   return s.toLowerCase().replace(/["“”'’«»*_]/g, "").replace(/\s+/g, " ").trim();
 }
 
-/** How far back (in characters) a bare page citation may look for its title. */
-const BARE_PAGE_REACH = 400;
+/** Surnames of a byline: "Louis Cohen, Lawrence Manion" → ["cohen", "manion"]. */
+function surnames(author: string): string[] {
+  return normTitle(author)
+    .replace(/\((?:eds?|editors?)\.?\)/g, " ")
+    .split(/,|&| and /)
+    .map((name) => name.trim().split(" ").filter((w) => w.length >= 3).pop() ?? "")
+    .filter((w) => w.length >= 3);
+}
+
+/**
+ * Where `key` (a normalized title) is last mentioned in `text`, allowing the
+ * shortened form a model writes ("The Action Research Planner" for a title
+ * that runs on for eight more words): the full key first, then its longest
+ * prefix of at least three words.
+ */
+function lastMention(text: string, key: string): number {
+  const full = text.lastIndexOf(key);
+  if (full >= 0) return full;
+  const words = key.split(" ");
+  for (let n = words.length - 1; n >= 3; n--) {
+    const at = text.lastIndexOf(words.slice(0, n).join(" "));
+    if (at >= 0) return at;
+  }
+  return -1;
+}
+
+/**
+ * The sources an answer's GROUNDED citations point at, in source order —
+ * what the UI attaches under the answer. Derived from the citations grounding
+ * verified rather than by re-scanning the prose, so a Khmer page word with
+ * Arabic digits or a bare page after an italic title attaches exactly what
+ * grounding accepted.
+ */
+export function sourcesCited(grounded: readonly ExtractedCitation[], sources: readonly Source[]): Source[] {
+  return sources.filter((s) => {
+    if (s.page === undefined) return grounded.some((c) => normTitle(c.title) === normTitle(s.title));
+    const pages = sourcePages(s);
+    const key = normTitle(s.title);
+    return grounded.some((c) => {
+      const ck = normTitle(c.title);
+      return pages.includes(c.page) && (ck === key || key.includes(ck) || ck.includes(key));
+    });
+  });
+}
 
 export interface GroundingResult {
   /** Answer with unsupported citations removed. */
@@ -256,11 +321,13 @@ export function enforceGrounding(
 
   const allowedPages = new Map<string, Set<number>>();
   const titleOf = new Map<string, string>();
+  const authorsOf = new Map<string, string[]>();
   for (const s of allowed) {
     if (s.page === undefined) continue;
     const key = normTitle(s.title);
     if (!allowedPages.has(key)) allowedPages.set(key, new Set());
     titleOf.set(key, s.title);
+    authorsOf.set(key, surnames(s.author ?? ""));
     // A merged run of adjacent pages (lib/ai/evidence.ts) may be cited at any
     // page inside it — every one of those pages was retrieved.
     for (const page of sourcePages(s)) allowedPages.get(key)!.add(page);
@@ -274,13 +341,13 @@ export function enforceGrounding(
     let key = normTitle(c.title);
     if (!key) {
       // A bare `(p. N)`: the page belongs to the title named most recently
-      // before it — the way a model writes `*Title* says … (p. 35)`. Nothing
-      // named within reach means nothing to verify against.
-      const at = c.index ?? 0;
-      const before = normTitle(answer.slice(Math.max(0, at - BARE_PAGE_REACH), at));
+      // before it anywhere in the answer — the way a model writes `*Title*
+      // says … (p. 35)` and cites it again three sentences later. Nothing
+      // named means nothing to verify against.
+      const before = normTitle(answer.slice(0, c.index ?? 0));
       let best: { key: string; at: number } | null = null;
       for (const k of allowedPages.keys()) {
-        const found = before.lastIndexOf(k);
+        const found = lastMention(before, k);
         if (found >= 0 && (!best || found > best.at)) best = { key: k, at: found };
       }
       if (best) {
@@ -289,11 +356,18 @@ export function enforceGrounding(
       }
     }
     // Retrieval titles are the authority; accept a citation whose title is a
-    // prefix/substring of a retrieved one (models shorten long titles).
+    // prefix/substring of a retrieved one (models shorten long titles), or
+    // an author's surname (APA habit: "Creswell, pp. 6–8").
     let pages: Set<number> | undefined = key ? allowedPages.get(key) : undefined;
     if (!pages && key) {
       for (const [k, v] of allowedPages) {
-        if (k.includes(key) || key.includes(k)) { pages = v; break; }
+        if (k.includes(key) || key.includes(k)) { pages = v; c.title = titleOf.get(k) ?? c.title; break; }
+      }
+    }
+    if (!pages && key) {
+      const head = key.replace(/\s+et\s+al\.?$/, "").split(" ")[0];
+      for (const [k, v] of allowedPages) {
+        if (head && (authorsOf.get(k) ?? []).includes(head)) { pages = v; c.title = titleOf.get(k) ?? c.title; break; }
       }
     }
     if (pages?.has(c.page)) grounded.push(c);
@@ -302,5 +376,11 @@ export function enforceGrounding(
       out = out.split(c.raw).join("");
     }
   }
+  // A parenthetical whose parts were all removed leaves "()" or "(; )" behind.
+  out = out
+    .replace(/\(\s*[;,]?\s*\)/g, "")
+    .replace(/\(\s*;\s*/g, "(")
+    .replace(/;\s*\)/g, ")")
+    .replace(/;\s*;/g, ";");
   return { answer: out.replace(/[ \t]{2,}/g, " ").replace(/\s+([.,;។])/g, "$1").trim(), grounded, hallucinated, quoted };
 }

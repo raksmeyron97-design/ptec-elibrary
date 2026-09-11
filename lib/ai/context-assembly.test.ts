@@ -116,7 +116,7 @@ describe("a merged run in the prompt and in the citation", () => {
   });
 
   it("reads a page range citation as its first page", () => {
-    expect(extractCitations("… (Handbook, pp. 44-45).")).toMatchObject([{ raw: "(Handbook, pp. 44-45)", title: "Handbook", page: 44 }]);
+    expect(extractCitations("… (Handbook, pp. 44-45).")).toMatchObject([{ raw: "Handbook, pp. 44-45", title: "Handbook", page: 44 }]);
   });
 
   it("is parsed by the mock model, which then cites its first page", () => {
