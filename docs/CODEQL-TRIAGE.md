@@ -12,6 +12,25 @@ specific reason it is not a defect. A dismissal with no stated reason is worse
 than an open alert, because the next person cannot tell it from a real one that
 somebody got tired of.
 
+## Status
+
+The dismissals below were applied on 2026-09-11, which took the dashboard from
+**54 open to 15**. Everything still open has a known disposition:
+
+| Group | Alerts | What closes it |
+|---|---|---|
+| Fixed in code (PR #174) | 2, 15, 33, 44, 112, 113, 118, 119, 120, 125, 127, 129 | the post-merge scan of `main` |
+| Scoped out (`paths-ignore`) | 10, 11 | the post-merge scan of `main` |
+| Left open deliberately | 78 | a human policy call on the break-glass procedure |
+
+Nothing else is open. If a new alert appears outside that table, it is new.
+
+Note on verifying the fixes: a `pull_request` analysis reports only the DELTA
+against base, so an existing `main` alert's absence from a PR scan says nothing
+about whether it was fixed — only the scan of `main` after merge does. PR #174's
+scan confirms the branch introduces **no new** alerts (and that `rules_count`
+stayed 201, i.e. the config-file change did not silently narrow the suite).
+
 ## What CodeQL does and does not recognise here
 
 Three facts about this codebase's interaction with the JS queries, learned the
@@ -104,7 +123,7 @@ audience. The suite itself is unchanged and still `security-and-quality`; the
 config file exists so a scope decision sits next to its justification instead
 of inside a workflow `with:` block.
 
-## Dismissed — false positive (39)
+## Dismissed — false positive (39, applied 2026-09-11)
 
 ### `js/xss-through-dom` × 6 — #4, #5, #6, #9, #110, #111
 
@@ -178,7 +197,7 @@ invariant tests. They hold `${…}` inside ordinary quoted strings because the
 string is a fragment of source code they are asserting about, not a template
 they forgot to make a template.
 
-## Dismissed — by design (1)
+## NOT dismissed — by design, left open (1)
 
 ### #78 `js/clear-text-logging` — `scripts/ops/create-breakglass-admin.mjs:159`
 
@@ -194,6 +213,13 @@ stored, and the surrounding output tells the operator to seal it and clear the
 scrollback. The procedure is `docs/BREAK-GLASS-PROCEDURE.md`; the account
 enrolls MFA on first activation and is reviewed quarterly. Removing the print
 would remove the script's only output.
+
+**This one is deliberately still open.** Whether an operator's terminal is an
+acceptable place for a break-glass credential is a judgement about the
+procedure, not a verdict about the code, and it should be made by a person and
+be attributable. Dismiss it as "won't fix" if the procedure stands; the
+alternative is to have the script write to a file with 0600 permissions, which
+trades a scrollback risk for a disk risk and is not obviously better.
 
 ## Re-triaging
 
