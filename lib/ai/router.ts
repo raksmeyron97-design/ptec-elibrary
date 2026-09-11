@@ -65,6 +65,7 @@ import {
 } from "./response";
 import * as T from "./templates";
 import { MAX_PASSAGES_DETAILED, estimateTokens } from "./token-budget";
+import { buildTrace, type AITrace } from "./trace";
 
 export interface AssistantInput {
   messages: InboundMessage[];
@@ -79,6 +80,18 @@ export interface AssistantInput {
 export interface AssistantResult {
   response: AIResponse;
   telemetry: AITelemetry;
+  /**
+   * The explainable chain behind this answer (lib/ai/trace.ts). For the
+   * benchmark and for `AI_TRACE=1` server debugging — never sent to the
+   * client, never written to app_events.
+   */
+  trace: AITrace;
+}
+
+/** Print the trace to the server log when explicitly asked for. Debug only. */
+function emitTrace(trace: AITrace): void {
+  if (process.env.AI_TRACE !== "1") return;
+  console.log("[ai/trace]", JSON.stringify(trace));
 }
 
 // ── Stage 1: deterministic resolution ─────────────────────────────────────────
@@ -254,7 +267,15 @@ async function retrieveFor(
       // Before this, the slug was used to classify the intent and then
       // thrown away, so "what does this book say about X" searched the whole
       // library and could return at most one page of the book in hand.
-      const record = intent.slug ? await resolveIntentRecord(intent) : null;
+      // A question that NAMES its source ("According to X, what is Y") is
+      // scoped to X the same way once X resolves; if it does not, the
+      // collection is searched and the answer says nothing about X.
+      const scopeTitle = intent.parsed?.scopeTitle;
+      const record = intent.slug
+        ? await resolveIntentRecord(intent)
+        : scopeTitle
+          ? await findRecordByTitle(scopeTitle)
+          : null;
       if (record) {
         return {
           retrieval: await retrieveEvidence({
@@ -410,7 +431,10 @@ export async function runAssistant(
       : retrieval.results.length
         ? resultsResponse(p.answer, retrieval.results, intent.intent, metadata)
         : textResponse(p.answer, intent.intent, metadata);
-    return { response, telemetry: { ...baseTelemetry(), fallback: retrieval.fallback ?? "no_llm" } };
+    const telemetry: AITelemetry = { ...baseTelemetry(), fallback: retrieval.fallback ?? "no_llm" };
+    const trace = buildTrace(p, response, telemetry, { inputTokens: 0, grounded: 0, hallucinated: 0, quoted: 0 });
+    emitTrace(trace);
+    return { response, telemetry, trace };
   }
 
   // ── Model path ──────────────────────────────────────────────────────────────
@@ -470,27 +494,37 @@ export async function runAssistant(
         ? resultsResponse(answer, retrieval.results, intent.intent, metadata)
         : textResponse(answer, intent.intent, metadata);
 
-    return { response, telemetry };
+    const chain = buildTrace(p, response, telemetry, {
+      inputTokens,
+      grounded: grounded.grounded.length,
+      hallucinated: grounded.hallucinated.length,
+      quoted: grounded.quoted.length,
+    });
+    emitTrace(chain);
+    return { response, telemetry, trace: chain };
   } catch (err) {
     // §26: the model failing must not take the library search down with it.
     console.error("[ai/router] generation failed:", err instanceof Error ? err.message : err);
     if (retrieval.results.length === 0) throw new AIRequestError("unavailable");
 
     const answer = `${T.degraded(intent.locale)} ${T.foundResults(retrieval.results, intent.query, intent.locale)}`;
+    const response = resultsResponse(answer, retrieval.results, intent.intent, {
+      modelTier: "none",
+      locale: intent.locale,
+      remaining: input.remaining ?? null,
+      deterministic: true,
+    });
+    const telemetry: AITelemetry = {
+      ...baseTelemetry(),
+      fallback: "error",
+      provider: trace.provider,
+      providerFallback: trace.fellBack,
+      latencyMs: Date.now() - started,
+    };
     return {
-      response: resultsResponse(answer, retrieval.results, intent.intent, {
-        modelTier: "none",
-        locale: intent.locale,
-        remaining: input.remaining ?? null,
-        deterministic: true,
-      }),
-      telemetry: {
-        ...baseTelemetry(),
-        fallback: "error",
-        provider: trace.provider,
-        providerFallback: trace.fellBack,
-        latencyMs: Date.now() - started,
-      },
+      response,
+      telemetry,
+      trace: buildTrace(p, response, telemetry, { inputTokens, grounded: 0, hallucinated: 0, quoted: 0 }),
     };
   }
 }

@@ -94,8 +94,9 @@ export function retrievalModeFor(intent: IntentResult): RetrievalMode {
     case "resource_summary":
       return "summary";
     case "pdf_question":
-      // A question asked from a resource page is answered from THAT document.
-      return intent.slug ? "scoped" : "hybrid";
+      // A question asked from a resource page — or one that names its source
+      // — is answered from THAT document.
+      return intent.slug || intent.parsed?.scopeTitle ? "scoped" : "hybrid";
     case "general_knowledge":
       // The catch-all retrieves across the collection before concluding the
       // library has nothing (lib/ai/router.ts). The mode has to say so, or the

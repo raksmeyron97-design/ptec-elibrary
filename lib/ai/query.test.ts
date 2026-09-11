@@ -159,3 +159,35 @@ describe("answer-policy flags", () => {
     }
   });
 });
+
+describe("a question that names its SOURCE", () => {
+  it("reads 'according to X, what is Y' as evidence about Y scoped to the work X", () => {
+    const q = parseQuery("According to Essentials of Research Design and Methodology, what is validity?");
+    expect(q.frame).toBe("evidence");
+    expect(q.topic).toBe("validity");
+    expect(q.scopeTitle).toBe("Essentials of Research Design and Methodology");
+    expect(q.titleCandidates).toContain("Essentials of Research Design and Methodology");
+  });
+
+  it("reads 'what does X say about Y' the same way, quoted or not", () => {
+    expect(parseQuery('What does "SPSS Explained" say about regression?')).toMatchObject({ frame: "evidence", topic: "regression", scopeTitle: "SPSS Explained" });
+    expect(parseQuery("What does Practical Research Methods say about interviews?")).toMatchObject({ topic: "interviews", scopeTitle: "Practical Research Methods" });
+  });
+
+  it("never mistakes the collection nouns for a work", () => {
+    expect(parseQuery("What do the books say about triangulation?").scopeTitle).toBeUndefined();
+    expect(parseQuery("According to the literature, how is reliability established?").scopeTitle).toBeUndefined();
+    expect(parseQuery("What does this book say about sampling?").scopeTitle).toBeUndefined();
+  });
+});
+
+describe("an ISBN carried inside a sentence", () => {
+  it("is found and canonicalised", () => {
+    expect(parseQuery("Do you have ISBN 0471470538?").isbnCandidates).toEqual(["9780471470533"]);
+    expect(parseQuery("do you have 978-0-415-27410-4 in stock").isbnCandidates).toEqual(["9780415274104"]);
+  });
+  it("does not read a page number or a year as an ISBN", () => {
+    expect(parseQuery("what does it say on page 1234567890?").isbnCandidates).toEqual([]);
+    expect(parseQuery("books published in 2019").isbnCandidates).toEqual([]);
+  });
+});

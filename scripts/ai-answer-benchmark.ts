@@ -54,6 +54,7 @@ import {
   modelReasoningAssessable,
   type AnswerDiagnosis,
 } from "../lib/ai/answer-failure";
+import type { AITrace } from "../lib/ai/trace";
 
 config({ path: ".env.local" });
 config({ path: ".env" });
@@ -69,10 +70,14 @@ const LIVE = has("--live");
 const VERBOSE = has("--verbose");
 const JSON_OUT = has("--json");
 const ONLY = valueOf("--category");
+/** Which fixture: `v1` (the original 123, the permanent baseline), `v2` (the edge-case suite), or `all`. */
+const SUITE = valueOf("--suite") ?? "v1";
 /** Comma-separated question ids — a small, deliberate set for a --live run. */
 const IDS = valueOf("--ids")?.split(",").map((s) => s.trim()).filter(Boolean);
 const COMPARE = valueOf("--compare");
 const DIAGNOSE = has("--diagnose");
+/** Write the human-readable failure matrix (every failing question, stage by stage) to this file. */
+const MATRIX = valueOf("--matrix");
 
 // The mock is opt-OUT: a benchmark that silently bills the provider on every
 // local run is a benchmark nobody runs.
@@ -120,6 +125,13 @@ interface Row {
   /** Which pipeline stage is responsible when this question failed. */
   diagnosis: AnswerDiagnosis | null;
   retrievalMode: string | null;
+  /**
+   * The full chain behind the answer (lib/ai/trace.ts): frame, topic,
+   * entities, strategy, every selected passage with its ranking signals,
+   * context size, citation judgement. This is the machine-readable failure
+   * matrix — `--matrix <file.md>` renders the failing rows of it for people.
+   */
+  trace: AITrace | null;
   /** Where the answer came from: a template, or a generated reply. */
   answerClass: "template" | "generated" | "refusal" | "empty";
 }
@@ -161,13 +173,23 @@ console.error = (...args: unknown[]) => {
 };
 
 async function main() {
-  const fixture = JSON.parse(
-    readFileSync("scripts/ai-answer-benchmark/questions.json", "utf8"),
-  ) as { generatedAt: string; corpusBooks: number; questions: Question[] };
+  type Fixture = { generatedAt: string; corpusBooks: number; questions: Question[] };
+  const load = (file: string) => JSON.parse(readFileSync(`scripts/ai-answer-benchmark/${file}`, "utf8")) as Fixture;
+  const v1 = load("questions.json");
+  // The original 123 are never edited; the v2 suite ADDS permanent edge cases
+  // (typos, ISBNs, Khmer titles, named-source questions, concept comparisons,
+  // ambiguity). `--suite all` runs both; the report names which ran.
+  const fixture: Fixture =
+    SUITE === "v2"
+      ? load("questions-v2.json")
+      : SUITE === "all"
+        ? { ...v1, questions: [...v1.questions, ...load("questions-v2.json").questions] }
+        : v1;
 
   const all = fixture.questions.filter(
     (q) => (!ONLY || q.category === ONLY) && (!IDS || IDS.includes(q.id)),
   );
+  for (const q of all) fixtureIntents.set(q.id, q.expectIntent);
 
   // Imported late: these modules read process.env at load, and AI_MOCK_PROVIDER
   // has to be set before `lib/ai/models.ts` and the provider resolve.
@@ -185,6 +207,7 @@ async function main() {
     const started = Date.now();
     let response: Awaited<ReturnType<typeof runAssistant>>["response"] | null = null;
     let telemetry: Awaited<ReturnType<typeof runAssistant>>["telemetry"] | null = null;
+    let trace: AITrace | null = null;
     try {
       const result = await runAssistant({
         messages: [{ role: "user", text: q.question }],
@@ -193,6 +216,7 @@ async function main() {
       });
       response = result.response;
       telemetry = result.telemetry;
+      trace = result.trace;
     } catch (err) {
       process.stderr.write(`  ! ${q.id} threw: ${err instanceof Error ? err.message : String(err)}\n`);
     }
@@ -280,6 +304,7 @@ async function main() {
       expectedSlugs: expected,
       diagnosis,
       retrievalMode: telemetry?.retrievalMode ?? null,
+      trace,
       answerClass,
     });
 
@@ -326,6 +351,7 @@ async function main() {
   const report = {
     generatedAt: new Date().toISOString(),
     live: LIVE,
+    suite: SUITE,
     corpus: `${fixture.corpusBooks} published books, labelled ${fixture.generatedAt.slice(0, 10)}`,
     /** Embedding/vector failures logged during the run. Non-zero = not comparable. */
     degraded: embeddingFailures,
@@ -346,7 +372,7 @@ async function main() {
       );
     }
     console.log(
-      `\nAI answer benchmark — ${LIVE ? "LIVE provider" : "mock model (offline)"} — ${rows.length} questions` +
+      `\nAI answer benchmark — ${LIVE ? "LIVE provider" : "mock model (offline)"} — suite ${SUITE} — ${rows.length} questions` +
         `\ncorpus fixture: ${fixture.corpusBooks} published books, labelled ${fixture.generatedAt.slice(0, 10)}\n`,
     );
     const head =
@@ -433,11 +459,74 @@ async function main() {
     }
   }
 
+  if (MATRIX) {
+    writeFileSync(MATRIX, renderFailureMatrix(rows, report.corpus, LIVE));
+    if (!JSON_OUT) console.log(`Wrote failure matrix ${MATRIX}`);
+  }
+
   mkdirSync("scripts/ai-answer-benchmark/results", { recursive: true });
-  const path = `scripts/ai-answer-benchmark/results/${new Date().toISOString().replace(/[:.]/g, "-")}${LIVE ? "-live" : ""}${embeddingFailures ? "-DEGRADED" : ""}.json`;
+  const path = `scripts/ai-answer-benchmark/results/${new Date().toISOString().replace(/[:.]/g, "-")}${SUITE !== "v1" ? `-${SUITE}` : ""}${LIVE ? "-live" : ""}${embeddingFailures ? "-DEGRADED" : ""}.json`;
   writeFileSync(path, JSON.stringify(report, null, 1));
   if (!JSON_OUT) console.log(`\nWrote ${path}`);
 }
+
+/**
+ * The failure matrix the brief asks for: for every failing question, the
+ * whole chain — question, expected vs predicted intent, normalization,
+ * entities, retrieval strategy and candidates, selected passages with their
+ * scores, context size, policy, output, citations, expected evidence, the
+ * stage, the root cause and the remedy. Rendered from the trace each row
+ * already carries; nothing here is recomputed.
+ */
+function renderFailureMatrix(rows: Row[], corpus: string, live: boolean): string {
+  const failing = rows.filter((r) => r.diagnosis !== null);
+  const lines: string[] = [
+    `# AI answer benchmark — failure matrix`,
+    ``,
+    `Generated ${new Date().toISOString()} · ${live ? "live provider" : "mock model"} · corpus: ${corpus} · ${failing.length} of ${rows.length} questions failing`,
+    ``,
+  ];
+  if (!failing.length) lines.push("No failing questions.");
+  for (const r of failing) {
+    const t = r.trace;
+    const d = r.diagnosis!;
+    lines.push(`## [${d.letter}] ${r.id} — ${r.category}`);
+    lines.push(``);
+    lines.push(`| | |`);
+    lines.push(`|---|---|`);
+    lines.push(`| question | ${r.question} |`);
+    lines.push(`| expected intent | ${(fixtureIntents.get(r.id) ?? []).join(" / ")} |`);
+    lines.push(`| predicted intent | ${r.intent} (${r.routingOk ? "ok" : "MISS"}), confidence ${t?.routing.confidence ?? "—"} |`);
+    lines.push(`| normalized query / topic | ${t?.question.topic ?? "—"} (frame: ${t?.question.frame ?? "—"}, language: ${t?.question.language ?? "—"}) |`);
+    lines.push(`| entities detected | titles: ${(t?.question.titleCandidates ?? []).join("; ") || "—"}; isbn: ${(t?.question.isbnCandidates ?? []).join("; ") || "—"}; compare: ${(t?.question.compareTargets ?? []).join(" vs ") || "—"} |`);
+    lines.push(`| retrieval strategy | ${t?.retrieval.strategy ?? "—"} (mode ${r.retrievalMode ?? "—"}), candidates ${t?.retrieval.candidateCount ?? 0}, semantic ${t?.retrieval.semanticAvailable ?? "—"}, entity ${t?.retrieval.entity ? `${t.retrieval.entity.slug} (${t.retrieval.entity.band})` : "—"} |`);
+    lines.push(`| retrieved documents | ${r.evidenceSlugs.join(", ") || "—"} |`);
+    lines.push(`| selected context | ${t?.context.passages ?? 0} passage(s), ${t?.context.works ?? 0} work(s), ${t?.context.facts ?? 0} fact(s), ~${t?.context.inputTokens ?? 0} input tokens |`);
+    lines.push(`| prompt policy | locale ${t?.policy.locale ?? "—"}, verbosity ${t?.policy.verbosity ?? "—"}, evidence ${t?.policy.hasEvidence ? "yes" : "no"} |`);
+    lines.push(`| model output | ${r.answerClass}, ${r.answerChars} chars — ${r.answer.slice(0, 200).replace(/\s+/g, " ").replace(/\|/g, "\\|")} |`);
+    lines.push(`| citations | grounded ${t?.citations.grounded ?? 0}, hallucinated ${r.hallucinated}, quoted ${t?.citations.quoted ?? 0}, attached ${r.sourceCount} — ${r.citedSlugs.join(", ") || "—"} |`);
+    lines.push(`| expected evidence | ${r.expectedSlugs.join(", ") || "(no source labelled)"} |`);
+    lines.push(`| actual failure | ${d.reason} |`);
+    lines.push(`| failure stage | ${d.letter} — ${d.stage} |`);
+    lines.push(`| proposed fix | ${d.remedy} |`);
+    lines.push(``);
+    if (t?.evidence.length) {
+      lines.push(`Ranked passages:`);
+      lines.push(``);
+      lines.push(`| # | record | page | match | score | signals |`);
+      lines.push(`|---|---|---|---|---|---|`);
+      t.evidence.forEach((e, i) => {
+        const pages = e.pageEnd && e.pageEnd > e.page ? `${e.page}–${e.pageEnd}` : String(e.page);
+        lines.push(`| ${i + 1} | ${e.title.replace(/\|/g, "\\|")} | ${pages} | ${e.matchType} | ${e.score.toFixed(4)} | ${JSON.stringify(e.signals ?? {})} |`);
+      });
+      lines.push(``);
+    }
+  }
+  return lines.join("\n");
+}
+
+/** Expected intents by question id, for the matrix. Filled in main(). */
+const fixtureIntents = new Map<string, string[]>();
 
 main().then(() => process.exit(0)).catch((e) => {
   console.error(e);

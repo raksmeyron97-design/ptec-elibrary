@@ -33,6 +33,7 @@
 // `none` and the older keyword tables decide, exactly as before.
 
 import { queryIsbn } from "@/lib/search/normalize";
+import { validateIsbn } from "@/lib/books/duplicate-detection/normalize";
 
 /** What kind of question this is — the thing the answer policy keys on. */
 export type QueryFrame =
@@ -68,6 +69,12 @@ export interface AiQuery {
   isbnCandidates: string[];
   /** For a comparison: the two sides, in the order asked. */
   compareTargets: string[];
+  /**
+   * A work the question names as the SOURCE to answer from ("According to
+   * X, what is Y", "What does X say about Y") when the reader is not on
+   * X's page. Retrieval resolves it and scopes to it.
+   */
+  scopeTitle?: string;
   /** The named entity must be resolved exactly; a "similar" result is wrong. */
   exactEntityRequired: boolean;
   /** The answer must rest on retrieved passages, not on a catalogue card. */
@@ -86,6 +93,20 @@ export function detectQueryLanguage(text: string): QueryLanguage {
   const latin = LATIN_LETTER.test(text);
   if (km && latin) return "mixed";
   return km ? "km" : "en";
+}
+
+/**
+ * An ISBN inside a sentence ("do you have ISBN 978-0-415-27410-4?"). `queryIsbn`
+ * only recognises a query that IS an ISBN; this finds one carried in words,
+ * and accepts it only when its digits make a valid-shaped ISBN-10/13.
+ */
+const ISBN_IN_TEXT = /\b(?:97[89][\s-]?)?(?:\d[\s-]?){9}[\dxX]\b/u;
+function embeddedIsbn(text: string): string | null {
+  const m = ISBN_IN_TEXT.exec(text);
+  // Inside a sentence the check digit must verify: a ten-digit page number
+  // or a phone number is ISBN-shaped, and lenience belongs to the bare form.
+  if (!m || validateIsbn(m[0]).status !== "valid") return null;
+  return queryIsbn(m[0]);
 }
 
 // ── Quoted spans ──────────────────────────────────────────────────────────────
@@ -168,6 +189,24 @@ const FRAMES: FramePattern[] = [
   },
   { frame: "evidence", re: new RegExp(String.raw`^(?:តើ\s*)?(?:អក្សរសិល្ប៍|ការស្រាវជ្រាវ|សៀវភៅទាំងអស់|សៀវភៅនានា|ឯកសារនានា)\s*(?:និយាយ|បង្ហាញ|ពន្យល់|រៀបរាប់)\s*(?:អ្វី|អី|យ៉ាងណា|ដូចម្តេច)?\s*(?:អំពី|ស្តីពី|ស្ដីពី|ពី)?\s*(.+?)${TRAIL}`, "u") },
 
+  // According to <WORK>, what is X / What does <WORK> say about X — a named
+  // work as the source. After the collection-noun evidence frames above, so
+  // "what do the books say about X" is never read as a work called "the books".
+  {
+    frame: "evidence",
+    re: new RegExp(
+      String.raw`^according\s+to\s+(?:the\s+(?:e-?book|book|thesis|text)\s+)?["“«]?(?<work>[^"”»,]{3,120}?)["”»]?\s*,\s*(?:what\s+(?:is|are)\s+(?:(?:a|an|the)\s+)?|how\s+(?:is|are)\s+|explain\s+|describe\s+)?(.+?)(?:\s+(?:handled|treated|defined|described|covered|approached|understood|explained|presented))?${TRAIL}`,
+      "iu",
+    ),
+  },
+  {
+    frame: "evidence",
+    re: new RegExp(
+      String.raw`^what\s+(?:does|do)\s+(?:the\s+(?:e-?book|book|thesis|text)\s+)?["“«]?(?<work>[^"”»]{3,120}?)["”»]?\s+${EN_CONTENT_VERBS}\s+(?:about|on|regarding|of)\s+(.+?)${TRAIL}`,
+      "iu",
+    ),
+  },
+
   // Explain X (as the library's books describe it).
   {
     frame: "explanation",
@@ -218,7 +257,12 @@ function cleanTopic(topic: string): string {
 export interface FrameMatch {
   frame: QueryFrame;
   topic: string;
+  /** The work named as the source, when the frame names one. */
+  scopeTitle?: string;
 }
+
+/** Collection nouns that are not a work's title ("the books", "the literature"). */
+const NOT_A_WORK = /^(?:the\s+)?(?:library'?s?\s+|collection'?s?\s+)?(?:literature|books?|sources?|authors?|studies|research|scholarship|texts?|materials?|collection|document|this\s+book|it)$/iu;
 
 /**
  * The frame a question wears and the topic left when it is removed, or null
@@ -231,11 +275,13 @@ export function detectFrame(text: string): FrameMatch | null {
   for (const { frame, re } of FRAMES) {
     const m = re.exec(t);
     if (!m) continue;
-    const topic = cleanTopic(m[1] ?? "");
+    const topic = cleanTopic(m[m.length - 1] ?? "");
     if (topic.length < 2) continue;
     if (NOT_A_TOPIC.test(topic)) continue;
     if ((frame === "definition" || frame === "explanation") && DEICTIC_IN_TOPIC.test(topic)) continue;
-    return { frame, topic };
+    const work = m.groups?.work ? cleanTopic(m.groups.work) : "";
+    if (m.groups && "work" in m.groups && (!work || NOT_A_WORK.test(work))) continue;
+    return work ? { frame, topic, scopeTitle: work } : { frame, topic };
   }
   return null;
 }
@@ -266,13 +312,15 @@ export function parseQuery(raw: string): AiQuery {
   const text = raw.trim();
   const language = detectQueryLanguage(text);
   const titles = quoted(text);
-  const isbn = queryIsbn(text);
+  const isbn = queryIsbn(text) ?? embeddedIsbn(text);
   const frameMatch = detectFrame(text);
   const sides = compareSides(text);
 
   let frame: QueryFrame = frameMatch?.frame ?? "none";
   let topic = frameMatch?.topic ?? text;
+  const scopeTitle = frameMatch?.scopeTitle;
   const titleCandidates = [...titles];
+  if (scopeTitle && !titleCandidates.includes(scopeTitle)) titleCandidates.push(scopeTitle);
   const authorCandidates: string[] = [];
   const isbnCandidates = isbn ? [isbn] : [];
   let compareTargets: string[] = [];
@@ -301,8 +349,9 @@ export function parseQuery(raw: string): AiQuery {
   }
 
   if (frame === "definition" || frame === "explanation" || frame === "evidence") {
-    // A quoted phrase inside a concept question is the concept, verbatim.
-    if (titles.length === 1 && topic.includes(titles[0])) topic = titles[0];
+    // A quoted phrase inside a concept question is the concept, verbatim —
+    // unless it is the WORK the question names as its source.
+    if (titles.length === 1 && topic.includes(titles[0]) && titles[0] !== scopeTitle) topic = titles[0];
   }
 
   const exactEntityRequired = frame === "availability" || frame === "author_lookup" || isbnCandidates.length > 0;
@@ -319,6 +368,7 @@ export function parseQuery(raw: string): AiQuery {
     authorCandidates,
     isbnCandidates,
     compareTargets,
+    scopeTitle,
     exactEntityRequired,
     requiresEvidence,
     allowsSynthesis,

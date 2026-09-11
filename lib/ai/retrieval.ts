@@ -320,18 +320,21 @@ async function namedBookRows(db: Db, name: string): Promise<any[]> {
 async function bookByIsbn(db: Db, isbn: string): Promise<any | null> {
   const keys = isbnMatchKeys(isbn);
   if (!keys.length) return null;
-  // `books_isbn_digits_idx` (0130) indexes the stripped digits; PostgREST
-  // cannot address the expression, so the stored text is matched on each
-  // form the reader or cataloguer might have written.
+  // The column holds whatever the cataloguer typed — "0-415-27410-9",
+  // "0415274109", "978 0 415 27410 4". `books_isbn_digits_idx` (0130) indexes
+  // the stripped digits, but PostgREST cannot address that expression, so
+  // each key is asked for with a wildcard between every character (any
+  // separator, or none) and the rows are then confirmed digit-for-digit.
+  const loose = (k: string) => `%${k.split("").join("%")}%`;
   const { data, error } = await db
     .from("books")
     .select(BOOK_CARD_SELECT + ", isbn")
     .eq("is_published", true)
-    .or(keys.map((k) => `isbn.ilike.%${k}%`).join(","))
-    .limit(5);
+    .or(keys.map((k) => `isbn.ilike.${loose(k)}`).join(","))
+    .limit(8);
   if (error || !data?.length) return null;
   const rows = data as any[];
-  return rows.find((r) => isbnMatchKeys(r.isbn).some((k) => keys.includes(k))) ?? rows[0];
+  return rows.find((r) => isbnMatchKeys(r.isbn).some((k) => keys.includes(k))) ?? null;
 }
 
 function thesisRow(r: any): { result: SearchResult; work: CompactWork } {

@@ -159,7 +159,7 @@ describe("zero-LLM paths", () => {
   it("refuses to answer a document question with no retrieved evidence", async () => {
     const { response } = await ask("what does the document say on page 42?");
     expect(generateText).not.toHaveBeenCalled();
-    expect(response.answer).toMatch(/couldn’t find a passage/i);
+    expect(response.answer).toMatch(/couldn’t find enough evidence/i);
   });
 });
 
@@ -276,5 +276,28 @@ describe("query budget", () => {
     retrieval.searchWorks.mockResolvedValue({ ...BOOKS, dbQueries: 2 });
     const { telemetry } = await ask("find me books about reading");
     expect(telemetry.dbQueries).toBeLessThanOrEqual(2);
+  });
+});
+
+// ── AI Brain 2: every answer carries its explainable chain ───────────────────
+describe("trace", () => {
+  it("records the chain behind a template answer without a model call", async () => {
+    const { trace, response, telemetry } = await ask("what does the document say on page 42?");
+    expect(generateText).not.toHaveBeenCalled();
+    expect(trace.routing.intent).toBe(response.intent);
+    expect(trace.routing.deterministic).toBe(telemetry.deterministic);
+    expect(trace.question.frame).toBeDefined();
+    expect(trace.retrieval.strategy).toMatch(/^evidence:|^lookup:|^template:/);
+    expect(trace.outcome.answerClass).toBe("refusal");
+    expect(trace.citations).toEqual({ grounded: 0, hallucinated: 0, quoted: 0, attached: 0 });
+  });
+
+  it("records what reached the model and how its citations were judged", async () => {
+    const { trace } = await ask("who invented the printing press?");
+    expect(generateText).toHaveBeenCalledOnce();
+    expect(trace.outcome.answerClass).toBe("generated");
+    expect(trace.context.inputTokens).toBeGreaterThan(0);
+    expect(trace.policy.hasEvidence).toBe(false);
+    expect(trace.retrieval.strategy).toBe("evidence:hybrid");
   });
 });
