@@ -37,6 +37,43 @@ function label(type: SearchResult["type"], count: number, locale: AILocale): str
   }
 }
 
+/**
+ * "Yes — “X” by A is in the library." The question named a work and the
+ * catalogue resolved it exactly; the card is first, and any further cards are
+ * neighbours, not the answer.
+ */
+export function exactWorkFound(result: SearchResult, total: number, locale: AILocale): string {
+  const author = result.author?.trim();
+  const others = Math.max(0, total - 1);
+  if (locale === "km") {
+    const by = author ? ` និពន្ធដោយ ${author}` : "";
+    const more = others ? ` សៀវភៅស្រដៀងគ្នា ${n(others, "km")} ក្បាលទៀតបង្ហាញខាងក្រោម។` : "";
+    return `បាទ/ចាស មាន «${result.title}»${by} នៅក្នុងបណ្ណាល័យ។ មើលលម្អិតនៅ ${result.url}។${more}`;
+  }
+  const by = author ? ` by ${author}` : "";
+  const more = others ? ` ${others} related ${others === 1 ? "title is" : "titles are"} shown below.` : "";
+  return `Yes — “${result.title}”${by} is in the PTEC Library. Details at ${result.url}.${more}`;
+}
+
+/**
+ * "I couldn't find a work titled X." The question named a work the catalogue
+ * does not hold under that title. Neighbours may follow, labelled as such —
+ * they are not the book the reader asked for.
+ */
+export function noExactWork(title: string, total: number, locale: AILocale): string {
+  const isbn = /^[\d\s-]{10,17}$/.test(title);
+  if (locale === "km") {
+    const what = isbn ? `សៀវភៅដែលមាន ISBN ${title}` : `សៀវភៅដែលមានចំណងជើង «${title}»`;
+    const more = total ? ` សៀវភៅដែលមានឈ្មោះស្រដៀងគ្នា ${n(total, "km")} ក្បាលបង្ហាញខាងក្រោម។` : " សូមពិនិត្យអក្ខរាវិរុទ្ធ ឬស្វែងរកនៅ /books។";
+    return `ខ្ញុំរកមិនឃើញ${what} នៅក្នុងបណ្ណាល័យ វ.គ.ភ ទេ។${more}`;
+  }
+  const what = isbn ? `a work with ISBN ${title}` : `a work titled “${title}”`;
+  const more = total
+    ? ` The closest ${total === 1 ? "title is" : `${total} titles are`} shown below — ${total === 1 ? "it is" : "they are"} not that book.`
+    : " Check the spelling, or search the collection at /books.";
+  return `I couldn’t find ${what} in the PTEC Library.${more}`;
+}
+
 /** "I found 4 books about educational psychology." */
 export function foundResults(
   results: readonly SearchResult[],
@@ -125,6 +162,14 @@ export function compareLead(titles: readonly string[], locale: AILocale): string
 }
 
 /** One side of a comparison has no evidence — never inferred as agreement. */
+/** A fact line telling the model which passages answer which side of a concept comparison. */
+export function conceptCompareLead(sides: readonly string[], locale: AILocale): string {
+  const [a, b] = sides;
+  return locale === "km"
+    ? `ការប្រៀបធៀបគំនិតពីរ៖ «${a}» និង «${b}»។ អត្ថបទដំបូងៗគឺអំពី «${a}» និងអត្ថបទបន្ទាប់គឺអំពី «${b}»។`
+    : `This compares two concepts: “${a}” and “${b}”. The first passages are about “${a}”, the later ones about “${b}”.`;
+}
+
 export function compareMissing(title: string, locale: AILocale): string {
   return locale === "km"
     ? `ខ្ញុំរកមិនឃើញអត្ថបទដែលពាក់ព័ន្ធនៅក្នុង «${title}» សម្រាប់សំណួរនេះទេ ដូច្នេះមិនអាចប្រៀបធៀបបានពេញលេញ។`

@@ -32,17 +32,24 @@ import type { CompactWork } from "./context";
 import { EMPTY_RETRIEVAL, type RetrievalOutcome } from "./plan";
 import {
   EVIDENCE_LIMITS,
+  applyEvidenceBoosts,
   balanceByDocument,
+  definitionSignal,
   diversify,
   fuseEvidence,
   lexicalScore,
   minLexicalScore,
   queryTerms,
+  requiredTerms,
   spreadPages,
   type EvidenceRecordType,
+  type EvidenceSignals,
   type RetrievalMode,
   type RetrievedEvidence,
 } from "./evidence";
+import { orderedWordsPattern, resolveTitle } from "./entity";
+import type { QueryFrame } from "./query";
+import { isbnMatchKeys, titleWithoutEdition } from "@/lib/books/duplicate-detection/normalize";
 import { getResourceReadiness } from "./readiness";
 import { makeSnippet } from "@/lib/search/snippet";
 import { getListedAuthors } from "@/lib/authors/directory";
@@ -172,14 +179,25 @@ type Db = ReturnType<typeof createServiceClient>;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+const BOOK_CARD_SELECT =
+  "slug, title, cover_url, description, department, published_at, download_count, authors(name), categories(name)";
+
 async function keywordBooks(db: Db, query: string, limit: number) {
   const tokens = filterTokens(query);
   if (!tokens.length) return [];
+  // The whole phrase is also asked for as its WORDS IN ORDER. The literal
+  // phrase clause cannot match a stored title once `sanitizeFilterTerm` has
+  // removed the parentheses of "(3rd Edition)" — which is every
+  // edition-suffixed title in the collection.
+  const ordered = orderedWordsPattern(query);
+  const clauses = [orFilter(["title", "description"], tokens), ordered ? `title.ilike.${ordered}` : ""]
+    .filter(Boolean)
+    .join(",");
   const { data, error } = await db
     .from("books")
-    .select("slug, title, cover_url, description, department, published_at, authors(name), categories(name)")
+    .select(BOOK_CARD_SELECT)
     .eq("is_published", true)
-    .or(orFilter(["title", "description"], tokens))
+    .or(clauses)
     // Popularity orders the POOL, not the answer. Fetching exactly `limit`
     // rows here made downloads the ranking: an exactly-named title that is not
     // among the most-downloaded books sharing a word with the query never
@@ -227,7 +245,7 @@ async function keywordPosts(db: Db, query: string, limit: number) {
   return (data ?? []) as any[];
 }
 
-function bookRow(b: any): { result: SearchResult; work: CompactWork } {
+function bookRow(b: any): { result: SearchResult; work: CompactWork; popularity: number } {
   return {
     result: {
       slug: b.slug,
@@ -244,7 +262,74 @@ function bookRow(b: any): { result: SearchResult; work: CompactWork } {
       summary: b.description ?? undefined,
       year: b.published_at ? String(b.published_at).slice(0, 4) : undefined,
     },
+    popularity: Number(b.download_count ?? 0),
   };
+}
+
+/**
+ * Catalogue rows whose title could be the work `name` names: the words in
+ * order, with and without an edition marker, ten rows by popularity. The
+ * caller confirms with `resolveTitle` — this only builds the pool.
+ */
+async function namedBookRows(db: Db, name: string): Promise<any[]> {
+  const patterns = new Set<string>();
+  const whole = orderedWordsPattern(name);
+  if (whole) patterns.add(whole);
+  const base = orderedWordsPattern(titleWithoutEdition(name));
+  if (base) patterns.add(base);
+  if (!patterns.size) return [];
+  const { data, error } = await db
+    .from("books")
+    .select(BOOK_CARD_SELECT)
+    .eq("is_published", true)
+    .or([...patterns].map((p) => `title.ilike.${p}`).join(","))
+    .order("download_count", { ascending: false })
+    .limit(10);
+  if (error) {
+    console.error("[ai/retrieval] named book rows:", error.message);
+    return [];
+  }
+  if (data?.length) return data as any[];
+
+  // Nothing carries the words in order — a typo, most likely. The trigram
+  // RPC the search page uses returns look-alike titles; `resolveTitle` then
+  // admits one only when every word of the query sits within one edit of a
+  // title word, so "Practicl Reserch Methods" resolves and "research methods
+  // handbook" does not.
+  try {
+    const { data: fuzzy } = await db.rpc("search_library_fuzzy", { query_text: name.slice(0, 120), match_count: 8 });
+    const slugs = ((fuzzy ?? []) as { source: string; ref: string }[])
+      .filter((r) => r.source === "book" && r.ref)
+      .map((r) => r.ref);
+    if (!slugs.length) return [];
+    const { data: rows } = await db
+      .from("books")
+      .select(BOOK_CARD_SELECT)
+      .eq("is_published", true)
+      .in("slug", slugs)
+      .limit(8);
+    return (rows ?? []) as any[];
+  } catch {
+    return [];
+  }
+}
+
+/** The book an ISBN identifies, in whichever form the cataloguer stored it. */
+async function bookByIsbn(db: Db, isbn: string): Promise<any | null> {
+  const keys = isbnMatchKeys(isbn);
+  if (!keys.length) return null;
+  // `books_isbn_digits_idx` (0130) indexes the stripped digits; PostgREST
+  // cannot address the expression, so the stored text is matched on each
+  // form the reader or cataloguer might have written.
+  const { data, error } = await db
+    .from("books")
+    .select(BOOK_CARD_SELECT + ", isbn")
+    .eq("is_published", true)
+    .or(keys.map((k) => `isbn.ilike.%${k}%`).join(","))
+    .limit(5);
+  if (error || !data?.length) return null;
+  const rows = data as any[];
+  return rows.find((r) => isbnMatchKeys(r.isbn).some((k) => keys.includes(k))) ?? rows[0];
 }
 
 function thesisRow(r: any): { result: SearchResult; work: CompactWork } {
@@ -333,6 +418,10 @@ export interface SearchOptions {
   limit?: number;
   /** Skip the semantic pass entirely (used when the query is an exact title). */
   keywordOnly?: boolean;
+  /** A work the question NAMED (lib/ai/query.ts) — resolved exactly, first. */
+  entity?: string;
+  /** An ISBN the question carried — the strongest identity there is. */
+  isbn?: string;
 }
 
 /**
@@ -358,11 +447,16 @@ export async function searchWorks(
 
   const limit = opts.limit ?? MAX_RESULTS;
   const types = new Set<ResultKind>(opts.types ?? ["book"]);
-  const key = cacheKey(["works", normalizeQuery(query), [...types].sort().join("+"), limit, opts.keywordOnly]);
+  const named = opts.entity?.trim() || query;
+  const key = cacheKey([
+    "works", normalizeQuery(query), [...types].sort().join("+"), limit, opts.keywordOnly,
+    normalizeQuery(named), opts.isbn,
+  ]);
 
   const { value, hit } = await cached<{
     results: SearchResult[];
     works: CompactWork[];
+    entity?: RetrievalOutcome["entity"];
     dbQueries: number;
     embeddingMs: number;
     fallback?: RetrievalOutcome["fallback"];
@@ -371,9 +465,29 @@ export async function searchWorks(
     let dbQueries = 0;
     let embeddingMs = 0;
 
-    const rows: Array<{ result: SearchResult; work: CompactWork }> = [];
-    if (types.has("book")) {
+    // An ISBN is identity, not a search: one row or none — never the
+    // semantic neighbours of a thirteen-digit string.
+    if (opts.isbn) {
       dbQueries++;
+      const row = await bookByIsbn(db, opts.isbn);
+      const card = row ? bookRow(row) : null;
+      return {
+        results: card ? [card.result] : [],
+        works: card ? [card.work] : [],
+        entity: card ? { slug: card.result.slug, title: card.result.title, band: "exact", via: "isbn" as const } : undefined,
+        dbQueries,
+        embeddingMs,
+        fallback: "keyword" as const,
+      };
+    }
+
+    const rows: Array<{ result: SearchResult; work: CompactWork; popularity?: number }> = [];
+    // The named-work resolution runs beside the token pool, not after it: the
+    // pool is capped by popularity and the work the reader named is exactly
+    // the row that cap used to drop (docs/AI_BRAIN_2_AUDIT.md §3).
+    const namedRows = types.has("book") ? namedBookRows(db, named) : Promise.resolve([]);
+    if (types.has("book")) {
+      dbQueries += 2;
       rows.push(...(await keywordBooks(db, query, limit)).map(bookRow));
     }
     if (types.has("research")) {
@@ -384,9 +498,18 @@ export async function searchWorks(
       dbQueries++;
       rows.push(...(await keywordPosts(db, query, limit)).map(postRow));
     }
+    const resolved = resolveTitle(
+      (await namedRows).map((r) => ({ row: r, title: String(r.title ?? ""), author: r.authors?.name ?? null, popularity: Number(r.download_count ?? 0) })),
+      named,
+    );
+    const entityCard = resolved ? bookRow(resolved.item.row) : null;
+    const entity: RetrievalOutcome["entity"] | undefined =
+      resolved && entityCard
+        ? { slug: entityCard.result.slug, title: entityCard.result.title, band: resolved.match.band, via: "title" }
+        : undefined;
 
     let fallback: RetrievalOutcome["fallback"];
-    if (rows.length < KEYWORD_SUFFICIENT && !opts.keywordOnly) {
+    if (rows.length < KEYWORD_SUFFICIENT && !opts.keywordOnly && !entity) {
       const emb = await embedQuery(query);
       embeddingMs = emb.ms;
       if (emb.vector) {
@@ -410,12 +533,17 @@ export async function searchWorks(
     // nothing about which of them answers the question.
     const ranked = rankWorks(
       rows.map((r) => ({ ...r, title: r.result.title, author: r.result.author })),
-      query,
+      named,
     );
-    const capped = ranked.slice(0, limit);
+    // The resolved work leads, whatever the pool made of it.
+    const ordered = entityCard
+      ? [entityCard, ...ranked.filter((r) => r.result.url !== entityCard.result.url)]
+      : ranked;
+    const capped = ordered.slice(0, limit);
     return {
       results: capped.map((r) => r.result),
       works: capped.map((r) => r.work),
+      entity,
       dbQueries,
       embeddingMs,
       fallback,
@@ -424,6 +552,7 @@ export async function searchWorks(
 
   out.results = value.results;
   out.works = value.works;
+  out.entity = value.entity;
   out.dbQueries = hit ? 0 : value.dbQueries;
   out.embeddingMs = hit ? 0 : value.embeddingMs;
   out.cacheHit = hit;
@@ -446,6 +575,7 @@ export async function searchWorks(
 export async function searchPassages(
   rawQuery: string,
   limit?: number,
+  frame?: QueryFrame,
 ): Promise<RetrievalOutcome> {
   // The default is the MODE's own allowance, not a separate constant.
   // `MAX_PASSAGES` (3) used to be the default here, which silently overrode
@@ -453,7 +583,42 @@ export async function searchPassages(
   // hold "the token bill of every mode" did not govern the path the router
   // actually takes, and scripts/retrieval-benchmark.ts (which calls
   // `retrieveEvidence` directly) measured a budget production never used.
-  return retrieveEvidence({ query: rawQuery, mode: "hybrid", limit });
+  return retrieveEvidence({ query: rawQuery, mode: "hybrid", limit, frame });
+}
+
+/**
+ * Evidence for a comparison of two CONCEPTS ("the difference between validity
+ * and reliability"): each side retrieved on its own, then balanced so neither
+ * can crowd the other out. The document comparison path handles two named
+ * works; this is what answers when the two sides are ideas, which used to
+ * fall through to "not enough text" because no record was named.
+ */
+export async function retrieveConceptComparison(sides: readonly string[]): Promise<EvidenceOutcome> {
+  const started = Date.now();
+  const out = emptyEvidence();
+  if (sides.length < 2) {
+    out.retrievalMs = Date.now() - started;
+    return out;
+  }
+  const limits = EVIDENCE_LIMITS.multi_document;
+  const perSide = await Promise.all(
+    sides.map((side) => retrieveEvidence({ query: side, mode: "hybrid", limit: limits.perResource, frame: "definition" })),
+  );
+  // Titles stay the record's own (citations are verified against them); the
+  // side each passage answers travels as a fact line, not as a relabel.
+  out.evidence = balanceByDocument(
+    sides.map((side, i) => ({ label: side, evidence: perSide[i].evidence })),
+    limits,
+  ).map((e) => ({ ...e, documentLabel: undefined, conceptLabel: e.documentLabel }));
+  out.passages = out.evidence;
+  out.results = evidenceToResults(out.evidence);
+  out.candidateCount = perSide.reduce((s, r) => s + r.candidateCount, 0);
+  out.semanticAvailable = perSide.some((r) => r.semanticAvailable);
+  out.dbQueries = perSide.reduce((s, r) => s + r.dbQueries, 0);
+  out.embeddingMs = perSide.reduce((s, r) => s + r.embeddingMs, 0);
+  out.cacheHit = perSide.every((r) => r.cacheHit);
+  out.retrievalMs = Date.now() - started;
+  return out;
 }
 
 /** Evidence from inside ONE resource — the "Ask this book" path. */
@@ -710,23 +875,29 @@ export async function findRecordByTitle(rawTitle: string): Promise<ResolvedRecor
   const clean = sanitizeFilterTerm(rawTitle);
   const normalized = normalizeSearchText(clean);
   if (normalized.length < 3) return null;
-  const words = clean.split(/\s+/).filter((w) => w.length >= 3).slice(0, 6);
-  if (!words.length) return null;
-  const pattern = `%${words.join("%")}%`;
+  // Words in order, with and without an edition marker; the rows are then
+  // ranked exact > normalized > edition > prefix > fuzzy by lib/ai/entity.ts,
+  // so the most-downloaded row that merely CONTAINS the words can no longer
+  // claim a title that another row matches exactly.
+  const patterns = [...new Set([orderedWordsPattern(clean), orderedWordsPattern(titleWithoutEdition(clean))].filter((p): p is string => Boolean(p)))];
+  if (!patterns.length) return null;
+  const titleFilter = patterns.map((p) => `title.ilike.${p}`).join(",");
   const db = createServiceClient();
-  const matches = (title: string) => {
-    const t = normalizeSearchText(title);
-    return t.includes(normalized) || normalized.includes(t);
-  };
 
   const { data: books } = await db
     .from("books")
-    .select("id, slug, title, published_at, authors(name)")
+    .select("id, slug, title, published_at, download_count, authors(name)")
     .eq("is_published", true)
-    .ilike("title", pattern)
+    .or(titleFilter)
     .order("download_count", { ascending: false })
-    .limit(5);
-  const book = ((books ?? []) as unknown as BookRecordRow[]).find((b) => matches(b.title));
+    .limit(10);
+  const bookPick = resolveTitle(
+    ((books ?? []) as unknown as (BookRecordRow & { download_count?: number })[]).map((b) => ({
+      row: b, title: b.title, author: b.authors?.name ?? null, popularity: Number(b.download_count ?? 0),
+    })),
+    clean,
+  );
+  const book = bookPick?.item.row;
   if (book) {
     return {
       recordType: "book",
@@ -743,9 +914,12 @@ export async function findRecordByTitle(rawTitle: string): Promise<ResolvedRecor
     .from("research_reports")
     .select("id, slug, title, author_names, academic_year, published_at")
     .eq("is_published", true)
-    .ilike("title", pattern)
-    .limit(5);
-  const thesis = ((theses ?? []) as unknown as ThesisRecordRow[]).find((r) => matches(r.title));
+    .or(titleFilter)
+    .limit(10);
+  const thesis = resolveTitle(
+    ((theses ?? []) as unknown as ThesisRecordRow[]).map((r) => ({ row: r, title: r.title, author: r.author_names })),
+    clean,
+  )?.item.row;
   if (thesis) {
     const ref = thesis.slug ?? thesis.id;
     return {
@@ -763,9 +937,12 @@ export async function findRecordByTitle(rawTitle: string): Promise<ResolvedRecor
     .from("publications_with_stats")
     .select("id, slug, title, author_names, publication_date")
     .eq("is_published", true)
-    .ilike("title", pattern)
-    .limit(5);
-  const publication = ((publications ?? []) as unknown as PublicationRecordRow[]).find((p) => matches(p.title));
+    .or(titleFilter)
+    .limit(10);
+  const publication = resolveTitle(
+    ((publications ?? []) as unknown as PublicationRecordRow[]).map((p) => ({ row: p, title: p.title, author: p.author_names })),
+    clean,
+  )?.item.row;
   if (!publication) return null;
   return {
     recordType: "publication",
@@ -784,6 +961,7 @@ async function hydratePages(
   rows: PageRow[],
   query: string,
   terms: readonly string[] = [],
+  signals?: ReadonlyMap<string, EvidenceSignals>,
 ): Promise<RetrievedEvidence[]> {
   const idsByType = new Map<EvidenceRecordType, string[]>();
   for (const r of rows) {
@@ -837,61 +1015,159 @@ async function hydratePages(
       text: makeSnippet(content, focus, PASSAGE_CHARS / 4),
       similarity: 1,
       score: 0,
+      signals: signals?.get(`${type}:${r.record_id}:${r.page_no}`),
     });
   }
   return out;
 }
 
+/** Rows the locate step may return before the strongest candidates are read in full. */
+const LOCATE_LIMIT = 600;
+/** Pages whose full text is read and scored, as a multiple of the candidate count. */
+const READ_FACTOR = 2;
+/** Records that share the read budget on an unscoped question. */
+const READ_RECORDS = 6;
+
+type LocateRow = { record_type: string; record_id: string; page_no: number };
+
 /**
- * Pages containing the query text verbatim.
+ * Pages that carry the topic — located, then read, then scored.
  *
  * This is the leg the AI path never had: `book_pages` was searched only by
  * /api/search/native, so a question quoting a phrase printed on page 24 could
  * be answered "I found no evidence" while the search box found it instantly.
  * Scoped queries filter in SQL, not afterwards.
+ *
+ * TWO PHASES, and the split is the fix for two measured defects
+ * (docs/AI_BRAIN_2_AUDIT.md §4):
+ *
+ *   1. LOCATE — ids only, no text — every page that contains the phrase, and
+ *      every page that contains ALL of the topic's required terms. The old
+ *      single query fetched 108 rows WITH text and no ORDER BY, so for a term
+ *      on thousands of pages the pool was whichever rows Postgres reached
+ *      first; and it admitted any page carrying a majority of the terms, which
+ *      is how "byzantine fault tolerance" was answered from a page containing
+ *      "fault" and "tolerance". Requiring every term of a short topic
+ *      (`requiredTerms`) is applied in SQL, before a byte of text moves.
+ *   2. READ — the text of the strongest candidates only. Records are ranked
+ *      by how many of their pages matched (their DENSITY as a source — a book
+ *      with a chapter on validity outranks one with a footnote), the read
+ *      budget is shared across the top records so one book cannot spend it
+ *      all, and the pages read are scored by `lexicalScore` plus a definition
+ *      signal for definition questions.
+ *
+ * Every signal that decided the order travels on the evidence (`signals`) so
+ * the request trace can say why a page ranked.
  */
 async function lexicalPages(
   db: Db,
   query: string,
   scope: EvidenceScope | undefined,
   limit: number,
+  frame?: QueryFrame,
 ): Promise<RetrievedEvidence[]> {
   const q = sanitizeFilterTerm(query);
   if (q.length < 3) return [];
-  // A question is not a phrase to find on a page. Searching page text for
-  // "what does the book say about formative assessment" matches nothing,
-  // while its topic terms match the pages that answer it — so the whole
-  // phrase and the terms are asked for together, and scored afterwards.
   const terms = queryTerms(q);
-  const patterns = [q, ...terms].filter((p) => p.length >= 3);
-  if (patterns.length === 0) return [];
+  const required = requiredTerms(terms);
+  const phrase = q.toLowerCase();
+
+  const scoped = <T extends { eq: (c: string, v: string) => T }>(r: T): T =>
+    scope ? r.eq("record_type", scope.recordType).eq("record_id", scope.recordId) : r;
+  const locate = (clause: string) =>
+    scoped(db.from("book_pages").select("record_type, record_id, page_no").or(clause)).limit(LOCATE_LIMIT);
+
+  const phraseClause = `content.ilike.%${q}%`;
+  const conjunction =
+    required.length >= 2
+      ? `and(${required.map((t) => `content.ilike.%${t}%`).join(",")})`
+      : required.length === 1 && required[0] !== phrase
+        ? `content.ilike.%${required[0]}%`
+        : null;
 
   try {
-    let request = db.from("book_pages").select("record_type, record_id, page_no, content");
-    if (scope) {
-      request = request.eq("record_type", scope.recordType).eq("record_id", scope.recordId);
-    }
-    const { data, error } = await request
-      .or(patterns.map((p) => `content.ilike.%${p}%`).join(","))
-      .limit(limit * 6);
-    if (error || !data?.length) return [];
+    const [byPhrase, byTerms] = await Promise.all([
+      locate(phraseClause),
+      conjunction ? locate(conjunction) : Promise.resolve({ data: [] as LocateRow[], error: null }),
+    ]);
+    if (byPhrase.error) console.error("[ai/retrieval] lexical locate:", byPhrase.error.message);
+    if (byTerms.error) console.error("[ai/retrieval] lexical locate (terms):", byTerms.error.message);
 
+    const recordOf = (r: LocateRow) => `${r.record_type}:${r.record_id}`;
+    const pageOf = (r: LocateRow) => `${recordOf(r)}:${r.page_no}`;
+    const density = new Map<string, number>();
+    const pages = new Map<string, { row: LocateRow; phrase: boolean }>();
+    for (const r of (byPhrase.data ?? []) as LocateRow[]) {
+      if (pages.has(pageOf(r))) continue;
+      pages.set(pageOf(r), { row: r, phrase: true });
+      density.set(recordOf(r), (density.get(recordOf(r)) ?? 0) + 1);
+    }
+    for (const r of (byTerms.data ?? []) as LocateRow[]) {
+      if (pages.has(pageOf(r))) continue;
+      pages.set(pageOf(r), { row: r, phrase: false });
+      density.set(recordOf(r), (density.get(recordOf(r)) ?? 0) + 0.5);
+    }
+    if (pages.size === 0) return [];
+
+    // Which pages to READ: records by density, phrase pages first within a
+    // record, then by page number (a definition tends to precede its use).
+    const readLimit = limit * READ_FACTOR;
+    const perRecord = scope ? readLimit : Math.max(3, Math.ceil(readLimit / READ_RECORDS));
+    const byRecord = new Map<string, { row: LocateRow; phrase: boolean }[]>();
+    for (const p of pages.values()) {
+      const key = recordOf(p.row);
+      byRecord.set(key, [...(byRecord.get(key) ?? []), p]);
+    }
+    const recordsByDensity = [...byRecord.keys()].sort((a, b) => (density.get(b) ?? 0) - (density.get(a) ?? 0) || a.localeCompare(b));
+    const chosen: LocateRow[] = [];
+    for (const key of recordsByDensity) {
+      if (chosen.length >= readLimit) break;
+      const list = (byRecord.get(key) ?? [])
+        .sort((a, b) => Number(b.phrase) - Number(a.phrase) || a.row.page_no - b.row.page_no)
+        .slice(0, Math.min(perRecord, readLimit - chosen.length));
+      chosen.push(...list.map((p) => p.row));
+    }
+
+    const groups = new Map<string, LocateRow[]>();
+    for (const r of chosen) groups.set(recordOf(r), [...(groups.get(recordOf(r)) ?? []), r]);
+    const readFilter = [...groups.values()]
+      .map((rows) => `and(record_type.eq.${rows[0].record_type},record_id.eq.${rows[0].record_id},page_no.in.(${rows.map((r) => r.page_no).join(",")}))`)
+      .join(",");
+    const { data, error } = await db
+      .from("book_pages")
+      .select("record_type, record_id, page_no, content")
+      .or(readFilter)
+      .limit(readLimit);
+    if (error || !data?.length) {
+      if (error) console.error("[ai/retrieval] lexical read:", error.message);
+      return [];
+    }
+
+    const definitional = frame === "definition" || frame === "explanation";
     const floor = minLexicalScore(terms);
+    const signals = new Map<string, EvidenceSignals>();
     const scored = (data as unknown as PageRow[])
-      .map((row) => ({ row, score: lexicalScore(row.content ?? "", q, terms) }))
-      .filter((r) => r.score >= floor)
-      .sort((a, b) => b.score - a.score || a.row.page_no - b.row.page_no)
+      .map((row) => {
+        const isDefinition = definitional && definitionSignal(row.content ?? "", terms);
+        const lexical = lexicalScore(row.content ?? "", q, terms) + (isDefinition ? 3 : 0);
+        const d = density.get(`${row.record_type}:${row.record_id}`) ?? 0;
+        return { row, lexical, isDefinition, density: d };
+      })
+      .filter((r) => r.lexical >= floor)
+      .sort((a, b) => b.lexical - a.lexical || b.density - a.density || a.row.page_no - b.row.page_no)
       .slice(0, limit);
     if (scored.length === 0) return [];
+    for (const r of scored) {
+      signals.set(`${r.row.record_type}:${r.row.record_id}:${r.row.page_no}`, {
+        lexical: r.lexical,
+        density: r.density,
+        definition: r.isDefinition,
+      });
+    }
 
     // Centre each snippet on a term the page actually contains, so the reader
     // sees why it was cited rather than the top of the page.
-    return hydratePages(
-      db,
-      scored.map((r) => r.row),
-      q,
-      terms,
-    );
+    return hydratePages(db, scored.map((r) => r.row), q, terms, signals);
   } catch (err) {
     console.error("[ai/retrieval] lexical pages:", err instanceof Error ? err.message : err);
     return [];
@@ -987,6 +1263,7 @@ async function semanticChunks(
       text: String(r.content ?? "").slice(0, PASSAGE_CHARS),
       similarity: Number(r.similarity ?? 0),
       score: 0,
+      signals: { semantic: Number(r.similarity ?? 0) },
     });
   }
   return out;
@@ -999,6 +1276,11 @@ export interface RetrieveEvidenceInput {
   scope?: EvidenceScope;
   /** Overrides the mode's evidence cap. */
   limit?: number;
+  /**
+   * The question's frame (lib/ai/query.ts). A definition question ranks the
+   * page that DEFINES the term above one that mentions it.
+   */
+  frame?: QueryFrame;
   /**
    * Return each leg's candidate pool alongside the chosen evidence, and skip
    * the cache so the pools describe this call.
@@ -1103,12 +1385,13 @@ export async function retrieveEvidence(input: RetrieveEvidenceInput): Promise<Ev
     scope?.recordId,
     normalizeQuery(query),
     limit,
+    input.frame,
   ]);
 
   const compute = async () => {
     const db = createServiceClient();
     const [lexical, embedding] = await Promise.all([
-      lexicalPages(db, query, scope, limits.candidates),
+      lexicalPages(db, query, scope, limits.candidates, input.frame),
       semanticAllowed ? embedQuery(query) : Promise.resolve({ vector: null, ms: 0, cacheHit: false }),
     ]);
 
@@ -1119,7 +1402,7 @@ export async function retrieveEvidence(input: RetrieveEvidenceInput): Promise<Ev
       dbQueries += 1;
     }
 
-    const fused = fuseEvidence([lexical, semantic]);
+    const fused = applyEvidenceBoosts(fuseEvidence([lexical, semantic]));
     // A summary request usually names no topic to retrieve on, so when the
     // legs come back empty the document itself is sampled. Only for a scoped
     // summary: sampling the whole library would summarise nothing.
@@ -1267,30 +1550,27 @@ function subjectItemCard(item: SubjectItem, subject: string): { result: SearchRe
 async function findWorkByTitle(
   db: Db,
   query: string,
-  normalized: string,
 ): Promise<{ result: SearchResult; work: CompactWork; dbQueries: number } | null> {
-  const words = sanitizeFilterTerm(query).split(/\s+/).filter((w) => w.length >= 3).slice(0, 6);
-  if (!words.length) return null;
-  const pattern = `%${words.join("%")}%`;
-  const titled = (title: string) => normalizeSearchText(title).includes(normalized);
-
-  const { data: books } = await db
-    .from("books")
-    .select("slug, title, cover_url, description, department, published_at, authors(name), categories(name)")
-    .eq("is_published", true)
-    .ilike("title", pattern)
-    .order("download_count", { ascending: false })
-    .limit(5);
-  const book = ((books ?? []) as { title: string }[]).find((b) => titled(b.title));
+  const clean = sanitizeFilterTerm(query);
+  const books = await namedBookRows(db, clean);
+  const book = resolveTitle(
+    books.map((b) => ({ row: b, title: String(b.title ?? ""), author: b.authors?.name ?? null, popularity: Number(b.download_count ?? 0) })),
+    clean,
+  )?.item.row;
   if (book) return { ...bookRow(book), dbQueries: 1 };
 
+  const patterns = [...new Set([orderedWordsPattern(clean), orderedWordsPattern(titleWithoutEdition(clean))].filter((p): p is string => Boolean(p)))];
+  if (!patterns.length) return null;
   const { data: theses } = await db
     .from("research_reports")
     .select("id, slug, title, cover_url, abstract, author_names, program, subject, academic_year")
     .eq("is_published", true)
-    .ilike("title", pattern)
-    .limit(5);
-  const thesis = ((theses ?? []) as { title: string }[]).find((r) => titled(r.title));
+    .or(patterns.map((p) => `title.ilike.${p}`).join(","))
+    .limit(10);
+  const thesis = resolveTitle(
+    ((theses ?? []) as { title: string; author_names?: string | null }[]).map((r) => ({ row: r, title: r.title, author: r.author_names })),
+    clean,
+  )?.item.row;
   return thesis ? { ...thesisRow(thesis), dbQueries: 2 } : null;
 }
 
@@ -1300,13 +1580,31 @@ async function findWorkByTitle(
  * then a name that contains the query. No match → the catalogue is searched
  * for the words instead, so a misread question still returns something real.
  */
-export async function searchAuthors(rawQuery: string): Promise<RetrievalOutcome> {
+export async function searchAuthors(
+  rawQuery: string,
+  opts: { preferTitle?: boolean } = {},
+): Promise<RetrievalOutcome> {
   const started = Date.now();
   const out = emptyOutcome();
   const query = rawQuery.trim();
   if (!query) {
     out.retrievalMs = Date.now() - started;
     return out;
+  }
+
+  // "Who wrote X" names a WORK: its byline is the answer, and it is resolved
+  // before the person directory is consulted, so an author whose name happens
+  // to share a word with the title cannot claim the question.
+  if (opts.preferTitle) {
+    const titled = await findWorkByTitle(createServiceClient(), query);
+    if (titled) {
+      out.dbQueries = titled.dbQueries;
+      out.results = [titled.result];
+      out.works = [titled.work];
+      out.entity = { slug: titled.result.slug, title: titled.result.title, band: "exact", via: "title" };
+      out.retrievalMs = Date.now() - started;
+      return out;
+    }
   }
 
   const wanted = personNameKey(query);
@@ -1328,7 +1626,7 @@ export async function searchAuthors(rawQuery: string): Promise<RetrievalOutcome>
     // "Who wrote <title>?" names a work, not a person: answer with the work
     // whose title contains the question, and its byline. Anything else is a
     // name the directory does not hold, and the honest answer is that.
-    const titled = await findWorkByTitle(createServiceClient(), query, loose);
+    const titled = opts.preferTitle ? null : await findWorkByTitle(createServiceClient(), query);
     out.dbQueries += titled ? titled.dbQueries : 2;
     if (titled) {
       out.results = [titled.result];

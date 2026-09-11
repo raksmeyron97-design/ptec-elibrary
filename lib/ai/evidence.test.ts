@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  EVIDENCE_BOOSTS,
   EVIDENCE_LIMITS,
+  applyEvidenceBoosts,
   balanceByDocument,
   contextCeilingFor,
   dedupePages,
+  definitionSignal,
   diversify,
   fuseEvidence,
   minLexicalScore,
+  queryTerms,
+  requiredTerms,
   sourceCount,
   spreadPages,
   type RetrievedEvidence,
@@ -225,5 +230,82 @@ describe("the cross-collection mode is not the thinnest one", () => {
       const { evidence, perResource } = EVIDENCE_LIMITS[mode];
       expect(Math.ceil(evidence / perResource)).toBeGreaterThanOrEqual(3);
     }
+  });
+});
+
+// ── AI Brain 2 (docs/AI_BRAIN_2_AUDIT.md §4, §5) ─────────────────────────────
+describe("requiredTerms — a short topic is one concept", () => {
+  it("requires every term of a topic up to three terms", () => {
+    // "byzantine fault tolerance" was answered from a page containing "fault"
+    // and "tolerance"; "byzantine" appeared nowhere in the library.
+    expect(requiredTerms(queryTerms("byzantine fault tolerance"))).toEqual(["byzantine", "tolerance", "fault"]);
+    expect(requiredTerms(queryTerms("aortic valve replacement"))).toEqual(["replacement", "aortic", "valve"]);
+    expect(requiredTerms(queryTerms("formative assessment"))).toEqual(["assessment", "formative"]);
+  });
+
+  it("requires the three most specific terms of a longer question", () => {
+    const terms = queryTerms("how children learn to read in primary classrooms");
+    expect(requiredTerms(terms)).toEqual(terms.slice(0, 3));
+    expect(requiredTerms(terms).every((t) => t.length >= 4)).toBe(true);
+  });
+
+  it("keeps the frame verbs out of the terms entirely", () => {
+    expect(queryTerms("Explain ethics as the library's books describe it")).not.toContain("explain");
+    expect(queryTerms("Explain ethics as the library's books describe it")).not.toContain("describe");
+    expect(queryTerms("Across the library's books, how is scaffolding handled")).not.toContain("handled");
+  });
+});
+
+describe("definitionSignal", () => {
+  it("recognises a page that defines the term", () => {
+    expect(definitionSignal("Validity is the degree to which a test measures what it claims to measure.", ["validity"])).toBe(true);
+    expect(definitionSignal("Triangulation refers to the use of multiple data sources.", ["triangulation"])).toBe(true);
+    expect(definitionSignal("A case study can be defined as an in-depth exploration.", ["study", "case"])).toBe(true);
+  });
+
+  it("does not fire on a mention", () => {
+    expect(definitionSignal("We assessed validity in chapter 4 and reliability in chapter 5.", ["validity"])).toBe(false);
+    expect(definitionSignal("", ["validity"])).toBe(false);
+  });
+
+  it("ignores short and Khmer terms, which have no word boundary to anchor on", () => {
+    expect(definitionSignal("art is long", ["art"])).toBe(false);
+    expect(definitionSignal("ការវាយតម្លៃ គឺ …", ["ការវាយតម្លៃ"])).toBe(false);
+  });
+});
+
+describe("applyEvidenceBoosts — explainable, and small next to a rank step", () => {
+  it("lifts a defining page above a mentioning page that tied with it", () => {
+    const fused = fuseEvidence([
+      [ev({ recordId: "mentions", page: 1, matchType: "pdf_exact" })],
+      [ev({ recordId: "defines", page: 2, signals: { definition: true } })],
+    ]);
+    // Each led its own leg: an exact tie before boosts.
+    expect(fused[0].score).toBeCloseTo(fused[1].score, 10);
+    const boosted = applyEvidenceBoosts(fused);
+    expect(boosted[0].recordId).toBe("defines");
+    expect(boosted[0].signals?.definition).toBe(true);
+  });
+
+  it("never lifts a single-leg page above a page both legs found", () => {
+    const both = ev({ recordId: "both", page: 1, matchType: "pdf_exact" });
+    const fused = fuseEvidence([
+      [both, ev({ recordId: "dense", page: 3, signals: { definition: true, density: 400 } })],
+      [both],
+    ]);
+    const boosted = applyEvidenceBoosts(fused);
+    expect(boosted[0].recordId).toBe("both");
+    expect(EVIDENCE_BOOSTS.definition + EVIDENCE_BOOSTS.densityMax).toBeLessThan(1 / 61);
+  });
+
+  it("caps the density boost", () => {
+    const a = applyEvidenceBoosts([ev({ recordId: "a", page: 1, score: 0.01, signals: { density: 40 } })])[0].score;
+    const b = applyEvidenceBoosts([ev({ recordId: "b", page: 1, score: 0.01, signals: { density: 4000 } })])[0].score;
+    expect(a).toBeCloseTo(b, 10);
+  });
+
+  it("records the fusion score on the evidence so a trace can show it", () => {
+    const fused = fuseEvidence([[ev({ recordId: "a", page: 1 })]]);
+    expect(fused[0].signals?.rrf).toBeCloseTo(1 / 61, 10);
   });
 });

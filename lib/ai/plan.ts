@@ -49,6 +49,12 @@ export interface RetrievalOutcome {
   facts: string[];
   /** The directory page a discovery intent resolved to (author or subject). */
   hub?: { kind: "author" | "subject"; name: string; url: string; count: number };
+  /**
+   * The one work the question NAMED, resolved exactly (lib/ai/entity.ts) —
+   * always `results[0]` when present. Absent when the question named no
+   * work, or named one the catalogue does not hold; the template says which.
+   */
+  entity?: { slug: string; title: string; band: string; via: "title" | "isbn" };
   /** A finished reference, built from catalogue metadata — never by a model. */
   citation?: { title: string; reference: string; url: string; page?: number };
   /** Documents a comparison found no evidence in, by title. */
@@ -115,6 +121,9 @@ export interface Plan {
   injection: boolean;
 }
 
+/** Title-match bands that mean "this IS the work", not "this starts like it". */
+const EXACT_BANDS: ReadonlySet<string> = new Set(["exact", "normalized", "edition"]);
+
 export const EMPTY_RETRIEVAL: RetrievalOutcome = {
   results: [], works: [], passages: [], facts: [],
   dbQueries: 0, embeddingMs: 0, retrievalMs: 0, cacheHit: false,
@@ -149,13 +158,25 @@ export function deterministicAnswer(
 
     case "book_search":
     case "thesis_search":
-    case "post_search":
+    case "post_search": {
       // Search is retrieval-first: when the catalogue answered, the CARDS are
       // the answer and a generated sentence adds cost, not information (§14).
       if (intent.confidence < CONFIDENT) return undefined;
+      // A question that NAMED a work is answered about that work: "yes, we
+      // have it" when it resolved, an honest "not under that title" when it
+      // did not — never "I found 5 books related to …" for an exact title.
+      // A topic search whose words happen to be a title ("educational
+      // psychology") keeps the neutral sentence unless the match is exact.
+      const exactEnough = retrieval.entity && (intent.parsed?.exactEntityRequired || EXACT_BANDS.has(retrieval.entity.band));
+      if (exactEnough && retrieval.results[0]) {
+        return T.exactWorkFound(retrieval.results[0], retrieval.results.length, locale);
+      }
+      const named = intent.parsed?.exactEntityRequired ? intent.parsed.titleCandidates[0] ?? intent.query : undefined;
+      if (named) return T.noExactWork(named, retrieval.results.length, locale);
       return retrieval.results.length
         ? T.foundResults(retrieval.results, intent.query, locale)
         : T.noResults(intent.query, locale);
+    }
 
     case "book_detail":
       return retrieval.results.length
@@ -255,6 +276,7 @@ export function buildGeneration(p: Plan, org: PromptOrg): GenerationInput {
       title: (x as RetrievedEvidence).documentLabel ?? x.title,
       author: x.author,
       page: x.page,
+      pageEnd: (x as RetrievedEvidence).pageEnd,
       text: x.text,
     })),
     facts: p.facts,

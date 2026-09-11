@@ -32,6 +32,7 @@ import {
   getRelatedBooks,
   resolveRecord,
   retrieveComparison,
+  retrieveConceptComparison,
   retrieveEvidence,
   searchAuthors,
   searchPassages,
@@ -93,6 +94,7 @@ async function retrieveFor(
 
     case "general_knowledge":
       // ASK THE COLLECTION BEFORE DECLARING IT HAS NOTHING.
+      // (The frame travels so a definition question ranks defining pages first.)
       //
       // This is the catch-all — a question that matched no keyword table — and
       // it used to retrieve nothing and then tell the model to say the answer
@@ -113,7 +115,7 @@ async function retrieveFor(
       //
       // Cost: one embedding and two queries, on a path that was already paying
       // for a model call. It does not add a model call to anything.
-      return { retrieval: await searchPassages(intent.query), facts: [] };
+      return { retrieval: await searchPassages(intent.query, undefined, intent.parsed?.frame), facts: [] };
 
     case "faq": {
       const fact = await getLibraryFact(intent.topic!, intent.locale);
@@ -131,7 +133,13 @@ async function retrieveFor(
     case "thesis_search":
     case "post_search":
       return {
-        retrieval: await searchWorks(intent.query, { types: TYPES_FOR[intent.intent] ?? ["book"] }),
+        retrieval: await searchWorks(intent.query, {
+          types: TYPES_FOR[intent.intent] ?? ["book"],
+          // The work the question named, resolved exactly and first; an ISBN
+          // is identity outright (lib/ai/entity.ts).
+          entity: intent.parsed?.titleCandidates[0],
+          isbn: intent.parsed?.isbnCandidates[0],
+        }),
         facts: [],
       };
 
@@ -142,7 +150,11 @@ async function retrieveFor(
       return { retrieval: intent.slug ? await getRelatedBooks(intent.slug) : EMPTY_RETRIEVAL, facts: [] };
 
     case "author_search": {
-      const retrieval = await searchAuthors(intent.query);
+      // "Who wrote X" is about the work X: resolve the title first, and only
+      // then ask the person directory.
+      const retrieval = await searchAuthors(intent.query, {
+        preferTitle: intent.parsed?.frame === "author_lookup",
+      });
       return { retrieval, facts: [] };
     }
 
@@ -211,8 +223,16 @@ async function retrieveFor(
         (r): r is NonNullable<typeof r> => r !== null,
       );
       if (resolved.length < 2) {
-        // One of the two works could not be identified. Falling back to a
-        // corpus search would answer a different question; say what happened.
+        // Not two WORKS. When the two sides are concepts ("the difference
+        // between validity and reliability") each is retrieved on its own and
+        // the answer compares the evidence; when a named work simply could
+        // not be found, falling back to a corpus search would answer a
+        // different question, so the answer says what happened.
+        const sides = intent.parsed?.compareTargets ?? [];
+        if (sides.length === 2 && resolved.length === 0) {
+          const retrieval = await retrieveConceptComparison(sides);
+          return { retrieval, facts: retrieval.passages.length ? [T.conceptCompareLead(sides, intent.locale)] : [] };
+        }
         return { retrieval: EMPTY_RETRIEVAL, facts: [] };
       }
       const retrieval = await retrieveComparison(intent.query, resolved);
@@ -241,6 +261,7 @@ async function retrieveFor(
             query: intent.query,
             mode: "scoped",
             scope: { recordType: record.recordType, recordId: record.recordId },
+            frame: intent.parsed?.frame,
           }),
           facts: [],
         };
@@ -251,6 +272,7 @@ async function retrieveFor(
         retrieval: await searchPassages(
           intent.query,
           intent.verbosity === "detailed" ? MAX_PASSAGES_DETAILED : undefined,
+          intent.parsed?.frame,
         ),
         facts: [],
       };
