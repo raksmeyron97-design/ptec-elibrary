@@ -430,7 +430,7 @@ export async function runAssistant(
       providerOptions: { google: { thinkingConfig: { thinkingBudget: gen.thinkingBudget } } },
     });
 
-    const grounded = enforceGrounding(result.text ?? "", sources);
+    const grounded = enforceGrounding(result.text ?? "", sources, retrieval.passages.map((x) => x.text));
     const answer = grounded.answer.trim() || T.noEvidence(intent.locale);
     const cited = usedSources(answer, sources);
 
@@ -449,6 +449,7 @@ export async function runAssistant(
       deterministic: false,
       groundedCitations: grounded.grounded.length,
       hallucinatedCitations: grounded.hallucinated.length,
+      quotedCitations: grounded.quoted.length,
     };
 
     const metadata = {

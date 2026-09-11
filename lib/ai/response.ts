@@ -59,6 +59,8 @@ export interface Source {
   author: string;
   /** 1-based PDF page. Absent for metadata-only sources. */
   page?: number;
+  /** Last page when the passage is a merged run of adjacent pages; the citation may name any page in [page, pageEnd]. */
+  pageEnd?: number;
   url: string;
   /** Short excerpt shown under the citation in the UI. */
   snippet?: string;
@@ -109,6 +111,8 @@ export interface AITelemetry {
   groundedCitations?: number;
   /** Citations stripped because retrieval did not support them. */
   hallucinatedCitations?: number;
+  /** Citation-shaped strings repeated from inside a passage — stripped, not invented. */
+  quotedCitations?: number;
   /** Set when a primary path failed and a degraded path answered instead. */
   fallback?: "keyword" | "no_llm" | "no_embedding" | "cache" | "error";
   /** Which backend generated the answer (lib/ai/provider.ts). */

@@ -346,3 +346,25 @@ describe("hallucination defense", () => {
     expect(usedSources("A general statement with no citation.", scoped)).toHaveLength(0);
   });
 });
+
+// ── AI Brain 2: a citation the model REPEATED from a page is not one it invented ──
+describe("quoted in-text references", () => {
+  it("removes a citation-shaped string that appears verbatim inside a passage, without counting it as a hallucination", () => {
+    // The mock quoted a page whose text contains "(Charmaz, p. 12)"; a live
+    // model quoting the same page would reproduce it too. The reader cannot
+    // open it, so it goes — but nothing was invented.
+    const passage = "Memoing has been described as essential (Charmaz, p. 12) to grounded theory.";
+    const r = enforceGrounding(`Memoing is essential (Charmaz, p. 12) (Teaching Reading, p. 42).`, SOURCES, [passage]);
+    expect(r.grounded).toHaveLength(1);
+    expect(r.hallucinated).toHaveLength(0);
+    expect(r.quoted).toHaveLength(1);
+    expect(r.answer).not.toContain("Charmaz");
+    expect(r.answer).toContain("p. 42");
+  });
+
+  it("still counts an invented reference as a hallucination when no passage carries it", () => {
+    const r = enforceGrounding("Memoing is essential (Charmaz, p. 12).", SOURCES, ["nothing like that here"]);
+    expect(r.hallucinated).toHaveLength(1);
+    expect(r.quoted).toHaveLength(0);
+  });
+});

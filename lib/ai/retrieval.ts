@@ -36,7 +36,9 @@ import {
   balanceByDocument,
   definitionSignal,
   diversify,
+  dropNearDuplicates,
   fuseEvidence,
+  mergeAdjacentPages,
   lexicalScore,
   minLexicalScore,
   queryTerms,
@@ -1402,7 +1404,9 @@ export async function retrieveEvidence(input: RetrieveEvidenceInput): Promise<Ev
       dbQueries += 1;
     }
 
-    const fused = applyEvidenceBoosts(fuseEvidence([lexical, semantic]));
+    // Fuse → boost → fold adjacent pages into one passage → drop near-duplicate
+    // text, so the slots diversity hands out go to DIFFERENT evidence.
+    const fused = dropNearDuplicates(mergeAdjacentPages(applyEvidenceBoosts(fuseEvidence([lexical, semantic]))));
     // A summary request usually names no topic to retrieve on, so when the
     // legs come back empty the document itself is sampled. Only for a scoped
     // summary: sampling the whole library would summarise nothing.

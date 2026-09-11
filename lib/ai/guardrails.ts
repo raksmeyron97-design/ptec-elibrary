@@ -7,6 +7,7 @@
 // had already drifted (audit §3).
 
 import type { Source } from "./response";
+import { sourcePages } from "./citations";
 
 /** Max characters accepted in a single inbound message. */
 export const MAX_MESSAGE_CHARS = 500;
@@ -175,7 +176,9 @@ export function isDuplicateTurn(messages: readonly InboundMessage[]): boolean {
 // is enforced after generation rather than trusted from the prompt, because a
 // prompt rule is a request and a regex is a guarantee (§13).
 
-const CITATION_RE = /\(([^()]{1,120}?),\s*(?:p\.?|page|ទំព័រ)\s*([\d០-៩]{1,4})\)/giu;
+// A range ("pp. 44–45") is read as its first page: a merged run of adjacent
+// pages is one passage, and its first page is the one the source card opens.
+const CITATION_RE = /\(([^()]{1,120}?),\s*(?:pp?\.?|pages?|ទំព័រ)\s*([\d០-៩]{1,4})(?:\s*[–-]\s*[\d០-៩]{1,4})?\)/giu;
 const KHMER_DIGITS = "០១២៣៤៥៦៧៨៩";
 
 function toArabic(s: string): number {
@@ -208,6 +211,13 @@ export interface GroundingResult {
   grounded: ExtractedCitation[];
   /** Citations the model invented — removed from the answer. */
   hallucinated: ExtractedCitation[];
+  /**
+   * Citation-shaped strings the model REPEATED from inside a passage — a
+   * book's own in-text reference, quoted verbatim. Removed from the answer
+   * like a hallucination (the reader cannot open them), but not counted as
+   * one: the model invented nothing.
+   */
+  quoted: ExtractedCitation[];
 }
 
 /**
@@ -215,20 +225,28 @@ export interface GroundingResult {
  * alone is not enough: the page must be one we actually retrieved for that
  * title, otherwise the model has guessed a page inside a real book.
  */
-export function enforceGrounding(answer: string, allowed: readonly Source[]): GroundingResult {
+export function enforceGrounding(
+  answer: string,
+  allowed: readonly Source[],
+  passageTexts: readonly string[] = [],
+): GroundingResult {
   const cites = extractCitations(answer);
-  if (cites.length === 0) return { answer, grounded: [], hallucinated: [] };
+  if (cites.length === 0) return { answer, grounded: [], hallucinated: [], quoted: [] };
+  const quotedIn = (raw: string) => passageTexts.some((t) => t.includes(raw));
 
   const allowedPages = new Map<string, Set<number>>();
   for (const s of allowed) {
     if (s.page === undefined) continue;
     const key = normTitle(s.title);
     if (!allowedPages.has(key)) allowedPages.set(key, new Set());
-    allowedPages.get(key)!.add(s.page);
+    // A merged run of adjacent pages (lib/ai/evidence.ts) may be cited at any
+    // page inside it — every one of those pages was retrieved.
+    for (const page of sourcePages(s)) allowedPages.get(key)!.add(page);
   }
 
   const grounded: ExtractedCitation[] = [];
   const hallucinated: ExtractedCitation[] = [];
+  const quoted: ExtractedCitation[] = [];
   let out = answer;
   for (const c of cites) {
     const key = normTitle(c.title);
@@ -242,9 +260,9 @@ export function enforceGrounding(answer: string, allowed: readonly Source[]): Gr
     }
     if (pages?.has(c.page)) grounded.push(c);
     else {
-      hallucinated.push(c);
+      (quotedIn(c.raw) ? quoted : hallucinated).push(c);
       out = out.split(c.raw).join("");
     }
   }
-  return { answer: out.replace(/[ \t]{2,}/g, " ").replace(/\s+([.,;។])/g, "$1").trim(), grounded, hallucinated };
+  return { answer: out.replace(/[ \t]{2,}/g, " ").replace(/\s+([.,;។])/g, "$1").trim(), grounded, hallucinated, quoted };
 }

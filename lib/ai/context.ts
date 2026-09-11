@@ -31,10 +31,19 @@ export interface CompactPassage {
   title: string;
   author: string;
   page: number;
+  /** Last page of a merged run of adjacent pages. */
+  pageEnd?: number;
   text: string;
 }
 
 const WORK_SUMMARY_TOKENS = 45;
+/** A merged run of adjacent pages may use up to this many single-passage budgets. */
+const MERGED_PASSAGE_FACTOR = 2;
+
+/** `p. 44` for one page, `pp. 44–46` for a merged run. */
+export function pageLabel(page: number, pageEnd?: number): string {
+  return pageEnd && pageEnd > page ? `pp. ${page}–${pageEnd}` : `p. ${page}`;
+}
 
 export function compactWork(w: CompactWork): string {
   const bits = [`${w.title} — ${w.author || "Unknown"}`];
@@ -46,12 +55,13 @@ export function compactWork(w: CompactWork): string {
 }
 
 export function compactPassage(p: CompactPassage, index: number): string {
-  const text = clampToTokens(defangCorpusText(p.text), MAX_PASSAGE_TOKENS);
-  return `[${index}] "${p.title}" (${p.author}), p. ${p.page}: ${text}`;
+  const pages = p.pageEnd && p.pageEnd > p.page ? Math.min(MERGED_PASSAGE_FACTOR, p.pageEnd - p.page + 1) : 1;
+  const text = clampToTokens(defangCorpusText(p.text), MAX_PASSAGE_TOKENS * pages);
+  return `[${index}] "${p.title}" (${p.author}), ${pageLabel(p.page, p.pageEnd)}: ${text}`;
 }
 
-export function toCompactPassage(p: RetrievedPassage): CompactPassage {
-  return { title: p.title, author: p.author, page: p.page, text: p.text };
+export function toCompactPassage(p: RetrievedPassage & { pageEnd?: number }): CompactPassage {
+  return { title: p.title, author: p.author, page: p.page, pageEnd: p.pageEnd, text: p.text };
 }
 
 export interface ContextInput {
