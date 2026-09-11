@@ -35,7 +35,7 @@
 export type Matrix2D = { a: number; b: number; c: number; d: number; e: number; f: number };
 
 function isMatrixLike(value: unknown): value is Matrix2D {
-  if (typeof value !== "object" || value === null) return false;
+  if (value === null || typeof value !== "object") return false;
   const m = value as Record<string, unknown>;
   return ["a", "b", "c", "d", "e", "f"].every((k) => typeof m[k] === "number");
 }
