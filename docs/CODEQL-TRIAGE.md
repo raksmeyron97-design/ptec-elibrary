@@ -123,7 +123,11 @@ audience. The suite itself is unchanged and still `security-and-quality`; the
 config file exists so a scope decision sits next to its justification instead
 of inside a workflow `with:` block.
 
-## Dismissed — false positive (39, applied 2026-09-11)
+## Dismissed — not a defect (39, applied 2026-09-11)
+
+Dismissed with the reason GitHub records on the alert: **34 as "false positive"**
+and **5 as "used in tests"** (the `js/template-syntax-in-string-literal` group,
+which genuinely is test-fixture text).
 
 ### `js/xss-through-dom` × 6 — #4, #5, #6, #9, #110, #111
 
