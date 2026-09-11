@@ -22,6 +22,11 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { serverSupabaseUrl } from "@/lib/supabase/origin";
 import { toAllowedStorageUrl } from "@/lib/zima";
 import { installDomMatrixPolyfill } from "./polyfills/dom-matrix";
+// Log scrubbing lives in lib/log-safe.ts — one place decides what is safe to
+// put in a log line. Re-exported so this module's existing callers (and its
+// test) keep their import path; two near-identical scrubbers in two files is
+// exactly the drift that lets one of them fall behind.
+import { sanitizeLogId } from "./log-safe";
 import {
   outcomeFromError,
   outcomeFromResult,
@@ -29,6 +34,8 @@ import {
   writeIndexState,
   type IndexStatus,
 } from "./indexing/state";
+
+export { sanitizeLogId };
 
 // pdfjs needs a `DOMMatrix` and Node has none; the standalone container has no
 // way to get one either (see lib/polyfills/dom-matrix.ts). Installed at module
@@ -76,31 +83,6 @@ export type IndexPdfResult =
   | { indexed: true; pages: number }
   | { indexed: false; reason: "unresolvable-url" | "fetch-failed" | "no-text-layer"; detail?: string };
 
-/**
- * Strip anything that could forge a fake log line or terminal escape sequence
- * out of a value before it is interpolated into a log message. `recordId`
- * comes from a Server Action's `id` — a route/form parameter on the edit
- * path, not always a value this module minted itself — so CRLF and other
- * control characters must be removed before it reaches console.log/error.
- */
-export function sanitizeLogId(value: string): string {
-  return (
-    value
-      // Line breaks first, spelled out rather than folded into the control
-      // range below. They are the actual forging vector — a `\r\n` in a record
-      // id is what lets a caller append a whole fake log line — and stating
-      // them explicitly is also what makes the removal legible to static
-      // analysis, which cannot see a `\n` inside a unicode range and therefore
-      // reported every one of these call sites as unsanitised (CodeQL
-      // js/log-injection). Same output either way; the second pass already
-      // covered them.
-      .replace(/[\r\n]/g, "")
-      // ...then every other C0/C1 control character: NUL, and the ESC that
-      // starts a terminal colour sequence.
-      .replace(/[\u0000-\u001f\u007f-\u009f]/g, "")
-      .slice(0, 200)
-  );
-}
 
 function serviceDb(): SupabaseClient {
   const url = serverSupabaseUrl();

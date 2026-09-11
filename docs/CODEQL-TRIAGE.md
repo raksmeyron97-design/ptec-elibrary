@@ -19,14 +19,38 @@ expensive way. They explain most of the table below, and they are worth reading
 before re-attempting any of it.
 
 1. **A sanitizer that TRANSFORMS a value is honoured; a sanitizer that returns
-   a BOOLEAN is not.** Dataflow follows the value, so
-   `scrubLogValue(x)` breaks a `js/log-injection` path. `isSafeImageSrc(x)`
-   returns `true`/`false`, and `js/xss-through-dom` does not treat a call to a
-   user-defined predicate as a barrier guard no matter how it is written —
-   verified across three re-scans on PR #113 with the predicate written as a
-   regex prefix test, as a single-read local, and as a `new URL()` + explicit
-   `.protocol ===` comparison. Do not re-attempt "a smarter guard function" for
-   that rule.
+   a BOOLEAN is not.** Dataflow follows the value, so `scrubLogValue(x)` breaks
+   a `js/log-injection` path even though it is a call into another module.
+   `isSafeImageSrc(x)` returns `true`/`false`, and `js/xss-through-dom` does not
+   treat a call to a user-defined predicate as a barrier guard no matter how it
+   is written — verified across three re-scans on PR #113 with the predicate
+   written as a regex prefix test, as a single-read local, and as a `new URL()`
+   + explicit `.protocol ===` comparison. Do not re-attempt "a smarter guard
+   function" for that rule.
+
+   **But the transform has to be one the analysis can read**, and for
+   `js/log-injection` that means a `.replace()` whose pattern names the line
+   break literally and whose replacement is the EMPTY STRING:
+
+   ```js
+   .replace(/[\r\n]/g, "")   // recognised
+   .replace(/[\r\n]+/g, " ")  // NOT recognised — non-empty replacement
+   .replace(/\r\n|\r|\n/g, "\\n")  // NOT recognised — non-empty replacement
+   .replace(/[\u0000-\u001f]/g, "")  // NOT recognised — \n is inside a range
+   ```
+
+   The first version of `lib/log-safe.ts` flattened line breaks to a visible
+   `\n` marker, which is a non-empty replacement, and the PR scan came back with
+   three fresh `js/log-injection` alerts at the three lines it had just
+   "fixed". `lib/pdf-page-index.ts` had already learned this and said so in a
+   comment; the two scrubbers have since been consolidated into
+   `lib/log-safe.ts` so there is one place for the lesson to live. The
+   information the marker carried is now a ` [flattened]` suffix, which needs no
+   replacement at all.
+
+   A negated class (`.replace(/[^\w-]/g, "")`) is also recognised, which is why
+   `lib/indexing/state.ts` was the one log-injection site that cleared on the
+   first attempt.
 2. **Rebuilding a URL is only a barrier if the rebuild does not copy the
    input.** `toAllowedStorageUrl()` was already assembling its result on an
    allow-listed host, but it did so with `new URL(u.href)` and then assigned
@@ -49,17 +73,21 @@ before re-attempting any of it.
 | #33 | `js/remote-property-injection` | `app/api/oai/route.ts:85` | The property name written into the args object is now taken from `OAI_ARG_NAMES`, a closed constant list, never from the query string. Unknown parameter names are collected separately so `validateArgs` still reports them verbatim — they are reported, but they no longer address anything. |
 | #112 | `js/log-injection` | `app/actions/upload.ts:85` | `scrubLogValue()` (new, `lib/log-safe.ts`). |
 | #125 | `js/log-injection` | `app/api/search/native/route.ts:1191` | `scrubLogValue()`. |
-| #119, #120 | `js/log-injection` | `lib/indexing/state.ts:285,304` | `scrubLogValue()` ahead of the existing `[^\w-]` narrowing. The narrowing already removed newlines; spelling the line breaks out explicitly is what makes the removal legible to the analysis. |
-| #44 | `js/log-injection` | `scripts/get-gmail-refresh-token.mjs:77` | Explicit CRLF strip + length cap on the OAuth error before it reaches the operator's terminal. |
+| #119, #120 | `js/log-injection` | `lib/indexing/state.ts:285,304` | `scrubLogValue()` ahead of the existing `[^\w-]` narrowing. |
+| #44 | `js/log-injection` | `scripts/get-gmail-refresh-token.mjs:77` | Line breaks removed (not replaced with a space — see fact 1) and length capped, before the OAuth error reaches the operator's terminal. |
 | #113 | `js/unused-local-variable` | `app/api/books/[slug]/download/route.test.ts:10` | Dropped the unused `from` from the destructure. |
 | #127 | `js/useless-assignment-to-local` | `scripts/smoke-test.ts:55` | `bodyOk`/`statusText` declared without dead initializers; every path assigns them. |
 | #118 | `js/comparison-between-incompatible-types` | `lib/polyfills/dom-matrix.ts:38` | Null check before the `typeof` narrowing. |
 
-`lib/log-safe.ts` is new and is the shared answer for the log-injection class:
-it flattens line breaks to a visible `\n` marker, drops C0/C1/DEL, caps length,
-and reads `.message` off an `Error`. It transforms rather than validates
-deliberately — the return value is the only thing a caller can log, so there is
-no shape of the call that accidentally logs the raw value instead.
+`lib/log-safe.ts` is new and is now the one place that decides what is safe to
+put in a log line. It holds two functions: `scrubLogValue()` for an arbitrary
+value on its way into a log call (removes line breaks, drops C0/C1/DEL, caps
+length, reads `.message` off an `Error`, appends ` [flattened]` when it removed
+a line break) and `sanitizeLogId()`, moved here from `lib/pdf-page-index.ts` and
+re-exported from there so its existing callers and test are untouched. Two
+near-identical scrubbers in two files is exactly the drift that lets one of them
+fall behind — which is what happened: the version in `pdf-page-index.ts` already
+knew the empty-replacement rule and the new one did not.
 
 ## Taken out of scan scope (2)
 

@@ -275,10 +275,9 @@ export async function writeIndexState(
   now: Date = new Date(),
 ): Promise<void> {
   // `recordId` arrives from a Server Action's route/form parameter, so it is
-  // scrubbed before it is interpolated into a log line. The narrowing to
-  // `[\w-]` is what a record id actually is; `scrubLogValue` runs first because
-  // it removes the line breaks EXPLICITLY, which is both the forging vector and
-  // the only shape a static analyser recognises as removing one.
+  // scrubbed before it is interpolated into a log line. `scrubLogValue` removes
+  // the line breaks (the forging vector) and the control characters; the
+  // narrowing to `[\w-]` after it is what a record id actually is.
   const safeId = scrubLogValue(state.recordId).replace(/[^\w-]/g, "");
   const existing = await readIndexState(db, state.recordType, state.recordId);
   const kind = classifyFailure(state.status, sanitizeDetail(state.detail));
