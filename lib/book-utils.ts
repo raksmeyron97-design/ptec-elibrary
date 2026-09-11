@@ -129,7 +129,42 @@ export function slugify(value: string) {
 // same key instead of leaving orphaned files scattered around.
 // ──────────────────────────────────────────────────────────────
 
-let uidCounter = Math.floor(Math.random() * 1296);
+/** 36^2 — the counter's period, and the alphabet size squared. */
+const UID_COUNTER_PERIOD = 1296;
+
+/**
+ * `n` unbiased bytes from the platform CSPRNG. Node 18+ and every browser this
+ * app supports expose `crypto.getRandomValues`; there is deliberately no
+ * `Math.random()` fallback, because a silent downgrade to a predictable
+ * sequence is exactly the failure this is guarding against.
+ */
+function randomBytes(n: number): Uint8Array {
+  const buf = new Uint8Array(n);
+  globalThis.crypto.getRandomValues(buf);
+  return buf;
+}
+
+/**
+ * Pick `count` characters from a 36-character alphabet without modulo bias:
+ * 252 is 36 * 7, so a byte of 252..255 is redrawn rather than folded.
+ */
+function randomAlphabetChars(alphabet: string, count: number): string {
+  let out = "";
+  while (out.length < count) {
+    for (const b of randomBytes(count * 2)) {
+      if (b < 252) {
+        out += alphabet[b % 36];
+        if (out.length === count) break;
+      }
+    }
+  }
+  return out;
+}
+
+// Seeded from the CSPRNG on first use — lazily, so merely importing this module
+// never touches `crypto` — then walked in order, so two processes starting in
+// the same millisecond do not emit the same sequence of folder suffixes.
+let uidCounter: number | null = null;
 
 /**
  * Per-book or per-post short folder suffix: 8 url-safe characters
@@ -144,23 +179,12 @@ let uidCounter = Math.floor(Math.random() * 1296);
 export function makeUid() {
   const time = Date.now().toString(36).slice(-4);
   const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
-  const countPart = (uidCounter++ % 1296).toString(36).padStart(2, "0");
-  let random = "";
-  if (typeof globalThis.crypto?.getRandomValues === "function") {
-    const buf = new Uint8Array(8);
-    globalThis.crypto.getRandomValues(buf);
-    for (const b of buf) {
-      // 252 is 36 * 7. Dropping 252..255 eliminates modulo bias completely.
-      if (b < 252) {
-        random += alphabet[b % 36];
-        if (random.length === 2) break;
-      }
-    }
+  if (uidCounter === null) {
+    const seed = randomBytes(2);
+    uidCounter = ((seed[0] << 8) | seed[1]) % UID_COUNTER_PERIOD;
   }
-  while (random.length < 2) {
-    random += alphabet[Math.floor(Math.random() * 36)];
-  }
-  return `${time}${countPart}${random}`;
+  const countPart = (uidCounter++ % UID_COUNTER_PERIOD).toString(36).padStart(2, "0");
+  return `${time}${countPart}${randomAlphabetChars(alphabet, 2)}`;
 }
 
 /** Lower-cased file extension (no dot). Falls back to a sensible default. */
