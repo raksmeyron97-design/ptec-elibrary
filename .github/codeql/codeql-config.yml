@@ -1,0 +1,22 @@
+# CodeQL analysis scope.
+#
+# The default is "everything in the repo", and for this repo that is very
+# nearly right — the exclusions below are narrow and each one is a statement
+# about what the file IS, not a way to quiet a finding in code we ship.
+
+name: PTEC e-Library
+
+queries:
+  # security-extended plus the quality suite. Kept deliberately wide: the
+  # quality queries have caught real nesting/typing defects here, and the cost
+  # of triaging the rest is lower than the cost of not seeing them.
+  - uses: security-and-quality
+
+paths-ignore:
+  # Static HTML design mockups. They are read in a browser by a designer,
+  # never built, imported, served or deployed — `docs/` ships nowhere. The
+  # findings in them are real patterns (a mockup builds its own preview
+  # document with innerHTML) against a document that has no untrusted input
+  # and no audience, so they are noise at the top of a security dashboard
+  # that people need to keep reading.
+  - "docs/mockups/**"
