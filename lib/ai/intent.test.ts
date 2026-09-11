@@ -674,3 +674,17 @@ describe("named works and identifiers", () => {
     expect(r.query).toBe("គរុកោសល្យ");
   });
 });
+
+describe("v2 edge cases", () => {
+  it("routes an unquoted Title-Case work to the catalogue even when it contains a thesis keyword", () => {
+    const r = classifyIntent("Do you have The Action Research Guidebook: A Four-Step Process?");
+    expect(r.intent).toBe("book_search");
+    expect(r.parsed?.titleCandidates[0]).toBe("The Action Research Guidebook: A Four-Step Process");
+  });
+
+  it("hands 'summarize X' the bare title to resolve", () => {
+    const r = classifyIntent("Summarize SPSS Explained");
+    expect(r.intent).toBe("resource_summary");
+    expect(r.query).toBe("SPSS Explained");
+  });
+});

@@ -503,8 +503,21 @@ export async function searchWorks(
       dbQueries++;
       rows.push(...(await keywordPosts(db, query, limit)).map(postRow));
     }
+    const titled = await namedRows;
+    // Title matches join the pool whether or not one of them IS the work: the
+    // token pool is capped by popularity, and a Khmer topic word that sits in
+    // thirty descriptions pushed the three titles that carry it out of the
+    // thirty rows entirely (measured: "រកសៀវភៅអំពីគណិតវិទ្យា" returned five
+    // books, none of the three whose title contains គណិតវិទ្យា).
+    const pooled = new Set(rows.map((r) => r.result.url));
+    for (const r of titled) {
+      const card = bookRow(r);
+      if (pooled.has(card.result.url)) continue;
+      pooled.add(card.result.url);
+      rows.push(card);
+    }
     const resolved = resolveTitle(
-      (await namedRows).map((r) => ({ row: r, title: String(r.title ?? ""), author: r.authors?.name ?? null, popularity: Number(r.download_count ?? 0) })),
+      titled.map((r) => ({ row: r, title: String(r.title ?? ""), author: r.authors?.name ?? null, popularity: Number(r.download_count ?? 0) })),
       named,
     );
     const entityCard = resolved ? bookRow(resolved.item.row) : null;

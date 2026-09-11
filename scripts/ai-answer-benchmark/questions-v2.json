@@ -165,9 +165,9 @@
       "question": "រកសៀវភៅអំពីគណិតវិទ្យា",
       "locale": "km",
       "expectIntent": ["book_search"],
-      "sources": ["កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា១", "កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា២", "កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាចំណេះដឹងឯកទេសគណិតវិទ្យា"],
+      "sources": ["គណិតវិទ្យា-បណ្តុំវិទ្យាសាស្រ្ត", "គណិតវិទ្យា-ថ្នាក់ទី៣-សៀវភៅលំហាត់-ភាគ១", "គណិតវិទ្យា-បណ្តុំវិទ្យាសាស្រ្តសង្គម", "វិធីសាស្ត្របង្រៀនគណិតវិទ្យាផ្នែកចំនួន-ថ្នាក់ទី២", "សៀវភៅណែនាំគ្រូបង្រៀន-គណិតវិទ្យា-ថ្នាក់ទី៨-stepsam3", "កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា១", "កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា២", "កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាចំណេះដឹងឯកទេសគណិតវិទ្យា"],
       "templateOk": true,
-      "note": "Khmer topic search; three titles contain គណិតវិទ្យា"
+      "note": "Khmer topic search. First labelled with three curriculum guides whose titles END in គណិតវិទ្យា (a probe capped at 40 rows); the first run returned five books whose titles BEGIN with it — the mathematics textbooks themselves — which are the more direct answer. The label was widened to those, verified as real `books` rows on 2026-09-11; the retrieval was right and the label was short."
     },
     {
       "id": "v2-km-003",

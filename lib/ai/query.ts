@@ -154,6 +154,25 @@ const FRAMES: FramePattern[] = [
     ),
   },
   { frame: "availability", re: new RegExp(String.raw`^(?:is|are)\s+(?:the\s+(?:e-?book|book|title)\s+)?(.+?)\s+(?:available|in\s+(?:the\s+)?(?:library|collection|stock))${TRAIL}`, "iu") },
+  // "Do you have The Action Research Guidebook: A Four-Step Process?" — no
+  // collection noun, but a Title-Case phrase is a work, not a topic. The
+  // capitalisation test lives in detectFrame (TITLE_CASE), not in the regex.
+  {
+    frame: "availability",
+    re: new RegExp(
+      String.raw`^(?:please\s+)?(?:do\s+you\s+have|does\s+the\s+library\s+(?:have|hold|carry)|have\s+you\s+got|can\s+i\s+(?:find|get|borrow|read))\s+(?!(?:any|some|a|an|the)\s+(?:e-?books?|books?|theses|thesis|titles?|materials?|resources?|anything|something)\b)(?<titlecase>\S[^?]{3,120}?)(?:\s+(?:available|in\s+(?:the\s+)?(?:library|collection|stock)|here))?${TRAIL}`,
+      "iu",
+    ),
+  },
+  // Summarize X — X is a work; "summarize this book" (deictic) is not this frame.
+  {
+    frame: "summary",
+    re: new RegExp(
+      String.raw`^(?:please\s+)?(?:can\s+you\s+)?(?:summari[sz]e|give\s+me\s+a\s+summary\s+of|summary\s+of|what\s+are\s+the\s+main\s+ideas\s+of|overview\s+of)\s+(?:the\s+(?:e-?book|book|thesis|text)\s+)?(.+?)${TRAIL}`,
+      "iu",
+    ),
+  },
+  { frame: "summary", re: new RegExp(String.raw`^(?:សូម\s*)?សង្ខេប\s*(?:សៀវភៅ)?\s*(?!នេះ)(.+?)${TRAIL}`, "u") },
   // "មានសៀវភៅ X ទេ" names a work; "មានសៀវភៅអំពី X ទេ" ("books ABOUT X") names a
   // topic and stays a catalogue search — the lookahead is what tells them apart.
   { frame: "availability", re: new RegExp(String.raw`^(?:តើ\s*)?(?:បណ្ណាល័យ\s*)?មាន\s*(?:សៀវភៅ|ឯកសារ)\s*(?:ចំណងជើង|ឈ្មោះ)?\s*(?!(?:អំពី|ស្តីពី|ស្ដីពី|ពី|ទាក់ទង|សរសេរដោយ|និពន្ធដោយ|តែងដោយ|របស់))(.+?)\s*(?:ទេ|ដែរឬទេ|ឬទេ|ឬអត់)${TRAIL}`, "u") },
@@ -261,6 +280,10 @@ export interface FrameMatch {
   scopeTitle?: string;
 }
 
+/** Two or more capitalised words: how a reader writes a title without quoting it. */
+const TITLE_CASE = /^(?:\S*[A-Z]\S*)(?:\s+(?:[a-z]{1,3}|[A-Z0-9:&-]\S*|\S*[A-Z]\S*))*$/u;
+const titleCaseWords = (s: string) => s.split(/\s+/).filter((w) => /^[A-Z]/.test(w)).length;
+
 /** Collection nouns that are not a work's title ("the books", "the literature"). */
 const NOT_A_WORK = /^(?:the\s+)?(?:library'?s?\s+|collection'?s?\s+)?(?:literature|books?|sources?|authors?|studies|research|scholarship|texts?|materials?|collection|document|this\s+book|it)$/iu;
 
@@ -278,7 +301,11 @@ export function detectFrame(text: string): FrameMatch | null {
     const topic = cleanTopic(m[m.length - 1] ?? "");
     if (topic.length < 2) continue;
     if (NOT_A_TOPIC.test(topic)) continue;
-    if ((frame === "definition" || frame === "explanation") && DEICTIC_IN_TOPIC.test(topic)) continue;
+    if ((frame === "definition" || frame === "explanation" || frame === "summary") && DEICTIC_IN_TOPIC.test(topic)) continue;
+    // A capitalised phrase after "do you have" is a work only when at least
+    // two of its words are capitalised — "Do you have Anything on reading?"
+    // is a topic search.
+    if (m.groups?.titlecase !== undefined && (!TITLE_CASE.test(topic) || titleCaseWords(topic) < 2)) continue;
     const work = m.groups?.work ? cleanTopic(m.groups.work) : "";
     if (m.groups && "work" in m.groups && (!work || NOT_A_WORK.test(work))) continue;
     return work ? { frame, topic, scopeTitle: work } : { frame, topic };
@@ -336,7 +363,7 @@ export function parseQuery(raw: string): AiQuery {
     const t = titles[0] ?? topic;
     if (!titleCandidates.includes(t)) titleCandidates.push(t);
     topic = t;
-  } else if (frame === "availability") {
+  } else if (frame === "availability" || frame === "summary") {
     const t = titles[0] ?? topic;
     if (!titleCandidates.includes(t)) titleCandidates.push(t);
     topic = t;

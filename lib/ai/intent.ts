@@ -518,7 +518,7 @@ export function extractQuery(text: string): string {
   // embedded and searched. The regex strips below remain for the shapes the
   // frame reader does not claim.
   const frame = detectFrame(out);
-  if (frame && CONCEPT_FRAMES.has(frame.frame)) out = frame.topic;
+  if (frame && (CONCEPT_FRAMES.has(frame.frame) || frame.frame === "summary")) out = frame.topic;
   // The literature frame is stripped FIRST: it is a whole interrogative clause,
   // and the generic lead patterns below would only nibble at its edges.
   for (const re of LITERATURE_LEAD_STRIP) out = out.replace(re, "").trim();

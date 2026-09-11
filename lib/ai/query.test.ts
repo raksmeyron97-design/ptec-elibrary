@@ -191,3 +191,27 @@ describe("an ISBN carried inside a sentence", () => {
     expect(parseQuery("books published in 2019").isbnCandidates).toEqual([]);
   });
 });
+
+describe("v2 edge cases", () => {
+  it("reads an unquoted Title-Case phrase after 'do you have' as a work", () => {
+    // "action research" is a thesis keyword; the title must not be a thesis search.
+    const q = parseQuery("Do you have The Action Research Guidebook: A Four-Step Process?");
+    expect(q.frame).toBe("availability");
+    expect(q.titleCandidates).toEqual(["The Action Research Guidebook: A Four-Step Process"]);
+    expect(parseQuery("Do you have Research Methods in Education?").frame).toBe("availability");
+  });
+
+  it("keeps a lower-case or single-capital request a topic search", () => {
+    expect(parseQuery("Do you have anything on reading?").frame).toBe("none");
+    expect(parseQuery("do you have books about educational psychology").frame).toBe("none");
+    expect(parseQuery("Do you have Piaget?").frame).toBe("none");
+  });
+
+  it("reads 'summarize X' as a summary of the work X", () => {
+    const q = parseQuery("Summarize SPSS Explained");
+    expect(q.frame).toBe("summary");
+    expect(q.titleCandidates).toEqual(["SPSS Explained"]);
+    expect(parseQuery("Summarize this book").frame).toBe("none");
+    expect(parseQuery("សង្ខេបសៀវភៅនេះ").frame).toBe("none");
+  });
+});
