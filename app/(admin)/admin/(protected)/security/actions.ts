@@ -30,15 +30,6 @@ import {
 
 export type ActionResult = { success: boolean; error?: string };
 
-/** Silence windows an operator can choose. Bounded on purpose: an indefinite
- *  mute is how an incident gets forgotten, and the catalog's hygiene rule 3
- *  says never mute a channel ad hoc. */
-export const SILENCE_OPTIONS = [
-  { minutes: 60, label: "1 hour" },
-  { minutes: 240, label: "4 hours" },
-  { minutes: 1440, label: "24 hours" },
-] as const;
-
 const MAX_SILENCE_MINUTES = 1440;
 const MAX_NOTE_LENGTH = 500;
 

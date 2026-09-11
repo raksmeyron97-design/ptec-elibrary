@@ -255,7 +255,7 @@ export default async function IncidentDetailPage({
                   <li key={i} className="py-2">
                     <p className="font-mono text-text-heading">{a.action}</p>
                     <p className="text-text-muted">
-                      {formatWhen(a.createdAt)} · admin {a.adminId.slice(0, 8)}…
+                      {formatWhen(a.createdAt)} · admin {a.adminId ? `${a.adminId.slice(0, 8)}…` : "system"}
                     </p>
                     {typeof a.metadata?.note === "string" && (
                       <p className="mt-1 text-text-body">{a.metadata.note}</p>
