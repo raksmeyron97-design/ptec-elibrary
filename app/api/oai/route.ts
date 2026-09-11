@@ -71,30 +71,59 @@ function getClientIP(req: NextRequest): string {
   return clientIp(req.headers);
 }
 
+/**
+ * Every argument name the OAI-PMH protocol defines (spec §3.1.1). The set is
+ * closed: a harvester cannot invent one, and `validateArgs` refuses anything
+ * outside the table for the verb in hand anyway.
+ */
+const OAI_ARG_NAMES = [
+  "verb",
+  "identifier",
+  "metadataPrefix",
+  "from",
+  "until",
+  "set",
+  "resumptionToken",
+] as const;
+
+interface ExtractedArgs {
+  /** Protocol arguments, keyed only by names from {@link OAI_ARG_NAMES}. */
+  args: Record<string, string>;
+  /** Names the harvester sent that the protocol does not define. */
+  unknown: string[];
+}
+
 /** Extracts request args, rejecting any argument that appears more than once. */
-function extractArgs(searchParams: URLSearchParams): Record<string, string> {
-  // Object.create(null) rather than `{}`: `key` is an arbitrary query-string
-  // parameter name, and a plain object literal gives `__proto__` special
-  // meaning as a property write. A null-prototype object has no such
-  // accessor, so a query param literally named `__proto__` just becomes an
-  // ordinary own property, like any other key.
-  const args: Record<string, string> = Object.create(null);
+function extractArgs(searchParams: URLSearchParams): ExtractedArgs {
+  // The property NAME written below is taken from OAI_ARG_NAMES, never from
+  // the query string. A parameter name is attacker-chosen, and writing one
+  // straight into an object is how `__proto__` (or `constructor`, or a name
+  // that merely shadows a legitimate argument) becomes a property write with
+  // meaning. Unknown names are collected separately so validateArgs can still
+  // report them verbatim, but they never address anything.
+  const args: Record<string, string> = {};
+  const unknown: string[] = [];
   for (const key of new Set(searchParams.keys())) {
     const values = searchParams.getAll(key);
     if (values.length > 1) throw new OaiError("badArgument", `Argument '${key}' appears more than once`);
-    args[key] = values[0];
+    const name = OAI_ARG_NAMES.find((known) => known === key);
+    if (name === undefined) {
+      unknown.push(key);
+      continue;
+    }
+    args[name] = values[0];
   }
-  return args;
+  return { args, unknown };
 }
 
 /** Validates the argument set for a verb per the OAI-PMH argument tables. */
-function validateArgs(verb: string, args: Record<string, string>): void {
+function validateArgs(verb: string, { args, unknown }: ExtractedArgs): void {
   const spec = VERB_ARGS[verb];
   const isListVerb = verb === "ListIdentifiers" || verb === "ListRecords";
 
   if (isListVerb && "resumptionToken" in args) {
     // resumptionToken is an exclusive argument.
-    const extras = Object.keys(args).filter((k) => k !== "verb" && k !== "resumptionToken");
+    const extras = [...Object.keys(args).filter((k) => k !== "verb" && k !== "resumptionToken"), ...unknown];
     if (extras.length > 0) {
       throw new OaiError("badArgument", `resumptionToken is exclusive; unexpected argument(s): ${extras.join(", ")}`);
     }
@@ -102,7 +131,7 @@ function validateArgs(verb: string, args: Record<string, string>): void {
   }
 
   const legal = new Set(["verb", ...spec.required, ...spec.optional]);
-  for (const key of Object.keys(args)) {
+  for (const key of [...Object.keys(args), ...unknown]) {
     if (!legal.has(key)) throw new OaiError("badArgument", `Illegal argument '${key}' for verb ${verb}`);
   }
   for (const key of spec.required) {
@@ -299,12 +328,13 @@ async function handleOaiRequest(request: NextRequest, searchParams: URLSearchPar
   let verb: string | null = null;
   let args: Record<string, string> = {};
   try {
-    args = extractArgs(searchParams);
+    const extracted = extractArgs(searchParams);
+    args = extracted.args;
     verb = args.verb ?? null;
     if (!verb || !(verb in VERB_ARGS)) {
       throw new OaiError("badVerb", verb ? `Illegal verb: ${verb}` : "Missing verb argument");
     }
-    validateArgs(verb, args);
+    validateArgs(verb, extracted);
 
     let body: string;
     switch (verb) {
