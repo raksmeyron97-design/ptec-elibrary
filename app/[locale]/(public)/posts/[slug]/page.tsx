@@ -9,6 +9,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import JsonLd from "@/components/seo/JsonLd";
 import { organizationNode } from "@/lib/seo/org-nodes";
+import { contributorNodes } from "@/lib/seo/contributor";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import Markdown, { extractToc, computeReadingTime } from "./Markdown";
 import ViewTracker from "./ViewTracker";
@@ -325,7 +326,10 @@ export default async function PostDetailPage({
     articleSection: categoryLabel,
     keywords: postTags.length > 0 ? postTags.join(", ") : undefined,
     wordCount: (post.content ?? "").trim().split(/\s+/).filter(Boolean).length || undefined,
-    author: { "@type": "Person", name: author },
+    // A post byline is usually a staff member, but it can be the institution
+    // ("PTEC Library"); typed by lib/seo/contributor.ts so that case becomes an
+    // @id reference to #organization instead of a second institution node.
+    author: contributorNodes(author, org).length > 0 ? contributorNodes(author, org) : undefined,
     // The institution, by reference. This was a fourth hand-rolled
     // EducationalOrganization node — and like the others it set `url` to the
     // LIBRARY origin, contradicting the site graph's real institution url on

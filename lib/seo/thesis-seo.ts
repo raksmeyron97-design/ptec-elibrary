@@ -13,6 +13,7 @@
 
 import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/seo/site";
+import { contributorNodesFor } from "@/lib/seo/contributor";
 import { libraryNode, organizationNode } from "@/lib/seo/org-nodes";
 import {
   resolveOrgIdentity,
@@ -239,6 +240,7 @@ export function thesisJsonLd(
   const org = resolveOrgIdentity(orgArg);
   const url = thesisCanonicalUrl(thesis.slug, locale);
   const authors = (thesis.authors ?? []).map(clean).filter(Boolean);
+  const contributorNodes = contributorNodesFor(authors, org);
   const keywords = (thesis.keywords ?? []).filter(Boolean);
   const department = clean(thesis.department) || clean(thesis.program);
   const doi = normalizeDoi(thesis.doi);
@@ -253,7 +255,7 @@ export function thesisJsonLd(
     name: thesis.title,
     url,
     mainEntityOfPage: url,
-    author: authors.length > 0 ? authors.map((name) => ({ "@type": "Person", name })) : undefined,
+    author: contributorNodes.length > 0 ? contributorNodes : undefined,
     publisher: organizationNode(org),
     provider: libraryNode(org),
     isPartOf: {
@@ -330,6 +332,7 @@ export function thesesCollectionJsonLd({
       numberOfItems: total,
       itemListElement: theses.map((thesis, i) => {
         const authors = (thesis.authors ?? []).map(clean).filter(Boolean);
+        const contributorNodes = contributorNodesFor(authors, org);
         return compact({
           "@type": "ListItem",
           position: offset + i + 1,
@@ -340,7 +343,7 @@ export function thesesCollectionJsonLd({
             headline: thesis.title,
             name: thesis.title,
             url: thesisCanonicalUrl(thesis.slug, locale),
-            author: authors.length > 0 ? authors.map((n) => ({ "@type": "Person", name: n })) : undefined,
+            author: contributorNodes.length > 0 ? contributorNodes : undefined,
             datePublished: thesis.year || undefined,
             about: thesis.program ? { "@type": "Thing", name: thesis.program } : undefined,
             isPartOf: { "@type": "CreativeWorkSeries", name: "PTEC Student Theses" },

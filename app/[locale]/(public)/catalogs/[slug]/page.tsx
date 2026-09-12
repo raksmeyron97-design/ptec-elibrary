@@ -9,6 +9,8 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { TAGS } from "@/lib/cache/revalidate";
 import JsonLd from "@/components/seo/JsonLd";
 import { breadcrumbSchema } from "@/lib/seo/schema";
+import { contributorNodes } from "@/lib/seo/contributor";
+import { getOrgIdentity } from "@/lib/system-settings/config";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { openGraphBase } from "@/lib/seo/open-graph";
@@ -170,9 +172,13 @@ export default async function CatalogBookPage({
 }) {
   const { slug: rawSlug, locale } = await params;
   const slug = decodeSlugParam(rawSlug);
-  const [record, t] = await Promise.all([
+  // getOrgIdentity() is cache()d, so resolving it here costs no extra query —
+  // it is needed so a byline naming PTEC itself resolves to an @id reference
+  // to #organization rather than minting a second node for the institution.
+  const [record, t, org] = await Promise.all([
     fetchCatalogRecord(slug),
     getTranslations("catalogs"),
+    getOrgIdentity(),
   ]);
 
   if (!record) notFound();
@@ -213,7 +219,9 @@ export default async function CatalogBookPage({
     name: b.title,
     url: `${SITE_URL}/catalogs/${b.slug}`,
     inLanguage: b.language || undefined,
-    author: b.author ? { "@type": "Person", name: b.author } : undefined,
+    author: contributorNodes(b.author, org).length > 0
+      ? contributorNodes(b.author, org)
+      : undefined,
     isbn: b.isbn || undefined,
     datePublished: b.year ? String(b.year) : undefined,
     description: b.description || undefined,

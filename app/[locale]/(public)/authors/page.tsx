@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import JsonLd from "@/components/seo/JsonLd";
 import { breadcrumbSchema } from "@/lib/seo/schema";
+import { contributorNodes } from "@/lib/seo/contributor";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { openGraphBase } from "@/lib/seo/open-graph";
@@ -86,16 +87,25 @@ export default async function AuthorsHubPage({ params }: PageProps) {
     mainEntity: {
       "@type": "ItemList",
       numberOfItems: authors.length,
-      itemListElement: authors.map((a, i) => ({
-        "@type": "ListItem",
-        position: i + 1,
-        item: {
-          "@type": "Person",
-          "@id": `${authorUrl(a.slug)}#person`,
-          name: a.name,
-          url: authorUrl(a.slug),
-        },
-      })),
+      // Each entry is typed by lib/seo/contributor.ts rather than assumed to
+      // be a Person: this hub lists ministries, universities and multi-person
+      // bylines alongside individuals. A byline that resolves to no entity
+      // (several people, not safely separable) is listed by URL and name only
+      // — the link is true, the identity claim would not be.
+      itemListElement: authors.map((a, i) => {
+        const [node] = contributorNodes(a.name, org);
+        const typed = node && "@type" in node ? { "@type": node["@type"] } : {};
+        return {
+          "@type": "ListItem",
+          position: i + 1,
+          item: {
+            ...typed,
+            "@id": `${authorUrl(a.slug)}#person`,
+            name: a.name,
+            url: authorUrl(a.slug),
+          },
+        };
+      }),
     },
   };
 

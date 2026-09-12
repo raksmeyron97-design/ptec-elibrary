@@ -14,6 +14,7 @@
 
 import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/seo/site";
+import { contributorNodesFor } from "@/lib/seo/contributor";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { libraryNode } from "@/lib/seo/org-nodes";
 import {
@@ -200,6 +201,7 @@ export function bookJsonLd(
   const org = resolveOrgIdentity(orgArg);
   const url = bookCanonicalUrl(book.slug, locale);
   const authors = (book.authors ?? []).map(clean).filter(Boolean);
+  const contributorNodes = contributorNodesFor(authors, org);
   const publisher = clean(book.publisher);
   const isbn = clean(book.isbn);
   const tags = (book.tags ?? []).filter(Boolean);
@@ -217,7 +219,7 @@ export function bookJsonLd(
     mainEntityOfPage: url,
     // Authors only when actually known — an "Unknown Author" node is
     // fabricated data, not markup.
-    author: authors.length > 0 ? authors.map((name) => ({ "@type": "Person", name })) : undefined,
+    author: contributorNodes.length > 0 ? contributorNodes : undefined,
     // The real publisher only. PTEC hosts the file; that role is `provider`.
     publisher: publisher ? { "@type": "Organization", name: publisher } : undefined,
     provider: libraryNode(org),
