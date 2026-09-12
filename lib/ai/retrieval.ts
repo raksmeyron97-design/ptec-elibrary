@@ -50,6 +50,7 @@ import {
   type RetrievedEvidence,
 } from "./evidence";
 import { orderedWordsPattern, resolveTitle } from "./entity";
+import { assessPageText } from "./page-quality";
 import type { QueryFrame } from "./query";
 import { isbnMatchKeys, titleWithoutEdition } from "@/lib/books/duplicate-detection/normalize";
 import { getResourceReadiness } from "./readiness";
@@ -1077,15 +1078,24 @@ type LocateRow = { record_type: string; record_id: string; page_no: number };
  * Every signal that decided the order travels on the evidence (`signals`) so
  * the request trace can say why a page ranked.
  */
+/** What the lexical leg found, and how much of the corpus's furniture it refused. */
+interface LexicalResult {
+  evidence: RetrievedEvidence[];
+  /** Pages read, matched, and then dropped as a book's furniture (page-quality.ts). */
+  furnitureDropped: number;
+}
+
+const NO_LEXICAL: LexicalResult = { evidence: [], furnitureDropped: 0 };
+
 async function lexicalPages(
   db: Db,
   query: string,
   scope: EvidenceScope | undefined,
   limit: number,
   frame?: QueryFrame,
-): Promise<RetrievedEvidence[]> {
+): Promise<LexicalResult> {
   const q = sanitizeFilterTerm(query);
-  if (q.length < 3) return [];
+  if (q.length < 3) return NO_LEXICAL;
   const terms = queryTerms(q);
   const required = requiredTerms(terms);
   const phrase = q.toLowerCase();
@@ -1125,7 +1135,7 @@ async function lexicalPages(
       pages.set(pageOf(r), { row: r, phrase: false });
       density.set(recordOf(r), (density.get(recordOf(r)) ?? 0) + 0.5);
     }
-    if (pages.size === 0) return [];
+    if (pages.size === 0) return NO_LEXICAL;
 
     // Which pages to READ: records by density, phrase pages first within a
     // record, then by page number (a definition tends to precede its use).
@@ -1158,23 +1168,38 @@ async function lexicalPages(
       .limit(readLimit);
     if (error || !data?.length) {
       if (error) console.error("[ai/retrieval] lexical read:", error.message);
-      return [];
+      return NO_LEXICAL;
     }
 
     const definitional = frame === "definition" || frame === "explanation";
     const floor = minLexicalScore(terms);
     const signals = new Map<string, EvidenceSignals>();
-    const scored = (data as unknown as PageRow[])
+    // A table of contents names EVERY topic in its book, so it out-matches
+    // every real page on term count while carrying no claim a reader could be
+    // told. Measured (docs/AI-BRAIN-2-1-EVALUATION-AUDIT.md §4): of the eight
+    // `multi_document` retrieval misses, eight were the right document at a
+    // contents page and none was the wrong document. The check is structural
+    // (lib/ai/page-quality.ts) — it reads sentence density and locator
+    // density, never the subject — and it runs HERE, after the read, because
+    // it needs the text. The row stays in `book_pages`: a reader searching
+    // for a phrase printed in a contents page should still find it there.
+    const read = (data as unknown as PageRow[])
       .map((row) => {
         const isDefinition = definitional && definitionSignal(row.content ?? "", terms);
         const lexical = lexicalScore(row.content ?? "", q, terms) + (isDefinition ? 3 : 0);
         const d = density.get(`${row.record_type}:${row.record_id}`) ?? 0;
-        return { row, lexical, isDefinition, density: d };
+        return { row, lexical, isDefinition, density: d, substantive: assessPageText(row.content ?? "").substantive };
       })
-      .filter((r) => r.lexical >= floor)
+      .filter((r) => r.lexical >= floor);
+    // Counted, not merely discarded: a retrieval that silently refuses half of
+    // what it read is a thing an operator must be able to see, and the count
+    // is the only way a regression in the filter is visible from a trace.
+    const furnitureDropped = read.filter((r) => !r.substantive).length;
+    const scored = read
+      .filter((r) => r.substantive)
       .sort((a, b) => b.lexical - a.lexical || b.density - a.density || a.row.page_no - b.row.page_no)
       .slice(0, limit);
-    if (scored.length === 0) return [];
+    if (scored.length === 0) return { evidence: [], furnitureDropped };
     for (const r of scored) {
       signals.set(`${r.row.record_type}:${r.row.record_id}:${r.row.page_no}`, {
         lexical: r.lexical,
@@ -1185,10 +1210,13 @@ async function lexicalPages(
 
     // Centre each snippet on a term the page actually contains, so the reader
     // sees why it was cited rather than the top of the page.
-    return hydratePages(db, scored.map((r) => r.row), q, terms, signals);
+    return {
+      evidence: await hydratePages(db, scored.map((r) => r.row), q, terms, signals),
+      furnitureDropped,
+    };
   } catch (err) {
     console.error("[ai/retrieval] lexical pages:", err instanceof Error ? err.message : err);
-    return [];
+    return NO_LEXICAL;
   }
 }
 
@@ -1408,11 +1436,11 @@ export async function retrieveEvidence(input: RetrieveEvidenceInput): Promise<Ev
 
   const compute = async () => {
     const db = createServiceClient();
-    const [lexical, embedding] = await Promise.all([
+    const [lexicalResult, embedding] = await Promise.all([
       lexicalPages(db, query, scope, limits.candidates, input.frame),
       semanticAllowed ? embedQuery(query) : Promise.resolve({ vector: null, ms: 0, cacheHit: false }),
     ]);
-
+    const lexical = lexicalResult.evidence;
     let semantic: RetrievedEvidence[] = [];
     let dbQueries = 1;
     if (embedding.vector) {
@@ -1439,6 +1467,7 @@ export async function retrieveEvidence(input: RetrieveEvidenceInput): Promise<Ev
     return {
       evidence,
       candidateCount: lexical.length + semantic.length + sampled.length,
+      furnitureDropped: lexicalResult.furnitureDropped,
       dbQueries,
       embeddingMs: embedding.ms,
       semanticAvailable: semanticAllowed && Boolean(embedding.vector),

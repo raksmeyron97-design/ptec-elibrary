@@ -58,6 +58,8 @@ export interface AITrace {
     /** Human-readable name of the path that ran. */
     strategy: string;
     candidateCount: number;
+    /** Pages read, matched, and refused as a book's furniture (lib/ai/page-quality.ts). */
+    furnitureDropped: number;
     semanticAvailable: boolean | null;
     entity: RetrievalOutcome["entity"] | null;
     hub: RetrievalOutcome["hub"] | null;
@@ -157,6 +159,7 @@ export function buildTrace(
     retrieval: {
       strategy: strategyOf(intent, plan),
       candidateCount: retrieval.candidateCount ?? 0,
+      furnitureDropped: retrieval.furnitureDropped ?? 0,
       semanticAvailable: retrieval.semanticAvailable ?? null,
       entity: retrieval.entity ?? null,
       hub: retrieval.hub ?? null,

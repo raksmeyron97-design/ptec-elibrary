@@ -61,6 +61,18 @@ export interface RetrievalOutcome {
   missingDocuments?: string[];
   /** Rows the retrieval legs produced before fusion and diversity. */
   candidateCount?: number;
+  /**
+   * Pages the lexical leg read, matched on terms, and then refused as a book's
+   * FURNITURE — a table of contents, a list of figures, a back-of-book index
+   * (lib/ai/page-quality.ts).
+   *
+   * Recorded rather than merely discarded because the number is the only way
+   * the filter is visible from outside. Measured across the 98-question
+   * retrieval benchmark, furniture was 21% of all retrieved evidence and 54%
+   * of the evidence for topic questions; a run where this falls back to zero
+   * while those shares rise is the regression.
+   */
+  furnitureDropped?: number;
   /** False when the record has no embedded chunks — exact-text only. */
   semanticAvailable?: boolean;
   dbQueries: number;
