@@ -85,6 +85,8 @@ export default function PathBuilderForm({
   const [difficulty, setDifficulty] = useState<PathDifficulty | "">(initial?.difficulty ?? "");
   const [language, setLanguage] = useState<PathLanguage | "">(initial?.language ?? "");
   const [coverUrl, setCoverUrl] = useState(initial?.cover_url ?? "");
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const [coverPreview, setCoverPreview] = useState<string>("");
   const [estimatedMinutes, setEstimatedMinutes] = useState(initial?.estimated_minutes != null ? String(initial.estimated_minutes) : "");
   const [outcomes, setOutcomes] = useState<BilingualEntry[]>(initial?.outcomes ?? []);
   const [prerequisites, setPrerequisites] = useState<BilingualEntry[]>(initial?.prerequisites ?? []);
@@ -207,13 +209,33 @@ export default function PathBuilderForm({
 
   // ── Cover upload ──
   async function handleUploadCover(file: File, setter: (url: string) => void) {
-    const fd = new FormData();
-    fd.set("file", file);
-    fd.set("key", `paths/${Date.now()}-${file.name.replace(/[^a-z0-9.]/gi, "-")}`);
-    fd.set("target", "public");
-    const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
-    const data = await res.json();
-    if (res.ok) setter(data.url); else setError(data.error ?? t("builder.coverUploadFailed"));
+    // Show local preview immediately so users see something while uploading
+    const localPreviewUrl = URL.createObjectURL(file);
+    setCoverPreview(localPreviewUrl);
+    setIsUploadingCover(true);
+    try {
+      const fd = new FormData();
+      fd.set("file", file);
+      fd.set("key", `paths/${Date.now()}-${file.name.replace(/[^a-z0-9.]/gi, "-")}`);
+      fd.set("target", "public");
+      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (res.ok) {
+        setter(data.url);
+        setCoverPreview(""); // clear blob URL; we'll use coverUrl from now on
+        URL.revokeObjectURL(localPreviewUrl);
+      } else {
+        setError(data.error ?? t("builder.coverUploadFailed"));
+        setCoverPreview("");
+        URL.revokeObjectURL(localPreviewUrl);
+      }
+    } catch {
+      setError(t("builder.coverUploadFailed"));
+      setCoverPreview("");
+      URL.revokeObjectURL(localPreviewUrl);
+    } finally {
+      setIsUploadingCover(false);
+    }
   }
 
   // ── Module / step mutators ──
@@ -292,6 +314,14 @@ export default function PathBuilderForm({
       </ContextPanel>
     ) : (
       <ContextPanel title={t("builder.previewTitle")} icon={Rocket} hint={t("builder.previewHint")}>
+        {(coverPreview || coverUrl) && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={coverPreview || coverUrl}
+            alt={t("builder.fields.coverPreviewAlt")}
+            className="mb-2 h-32 w-full rounded-lg border border-divider object-cover"
+          />
+        )}
         <div className="rounded-lg border border-divider bg-bg-surface p-3">
           <p className="truncate text-[11px] text-success-text">/paths/{slug || "…"}</p>
           <p className="mt-0.5 line-clamp-2 text-[15px] font-medium leading-[1.5] text-info-text">
@@ -332,16 +362,16 @@ export default function PathBuilderForm({
           <button type="button" onClick={() => router.push("/admin/paths")} className={BTN_DANGER}>
             {t("builder.cancel")}
           </button>
-          <button type="button" onClick={() => persist("draft", true)} disabled={isPending} className={BTN_SECONDARY}>
+          <button type="button" onClick={() => persist("draft", true)} disabled={isPending || isUploadingCover} className={BTN_SECONDARY}>
             {t("builder.saveDraft")}
           </button>
           <button
             type="button"
             onClick={() => persist(status === "draft" ? "published" : status, true)}
-            disabled={isPending || validation.errors.length > 0}
+            disabled={isPending || isUploadingCover || validation.errors.length > 0}
             className={BTN_PRIMARY}
           >
-            {isPending ? <ButtonBusy label={t("builder.saving")} /> : status === "published" ? t("builder.saveChanges") : t("builder.publish")}
+            {isPending ? <ButtonBusy label={t("builder.saving")} /> : isUploadingCover ? <ButtonBusy label={t("builder.uploadingCover")} /> : status === "published" ? t("builder.saveChanges") : t("builder.publish")}
           </button>
         </StickyActionBar>
       }
@@ -401,9 +431,58 @@ export default function PathBuilderForm({
                 <input type="number" min={0} value={estimatedMinutes} onChange={(e) => setEstimatedMinutes(e.target.value)} className={INPUT_CLASS} placeholder={t("builder.fields.estMinutesHint")} />
               </Field>
               <Field label={t("builder.fields.cover")}>
-                <input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUploadCover(f, setCoverUrl); }}
-                  className="block w-full text-sm text-text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-brand/10 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-brand" />
-                {coverUrl && <p className="mt-1 truncate text-[11px] text-text-muted">{coverUrl}</p>}
+                {/* Thumbnail preview (local blob while uploading, or saved CDN URL) */}
+                {(coverPreview || coverUrl) && (
+                  <div className="relative mb-2 inline-flex items-start gap-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={coverPreview || coverUrl}
+                      alt={t("builder.fields.coverPreviewAlt")}
+                      className="h-28 w-auto rounded-lg border border-divider object-cover shadow-sm"
+                    />
+                    {!isUploadingCover && (
+                      <button
+                        type="button"
+                        onClick={() => { setCoverUrl(""); setCoverPreview(""); }}
+                        className="flex h-5 w-5 items-center justify-center rounded-full bg-danger text-white shadow hover:bg-danger/80"
+                        title={t("builder.fields.coverRemove")}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Loading spinner while uploading */}
+                {isUploadingCover && (
+                  <div className="mb-2 flex items-center gap-2 text-sm text-text-muted">
+                    <svg className="h-4 w-4 animate-spin text-brand" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                    </svg>
+                    {t("builder.uploadingCoverHint")}
+                  </div>
+                )}
+
+                {/* File picker */}
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={isUploadingCover}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUploadCover(f, setCoverUrl); }}
+                  className="block w-full text-sm text-text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-brand/10 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-brand disabled:opacity-50"
+                />
+
+                {/* Paste URL directly as alternative */}
+                <div className="mt-2">
+                  <input
+                    type="url"
+                    value={coverUrl}
+                    onChange={(e) => { setCoverUrl(e.target.value); setCoverPreview(""); }}
+                    placeholder={t("builder.fields.coverUrlPlaceholder")}
+                    className={INPUT_CLASS + " text-xs"}
+                  />
+                </div>
               </Field>
               <Field label={t("builder.fields.tags")}>
                 <input value={tags} onChange={(e) => setTags(e.target.value)} className={INPUT_CLASS} placeholder={t("builder.fields.tagsHint")} />
