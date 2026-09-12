@@ -251,3 +251,61 @@ describe("§13/§4.3 a contributor URL asserts one identity or none", () => {
     }
   });
 });
+
+// ── 6. The graph must not widen what a public page may see ───────────────────
+//
+// `resource_contributors` holds a credit for every resource, published or not,
+// and the author page reads it through the SERVICE client, which bypasses RLS.
+// So the publication gate has to be on the query that turns a contributor's
+// edges back into works. Without it, reading an author's works through the
+// graph would list drafts that the legacy `books.author_id` leg never showed —
+// a privacy regression created by an SEO change, which is exactly the shape of
+// bug a source scan catches and a unit test does not.
+
+describe("§26 canonical author works never leak an unpublished resource", () => {
+  it("every resource query in the author profile filters on its publication flag", () => {
+    const src = code(readFileSync(join(ROOT, "lib/authors/profile.ts"), "utf8"));
+    const GATE: Record<string, string> = {
+      books: "is_published",
+      research_reports: "is_published",
+      publications: "is_published",
+      catalog_books: "is_active",
+    };
+
+    const offenders: string[] = [];
+    for (const [table, flag] of Object.entries(GATE)) {
+      const re = new RegExp(String.raw`\.from\(\s*["'\`]${table}["'\`]\s*\)([\s\S]{0,700}?);`, "g");
+      for (const match of src.matchAll(re)) {
+        if (!match[1].includes(flag)) {
+          offenders.push(`${table} @ line ${src.slice(0, match.index).split("\n").length}`);
+        }
+      }
+    }
+
+    expect(
+      offenders,
+      "An author-works query with no publication gate. The service client " +
+        "bypasses RLS, so this filter is the only thing keeping drafts off a " +
+        "public profile page.",
+    ).toEqual([]);
+  });
+
+  it("no contributor id is ever emitted into JSON-LD", async () => {
+    const { contributorNodesFromViews } = await import("@/lib/seo/contributor");
+    const nodes = contributorNodesFromViews([
+      {
+        contributorId: "3f1b0c9e-secret-internal-id",
+        kind: "person",
+        name: "Jane Doe",
+        nameKm: null,
+        role: "author",
+        sequence: 0,
+        source: "canonical",
+        typeConflict: false,
+        composite: false,
+      },
+    ]);
+    expect(JSON.stringify(nodes)).not.toContain("3f1b0c9e");
+    expect(nodes).toEqual([{ "@type": "Person", name: "Jane Doe" }]);
+  });
+});
