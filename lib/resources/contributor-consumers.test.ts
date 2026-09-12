@@ -309,3 +309,77 @@ describe("§26 canonical author works never leak an unpublished resource", () =>
     expect(nodes).toEqual([{ "@type": "Person", name: "Jane Doe" }]);
   });
 });
+
+// ── 7. The graph corrects the name; it never replaces reading it ─────────────
+//
+// These are the two defects that reached production on 2026-09-12 from a
+// version where a stored `contributorKind` built its own node instead of
+// refining the contract's answer. Both were live for ~30 minutes.
+
+describe("§14/§19 a stored kind may correct, never replace", () => {
+  const ORG = {
+    institutionName: "Example Teacher Education College",
+    institutionNameKm: "វិទ្យាល័យគរុកោសល្យគំរូ",
+    abbreviation: "ETEC",
+  } as unknown as import("@/lib/system-settings/org-identity").OrgIdentity;
+
+  const resolve = async (name: string, stored: "person" | "organization" | null) => {
+    const { contributorNodes, soleContributorNode, correctedContributorNode } = await import(
+      "@/lib/seo/contributor"
+    );
+    return correctedContributorNode(soleContributorNode(contributorNodes(name, ORG)), stored);
+  };
+
+  it("REGRESSION: the institution stays an @id reference, never a second node", async () => {
+    const { ORGANIZATION_ID } = await import("@/lib/seo/entity-ids");
+    // The graph types PTEC's row `organization` (0105 has no `institution`
+    // type, and the loader has no OrgIdentity). That must not re-mint a node.
+    const node = await resolve(ORG.institutionName, "organization");
+    expect(node).toEqual({ "@id": ORGANIZATION_ID });
+    expect(JSON.stringify(node)).not.toContain("@type");
+    expect(JSON.stringify(node)).not.toContain(ORG.institutionName);
+  });
+
+  it("REGRESSION: a composite byline asserts nothing, whatever the graph stores", async () => {
+    for (const stored of ["person", "organization", null] as const) {
+      const node = await resolve(
+        "Bert P.M. Creemers, Leonidas Kyriakides, Pam Sammons (Editors)",
+        stored,
+      );
+      expect(node, `stored=${stored} manufactured an identity`).toBeUndefined();
+    }
+  });
+
+  it("upgrades a Person the name could not recognise as corporate", async () => {
+    // "Angkor Collective" holds no organisational vocabulary — only the
+    // database knows. This is the one correction the graph is allowed.
+    expect(await resolve("Angkor Collective", "organization")).toEqual({
+      "@type": "Organization",
+      name: "Angkor Collective",
+    });
+  });
+
+  it("never DOWNGRADES an organisation the name identified", async () => {
+    expect(await resolve("Ministry of Education, Youth and Sport", "person")).toEqual({
+      "@type": "Organization",
+      name: "Ministry of Education, Youth and Sport",
+    });
+  });
+
+  it("leaves an ordinary person alone, with or without a stored kind", async () => {
+    const expected = { "@type": "Person", name: "Adrian Wallwork" };
+    expect(await resolve("Adrian Wallwork", "person")).toEqual(expected);
+    expect(await resolve("Adrian Wallwork", null)).toEqual(expected);
+  });
+
+  it("the author page routes through the rule rather than building its own node", () => {
+    const src = code(readFileSync(join(ROOT, "app/[locale]/(public)/authors/[slug]/page.tsx"), "utf8"));
+    expect(src).toContain("correctedContributorNode(");
+    // A synthetic view built from the raw profile name is the defect itself.
+    expect(
+      /contributorNodesFromViews\(\s*\[/.test(src),
+      "the author page must not build a synthetic view from author.name — " +
+        "that skips normalization, the institution check and the split",
+    ).toBe(false);
+  });
+});

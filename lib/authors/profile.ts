@@ -456,12 +456,20 @@ function dedupeWorks(...groups: AuthorWork[][]): AuthorWork[] {
  * of them.
  *
  * Null is not a failure and the caller must not treat it as one: it means the
- * page falls back to classifying the name, which is what `/authors/[slug]` did
- * before and is still the only evidence available for a person the graph has
- * not reached. Where records DO exist and disagree with each other, null is
+ * page classifies the name itself, which is what `/authors/[slug]` did before
+ * and is still the only evidence available for a person the graph has not
+ * reached. Where records DO exist and disagree with each other, null is
  * returned too — a contributor filed as a person in one row and an
  * organisation in another is a data conflict for the audit to surface, not
  * something to resolve by picking the first row.
+ *
+ * It deliberately resolves NO `OrgIdentity` and therefore never answers
+ * `institution`: this is a cookieless cached data loader, and institution
+ * identity is a comparison against PUBLISHED SETTINGS that belongs at render
+ * time, where the page has already resolved them. A caller must treat this as
+ * a person-vs-organisation hint that REFINES the render-time answer, never as
+ * a replacement for it — swapping those around is what published a second
+ * institution node and a three-person Person name.
  */
 function canonicalKindOf(
   records: readonly AuthorContributorRecord[],
