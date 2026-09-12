@@ -16,11 +16,12 @@ import "server-only";
 
 import { generateText, streamText, type LanguageModel } from "ai";
 import { getOrgIdentity } from "@/lib/system-settings/config";
-import { buildSources, usedSources } from "./citations";
+import { buildSources } from "./citations";
 import { compressConversation } from "./conversation";
 import {
   detectPromptInjection,
   enforceGrounding,
+  sourcesCited,
   type InboundMessage,
 } from "./guardrails";
 import { classifyIntent, type ClassifyContext, type IntentResult } from "./intent";
@@ -32,6 +33,7 @@ import {
   getRelatedBooks,
   resolveRecord,
   retrieveComparison,
+  retrieveConceptComparison,
   retrieveEvidence,
   searchAuthors,
   searchPassages,
@@ -64,6 +66,7 @@ import {
 } from "./response";
 import * as T from "./templates";
 import { MAX_PASSAGES_DETAILED, estimateTokens } from "./token-budget";
+import { buildTrace, type AITrace } from "./trace";
 
 export interface AssistantInput {
   messages: InboundMessage[];
@@ -78,6 +81,18 @@ export interface AssistantInput {
 export interface AssistantResult {
   response: AIResponse;
   telemetry: AITelemetry;
+  /**
+   * The explainable chain behind this answer (lib/ai/trace.ts). For the
+   * benchmark and for `AI_TRACE=1` server debugging — never sent to the
+   * client, never written to app_events.
+   */
+  trace: AITrace;
+}
+
+/** Print the trace to the server log when explicitly asked for. Debug only. */
+function emitTrace(trace: AITrace): void {
+  if (process.env.AI_TRACE !== "1") return;
+  console.log("[ai/trace]", JSON.stringify(trace));
 }
 
 // ── Stage 1: deterministic resolution ─────────────────────────────────────────
@@ -93,6 +108,7 @@ async function retrieveFor(
 
     case "general_knowledge":
       // ASK THE COLLECTION BEFORE DECLARING IT HAS NOTHING.
+      // (The frame travels so a definition question ranks defining pages first.)
       //
       // This is the catch-all — a question that matched no keyword table — and
       // it used to retrieve nothing and then tell the model to say the answer
@@ -113,7 +129,7 @@ async function retrieveFor(
       //
       // Cost: one embedding and two queries, on a path that was already paying
       // for a model call. It does not add a model call to anything.
-      return { retrieval: await searchPassages(intent.query), facts: [] };
+      return { retrieval: await searchPassages(intent.query, undefined, intent.parsed?.frame), facts: [] };
 
     case "faq": {
       const fact = await getLibraryFact(intent.topic!, intent.locale);
@@ -131,7 +147,13 @@ async function retrieveFor(
     case "thesis_search":
     case "post_search":
       return {
-        retrieval: await searchWorks(intent.query, { types: TYPES_FOR[intent.intent] ?? ["book"] }),
+        retrieval: await searchWorks(intent.query, {
+          types: TYPES_FOR[intent.intent] ?? ["book"],
+          // The work the question named, resolved exactly and first; an ISBN
+          // is identity outright (lib/ai/entity.ts).
+          entity: intent.parsed?.titleCandidates[0],
+          isbn: intent.parsed?.isbnCandidates[0],
+        }),
         facts: [],
       };
 
@@ -142,7 +164,11 @@ async function retrieveFor(
       return { retrieval: intent.slug ? await getRelatedBooks(intent.slug) : EMPTY_RETRIEVAL, facts: [] };
 
     case "author_search": {
-      const retrieval = await searchAuthors(intent.query);
+      // "Who wrote X" is about the work X: resolve the title first, and only
+      // then ask the person directory.
+      const retrieval = await searchAuthors(intent.query, {
+        preferTitle: intent.parsed?.frame === "author_lookup",
+      });
       return { retrieval, facts: [] };
     }
 
@@ -211,8 +237,16 @@ async function retrieveFor(
         (r): r is NonNullable<typeof r> => r !== null,
       );
       if (resolved.length < 2) {
-        // One of the two works could not be identified. Falling back to a
-        // corpus search would answer a different question; say what happened.
+        // Not two WORKS. When the two sides are concepts ("the difference
+        // between validity and reliability") each is retrieved on its own and
+        // the answer compares the evidence; when a named work simply could
+        // not be found, falling back to a corpus search would answer a
+        // different question, so the answer says what happened.
+        const sides = intent.parsed?.compareTargets ?? [];
+        if (sides.length === 2 && resolved.length === 0) {
+          const retrieval = await retrieveConceptComparison(sides);
+          return { retrieval, facts: retrieval.passages.length ? [T.conceptCompareLead(sides, intent.locale)] : [] };
+        }
         return { retrieval: EMPTY_RETRIEVAL, facts: [] };
       }
       const retrieval = await retrieveComparison(intent.query, resolved);
@@ -234,13 +268,22 @@ async function retrieveFor(
       // Before this, the slug was used to classify the intent and then
       // thrown away, so "what does this book say about X" searched the whole
       // library and could return at most one page of the book in hand.
-      const record = intent.slug ? await resolveIntentRecord(intent) : null;
+      // A question that NAMES its source ("According to X, what is Y") is
+      // scoped to X the same way once X resolves; if it does not, the
+      // collection is searched and the answer says nothing about X.
+      const scopeTitle = intent.parsed?.scopeTitle;
+      const record = intent.slug
+        ? await resolveIntentRecord(intent)
+        : scopeTitle
+          ? await findRecordByTitle(scopeTitle)
+          : null;
       if (record) {
         return {
           retrieval: await retrieveEvidence({
             query: intent.query,
             mode: "scoped",
             scope: { recordType: record.recordType, recordId: record.recordId },
+            frame: intent.parsed?.frame,
           }),
           facts: [],
         };
@@ -251,6 +294,7 @@ async function retrieveFor(
         retrieval: await searchPassages(
           intent.query,
           intent.verbosity === "detailed" ? MAX_PASSAGES_DETAILED : undefined,
+          intent.parsed?.frame,
         ),
         facts: [],
       };
@@ -388,7 +432,10 @@ export async function runAssistant(
       : retrieval.results.length
         ? resultsResponse(p.answer, retrieval.results, intent.intent, metadata)
         : textResponse(p.answer, intent.intent, metadata);
-    return { response, telemetry: { ...baseTelemetry(), fallback: retrieval.fallback ?? "no_llm" } };
+    const telemetry: AITelemetry = { ...baseTelemetry(), fallback: retrieval.fallback ?? "no_llm" };
+    const trace = buildTrace(p, response, telemetry, { inputTokens: 0, grounded: 0, hallucinated: 0, quoted: 0 });
+    emitTrace(trace);
+    return { response, telemetry, trace };
   }
 
   // ── Model path ──────────────────────────────────────────────────────────────
@@ -408,9 +455,11 @@ export async function runAssistant(
       providerOptions: { google: { thinkingConfig: { thinkingBudget: gen.thinkingBudget } } },
     });
 
-    const grounded = enforceGrounding(result.text ?? "", sources);
+    const grounded = enforceGrounding(result.text ?? "", sources, retrieval.passages.map((x) => x.text));
     const answer = grounded.answer.trim() || T.noEvidence(intent.locale);
-    const cited = usedSources(answer, sources);
+    // The sources to attach are the ones grounding VERIFIED, not the ones a
+    // second scan of the prose happens to recognise.
+    const cited = sourcesCited(grounded.grounded, sources);
 
     const usage = result.usage;
     const telemetry: AITelemetry = {
@@ -427,6 +476,8 @@ export async function runAssistant(
       deterministic: false,
       groundedCitations: grounded.grounded.length,
       hallucinatedCitations: grounded.hallucinated.length,
+      quotedCitations: grounded.quoted.length,
+      finishReason: result.finishReason,
     };
 
     const metadata = {
@@ -447,27 +498,38 @@ export async function runAssistant(
         ? resultsResponse(answer, retrieval.results, intent.intent, metadata)
         : textResponse(answer, intent.intent, metadata);
 
-    return { response, telemetry };
+    const chain = buildTrace(p, response, telemetry, {
+      inputTokens,
+      grounded: grounded.grounded.length,
+      hallucinated: grounded.hallucinated.length,
+      quoted: grounded.quoted.length,
+      removed: [...grounded.hallucinated, ...grounded.quoted].map((c) => c.raw),
+    });
+    emitTrace(chain);
+    return { response, telemetry, trace: chain };
   } catch (err) {
     // §26: the model failing must not take the library search down with it.
     console.error("[ai/router] generation failed:", err instanceof Error ? err.message : err);
     if (retrieval.results.length === 0) throw new AIRequestError("unavailable");
 
     const answer = `${T.degraded(intent.locale)} ${T.foundResults(retrieval.results, intent.query, intent.locale)}`;
+    const response = resultsResponse(answer, retrieval.results, intent.intent, {
+      modelTier: "none",
+      locale: intent.locale,
+      remaining: input.remaining ?? null,
+      deterministic: true,
+    });
+    const telemetry: AITelemetry = {
+      ...baseTelemetry(),
+      fallback: "error",
+      provider: trace.provider,
+      providerFallback: trace.fellBack,
+      latencyMs: Date.now() - started,
+    };
     return {
-      response: resultsResponse(answer, retrieval.results, intent.intent, {
-        modelTier: "none",
-        locale: intent.locale,
-        remaining: input.remaining ?? null,
-        deterministic: true,
-      }),
-      telemetry: {
-        ...baseTelemetry(),
-        fallback: "error",
-        provider: trace.provider,
-        providerFallback: trace.fellBack,
-        latencyMs: Date.now() - started,
-      },
+      response,
+      telemetry,
+      trace: buildTrace(p, response, telemetry, { inputTokens, grounded: 0, hallucinated: 0, quoted: 0 }),
     };
   }
 }

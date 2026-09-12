@@ -49,12 +49,37 @@ export interface RetrievalOutcome {
   facts: string[];
   /** The directory page a discovery intent resolved to (author or subject). */
   hub?: { kind: "author" | "subject"; name: string; url: string; count: number };
+  /**
+   * The one work the question NAMED, resolved exactly (lib/ai/entity.ts) —
+   * always `results[0]` when present. Absent when the question named no
+   * work, or named one the catalogue does not hold; the template says which.
+   */
+  entity?: { slug: string; title: string; band: string; via: "title" | "isbn" };
   /** A finished reference, built from catalogue metadata — never by a model. */
   citation?: { title: string; reference: string; url: string; page?: number };
   /** Documents a comparison found no evidence in, by title. */
   missingDocuments?: string[];
   /** Rows the retrieval legs produced before fusion and diversity. */
   candidateCount?: number;
+  /**
+   * Pages the lexical leg read, matched on terms, and then refused as a book's
+   * FURNITURE — a table of contents, a list of figures, a back-of-book index
+   * (lib/ai/page-quality.ts).
+   *
+   * Recorded rather than merely discarded because the number is the only way
+   * the filter is visible from outside. Measured across the 98-question
+   * retrieval benchmark, furniture was 21% of all retrieved evidence and 54%
+   * of the evidence for topic questions; a run where this falls back to zero
+   * while those shares rise is the regression.
+   */
+  furnitureDropped?: number;
+  /**
+   * What the corpus-vocabulary spell-check made of the question
+   * (lib/ai/spellcheck.ts). Present only when it proposed something — at any
+   * band, including the ones it declined to apply, because an operator asking
+   * "why did this refuse?" needs to see what was considered.
+   */
+  correction?: import("./spellcheck").QueryCorrection;
   /** False when the record has no embedded chunks — exact-text only. */
   semanticAvailable?: boolean;
   dbQueries: number;
@@ -88,8 +113,9 @@ export function retrievalModeFor(intent: IntentResult): RetrievalMode {
     case "resource_summary":
       return "summary";
     case "pdf_question":
-      // A question asked from a resource page is answered from THAT document.
-      return intent.slug ? "scoped" : "hybrid";
+      // A question asked from a resource page — or one that names its source
+      // — is answered from THAT document.
+      return intent.slug || intent.parsed?.scopeTitle ? "scoped" : "hybrid";
     case "general_knowledge":
       // The catch-all retrieves across the collection before concluding the
       // library has nothing (lib/ai/router.ts). The mode has to say so, or the
@@ -114,6 +140,12 @@ export interface Plan {
   facts: string[];
   injection: boolean;
 }
+
+/** How many times the nominal thinking budget the output cap leaves room for. */
+export const THINKING_HEADROOM = 2;
+
+/** Title-match bands that mean "this IS the work", not "this starts like it". */
+const EXACT_BANDS: ReadonlySet<string> = new Set(["exact", "normalized", "edition"]);
 
 export const EMPTY_RETRIEVAL: RetrievalOutcome = {
   results: [], works: [], passages: [], facts: [],
@@ -149,13 +181,25 @@ export function deterministicAnswer(
 
     case "book_search":
     case "thesis_search":
-    case "post_search":
+    case "post_search": {
       // Search is retrieval-first: when the catalogue answered, the CARDS are
       // the answer and a generated sentence adds cost, not information (§14).
       if (intent.confidence < CONFIDENT) return undefined;
+      // A question that NAMED a work is answered about that work: "yes, we
+      // have it" when it resolved, an honest "not under that title" when it
+      // did not — never "I found 5 books related to …" for an exact title.
+      // A topic search whose words happen to be a title ("educational
+      // psychology") keeps the neutral sentence unless the match is exact.
+      const exactEnough = retrieval.entity && (intent.parsed?.exactEntityRequired || EXACT_BANDS.has(retrieval.entity.band));
+      if (exactEnough && retrieval.results[0]) {
+        return T.exactWorkFound(retrieval.results[0], retrieval.results.length, locale);
+      }
+      const named = intent.parsed?.exactEntityRequired ? intent.parsed.titleCandidates[0] ?? intent.query : undefined;
+      if (named) return T.noExactWork(named, retrieval.results.length, locale);
       return retrieval.results.length
         ? T.foundResults(retrieval.results, intent.query, locale)
         : T.noResults(intent.query, locale);
+    }
 
     case "book_detail":
       return retrieval.results.length
@@ -255,6 +299,7 @@ export function buildGeneration(p: Plan, org: PromptOrg): GenerationInput {
       title: (x as RetrievedEvidence).documentLabel ?? x.title,
       author: x.author,
       page: x.page,
+      pageEnd: (x as RetrievedEvidence).pageEnd,
       text: x.text,
     })),
     facts: p.facts,
@@ -285,13 +330,24 @@ export function buildGeneration(p: Plan, org: PromptOrg): GenerationInput {
   const model = modelIdFor(tier) ?? modelIdFor("fast")!;
 
   const isFormatting = intent.intent.endsWith("_search");
+  const thinkingBudget = thinkingBudgetFor(tier);
+  const textBudget = isFormatting ? SEARCH_FORMAT_OUTPUT_TOKENS : MAX_OUTPUT_TOKENS[intent.verbosity];
   return {
     system,
     messages,
     model,
-    thinkingBudget: thinkingBudgetFor(tier),
-    maxOutputTokens: isFormatting
-      ? SEARCH_FORMAT_OUTPUT_TOKENS
-      : MAX_OUTPUT_TOKENS[intent.verbosity],
+    thinkingBudget,
+    // Gemini counts its thinking tokens AGAINST maxOutputTokens. On the
+    // reasoning tier (every evidence question with three or more passages)
+    // a 512-token thinking budget inside a 350-token output cap left ~10
+    // tokens for the answer: measured live, "What is action research?" came
+    // back as 75 characters ending mid-sentence with finishReason=length
+    // and usage {textTokens: 10, reasoningTokens: 336}. The mock never sees
+    // this. The text budget is the reader's; thinking is paid on top — and
+    // paid TWICE over, because gemini-3.5-flash treats the budget as a
+    // guide rather than a cap (a fourth live run still cut two answers at
+    // text + 1× budget). A cap on the answer is what this is; the thinking
+    // headroom is not a target the model spends up to.
+    maxOutputTokens: textBudget + THINKING_HEADROOM * thinkingBudget,
   };
 }

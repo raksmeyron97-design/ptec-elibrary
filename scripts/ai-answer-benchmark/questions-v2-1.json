@@ -1,0 +1,317 @@
+{
+  "generatedAt": "2026-09-12T03:20:00.000Z",
+  "corpusBooks": 268,
+  "note": "AI Answer Benchmark v2.1. v1 (questions.json) is the permanent historical baseline and is NEVER edited; v2 (questions-v2.json) holds the 2.0 edge cases and is likewise frozen. This fixture exists because neither of them can exercise the label shapes 2.1 introduced: a question that names a PAGE, a question that names a SPAN, a comparison whose required works are stated rather than inferred, and an answer whose correctness is checked against claims a human wrote down. Every page cited below was read out of `book_pages` on 2026-09-12 and the phrase verified present — see docs/AI-BRAIN-2-1-EVALUATION-AUDIT.md §9. `requiredClaims` are lowercase substrings and are matched case-insensitively; they are deliberately short and factual, because a claim list is a correctness check and not a style guide.",
+  "questions": [
+    {
+      "id": "v21-page-001",
+      "category": "exact_page",
+      "question": "What does page 294 of \"Research Methods in Education (8th Edition)\" say about triangulation?",
+      "locale": "en",
+      "evidenceScope": "exact_page",
+      "sources": [
+        "research-methods-in-education-8th-edition"
+      ],
+      "pages": {
+        "research-methods-in-education-8th-edition": [
+          294
+        ]
+      },
+      "expectIntent": [
+        "pdf_question",
+        "research_help",
+        "book_search"
+      ],
+      "expectGrounded": true,
+      "requiredClaims": [
+        "triangulation"
+      ],
+      "note": "p.294 opens section 14.6 and uses the word 19 times: 'In its original and literal sense, triangulation is a technique of physical measurement'. The page BEFORE and after also discuss it, so this question separates 'found the topic' from 'found the page named'."
+    },
+    {
+      "id": "v21-page-002",
+      "category": "exact_page",
+      "question": "What is on page 87 of \"Practical Research Methods\"?",
+      "locale": "en",
+      "evidenceScope": "exact_page",
+      "sources": [
+        "practical-research-methods"
+      ],
+      "pages": {
+        "practical-research-methods": [
+          87
+        ]
+      },
+      "expectIntent": [
+        "pdf_question",
+        "research_help",
+        "book_search"
+      ],
+      "expectGrounded": true,
+      "requiredClaims": [
+        "focus group"
+      ],
+      "note": "p.87 is 'Chapter 8 How to Conduct Focus Groups'. The question names no topic at all, so the page number is the only thing that can find it."
+    },
+    {
+      "id": "v21-range-001",
+      "category": "page_range",
+      "question": "Explain the discussion of validity in pages 274 to 290 of \"Research Methods in Education (8th Edition)\".",
+      "locale": "en",
+      "evidenceScope": "page_range",
+      "sources": [
+        "research-methods-in-education-8th-edition"
+      ],
+      "pageRange": {
+        "research-methods-in-education-8th-edition": [
+          274,
+          290
+        ]
+      },
+      "expectIntent": [
+        "pdf_question",
+        "research_help"
+      ],
+      "expectGrounded": true,
+      "requiredClaims": [
+        "validity"
+      ],
+      "note": "Every page from 274 to 290 contains the word; p.275 uses it 46 times. Any of them satisfies the label, and a passage from p.591 does not — which is the whole difference between page_range and single_document."
+    },
+    {
+      "id": "v21-range-002",
+      "category": "page_range",
+      "question": "Summarize pages 175 to 185 of \"Qualitative Inquiry and Research Design (4th Edition)\".",
+      "locale": "en",
+      "evidenceScope": "page_range",
+      "sources": [
+        "qualitative-inquiry-and-research-design-4th-edition"
+      ],
+      "pageRange": {
+        "qualitative-inquiry-and-research-design-4th-edition": [
+          175,
+          185
+        ]
+      },
+      "expectIntent": [
+        "pdf_question",
+        "research_help",
+        "resource_summary"
+      ],
+      "expectGrounded": true,
+      "requiredClaims": [
+        "ethnograph"
+      ],
+      "note": "p.175 'Origins of Ethnographic Research' through p.185. The book mentions ethnography on 140 pages, so a topic match anywhere is not evidence that the SPAN was found."
+    },
+    {
+      "id": "v21-multi-001",
+      "category": "multi_document",
+      "question": "Compare how \"Research Methods in Education (8th Edition)\" and \"Qualitative Inquiry and Research Design (4th Edition)\" treat validity.",
+      "locale": "en",
+      "evidenceScope": "multi_document",
+      "sources": [
+        "research-methods-in-education-8th-edition",
+        "qualitative-inquiry-and-research-design-4th-edition"
+      ],
+      "requiredDocuments": [
+        "research-methods-in-education-8th-edition",
+        "qualitative-inquiry-and-research-design-4th-edition"
+      ],
+      "expectIntent": [
+        "document_compare",
+        "research_help",
+        "pdf_question"
+      ],
+      "expectGrounded": true,
+      "requiredClaims": [
+        "validity"
+      ],
+      "note": "Both works are named and both are required. Under the 2.0 evaluator `sources.some(...)` passed this on either side alone, which is the defect `multiDocumentRecall` exists to expose."
+    },
+    {
+      "id": "v21-multi-002",
+      "category": "multi_document",
+      "question": "Compare \"Practical Research Methods\" and \"Research Methods in Education (8th Edition)\" on focus groups.",
+      "locale": "en",
+      "evidenceScope": "multi_document",
+      "sources": [
+        "practical-research-methods",
+        "research-methods-in-education-8th-edition"
+      ],
+      "expectIntent": [
+        "document_compare",
+        "research_help",
+        "pdf_question"
+      ],
+      "expectGrounded": true,
+      "note": "requiredDocuments is deliberately omitted: the question NAMES both works, so `requiredDocuments()` derives them. That derivation is the thing under test."
+    },
+    {
+      "id": "v21-topic-001",
+      "category": "topic_unscoped",
+      "question": "What does the library's literature say about triangulation?",
+      "locale": "en",
+      "evidenceScope": "topic_unscoped",
+      "expectIntent": [
+        "research_help",
+        "pdf_question"
+      ],
+      "expectGrounded": true,
+      "requiredClaims": [
+        "triangulation"
+      ],
+      "note": "DELIBERATELY UNLABELLED. At least 43 pages of one book alone carry the topic and a recall list of six would be a fiction; the answer is judged on whether it is grounded, whether it makes the claim, and on the label-free context measures. This is what an honest unscoped label looks like."
+    },
+    {
+      "id": "v21-topic-002",
+      "category": "topic_unscoped",
+      "question": "What is ethnography?",
+      "locale": "en",
+      "evidenceScope": "topic_unscoped",
+      "expectIntent": [
+        "research_help",
+        "pdf_question"
+      ],
+      "expectGrounded": true,
+      "requiredClaims": [
+        "ethnograph"
+      ],
+      "note": "Unlabelled for the same reason: 140 pages of Qualitative Inquiry alone mention it."
+    },
+    {
+      "id": "v21-scoped-001",
+      "category": "single_document",
+      "question": "What types of ethnography does this book describe?",
+      "locale": "en",
+      "scope": {
+        "recordType": "book",
+        "slug": "qualitative-inquiry-and-research-design-4th-edition"
+      },
+      "sources": [
+        "qualitative-inquiry-and-research-design-4th-edition"
+      ],
+      "expectIntent": [
+        "pdf_question",
+        "research_help"
+      ],
+      "expectGrounded": true,
+      "requiredClaims": [
+        "ethnograph"
+      ],
+      "note": "p.178 'Types of Ethnographies' lists confessional, life history, autoethnography, feminist, ethnographic novels and visual. Scoped, so the label is exhaustive and a passage from another book is wrong rather than weaker."
+    },
+    {
+      "id": "v21-typo-001",
+      "category": "typo",
+      "question": "What is triangulaton?",
+      "locale": "en",
+      "evidenceScope": "topic_unscoped",
+      "expectIntent": [
+        "research_help",
+        "pdf_question"
+      ],
+      "expectGrounded": true,
+      "requiredClaims": [
+        "triangulation"
+      ],
+      "note": "One dropped letter in a concept the corpus uses in 47 records. Before the corpus-vocabulary spell-check this refused, exactly as `What is validty?` did: no page contains the misspelling and its embedding sits below the chunk floor."
+    },
+    {
+      "id": "v21-typo-002",
+      "category": "typo",
+      "question": "Explain ethnograpy and its origns.",
+      "locale": "en",
+      "evidenceScope": "topic_unscoped",
+      "expectIntent": [
+        "research_help",
+        "pdf_question"
+      ],
+      "expectGrounded": true,
+      "note": "TWO misspellings in one question, of different lengths — 'origns' is six letters, which is the shortest the spell-check will touch."
+    },
+    {
+      "id": "v21-typo-003",
+      "category": "typo",
+      "question": "Do you have \"Practical Reserch Methods\"?",
+      "locale": "en",
+      "evidenceScope": "metadata",
+      "sources": [
+        "practical-research-methods"
+      ],
+      "templateOk": true,
+      "expectIntent": [
+        "book_search"
+      ],
+      "note": "A misspelt TITLE, which the entity resolver's fuzzy band already handles. Here to prove the spell-check does not interfere with a path that already worked."
+    },
+    {
+      "id": "v21-km-001",
+      "category": "khmer",
+      "question": "តើការស្រាវជ្រាវសកម្មភាពគឺជាអ្វី?",
+      "locale": "km",
+      "evidenceScope": "topic_unscoped",
+      "expectIntent": [
+        "research_help",
+        "pdf_question"
+      ],
+      "note": "Khmer, correctly spelled — the control for the Khmer typo case below. What matters is that the spell-check proposes nothing and changes nothing."
+    },
+    {
+      "id": "v21-km-002",
+      "category": "khmer",
+      "question": "តើមានសៀវភៅអំពីគណិតវិទ្យាទេ?",
+      "locale": "km",
+      "evidenceScope": "metadata",
+      "templateOk": true,
+      "expectIntent": [
+        "book_search",
+        "research_help"
+      ],
+      "note": "A Khmer catalogue question. `គណិតវិទ្យា` is entity vocabulary (three Khmer maths curricula carry it), so this exercises the one vocabulary source Khmer has."
+    },
+    {
+      "id": "v21-mix-001",
+      "category": "mixed_language",
+      "question": "តើ validty និង reliabilty ខុសគ្នាយ៉ាងណា?",
+      "locale": "km",
+      "evidenceScope": "topic_unscoped",
+      "expectIntent": [
+        "document_compare",
+        "research_help",
+        "pdf_question"
+      ],
+      "note": "A Khmer frame carrying two misspelt English terms, asked as a CONCEPT question so it reaches the evidence path. The correction must fire on the Latin side and leave every Khmer character untouched — a candidate may never cross scripts. An earlier draft asked 'តើសៀវភៅណាដែលពន្យល់អំពី…' ('which books explain…'), which routes to the catalogue instead; that is correct routing for that phrasing, and it exposed a real gap recorded in docs/AI-BRAIN-2-1-FINAL-REPORT.md — the spell-check runs inside retrieveEvidence, so a catalogue lookup never sees a corrected term.",
+      "expectGrounded": true,
+      "requiredClaims": [
+        "validity"
+      ]
+    },
+    {
+      "id": "v21-noans-001",
+      "category": "no_answer",
+      "question": "What does the library say about aortic valve replacement surgery?",
+      "locale": "en",
+      "evidenceScope": "no_evidence",
+      "expectNoAnswer": true,
+      "expectIntent": [
+        "research_help",
+        "pdf_question"
+      ],
+      "note": "A teacher-education library holds nothing on cardiac surgery, and this question is here because the SPELL-CHECK is the thing most likely to break it: at a five-character floor the engine turned 'valve' into 'value' and manufactured evidence for an unanswerable question. The floor is six."
+    },
+    {
+      "id": "v21-noans-002",
+      "category": "no_answer",
+      "question": "Explain byzantine fault tolerance as the library's books describe it.",
+      "locale": "en",
+      "evidenceScope": "no_evidence",
+      "expectNoAnswer": true,
+      "expectIntent": [
+        "research_help",
+        "pdf_question"
+      ],
+      "note": "'fault' and 'tolerance' both appear in research-methods prose; 'byzantine' appears nowhere. The required-terms rule is what refuses this, and a typo correction must not undo it."
+    }
+  ]
+}

@@ -1,0 +1,246 @@
+// lib/ai/trace.ts
+// The explainable record of ONE assistant request: what the question was read
+// as, which intent and strategy answered it, every passage that was selected
+// and why, what reached the prompt, and how the citations were judged. Pure.
+//
+// WHY. Every stage of the pipeline already made a decision; none of them wrote
+// it down anywhere a person debugging a bad answer could read it. The
+// benchmark's failure attribution (lib/ai/answer-failure.ts) had to infer the
+// chain from counts. This is the chain itself, in one object, built after the
+// answer from data the router already holds — it adds no query and no model
+// call.
+//
+// WHERE IT GOES. Onto `AssistantResult.trace`, for the benchmark and for
+// server-side debugging behind `AI_TRACE=1`. It is NEVER part of the HTTP
+// response and NEVER written to `app_events`: it carries titles, record ids
+// and the question's topic, and lib/ai/telemetry.ts's contract is counts and
+// enums only. If production volume ever warrants persisting traces, sample
+// them and strip the question first.
+
+import type { RetrievedEvidence } from "./evidence";
+import type { IntentResult } from "./intent";
+import type { Plan, RetrievalOutcome } from "./plan";
+import type { AIResponse, AITelemetry } from "./response";
+
+export interface TraceEvidence {
+  recordType: string;
+  recordId: string;
+  /**
+   * The record's own URL, so a consumer can name the passage by SLUG rather
+   * than guessing from the title. The benchmark used to match trace titles
+   * against the result cards' titles to recover a slug, which silently
+   * produced a record id for any passage whose work was not among the cards.
+   */
+  url: string;
+  title: string;
+  page: number;
+  pageEnd?: number;
+  matchType: string;
+  /** Fused + boosted rank score, comparable only within this request. */
+  score: number;
+  signals?: RetrievedEvidence["signals"];
+  /** Which side of a comparison, when the request was one. */
+  label?: string;
+}
+
+export interface AITrace {
+  question: {
+    language: string;
+    frame: string;
+    topic: string;
+    /**
+     * The corpus-vocabulary spell-check's reading, when it had one. Carries
+     * the reader's text, the corrected text, the confidence and the reason —
+     * so a correction is always explainable and never silent.
+     */
+    correction?: {
+      originalQuery: string;
+      correctedQuery: string;
+      confidence: number;
+      applied: { original: string; candidate: string; distance: number; band: string; reason: string }[];
+    };
+    titleCandidates: string[];
+    isbnCandidates: string[];
+    compareTargets: string[];
+    exactEntityRequired: boolean;
+    requiresEvidence: boolean;
+  };
+  routing: {
+    intent: string;
+    confidence: number;
+    mode: string;
+    deterministic: boolean;
+    scoped: boolean;
+  };
+  retrieval: {
+    /** Human-readable name of the path that ran. */
+    strategy: string;
+    candidateCount: number;
+    /** Pages read, matched, and refused as a book's furniture (lib/ai/page-quality.ts). */
+    furnitureDropped: number;
+    /**
+     * Works a comparison NAMED and found no passages in — stated to the model
+     * as a fact it must repeat, never left for it to infer agreement from.
+     *
+     * On the trace because it is the honest answer to "did the system tell
+     * the reader something was missing?". The benchmark's wrong-document gate
+     * used to answer that by looking for refusal words in the prose, and so
+     * counted an answer opening "No passages are available in the library
+     * data for this work, so its position is missing" as a silent one.
+     */
+    missingDocuments: string[];
+    semanticAvailable: boolean | null;
+    entity: RetrievalOutcome["entity"] | null;
+    hub: RetrievalOutcome["hub"] | null;
+    dbQueries: number;
+    retrievalMs: number;
+    embeddingMs: number;
+    cacheHit: boolean;
+    fallback: string | null;
+  };
+  evidence: TraceEvidence[];
+  context: {
+    passages: number;
+    works: number;
+    facts: number;
+    /** Estimated input tokens for the whole prompt (0 on a template path). */
+    inputTokens: number;
+  };
+  policy: {
+    locale: string;
+    verbosity: string;
+    hasEvidence: boolean;
+    injectionNoticed: boolean;
+  };
+  citations: {
+    grounded: number;
+    hallucinated: number;
+    quoted: number;
+    attached: number;
+    /** The citation strings grounding removed, verbatim — what the model wrote that no passage supports. */
+    removed: string[];
+  };
+  outcome: {
+    answerClass: "template" | "generated" | "refusal";
+    answerChars: number;
+    provider: string | null;
+    model: string | null;
+    latencyMs: number;
+    /** "length" = the output cap cut the answer; the reader saw a truncated reply. */
+    finishReason: string | null;
+  };
+}
+
+function strategyOf(intent: IntentResult, plan: Plan): string {
+  const mode = plan.mode ?? "lookup";
+  if (intent.smalltalk) return "template:greeting";
+  if (plan.retrieval.entity?.via === "isbn") return "catalogue:isbn";
+  if (plan.retrieval.entity) return `catalogue:title-resolved(${plan.retrieval.entity.band})`;
+  if (plan.retrieval.hub) return `hub:${plan.retrieval.hub.kind}`;
+  if (intent.intent === "document_compare") {
+    return plan.retrieval.evidence?.some((e) => e.conceptLabel) ? "evidence:concept-comparison" : "evidence:document-comparison";
+  }
+  if (mode === "lookup" || mode === "citation") return `${mode}:${intent.intent}`;
+  return `evidence:${mode}`;
+}
+
+/** Deterministic refusal markers, so the outcome class is decided the same way everywhere. */
+const REFUSAL = /couldn’t find|couldn't find|could not find|រកមិនឃើញ|មិនគ្រប់គ្រាន់|not enough indexed text/i;
+
+export function buildTrace(
+  plan: Plan,
+  response: AIResponse,
+  telemetry: AITelemetry,
+  extra: { inputTokens: number; grounded: number; hallucinated: number; quoted: number; removed?: string[] },
+): AITrace {
+  const { intent, retrieval } = plan;
+  const parsed = intent.parsed;
+  const evidence: TraceEvidence[] = (retrieval.evidence ?? []).map((e) => ({
+    recordType: e.recordType,
+    recordId: e.recordId,
+    url: e.url,
+    title: e.title,
+    page: e.page,
+    pageEnd: e.pageEnd,
+    matchType: e.matchType,
+    score: e.score,
+    signals: e.signals,
+    label: e.documentLabel ?? e.conceptLabel,
+  }));
+  const answer = response.answer ?? "";
+  return {
+    question: {
+      language: parsed?.language ?? intent.locale,
+      frame: parsed?.frame ?? "none",
+      topic: intent.query,
+      titleCandidates: parsed?.titleCandidates ?? [],
+      isbnCandidates: parsed?.isbnCandidates ?? [],
+      compareTargets: parsed?.compareTargets ?? intent.compareTargets ?? [],
+      exactEntityRequired: parsed?.exactEntityRequired ?? false,
+      requiresEvidence: parsed?.requiresEvidence ?? false,
+      correction: retrieval.correction
+        ? {
+            originalQuery: retrieval.correction.originalQuery,
+            correctedQuery: retrieval.correction.correctedQuery,
+            confidence: retrieval.correction.confidence,
+            applied: retrieval.correction.corrections.map((c) => ({
+              original: c.original,
+              candidate: c.candidate,
+              distance: c.distance,
+              band: c.band,
+              reason: c.reason,
+            })),
+          }
+        : undefined,
+    },
+    routing: {
+      intent: intent.intent,
+      confidence: intent.confidence,
+      mode: plan.mode ?? "lookup",
+      deterministic: telemetry.deterministic,
+      scoped: plan.mode === "scoped",
+    },
+    retrieval: {
+      strategy: strategyOf(intent, plan),
+      candidateCount: retrieval.candidateCount ?? 0,
+      furnitureDropped: retrieval.furnitureDropped ?? 0,
+      missingDocuments: retrieval.missingDocuments ?? [],
+      semanticAvailable: retrieval.semanticAvailable ?? null,
+      entity: retrieval.entity ?? null,
+      hub: retrieval.hub ?? null,
+      dbQueries: retrieval.dbQueries,
+      retrievalMs: retrieval.retrievalMs,
+      embeddingMs: retrieval.embeddingMs,
+      cacheHit: retrieval.cacheHit,
+      fallback: retrieval.fallback ?? null,
+    },
+    evidence,
+    context: {
+      passages: retrieval.passages.length,
+      works: retrieval.works.length,
+      facts: plan.facts.length,
+      inputTokens: extra.inputTokens,
+    },
+    policy: {
+      locale: intent.locale,
+      verbosity: intent.verbosity,
+      hasEvidence: retrieval.passages.length > 0,
+      injectionNoticed: plan.injection,
+    },
+    citations: {
+      grounded: extra.grounded,
+      hallucinated: extra.hallucinated,
+      quoted: extra.quoted,
+      attached: response.sources?.length ?? 0,
+      removed: extra.removed ?? [],
+    },
+    outcome: {
+      answerClass: REFUSAL.test(answer) ? "refusal" : telemetry.deterministic ? "template" : "generated",
+      answerChars: answer.length,
+      provider: telemetry.provider ?? null,
+      model: telemetry.model ?? null,
+      latencyMs: telemetry.latencyMs,
+      finishReason: telemetry.finishReason ?? null,
+    },
+  };
+}

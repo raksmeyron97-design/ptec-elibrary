@@ -15,6 +15,7 @@ import {
   isDuplicateTurn,
   orFilter,
   sanitizeFilterTerm,
+  sourcesCited,
   validateMessages,
   MAX_MESSAGE_CHARS,
 } from "./guardrails";
@@ -344,5 +345,126 @@ describe("hallucination defense", () => {
 
   it("never reports a source the answer did not actually use", () => {
     expect(usedSources("A general statement with no citation.", scoped)).toHaveLength(0);
+  });
+});
+
+// ── AI Brain 2: a citation the model REPEATED from a page is not one it invented ──
+describe("quoted in-text references", () => {
+  it("removes a citation-shaped string that appears verbatim inside a passage, without counting it as a hallucination", () => {
+    // The mock quoted a page whose text contains "(Charmaz, p. 12)"; a live
+    // model quoting the same page would reproduce it too. The reader cannot
+    // open it, so it goes — but nothing was invented.
+    const passage = "Memoing has been described as essential (Charmaz, p. 12) to grounded theory.";
+    const r = enforceGrounding(`Memoing is essential (Charmaz, p. 12) (Teaching Reading, p. 42).`, SOURCES, [passage]);
+    expect(r.grounded).toHaveLength(1);
+    expect(r.hallucinated).toHaveLength(0);
+    expect(r.quoted).toHaveLength(1);
+    expect(r.answer).not.toContain("Charmaz");
+    expect(r.answer).toContain("p. 42");
+  });
+
+  it("still counts an invented reference as a hallucination when no passage carries it", () => {
+    const r = enforceGrounding("Memoing is essential (Charmaz, p. 12).", SOURCES, ["nothing like that here"]);
+    expect(r.hallucinated).toHaveLength(1);
+    expect(r.quoted).toHaveLength(0);
+  });
+});
+
+// ── AI Brain 2 live run: the forms a real model actually writes ─────────────
+describe("citation forms a live model writes", () => {
+  const LIVE = buildSources([
+    { title: "Research Methods in Education (8th Edition)", author: "Cohen", url: "/books/rme", page: 470, text: "…", similarity: 1 },
+    { title: "Social Research Methods (4th Edition)", author: "Bryman", url: "/books/srm", page: 35, pageEnd: 36, text: "…", similarity: 1 },
+  ]);
+
+  it("reads a title that itself contains parentheses", () => {
+    const r = enforceGrounding("Action research is small-scale (Research Methods in Education (8th Edition), p. 470).", LIVE);
+    expect(r.grounded).toHaveLength(1);
+    expect(r.hallucinated).toHaveLength(0);
+  });
+
+  it("ignores the markup a model wraps a title in", () => {
+    const r = enforceGrounding("It is small-scale (*Research Methods in Education (8th Edition)*, p. 470).", LIVE);
+    expect(r.grounded).toHaveLength(1);
+    expect(enforceGrounding('It is small-scale ("Research Methods in Education (8th Edition)", pp. 470–471).', LIVE).grounded).toHaveLength(1);
+  });
+
+  it("attributes a bare page to the title named most recently before it", () => {
+    const a = "*Social Research Methods (4th Edition)* stresses ethical sensitivity (p. 35–36). Then *Research Methods in Education (8th Edition)* covers internet ethics (p. 470).";
+    const r = enforceGrounding(a, LIVE);
+    expect(r.grounded.map((c) => [c.title, c.page])).toEqual([
+      ["Social Research Methods (4th Edition)", 35],
+      ["Research Methods in Education (8th Edition)", 470],
+    ]);
+    expect(r.hallucinated).toHaveLength(0);
+    expect(r.answer).toBe(a);
+  });
+
+  it("removes a bare page whose nearest title does not hold that page, and one with no title in reach", () => {
+    const r = enforceGrounding("*Social Research Methods (4th Edition)* says so (p. 470). Also (p. 12).", LIVE);
+    expect(r.grounded).toHaveLength(0);
+    expect(r.hallucinated).toHaveLength(2);
+    expect(r.answer).not.toMatch(/p\. 470|p\. 12/);
+  });
+
+  it("reads a Khmer page word with Arabic digits and a nested-paren title", () => {
+    const r = enforceGrounding("… (Research Methods in Education (8th Edition), ទំព័រ 470)។", LIVE);
+    expect(r.grounded).toHaveLength(1);
+  });
+
+  it("reads a page list as its first page", () => {
+    const r = enforceGrounding("Covers sampling (Research Methods in Education (8th Edition), pp. 470–471, 480).", LIVE);
+    expect(r.grounded).toHaveLength(1);
+  });
+});
+
+describe("citation forms from the third live run", () => {
+  const LIVE = buildSources([
+    { title: "Research Design: Quantitative, Qualitative and Arts-Based Approaches", author: "Patricia Leavy", url: "/books/rd-arts", page: 8, pageEnd: 9, text: "…", similarity: 1 },
+    { title: "Social Research Methods (4th Edition)", author: "Alan Bryman", url: "/books/srm", page: 35, pageEnd: 36, text: "…", similarity: 1 },
+    { title: "The Action Research Planner: Doing Critical Participatory Action Research", author: "Stephen Kemmis, Robin McTaggart, Rhonda Nixon", url: "/books/arp", page: 118, pageEnd: 119, text: "…", similarity: 1 },
+    { title: "Research Design: Qualitative, Quantitative and Mixed Methods Approaches", author: "John W. Creswell", url: "/books/rd", page: 6, pageEnd: 8, text: "…", similarity: 1 },
+    { title: "Action Research in Teacher Development", author: "Danuta Gabryś-Barker (Editor)", url: "/books/artd", page: 108, text: "…", similarity: 1 },
+  ]);
+
+  it("reads two citations in one bracket, and keeps the supported one", () => {
+    const a = "Ethics are intertwined (*Research Design: Quantitative, Qualitative and Arts-Based Approaches*, pp. 8–9; *Social Research Methods (4th Edition)*, p. 4).";
+    const r = enforceGrounding(a, LIVE);
+    expect(r.grounded.map((c) => c.page)).toEqual([8]);
+    expect(r.hallucinated.map((c) => c.page)).toEqual([4]);
+    expect(r.answer).toBe("Ethics are intertwined (*Research Design: Quantitative, Qualitative and Arts-Based Approaches*, pp. 8–9).");
+  });
+
+  it("reads a page list that repeats the page word", () => {
+    const r = enforceGrounding('"Action Research in Teacher Development" contrasts statistics (p. 108, p. 110).', LIVE);
+    expect(r.grounded).toHaveLength(1);
+    expect(r.grounded[0].title).toBe("Action Research in Teacher Development");
+  });
+
+  it("attributes a bare page to a shortened title far back in the answer", () => {
+    const filler = "It offers prompts to guide reflection, which culminates in a written interpretive statement synthesising what has been learned across cycles of planning, acting, observing and reflecting. ".repeat(4);
+    const r = enforceGrounding(`"The Action Research Planner" offers prompts. ${filler}Reflection is written up (pp. 118–119).`, LIVE);
+    expect(r.grounded).toHaveLength(1);
+    expect(r.grounded[0].title).toMatch(/^The Action Research Planner/);
+  });
+
+  it("reads an author's surname as the work it retrieved, APA-style", () => {
+    const r = enforceGrounding("Mixed methods procedures are outlined (Creswell, pp. 6–8, 10–12). Also (Bryman et al., p. 35).", LIVE);
+    expect(r.grounded.map((c) => c.title)).toEqual([
+      "Research Design: Qualitative, Quantitative and Mixed Methods Approaches",
+      "Social Research Methods (4th Edition)",
+    ]);
+  });
+
+  it("attaches exactly the sources grounding verified", () => {
+    const a = 'ការវាយតម្លៃ ("Social Research Methods (4th Edition)", ទំព័រ 35) និង (Creswell, p. 7)។';
+    const r = enforceGrounding(a, LIVE);
+    const cited = sourcesCited(r.grounded, LIVE);
+    expect(cited.map((s) => s.url)).toEqual(["/books/srm?page=35", "/books/rd?page=6"]);
+  });
+
+  it("leaves an ordinary parenthetical alone", () => {
+    const a = "The book (edited by Danuta Gabryś-Barker, 2011) discusses statistics.";
+    expect(enforceGrounding(a, LIVE).answer).toBe(a);
   });
 });

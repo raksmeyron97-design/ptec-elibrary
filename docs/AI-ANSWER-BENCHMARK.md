@@ -203,6 +203,104 @@ class, hallucinated citations, the stage, and the file to change.
 
 ---
 
+## 6a. The trace, and the failure matrix
+
+Every row of a results file carries `trace` — the explainable chain behind
+that answer, built by `lib/ai/trace.ts` from data the router already holds:
+how the question was read (`question.frame`, `topic`, `titleCandidates`,
+`isbnCandidates`, `compareTargets`, `scopeTitle`), which intent and
+strategy answered it, every selected passage with its ranking signals
+(`lexical`, `semantic`, `density`, `definition`, `rrf`), what reached the
+prompt, and how the citations were judged (`grounded` / `hallucinated` /
+`quoted`). That is the machine-readable failure matrix.
+
+```bash
+npm run ai:answer-benchmark -- --diagnose --matrix docs/ai-answer-benchmark/failure-matrix.md
+```
+
+renders the failing rows for people: question, expected vs predicted
+intent, normalized topic, entities, retrieval strategy and candidates,
+retrieved documents, the ranked passages, context size, policy, model
+output, citations, expected evidence, the stage, the root cause and the
+remedy. Nothing in it is recomputed — it is the trace, laid out.
+
+The same trace is available on every production request as
+`AssistantResult.trace` (never in the HTTP response) and is printed to the
+server log with `AI_TRACE=1`. It carries titles and the question's topic, so
+it is never written to `app_events` — that table's contract is counts and
+enums only (`lib/ai/telemetry.ts`).
+
+## 6b. Three suites
+
+| Suite | File | n | Purpose |
+|---|---|---|---|
+| `v1` (default) | `questions.json` | 123 | the permanent baseline — **never edited** |
+| `v2` | `questions-v2.json` | 37 | permanent edge cases: typos, ISBNs (bare and in a sentence), Khmer and lower-case titles, author/title ambiguity, named-source questions, concept and edition comparisons, cross-book synthesis, a named work the library does not hold, ambiguous input |
+| `all` | both | 160 | |
+
+```bash
+npm run ai:answer-benchmark -- --suite v2
+npm run ai:answer-benchmark -- --suite v2.1
+npm run ai:answer-benchmark -- --suite all --diagnose
+npm run ai:answer-benchmark -- --live --ids def-001,exact-003,none-003   # a small, deliberate live set
+```
+
+`v2` labels were verified against the live corpus on 2026-09-11 the same way
+as `v1`; the file's `notes` say how.
+
+`v2.1` (`questions-v2-1.json`, 17 questions) adds the label shapes AI Brain
+2.1 introduced and the earlier fixtures cannot express: a question that names
+a **page**, a question that names a **span**, a comparison whose required
+works are stated rather than inferred, and answers checked against
+`requiredClaims` — short lowercase substrings a person wrote down, never a
+model's judgement. Two of its questions are deliberately UNLABELLED, because
+"what does the library's literature say about triangulation?" is carried by
+43 pages of one book alone and a recall list of six would be a fiction.
+
+**The rule across all three: a later suite ADDS; it never rewrites an earlier
+one.** New edge cases go in the newest fixture; `v1`'s and `v2`'s expected
+answers are not changed to move a number. That is what lets a figure from
+September 2026 be compared with one from a year later and mean something.
+
+## 6b-i. Evidence scopes, and the metrics a label may carry
+
+Every question is scored under an **evidence scope** — `exact_page`,
+`page_range`, `single_document`, `multi_document`, `topic_unscoped`,
+`metadata`, `no_evidence` — derived by `lib/ai/evaluation.ts` from fields the
+fixture already has, in a fixed order, and printed as a census on every run.
+A metric the scope cannot carry is reported as `null` and **leaves the
+denominator**; it is never a zero. Where the label is a recall list, the
+context is judged instead by properties of the context itself (evidence
+coverage, irrelevant ratio, duplicate ratio), which need no fixture at all.
+
+Full definitions and targets: `docs/AI-BRAIN-2-1-QUALITY-BASELINE.md`.
+
+## 6b-ii. Live runs
+
+```bash
+npm run ai:answer-benchmark -- --suite all --live-suite smoke --artifact --gate
+npm run ai:answer-benchmark -- --suite all --live-suite regression --artifact
+npm run ai:answer-benchmark -- --live --ids cmp-002 --diagnose
+```
+
+`--live-suite` names a set in `scripts/ai-answer-benchmark/live-suites.json`
+and implies `--live`, so a live run is reproducible from a word and its cost
+is a number somebody chose (smoke ≈ 9 model calls and 15k tokens).
+`--artifact` appends a counts-only trend file to `artifacts/ai-quality/`;
+`--gate` exits non-zero on a HARD quality regression and on nothing else.
+What is hard, what merely warns, and what to do when one fires:
+`docs/AI-BRAIN-2-1-LIVE-MONITORING.md`.
+
+## 6c. A degraded run is not a run
+
+The retrieval layer logs an embedding or vector failure and carries on —
+correct for a reader, fatal for a measurement: with the semantic leg missing
+for 25 questions, definition retrieval read 33% instead of 92% with nothing
+changed. The script now counts those log lines itself, prints a `DEGRADED
+RUN` warning, suffixes the results file `-DEGRADED`, and records the count
+as `degraded` in the JSON. Do not compare a degraded run against anything;
+re-run.
+
 ## 7. Reproducibility
 
 - **Deterministic** at a fixed commit and corpus: the mock model has no

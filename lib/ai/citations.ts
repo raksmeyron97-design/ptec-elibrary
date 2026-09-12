@@ -27,6 +27,8 @@ export interface RetrievedPassage {
   author: string;
   url: string;
   page: number;
+  /** Last page of a merged run of adjacent pages (lib/ai/evidence.ts). */
+  pageEnd?: number;
   text: string;
   similarity: number;
   /**
@@ -56,6 +58,7 @@ export function buildSources(passages: readonly RetrievedPassage[], snippetChars
       title: p.title,
       author: p.author,
       page: p.page,
+      pageEnd: p.pageEnd && p.pageEnd > p.page ? p.pageEnd : undefined,
       url: `${p.url}?page=${p.page}`,
       snippet: text.length > snippetChars ? `${text.slice(0, snippetChars).trim()}…` : text,
       recordType: p.recordType,
@@ -65,17 +68,24 @@ export function buildSources(passages: readonly RetrievedPassage[], snippetChars
   return out;
 }
 
+/** Every page a source may be cited at: its page, or each page of a merged run. */
+export function sourcePages(s: Pick<Source, "page" | "pageEnd">): number[] {
+  if (s.page === undefined) return [];
+  const end = s.pageEnd && s.pageEnd > s.page ? s.pageEnd : s.page;
+  return Array.from({ length: end - s.page + 1 }, (_, i) => s.page! + i);
+}
+
 /** Sources actually referenced by the (already grounded) answer, in order. */
 export function usedSources(answer: string, sources: readonly Source[]): Source[] {
   const lower = answer.toLowerCase();
   return sources.filter((s) => {
     if (s.page === undefined) return lower.includes(s.title.toLowerCase());
-    const arabic = `p. ${s.page}`;
-    const arabicAlt = `p.${s.page}`;
-    const khmer = `ទំព័រ ${toKhmerDigits(s.page)}`;
-    return (
-      lower.includes(s.title.toLowerCase()) &&
-      (lower.includes(arabic) || lower.includes(arabicAlt) || answer.includes(khmer))
-    );
+    if (!lower.includes(s.title.toLowerCase())) return false;
+    return sourcePages(s).some((page) => {
+      const arabic = `p. ${page}`;
+      const arabicAlt = `p.${page}`;
+      const khmer = `ទំព័រ ${toKhmerDigits(page)}`;
+      return lower.includes(arabic) || lower.includes(arabicAlt) || answer.includes(khmer);
+    });
   });
 }

@@ -38,6 +38,16 @@
 export type AnswerFailureStage =
   /** A — the question was understood as a different question. */
   | "QUERY_UNDERSTANDING"
+  /**
+   * B2 — the question named a work and the resolver attached a different one.
+   *
+   * Checked BEFORE retrieval because it decides what retrieval is pointed at:
+   * a question answered thoroughly from the wrong book is not a recall gap,
+   * and sending someone to tune a lexical floor over it wastes the trip. The
+   * letter is "B2" rather than a renumbering because these letters appear in
+   * shipped reports and a matrix somebody may be comparing against.
+   */
+  | "ENTITY_RESOLUTION"
   /** B — the right evidence exists in the corpus and was not retrieved. */
   | "RETRIEVAL"
   /** C — the right evidence was retrieved and lost its place in the ordering. */
@@ -57,6 +67,7 @@ export type AnswerFailureStage =
 
 export const FAILURE_LETTER: Record<AnswerFailureStage, string> = {
   QUERY_UNDERSTANDING: "A",
+  ENTITY_RESOLUTION: "B2",
   RETRIEVAL: "B",
   RANKING: "C",
   CONTEXT: "D",
@@ -91,6 +102,17 @@ export interface AnswerFacts {
   evidenceCount: number;
   /** At least one expected source is among the evidence. */
   expectedSourceFound: boolean;
+  /**
+   * The resolver attached the work the question NAMED. Null when the question
+   * named none, or when the label cannot say which one was right.
+   */
+  entityResolved: boolean | null;
+  /**
+   * Every claim the label requires is present in the answer. Null when the
+   * label states none — which is most questions, and why stage F stays rare
+   * rather than becoming the default verdict for anything unexplained.
+   */
+  answerCorrect: boolean | null;
   /** Share of evidence drawn from an expected source, 0–1. Null when unlabelled. */
   contextPrecision: number | null;
   /**
@@ -200,6 +222,16 @@ export function diagnoseAnswer(f: AnswerFacts): AnswerDiagnosis | null {
     );
   }
 
+  // ── B2. Entity resolution ───────────────────────────────────────────────
+  // Before retrieval, because it chooses what retrieval is aimed at.
+  if (f.entityResolved === false) {
+    return d(
+      "ENTITY_RESOLUTION",
+      "the question named a work and the resolver attached a different one",
+      "lib/ai/entity.ts — the resolution order (exact > normalized > edition-stripped > prefix > contains > fuzzy) or the popularity band",
+    );
+  }
+
   // ── B. Retrieval ────────────────────────────────────────────────────────
   if (!f.expectedSourceFound) {
     if (f.evidenceCount === 0) {
@@ -266,6 +298,25 @@ export function diagnoseAnswer(f: AnswerFacts): AnswerDiagnosis | null {
       "MODEL_REASONING",
       "correct intent, correct evidence, clean context, and the model returned nothing",
       "this is the ONLY class of failure that justifies looking at the model itself",
+    );
+  }
+
+  // The Stage F monitor (§24 of the AI Brain 2.1 brief). Every upstream stage
+  // has now been positively verified for this question — right intent, right
+  // entity, right evidence, clean context, real citations — and the answer
+  // still does not carry a claim the label requires. That, and only that, is
+  // a reasoning failure.
+  //
+  // Two conditions keep it honest. `modelAnswered` means a model actually
+  // reasoned (never true under the mock). `answerCorrect !== null` means the
+  // label SAID what a correct answer must contain — a deterministic list of
+  // substrings, not a judgement, because an LLM judge would put the thing
+  // under test in the jury.
+  if (f.modelAnswered && f.answerCorrect === false) {
+    return d(
+      "MODEL_REASONING",
+      "every upstream stage verified correct, and the answer still omits a claim the label requires",
+      "this is the ONLY class of failure that justifies looking at the model itself — reproduce it across runs before acting (§25)",
     );
   }
 

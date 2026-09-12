@@ -27,8 +27,21 @@ export function isMockProvider(): boolean {
   return process.env.AI_MOCK_PROVIDER === "1" || process.env.AI_MOCK_PROVIDER === "true";
 }
 
-/** `[1] "Title" (Author), p. 42: text` — what lib/ai/context.ts emits. */
-const PASSAGE_RE = /^\[\d+\]\s+"([^"]+)"\s+\(([^)]*)\),\s*p\.\s*(\d+):\s*([\s\S]*)$/;
+/**
+ * `[1] "Title" (Author), p. 42: text` — what lib/ai/context.ts emits.
+ *
+ * The author field is matched LAZILY up to the `, p.` that follows it, not as
+ * `[^)]*`: real bylines contain parentheses — `Leonard A. Jason, David S.
+ * Glenwick (Editors)`, `Department for Education and Skills (DfES), United
+ * Kingdom` — and the greedy-free form stopped at the first `)`, so the mock
+ * saw zero passages for those books and answered "I could not find evidence"
+ * over four correct passages. Measured: five of the twenty baseline failures
+ * in scripts/ai-answer-benchmark.ts were this parser, not the pipeline.
+ *
+ * A page range (`pp. 44–45`, emitted when adjacent pages are merged) parses
+ * to its first page, which is the page the mock then cites.
+ */
+const PASSAGE_RE = /^\[\d+\]\s+"([^"]+)"\s+\(([\s\S]*?)\),\s*pp?\.\s*(\d+)(?:\s*[–-]\s*\d+)?:\s*([\s\S]*)$/;
 
 type Passage = { title: string; page: number; text: string };
 

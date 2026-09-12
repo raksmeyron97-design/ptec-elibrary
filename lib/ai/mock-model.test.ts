@@ -35,6 +35,28 @@ describe("mockAnswerFor", () => {
     expect(grounded.grounded.length).toBeGreaterThan(0);
   });
 
+  it("reads an author field that contains parentheses", () => {
+    // Five baseline failures were this: `(Leonard A. Jason, David S. Glenwick
+    // (Editors))` stopped the old parser at the first `)`, and the mock refused
+    // over four correct passages.
+    const block = buildContext({
+      query: "grounded theory",
+      passages: [
+        { title: "Handbook of Methodological Approaches to Community-Based Research", author: "Leonard A. Jason, David S. Glenwick (Editors)", page: 44, text: "Grounded theory builds theory from data." },
+        { title: "Pedagogy and Practice: Leadership Guide", author: "Department for Education and Skills (DfES), United Kingdom", page: 85, text: "Formative assessment informs the next lesson." },
+      ],
+    }).block;
+    const answer = mockAnswerFor(block);
+    expect(answer).toContain("Grounded theory builds theory from data.");
+    expect(answer).toMatch(/\(Handbook of Methodological Approaches to Community-Based Research, p\. 44\)/);
+    expect(answer).toMatch(/\(Pedagogy and Practice: Leadership Guide, p\. 85\)/);
+  });
+
+  it("cites the first page of a merged page range", () => {
+    const line = `[1] "Handbook" (Anon), pp. 44–45: Grounded theory builds theory from data.`;
+    expect(mockAnswerFor(line)).toMatch(/\(Handbook, p\. 44\)/);
+  });
+
   it("says it has nothing when the context carries no passages", () => {
     const empty = buildContext({ query: "zebrafish", passages: [] }).block;
     expect(mockAnswerFor(empty)).toMatch(/could not find/i);
