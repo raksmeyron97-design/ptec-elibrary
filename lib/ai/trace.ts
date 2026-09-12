@@ -78,6 +78,17 @@ export interface AITrace {
     candidateCount: number;
     /** Pages read, matched, and refused as a book's furniture (lib/ai/page-quality.ts). */
     furnitureDropped: number;
+    /**
+     * Works a comparison NAMED and found no passages in — stated to the model
+     * as a fact it must repeat, never left for it to infer agreement from.
+     *
+     * On the trace because it is the honest answer to "did the system tell
+     * the reader something was missing?". The benchmark's wrong-document gate
+     * used to answer that by looking for refusal words in the prose, and so
+     * counted an answer opening "No passages are available in the library
+     * data for this work, so its position is missing" as a silent one.
+     */
+    missingDocuments: string[];
     semanticAvailable: boolean | null;
     entity: RetrievalOutcome["entity"] | null;
     hub: RetrievalOutcome["hub"] | null;
@@ -193,6 +204,7 @@ export function buildTrace(
       strategy: strategyOf(intent, plan),
       candidateCount: retrieval.candidateCount ?? 0,
       furnitureDropped: retrieval.furnitureDropped ?? 0,
+      missingDocuments: retrieval.missingDocuments ?? [],
       semanticAvailable: retrieval.semanticAvailable ?? null,
       entity: retrieval.entity ?? null,
       hub: retrieval.hub ?? null,

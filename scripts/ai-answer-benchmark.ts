@@ -958,8 +958,17 @@ function liveMetrics(rows: readonly Row[], e: ReturnType<typeof buildEvaluation>
     groundedCitations: rows.reduce((n, r) => n + (r.live?.citations.grounded ?? 0), 0),
     unsupportedAnswers: rows.filter((r) => r.evaluation.unsupportedAnswer).length,
     wrongDocuments: rows.filter((r) => r.evaluation.wrongDocument).length,
+    // SILENT means the system never told the reader anything was missing —
+    // decided from what RETRIEVAL announced, not from whether the prose
+    // happens to contain a refusal word. cmp-002 answered "No passages are
+    // available in the library data for this work, so its position is
+    // missing" and the keyword proxy called that silent.
     silentWrongDocuments: rows.filter(
-      (r) => r.evaluation.wrongDocument && r.answerClass !== "refusal" && r.answerChars > 0,
+      (r) =>
+        r.evaluation.wrongDocument &&
+        r.answerChars > 0 &&
+        r.answerClass !== "refusal" &&
+        (r.trace?.retrieval.missingDocuments.length ?? 0) === 0,
     ).length,
     falseNoAnswers: rows.filter((r) => r.evaluation.falseNoAnswer).length,
     groundedness: e.groundedness.value,

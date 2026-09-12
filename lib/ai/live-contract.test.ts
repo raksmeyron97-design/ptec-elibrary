@@ -120,6 +120,7 @@ describe("the citation forms a real model actually writes", () => {
     ["two in one bracket", "Both agree (*Research Methods in Education (8th Edition)*, p. 470; *Qualitative Inquiry and Research Design (4th Edition)*, pp. 8–9)."],
     ["a page range", "The two approaches differ (Qualitative Inquiry and Research Design (4th Edition), pp. 8–9)."],
     ["author, APA style", "Creswell sets this out (Creswell, pp. 8–9)."],
+    ["a FULL byline", "A literature review is essential (John W. Creswell, pp. 8–9)."],
     ["Khmer page word, Arabic digits", "អត្ថបទបញ្ជាក់ (Research Methods in Education (8th Edition), ទំព័រ 470)។"],
     ["a shortened title", "The argument runs on (Research Methods in Education, p. 470)."],
   ];
@@ -154,6 +155,35 @@ describe("the citation forms a real model actually writes", () => {
     const result = enforceGrounding("As shown (A Book We Do Not Hold, p. 470).", sources);
     expect(result.grounded).toHaveLength(0);
     expect(result.hallucinated).toHaveLength(1);
+  });
+
+  it("an author's surname may be ANY word of the byline the model wrote", () => {
+    // The live regression run of 2026-09-12 produced
+    // `(Alan Bryman, p. 36–38, p. 47)` and `(John W. Creswell, pp. 58–59)`.
+    // Both were correct — the pages were retrieved and the people wrote the
+    // books — and both were deleted as hallucinations, because the matcher
+    // took only the FIRST word of the citation and that word was a given
+    // name. Two correct citations, removed from a reader's answer.
+    for (const form of [
+      "(John W. Creswell, pp. 8–9)",
+      "(Creswell, pp. 8–9)",
+      "(J. Creswell, pp. 8–9)",
+    ]) {
+      const r = enforceGrounding(`As set out ${form}.`, sources);
+      expect(r.hallucinated, form).toHaveLength(0);
+      expect(r.grounded, form).toHaveLength(1);
+    }
+  });
+
+  it("and a person who wrote none of the retrieved works is still deleted", () => {
+    // Widened to read a form, NOT loosened about what it verifies.
+    const invented = enforceGrounding("As claimed (Margaret Atwood, p. 470).", sources);
+    expect(invented.grounded).toHaveLength(0);
+    expect(invented.hallucinated).toHaveLength(1);
+    // A real author, at a page no source holds.
+    const wrongPage = enforceGrounding("As claimed (Creswell, p. 999).", sources);
+    expect(wrongPage.grounded).toHaveLength(0);
+    expect(wrongPage.hallucinated).toHaveLength(1);
   });
 
   it("every parsed citation names the FIRST page it mentions", () => {

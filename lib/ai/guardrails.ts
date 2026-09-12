@@ -365,9 +365,27 @@ export function enforceGrounding(
       }
     }
     if (!pages && key) {
-      const head = key.replace(/\s+et\s+al\.?$/, "").split(" ")[0];
+      // An author instead of a title. The surname may be ANY word of what the
+      // model wrote, not the first: `(Creswell, pp. 6–8)` is the APA habit the
+      // parser was built for, but a live regression run produced
+      // `(Alan Bryman, p. 36–38, p. 47)` and `(John W. Creswell, pp. 58–59)`
+      // — full bylines, whose first word is a given name. Both citations were
+      // CORRECT: the pages were in the retrieval set and the people wrote the
+      // books. Taking only the head word reported them as hallucinations and
+      // deleted them from the answer.
+      //
+      // This widens what is READ; it does not loosen what is VERIFIED. The
+      // word still has to be a surname of an author of a retrieved source,
+      // `surnames()` still requires three characters, and the page still has
+      // to be one that source actually holds.
+      const words = key.replace(/\s+et\s+al\.?$/, "").split(" ").filter(Boolean);
       for (const [k, v] of allowedPages) {
-        if (head && (authorsOf.get(k) ?? []).includes(head)) { pages = v; c.title = titleOf.get(k) ?? c.title; break; }
+        const authors = authorsOf.get(k) ?? [];
+        if (authors.length && words.some((w) => authors.includes(w))) {
+          pages = v;
+          c.title = titleOf.get(k) ?? c.title;
+          break;
+        }
       }
     }
     if (pages?.has(c.page)) grounded.push(c);
