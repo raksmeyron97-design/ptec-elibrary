@@ -1,0 +1,2276 @@
+{
+  "generatedAt": "2026-09-12T12:32:00.742Z",
+  "source": "file:reports/seo/author-names.json",
+  "identitySupplied": true,
+  "total": 156,
+  "counts": {
+    "SAFE_SINGLE": 85,
+    "SAFE_MULTIPLE": 42,
+    "ORGANIZATION": 27,
+    "INSTITUTION": 2,
+    "AMBIGUOUS": 0,
+    "EMPTY": 0
+  },
+  "rows": [
+    {
+      "name": "ក្រសួងអប់រំ យុវជន និងកីឡា",
+      "role": "author",
+      "contributors": [
+        "ក្រសួងអប់រំ យុវជន និងកីឡា"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/ក្រសួងអប់រំ-យុវជន-និងកីឡា"
+    },
+    {
+      "name": "ក្រុមប្រឹក្សាជាតិភាសាខ្មែរ",
+      "role": "author",
+      "contributors": [
+        "ក្រុមប្រឹក្សាជាតិភាសាខ្មែរ"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/ក្រុមប្រឹក្សាជាតិភាសាខ្មែរ"
+    },
+    {
+      "name": "Catherine Dawson",
+      "role": "author",
+      "contributors": [
+        "Catherine Dawson"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/catherine-dawson"
+    },
+    {
+      "name": "Phnom Penh Teacher Education College",
+      "role": "author",
+      "contributors": [
+        "Phnom Penh Teacher Education College"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "INSTITUTION",
+      "safeToSplit": false,
+      "urlRisk": "review",
+      "reason": "Matches the published institutional identity; must reference the existing #organization node, never a Person.",
+      "url": "https://library.ptec.edu.kh/authors/phnom-penh-teacher-education-college"
+    },
+    {
+      "name": "វិទ្យាល័យ ព្រែកលៀប និង វិទ្យាល័យ ព្រះស៊ីសុវត្ថិ (NGS)",
+      "role": "author",
+      "contributors": [
+        "វិទ្យាល័យ ព្រែកលៀប និង វិទ្យាល័យ ព្រះស៊ីសុវត្ថិ (NGS)"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/វិទ្យាល័យ-ព្រែកលៀប-និង-វិទ្យាល័យ-ព្រះស៊ីសុវត្ថិ-ngs"
+    },
+    {
+      "name": "Adrian Wallwork",
+      "role": "author",
+      "contributors": [
+        "Adrian Wallwork"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/adrian-wallwork"
+    },
+    {
+      "name": "C. E. Eckersley",
+      "role": "author",
+      "contributors": [
+        "C. E. Eckersley"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/c-e-eckersley"
+    },
+    {
+      "name": "John W. Creswell",
+      "role": "author",
+      "contributors": [
+        "John W. Creswell"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/john-w-creswell"
+    },
+    {
+      "name": "Louis Cohen, Lawrence Manion, Keith Morrison",
+      "role": "author",
+      "contributors": [
+        "Louis Cohen",
+        "Lawrence Manion",
+        "Keith Morrison"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 3,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 3 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/louis-cohen-lawrence-manion-keith-morrison"
+    },
+    {
+      "name": "Ranjit Kumar",
+      "role": "author",
+      "contributors": [
+        "Ranjit Kumar"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ranjit-kumar"
+    },
+    {
+      "name": "ជា សុទ្ធ",
+      "role": "author",
+      "contributors": [
+        "ជា សុទ្ធ"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ជា-សុទ្ធ"
+    },
+    {
+      "name": "ម៉ៅ សុភា",
+      "role": "author",
+      "contributors": [
+        "ម៉ៅ សុភា"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ម៉ៅ-សុភា"
+    },
+    {
+      "name": "លេខាធិការដ្ឋានគ្រប់គ្រងគ្រោះមហន្តរាយ ក្រសួងអប់រំ យុវជន និងកីឡា",
+      "role": "author",
+      "contributors": [
+        "លេខាធិការដ្ឋានគ្រប់គ្រងគ្រោះមហន្តរាយ ក្រសួងអប់រំ យុវជន និងកីឡា"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/លេខាធិការដ្ឋានគ្រប់គ្រងគ្រោះមហន្តរាយ-ក្រសួងអប់រំ-យុវជន-និងកីឡា"
+    },
+    {
+      "name": "វិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ",
+      "role": "author",
+      "contributors": [
+        "វិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "INSTITUTION",
+      "safeToSplit": false,
+      "urlRisk": "review",
+      "reason": "Matches the published institutional identity; must reference the existing #organization node, never a Person.",
+      "url": "https://library.ptec.edu.kh/authors/វិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ"
+    },
+    {
+      "name": "សិត សេង",
+      "role": "author",
+      "contributors": [
+        "សិត សេង"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/សិត-សេង"
+    },
+    {
+      "name": "Geoffrey E. Mills, L. R. Gay",
+      "role": "author",
+      "contributors": [
+        "Geoffrey E. Mills",
+        "L. R. Gay"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 2,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 2 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/geoffrey-e-mills-l-r-gay"
+    },
+    {
+      "name": "Marguerite G. Lodico, Dean T. Spaulding, Katherine H. Voegtle",
+      "role": "author",
+      "contributors": [
+        "Marguerite G. Lodico",
+        "Dean T. Spaulding",
+        "Katherine H. Voegtle"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 3,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 3 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/marguerite-g-lodico-dean-t-spaulding-katherine-h-voegtle"
+    },
+    {
+      "name": "Robert K. Yin",
+      "role": "author",
+      "contributors": [
+        "Robert K. Yin"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/robert-k-yin"
+    },
+    {
+      "name": "ឌុក ឈេង",
+      "role": "author",
+      "contributors": [
+        "ឌុក ឈេង"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ឌុក-ឈេង"
+    },
+    {
+      "name": "ត្រឹង ងា",
+      "role": "author",
+      "contributors": [
+        "ត្រឹង ងា"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ត្រឹង-ងា"
+    },
+    {
+      "name": "Alan Bryman",
+      "role": "author",
+      "contributors": [
+        "Alan Bryman"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/alan-bryman"
+    },
+    {
+      "name": "Alan Crawford, Wendy Saul, Samuel R. Mathews, James Makinster",
+      "role": "author",
+      "contributors": [
+        "Alan Crawford",
+        "Wendy Saul",
+        "Samuel R. Mathews",
+        "James Makinster"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 4,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 4 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/alan-crawford-wendy-saul-samuel-r-mathews-james-makinster"
+    },
+    {
+      "name": "American Psychological Association",
+      "role": "author",
+      "contributors": [
+        "American Psychological Association"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/american-psychological-association"
+    },
+    {
+      "name": "Anita Woolfolk",
+      "role": "author",
+      "contributors": [
+        "Anita Woolfolk"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/anita-woolfolk"
+    },
+    {
+      "name": "Anne Burns",
+      "role": "author",
+      "contributors": [
+        "Anne Burns"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/anne-burns"
+    },
+    {
+      "name": "Bert P.M. Creemers, Leonidas Kyriakides, Pam Sammons (Editors)",
+      "role": "editor",
+      "contributors": [
+        "Bert P.M. Creemers",
+        "Leonidas Kyriakides",
+        "Pam Sammons"
+      ],
+      "hadRoleMarker": true,
+      "contributorCount": 3,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 3 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/bert-p-m-creemers-leonidas-kyriakides-pam-sammons-editors"
+    },
+    {
+      "name": "Bill Atweh, Stephen Kemmis, Patricia Weeks (Editors)",
+      "role": "editor",
+      "contributors": [
+        "Bill Atweh",
+        "Stephen Kemmis",
+        "Patricia Weeks"
+      ],
+      "hadRoleMarker": true,
+      "contributorCount": 3,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 3 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/bill-atweh-stephen-kemmis-patricia-weeks-editors"
+    },
+    {
+      "name": "C. R. Kothari",
+      "role": "author",
+      "contributors": [
+        "C. R. Kothari"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/c-r-kothari"
+    },
+    {
+      "name": "Capacity Development Partnership Fund (CDPF III)",
+      "role": "author",
+      "contributors": [
+        "Capacity Development Partnership Fund (CDPF III)"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/capacity-development-partnership-fund-cdpf-iii"
+    },
+    {
+      "name": "Danuta Gabryś-Barker (Editor)",
+      "role": "editor",
+      "contributors": [
+        "Danuta Gabryś-Barker"
+      ],
+      "hadRoleMarker": true,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person; a cataloguer role marker is not part of the name.",
+      "url": "https://library.ptec.edu.kh/authors/danuta-gabryś-barker-editor"
+    },
+    {
+      "name": "David Evans, Paul Gruba, Justin Zobel",
+      "role": "author",
+      "contributors": [
+        "David Evans",
+        "Paul Gruba",
+        "Justin Zobel"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 3,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 3 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/david-evans-paul-gruba-justin-zobel"
+    },
+    {
+      "name": "David Scott, Marlene Morrison",
+      "role": "author",
+      "contributors": [
+        "David Scott",
+        "Marlene Morrison"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 2,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 2 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/david-scott-marlene-morrison"
+    },
+    {
+      "name": "Department for Education and Skills (DfES), United Kingdom",
+      "role": "author",
+      "contributors": [
+        "Department for Education and Skills (DfES), United Kingdom"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/department-for-education-and-skills-dfes-united-kingdom"
+    },
+    {
+      "name": "Donald Ary, Lucy Cheser Jacobs, Chris Sorensen",
+      "role": "author",
+      "contributors": [
+        "Donald Ary",
+        "Lucy Cheser Jacobs",
+        "Chris Sorensen"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 3,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 3 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/donald-ary-lucy-cheser-jacobs-chris-sorensen"
+    },
+    {
+      "name": "Donna Kalmbach Phillips, Kevin Carr",
+      "role": "author",
+      "contributors": [
+        "Donna Kalmbach Phillips",
+        "Kevin Carr"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 2,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 2 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/donna-kalmbach-phillips-kevin-carr"
+    },
+    {
+      "name": "Eileen Ferrance",
+      "role": "author",
+      "contributors": [
+        "Eileen Ferrance"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/eileen-ferrance"
+    },
+    {
+      "name": "Entertainment And Knowledge",
+      "role": "author",
+      "contributors": [
+        "Entertainment And Knowledge"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/entertainment-and-knowledge"
+    },
+    {
+      "name": "Ernest T. Stringer, Lois McFadyen Christensen, Shelia C. Baldwin",
+      "role": "author",
+      "contributors": [
+        "Ernest T. Stringer",
+        "Lois McFadyen Christensen",
+        "Shelia C. Baldwin"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 3,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 3 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/ernest-t-stringer-lois-mcfadyen-christensen-shelia-c-baldwin"
+    },
+    {
+      "name": "Geoffrey E. Mills",
+      "role": "author",
+      "contributors": [
+        "Geoffrey E. Mills"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/geoffrey-e-mills"
+    },
+    {
+      "name": "Geoffrey R. Marczyk, David DeMatteo, David Festinger",
+      "role": "author",
+      "contributors": [
+        "Geoffrey R. Marczyk",
+        "David DeMatteo",
+        "David Festinger"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 3,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 3 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/geoffrey-r-marczyk-david-dematteo-david-festinger"
+    },
+    {
+      "name": "Gloria Ladson-Billings, William F. Tate (Editors)",
+      "role": "editor",
+      "contributors": [
+        "Gloria Ladson-Billings",
+        "William F. Tate"
+      ],
+      "hadRoleMarker": true,
+      "contributorCount": 2,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 2 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/gloria-ladson-billings-william-f-tate-editors"
+    },
+    {
+      "name": "Hamdy A. Taha",
+      "role": "author",
+      "contributors": [
+        "Hamdy A. Taha"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/hamdy-a-taha"
+    },
+    {
+      "name": "Irving Seidman",
+      "role": "author",
+      "contributors": [
+        "Irving Seidman"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/irving-seidman"
+    },
+    {
+      "name": "Jack R. Fraenkel, Norman E. Wallen, Helen H. Hyun",
+      "role": "author",
+      "contributors": [
+        "Jack R. Fraenkel",
+        "Norman E. Wallen",
+        "Helen H. Hyun"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 3,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 3 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/jack-r-fraenkel-norman-e-wallen-helen-h-hyun"
+    },
+    {
+      "name": "Jerry Wellington",
+      "role": "author",
+      "contributors": [
+        "Jerry Wellington"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/jerry-wellington"
+    },
+    {
+      "name": "John Flowerdew, Pejman Habibie",
+      "role": "author",
+      "contributors": [
+        "John Flowerdew",
+        "Pejman Habibie"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 2,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 2 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/john-flowerdew-pejman-habibie"
+    },
+    {
+      "name": "John Morley",
+      "role": "author",
+      "contributors": [
+        "John Morley"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/john-morley"
+    },
+    {
+      "name": "John W. Creswell, Cheryl N. Poth",
+      "role": "author",
+      "contributors": [
+        "John W. Creswell",
+        "Cheryl N. Poth"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 2,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 2 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/john-w-creswell-cheryl-n-poth"
+    },
+    {
+      "name": "Johnny Saldaña",
+      "role": "author",
+      "contributors": [
+        "Johnny Saldaña"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/johnny-saldaña"
+    },
+    {
+      "name": "Julie Pallant",
+      "role": "author",
+      "contributors": [
+        "Julie Pallant"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/julie-pallant"
+    },
+    {
+      "name": "K. B. Everard, Geoffrey Morris, Ian Wilson",
+      "role": "author",
+      "contributors": [
+        "K. B. Everard",
+        "Geoffrey Morris",
+        "Ian Wilson"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 3,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 3 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/k-b-everard-geoffrey-morris-ian-wilson"
+    },
+    {
+      "name": "L. R. Gay, Geoffrey E. Mills, Peter Airasian",
+      "role": "author",
+      "contributors": [
+        "L. R. Gay",
+        "Geoffrey E. Mills",
+        "Peter Airasian"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 3,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 3 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/l-r-gay-geoffrey-e-mills-peter-airasian"
+    },
+    {
+      "name": "Leon Benade",
+      "role": "author",
+      "contributors": [
+        "Leon Benade"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/leon-benade"
+    },
+    {
+      "name": "Leonard A. Jason, David S. Glenwick (Editors)",
+      "role": "editor",
+      "contributors": [
+        "Leonard A. Jason",
+        "David S. Glenwick"
+      ],
+      "hadRoleMarker": true,
+      "contributorCount": 2,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 2 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/leonard-a-jason-david-s-glenwick-editors"
+    },
+    {
+      "name": "Lin S. Norton",
+      "role": "author",
+      "contributors": [
+        "Lin S. Norton"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/lin-s-norton"
+    },
+    {
+      "name": "Lovely Professional University",
+      "role": "author",
+      "contributors": [
+        "Lovely Professional University"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/lovely-professional-university"
+    },
+    {
+      "name": "Maree Gosper, Dirk Ifenthaler (Editors)",
+      "role": "editor",
+      "contributors": [
+        "Maree Gosper",
+        "Dirk Ifenthaler"
+      ],
+      "hadRoleMarker": true,
+      "contributorCount": 2,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 2 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/maree-gosper-dirk-ifenthaler-editors"
+    },
+    {
+      "name": "María Luisa Pérez Cañado (Editor)",
+      "role": "editor",
+      "contributors": [
+        "María Luisa Pérez Cañado"
+      ],
+      "hadRoleMarker": true,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person; a cataloguer role marker is not part of the name.",
+      "url": "https://library.ptec.edu.kh/authors/maría-luisa-pérez-cañado-editor"
+    },
+    {
+      "name": "Martyn Denscombe",
+      "role": "author",
+      "contributors": [
+        "Martyn Denscombe"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/martyn-denscombe"
+    },
+    {
+      "name": "Matthew B. Miles, A. Michael Huberman, Johnny Saldaña",
+      "role": "author",
+      "contributors": [
+        "Matthew B. Miles",
+        "A. Michael Huberman",
+        "Johnny Saldaña"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 3,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 3 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/matthew-b-miles-a-michael-huberman-johnny-saldaña"
+    },
+    {
+      "name": "Michael Quinn Patton",
+      "role": "author",
+      "contributors": [
+        "Michael Quinn Patton"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/michael-quinn-patton"
+    },
+    {
+      "name": "Ministry of Education, Youth and Sport",
+      "role": "author",
+      "contributors": [
+        "Ministry of Education, Youth and Sport"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/ministry-of-education-youth-and-sport"
+    },
+    {
+      "name": "Muong Naroath",
+      "role": "author",
+      "contributors": [
+        "Muong Naroath"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/muong-naroath"
+    },
+    {
+      "name": "Oon-Seng Tan, Woon-Chia Liu, Ee-Ling Low (Editors)",
+      "role": "editor",
+      "contributors": [
+        "Oon-Seng Tan",
+        "Woon-Chia Liu",
+        "Ee-Ling Low"
+      ],
+      "hadRoleMarker": true,
+      "contributorCount": 3,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 3 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/oon-seng-tan-woon-chia-liu-ee-ling-low-editors"
+    },
+    {
+      "name": "Pat Bazeley, Kristi Jackson",
+      "role": "author",
+      "contributors": [
+        "Pat Bazeley",
+        "Kristi Jackson"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 2,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 2 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/pat-bazeley-kristi-jackson"
+    },
+    {
+      "name": "Patricia Leavy",
+      "role": "author",
+      "contributors": [
+        "Patricia Leavy"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/patricia-leavy"
+    },
+    {
+      "name": "Paul Connolly",
+      "role": "author",
+      "contributors": [
+        "Paul Connolly"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/paul-connolly"
+    },
+    {
+      "name": "Perry R. Hinton, Charlotte Brownlow, Isabella McMurray, Bob Cozens",
+      "role": "author",
+      "contributors": [
+        "Perry R. Hinton",
+        "Charlotte Brownlow",
+        "Isabella McMurray",
+        "Bob Cozens"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 4,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 4 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/perry-r-hinton-charlotte-brownlow-isabella-mcmurray-bob-cozens"
+    },
+    {
+      "name": "R. Burke Johnson, Larry Christensen",
+      "role": "author",
+      "contributors": [
+        "R. Burke Johnson",
+        "Larry Christensen"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 2,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 2 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/r-burke-johnson-larry-christensen"
+    },
+    {
+      "name": "Richard L. Scheaffer, William Mendenhall III, R. Lyman Ott, Kenneth G. Gerow",
+      "role": "author",
+      "contributors": [
+        "Richard L. Scheaffer",
+        "William Mendenhall III",
+        "R. Lyman Ott",
+        "Kenneth G. Gerow"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 4,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 4 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/richard-l-scheaffer-william-mendenhall-iii-r-lyman-ott-kenneth-g-gerow"
+    },
+    {
+      "name": "Richard Sagor",
+      "role": "author",
+      "contributors": [
+        "Richard Sagor"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/richard-sagor"
+    },
+    {
+      "name": "Robert H. Carver, Jane Gradwohl Nash",
+      "role": "author",
+      "contributors": [
+        "Robert H. Carver",
+        "Jane Gradwohl Nash"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 2,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 2 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/robert-h-carver-jane-gradwohl-nash"
+    },
+    {
+      "name": "Robert P. Pelton (Editor)",
+      "role": "editor",
+      "contributors": [
+        "Robert P. Pelton"
+      ],
+      "hadRoleMarker": true,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person; a cataloguer role marker is not part of the name.",
+      "url": "https://library.ptec.edu.kh/authors/robert-p-pelton-editor"
+    },
+    {
+      "name": "Ron White, Andy Hockley, Julie van der Horst Jansen, Melissa S. Laughner",
+      "role": "author",
+      "contributors": [
+        "Ron White",
+        "Andy Hockley",
+        "Julie van der Horst Jansen",
+        "Melissa S. Laughner"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 4,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 4 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/ron-white-andy-hockley-julie-van-der-horst-jansen-melissa-s-laughner"
+    },
+    {
+      "name": "Ronghuai Huang, J. Michael Spector, Junfeng Yang",
+      "role": "author",
+      "contributors": [
+        "Ronghuai Huang",
+        "J. Michael Spector",
+        "Junfeng Yang"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 3,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 3 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/ronghuai-huang-j-michael-spector-junfeng-yang"
+    },
+    {
+      "name": "Sara Efrat Efron, Ruth Ravid",
+      "role": "author",
+      "contributors": [
+        "Sara Efrat Efron",
+        "Ruth Ravid"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 2,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 2 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/sara-efrat-efron-ruth-ravid"
+    },
+    {
+      "name": "Sarah J. Tracy",
+      "role": "author",
+      "contributors": [
+        "Sarah J. Tracy"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/sarah-j-tracy"
+    },
+    {
+      "name": "Sharan B. Merriam",
+      "role": "author",
+      "contributors": [
+        "Sharan B. Merriam"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/sharan-b-merriam"
+    },
+    {
+      "name": "Sherri L. Jackson",
+      "role": "author",
+      "contributors": [
+        "Sherri L. Jackson"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/sherri-l-jackson"
+    },
+    {
+      "name": "Stavros Demetriadis",
+      "role": "author",
+      "contributors": [
+        "Stavros Demetriadis"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/stavros-demetriadis"
+    },
+    {
+      "name": "Stephen D. Lapan, MaryLynn T. Quartaroli, Frances Julia Riemer (Editors)",
+      "role": "editor",
+      "contributors": [
+        "Stephen D. Lapan",
+        "MaryLynn T. Quartaroli",
+        "Frances Julia Riemer"
+      ],
+      "hadRoleMarker": true,
+      "contributorCount": 3,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 3 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/stephen-d-lapan-marylynn-t-quartaroli-frances-julia-riemer-editors"
+    },
+    {
+      "name": "Stephen Gorard",
+      "role": "author",
+      "contributors": [
+        "Stephen Gorard"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/stephen-gorard"
+    },
+    {
+      "name": "Stephen Gorard, Chris Taylor",
+      "role": "author",
+      "contributors": [
+        "Stephen Gorard",
+        "Chris Taylor"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 2,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 2 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/stephen-gorard-chris-taylor"
+    },
+    {
+      "name": "Stephen Howe, Kristina Henriksson",
+      "role": "author",
+      "contributors": [
+        "Stephen Howe",
+        "Kristina Henriksson"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 2,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 2 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/stephen-howe-kristina-henriksson"
+    },
+    {
+      "name": "Stephen Kemmis, Robin McTaggart, Rhonda Nixon",
+      "role": "author",
+      "contributors": [
+        "Stephen Kemmis",
+        "Robin McTaggart",
+        "Rhonda Nixon"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 3,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 3 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/stephen-kemmis-robin-mctaggart-rhonda-nixon"
+    },
+    {
+      "name": "Steven J. Taylor, Robert Bogdan, Marjorie L. DeVault",
+      "role": "author",
+      "contributors": [
+        "Steven J. Taylor",
+        "Robert Bogdan",
+        "Marjorie L. DeVault"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 3,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 3 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/steven-j-taylor-robert-bogdan-marjorie-l-devault"
+    },
+    {
+      "name": "Suzanne Choo, Deb Sawch, Alison Villanueva, Ruth Vinz (Editors)",
+      "role": "editor",
+      "contributors": [
+        "Suzanne Choo",
+        "Deb Sawch",
+        "Alison Villanueva",
+        "Ruth Vinz"
+      ],
+      "hadRoleMarker": true,
+      "contributorCount": 4,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 4 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/suzanne-choo-deb-sawch-alison-villanueva-ruth-vinz-editors"
+    },
+    {
+      "name": "Timothy Teo (Editor)",
+      "role": "editor",
+      "contributors": [
+        "Timothy Teo"
+      ],
+      "hadRoleMarker": true,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person; a cataloguer role marker is not part of the name.",
+      "url": "https://library.ptec.edu.kh/authors/timothy-teo-editor"
+    },
+    {
+      "name": "Valerie Hill-Jackson, Chance W. Lewis (Editors)",
+      "role": "editor",
+      "contributors": [
+        "Valerie Hill-Jackson",
+        "Chance W. Lewis"
+      ],
+      "hadRoleMarker": true,
+      "contributorCount": 2,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 2 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/valerie-hill-jackson-chance-w-lewis-editors"
+    },
+    {
+      "name": "W. Lawrence Neuman",
+      "role": "author",
+      "contributors": [
+        "W. Lawrence Neuman"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/w-lawrence-neuman"
+    },
+    {
+      "name": "Yogesh Kumar Singh",
+      "role": "author",
+      "contributors": [
+        "Yogesh Kumar Singh"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/yogesh-kumar-singh"
+    },
+    {
+      "name": "Young Hoan Cho, Imelda S. Caleon, Manu Kapur (Editors)",
+      "role": "editor",
+      "contributors": [
+        "Young Hoan Cho",
+        "Imelda S. Caleon",
+        "Manu Kapur"
+      ],
+      "hadRoleMarker": true,
+      "contributorCount": 3,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 3 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/young-hoan-cho-imelda-s-caleon-manu-kapur-editors"
+    },
+    {
+      "name": "ក្រសួងបរិស្ថាន",
+      "role": "author",
+      "contributors": [
+        "ក្រសួងបរិស្ថាន"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/ក្រសួងបរិស្ថាន"
+    },
+    {
+      "name": "ក្រសួងប្រៃសណីយ៍ និងទូរគមនាគមន៍",
+      "role": "author",
+      "contributors": [
+        "ក្រសួងប្រៃសណីយ៍ និងទូរគមនាគមន៍"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/ក្រសួងប្រៃសណីយ៍-និងទូរគមនាគមន៍"
+    },
+    {
+      "name": "ក្រសួងមហាផ្ទៃ",
+      "role": "author",
+      "contributors": [
+        "ក្រសួងមហាផ្ទៃ"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/ក្រសួងមហាផ្ទៃ"
+    },
+    {
+      "name": "ក្រសួងយុត្តិធម៌",
+      "role": "author",
+      "contributors": [
+        "ក្រសួងយុត្តិធម៌"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/ក្រសួងយុត្តិធម៌"
+    },
+    {
+      "name": "ក្រសួងរៀបចំដែនដី នគរូបនីយកម្ម និងសំណង់",
+      "role": "author",
+      "contributors": [
+        "ក្រសួងរៀបចំដែនដី នគរូបនីយកម្ម និងសំណង់"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/ក្រសួងរៀបចំដែនដី-នគរូបនីយកម្ម-និងសំណង់"
+    },
+    {
+      "name": "ក្រសួងសាធារណការ និងដឹកជញ្ជូន",
+      "role": "author",
+      "contributors": [
+        "ក្រសួងសាធារណការ និងដឹកជញ្ជូន"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/ក្រសួងសាធារណការ-និងដឹកជញ្ជូន"
+    },
+    {
+      "name": "ខាំ សុមករា, គង់ ប៊ុនធី, ប៊ុន ស្រុង, លីន ញ៉ក់, ឡាយ រតនា, ឡាយ ណូរ៉ា",
+      "role": "author",
+      "contributors": [
+        "ខាំ សុមករា",
+        "គង់ ប៊ុនធី",
+        "ប៊ុន ស្រុង",
+        "លីន ញ៉ក់",
+        "ឡាយ រតនា",
+        "ឡាយ ណូរ៉ា"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 6,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 6 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/ខាំ-សុមករា-គង់-ប៊ុនធី-ប៊ុន-ស្រុង-លីន-ញ៉ក់-ឡាយ-រតនា-ឡាយ-ណូរ៉ា"
+    },
+    {
+      "name": "គណៈកម្មការគណិតវិទ្យា",
+      "role": "author",
+      "contributors": [
+        "គណៈកម្មការគណិតវិទ្យា"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/គណៈកម្មការគណិតវិទ្យា"
+    },
+    {
+      "name": "គា រដ្ឋា",
+      "role": "author",
+      "contributors": [
+        "គា រដ្ឋា"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/គា-រដ្ឋា"
+    },
+    {
+      "name": "គុយ សុផល",
+      "role": "author",
+      "contributors": [
+        "គុយ សុផល"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/គុយ-សុផល"
+    },
+    {
+      "name": "ង៉ែត រ៉ាប៊ី, នាង សារិន",
+      "role": "author",
+      "contributors": [
+        "ង៉ែត រ៉ាប៊ី",
+        "នាង សារិន"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 2,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 2 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/ង៉ែត-រ៉ាប៊ី-នាង-សារិន"
+    },
+    {
+      "name": "ឆូក ច័ន្ទឆាយា",
+      "role": "author",
+      "contributors": [
+        "ឆូក ច័ន្ទឆាយា"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ឆូក-ច័ន្ទឆាយា"
+    },
+    {
+      "name": "ជី គីមរ័ត្ន",
+      "role": "author",
+      "contributors": [
+        "ជី គីមរ័ត្ន"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ជី-គីមរ័ត្ន"
+    },
+    {
+      "name": "ជីវ តាក្វាន់",
+      "role": "author",
+      "contributors": [
+        "ជីវ តាក្វាន់"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ជីវ-តាក្វាន់"
+    },
+    {
+      "name": "ដេប៉ាតឺម៉ង់ស្រាវជ្រាវគរុកោសល្យជំនាន់ថ្មី",
+      "role": "author",
+      "contributors": [
+        "ដេប៉ាតឺម៉ង់ស្រាវជ្រាវគរុកោសល្យជំនាន់ថ្មី"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/ដេប៉ាតឺម៉ង់ស្រាវជ្រាវគរុកោសល្យជំនាន់ថ្មី"
+    },
+    {
+      "name": "ទូច-គីមស្រ៊ាង",
+      "role": "author",
+      "contributors": [
+        "ទូច-គីមស្រ៊ាង"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ទូច-គីមស្រ៊ាង"
+    },
+    {
+      "name": "ធន់ កុសល",
+      "role": "author",
+      "contributors": [
+        "ធន់ កុសល"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ធន់-កុសល"
+    },
+    {
+      "name": "ធម្មបាល",
+      "role": "author",
+      "contributors": [
+        "ធម្មបាល"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ធម្មបាល"
+    },
+    {
+      "name": "ធូ ភន",
+      "role": "author",
+      "contributors": [
+        "ធូ ភន"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ធូ-ភន"
+    },
+    {
+      "name": "នាយកដ្ឋានអភិវឌ្ឍកម្មវិធីសិក្សា",
+      "role": "author",
+      "contributors": [
+        "នាយកដ្ឋានអភិវឌ្ឍកម្មវិធីសិក្សា"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/នាយកដ្ឋានអភិវឌ្ឍកម្មវិធីសិក្សា"
+    },
+    {
+      "name": "ផេង ពង្សរ៉ាស៊ី, ដេវីដ ឆេនដល័រ, គ្រីស្តូហ្វ័រ ឌៀរីង, សុភ័ក្ត្រ ភាណា",
+      "role": "author",
+      "contributors": [
+        "ផេង ពង្សរ៉ាស៊ី",
+        "ដេវីដ ឆេនដល័រ",
+        "គ្រីស្តូហ្វ័រ ឌៀរីង",
+        "សុភ័ក្ត្រ ភាណា"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 4,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 4 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/ផេង-ពង្សរ៉ាស៊ី-ដេវីដ-ឆេនដល័រ-គ្រីស្តូហ្វ័រ-ឌៀរីង-សុភ័ក្ត្រ-ភាណា"
+    },
+    {
+      "name": "ពុទ្ធសាសនបណ្ឌិត្យ",
+      "role": "author",
+      "contributors": [
+        "ពុទ្ធសាសនបណ្ឌិត្យ"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/ពុទ្ធសាសនបណ្ឌិត្យ"
+    },
+    {
+      "name": "ព្រះពោធិវង្ស ស៊ូ ហាយ",
+      "role": "author",
+      "contributors": [
+        "ព្រះពោធិវង្ស ស៊ូ ហាយ"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ព្រះពោធិវង្ស-ស៊ូ-ហាយ"
+    },
+    {
+      "name": "ព្រះពោធិវង្ស ហួត តាត",
+      "role": "author",
+      "contributors": [
+        "ព្រះពោធិវង្ស ហួត តាត"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ព្រះពោធិវង្ស-ហួត-តាត"
+    },
+    {
+      "name": "ភិក្ខុ ហ. មណីចន្ទ",
+      "role": "author",
+      "contributors": [
+        "ភិក្ខុ ហ. មណីចន្ទ"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ភិក្ខុ-ហ-មណីចន្ទ"
+    },
+    {
+      "name": "មជ្ឈមណ្ឌលស្រាវជ្រាវគរុកោសល្យជំនាន់ថ្មី (NGPRC)",
+      "role": "author",
+      "contributors": [
+        "មជ្ឈមណ្ឌលស្រាវជ្រាវគរុកោសល្យជំនាន់ថ្មី (NGPRC)"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/មជ្ឈមណ្ឌលស្រាវជ្រាវគរុកោសល្យជំនាន់ថ្មី-ngprc"
+    },
+    {
+      "name": "មិញ សាវ៉ាន",
+      "role": "author",
+      "contributors": [
+        "មិញ សាវ៉ាន"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/មិញ-សាវ៉ាន"
+    },
+    {
+      "name": "មីសែល ត្រាណេ",
+      "role": "author",
+      "contributors": [
+        "មីសែល ត្រាណេ"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/មីសែល-ត្រាណេ"
+    },
+    {
+      "name": "មីសែល ត្រាណេ (Editor)",
+      "role": "editor",
+      "contributors": [
+        "មីសែល ត្រាណេ"
+      ],
+      "hadRoleMarker": true,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person; a cataloguer role marker is not part of the name.",
+      "url": "https://library.ptec.edu.kh/authors/មីសែល-ត្រាណេ-editor"
+    },
+    {
+      "name": "ម៉ែម ទីន មន",
+      "role": "author",
+      "contributors": [
+        "ម៉ែម ទីន មន"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ម៉ែម-ទីន-មន"
+    },
+    {
+      "name": "យិន ឃួន",
+      "role": "author",
+      "contributors": [
+        "យិន ឃួន"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/យិន-ឃួន"
+    },
+    {
+      "name": "យួន មុនី",
+      "role": "author",
+      "contributors": [
+        "យួន មុនី"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/យួន-មុនី"
+    },
+    {
+      "name": "យ៉េង ធី និង នយ យ៉េហ៊ាង",
+      "role": "author",
+      "contributors": [
+        "យ៉េង ធី និង នយ យ៉េហ៊ាង"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/យ៉េង-ធី-និង-នយ-យ៉េហ៊ាង"
+    },
+    {
+      "name": "រាជរដ្ឋាភិបាលកម្ពុជា",
+      "role": "author",
+      "contributors": [
+        "រាជរដ្ឋាភិបាលកម្ពុជា"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/រាជរដ្ឋាភិបាលកម្ពុជា"
+    },
+    {
+      "name": "លឹម ផលគុណ",
+      "role": "author",
+      "contributors": [
+        "លឹម ផលគុណ"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/លឹម-ផលគុណ"
+    },
+    {
+      "name": "លុក សូលីនដា និង ជន សុគន្ធារី",
+      "role": "author",
+      "contributors": [
+        "លុក សូលីនដា និង ជន សុគន្ធារី"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ល-ក-ស-ល-នដ-ន-ង-ជន-ស-គន-ធ-រ"
+    },
+    {
+      "name": "លោក ស៊្រុន សៀងហួរ",
+      "role": "author",
+      "contributors": [
+        "លោក ស៊្រុន សៀងហួរ"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/លោក-ស៊្រុន-សៀងហួរ"
+    },
+    {
+      "name": "វង់ សុធារ៉ា, ណុប សុខា",
+      "role": "author",
+      "contributors": [
+        "វង់ សុធារ៉ា",
+        "ណុប សុខា"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 2,
+      "category": "SAFE_MULTIPLE",
+      "safeToSplit": true,
+      "urlRisk": "high",
+      "reason": "Separable into 2 people, but the existing URL has no single 301 target.",
+      "url": "https://library.ptec.edu.kh/authors/វង់-សុធារ៉ា-ណុប-សុខា"
+    },
+    {
+      "name": "វ៉ាន់ ច័ន្ទតារា",
+      "role": "author",
+      "contributors": [
+        "វ៉ាន់ ច័ន្ទតារា"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/វ៉ាន់-ច័ន្ទតារា"
+    },
+    {
+      "name": "វ៉ាន់ ច័ន្ទតារា (Editor)",
+      "role": "editor",
+      "contributors": [
+        "វ៉ាន់ ច័ន្ទតារា"
+      ],
+      "hadRoleMarker": true,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person; a cataloguer role marker is not part of the name.",
+      "url": "https://library.ptec.edu.kh/authors/វ៉ាន់-ច័ន្ទតារា-editor"
+    },
+    {
+      "name": "វិទ្យាល័យ ហាស ក្រុងទេពនិម្មិត ខេត្តប៉ៃលិន",
+      "role": "author",
+      "contributors": [
+        "វិទ្យាល័យ ហាស ក្រុងទេពនិម្មិត ខេត្តប៉ៃលិន"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/វិទ្យាល័យ-ហាស-ក្រុងទេពនិម្មិត-ខេត្តប៉ៃលិន"
+    },
+    {
+      "name": "វិទ្យាស្ថានជាតិអប់រំ",
+      "role": "author",
+      "contributors": [
+        "វិទ្យាស្ថានជាតិអប់រំ"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/វិទ្យាស្ថានជាតិអប់រំ"
+    },
+    {
+      "name": "វិទ្យាស្ថានភាសាជាតិ នៃរាជបណ្ឌិត្យសភាកម្ពុជា",
+      "role": "author",
+      "contributors": [
+        "វិទ្យាស្ថានភាសាជាតិ នៃរាជបណ្ឌិត្យសភាកម្ពុជា"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/វិទ្យាស្ថានភាសាជាតិ-នៃរាជបណ្ឌិត្យសភាកម្ពុជា"
+    },
+    {
+      "name": "សន សុយៀម ស៊្រុន សៀងហួរ និង ឈឺន ឈាន",
+      "role": "author",
+      "contributors": [
+        "សន សុយៀម ស៊្រុន សៀងហួរ និង ឈឺន ឈាន"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/សន-ស-យ-ម-ស-រ-ន-ស-ងហ-រ-ន-ង-ឈ-ន-ឈ-ន"
+    },
+    {
+      "name": "សាកលវិទ្យាល័យ អាសុី អឺរ៉ុប (Asia Euro University)",
+      "role": "author",
+      "contributors": [
+        "សាកលវិទ្យាល័យ អាសុី អឺរ៉ុប (Asia Euro University)"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/សាកលវិទ្យាល័យ-អាសុី-អឺរ៉ុប-asia-euro-university"
+    },
+    {
+      "name": "ស៊ាន វិរៈ",
+      "role": "author",
+      "contributors": [
+        "ស៊ាន វិរៈ"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ស៊ាន-វិរៈ"
+    },
+    {
+      "name": "សាយ បូរី",
+      "role": "author",
+      "contributors": [
+        "សាយ បូរី"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/សាយ-បូរី"
+    },
+    {
+      "name": "សារិន ឆាក",
+      "role": "author",
+      "contributors": [
+        "សារិន ឆាក"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/សារិន-ឆាក"
+    },
+    {
+      "name": "សាលាភូមិន្ទរដ្ឋបាល",
+      "role": "author",
+      "contributors": [
+        "សាលាភូមិន្ទរដ្ឋបាល"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/សាលាភូមិន្ទរដ្ឋបាល"
+    },
+    {
+      "name": "សុង-ស៊ីវ",
+      "role": "author",
+      "contributors": [
+        "សុង-ស៊ីវ"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/សុង-ស៊ីវ"
+    },
+    {
+      "name": "សួ វណ្ណៈ",
+      "role": "author",
+      "contributors": [
+        "សួ វណ្ណៈ"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/សួ-វណ្ណៈ"
+    },
+    {
+      "name": "សួន វីរៈ",
+      "role": "author",
+      "contributors": [
+        "សួន វីរៈ"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/សួន-វីរៈ"
+    },
+    {
+      "name": "សៀង គឹមស៊្រុន និង ឈាង សុភា",
+      "role": "author",
+      "contributors": [
+        "សៀង គឹមស៊្រុន និង ឈាង សុភា"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ស-ង-គ-មស-រ-ន-ន-ង-ឈ-ង-ស-ភ"
+    },
+    {
+      "name": "ហង់ ជួន ណារ៉ុន",
+      "role": "author",
+      "contributors": [
+        "ហង់ ជួន ណារ៉ុន"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ហង់-ជួន-ណារ៉ុន"
+    },
+    {
+      "name": "ហាប់ សោភ័ណ",
+      "role": "author",
+      "contributors": [
+        "ហាប់ សោភ័ណ"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ហាប់-សោភ័ណ"
+    },
+    {
+      "name": "ហឿន សារ៉ុត",
+      "role": "author",
+      "contributors": [
+        "ហឿន សារ៉ុត"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ហឿន-សារ៉ុត"
+    },
+    {
+      "name": "ហៀន វិចិត្រ",
+      "role": "author",
+      "contributors": [
+        "ហៀន វិចិត្រ"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ហៀន-វិចិត្រ"
+    },
+    {
+      "name": "ឡាំ លីម",
+      "role": "author",
+      "contributors": [
+        "ឡាំ លីម"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ឡាំ-លីម"
+    },
+    {
+      "name": "ឡុង រក្សា",
+      "role": "author",
+      "contributors": [
+        "ឡុង រក្សា"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ឡុង-រក្សា"
+    },
+    {
+      "name": "ឡៅ ជឺ",
+      "role": "author",
+      "contributors": [
+        "ឡៅ ជឺ"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/ឡៅ-ជឺ"
+    },
+    {
+      "name": "អង្គការជនពិការកម្ពុជា",
+      "role": "author",
+      "contributors": [
+        "អង្គការជនពិការកម្ពុជា"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "ORGANIZATION",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "Corporate body. One entity — splitting its name would fabricate several.",
+      "url": "https://library.ptec.edu.kh/authors/អង្គការជនពិការកម្ពុជា"
+    },
+    {
+      "name": "អ៊ាង ពិសី",
+      "role": "author",
+      "contributors": [
+        "អ៊ាង ពិសី"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/អ៊ាង-ពិសី"
+    },
+    {
+      "name": "អាដេម៉ារ ឡឺក្លែរ",
+      "role": "author",
+      "contributors": [
+        "អាដេម៉ារ ឡឺក្លែរ"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/អាដេម៉ារ-ឡឺក្លែរ"
+    },
+    {
+      "name": "អែម ចរយា",
+      "role": "author",
+      "contributors": [
+        "អែម ចរយា"
+      ],
+      "hadRoleMarker": false,
+      "contributorCount": 1,
+      "category": "SAFE_SINGLE",
+      "safeToSplit": false,
+      "urlRisk": "none",
+      "reason": "One person.",
+      "url": "https://library.ptec.edu.kh/authors/អែម-ចរយា"
+    }
+  ]
+}
