@@ -68,7 +68,7 @@ export default async function GrowTheCollection() {
     "transition hover:border-brand/50 hover:text-brand";
 
   return (
-    <HomeSection surface="paper" labelledBy="grow-title">
+    <HomeSection id="contribute" surface="paper" labelledBy="grow-title">
       <SectionHeader
         id="grow-title"
         eyebrow={t("growEyebrow")}
