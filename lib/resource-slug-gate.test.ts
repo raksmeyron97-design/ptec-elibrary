@@ -295,3 +295,85 @@ describe("learning paths gate", () => {
     expect(RESOURCE_GATES.paths).not.toHaveProperty("redirectTable");
   });
 });
+
+// ── Every public [slug] route must be gated ─────────────────────────────────
+//
+// THE TEST THAT WAS MISSING. The suite above iterates over the gates that
+// EXIST and checks each one's reserved children. It never asked the opposite
+// question — does every [slug] route HAVE a gate? — and that is exactly how
+// /subjects/<anything> shipped answering HTTP 200 for every string on earth
+// (docs/SEO-3.0-AUDIT.md F-6): `subjects` was simply never added to
+// RESOURCE_GATES, and nothing noticed for as long as the route existed.
+//
+// A public route streams its `loading.tsx` shell before the page can call
+// notFound(), so without a gate the 200 is already on the wire. The fix is
+// structural: enumerate the routes from the filesystem, not from the registry,
+// so a NEW route is ungated-by-omission exactly once — here, in red.
+
+describe("every public [slug] route is gated, or exempt with a reason", () => {
+  const PUBLIC = path.join(__dirname, "..", "app/[locale]/(public)");
+
+  /**
+   * Routes that legitimately have no entry in RESOURCE_GATES.
+   *
+   * Each needs a REASON, not just an entry: an exemption without one is how a
+   * missing gate hides in a list that looks deliberate.
+   */
+  const EXEMPT: Record<string, string> = {
+    // Books have their own gate (lib/book-slug-gate.ts), which additionally
+    // resolves retired slugs through book_slug_redirects (0091).
+    "books/[slug]": "gated by lib/book-slug-gate.ts, not RESOURCE_GATES",
+    // A child of the book route: middleware gates the parent segment, so an
+    // unknown book never reaches its /read page in the first place.
+    "books/[slug]/read": "child of books/[slug], gated by the parent",
+  };
+
+  function slugRoutes(dir: string, prefix = "", out: string[] = []): string[] {
+    if (!fs.existsSync(dir)) return out;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (fs.existsSync(path.join(dir, entry.name, "page.tsx")) && rel.includes("[slug]")) {
+        out.push(rel);
+      }
+      slugRoutes(path.join(dir, entry.name), rel, out);
+    }
+    return out;
+  }
+
+  it("finds the public [slug] routes", () => {
+    expect(slugRoutes(PUBLIC).length).toBeGreaterThanOrEqual(8);
+  });
+
+  it("leaves no [slug] route ungated by omission", () => {
+    const ungated = slugRoutes(PUBLIC).filter((route) => {
+      if (route in EXEMPT) return false;
+      // "authors/[slug]" → "authors"; "about/team/[slug]" → "about/team".
+      const segment = route.replace(/\/\[slug\].*$/, "");
+      return !(segment in RESOURCE_GATES);
+    });
+
+    expect(
+      ungated,
+      "These public detail routes have no slug gate, so an unknown slug " +
+        "returns HTTP 200 with not-found content — a soft 404 on an unbounded " +
+        "URL space. Add the segment to RESOURCE_GATES (and to middleware's " +
+        "gate list), or add it to EXEMPT above WITH the reason it needs none.",
+    ).toEqual([]);
+  });
+
+  it("every exemption names a route that still exists", () => {
+    const routes = new Set(slugRoutes(PUBLIC));
+    expect(Object.keys(EXEMPT).filter((r) => !routes.has(r))).toEqual([]);
+  });
+
+  it("every gate is reachable from middleware", () => {
+    // A gate that middleware never consults is a gate that does nothing — the
+    // registry and the enforcement point must not drift apart.
+    const middleware = fs.readFileSync(path.join(__dirname, "..", "middleware.ts"), "utf8");
+    const unreferenced = Object.keys(RESOURCE_GATES).filter(
+      (key) => !middleware.includes(`RESOURCE_GATES.${key}`) && !middleware.includes(`RESOURCE_GATES["${key}"]`),
+    );
+    expect(unreferenced).toEqual([]);
+  });
+});

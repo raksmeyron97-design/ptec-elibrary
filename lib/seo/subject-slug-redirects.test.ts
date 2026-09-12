@@ -165,3 +165,60 @@ describe("migrations 0142 + 0143 agree with this table", () => {
     }
   });
 });
+
+// ── §28: no NEW machine-generated subject slug ──────────────────────────────
+//
+// Ten `book-<epoch>` category slugs have now been retired in two passes (0142,
+// then 0143 for one this project did not know about). They exist because
+// `slugify()` falls back to `book-${Date.now()}` when `unicodeSlug()` returns
+// empty, and before unicodeSlug kept \p{L}\p{M}\p{N} every Khmer category hit
+// that fallback.
+//
+// The fallback is still there, and that is correct — a name with no letters,
+// digits or marks has nothing to slug. What must never happen again is a REAL
+// name reaching it. These tests pin that boundary rather than the fallback.
+
+describe("§28 no real name may mint a machine-generated slug", () => {
+  const LEGACY = /^book-\d+$/;
+
+  it.each([
+    // The nine names 0142 retired, plus 0143's tenth: the exact inputs that
+    // used to produce a timestamp.
+    "ស្រាវជ្រាវ",
+    "គរុកោសល្យ",
+    "ស្រាវជ្រាវប្រតិបត្តិ",
+    "វិទ្យាសាស្ត្រ",
+    "គណិតវិទ្យា",
+    "ភាសាអង់គ្លេសសិក្សា",
+    "ស្រាវជ្រាវបែបគុណភាព",
+    "ស្ថិតិ និងវិភាគទិន្នន័យ",
+    "កម្មវិធីសិក្សា",
+    "កញ្ជប់គណិតវិទ្យា",
+  ])("Khmer name %s slugs to itself, not a timestamp", (name) => {
+    const slug = slugify(name);
+    expect(slug).not.toMatch(LEGACY);
+    expect(slug.length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    "Education",
+    "Teacher Training",
+    "Math 101",
+    "ភាសា English",
+    "2024 Curriculum",
+  ])("mixed and Latin name %s slugs to itself", (name) => {
+    expect(slugify(name)).not.toMatch(LEGACY);
+  });
+
+  it("no retired slug's TARGET is itself machine-generated", () => {
+    // A 301 into another timestamp slug would simply move the problem.
+    for (const r of SUBJECT_SLUG_REDIRECTS) expect(r.to).not.toMatch(LEGACY);
+  });
+
+  it("the fallback still exists for input that genuinely has nothing to slug", () => {
+    // Documented, not accidental: punctuation-only input has no letters,
+    // digits or marks, so there is no slug to derive and a generated one is
+    // the only option left. The guarantee above is about REAL names.
+    expect(slugify("!!!")).toMatch(LEGACY);
+  });
+});
