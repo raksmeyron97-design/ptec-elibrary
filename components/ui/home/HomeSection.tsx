@@ -29,11 +29,14 @@ const SURFACE_CLASS: Record<Surface, string> = {
 };
 
 export function HomeSection({
+  id,
   surface = "paper",
   labelledBy,
   className = "",
   children,
 }: {
+  /** Anchor id, for bands the footer links to (`/#faq`, `/#contribute`). */
+  id?: string;
   surface?: Surface;
   /** id of the <SectionHeader> title, for aria-labelledby. */
   labelledBy?: string;
@@ -42,7 +45,8 @@ export function HomeSection({
 }) {
   return (
     <section
-      className={`border-b border-divider/60 ${SURFACE_CLASS[surface]} ${className}`}
+      id={id}
+      className={`scroll-mt-20 border-b border-divider/60 ${SURFACE_CLASS[surface]} ${className}`}
       aria-labelledby={labelledBy}
     >
       <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-14 md:px-12 md:py-16">

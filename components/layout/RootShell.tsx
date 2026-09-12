@@ -98,6 +98,14 @@ function buildSiteGraph(cfg: SiteConfig) {
         inLanguage: ["km", "en"],
         isAccessibleForFree: true,
         openingHours: cfg.hours.openingHoursSpec,
+        // The structured twin of `openingHours`, derived from the same weekly
+        // grouping (lib/system-settings/hours.ts) so the two cannot disagree.
+        // Closures are dated exceptions and are deliberately not here.
+        openingHoursSpecification: cfg.hours.openingHoursSpecification,
+        // The library's own profiles are the institution's: PTEC runs one
+        // Facebook page and one YouTube channel, and the footer links them
+        // from the library brand block.
+        sameAs: cfg.sameAs,
         address,
         parentOrganization: ref(ORGANIZATION_ID),
       },

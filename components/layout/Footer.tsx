@@ -1,13 +1,29 @@
+// components/layout/Footer.tsx
+//
+// The site footer: one server component, one DOM instance. It used to render
+// the link columns twice (desktop grid + a mobile accordion) under a canvas
+// constellation with a rAF loop, a cursor spotlight and a Google Maps iframe.
+// Now the four columns are native <details> that behave as accordions on
+// small screens and as plain columns from md up, the map is an address card
+// that links to the place, and the only client JS is the live open/closed
+// line and the back-to-top button.
+//
+// No auth lookup and no cookies()/headers() here, deliberately: the footer is
+// on every public page and the public tree must stay prerenderable.
+// <MobileBottomNav> reads the viewer from <SessionProvider> instead.
+
+import type { ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
-import Icon from "@/components/ui/core/Icon";
-import MobileBottomNav from "./MobileBottomNav";
-import FooterEffects from "./FooterEffects";
+import { getLocale, getTranslations } from "next-intl/server";
+import { ExternalLink, Globe, Mail, MapPin, Phone, ChevronDown } from "lucide-react";
 import { Seal } from "@/components/ui/core/Seal";
 import InstallPWA from "@/components/ui/pwa/InstallPWA";
-import { getLocale, getTranslations } from "next-intl/server";
+import LanguageSwitcher from "@/components/ui/core/LanguageSwitcher";
 import { getSiteConfig } from "@/lib/system-settings/config";
-import { DIGITAL_LIBRARY_ITEMS } from "./digital-library-nav";
-import { ABOUT_NAV_ITEMS } from "./about-nav";
+import { resolveLibraryStatus } from "@/lib/about/status";
+import MobileBottomNav from "./MobileBottomNav";
+import FooterOpenStatus from "./FooterOpenStatus";
+import FooterBackToTop from "./FooterBackToTop";
 
 type FooterLink = {
   label: string;
@@ -15,51 +31,82 @@ type FooterLink = {
   external?: boolean;
 };
 
-// Shared link classes: a gold dot that fills on hover, the row slides right,
-// the label glows, and a gold underline sweeps in from the left.
+// Focus indicators come from the shared focus system (`--focus-*` tokens in
+// app/globals.css): links take the base :focus-visible outline, buttons take
+// `.focus-field`. The footer only retargets the colour tokens to gold, because
+// the default brand blue is invisible on navy.
+const FOCUS_TOKENS =
+  "[--focus-color:var(--color-gold-300)] [--focus-border-color:var(--color-gold-300)] [--focus-ring-color:rgba(237,203,85,0.35)]";
+
+// Hover and focus are an underline, never a colour change alone.
 const LINK_CLASS =
-  "group relative inline-flex min-h-[30px] items-center gap-2.5 text-[14px] leading-snug text-blue-100/92 transition-[color,transform] duration-300 ease-[cubic-bezier(.2,.7,.2,1)] hover:translate-x-1.5 hover:text-gold-200 hover:[text-shadow:0_0_14px_rgba(237,203,85,.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300";
+  "inline-flex min-h-8 items-center gap-1.5 py-1 text-[14px] leading-6 text-blue-100 decoration-gold-300/80 decoration-[1.5px] underline-offset-4 transition-colors hover:text-white hover:underline";
 
-function LinkDot() {
+const ICON_BUTTON_CLASS =
+  "focus-field inline-flex h-10 w-10 items-center justify-center rounded-[10px] border border-white/15 bg-white/[0.04] text-blue-50 outline-none transition-colors hover:border-gold-300/70 hover:bg-white/[0.08] hover:text-white";
+
+// Columns are <details>: closed in the HTML, opened on md+ by the inline
+// script below before the footer paints (a closed <details> cannot be opened
+// by CSS). React does not patch attributes during hydration, so the element
+// carries suppressHydrationWarning for the `open` the script adds.
+const OPEN_COLUMNS_SCRIPT =
+  '(function(){try{if(!window.matchMedia("(min-width: 48rem)").matches)return;var n=document.querySelectorAll("details.footer-col");for(var i=0;i<n.length;i++){n[i].open=true;var s=n[i].firstElementChild;if(s)s.tabIndex=-1}}catch(e){}})();';
+
+function FooterColumn({
+  id,
+  title,
+  locale,
+  children,
+}: {
+  id: string;
+  title: string;
+  locale: "en" | "km";
+  children: ReactNode;
+}) {
+  // Letter-spaced capitals are a Latin convention; Khmer has no case and its
+  // stacked vowel signs collide when tracked.
+  const heading =
+    locale === "km"
+      ? "font-khmer-serif text-[13px] leading-7 tracking-normal"
+      : "text-[12px] uppercase tracking-[0.14em]";
   return (
-    <span
-      className="h-1.5 w-1.5 shrink-0 rounded-full border-[1.4px] border-current transition-[background-color,box-shadow] duration-300 group-hover:bg-current group-hover:shadow-[0_0_8px_rgba(237,203,85,.8)]"
-      aria-hidden="true"
-    />
+    <details className="footer-col group border-t border-white/10" suppressHydrationWarning>
+      <summary
+        className="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-sm md:cursor-default"
+        suppressHydrationWarning
+      >
+        <h2 id={id} className={`font-semibold text-gold-200 ${heading}`}>
+          {title}
+        </h2>
+        <ChevronDown
+          className="footer-col-chevron h-4 w-4 shrink-0 text-blue-200/80 transition-transform group-open:rotate-180 motion-reduce:transition-none"
+          aria-hidden="true"
+        />
+      </summary>
+      <div className="pb-5 md:pb-0 md:pt-4">{children}</div>
+    </details>
   );
 }
 
-function LinkUnderline() {
+function FooterLinkList({ links, locale }: { links: FooterLink[]; locale: "en" | "km" }) {
+  const lineHeight = locale === "km" ? "leading-7" : "";
   return (
-    <span
-      className="pointer-events-none absolute bottom-0.5 left-4 right-0 h-px origin-left scale-x-0 rounded bg-gradient-to-r from-gold-300 to-gold-200 opacity-90 transition-transform duration-300 ease-[cubic-bezier(.2,.8,.2,1)] group-hover:scale-x-100"
-      aria-hidden="true"
-    />
-  );
-}
-
-function FooterLinkList({ links }: { links: FooterLink[] }) {
-  return (
-    <ul className="flex flex-col gap-0.5">
+    <ul className="flex flex-col">
       {links.map((link) => (
-        <li key={`${link.label}-${link.href}`}>
+        <li key={link.href}>
           {link.external ? (
             <a
               href={link.href}
               target="_blank"
               rel="noopener noreferrer"
-              className={LINK_CLASS}
+              className={`${LINK_CLASS} ${lineHeight}`}
             >
-              <LinkDot />
-              <span>{link.label}</span>
-              <Icon name="external-link" className="text-[13px] opacity-70" />
-              <LinkUnderline />
+              {link.label}
+              <ExternalLink className="h-3.5 w-3.5 opacity-70" aria-hidden="true" />
             </a>
           ) : (
-            <Link href={link.href} className={LINK_CLASS}>
-              <LinkDot />
-              <span>{link.label}</span>
-              <LinkUnderline />
+            <Link href={link.href} className={`${LINK_CLASS} ${lineHeight}`}>
+              {link.label}
             </Link>
           )}
         </li>
@@ -68,131 +115,82 @@ function FooterLinkList({ links }: { links: FooterLink[] }) {
   );
 }
 
-function FooterHeading({ id, children }: { id?: string; children: React.ReactNode }) {
-  return (
-    <h2
-      id={id}
-      className="mb-4 flex items-center gap-2.5 text-[18px] font-bold tracking-wide text-white"
-    >
-      <span
-        className="h-[3px] w-5 rounded bg-gradient-to-r from-gold-300 to-gold-200 shadow-[0_0_12px_rgba(237,203,85,.55)]"
-        aria-hidden="true"
-      />
-      {children}
-    </h2>
-  );
-}
-
-function SocialLink({
-  href,
-  label,
-  children,
-}: {
-  href: string;
-  label: string;
-  children: React.ReactNode;
-}) {
+function SocialLink({ href, label, children }: { href: string; label: string; children: ReactNode }) {
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
       aria-label={label}
-      className="inline-flex h-[38px] w-[38px] items-center justify-center rounded-[10px] border border-white/12 bg-white/[0.04] text-blue-100 transition-[transform,border-color,color,box-shadow] duration-300 ease-[cubic-bezier(.2,.7,.2,1)] hover:-translate-y-0.5 hover:border-gold-300/60 hover:text-gold-200 hover:shadow-[0_10px_22px_-8px_rgba(237,203,85,.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300"
+      className={ICON_BUTTON_CLASS}
     >
       {children}
     </a>
   );
 }
 
-function FooterDetails({
-  title,
-  links,
-}: {
-  title: string;
-  links: FooterLink[];
-}) {
+function ContactRow({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   return (
-    <details className="group border-t border-white/10 py-1">
-      <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 text-[15px] font-bold text-white [&::-webkit-details-marker]:hidden">
-        <span>{title}</span>
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg text-blue-100/75 transition-transform group-open:rotate-90" aria-hidden="true">
-          <Icon name="chevron-right" className="text-[18px]" />
-        </span>
-      </summary>
-      <div className="pb-3 pl-1">
-        <FooterLinkList links={links} />
-      </div>
-    </details>
-  );
-}
-
-function ContactRow({
-  icon,
-  label,
-  children,
-}: {
-  icon: "map-pin" | "phone" | "mail" | "clock";
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex gap-3">
-      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-white/[0.05] text-gold-200" aria-hidden="true">
-        <Icon name={icon} className="text-[15px]" />
+    <li className="flex items-start gap-3">
+      <span
+        className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-white/[0.06] text-gold-200"
+        aria-hidden="true"
+      >
+        {icon}
       </span>
-      <div className="min-w-0">
-        <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-blue-200/70">
-          {label}
-        </p>
-        <div className="mt-0.5 text-[14px] leading-relaxed text-blue-50/88">
-          {children}
-        </div>
-      </div>
-    </div>
+      <div className="min-w-0 text-[14px] leading-6 text-blue-50">{children}</div>
+    </li>
   );
 }
 
 export default async function Footer() {
-  const t = await getTranslations("footer");
-  const navT = await getTranslations("nav");
-  const locale = (await getLocale()) as "en" | "km";
-  // Published system settings (cached under "site-config") — the single
-  // source for contact details, hours and links shown here.
-  const cfg = await getSiteConfig();
-  // No auth lookup here, deliberately. This used to run a second Supabase Auth
-  // round-trip plus a profiles query — on top of the navbar's — on every public
-  // page render, and the cookies() read made the whole public tree uncacheable.
-  // MobileBottomNav takes the viewer from <SessionProvider> instead.
+  // One round of awaits rather than four sequential ones: nothing here depends
+  // on anything else here, and this runs on every public page.
+  // getSiteConfig() is the published system settings (cached under
+  // "site-config") — the single source for names, contact details and links.
+  const [t, navT, rawLocale, cfg] = await Promise.all([
+    getTranslations("footer"),
+    getTranslations("nav"),
+    getLocale(),
+    getSiteConfig(),
+  ]);
+  const locale: "en" | "km" = rawLocale === "km" ? "km" : "en";
 
-  const exploreLinks: FooterLink[] = [
-    ...DIGITAL_LIBRARY_ITEMS.filter((item) => !item.external).map((item) => ({
-      label: navT(item.labelKey),
-      href: item.href,
-    })),
+  // The status the server saw. It is the first paint on both sides;
+  // <FooterOpenStatus> corrects it after mount (the page may be cached).
+  const spec = cfg.hours.openingHoursSpec;
+  const closures = cfg.hours.closures;
+  const initialStatus = resolveLibraryStatus(new Date(), spec, closures);
+
+  const libraryLinks: FooterLink[] = [
+    { label: navT("eBooks"), href: "/books" },
+    { label: navT("theses"), href: "/theses" },
+    { label: navT("publications"), href: "/publications" },
+    { label: navT("learningPaths"), href: "/paths" },
     { label: navT("booksInLibrary"), href: "/catalogs" },
-    { label: navT("posts"), href: "/posts" },
     // The two hub pages. Every /subjects/* and /authors/* URL was an orphan
-    // before these existed — advertised in sitemap.xml with no internal link
-    // path from anywhere on the site (docs/SEO-V2-AUDIT.md F-4). The footer
-    // renders on every public page, so one entry here is what makes both
-    // taxonomies reachable by a crawler following links.
+    // before these existed (docs/SEO-V2-AUDIT.md F-4); the footer is what makes
+    // both taxonomies reachable by a crawler, pinned by e2e/seo.spec.ts.
     { label: navT("subjects"), href: "/subjects" },
     { label: navT("authors"), href: "/authors" },
   ];
 
-  // About/help only. Privacy and Policy are deliberately NOT repeated here:
-  // they are already the whole of legalLinks in the bottom bar, which is where
-  // readers look for them and where they stay visible on every breakpoint
-  // (the md:hidden accordion below collapses this column, the legal bar never
-  // collapses). Listing them twice made the same two routes appear twice in
-  // one footer.
   const helpLinks: FooterLink[] = [
-    { label: navT("about"), href: "/about" },
-    ...ABOUT_NAV_ITEMS.map((item) => ({
-      label: navT(item.labelKey),
-      href: item.href,
-    })),
+    { label: t("askLibrarian"), href: "/contact" },
+    { label: navT("libraryRules"), href: "/about/rules" },
+    { label: t("openingHours"), href: "/about/timings" },
+    { label: t("faq"), href: "/#faq" },
+    // Both open the matching dialog in the homepage's "Grow the collection"
+    // band (components/ui/home/ContributeDialog.tsx reads `?action=`).
+    { label: t("depositThesis"), href: "/?action=deposit#contribute" },
+    { label: t("requestBook"), href: "/?action=request#contribute" },
+  ];
+
+  const aboutLinks: FooterLink[] = [
+    { label: navT("ourJourney"), href: "/about/our-journey" },
+    { label: t("teamAndCommittee"), href: "/about/team" },
+    { label: navT("posts"), href: "/posts" },
+    { label: t("ptecWebsite"), href: cfg.links.website, external: true },
   ];
 
   const legalLinks: FooterLink[] = [
@@ -201,176 +199,188 @@ export default async function Footer() {
   ];
 
   const address = locale === "km" ? cfg.address.km : cfg.address.en;
-  const hours = locale === "km" ? cfg.hours.km : cfg.hours.en;
+  const libraryName = locale === "km" ? cfg.libraryName.km : cfg.libraryName.en;
+  const khmerCopy = locale === "km" ? "leading-8" : "leading-7";
 
   return (
-    <footer className="footer-night relative mt-auto w-full overflow-hidden border-t border-blue-900/35 text-blue-50">
-      {/* ambient glow orbs */}
+    <footer
+      className={`relative mt-auto w-full bg-[var(--ptec-plate)] text-blue-50 ${FOCUS_TOKENS}`}
+    >
+      {/* A hairline gold gradient separates the page from the navy footer. */}
       <div
         aria-hidden="true"
-        className="animate-float-orb pointer-events-none absolute -left-20 -top-28 z-0 h-[420px] w-[420px] rounded-full blur-[30px]"
-        style={{ background: "radial-gradient(circle, rgba(58,95,196,.45), transparent 68%)" }}
-      />
-      <div
-        aria-hidden="true"
-        className="animate-float-orb-slow pointer-events-none absolute -bottom-32 -right-16 z-0 h-[460px] w-[460px] rounded-full blur-[34px]"
-        style={{ background: "radial-gradient(circle, rgba(237,203,85,.26), transparent 66%)" }}
+        className="h-px w-full bg-gradient-to-r from-transparent via-gold-300/70 to-transparent"
       />
 
-      {/* drifting constellation + cursor spotlight */}
-      <FooterEffects />
-
-      {/* animated aurora accent bar */}
-      <div className="relative z-[2] h-1 overflow-hidden" aria-hidden="true">
-        <div className="footer-aurora absolute inset-0" />
-        <div className="footer-shimmer absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/85 to-transparent blur-[1px]" />
-      </div>
-
-      <div className="relative z-[2] mx-auto max-w-[1360px] px-5 pb-[calc(5.75rem+env(safe-area-inset-bottom))] pt-10 sm:px-8 md:pb-[calc(6rem+env(safe-area-inset-bottom))] lg:px-10 lg:pb-8 lg:pt-14">
-        <div className="grid gap-10 md:grid-cols-[1.35fr_1fr_1.1fr_1.25fr] md:gap-8 lg:gap-12">
-          <section aria-labelledby="footer-brand-heading" data-fx-reveal className="space-y-5">
+      {/* Bottom padding clears the fixed <MobileBottomNav> (64px) plus the
+          device's home-indicator inset; lg+ has no bottom nav. */}
+      <div className="mx-auto max-w-[1360px] px-5 pb-[calc(64px+1.5rem+env(safe-area-inset-bottom))] pt-12 sm:px-8 lg:px-10 lg:pb-10 lg:pt-14">
+        <div className="grid grid-cols-1 gap-x-8 gap-y-2 md:grid-cols-2 md:gap-y-10 lg:grid-cols-[1.5fr_1fr_1fr_1fr_1.35fr] lg:gap-x-10">
+          {/* ── Brand block ── */}
+          <section
+            aria-labelledby="footer-brand-heading"
+            className="mb-8 space-y-5 md:col-span-2 md:mb-0 lg:col-span-1"
+          >
             <div className="flex items-center gap-4">
-              <div className="footer-seal shrink-0 [filter:drop-shadow(0_6px_16px_rgba(237,203,85,.28))]">
-                <Seal size={64} variant="footer" />
-              </div>
+              <Seal size={56} variant="footer" />
               <div className="min-w-0">
-                <p lang="km" className="truncate font-khmer-serif text-[13px] font-bold leading-tight text-gold-200">
+                <p lang="km" className="font-khmer-serif text-[13px] font-bold leading-6 text-gold-200">
                   {cfg.libraryName.km}
                 </p>
-                <h2 id="footer-brand-heading" className="footer-shine mt-1 w-fit text-[27px] font-bold leading-tight tracking-wide">
+                <h2
+                  id="footer-brand-heading"
+                  className="text-[22px] font-bold leading-tight tracking-wide text-white"
+                >
                   {cfg.libraryName.en}
                 </h2>
-                {/* The formal lockup: the brand alone is the wordmark, but the
-                    footer is where the library is named in full, next to the
-                    institution that runs it. */}
                 <p
                   lang={locale === "km" ? "km" : undefined}
-                  className={`mt-1.5 text-[12.5px] leading-snug text-blue-100/72 ${
-                    locale === "km" ? "font-khmer-serif" : ""
+                  className={`mt-1 text-[12.5px] text-blue-200/90 ${
+                    locale === "km" ? "font-khmer-serif leading-6" : "leading-snug"
                   }`}
                 >
                   {locale === "km" ? cfg.name.km : cfg.name.en}
                 </p>
               </div>
             </div>
-            <p className="max-w-sm text-[14px] leading-7 text-blue-100/82">
-              {t("description")}
-            </p>
-            <div className="flex flex-wrap items-center gap-2.5" aria-label={t("socialLinks")}>
-              <SocialLink href={cfg.links.facebook} label="Facebook">
-                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
-                </svg>
-              </SocialLink>
-              <SocialLink href={cfg.links.youtube} label="YouTube">
-                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.41 19.6C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58zM9.75 15.02V8.98L15.5 12l-5.75 3.02z" />
-                </svg>
-              </SocialLink>
-              <SocialLink href={cfg.links.website} label={t("officialWebsite")}>
-                <Icon name="globe" className="text-[16px]" />
-              </SocialLink>
-              <InstallPWA
-                label={t("installApp")}
-                className="inline-flex h-[38px] items-center gap-2 rounded-[10px] border border-white/12 bg-white/[0.04] px-3.5 text-[12.5px] font-semibold text-blue-100 transition-[transform,border-color,color,box-shadow] duration-300 ease-[cubic-bezier(.2,.7,.2,1)] hover:-translate-y-0.5 hover:border-gold-300/60 hover:text-gold-200 hover:shadow-[0_10px_22px_-8px_rgba(237,203,85,.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300"
-                hintClassName="absolute bottom-full left-0 z-[80] mb-2 w-64 rounded-xl border border-divider bg-bg-surface p-4 text-text-body shadow-lg"
-              />
-            </div>
-          </section>
-
-          <section aria-labelledby="footer-explore-heading" data-fx-reveal className="hidden md:block">
-            <FooterHeading id="footer-explore-heading">{t("explore")}</FooterHeading>
-            <FooterLinkList links={exploreLinks} />
-          </section>
-
-          <section aria-labelledby="footer-help-heading" data-fx-reveal className="hidden md:block">
-            <FooterHeading id="footer-help-heading">{t("helpInfo")}</FooterHeading>
-            <FooterLinkList links={helpLinks} />
-          </section>
-
-          <section aria-labelledby="footer-visit-heading" data-fx-reveal className="space-y-4">
-            <FooterHeading id="footer-visit-heading">{t("visitPtec")}</FooterHeading>
-            <ContactRow icon="map-pin" label={t("locationLabel")}>
-              <span>{address}</span>
-            </ContactRow>
-            <ContactRow icon="phone" label={t("phoneLabel")}>
-              <a href={cfg.phoneTel} className="transition-colors hover:text-gold-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
-                {cfg.phoneIntl}
-              </a>
-            </ContactRow>
-            <ContactRow icon="mail" label={t("emailLabel")}>
-              <a href={`mailto:${cfg.email}`} className="break-words transition-colors hover:text-gold-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
-                {cfg.email}
-              </a>
-            </ContactRow>
-            <ContactRow icon="clock" label={t("hoursLabel")}>
-              <span>{hours}</span>
-            </ContactRow>
-            {cfg.links.mapEmbed && (
-            <div className="hidden sm:block">
-              <div className="overflow-hidden rounded-[11px] border border-white/10 bg-white/[0.04]">
-                <iframe
-                  src={cfg.links.mapEmbed}
-                  title={t("mapTitle")}
-                  width="100%"
-                  height="128"
-                  loading="lazy"
-                  sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  style={{ border: 0, pointerEvents: "none", filter: "grayscale(.3) contrast(1.05)" }}
-                  className="block h-32 w-full"
+            <p className={`max-w-sm text-[14px] text-blue-100 ${khmerCopy}`}>{t("tagline")}</p>
+            <ul className="flex flex-wrap items-center gap-2.5" aria-label={t("socialLinks")}>
+              <li>
+                <SocialLink href={cfg.links.facebook} label="Facebook">
+                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+                  </svg>
+                </SocialLink>
+              </li>
+              <li>
+                <SocialLink href={cfg.links.youtube} label="YouTube">
+                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.41 19.6C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58zM9.75 15.02V8.98L15.5 12l-5.75 3.02z" />
+                  </svg>
+                </SocialLink>
+              </li>
+              <li>
+                <SocialLink href={cfg.links.website} label={t("officialWebsite")}>
+                  <Globe className="h-4 w-4" aria-hidden="true" />
+                </SocialLink>
+              </li>
+              <li>
+                <InstallPWA
+                  label={t("installApp")}
+                  className="focus-field inline-flex h-10 items-center gap-2 rounded-[10px] border border-white/15 bg-white/[0.04] px-3.5 text-[13px] font-semibold text-blue-50 outline-none transition-colors hover:border-gold-300/70 hover:bg-white/[0.08] hover:text-white"
+                  hintClassName="absolute bottom-full left-0 z-[80] mb-2 w-64 rounded-xl border border-divider bg-bg-surface p-4 text-text-body shadow-lg"
                 />
-              </div>
-            </div>
-            )}
-            <a
-              href={cfg.links.mapPlace}
-              target="_blank"
-              rel="noopener noreferrer"
-              data-fx-magnetic
-              className="inline-flex min-h-10 items-center gap-2 rounded-[11px] bg-gradient-to-br from-gold-200 to-gold-300 px-5 text-sm font-bold text-blue-950 shadow-[0_12px_26px_-10px_rgba(237,203,85,.6)] transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-100"
-            >
-              <Icon name="map-pin" className="text-[15px]" />
-              {t("getDirections")}
-            </a>
+              </li>
+            </ul>
           </section>
-        </div>
 
-        <div className="mt-8 md:hidden">
-          <FooterDetails title={t("explore")} links={exploreLinks} />
-          <FooterDetails title={t("helpInfo")} links={helpLinks} />
-        </div>
+          {/* ── Link columns ── */}
+          <nav aria-label={t("navLabel")} className="contents">
+            <FooterColumn id="footer-library-heading" title={t("columns.library")} locale={locale}>
+              <FooterLinkList links={libraryLinks} locale={locale} />
+            </FooterColumn>
+            <FooterColumn id="footer-help-heading" title={t("columns.help")} locale={locale}>
+              <FooterLinkList links={helpLinks} locale={locale} />
+            </FooterColumn>
+            <FooterColumn id="footer-about-heading" title={t("columns.about")} locale={locale}>
+              <FooterLinkList links={aboutLinks} locale={locale} />
+            </FooterColumn>
+          </nav>
 
-        <div className="mt-9 border-t border-white/10 pt-5">
-          <div className="flex flex-col gap-3 text-[12px] text-blue-100/68 md:flex-row md:items-center md:justify-between">
-            <p>
-              {t("copyright", {
-                year: new Date().getFullYear(),
-                library: locale === "km" ? cfg.libraryName.km : cfg.libraryName.en,
-                institution: locale === "km" ? cfg.name.km : cfg.name.en,
-              })}
-            </p>
-            <nav aria-label={t("legal")} className="flex flex-wrap items-center gap-x-4 gap-y-2">
-              {legalLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="transition-colors hover:text-gold-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300"
-                >
-                  {link.label}
-                </Link>
-              ))}
-              <button
-                type="button"
-                data-fx-top
-                aria-label={t("backToTop")}
-                className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-full border border-white/14 text-blue-50/80 transition-[transform,border-color,color] duration-300 ease-[cubic-bezier(.2,.7,.2,1)] hover:-translate-y-0.5 hover:border-gold-300 hover:text-gold-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300"
+          {/* ── Visit ── */}
+          <FooterColumn id="footer-visit-heading" title={t("columns.visit")} locale={locale}>
+            <div className="space-y-4">
+              <FooterOpenStatus
+                initialStatus={initialStatus}
+                spec={spec}
+                closures={closures}
+                locale={locale}
+              />
+              {/* The address card replaces the maps iframe: one link to the
+                  place, no third-party frame on every page. */}
+              <a
+                href={cfg.links.mapPlace}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="focus-field group/map block rounded-[12px] border border-white/12 bg-white/[0.04] p-4 outline-none transition-colors hover:border-gold-300/70 hover:bg-white/[0.07]"
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M12 19V5M5 12l7-7 7 7" />
-                </svg>
-              </button>
+                <span className="flex items-start gap-3">
+                  <span
+                    className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-gold-300/15 text-gold-200"
+                    aria-hidden="true"
+                  >
+                    <MapPin className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0">
+                    <span
+                      lang={locale === "km" ? "km" : undefined}
+                      className={`block text-[14px] text-blue-50 ${khmerCopy}`}
+                    >
+                      {address}
+                    </span>
+                    <span className="mt-2 inline-flex items-center gap-1.5 text-[13px] font-semibold text-gold-200 underline-offset-4 group-hover/map:underline">
+                      {t("getDirections")}
+                      <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span className="sr-only">({t("opensInMaps")})</span>
+                    </span>
+                  </span>
+                </span>
+              </a>
+              <ul className="space-y-2.5">
+                <ContactRow icon={<Phone className="h-3.5 w-3.5" />}>
+                  <span className="sr-only">{t("phoneLabel")}: </span>
+                  <a href={cfg.phoneTel} className="underline-offset-4 hover:underline">
+                    {cfg.phoneIntl}
+                  </a>
+                </ContactRow>
+                <ContactRow icon={<Mail className="h-3.5 w-3.5" />}>
+                  <span className="sr-only">{t("emailLabel")}: </span>
+                  <a href={`mailto:${cfg.email}`} className="break-all underline-offset-4 hover:underline">
+                    {cfg.email}
+                  </a>
+                </ContactRow>
+              </ul>
+            </div>
+          </FooterColumn>
+        </div>
+
+        <script
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: OPEN_COLUMNS_SCRIPT }}
+        />
+
+        {/* ── Bottom bar ── */}
+        <div className="mt-10 border-t border-white/10 pt-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <nav
+              aria-label={t("legal")}
+              className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-blue-100"
+            >
+              <span lang={locale === "km" ? "km" : undefined}>
+                {t("copyright", {
+                  year: new Date().getFullYear(),
+                  library: libraryName,
+                  institution: locale === "km" ? cfg.name.km : cfg.name.en,
+                })}
+              </span>
+              {legalLinks.map((link) => (
+                <span key={link.href} className="inline-flex items-center gap-x-2">
+                  <span aria-hidden="true" className="text-blue-200/50">
+                    ·
+                  </span>
+                  <Link
+                    href={link.href}
+                    className="rounded-sm decoration-gold-300/80 decoration-[1.5px] underline-offset-4 hover:text-white hover:underline"
+                  >
+                    {link.label}
+                  </Link>
+                </span>
+              ))}
             </nav>
+            <div className="flex items-center gap-3">
+              <LanguageSwitcher locale={locale} className="text-blue-50" />
+              <FooterBackToTop label={t("backToTop")} className={ICON_BUTTON_CLASS} />
+            </div>
           </div>
         </div>
       </div>

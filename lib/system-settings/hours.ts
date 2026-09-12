@@ -92,6 +92,43 @@ export function weeklyToOpeningHoursSpec(weekly: HoursSettings["weekly"]): strin
   return out;
 }
 
+/** One schema.org OpeningHoursSpecification: a run of weekdays sharing one
+ *  interval. Day names are the schema.org enumeration members. */
+export type OpeningHoursSpecification = {
+  "@type": "OpeningHoursSpecification";
+  dayOfWeek: string[];
+  /** "HH:MM", 24-hour, Asia/Phnom_Penh. */
+  opens: string;
+  closes: string;
+};
+
+/**
+ * Structured schema.org `openingHoursSpecification`, derived from the SAME
+ * grouping as the string spec so the two can never disagree. One object per
+ * (day-run × interval). Closures are deliberately not represented: they are
+ * dated exceptions, not the weekly schedule, and schema.org expresses them
+ * with `validFrom`/`validThrough` on a separate specification — which this
+ * library does not publish.
+ */
+export function weeklyToOpeningHoursSpecification(
+  weekly: HoursSettings["weekly"],
+): OpeningHoursSpecification[] {
+  const { open } = groupWeekly(weekly);
+  const out: OpeningHoursSpecification[] = [];
+  for (const group of open) {
+    const dayOfWeek = group.days.map((d) => EN_DAY[d]);
+    for (const r of group.intervals) {
+      out.push({
+        "@type": "OpeningHoursSpecification",
+        dayOfWeek,
+        opens: r.open,
+        closes: r.close,
+      });
+    }
+  }
+  return out;
+}
+
 // ── Human sentences ──────────────────────────────────────────────────────────
 
 function enTime(hhmm: string): string {

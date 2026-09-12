@@ -38,6 +38,13 @@ const LABEL =
 // prop. `kind` is the only thing that needs to travel.
 const ICONS = { deposit: FileUp, acquisition: BookPlus } as const;
 
+/** `?action=` value that opens each dialog on load. The footer's "Deposit
+ *  your thesis" / "Request a book" links point at `/?action=…#contribute`. */
+const OPEN_ACTION: Record<BookRequestKind, string> = {
+  deposit: "deposit",
+  acquisition: "request",
+};
+
 export default function ContributeDialog({
   kind,
   triggerClassName,
@@ -69,6 +76,29 @@ export default function ContributeDialog({
   const close = useCallback(() => {
     dialogRef.current?.close();
   }, []);
+
+  // Deep link: `/?action=deposit#contribute` opens this dialog once, on mount.
+  // Read from window.location rather than useSearchParams(): that hook forces
+  // a client-side bailout that would take the whole homepage out of the
+  // prerender (same reason as components/ui/core/LanguageSwitcher.tsx).
+  useEffect(() => {
+    let action: string | null = null;
+    try {
+      action = new URLSearchParams(window.location.search).get("action");
+    } catch {
+      return;
+    }
+    if (action !== OPEN_ACTION[kind]) return;
+    // showModal() throws if the element is not yet connected or already open.
+    const id = window.setTimeout(() => {
+      try {
+        open();
+      } catch {
+        /* nothing to recover: the trigger button still works */
+      }
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [kind, open]);
 
   // showModal() is imperative, so React state has to be told when the browser
   // closes the dialog on its own (ESC, or the form's method="dialog").

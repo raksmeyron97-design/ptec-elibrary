@@ -36,7 +36,7 @@ export default async function PublicLayout({
   return (
     <IntlProvider locale={locale} messages={messages}>
       <SessionProvider>
-        <div className="flex min-h-screen flex-col overflow-x-clip pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
+        <div className="flex min-h-screen flex-col overflow-x-clip">
           <ReadingProgress />
           <Navbar />
           {banners.length > 0 && <AnnouncementBanner announcements={banners} />}

@@ -123,8 +123,9 @@ async function clearOfflineState(page: Page) {
   });
 }
 
-// The pdf.js page canvas specifically: the footer draws a canvas of its own,
-// which used to satisfy this wait before the reader chunk had even loaded.
+// The pdf.js page canvas specifically, not any <canvas> on the page: the
+// footer used to draw a decorative canvas of its own, which satisfied a bare
+// canvas wait before the reader chunk had even loaded.
 const readerCanvas = (page: Page) => page.locator(".react-pdf__Page canvas").first();
 
 test.describe("offline reading", () => {

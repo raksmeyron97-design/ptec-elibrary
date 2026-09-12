@@ -37,6 +37,7 @@ import {
   hoursSentence,
   upcomingClosures,
   weeklyToOpeningHoursSpec,
+  weeklyToOpeningHoursSpecification,
 } from "./hours";
 
 const cfg = buildSiteConfig(DEFAULT_SECTION_DOCS);
@@ -234,6 +235,55 @@ describe("hours derivation", () => {
       "Sa 08:00-12:00",
       "Sa 13:00-16:00",
     ]);
+  });
+
+  it("weeklyToOpeningHoursSpecification mirrors the string spec as schema.org objects", () => {
+    expect(weeklyToOpeningHoursSpecification(DEFAULT_HOURS.weekly)).toEqual([
+      {
+        "@type": "OpeningHoursSpecification",
+        dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+        opens: "07:00",
+        closes: "17:00",
+      },
+      { "@type": "OpeningHoursSpecification", dayOfWeek: ["Saturday"], opens: "08:00", closes: "16:00" },
+    ]);
+    // Same grouping as the string form, so the two can never disagree.
+    expect(weeklyToOpeningHoursSpecification(DEFAULT_HOURS.weekly)).toHaveLength(
+      weeklyToOpeningHoursSpec(DEFAULT_HOURS.weekly).length,
+    );
+  });
+
+  it("split days emit one specification per interval", () => {
+    const weekly = {
+      ...DEFAULT_HOURS.weekly,
+      "6": [
+        { open: "08:00", close: "12:00" },
+        { open: "13:00", close: "16:00" },
+      ],
+    };
+    expect(weeklyToOpeningHoursSpecification(weekly).slice(1)).toEqual([
+      { "@type": "OpeningHoursSpecification", dayOfWeek: ["Saturday"], opens: "08:00", closes: "12:00" },
+      { "@type": "OpeningHoursSpecification", dayOfWeek: ["Saturday"], opens: "13:00", closes: "16:00" },
+    ]);
+  });
+
+  it("closures never leak into the weekly specification", () => {
+    // A closure is a dated exception; the weekly schedule must be identical
+    // with or without one, and no object may carry a date.
+    const withClosure = buildSiteConfig({
+      ...DEFAULT_SECTION_DOCS,
+      hours: {
+        ...DEFAULT_HOURS,
+        closures: [{ from: "2026-04-14", to: "2026-04-16", reason: { en: "Khmer New Year", km: "ចូលឆ្នាំខ្មែរ" } }],
+      },
+    });
+    expect(withClosure.hours.openingHoursSpecification).toEqual(cfg.hours.openingHoursSpecification);
+    for (const spec of withClosure.hours.openingHoursSpecification) {
+      expect(Object.keys(spec).sort()).toEqual(["@type", "closes", "dayOfWeek", "opens"]);
+    }
+    // A fully closed day produces nothing rather than an empty object.
+    const sundayOnly = { ...DEFAULT_HOURS.weekly, "1": [], "2": [], "3": [], "4": [], "5": [], "6": [] };
+    expect(weeklyToOpeningHoursSpecification(sundayOnly)).toEqual([]);
   });
 
   it("hoursSentence adapts when the schedule changes", () => {

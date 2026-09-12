@@ -46,7 +46,7 @@ export default async function FaqSection() {
   const columns = [items.slice(0, 3), items.slice(3)];
 
   return (
-    <HomeSection surface="paper" labelledBy="faq-title">
+    <HomeSection id="faq" surface="paper" labelledBy="faq-title">
       <JsonLd data={faqSchema} />
       <SectionHeader
         id="faq-title"

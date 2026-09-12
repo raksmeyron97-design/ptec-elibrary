@@ -46,6 +46,8 @@ export type ContactSettings = {
   };
 };
 
+import type { OpeningHoursSpecification } from "./hours";
+
 /** One opening interval, "HH:MM" 24-hour local (Asia/Phnom_Penh). */
 export type HoursInterval = { open: string; close: string };
 
@@ -136,6 +138,8 @@ export type SiteConfig = {
     km: string;
     /** schema.org spec strings, e.g. "Mo-Fr 07:00-17:00". */
     openingHoursSpec: string[];
+    /** The same schedule as structured schema.org objects (JSON-LD). */
+    openingHoursSpecification: OpeningHoursSpecification[];
     closures: HoursClosure[];
   };
 

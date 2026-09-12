@@ -6,7 +6,11 @@
 // ids, versions) never leave the server.
 
 import { phoneToIntlDisplay, phoneToTel } from "./schemas";
-import { hoursSentence, weeklyToOpeningHoursSpec } from "./hours";
+import {
+  hoursSentence,
+  weeklyToOpeningHoursSpec,
+  weeklyToOpeningHoursSpecification,
+} from "./hours";
 import type { SectionDocMap, SiteConfig } from "./types";
 
 export function buildSiteConfig(docs: SectionDocMap): SiteConfig {
@@ -33,6 +37,7 @@ export function buildSiteConfig(docs: SectionDocMap): SiteConfig {
       en: hoursSentence("en", hours.weekly),
       km: hoursSentence("km", hours.weekly),
       openingHoursSpec: weeklyToOpeningHoursSpec(hours.weekly),
+      openingHoursSpecification: weeklyToOpeningHoursSpecification(hours.weekly),
       closures: hours.closures.map((c) => ({ ...c, reason: { ...c.reason } })),
     },
 
