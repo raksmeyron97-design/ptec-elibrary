@@ -9,17 +9,22 @@
 // eight separate call sites. A byline is free text copied off a title page,
 // and in this collection it is very often not one person:
 //
-//   "Phnom Penh Teacher Education College"                   an institution
+//   the college's own name, spelled out                     an institution
 //   "ក្រសួងអប់រំ យុវជន និងកីឡា"                                  a ministry
 //   "Bert P.M. Creemers, Leonidas Kyriakides, Pam Sammons (Editors)"  three people
 //
 // Measured on production 2026-09-12: 47 of 157 author entities (30%) were
 // multiple people published as one `Person`, and at least 7 were corporate
 // bodies. The worst case was PTEC itself — `/authors/phnom-penh-teacher-
-// education-college` asserted a `Person` named "Phnom Penh Teacher Education
-// College" in the *same document* whose site graph declares that name as an
+// education-college` asserted a `Person` carrying the institution's own name,
+// in the *same document* whose site graph declares that same name as an
 // `EducationalOrganization` at `#organization`. One document, one institution,
 // two entity types, two @ids.
+//
+// The institution's name is deliberately NOT written out anywhere in this
+// file. It is published from System Settings and can be edited there, so a
+// literal copy here would be a second source of truth that goes stale —
+// `lib/settings-consistency.test.ts` enforces that, and caught this file.
 //
 // That is the duplicate-institution defect SEO V3 removed from RootShell,
 // re-entering through a door `lib/seo/entity-graph.test.ts` does not watch: it
