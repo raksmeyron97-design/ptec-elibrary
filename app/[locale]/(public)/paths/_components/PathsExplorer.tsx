@@ -11,6 +11,13 @@ import type {
 } from "@/app/actions/learning-paths";
 import { getMyPathProgress } from "@/app/actions/learning-paths";
 import { progressState } from "@/lib/learning-paths/format";
+import {
+  PATH_GRADE_BANDS,
+  PATH_TRACKS,
+  deriveScope,
+  type PathGradeBand,
+  type PathTrack,
+} from "@/lib/learning-paths/taxonomy";
 import PathCard from "./PathCard";
 import FilterPills from "./FilterPills";
 import PathFilterBar, { type FacetSelect } from "./PathFilterBar";
@@ -19,6 +26,30 @@ import ContinueRail, { ContinueRailSkeleton } from "./ContinueRail";
 
 type SortKey = "recommended" | "newest" | "shortest" | "alpha";
 const SORT_KEYS: SortKey[] = ["newest", "shortest", "alpha"];
+
+/** "New" = published within this window, and only the newest few even then. */
+const NEW_WINDOW_DAYS = 30;
+const NEW_BADGE_CAP = 3;
+
+/**
+ * Which paths wear the "New" badge: published in the last 30 days, newest
+ * first, at most three. Measured from `published_at`, not `updated_at` — a
+ * bulk re-save put the badge on 9 of 9 cards. Returns a set of ids so the
+ * grid and the "you might like" fallback agree.
+ */
+function newestPathIds(paths: LearningPathSummary[], now = Date.now()): Set<string> {
+  const cutoff = now - NEW_WINDOW_DAYS * 86_400_000;
+  return new Set(
+    paths
+      .filter((p) => {
+        const ts = p.published_at ? Date.parse(p.published_at) : NaN;
+        return !Number.isNaN(ts) && ts >= cutoff;
+      })
+      .sort((a, b) => Date.parse(b.published_at!) - Date.parse(a.published_at!))
+      .slice(0, NEW_BADGE_CAP)
+      .map((p) => p.id),
+  );
+}
 
 /* ── "Has this device seen progress before?" ──────────────────────────────
    Remembers, on this device only, that the visitor had path progress last
@@ -104,7 +135,8 @@ export default function PathsExplorer({
 
   // ── Filter state, sourced from the URL ──
   const q = searchParams.get("q") ?? "";
-  const audience = searchParams.get("audience") ?? "";
+  const track = searchParams.get("track") ?? "";
+  const grade = searchParams.get("grade") ?? "";
   const subject = searchParams.get("subject") ?? "";
   const difficulty = searchParams.get("difficulty") ?? "";
   const language = searchParams.get("language") ?? "";
@@ -180,8 +212,28 @@ export default function PathsExplorer({
   }, [setParams]);
 
   // ── Facet options (only offer a filter when the data supports it) ──
-  const audiences = useMemo(() => uniq(paths.map((p) => p.audience)), [paths]);
-  const subjects = useMemo(() => uniq(paths.map((p) => p.subject)), [paths]);
+  // Track × Grade are DERIVED per path (lib/learning-paths/taxonomy.ts) and
+  // replace the raw audience string as the browse facet: nine ~90-character
+  // bilingual values that each matched exactly one path were a second copy of
+  // the list, not a filter.
+  const scopes = useMemo(() => new Map(paths.map((p) => [p.id, deriveScope(p)])), [paths]);
+  const tracks = useMemo(
+    () => PATH_TRACKS.filter((tr) => paths.some((p) => scopes.get(p.id)?.track === tr)),
+    [paths, scopes],
+  );
+  const grades = useMemo(
+    () => PATH_GRADE_BANDS.filter((g) => paths.some((p) => scopes.get(p.id)?.grade === g)),
+    [paths, scopes],
+  );
+  // Subject stays a facet only where it says something Track does not: when
+  // every path with a subject also has a derived track, the two are the same
+  // question asked twice (and the raw values are Khmer-only on both locales).
+  const subjects = useMemo(() => {
+    const values = uniq(paths.map((p) => p.subject));
+    const redundant = paths.every((p) => !p.subject || scopes.get(p.id)?.track);
+    return redundant ? [] : values;
+  }, [paths, scopes]);
+  const newIds = useMemo(() => newestPathIds(paths), [paths]);
   const difficulties = useMemo(
     () =>
       (["beginner", "intermediate", "advanced"] as const).filter((d) =>
@@ -194,7 +246,7 @@ export default function PathsExplorer({
     [paths],
   );
 
-  const hasActiveFilters = !!(q || audience || subject || difficulty || language || sort !== "recommended");
+  const hasActiveFilters = !!(q || track || grade || subject || difficulty || language || sort !== "recommended");
 
   // The featured card is only rendered on the unfiltered view; whenever it is
   // on screen its path must come OUT of the grid below, or the lead item is
@@ -209,7 +261,8 @@ export default function PathsExplorer({
     const needle = q.trim().toLowerCase();
     const list = paths.filter((p) => {
       if (featuredId && p.id === featuredId) return false;
-      if (audience && p.audience !== audience) return false;
+      if (track && scopes.get(p.id)?.track !== track) return false;
+      if (grade && scopes.get(p.id)?.grade !== grade) return false;
       if (subject && p.subject !== subject) return false;
       if (difficulty && p.difficulty !== difficulty) return false;
       if (language && p.language !== language) return false;
@@ -238,7 +291,7 @@ export default function PathsExplorer({
         list.sort((a, b) => a.position - b.position);
     }
     return list;
-  }, [paths, q, audience, subject, difficulty, language, sort, locale, featuredId]);
+  }, [paths, q, track, grade, subject, difficulty, language, sort, locale, featuredId, scopes]);
 
   const inProgress = useMemo(
     () =>
@@ -272,7 +325,7 @@ export default function PathsExplorer({
     setSearchValue("");
     setIsDebouncing(false);
     lastCommitted.current = "";
-    setParams({ q: "", audience: "", subject: "", difficulty: "", language: "", sort: "" });
+    setParams({ q: "", track: "", grade: "", subject: "", difficulty: "", language: "", sort: "" });
   }, [setParams]);
 
   // Every refinement in one list, in the order they appear in the bar. Facets
@@ -329,31 +382,45 @@ export default function PathsExplorer({
         <FeaturedPath detail={featured} progress={progress?.[featured.id] ?? null} />
       )}
 
-      {/* ── Browse by goal ──
-          Audience is the one facet with editorial weight: it is how the
-          collection is organised for a reader ("I am a trainee", "I teach
-          already"), not a way to narrow a result set. It keeps its pills, and
-          its counts, above the refinement bar. */}
-      {audiences.length > 1 && (
-        <section aria-labelledby="goal-heading" className="mb-5">
-          <h2
-            id="goal-heading"
-            className="mb-2.5 text-[11.5px] font-bold uppercase tracking-[0.13em] text-text-muted"
-          >
+      {/* ── Browse by track and grade ──
+          The two axes the collection is actually organised on: subject track
+          (reading / mathematics / both) crossed with grade band. Seven short
+          chips, each returning several paths, wrapping rather than scrolling
+          — the audience-string row it replaced measured 5,148px wide on a
+          375px phone. Counts are live against the whole collection so a chip
+          never promises results it cannot return. */}
+      {(tracks.length > 1 || grades.length > 1) && (
+        <section aria-labelledby="goal-heading" className="mb-5 space-y-3">
+          <h2 id="goal-heading" className="paths-eyebrow text-[11.5px] font-bold text-text-muted">
             {t("browseByGoal")}
           </h2>
-          <FilterPills
-            scrollOnMobile
-            label={t("browseByGoal")}
-            value={audience}
-            onChange={(v) => setParams({ audience: v })}
-            options={audiences.map((a) => ({
-              value: a,
-              label: a,
-              icon: <Compass className="h-3 w-3" aria-hidden="true" />,
-              count: paths.filter((p) => p.audience === a).length,
-            }))}
-          />
+          {tracks.length > 1 && (
+            <FilterPills
+              size="sm"
+              label={t("filterTrack")}
+              value={track}
+              onChange={(v) => setParams({ track: v })}
+              options={tracks.map((tr: PathTrack) => ({
+                value: tr,
+                label: t(`track.${tr}`),
+                icon: <Compass className="h-3 w-3" aria-hidden="true" />,
+                count: paths.filter((p) => scopes.get(p.id)?.track === tr).length,
+              }))}
+            />
+          )}
+          {grades.length > 1 && (
+            <FilterPills
+              size="sm"
+              label={t("filterGrade")}
+              value={grade}
+              onChange={(v) => setParams({ grade: v })}
+              options={grades.map((g: PathGradeBand) => ({
+                value: g,
+                label: t(`grade.${g}`),
+                count: paths.filter((p) => scopes.get(p.id)?.grade === g).length,
+              }))}
+            />
+          )}
         </section>
       )}
 
@@ -381,6 +448,9 @@ export default function PathsExplorer({
           option, chip) and cost a whole band of vertical space. What chips did
           uniquely carry was "clear everything", so that survives here. */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h2 id="all-paths-heading" className="sr-only">
+          {t("allPathsHeading")}
+        </h2>
         <p className="text-[13px] tabular-nums text-text-muted" aria-live="polite">
           {q
             ? t("showingResultsFor", { count: filtered.length, total: paths.length, query: q })
@@ -429,26 +499,35 @@ export default function PathsExplorer({
               <h3 className="mb-4 text-center text-[11.5px] font-bold uppercase tracking-[0.13em] text-text-muted">
                 {t("youMightLike")}
               </h3>
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <ul role="list" className="grid list-none gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {suggestions.map((p, i) => (
-                  <PathCard key={p.id} path={p} progress={progress?.[p.id] ?? null} index={i} />
+                  <li key={p.id} className="flex">
+                    <PathCard path={p} progress={progress?.[p.id] ?? null} index={i} isNew={newIds.has(p.id)} />
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
           )}
         </div>
       ) : (
-        <div
+        <ul
           /* `key` on the grid restarts the entrance animation whenever the
              result set changes, which is what makes a filter change read as a
-             crossfade rather than rows silently swapping in place. */
-          key={`${q}|${audience}|${subject}|${difficulty}|${language}|${sort}`}
-          className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+             crossfade rather than rows silently swapping in place. A real
+             list, labelled by the (visually hidden) results heading, so
+             assistive tech announces "list, 9 items" rather than nine
+             headings loose under the browse section. */
+          key={`${q}|${track}|${grade}|${subject}|${difficulty}|${language}|${sort}`}
+          role="list"
+          aria-labelledby="all-paths-heading"
+          className="grid list-none gap-5 sm:grid-cols-2 lg:grid-cols-3"
         >
           {filtered.map((p, i) => (
-            <PathCard key={p.id} path={p} progress={progress?.[p.id] ?? null} index={i} />
+            <li key={p.id} className="flex">
+              <PathCard path={p} progress={progress?.[p.id] ?? null} index={i} isNew={newIds.has(p.id)} />
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );

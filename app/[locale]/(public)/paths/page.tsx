@@ -62,9 +62,20 @@ export default async function LearningPathsPage() {
   const featured = featuredSummary ? await getPathBySlug(featuredSummary.slug) : null;
 
   const pathTotal = stats?.learningPaths ?? paths.length;
-  const totalResources = paths.reduce((sum, p) => sum + p.stepCount, 0);
-  const totalMinutes = paths.reduce((sum, p) => sum + (p.durationMinutes ?? 0), 0);
-  const totalHours = Math.round(totalMinutes / 60);
+  // DISTINCT resources, and the hours to read them once. The same 28 MoEYS
+  // titles sit in a grade path, its series master and the combined package,
+  // so summing step counts reported 82 resources / 84 hours for a collection
+  // a teacher finishes in 28 — exactly triple, and the kind of figure that
+  // makes every other number on the page less trusted.
+  const distinct = new Map<string, number>();
+  for (const p of paths) {
+    for (const r of p.stepResources) {
+      const prev = distinct.get(r.key);
+      if (prev === undefined || (r.minutes ?? 0) > prev) distinct.set(r.key, r.minutes ?? 0);
+    }
+  }
+  const totalResources = distinct.size;
+  const totalHours = Math.round([...distinct.values()].reduce((sum, m) => sum + m, 0) / 60);
 
   const seoPaths: LearningPathSeoInput[] = paths.map((p) => ({
     slug: p.slug,

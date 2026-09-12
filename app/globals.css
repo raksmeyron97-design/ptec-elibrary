@@ -1260,6 +1260,53 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   animation: paths-node-float 5.5s ease-in-out infinite;
 }
 
+/* ── Khmer script rules ──────────────────────────────────────────────
+   Khmer has no letter case and stacks subscript consonants (coeng) and
+   vowel signs around a base character. `uppercase` on a bilingual string
+   silently uppercases only the English half, and positive letter-spacing
+   pulls the marks away from their base — a rendering fault, not a style.
+   Both are switched off on ANY run marked `lang="km"` (and on every element
+   of a Khmer-locale page), unlayered so the rule beats the `uppercase` /
+   `tracking-*` utilities that were applying them. See <LangText> /
+   <Bilingual> in components/ui/core/LangText.tsx for how runs get marked. */
+:lang(km),
+[lang="km"] {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* Learning Paths: the line-height Khmer needs. Latin is comfortable at
+   1.5; Khmer's stacked marks collide there, so 1.8 for running text and
+   1.4 for headings. The FACE is deliberately not set here — Khmer on these
+   pages is Hanuman like everywhere else on the site (a Kantumruy Pro swap
+   was tried and rejected: the cards no longer matched the hero above them).
+   In `@layer components` so an explicit `leading-*` utility still wins. */
+@layer components {
+  .paths-page :lang(km),
+  .paths-page [lang="km"] {
+    font-family: "Hanuman", var(--font-var-hanuman), "Noto Sans Khmer", system-ui, sans-serif;
+    line-height: 1.8;
+  }
+  .paths-page :is(h1, h2, h3, h4):lang(km),
+  .paths-page :is(h1, h2, h3, h4) [lang="km"] {
+    line-height: 1.4;
+  }
+}
+
+/* Small-caps label treatment for the Learning Paths eyebrows. Written as a
+   class rather than `uppercase tracking-[...]` utilities so the Khmer
+   opt-out above can beat it: a utility and an unlayered rule of equal
+   specificity resolve by source order, and Tailwind's utilities come last. */
+.paths-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+.paths-eyebrow:lang(km),
+.paths-eyebrow [lang="km"] {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 /* The dotted route draws itself once on load. */
 @keyframes paths-route-draw {
   from { stroke-dashoffset: var(--route-length, 600); }
