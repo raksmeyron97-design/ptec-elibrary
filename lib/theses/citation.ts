@@ -13,6 +13,7 @@ import {
   citationFileName,
   type CitationWork,
 } from "@/lib/citations";
+import { citationNames } from "@/lib/resources/contributor-identity";
 
 /**
  * Repository base URL for citation links. The institution NAME is no longer
@@ -48,10 +49,8 @@ function safeAuthors(report: ResearchReport): string {
  *  "type" comes from the real thesis_type column ("Thesis", "Research Report",
  *  "Capstone Project", …) instead of a hardcoded label. */
 export function thesisToCitationWork(report: ResearchReport, reportId: string, institution: string): CitationWork {
-  const authors = safeAuthors(report)
-    .split(",")
-    .map((s: string) => s.trim())
-    .filter(Boolean);
+  // One splitter for the whole library — see lib/resources/contributor-identity.
+  const authors = citationNames(safeAuthors(report));
   return {
     kind: "thesis",
     title: (report.title || "").toString().trim(),

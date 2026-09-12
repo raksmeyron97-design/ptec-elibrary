@@ -10,7 +10,7 @@ import { breadcrumbSchema } from "@/lib/seo/schema";
 import { SITE_URL } from "@/lib/seo/site";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { localeAlternates } from "@/lib/seo/alternates";
-import { contributorNodes } from "@/lib/seo/contributor";
+import { contributorNodes, contributorNodesFromViews, soleContributorNode } from "@/lib/seo/contributor";
 
 import { getAuthorProfile } from "@/lib/authors/profile";
 import { authorStats } from "@/lib/authors/stats";
@@ -108,8 +108,47 @@ export default async function AuthorPage({ params }: PageProps) {
   // institution PTEC as a `Person`, inside the same document whose site graph
   // declares that same name as an `EducationalOrganization` at #organization.
   // See docs/SEO-3.0-AUDIT.md F-1..F-3.
+  // SEO 3.2: the graph's STORED answer outranks any reading of the name. A
+  // contributor filed as an organisation stays an organisation here even if
+  // its name happens to contain no vocabulary this library recognises — that
+  // is the difference between a fact and a heuristic. `contributorKind` is
+  // null when the graph has no record of this entity (or its records
+  // disagree), and only then does the name decide, exactly as in SEO 3.0.
   const pageOrg = await getOrgIdentity();
-  const [entityNode] = contributorNodes(author.name, pageOrg);
+  const entityNodes = author.contributorKind
+    ? contributorNodesFromViews([
+        {
+          contributorId: author.contributorIds[0] ?? null,
+          kind: author.contributorKind,
+          name: author.name,
+          nameKm: author.nameKm,
+          role: "author",
+          sequence: 0,
+          source: "canonical",
+          typeConflict: false,
+          composite: false,
+        },
+      ])
+    : contributorNodes(author.name, pageOrg);
+
+  // ── One URL, one entity — or no claim ─────────────────────────────────────
+  //
+  // SEO 3.0 stopped this page asserting a Person for a byline it could not
+  // separate. It did not stop the case where the byline separates PERFECTLY:
+  // `contributorNodes()` then returns three nodes and this page took the
+  // first, so /authors/bert-p-m-creemers-leonidas-kyriakides-pam-sammons-
+  // editors published, in production on 2026-09-12, a single `Person` named
+  // "Bert P.M. Creemers" — dropping two named editors and attaching one
+  // person's identity to a URL that denotes three (docs/SEO-3.2-AUDIT.md C-5).
+  //
+  // 43 of production's 157 contributor rows are that shape. The honest answer
+  // is the one 3.0 already reached for the harder case: assert NO identity.
+  // The page still renders, still lists the works, still carries its
+  // breadcrumbs and canonical — it simply stops claiming to be a person it is
+  // not. Splitting the row into three URLs is the migration deliberately
+  // deferred (docs/SEO-3.2-HISTORICAL-CONTRIBUTOR-MIGRATION.md); until then,
+  // silence beats a wrong name.
+  const entityNode = soleContributorNode(entityNodes);
 
   // A bare `@id` is the institution itself: reference the node the site graph
   // already declares rather than minting a second one. An entity node carries
@@ -124,7 +163,10 @@ export default async function AuthorPage({ params }: PageProps) {
         ? entityNode
         : {
             ...entityNode,
-            "@id": `${canonical}#person`,
+            // The fragment names what the node IS. `#person` on an Organization
+            // was harmless as an identifier but read as a contradiction in
+            // the one place a reader looks to check the type.
+            "@id": `${canonical}#${entityNode["@type"] === "Organization" ? "organization" : "person"}`,
             ...(author.bio ? { description: truncate(author.bio, 300) } : {}),
             ...(author.photoUrl ? { image: author.photoUrl } : {}),
             // jobTitle and affiliation describe a human; an organisation has

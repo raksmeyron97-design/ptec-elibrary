@@ -13,7 +13,8 @@
 
 import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/seo/site";
-import { contributorNodesFor } from "@/lib/seo/contributor";
+import { resolveContributorNodes } from "@/lib/seo/contributor";
+import type { ResourceContributorView } from "@/lib/resources/contributor-view";
 import { libraryNode, organizationNode } from "@/lib/seo/org-nodes";
 import {
   resolveOrgIdentity,
@@ -96,6 +97,14 @@ export type ThesisSeoInput = {
   title: string;
   abstract?: string | null;
   authors?: string[];
+  /**
+   * Resolved contributor credits (SEO 3.2). When present these are used
+   * VERBATIM — already separated, already typed by the canonical graph — and
+   * `authors` is left to the human-readable text (meta description, byline).
+   * Absent, the builder falls back to classifying `authors` itself, which is
+   * what every pre-3.2 caller still does.
+   */
+  contributors?: readonly ResourceContributorView[] | null;
   coverUrl?: string | null;
   /** Real thesis publication/completion date. */
   datePublished?: string | null;
@@ -240,7 +249,7 @@ export function thesisJsonLd(
   const org = resolveOrgIdentity(orgArg);
   const url = thesisCanonicalUrl(thesis.slug, locale);
   const authors = (thesis.authors ?? []).map(clean).filter(Boolean);
-  const contributorNodes = contributorNodesFor(authors, org);
+  const contributorNodes = resolveContributorNodes(thesis.contributors, authors, org);
   const keywords = (thesis.keywords ?? []).filter(Boolean);
   const department = clean(thesis.department) || clean(thesis.program);
   const doi = normalizeDoi(thesis.doi);
@@ -332,7 +341,10 @@ export function thesesCollectionJsonLd({
       numberOfItems: total,
       itemListElement: theses.map((thesis, i) => {
         const authors = (thesis.authors ?? []).map(clean).filter(Boolean);
-        const contributorNodes = contributorNodesFor(authors, org);
+        // A LISTING item is deliberately not wired to the graph: resolving
+        // credits per row is one query per result (§36 N+1). The page's own
+        // detail URL carries the canonical answer; the list carries the byline.
+        const contributorNodes = resolveContributorNodes(null, authors, org);
         return compact({
           "@type": "ListItem",
           position: offset + i + 1,

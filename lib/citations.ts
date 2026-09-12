@@ -15,6 +15,7 @@
 import { SITE_URL } from "@/lib/seo/site";
 import type { Publication } from "@/lib/publications";
 import { academicTextToPlainText } from "@/lib/publications/citations";
+import { citationNames } from "@/lib/resources/contributor-identity";
 
 export type CiteFormat = "apa" | "mla" | "chicago" | "ieee" | "bibtex" | "ris";
 
@@ -300,9 +301,11 @@ export function authorList(pub: Publication): string[] {
   if (pub.authorships?.length) {
     return pub.authorships.map((a) => a.author.full_name).filter(Boolean);
   }
-  if (pub.author_names) {
-    return pub.author_names.split(",").map((s) => s.trim()).filter(Boolean);
-  }
+  // The byline fallback uses the library's ONE splitter: a comma is also how a
+  // single name is inverted, so `.split(",")` cited "Smith, John" as two
+  // people. `citationNames()` splits only where it is safe and otherwise keeps
+  // the byline whole — less granular, never invented.
+  if (pub.author_names) return citationNames(pub.author_names);
   return [];
 }
 

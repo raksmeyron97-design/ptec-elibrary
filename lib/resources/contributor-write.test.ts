@@ -205,3 +205,57 @@ describe("the institution", () => {
 });
 
 vi.restoreAllMocks();
+
+// ── §34 the ingestion regression fixture ─────────────────────────────────────
+//
+// The real title page that motivated the whole contributor line of work. It is
+// asserted end to end — three credits, the role the parenthetical states, and
+// the order they are printed in — because every one of those three facts had
+// nowhere to live while a byline was a single string in `books.author`.
+
+describe("§34 a real edited volume", () => {
+  const BYLINE = "Bert P.M. Creemers, Leonidas Kyriakides, Pam Sammons (Editors)";
+
+  it("records three contributors, in printed order, all as editors", async () => {
+    const { db, inserts } = fakeDb();
+    const result = await recordResourceContributors(db, bookInput(BYLINE));
+
+    expect(result).toMatchObject({ written: 3, resolved: true });
+    const links = inserts.find((i) => i.table === "resource_contributors");
+    expect(links?.rows.map((r) => r.sequence)).toEqual([0, 1, 2]);
+    expect(links?.rows.every((r) => r.role === "editor")).toBe(true);
+  });
+
+  it("keeps the role marker out of the third editor's name", async () => {
+    const { db, inserts } = fakeDb();
+    await recordResourceContributors(db, bookInput(BYLINE));
+    const names = inserts
+      .filter((i) => i.table === "contributors")
+      .flatMap((i) => i.rows.map((r) => r.display_name));
+    expect(names).toEqual(["Bert P.M. Creemers", "Leonidas Kyriakides", "Pam Sammons"]);
+  });
+
+  it("records a ministry as ONE organization, never three people", async () => {
+    const { db, inserts } = fakeDb();
+    const result = await recordResourceContributors(
+      db,
+      bookInput("Ministry of Education, Youth and Sport"),
+    );
+    expect(result).toMatchObject({ written: 1 });
+    const created = inserts.find((i) => i.table === "contributors");
+    expect(created?.rows).toHaveLength(1);
+    expect(created?.rows[0]).toMatchObject({ contributor_type: "organization" });
+  });
+
+  it("gives the institution's English and Khmer names the same contributor type", async () => {
+    const en = fakeDb();
+    await recordResourceContributors(en.db, bookInput(ORG.institutionName));
+    const km = fakeDb();
+    await recordResourceContributors(km.db, bookInput(ORG.institutionNameKm!));
+
+    const typeOf = (r: ReturnType<typeof fakeDb>) =>
+      r.inserts.find((i) => i.table === "contributors")?.rows[0]?.contributor_type;
+    expect(typeOf(en)).toBe("organization");
+    expect(typeOf(km)).toBe(typeOf(en));
+  });
+});

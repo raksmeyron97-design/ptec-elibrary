@@ -50,6 +50,18 @@ export interface AuthorProfile {
   websiteUrl: string | null;
   googleScholarUrl: string | null;
   researchGateUrl: string | null;
+  /**
+   * What the canonical contributor graph says this entity is, or null when it
+   * holds no record of them.
+   *
+   * Null means "ask the name", which is what the page did before SEO 3.2 and
+   * still does as a fallback. A non-null value is a STORED fact and outranks
+   * any reading of the name — that is the whole point of having the graph.
+   */
+  contributorKind: "person" | "organization" | "institution" | null;
+  /** `contributors.id` values that denote this author. Usually one; two is
+   *  normal for someone the 0105 backfill reached from both legacy tables. */
+  contributorIds: string[];
   works: AuthorWork[];
 }
 

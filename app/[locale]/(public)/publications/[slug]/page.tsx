@@ -54,15 +54,31 @@ import { getSessionUser } from "@/lib/auth/session";
 import { SITE_URL } from "@/lib/seo/site";
 import { Download, Pencil } from "lucide-react";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
+import type { OrgIdentity } from "@/lib/system-settings/org-identity";
+import { publicationContributorViews } from "@/lib/publications/contributors";
 
-/** Adapt a Publication row into the typed, browser-safe SEO input. */
-function toPublicationSeoInput(pub: import("@/lib/publications").Publication): PublicationSeoInput {
+/**
+ * Adapt a Publication row into the typed, browser-safe SEO input.
+ *
+ * `contributors` is the SEO 3.2 half: the article's authorship relation
+ * (0052's `publication_authorships`, already ordered and identified) expressed
+ * as contributor views, so the builder spends a decision already made instead
+ * of re-classifying the comma-joined byline those same rows produced. When the
+ * query did not embed authorships the views are empty and `authors` carries
+ * the page, exactly as before.
+ */
+function toPublicationSeoInput(
+  pub: import("@/lib/publications").Publication,
+  org?: OrgIdentity,
+): PublicationSeoInput {
+  const contributors = publicationContributorViews(pub, org);
   return {
     slug: pub.slug,
     title: pub.title,
     titleKm: pub.title_km,
     abstractText: academicTextToPlainText(pub.abstract, pub.references),
     authors: authorList(pub),
+    contributors: contributors.length > 0 ? contributors : null,
     journalName: pub.journal_name,
     volume: pub.volume,
     issue: pub.issue_no,
@@ -108,11 +124,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   // Typed, localized metadata (validated identifiers, Khmer-aware). Google
   // Scholar citation_* tags are merged in via `other`.
+  const metaOrg = await getOrgIdentity();
   const base = buildPublicationMetadata(
-    toPublicationSeoInput(pub),
+    toPublicationSeoInput(pub, metaOrg),
     locale,
     { seoTitle: pub.seo_title, seoDescription: pub.seo_description, ogImage: pub.og_image },
-    await getOrgIdentity(),
+    metaOrg,
   );
   return { ...base, other: publicationScholarMeta(pub) };
 }
@@ -279,8 +296,9 @@ export default async function PublicationDetailPage({ params }: PageProps) {
   // ── JSON-LD (ScholarlyArticle) ────────────────────────────────────────────
   // Validated identifiers, verified-license-only, locale-correct URLs, and no
   // "Unknown Author" fabrication — see lib/seo/publication-seo.ts.
+  const pageOrg = await getOrgIdentity();
   const scholarlyArticleSchema = publicationJsonLd(
-    toPublicationSeoInput(pub),
+    toPublicationSeoInput(pub, pageOrg),
     locale,
     // An aggregateRating may only be emitted where the rating is actually
     // shown. Publications have reviews disabled, so no rating goes into the
@@ -289,7 +307,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
     aggregateRatingAllowed("publication") && ratingStats.count > 0
       ? { ratingValue: ratingStats.average, reviewCount: ratingStats.count }
       : null,
-    await getOrgIdentity(),
+    pageOrg,
   );
 
   const faqSchema =

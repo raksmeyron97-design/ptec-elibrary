@@ -14,7 +14,8 @@
 
 import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/seo/site";
-import { contributorNodesFor } from "@/lib/seo/contributor";
+import { resolveContributorNodes } from "@/lib/seo/contributor";
+import type { ResourceContributorView } from "@/lib/resources/contributor-view";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { libraryNode } from "@/lib/seo/org-nodes";
 import {
@@ -39,6 +40,14 @@ export type BookSeoInput = {
   pages?: number | null;
   /** Verified author names only — pass [] when the author is unknown. */
   authors?: string[];
+  /**
+   * Resolved contributor credits (SEO 3.2). When present these are used
+   * VERBATIM — already separated, already typed by the canonical graph — and
+   * `authors` is left to the human-readable text (meta description, byline).
+   * Absent, the builder falls back to classifying `authors` itself, which is
+   * what every pre-3.2 caller still does.
+   */
+  contributors?: readonly ResourceContributorView[] | null;
   department?: string | null;
   category?: string | null;
   tags?: string[] | null;
@@ -201,7 +210,7 @@ export function bookJsonLd(
   const org = resolveOrgIdentity(orgArg);
   const url = bookCanonicalUrl(book.slug, locale);
   const authors = (book.authors ?? []).map(clean).filter(Boolean);
-  const contributorNodes = contributorNodesFor(authors, org);
+  const contributorNodes = resolveContributorNodes(book.contributors, authors, org);
   const publisher = clean(book.publisher);
   const isbn = clean(book.isbn);
   const tags = (book.tags ?? []).filter(Boolean);
