@@ -1,4 +1,4 @@
-// The nine subject URLs that changed, and the 301s that keep them alive.
+// The ten subject URLs that changed, and the 301s that keep them alive.
 //
 // Relative imports only, and no runtime dependencies: next.config.ts imports
 // this module directly and path aliases are not resolved inside it (same rule
@@ -59,6 +59,12 @@ export const SUBJECT_SLUG_REDIRECTS: readonly SubjectSlugRedirect[] = [
   { from: "book-1781238035277", to: "ស្រាវជ្រាវបែបគុណភាព", name: "ស្រាវជ្រាវបែបគុណភាព" },
   { from: "book-1781238028353", to: "ស្ថិតិ-និងវិភាគទិន្នន័យ", name: "ស្ថិតិ និងវិភាគទិន្នន័យ" },
   { from: "book-1781238123460", to: "កម្មវិធីសិក្សា", name: "កម្មវិធីសិក្សា" },
+  // The tenth, found on production 2026-09-12 and migrated by 0143. Its
+  // timestamp is ~1,176 s later than the latest of the nine above: a category
+  // created after that set was enumerated but before slugify() stopped
+  // falling back to `book-${Date.now()}` for Khmer, so 0142 could not see it.
+  // 18 resources, indexed, self-canonical. See docs/SEO-3.0-AUDIT.md F-4.
+  { from: "book-1781239299098", to: "កញ្ជប់គណិតវិទ្យា", name: "កញ្ជប់គណិតវិទ្យា" },
 ] as const;
 
 /** A slug minted by the pre-unicodeSlug fallback. */

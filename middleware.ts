@@ -428,6 +428,12 @@ export async function middleware(request: NextRequest) {
     ["about/team", RESOURCE_GATES["about/team"]],
     ["authors", RESOURCE_GATES.authors],
     ["paths", RESOURCE_GATES.paths],
+    // Subjects gate on existence alone — `categories` has no publication
+    // column. Without this, /subjects/<anything> answered 200 for every string
+    // on earth (docs/SEO-3.0-AUDIT.md F-6). Khmer slugs are safe here because
+    // match[1] is decodeURIComponent()'d below before the gate sees it, and
+    // the gate re-encodes once for its own lookup.
+    ["subjects", RESOURCE_GATES.subjects],
   ] as const) {
     const match = pathWithoutLocale.match(
       new RegExp(`^/${segment}/([^/]+)$`),

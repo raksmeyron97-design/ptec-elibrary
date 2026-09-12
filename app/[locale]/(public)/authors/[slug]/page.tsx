@@ -10,6 +10,7 @@ import { breadcrumbSchema } from "@/lib/seo/schema";
 import { SITE_URL } from "@/lib/seo/site";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { contributorNodes } from "@/lib/seo/contributor";
 
 import { getAuthorProfile } from "@/lib/authors/profile";
 import { authorStats } from "@/lib/authors/stats";
@@ -100,25 +101,51 @@ export default async function AuthorPage({ params }: PageProps) {
   // comes from the author's own stated interests, never from their works'
   // keywords — that would be an inference, and Google treats structured data
   // as an assertion.
+  // WHAT this byline is, is decided by lib/seo/contributor.ts — not assumed.
+  // This page used to type every byline `Person`, which published three
+  // untrue kinds of claim: a government ministry as a human, several people as
+  // one human, and — on /authors/phnom-penh-teacher-education-college — the
+  // institution PTEC as a `Person`, inside the same document whose site graph
+  // declares that same name as an `EducationalOrganization` at #organization.
+  // See docs/SEO-3.0-AUDIT.md F-1..F-3.
+  const pageOrg = await getOrgIdentity();
+  const [entityNode] = contributorNodes(author.name, pageOrg);
+
+  // A bare `@id` is the institution itself: reference the node the site graph
+  // already declares rather than minting a second one. An entity node carries
+  // the profile's own facts. Nothing at all means the byline is several people
+  // who cannot be separated safely — the page still serves its works, but it
+  // asserts no identity it cannot stand behind.
+  const isReference = !!entityNode && "@id" in entityNode && !("@type" in entityNode);
+  const mainEntity =
+    !entityNode
+      ? undefined
+      : isReference
+        ? entityNode
+        : {
+            ...entityNode,
+            "@id": `${canonical}#person`,
+            ...(author.bio ? { description: truncate(author.bio, 300) } : {}),
+            ...(author.photoUrl ? { image: author.photoUrl } : {}),
+            // jobTitle and affiliation describe a human; an organisation has
+            // neither, and asserting them of one would be a new false claim.
+            ...(entityNode["@type"] === "Person" && author.positionTitle
+              ? { jobTitle: author.positionTitle }
+              : {}),
+            ...(entityNode["@type"] === "Person" && author.affiliation
+              ? { affiliation: { "@type": "Organization", name: author.affiliation } }
+              : {}),
+            ...(links.length > 0 ? { sameAs: links.map((l) => l.href) } : {}),
+            ...(author.researchInterests.length > 0
+              ? { knowsAbout: author.researchInterests }
+              : {}),
+          };
+
   const personSchema = {
     "@context": "https://schema.org",
     "@type": "ProfilePage",
     url: canonical,
-    mainEntity: {
-      "@type": "Person",
-      "@id": `${canonical}#person`,
-      name: author.name,
-      ...(author.bio ? { description: truncate(author.bio, 300) } : {}),
-      ...(author.photoUrl ? { image: author.photoUrl } : {}),
-      ...(author.positionTitle ? { jobTitle: author.positionTitle } : {}),
-      ...(author.affiliation
-        ? { affiliation: { "@type": "Organization", name: author.affiliation } }
-        : {}),
-      ...(links.length > 0 ? { sameAs: links.map((l) => l.href) } : {}),
-      ...(author.researchInterests.length > 0
-        ? { knowsAbout: author.researchInterests }
-        : {}),
-    },
+    ...(mainEntity ? { mainEntity } : {}),
   };
 
   // Points at the author hub now that one exists. It used to point at

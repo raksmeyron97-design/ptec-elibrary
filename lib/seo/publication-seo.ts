@@ -15,6 +15,7 @@
 
 import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/seo/site";
+import { contributorNodesFor } from "@/lib/seo/contributor";
 import { libraryNode, organizationNode } from "@/lib/seo/org-nodes";
 import {
   resolveOrgIdentity,
@@ -217,6 +218,7 @@ export function publicationJsonLd(
   const org = resolveOrgIdentity(orgArg);
   const url = publicationCanonicalUrl(pub.slug, locale);
   const authors = (pub.authors ?? []).map(clean).filter(Boolean);
+  const contributorNodes = contributorNodesFor(authors, org);
   const keywords = [...new Set([...(pub.keywords ?? []), ...(pub.subjects ?? [])])].filter(Boolean);
   const doi = normalizeDoi(pub.doi);
   const issn = normalizeIssn(pub.issn);
@@ -235,7 +237,7 @@ export function publicationJsonLd(
     name: title,
     url,
     mainEntityOfPage: url,
-    author: authors.length > 0 ? authors.map((name) => ({ "@type": "Person", name })) : undefined,
+    author: contributorNodes.length > 0 ? contributorNodes : undefined,
     // Third-party journal article → its real publisher; PTEC is only the provider.
     publisher: clean(pub.publisher)
       ? { "@type": "Organization", name: clean(pub.publisher) }
@@ -332,6 +334,7 @@ export function publicationsCollectionJsonLd({
       numberOfItems: total,
       itemListElement: publications.map((pub, i) => {
         const authors = (pub.authors ?? []).map(clean).filter(Boolean);
+        const contributorNodes = contributorNodesFor(authors, org);
         const doi = normalizeDoi(pub.doi);
         const itemUrl = publicationCanonicalUrl(pub.slug, locale);
         return compact({
@@ -344,7 +347,7 @@ export function publicationsCollectionJsonLd({
             headline: pub.title,
             name: pub.title,
             url: itemUrl,
-            author: authors.length > 0 ? authors.map((n) => ({ "@type": "Person", name: n })) : undefined,
+            author: contributorNodes.length > 0 ? contributorNodes : undefined,
             datePublished: pub.year || undefined,
             isPartOf: pub.journalName ? { "@type": "Periodical", name: clean(pub.journalName) } : undefined,
             identifier: doi ? { "@type": "PropertyValue", propertyID: "DOI", value: doi } : undefined,
