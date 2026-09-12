@@ -73,6 +73,13 @@ export interface RetrievalOutcome {
    * while those shares rise is the regression.
    */
   furnitureDropped?: number;
+  /**
+   * What the corpus-vocabulary spell-check made of the question
+   * (lib/ai/spellcheck.ts). Present only when it proposed something — at any
+   * band, including the ones it declined to apply, because an operator asking
+   * "why did this refuse?" needs to see what was considered.
+   */
+  correction?: import("./spellcheck").QueryCorrection;
   /** False when the record has no embedded chunks — exact-text only. */
   semanticAvailable?: boolean;
   dbQueries: number;

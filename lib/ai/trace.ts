@@ -41,6 +41,17 @@ export interface AITrace {
     language: string;
     frame: string;
     topic: string;
+    /**
+     * The corpus-vocabulary spell-check's reading, when it had one. Carries
+     * the reader's text, the corrected text, the confidence and the reason —
+     * so a correction is always explainable and never silent.
+     */
+    correction?: {
+      originalQuery: string;
+      correctedQuery: string;
+      confidence: number;
+      applied: { original: string; candidate: string; distance: number; band: string; reason: string }[];
+    };
     titleCandidates: string[];
     isbnCandidates: string[];
     compareTargets: string[];
@@ -148,6 +159,20 @@ export function buildTrace(
       compareTargets: parsed?.compareTargets ?? intent.compareTargets ?? [],
       exactEntityRequired: parsed?.exactEntityRequired ?? false,
       requiresEvidence: parsed?.requiresEvidence ?? false,
+      correction: retrieval.correction
+        ? {
+            originalQuery: retrieval.correction.originalQuery,
+            correctedQuery: retrieval.correction.correctedQuery,
+            confidence: retrieval.correction.confidence,
+            applied: retrieval.correction.corrections.map((c) => ({
+              original: c.original,
+              candidate: c.candidate,
+              distance: c.distance,
+              band: c.band,
+              reason: c.reason,
+            })),
+          }
+        : undefined,
     },
     routing: {
       intent: intent.intent,

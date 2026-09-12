@@ -51,6 +51,8 @@ import {
 } from "./evidence";
 import { orderedWordsPattern, resolveTitle } from "./entity";
 import { assessPageText } from "./page-quality";
+import { corpusVocabulary } from "./corpus-vocabulary";
+import { correctQuery, queryReadings, type QueryCorrection } from "./spellcheck";
 import type { QueryFrame } from "./query";
 import { isbnMatchKeys, titleWithoutEdition } from "@/lib/books/duplicate-detection/normalize";
 import { getResourceReadiness } from "./readiness";
@@ -1093,25 +1095,53 @@ async function lexicalPages(
   scope: EvidenceScope | undefined,
   limit: number,
   frame?: QueryFrame,
+  /**
+   * A corrected reading of the same question (lib/ai/spellcheck.ts), when the
+   * reader's spelling did not match the corpus. It is ADDED to what is looked
+   * for, never substituted: "validty" still gets its own `ilike`, which costs
+   * one clause that matches nothing and keeps the reader's question in the
+   * query that answers it.
+   */
+  correction?: QueryCorrection | null,
 ): Promise<LexicalResult> {
   const q = sanitizeFilterTerm(query);
   if (q.length < 3) return NO_LEXICAL;
   const terms = queryTerms(q);
   const required = requiredTerms(terms);
   const phrase = q.toLowerCase();
+  // Every reading of the question worth looking for, minus the reader's own
+  // (which `q` already covers). Each costs one more clause in the locate step
+  // and nothing at all when it matches nothing.
+  const readings = correction
+    ? queryReadings(correction)
+        .map((r) => sanitizeFilterTerm(r))
+        .filter((r) => r && r.toLowerCase() !== q.toLowerCase())
+    : [];
+  const altTerms = [...new Set(readings.flatMap((r) => queryTerms(r)))];
 
   const scoped = <T extends { eq: (c: string, v: string) => T }>(r: T): T =>
     scope ? r.eq("record_type", scope.recordType).eq("record_id", scope.recordId) : r;
   const locate = (clause: string) =>
     scoped(db.from("book_pages").select("record_type, record_id, page_no").or(clause)).limit(LOCATE_LIMIT);
 
-  const phraseClause = `content.ilike.%${q}%`;
-  const conjunction =
-    required.length >= 2
-      ? `and(${required.map((t) => `content.ilike.%${t}%`).join(",")})`
-      : required.length === 1 && required[0] !== phrase
-        ? `content.ilike.%${required[0]}%`
+  const conjunctionFor = (req: readonly string[], whole: string): string | null =>
+    req.length >= 2
+      ? `and(${req.map((t) => `content.ilike.%${t}%`).join(",")})`
+      : req.length === 1 && req[0] !== whole
+        ? `content.ilike.%${req[0]}%`
         : null;
+
+  const phraseClause = [q, ...readings].map((r) => `content.ilike.%${r}%`).join(",");
+  // An OR of ANDs: pages carrying all the reader's terms, OR all the terms of
+  // any corrected reading. PostgREST reads `or(and(a,b),and(c,d))` from this.
+  const conjunction =
+    [
+      conjunctionFor(required, phrase),
+      ...readings.map((r) => conjunctionFor(requiredTerms(queryTerms(r)), r.toLowerCase())),
+    ]
+      .filter(Boolean)
+      .filter((c, i, all) => all.indexOf(c) === i)
+      .join(",") || null;
 
   try {
     const [byPhrase, byTerms] = await Promise.all([
@@ -1185,10 +1215,19 @@ async function lexicalPages(
     // for a phrase printed in a contents page should still find it there.
     const read = (data as unknown as PageRow[])
       .map((row) => {
-        const isDefinition = definitional && definitionSignal(row.content ?? "", terms);
-        const lexical = lexicalScore(row.content ?? "", q, terms) + (isDefinition ? 3 : 0);
+        const content = row.content ?? "";
+        // A page answering the corrected reading contains "validity", not
+        // "validty", so it must be SCORED against that reading too or the
+        // lexical floor drops the very page the correction found.
+        const isDefinition =
+          definitional && (definitionSignal(content, terms) || (altTerms.length > 0 && definitionSignal(content, altTerms)));
+        const lexical =
+          Math.max(
+            lexicalScore(content, q, terms),
+            ...readings.map((r) => lexicalScore(content, r, queryTerms(r))),
+          ) + (isDefinition ? 3 : 0);
         const d = density.get(`${row.record_type}:${row.record_id}`) ?? 0;
-        return { row, lexical, isDefinition, density: d, substantive: assessPageText(row.content ?? "").substantive };
+        return { row, lexical, isDefinition, density: d, substantive: assessPageText(content).substantive };
       })
       .filter((r) => r.lexical >= floor);
     // Counted, not merely discarded: a retrieval that silently refuses half of
@@ -1211,7 +1250,7 @@ async function lexicalPages(
     // Centre each snippet on a term the page actually contains, so the reader
     // sees why it was cited rather than the top of the page.
     return {
-      evidence: await hydratePages(db, scored.map((r) => r.row), q, terms, signals),
+      evidence: await hydratePages(db, scored.map((r) => r.row), q, [...terms, ...altTerms], signals),
       furnitureDropped,
     };
   } catch (err) {
@@ -1358,6 +1397,8 @@ export interface EvidencePools {
 
 export interface EvidenceOutcome extends RetrievalOutcome {
   evidence: RetrievedEvidence[];
+  /** What the spell-check made of the question, when it made anything. */
+  correction?: QueryCorrection;
   /** Rows the two legs produced before fusion and diversity. */
   candidateCount: number;
   /** False when the resource has no embedded chunks — an honest "exact only". */
@@ -1424,12 +1465,26 @@ export async function retrieveEvidence(input: RetrieveEvidenceInput): Promise<Ev
   const readiness = scope ? await getResourceReadiness(scope.recordType, scope.recordId) : null;
   const semanticAllowed = readiness ? readiness.semanticReady : embeddingsConfigured();
 
+  // What the reader probably meant, when the corpus has never seen a word they
+  // wrote (lib/ai/spellcheck.ts). A map lookup and a bounded scan over a
+  // precomputed vocabulary — no query, no model call, no round-trip. Only a
+  // HIGH-confidence correction reaches the embedder; the lexical leg takes
+  // both readings whatever the band, because a wrong extra `ilike` matches
+  // nothing while a wrong embedding retrieves a different subject and looks
+  // exactly like a right one.
+  const correction = correctQuery(query, corpusVocabulary());
+  const corrected = correction.correctedQuery !== correction.originalQuery;
+  const embedText = corrected ? correction.correctedQuery : query;
+
   const key = cacheKey([
     "evidence",
     input.mode,
     scope?.recordType,
     scope?.recordId,
     normalizeQuery(query),
+    // A change to the vocabulary changes the answer to the same question, so
+    // a cached entry keyed only on the question would outlive its reasoning.
+    corrected ? normalizeQuery(correction.correctedQuery) : "",
     limit,
     input.frame,
   ]);
@@ -1437,8 +1492,8 @@ export async function retrieveEvidence(input: RetrieveEvidenceInput): Promise<Ev
   const compute = async () => {
     const db = createServiceClient();
     const [lexicalResult, embedding] = await Promise.all([
-      lexicalPages(db, query, scope, limits.candidates, input.frame),
-      semanticAllowed ? embedQuery(query) : Promise.resolve({ vector: null, ms: 0, cacheHit: false }),
+      lexicalPages(db, query, scope, limits.candidates, input.frame, correction),
+      semanticAllowed ? embedQuery(embedText) : Promise.resolve({ vector: null, ms: 0, cacheHit: false }),
     ]);
     const lexical = lexicalResult.evidence;
     let semantic: RetrievedEvidence[] = [];
@@ -1499,6 +1554,11 @@ export async function retrieveEvidence(input: RetrieveEvidenceInput): Promise<Ev
   out.cacheHit = hit;
   out.fallback = hit ? "cache" : value.fallback;
   out.pools = value.pools;
+  // Attached whatever the band and whatever the outcome: an operator asking
+  // "why did this refuse?" needs to see what the spell-check considered, not
+  // only what it applied.
+  if (correction.corrections.length) out.correction = correction;
+  out.furnitureDropped = value.furnitureDropped;
   out.retrievalMs = Date.now() - started;
   return out;
 }
