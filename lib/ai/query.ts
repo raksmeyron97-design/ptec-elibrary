@@ -316,16 +316,43 @@ export function detectFrame(text: string): FrameMatch | null {
 const COMPARE_LEAD =
   /^(?:please\s+)?(?:can\s+you\s+|could\s+you\s+)?(?:compare|contrast|comparison\s+(?:of|between)|what(?:'s|\s+is)\s+the\s+difference\s+between|what\s+are\s+the\s+differences\s+between|how\s+(?:do|does)\s+.+?\s+differ\s+from|ប្រៀបធៀប|ភាពខុសគ្នារវាង|អ្វីជាភាពខុសគ្នារវាង)\s+/iu;
 const COMPARE_SPLIT = /\s+(?:and|versus|vs\.?|with|against|from|និង|ជាមួយ)\s+/iu;
+/**
+ * The same question with the comparison word at the END.
+ *
+ * Khmer word order puts it there — `តើ X និង Y ខុសគ្នាយ៉ាងណា?` is "how do X
+ * and Y differ?" — and `COMPARE_LEAD` anchors at the start, so every Khmer
+ * concept comparison fell through to `document_compare` with no sides
+ * parsed, resolved no works, and answered with the insufficient-text
+ * refusal. Measured 2026-09-12: the English form of the same question
+ * retrieved five passages and cited two; the Khmer form retrieved zero, with
+ * or without the typos that were being blamed for it.
+ *
+ * English "How do X and Y differ?" (without "from") lands here too. It used
+ * to fall through to the ordinary evidence path, which answered it
+ * acceptably; reading it as a comparison retrieves each side on its own and
+ * balances them, which is the answer the question asks for.
+ */
+const COMPARE_TRAIL =
+  /^(?:តើ\s*|how\s+(?:do|does)\s+|in\s+what\s+ways?\s+(?:do|does)\s+)?(.{2,80}?)\s*(?:\s|^)(?:and|និង|ជាមួយ)\s+(.{2,80}?)\s*(?:differ|ខុសគ្នា|ប្រៀបធៀប)[^?]*\??\s*$/iu;
 
 /** The two sides of a comparison, quoted spans first, or []. */
 export function compareSides(text: string): string[] {
   const q = quoted(text);
   if (q.length === 2) return q;
-  const m = COMPARE_LEAD.exec(text.trim());
-  if (!m) return [];
-  const rest = cleanTopic(text.trim().slice(m[0].length));
-  const parts = rest.split(COMPARE_SPLIT).map(cleanTopic).filter((p) => p.length >= 2);
-  return parts.length === 2 ? parts : [];
+  const trimmed = text.trim();
+  const m = COMPARE_LEAD.exec(trimmed);
+  if (m) {
+    const rest = cleanTopic(trimmed.slice(m[0].length));
+    const parts = rest.split(COMPARE_SPLIT).map(cleanTopic).filter((p) => p.length >= 2);
+    if (parts.length === 2) return parts;
+  }
+  // The comparison word at the end rather than the start — see COMPARE_TRAIL.
+  const t = COMPARE_TRAIL.exec(trimmed);
+  if (t) {
+    const parts = [cleanTopic(t[1]), cleanTopic(t[2])].filter((p) => p.length >= 2);
+    if (parts.length === 2) return parts;
+  }
+  return [];
 }
 
 /** A title the reader named without quoting it: "the book X", "titled X". */

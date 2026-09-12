@@ -245,15 +245,30 @@ async function main(): Promise<number> {
   type Fixture = { generatedAt: string; corpusBooks: number; questions: Question[] };
   const load = (file: string) => JSON.parse(readFileSync(`scripts/ai-answer-benchmark/${file}`, "utf8")) as Fixture;
   const v1 = load("questions.json");
-  // The original 123 are never edited; the v2 suite ADDS permanent edge cases
-  // (typos, ISBNs, Khmer titles, named-source questions, concept comparisons,
-  // ambiguity). `--suite all` runs both; the report names which ran.
+  // The original 123 are never edited, and neither is v2. Each later suite
+  // ADDS the cases its phase could not express in the ones before it:
+  //   v1    the permanent historical baseline (123)
+  //   v2    AI Brain 2.0's edge cases — typos, ISBNs, Khmer titles,
+  //         named-source questions, concept comparisons, ambiguity (37)
+  //   v2.1  the label shapes 2.1 introduced — a question naming a PAGE or a
+  //         SPAN, a comparison whose required works are stated, and answers
+  //         checked against claims somebody wrote down (17)
+  // `--suite all` runs every one; the report names which ran.
   const fixture: Fixture =
     SUITE === "v2"
       ? load("questions-v2.json")
-      : SUITE === "all"
-        ? { ...v1, questions: [...v1.questions, ...load("questions-v2.json").questions] }
-        : v1;
+      : SUITE === "v2.1"
+        ? load("questions-v2-1.json")
+        : SUITE === "all"
+          ? {
+              ...v1,
+              questions: [
+                ...v1.questions,
+                ...load("questions-v2.json").questions,
+                ...load("questions-v2-1.json").questions,
+              ],
+            }
+          : v1;
 
   const all = fixture.questions.filter(
     (q) => (!ONLY || q.category === ONLY) && (!IDS || IDS.includes(q.id)),

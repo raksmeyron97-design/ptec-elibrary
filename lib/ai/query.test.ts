@@ -134,6 +134,38 @@ describe("comparison", () => {
   it("refuses to invent a second side", () => {
     expect(compareSides("compare these two")).toEqual([]);
   });
+
+  it("reads the comparison word at the END, which is where Khmer puts it", () => {
+    // `តើ X និង Y ខុសគ្នាយ៉ាងណា?` is "how do X and Y differ?". COMPARE_LEAD
+    // anchors at the start, so every Khmer concept comparison used to fall
+    // through to document_compare with no sides parsed, resolve no works, and
+    // answer with the insufficient-text refusal. Measured 2026-09-12: the
+    // English form of the same question retrieved five passages and cited
+    // two; the Khmer form retrieved zero, with or without the misspellings
+    // that were being blamed for it.
+    expect(compareSides("តើ validity និង reliability ខុសគ្នាយ៉ាងណា?")).toEqual(["validity", "reliability"]);
+    expect(compareSides("តើ validty និង reliabilty ខុសគ្នាយ៉ាងណា?")).toEqual(["validty", "reliabilty"]);
+    expect(compareSides("ប្រៀបធៀប validity និង reliability")).toEqual(["validity", "reliability"]);
+    expect(parseQuery("តើ validity និង reliability ខុសគ្នាយ៉ាងណា?").frame).toBe("comparison");
+  });
+
+  it("reads the English trailing form too", () => {
+    expect(compareSides("How do validity and reliability differ?")).toEqual(["validity", "reliability"]);
+  });
+
+  it("does not read every sentence containing 'and' as a comparison", () => {
+    // The trailing pattern is anchored on a comparison WORD; without one
+    // there is no comparison, however many conjunctions the sentence has.
+    for (const q of [
+      "What does the library say about validity and reliability?",
+      "Do you have research methods and evaluation?",
+      "How is action research handled?",
+      "Explain sampling and its uses",
+      "តើសៀវភៅណាដែលពន្យល់អំពី validity និង reliability?",
+    ]) {
+      expect(compareSides(q), q).toEqual([]);
+    }
+  });
 });
 
 describe("answer-policy flags", () => {
