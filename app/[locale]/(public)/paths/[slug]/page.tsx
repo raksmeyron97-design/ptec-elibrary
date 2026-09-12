@@ -3,7 +3,7 @@ import { decodeSlugParam } from "@/lib/slug";
 import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { GraduationCap, Layers, Clock, BookMarked, Signal, CheckCircle2, ListChecks, Globe } from "lucide-react";
+import { GraduationCap, Layers, Clock, BookMarked, Signal, CheckCircle2, ListChecks, Globe, ArrowLeft, Users } from "lucide-react";
 import { getPathBySlug, getUserPathProgress, getPublishedPaths } from "@/app/actions/learning-paths";
 import type { LearningPathDetail } from "@/app/actions/learning-paths";
 import { createClient } from "@/lib/supabase/server";
@@ -20,6 +20,8 @@ import {
   type LearningPathSeoInput,
 } from "@/lib/seo/learning-path-seo";
 import { getOrgIdentity } from "@/lib/system-settings/config";
+import { deriveScope, scopeLabelKeys } from "@/lib/learning-paths/taxonomy";
+import { Bilingual, LangText } from "@/components/ui/core/LangText";
 
 export const dynamic = "force-dynamic";
 
@@ -85,6 +87,7 @@ export default async function LearningPathDetailPage({ params }: PageProps) {
   const title = pathLocalizedTitle(seoInput, locale);
   const description = pathLocalizedDescription(seoInput, locale);
   const duration = formatMinutes(path.durationMinutes, t);
+  const scopeLabel = scopeLabelKeys(deriveScope(path)).map((k) => t(k)).join(" · ");
 
   // Recommendations: other published paths, same audience first, max 3.
   const recommendations = allPaths
@@ -100,86 +103,139 @@ export default async function LearningPathDetailPage({ params }: PageProps) {
   const courseSchema = pathCourseJsonLd(seoInput, locale, await getOrgIdentity());
 
   return (
-    <div className="min-h-screen bg-bg-body">
+    <div className="paths-page min-h-screen bg-bg-body">
       <JsonLd data={pathBreadcrumb} />
       <JsonLd data={courseSchema} />
-      <div className="mx-auto max-w-[920px] px-4 py-8 md:px-10 md:py-12">
-        {/* ── Breadcrumb ── */}
-        <nav aria-label="Breadcrumb" className="mb-5 flex flex-wrap items-center gap-1.5 text-[13px] font-medium text-text-muted">
-          <Link href="/" className="hover:text-brand">{t("breadcrumbHome")}</Link>
-          <span aria-hidden="true">/</span>
-          <Link href="/paths" className="hover:text-brand">{t("breadcrumbPaths")}</Link>
-          <span aria-hidden="true">/</span>
-          <span className="truncate text-text-heading">{title}</span>
+      <div className="mx-auto max-w-[1200px] px-4 py-6 md:px-8 md:py-12">
+        {/* ── Breadcrumb ──
+            On a phone the trail collapses to one "← Learning Paths" link: the
+            third crumb is this page's own title, truncated, and a truncated
+            heading is no help where a reader is choosing between paths. The
+            full trail (and the BreadcrumbList JSON-LD) is unchanged from sm. */}
+        <nav aria-label="Breadcrumb" className="mb-4 text-[13px] font-medium text-text-muted sm:mb-5">
+          <Link
+            href="/paths"
+            className="inline-flex min-h-11 items-center gap-1.5 hover:text-brand sm:hidden"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            {t("backToPaths")}
+          </Link>
+          <ol className="hidden flex-wrap items-center gap-1.5 sm:flex">
+            <li><Link href="/" className="hover:text-brand">{t("breadcrumbHome")}</Link></li>
+            <li aria-hidden="true">/</li>
+            <li><Link href="/paths" className="hover:text-brand">{t("breadcrumbPaths")}</Link></li>
+            <li aria-hidden="true">/</li>
+            <li className="min-w-0 truncate text-text-heading" aria-current="page"><LangText text={title} locale={locale} /></li>
+          </ol>
         </nav>
 
-        {/* ── Hero ── */}
-        <header className="gradient-top-border overflow-hidden rounded-[28px] border border-divider bg-bg-surface p-6 shadow-sm sm:p-8">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-            {path.cover_url && (
-              <div className="mx-auto w-[150px] shrink-0 sm:mx-0">
-                <div className="overflow-hidden rounded-2xl border border-divider/60 bg-paper shadow-md">
-                  <div className="relative aspect-[3/4] w-full">
-                    <Image src={path.cover_url} alt="" fill sizes="150px" className="object-cover" />
-                  </div>
-                </div>
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
+        {/* ── Hero ──
+            Order is what a reader arriving from a shared link needs, in the
+            order they need it: what this is (scope + title), how big it is
+            (modules · steps · hours), what it says about itself, THEN the
+            picture. The cover used to lead the phone screen as a 148×197
+            portrait crop of a 16:9 artwork — cut straight through its own
+            Khmer title — followed by three lines of uppercase audience string,
+            and the first action was ~1,900px down. The primary action now
+            docks along the bottom edge on phones (PathExperience). */}
+        <header className="gradient-top-border overflow-hidden rounded-[28px] border border-divider bg-bg-surface p-5 shadow-sm sm:p-8">
+          <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,300px)] sm:items-start sm:gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] lg:gap-10">
+            <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                {path.audience && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/20 bg-brand/8 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-brand">
+                {scopeLabel && (
+                  <span className="paths-eyebrow inline-flex items-center gap-1.5 rounded-full border border-brand/20 bg-brand/8 px-3 py-1 text-[11px] font-bold text-brand">
                     <GraduationCap className="h-3.5 w-3.5" aria-hidden="true" />
-                    {path.audience}
+                    {scopeLabel}
                   </span>
                 )}
                 {path.difficulty && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-divider bg-paper px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-text-muted">
+                  <span className="paths-eyebrow inline-flex items-center gap-1.5 rounded-full border border-divider bg-paper px-3 py-1 text-[11px] font-bold text-text-body">
                     <Signal className="h-3.5 w-3.5" aria-hidden="true" />
                     {t(`difficulty.${path.difficulty}`)}
                   </span>
                 )}
                 {path.language && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-divider bg-paper px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-text-muted">
+                  <span className="paths-eyebrow inline-flex items-center gap-1.5 rounded-full border border-divider bg-paper px-3 py-1 text-[11px] font-bold text-text-body">
                     <Globe className="h-3.5 w-3.5" aria-hidden="true" />
                     {t(`language.${path.language}`)}
                   </span>
                 )}
               </div>
 
-              <h1 className="mt-3 font-khmer-serif text-[clamp(22px,4vw,32px)] font-bold leading-[1.2] text-text-heading">
-                {title}
+              <h1 className="mt-3 font-khmer-serif text-[clamp(22px,4vw,32px)] font-bold leading-[1.3] text-text-heading">
+                <LangText text={title} locale={locale} />
               </h1>
-              {description && <p className="mt-2 text-[14.5px] leading-relaxed text-text-muted">{description}</p>}
 
-              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px] font-semibold text-text-muted">
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px] font-semibold text-text-body">
                 <span className="inline-flex items-center gap-1.5"><BookMarked className="h-3.5 w-3.5" aria-hidden="true" />{t("modules", { count: path.moduleCount })}</span>
                 <span className="inline-flex items-center gap-1.5"><Layers className="h-3.5 w-3.5" aria-hidden="true" />{t("steps", { count: path.stepCount })}</span>
                 {duration && <span className="inline-flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" aria-hidden="true" />{t("durationTotal", { duration })}</span>}
               </div>
 
-              {/* Prerequisites */}
-              {path.prerequisites.length > 0 && (
-                <div className="mt-5">
-                  <h2 className="mb-1.5 flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wide text-text-muted">
-                    <ListChecks className="h-3.5 w-3.5" aria-hidden="true" />
-                    {t("prerequisitesHeading")}
-                  </h2>
-                  <ul className="space-y-1">
-                    {path.prerequisites.map((p, i) => {
-                      const text = (locale === "km" && p.km) || p.en || p.km;
-                      return <li key={i} className="text-[13px] text-text-body">• {text}</li>;
-                    })}
-                  </ul>
-                </div>
+              {description && (
+                <LangText as="p" text={description} locale={locale} className="mt-3 text-[14.5px] leading-relaxed text-text-muted" />
               )}
             </div>
+
+            {path.cover_url && (
+              /* 16:9 like the artwork, requested at the width it is drawn. */
+              <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-divider/60 bg-paper shadow-md">
+                <Image
+                  src={path.cover_url}
+                  alt=""
+                  fill
+                  priority
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 300px, 420px"
+                  className="object-cover"
+                />
+              </div>
+            )}
           </div>
+
+          {/* Who it's for — the audience string, in sentence case, each half in
+              its own language. It used to be the eyebrow chip: uppercased,
+              letter-spaced (which pulls Khmer subscripts off their bases) and
+              wrapping to three lines above the title on a phone. */}
+          {(path.audience || path.prerequisites.length > 0) && (
+            <dl className="mt-5 grid gap-4 border-t border-divider pt-5 sm:grid-cols-2">
+              {path.audience && (
+                <div>
+                  <dt className="mb-1 flex items-center gap-1.5 text-[12px] font-bold text-text-body">
+                    <Users className="h-3.5 w-3.5 text-brand" aria-hidden="true" />
+                    {t("whoItsFor")}
+                  </dt>
+                  <dd className="text-[13.5px] leading-relaxed text-text-body">
+                    <Bilingual value={path.audience} locale={locale} separator={<br />} />
+                  </dd>
+                </div>
+              )}
+              {path.prerequisites.length > 0 && (
+                <div>
+                  <dt className="mb-1 flex items-center gap-1.5 text-[12px] font-bold text-text-body">
+                    <ListChecks className="h-3.5 w-3.5 text-brand" aria-hidden="true" />
+                    {t("prerequisitesHeading")}
+                  </dt>
+                  <dd>
+                    <ul className="space-y-1">
+                      {path.prerequisites.map((p, i) => {
+                        const text = (locale === "km" && p.km) || p.en || p.km;
+                        return (
+                          <li key={i} className="text-[13.5px] leading-relaxed text-text-body">
+                            • <LangText text={text} locale={locale} />
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </dd>
+                </div>
+              )}
+            </dl>
+          )}
 
           {/* Learning outcomes */}
           {path.outcomes.length > 0 && (
             <div className="mt-6 rounded-2xl border border-divider bg-paper/40 p-5">
-              <h2 className="mb-3 flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-text-muted">
+              <h2 className="paths-eyebrow mb-3 flex items-center gap-2 text-[13px] font-bold text-text-body">
                 <CheckCircle2 className="h-4 w-4 text-brand" aria-hidden="true" />
                 {t("outcomesHeading")}
               </h2>
@@ -189,7 +245,7 @@ export default async function LearningPathDetailPage({ params }: PageProps) {
                   return (
                     <li key={i} className="flex items-start gap-2 text-[13.5px] text-text-body">
                       <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
-                      <span>{text}</span>
+                      <LangText text={text} locale={locale} />
                     </li>
                   );
                 })}

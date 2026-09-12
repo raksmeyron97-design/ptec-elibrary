@@ -44,6 +44,20 @@ export interface LearningPathSummary {
   /** Total est. duration in minutes: the manual `estimated_minutes` override, else the sum of step estimates, else null. */
   durationMinutes: number | null;
   updated_at: string | null;
+  /** When the path was (last) published — what "New" is measured from. */
+  published_at: string | null;
+  /**
+   * One entry per step, identifying the RESOURCE the step points at
+   * (`book:<id>`, `external:<url>`…) with its estimate. The same book appears
+   * in a grade path, its series master and the combined package; the hero's
+   * collection figures count each resource once, not once per step.
+   */
+  stepResources: StepResourceRef[];
+}
+
+export interface StepResourceRef {
+  key: string;
+  minutes: number | null;
 }
 
 export interface LearningPathStep {
@@ -115,6 +129,16 @@ function sumStepMinutes(modules: { learning_path_steps?: { est_minutes?: number 
   return any ? total : null;
 }
 
+/** Resource identity per step (see `LearningPathSummary.stepResources`), from resolved modules. */
+function stepResourcesOf(modules: { steps: Pick<LearningPathStep, "id" | "resource_type" | "resource_id" | "external_url" | "est_minutes">[] }[]): StepResourceRef[] {
+  return modules.flatMap((m) =>
+    m.steps.map((st) => ({
+      key: st.resource_type === "external" ? `external:${st.external_url ?? st.id}` : `${st.resource_type}:${st.resource_id ?? st.id}`,
+      minutes: typeof st.est_minutes === "number" && st.est_minutes > 0 ? st.est_minutes : null,
+    })),
+  );
+}
+
 function stepUrl(type: StepResourceType, resourceId: string | null, externalUrl: string | null): string | null {
   if (type === "external") return externalUrl;
   if (!resourceId) return null;
@@ -155,12 +179,23 @@ async function resolveStepResources(
 // ── Public reads ───────────────────────────────────────────────────────────────
 
 const SUMMARY_SELECT =
-  "id, slug, title, title_km, description, description_km, audience, cover_url, is_published, status, featured, difficulty, subject, language, tags, estimated_minutes, position, updated_at, learning_path_modules(id, learning_path_steps(id, est_minutes))";
+  "id, slug, title, title_km, description, description_km, audience, cover_url, is_published, status, featured, difficulty, subject, language, tags, estimated_minutes, position, updated_at, published_at, learning_path_modules(id, learning_path_steps(id, est_minutes, resource_type, resource_id, external_url))";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapSummary(p: any): LearningPathSummary {
-  const modules = (p.learning_path_modules ?? []) as { learning_path_steps?: { est_minutes?: number | null }[] | null }[];
+  const modules = (p.learning_path_modules ?? []) as {
+    learning_path_steps?: { id: string; est_minutes?: number | null; resource_type?: string | null; resource_id?: string | null; external_url?: string | null }[] | null;
+  }[];
   const stepCount = modules.reduce((sum, m) => sum + (m.learning_path_steps?.length ?? 0), 0);
+  const stepResources: StepResourceRef[] = modules.flatMap((m) =>
+    (m.learning_path_steps ?? []).map((st) => ({
+      key:
+        st.resource_type === "external"
+          ? `external:${st.external_url ?? st.id}`
+          : `${st.resource_type ?? "step"}:${st.resource_id ?? st.id}`,
+      minutes: typeof st.est_minutes === "number" && st.est_minutes > 0 ? st.est_minutes : null,
+    })),
+  );
   return {
     id: p.id,
     slug: p.slug,
@@ -182,6 +217,8 @@ function mapSummary(p: any): LearningPathSummary {
     moduleCount: modules.length,
     durationMinutes: p.estimated_minutes && p.estimated_minutes > 0 ? p.estimated_minutes : sumStepMinutes(modules),
     updated_at: p.updated_at ?? null,
+    published_at: p.published_at ?? null,
+    stepResources,
   };
 }
 
@@ -340,6 +377,7 @@ export async function getPathBySlug(slug: string): Promise<LearningPathDetail | 
       : sumStepMinutes(resolvedModules.map((m) => ({ learning_path_steps: m.steps })));
 
   return {
+    stepResources: stepResourcesOf(resolvedModules),
     id: path.id,
     slug: path.slug,
     title: path.title,
@@ -811,6 +849,7 @@ export async function adminGetPathDetail(pathId: string): Promise<LearningPathDe
       : sumStepMinutes(resolvedModules.map((m) => ({ learning_path_steps: m.steps })));
 
   return {
+    stepResources: stepResourcesOf(resolvedModules),
     id: path.id,
     slug: path.slug,
     title: path.title,

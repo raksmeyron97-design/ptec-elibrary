@@ -2983,7 +2983,31 @@
     "removeFilter": "ដកតម្រង៖ {label}",
     "filterSearchLabel": "ស្វែងរក៖ «{query}»",
     "activeFilters": "តម្រង៖",
-    "filterBarLabel": "កែសម្រួលការស្វែងរកផ្លូវសិក្សា"
+    "filterBarLabel": "កែសម្រួលការស្វែងរកផ្លូវសិក្សា",
+    "filterTrack": "មុខវិជ្ជា",
+    "filterGrade": "ថ្នាក់",
+    "track": {
+      "reading": "អំណាន",
+      "math": "គណិតវិទ្យា",
+      "both": "អំណាន និងគណិតវិទ្យា"
+    },
+    "grade": {
+      "g1": "ថ្នាក់ទី១",
+      "g2": "ថ្នាក់ទី២",
+      "g3": "ថ្នាក់ទី៣",
+      "g1_3": "ថ្នាក់ទី១–៣"
+    },
+    "allPathsHeading": "ផ្លូវសិក្សាទាំងអស់",
+    "whoItsFor": "សម្រាប់អ្នកណា",
+    "expandAll": "ពង្រីកទាំងអស់",
+    "collapseAll": "បង្រួមទាំងអស់",
+    "progressSignInHint": "ចូលគណនីដើម្បីរក្សាទុកវឌ្ឍនភាពរបស់អ្នកគ្រប់ឧបករណ៍។",
+    "backToPaths": "ផ្លូវសិក្សា",
+    "markDone": "សម្គាល់ “{title}” ថាបានបញ្ចប់",
+    "markNotDone": "សម្គាល់ “{title}” ថាមិនទាន់បញ្ចប់",
+    "openStep": "បើក",
+    "continueWith": "បន្ត · {step}",
+    "statBooks": "ធនធានផ្សេងគ្នា"
   },
   "downloadProfile": {
     "title": "ប្រវត្តិរូបសម្រាប់សិទ្ធិទាញយក",

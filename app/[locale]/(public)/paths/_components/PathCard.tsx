@@ -7,18 +7,10 @@ import { useLocale, useTranslations } from "next-intl";
 import { Layers, Clock, Signal, ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
 import type { LearningPathSummary, PathProgressRecord } from "@/app/actions/learning-paths";
 import { progressState, progressPercent } from "@/lib/learning-paths/format";
+import { deriveScope, scopeLabelKeys } from "@/lib/learning-paths/taxonomy";
+import { LangText } from "@/components/ui/core/LangText";
 import { formatDuration } from "./format-duration";
 import PathCoverFallback from "./PathCoverFallback";
-
-/** A path counts as new for two weeks after its last edit. */
-const NEW_FOR_DAYS = 14;
-
-function isNewlyUpdated(updatedAt: string | null): boolean {
-  if (!updatedAt) return false;
-  const ts = Date.parse(updatedAt);
-  if (Number.isNaN(ts)) return false;
-  return (Date.now() - ts) / 86_400_000 <= NEW_FOR_DAYS;
-}
 
 /**
  * Compact completion dial shown on the cover corner once a learner has
@@ -84,11 +76,19 @@ export default function PathCard({
   path,
   progress,
   index = 0,
+  isNew = false,
 }: {
   path: LearningPathSummary;
   progress?: PathProgressRecord | null;
   /** Position in the grid — drives the entrance stagger only. */
   index?: number;
+  /**
+   * Decided by the CALLER (the explorer ranks by `published_at` and caps the
+   * badge at three), not per card: every path was re-saved on the same day
+   * and, measured from `updated_at`, 9 of 9 cards wore the badge — a badge
+   * that is always on is chrome spending the loudest colour to say nothing.
+   */
+  isNew?: boolean;
 }) {
   const t = useTranslations("paths");
   const locale = useLocale();
@@ -109,7 +109,12 @@ export default function PathCard({
   // missing asset — fall back to the same pattern an uncovered path gets.
   const [coverFailed, setCoverFailed] = useState(false);
   const showCover = !!path.cover_url && !coverFailed;
-  const isNew = isNewlyUpdated(path.updated_at);
+  // Eyebrow: "Grade 1 · Mathematics", derived from the row (lib/learning-
+  // paths/taxonomy.ts). It replaced the raw `audience` string — a ~90-char
+  // bilingual sentence, uppercased, letter-spaced and truncated at 40 chars,
+  // so every card's eyebrow read identically for its first six words while
+  // the letter-spacing pulled the Khmer subscripts off their bases.
+  const scopeLabel = scopeLabelKeys(deriveScope(path)).map((k) => t(k)).join(" · ");
   // Capped so a late card in a long list is not held back for a full second.
   const stagger = `${Math.min(index, 7) * 45}ms`;
 
@@ -121,25 +126,18 @@ export default function PathCard({
       style={{ animationDelay: stagger }}
     >
       {/* Cover */}
-      <div className="relative aspect-[2/1] w-full overflow-hidden bg-gradient-to-br from-brand/12 via-brand/6 to-paper">
+      <div className="relative aspect-video w-full overflow-hidden bg-gradient-to-br from-brand/12 via-brand/6 to-paper">
         {showCover ? (
           <Image
             src={path.cover_url!}
             alt=""
             fill
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
             onError={() => setCoverFailed(true)}
             className="object-cover transition-transform duration-500 motion-safe:group-hover:scale-[1.04]"
           />
         ) : (
           <PathCoverFallback />
-        )}
-
-        {isNew && (
-          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-amber-600 px-2.5 py-0.5 text-[11px] font-semibold text-white shadow-sm">
-            <Sparkles className="h-3 w-3" aria-hidden="true" />
-            {t("badgeNew")}
-          </span>
         )}
 
         {started && (
@@ -150,16 +148,29 @@ export default function PathCard({
       </div>
 
       <div className="flex flex-1 flex-col p-4 sm:p-5">
-        {path.audience && (
-          <p className="mb-2 truncate text-[11px] font-bold uppercase tracking-[0.13em] text-brand">
-            {path.audience}
+        {(scopeLabel || isNew) && (
+          <p className="mb-2 flex items-center gap-2 text-[11px] font-bold text-brand">
+            {scopeLabel && <span className="paths-eyebrow">{scopeLabel}</span>}
+            {isNew && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-600 px-2 py-0.5 text-[10.5px] font-semibold leading-[1.4] text-white">
+                <Sparkles className="h-3 w-3" aria-hidden="true" />
+                {t("badgeNew")}
+              </span>
+            )}
           </p>
         )}
 
-        <h3 className="line-clamp-2 text-[16.5px] font-bold leading-snug text-text-heading">{title}</h3>
+        <h3 className="line-clamp-2 text-[16.5px] font-bold leading-snug text-text-heading">
+          <LangText text={title} locale={locale} />
+        </h3>
 
         {description && (
-          <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-text-muted">{description}</p>
+          <LangText
+            as="p"
+            text={description}
+            locale={locale}
+            className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-text-muted"
+          />
         )}
 
         {/* Meta. Module count is deliberately absent: "4 modules · 12 steps"

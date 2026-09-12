@@ -315,7 +315,10 @@ export default function AskWidget() {
   // sits exactly under this FAB on phones) and are a focused surface — the
   // library assistant is one tap away on the book page the reader came from.
   const pathname = usePathname();
-  const onReaderRoute = /\/books\/[^/]+\/read\/?$|\/offline-reader/.test(pathname ?? "");
+  // A learning-path detail page docks its own primary action ("Start
+  // learning") along the bottom edge on phones; two floating controls in one
+  // corner means neither reads as the next step, so the FAB steps aside there.
+  const onReaderRoute = /\/books\/[^/]+\/read\/?$|\/offline-reader|\/paths\/[^/]+\/?$/.test(pathname ?? "");
   // The resource page the reader is on. Retrieval scopes to it, so a question
   // asked here is answered from THIS document rather than the whole library.
   const pageContext = resourceContext(pathname ?? "");

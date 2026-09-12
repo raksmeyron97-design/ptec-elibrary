@@ -105,7 +105,7 @@ export default function PathFilterBar({
             placeholder={searchPlaceholder}
             /* 16px on mobile: anything smaller makes iOS Safari zoom the
                viewport on focus, which strands the visitor mid-page. */
-            className="w-full bg-transparent py-2.5 pl-10 pr-20 text-[16px] text-text-heading outline-none placeholder:text-text-muted sm:text-[14px] [&::-webkit-search-cancel-button]:appearance-none"
+            className="min-h-11 w-full bg-transparent py-2.5 pl-10 pr-20 text-[16px] text-text-heading outline-none placeholder:text-text-muted sm:text-[14px] [&::-webkit-search-cancel-button]:appearance-none"
           />
 
           <div className="absolute right-2.5 top-1/2 flex -translate-y-1/2 items-center gap-1.5">
@@ -177,9 +177,10 @@ function FacetField({
       </label>
       <select
         id={id}
+        aria-label={facet.label}
         value={facet.value}
         onChange={(e) => onChange(facet.key, e.target.value)}
-        className={`focus-field h-10 w-full min-w-0 cursor-pointer appearance-none rounded-xl border bg-bg-body pl-3 pr-8 text-[13px] font-semibold outline-none transition-colors duration-150 sm:max-w-[15rem] ${
+        className={`focus-field h-11 w-full min-w-0 cursor-pointer appearance-none rounded-xl border bg-bg-body pl-3 pr-8 text-[13px] font-semibold outline-none transition-colors duration-150 sm:max-w-[15rem] ${
           active
             ? "border-surface-brand-line bg-surface-brand-soft text-brand"
             : "border-divider text-text-body hover:border-brand/35"

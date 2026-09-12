@@ -2978,7 +2978,31 @@
     "removeFilter": "Remove filter: {label}",
     "filterSearchLabel": "Search: “{query}”",
     "activeFilters": "Filters:",
-    "filterBarLabel": "Refine learning paths"
+    "filterBarLabel": "Refine learning paths",
+    "filterTrack": "Track",
+    "filterGrade": "Grade",
+    "track": {
+      "reading": "Reading",
+      "math": "Mathematics",
+      "both": "Reading & Mathematics"
+    },
+    "grade": {
+      "g1": "Grade 1",
+      "g2": "Grade 2",
+      "g3": "Grade 3",
+      "g1_3": "Grades 1–3"
+    },
+    "allPathsHeading": "All learning paths",
+    "whoItsFor": "Who it's for",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all",
+    "progressSignInHint": "Sign in to keep your progress across devices.",
+    "backToPaths": "Learning Paths",
+    "markDone": "Mark “{title}” done",
+    "markNotDone": "Mark “{title}” not done",
+    "openStep": "Open",
+    "continueWith": "Continue · {step}",
+    "statBooks": "distinct resources"
   },
   "downloadProfile": {
     "title": "Download Access Profile",

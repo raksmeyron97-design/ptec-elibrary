@@ -42,7 +42,8 @@ export default function FilterPills({
 }) {
   if (options.length === 0) return null;
 
-  const pad = size === "sm" ? "px-3 py-1.5 text-[12px]" : "px-3.5 py-2 text-[12.5px]";
+  // Both sizes clear the 44px touch minimum; "sm" only tightens the type.
+  const pad = size === "sm" ? "min-h-11 px-3 text-[12px]" : "min-h-11 px-4 text-[13px]";
 
   return (
     <div
@@ -62,7 +63,7 @@ export default function FilterPills({
             type="button"
             aria-pressed={active}
             onClick={() => onChange(active ? "" : o.value)}
-            className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-body motion-safe:hover:-translate-y-px ${pad} ${
+            className={`inline-flex shrink-0 items-center gap-2 rounded-full border font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-body motion-safe:hover:-translate-y-px ${pad} ${
               active
                 ? "border-brand bg-brand text-brand-contrast shadow-sm shadow-brand/20"
                 : "border-divider bg-bg-surface text-text-body hover:border-brand/40 hover:text-brand hover:shadow-sm"
