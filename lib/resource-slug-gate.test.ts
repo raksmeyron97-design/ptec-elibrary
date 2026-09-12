@@ -90,6 +90,32 @@ describe("RESOURCE_GATES config maps each type to its real table + public column
     });
   });
 
+  it("subjects gate on EXISTENCE — categories has no publication column", () => {
+    // A category is public by existing. Whether its PAGE is indexable is a
+    // different question, answered by resource count (the page emits noindex
+    // and getIndexableSubjects() drops it from the sitemap) — never by a
+    // column. Gating on a column that does not exist would 404 every subject.
+    expect(RESOURCE_GATES.subjects).toEqual({ table: "categories" });
+    expect(RESOURCE_GATES.subjects).not.toHaveProperty("publishedColumn");
+  });
+
+  it("subjects declares no reserved segments, because it has no static children", () => {
+    expect(RESOURCE_GATES.subjects).not.toHaveProperty("reserved");
+  });
+
+  it("every gate either names a publication column or deliberately omits one", () => {
+    // Guards the `&undefined=eq.true` failure mode: a filter PostgREST
+    // rejects, which fails the gate OPEN and silently stops gating a resource
+    // while every test above still passes.
+    for (const [name, cfg] of Object.entries(RESOURCE_GATES)) {
+      const col = (cfg as { publishedColumn?: unknown }).publishedColumn;
+      expect(
+        col === undefined || (typeof col === "string" && col.length > 0),
+        `${name}: publishedColumn must be a non-empty string or absent`,
+      ).toBe(true);
+    }
+  });
+
   it("catalogs is the only gate carrying a redirect map — it is the only one whose slug is editable after creation", () => {
     const withRedirects = Object.entries(RESOURCE_GATES)
       .filter(([, cfg]) => "redirectTable" in cfg)

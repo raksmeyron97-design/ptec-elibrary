@@ -35,8 +35,17 @@ export type SlugGateEnv = { supabaseUrl: string; anonKey: string };
 export type ResourceGateConfig = {
   /** PostgREST table name, e.g. "research_reports". */
   table: string;
-  /** Boolean column that must be true for a public row, e.g. "is_published". */
-  publishedColumn: string;
+  /**
+   * Boolean column that must be true for a public row, e.g. "is_published".
+   *
+   * OPTIONAL, because not every gated table has a publication lifecycle.
+   * `categories` (subjects) has none: a category row is public by existing,
+   * and whether its PAGE is indexable is a separate question decided by
+   * resource COUNT (getIndexableSubjects / the page's own noindex), not by a
+   * column. Omitting it drops the `=eq.true` filter and gates on existence
+   * alone — which is exactly what a 404 should mean.
+   */
+  publishedColumn?: string;
   /**
    * Path segments under this resource that are REAL STATIC ROUTES, not slugs.
    *
@@ -63,6 +72,18 @@ export type ResourceGateConfig = {
    */
   redirectTable?: string;
 };
+
+/**
+ * The PostgREST filter restricting a gate query to public rows.
+ *
+ * Empty when the table has no publication column. It is built here, once, so
+ * that a table without one cannot produce `&undefined=eq.true` — a filter
+ * PostgREST rejects, which would make the gate fail open on every request and
+ * silently stop gating that resource.
+ */
+function publishedFilter(cfg: ResourceGateConfig, prefix = ""): string {
+  return cfg.publishedColumn ? `&${prefix}${cfg.publishedColumn}=eq.true` : "";
+}
 
 export const RESOURCE_GATES = {
   theses: {
@@ -128,6 +149,27 @@ export const RESOURCE_GATES = {
   // five gates above exist to close, on the one public resource type that was
   // never added to the list.
   paths: { table: "learning_paths", publishedColumn: "is_published" },
+
+  /**
+   * Subjects gate on EXISTENCE, not on a publication flag.
+   *
+   * Before this, `/subjects/<anything>` answered 200 for every string on
+   * earth: the page calls notFound(), but a public route with a loading.tsx
+   * streams its shell first, so the status was already sent. Measured on
+   * production 2026-09-12, /subjects/definitely-not-real-xyz returned 200 —
+   * an unbounded soft-404 space, and the one public detail route with no gate
+   * (docs/SEO-3.0-AUDIT.md F-6).
+   *
+   * An EMPTY but real category still answers 200, and that is correct: it
+   * exists, so it is not a 404. Its page already emits `noindex` and
+   * getIndexableSubjects() keeps it out of the sitemap.
+   *
+   * `categories` is anon-readable (RLS "Categories are viewable by everyone"
+   * + `grant select` in 0117), which the gate depends on: it reads with the
+   * anon key, and a table RLS hid from anon would return zero rows and be
+   * indistinguishable from "no such slug" — 404ing every real subject page.
+   */
+  subjects: { table: "categories" },
 } as const satisfies Record<string, ResourceGateConfig>;
 
 /** Pure resolution against a snapshot — unit-tested. */
@@ -183,7 +225,7 @@ async function fetchRedirects(
     const res = await fetch(
       `${env.supabaseUrl}/rest/v1/${cfg.redirectTable}` +
         `?select=old_slug,${cfg.table}!inner(slug)` +
-        `&${cfg.table}.${cfg.publishedColumn}=eq.true&limit=${ROW_CAP}`,
+        `${publishedFilter(cfg, `${cfg.table}.`)}&limit=${ROW_CAP}`,
       { headers: restHeaders(env) },
     );
     if (!res.ok) return map;
@@ -206,7 +248,7 @@ async function fetchSnapshot(
   try {
     const [res, redirects] = await Promise.all([
       fetch(
-        `${env.supabaseUrl}/rest/v1/${cfg.table}?select=slug&${cfg.publishedColumn}=eq.true&slug=not.is.null&limit=${ROW_CAP}`,
+        `${env.supabaseUrl}/rest/v1/${cfg.table}?select=slug${publishedFilter(cfg)}&slug=not.is.null&limit=${ROW_CAP}`,
         { headers: restHeaders(env) },
       ),
       fetchRedirects(cfg, env),
@@ -256,7 +298,7 @@ async function confirmSlug(
   try {
     const enc = encodeURIComponent(slug);
     const res = await fetch(
-      `${env.supabaseUrl}/rest/v1/${cfg.table}?select=slug&slug=eq.${enc}&${cfg.publishedColumn}=eq.true&limit=1`,
+      `${env.supabaseUrl}/rest/v1/${cfg.table}?select=slug&slug=eq.${enc}${publishedFilter(cfg)}&limit=1`,
       { headers: restHeaders(env) },
     );
     if (!res.ok) return null; // gate unavailable — fail open
@@ -287,7 +329,7 @@ async function confirmRedirect(
     const res = await fetch(
       `${env.supabaseUrl}/rest/v1/${cfg.redirectTable}` +
         `?select=old_slug,${cfg.table}!inner(slug)` +
-        `&old_slug=eq.${enc}&${cfg.table}.${cfg.publishedColumn}=eq.true&limit=1`,
+        `&old_slug=eq.${enc}${publishedFilter(cfg, `${cfg.table}.`)}&limit=1`,
       { headers: restHeaders(env) },
     );
     if (!res.ok) return { kind: "not-found" };
