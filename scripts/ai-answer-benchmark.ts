@@ -54,6 +54,16 @@ import {
   modelReasoningAssessable,
   type AnswerDiagnosis,
 } from "../lib/ai/answer-failure";
+import {
+  EVIDENCE_SCOPES,
+
+  evaluateAnswer,
+  scopeCensus,
+  type AnswerEvaluation,
+  type EvidenceScope,
+  type ObservedPassage,
+  type QuestionLabel,
+} from "../lib/ai/evaluation";
 import type { AITrace } from "../lib/ai/trace";
 
 config({ path: ".env.local" });
@@ -66,14 +76,43 @@ const valueOf = (f: string) => {
   return i >= 0 ? ARGV[i + 1] : undefined;
 };
 
-const LIVE = has("--live");
+/**
+ * A named LIVE suite (scripts/ai-answer-benchmark/live-suites.json): `smoke`
+ * for the weekly run, `regression` after a change to the prompt, the output
+ * budget, the citation parser or the provider.
+ *
+ * Naming the set rather than typing ids is what makes a live run reproducible
+ * and its cost a number somebody chose. It implies `--live`.
+ */
+const LIVE_SUITE = valueOf("--live-suite");
+/** Append one row of headline metrics to artifacts/ai-quality/<date>.json. */
+const ARTIFACT = has("--artifact");
+/** Fail the process on a HARD quality regression (see LIVE_GATES). */
+const GATE = has("--gate");
+
+const LIVE = has("--live") || Boolean(LIVE_SUITE);
 const VERBOSE = has("--verbose");
 const JSON_OUT = has("--json");
 const ONLY = valueOf("--category");
 /** Which fixture: `v1` (the original 123, the permanent baseline), `v2` (the edge-case suite), or `all`. */
 const SUITE = valueOf("--suite") ?? "v1";
 /** Comma-separated question ids — a small, deliberate set for a --live run. */
-const IDS = valueOf("--ids")?.split(",").map((s) => s.trim()).filter(Boolean);
+const EXPLICIT_IDS = valueOf("--ids")?.split(",").map((s) => s.trim()).filter(Boolean);
+const SUITE_IDS = LIVE_SUITE
+  ? ((): string[] => {
+      const file = JSON.parse(
+        readFileSync("scripts/ai-answer-benchmark/live-suites.json", "utf8"),
+      ) as { suites: Record<string, { description: string; ids: string[] }> };
+      const suite = file.suites[LIVE_SUITE];
+      if (!suite) {
+        throw new Error(
+          `unknown live suite "${LIVE_SUITE}" — have ${Object.keys(file.suites).join(", ")}`,
+        );
+      }
+      return suite.ids;
+    })()
+  : undefined;
+const IDS = EXPLICIT_IDS ?? SUITE_IDS;
 const COMPARE = valueOf("--compare");
 const DIAGNOSE = has("--diagnose");
 /** Write the human-readable failure matrix (every failing question, stage by stage) to this file. */
@@ -95,6 +134,13 @@ interface Question {
   expectNoAnswer?: boolean;
   templateOk?: boolean;
   note?: string;
+  // ── v2.1 label fields. v1 and v2 carry none of these; the evaluator derives
+  // what it needs from the fields above, so both fixtures stay byte-identical.
+  evidenceScope?: EvidenceScope;
+  requiredDocuments?: string[];
+  pages?: Record<string, number[]>;
+  pageRange?: Record<string, [number, number]>;
+  requiredClaims?: string[];
 }
 
 interface Row {
@@ -134,6 +180,29 @@ interface Row {
   trace: AITrace | null;
   /** Where the answer came from: a template, or a generated reply. */
   answerClass: "template" | "generated" | "refusal" | "empty";
+  /**
+   * What the PROVIDER did, for a live run. Counts and enums only, exactly as
+   * lib/ai/telemetry.ts's contract requires — no prompt, no key, no user.
+   */
+  live: {
+    provider: string | null;
+    model: string | null;
+    /** "stop" is the only value that means the reader saw a whole answer. */
+    finishReason: string | null;
+    inputTokens: number;
+    outputTokens: number;
+    /** Reasoning tokens, when the provider reports them separately. */
+    totalTokens: number;
+    latencyMs: number;
+    citations: { grounded: number; hallucinated: number; quoted: number; attached: number };
+  } | null;
+  /**
+   * The 2.1 scorecard: every metric under the scope its LABEL can carry
+   * (lib/ai/evaluation.ts). Reported beside the legacy columns rather than
+   * instead of them, so v1's historical numbers stay reproducible from the
+   * same run.
+   */
+  evaluation: AnswerEvaluation;
 }
 
 /** A refusal, in either language, from lib/ai/templates.ts or the model. */
@@ -172,7 +241,7 @@ console.error = (...args: unknown[]) => {
   originalError(...args);
 };
 
-async function main() {
+async function main(): Promise<number> {
   type Fixture = { generatedAt: string; corpusBooks: number; questions: Question[] };
   const load = (file: string) => JSON.parse(readFileSync(`scripts/ai-answer-benchmark/${file}`, "utf8")) as Fixture;
   const v1 = load("questions.json");
@@ -258,6 +327,47 @@ async function main() {
           ? "template"
           : "generated";
 
+    // ── The 2.1 scorecard ─────────────────────────────────────────────────
+    // Built from the SAME observations the legacy columns use — nothing here
+    // re-runs anything — but scored under the scope the label can carry.
+    const label: QuestionLabel = {
+      id: q.id,
+      category: q.category,
+      question: q.question,
+      evidenceScope: q.evidenceScope,
+      sources: q.sources,
+      requiredDocuments: q.requiredDocuments,
+      pages: q.pages,
+      pageRange: q.pageRange,
+      requiredClaims: q.requiredClaims,
+      scoped: Boolean(q.scope),
+      templateOk: q.templateOk,
+      expectNoAnswer: q.expectNoAnswer,
+      expectGrounded: q.expectGrounded,
+      expectIntent: q.expectIntent,
+    };
+    const observedPassages: ObservedPassage[] = (trace?.evidence ?? []).map((e) => ({
+      slug: slugOfUrl(e.url) || e.recordId,
+      page: e.page,
+      pageEnd: e.pageEnd,
+      lexical: e.signals?.lexical,
+      semantic: e.signals?.semantic,
+    }));
+    const evaluation = evaluateAnswer(label, {
+      intent: telemetry?.intent ?? "error",
+      deterministic,
+      answeredAsRefusal: refusal,
+      answerNonEmpty: answer.trim().length > 0,
+      answerText: answer,
+      passages: observedPassages,
+      resultSlugs: evidenceSlugs,
+      citedSlugs,
+      groundedCitations: telemetry?.groundedCitations ?? sources.length,
+      hallucinatedCitations: telemetry?.hallucinatedCitations ?? 0,
+      resolvedEntitySlug: trace?.retrieval.entity?.slug ?? null,
+      finishReason: telemetry?.finishReason ?? null,
+    });
+
     // The classification is a function of what was MEASURED above — never of
     // the answer's prose, and never of which stage seems likeliest.
     const diagnosis = diagnoseAnswer({
@@ -269,6 +379,8 @@ async function main() {
       answeredAsRefusal: refusal,
       evidenceCount: telemetry?.evidenceCount ?? 0,
       expectedSourceFound: retrievalOk !== false,
+      entityResolved: evaluation.entityOk,
+      answerCorrect: evaluation.answerCorrect,
       contextPrecision,
       // Only a question scoped to ONE record has an exhaustive label.
       expectedSourcesExhaustive: Boolean(q.scope),
@@ -306,6 +418,24 @@ async function main() {
       retrievalMode: telemetry?.retrievalMode ?? null,
       trace,
       answerClass,
+      evaluation,
+      live: LIVE
+        ? {
+            provider: telemetry?.provider ?? null,
+            model: telemetry?.model ?? null,
+            finishReason: telemetry?.finishReason ?? null,
+            inputTokens: telemetry?.inputTokens ?? 0,
+            outputTokens: telemetry?.outputTokens ?? 0,
+            totalTokens: telemetry?.totalTokens ?? 0,
+            latencyMs: telemetry?.latencyMs ?? 0,
+            citations: {
+              grounded: trace?.citations.grounded ?? 0,
+              hallucinated: trace?.citations.hallucinated ?? 0,
+              quoted: trace?.citations.quoted ?? 0,
+              attached: trace?.citations.attached ?? 0,
+            },
+          }
+        : null,
     });
 
     if (VERBOSE) {
@@ -346,6 +476,28 @@ async function main() {
 
   const overall = agg(rows);
   const byCategory = Object.fromEntries(cats.map((c) => [c, agg(rows.filter((r) => r.category === c))]));
+
+  // ── The 2.1 scorecard ─────────────────────────────────────────────────────
+  // Every metric under the scope its label can carry, and every metric the
+  // label cannot carry EXCLUDED rather than counted as a zero. That single
+  // rule is what separates a ranking defect from a recall list.
+  const evaluation21 = buildEvaluation(rows);
+  const byScope = Object.fromEntries(
+    EVIDENCE_SCOPES.filter((sc) => rows.some((r) => r.evaluation.scope === sc)).map((sc) => [
+      sc,
+      buildEvaluation(rows.filter((r) => r.evaluation.scope === sc)),
+    ]),
+  );
+  const census = scopeCensus(all.map((q) => ({
+    id: q.id,
+    category: q.category,
+    question: q.question,
+    evidenceScope: q.evidenceScope,
+    sources: q.sources,
+    scoped: Boolean(q.scope),
+    templateOk: q.templateOk,
+    expectNoAnswer: q.expectNoAnswer,
+  })));
   const latencies = rows.map((r) => r.latencyMs).sort((a, b) => a - b);
   const quantile = (q: number) => latencies[Math.min(latencies.length - 1, Math.floor(latencies.length * q))] ?? 0;
   const report = {
@@ -358,6 +510,10 @@ async function main() {
     latency: { p50Ms: quantile(0.5), p95Ms: quantile(0.95) },
     overall,
     byCategory,
+    /** AI Brain 2.1: the scope-aware scorecard. */
+    evaluation21,
+    byScope,
+    scopeCensus: census,
     rows,
   };
 
@@ -389,6 +545,47 @@ async function main() {
     console.log("-".repeat(head.length));
     line("ALL", overall);
     console.log(`\nlatency p50 ${report.latency.p50Ms} ms · p95 ${report.latency.p95Ms} ms · tok-out ${overall.tokOut}/question`);
+
+    // ── AI Brain 2.1 ────────────────────────────────────────────────────────
+    const show = (v: { n: number; value: number | null }) =>
+      v.value === null ? "    n/a" : `${(v.value * 100).toFixed(0).padStart(4)}% (${v.n})`;
+    const rate = (v: number) => `${(v * 100).toFixed(1).padStart(5)}%`;
+    console.log(`\n${"─".repeat(78)}\nEVALUATION 2.1 — every metric under the scope its LABEL can carry\n${"─".repeat(78)}`);
+    console.log(
+      `scope census: ` +
+        EVIDENCE_SCOPES.filter((sc) => census[sc] > 0).map((sc) => `${sc} ${census[sc]}`).join(" · "),
+    );
+    const e = evaluation21;
+    console.log(
+      `\n  routing              ${show(e.routing)}\n` +
+        `  entity resolution    ${show(e.entityResolution)}\n` +
+        `  retrieval            ${show(e.retrieval)}\n` +
+        `  context sufficiency  ${show(e.contextSufficiency)}\n` +
+        `  context relevance    ${show(e.contextRelevance)}   ← label-bound; unscoped topics excluded, not zeroed\n` +
+        `  evidence coverage    ${show(e.evidenceCoverage)}   ← label-FREE: passages carrying a real signal\n` +
+        `  irrelevant context   ${show(e.irrelevantContextRatio)}   ← label-free\n` +
+        `  duplicate context    ${show(e.duplicateContextRatio)}   ← label-free\n` +
+        `  multi-doc recall     ${show(e.multiDocumentRecall)}   ← share of REQUIRED works that contributed\n` +
+        `  groundedness         ${show(e.groundedness)}\n` +
+        `  citation correctness ${show(e.citationCorrectness)}\n` +
+        `  answer correctness   ${show(e.answerCorrectness)}   ← requiredClaims only; null where unstated\n` +
+        `  no-answer recall     ${show(e.noAnswerRecall)}\n` +
+        `  false no-answer      ${rate(e.falseNoAnswerRate)}   ← answerable question refused\n` +
+        `  unsupported answer   ${rate(e.unsupportedAnswerRate)}   ← unanswerable question answered\n` +
+        `  wrong document       ${rate(e.wrongDocumentRate)}\n` +
+        `  wrong page           ${rate(e.wrongPageRate)}\n` +
+        `  finishReason ≠ stop  ${e.finishReasonFailures}`,
+    );
+    const head21 = "scope             n   routing  entity  retrieval  ctx-suff  ctx-rel  coverage  irrelev  grounded";
+    console.log(`\n${head21}`);
+    console.log("-".repeat(head21.length));
+    for (const [sc, v] of Object.entries(byScope)) {
+      console.log(
+        `${sc.padEnd(17)} ${String(v.n).padEnd(3)} ${show(v.routing).padEnd(8)} ${show(v.entityResolution).padEnd(7)} ` +
+          `${show(v.retrieval).padEnd(10)} ${show(v.contextSufficiency).padEnd(9)} ${show(v.contextRelevance).padEnd(8)} ` +
+          `${show(v.evidenceCoverage).padEnd(9)} ${show(v.irrelevantContextRatio).padEnd(8)} ${show(v.groundedness)}`,
+      );
+    }
     const truncated = rows.filter((r) => r.trace?.outcome.finishReason === "length");
     if (truncated.length) {
       console.log(`\n!! ${truncated.length} answer(s) were CUT by the output cap (finishReason=length): ${truncated.map((r) => r.id).join(", ")}`);
@@ -455,6 +652,84 @@ async function main() {
     }
   }
 
+  // ── Live run: provider, cost, and the gates ───────────────────────────────
+  const live = LIVE ? liveMetrics(rows, evaluation21) : null;
+  let hardFailures: LiveGate[] = [];
+  if (live && !JSON_OUT) {
+    const models = [...new Set(rows.map((r) => r.live?.model).filter(Boolean))];
+    const providers = [...new Set(rows.map((r) => r.live?.provider).filter(Boolean))];
+    console.log(`\n${"─".repeat(78)}\nLIVE MODEL — ${LIVE_SUITE ? `suite ${LIVE_SUITE}` : "ad-hoc set"}\n${"─".repeat(78)}`);
+    console.log(
+      `provider ${providers.join(", ") || "—"} · model ${models.join(", ") || "—"} · ` +
+        `${live.modelCalls} model call(s) of ${rows.length} question(s)\n` +
+        `tokens: in ${live.inputTokens} · out ${live.outputTokens} · total ${live.totalTokens}` +
+        `${live.modelCalls ? ` (${Math.round(live.totalTokens / live.modelCalls)}/call)` : ""}\n` +
+        `model latency p50 ${live.latencyP50} ms · p95 ${live.latencyP95} ms\n` +
+        `citations: ${live.groundedCitations} grounded · ${live.hallucinatedCitations} hallucinated`,
+    );
+    console.log("\ngates");
+    for (const g of LIVE_GATES) {
+      const bad = g.failed(live);
+      console.log(
+        `  ${bad ? (g.hard ? "HARD FAIL" : "warn     ") : "ok       "} ${g.id.padEnd(22)} ${g.describe}` +
+          `${bad ? ` — ${g.actual(live)}` : ""}`,
+      );
+    }
+    hardFailures = LIVE_GATES.filter((g) => g.hard && g.failed(live));
+  }
+
+  // ── Historical artifact (§22) ─────────────────────────────────────────────
+  // Headline metrics only, one file per run, machine-readable. Never a prompt,
+  // never an answer, never a key: a trend file that carries model output is a
+  // trend file nobody can publish.
+  if (ARTIFACT) {
+    const dir = "artifacts/ai-quality";
+    mkdirSync(dir, { recursive: true });
+    const num = (v: number | null) => (v === null ? null : Number(v.toFixed(4)));
+    const artifact = {
+      date: new Date().toISOString().slice(0, 10),
+      generatedAt: report.generatedAt,
+      suite: SUITE,
+      liveSuite: LIVE_SUITE ?? null,
+      live: LIVE,
+      degraded: embeddingFailures > 0,
+      questions: rows.length,
+      corpusBooks: fixture.corpusBooks,
+      model: [...new Set(rows.map((r) => r.live?.model).filter(Boolean))].join(",") || null,
+      provider: [...new Set(rows.map((r) => r.live?.provider).filter(Boolean))].join(",") || null,
+      routing: num(evaluation21.routing.value),
+      entityResolution: num(evaluation21.entityResolution.value),
+      retrieval: num(evaluation21.retrieval.value),
+      contextSufficiency: num(evaluation21.contextSufficiency.value),
+      contextRelevance: num(evaluation21.contextRelevance.value),
+      evidenceCoverage: num(evaluation21.evidenceCoverage.value),
+      irrelevantContextRatio: num(evaluation21.irrelevantContextRatio.value),
+      multiDocumentRecall: num(evaluation21.multiDocumentRecall.value),
+      groundedness: num(evaluation21.groundedness.value),
+      citationCorrectness: num(evaluation21.citationCorrectness.value),
+      answerCorrectness: num(evaluation21.answerCorrectness.value),
+      noAnswerRecall: num(evaluation21.noAnswerRecall.value),
+      falseNoAnswerRate: num(evaluation21.falseNoAnswerRate),
+      unsupportedAnswerRate: num(evaluation21.unsupportedAnswerRate),
+      wrongDocumentRate: num(evaluation21.wrongDocumentRate),
+      wrongPageRate: num(evaluation21.wrongPageRate),
+      finishReasonFailures: evaluation21.finishReasonFailures,
+      hallucinatedCitations: live?.hallucinatedCitations ?? 0,
+      groundedCitations: live?.groundedCitations ?? 0,
+      modelCalls: live?.modelCalls ?? 0,
+      inputTokens: live?.inputTokens ?? 0,
+      outputTokens: live?.outputTokens ?? 0,
+      totalTokens: live?.totalTokens ?? 0,
+      latencyP50Ms: report.latency.p50Ms,
+      latencyP95Ms: report.latency.p95Ms,
+      scopeCensus: census,
+    };
+    const stamp = report.generatedAt.replace(/[:.]/g, "-");
+    const file = `${dir}/${artifact.date}${LIVE ? "-live" : ""}${LIVE_SUITE ? `-${LIVE_SUITE}` : ""}-${stamp.slice(11, 19)}.json`;
+    writeFileSync(file, `${JSON.stringify(artifact, null, 1)}\n`);
+    if (!JSON_OUT) console.log(`\nWrote ${file}`);
+  }
+
   if (COMPARE) {
     const prev = JSON.parse(readFileSync(COMPARE, "utf8")) as { overall: typeof overall };
     console.log("\nvs baseline:");
@@ -472,6 +747,215 @@ async function main() {
   const path = `scripts/ai-answer-benchmark/results/${new Date().toISOString().replace(/[:.]/g, "-")}${SUITE !== "v1" ? `-${SUITE}` : ""}${LIVE ? "-live" : ""}${embeddingFailures ? "-DEGRADED" : ""}.json`;
   writeFileSync(path, JSON.stringify(report, null, 1));
   if (!JSON_OUT) console.log(`\nWrote ${path}`);
+
+  // ── The exit code ─────────────────────────────────────────────────────────
+  // `--gate` fails ONLY on a hard regression, and only on a run that is
+  // comparable: a run whose embedding provider was unreachable describes the
+  // outage, and failing a scheduled job on that would teach everybody to
+  // ignore it. A degraded run is announced and passes.
+  if (GATE && hardFailures.length && embeddingFailures === 0) {
+    console.log(
+      `\nHARD QUALITY REGRESSION — ${hardFailures.map((g) => g.id).join(", ")}.\n` +
+        `See docs/AI-BRAIN-2-1-LIVE-MONITORING.md for what each gate means and what to do.`,
+    );
+    return 1;
+  }
+  if (GATE && embeddingFailures > 0) {
+    console.log("\n--gate: the run was DEGRADED, so its numbers are not comparable. Not failing on them.");
+  }
+  return 0;
+}
+
+const ratioOf = (rs: Row[], pick: (e: AnswerEvaluation) => boolean | null) => {
+  const scorable = rs.map((r) => pick(r.evaluation)).filter((v): v is boolean => v !== null);
+  return { n: scorable.length, value: scorable.length ? scorable.filter(Boolean).length / scorable.length : null };
+};
+const meanOf = (rs: Row[], pick: (e: AnswerEvaluation) => number | null) => {
+  const vals = rs.map((r) => pick(r.evaluation)).filter((v): v is number => v !== null);
+  return { n: vals.length, value: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null };
+};
+/**
+ * The 2.1 scorecard for a set of rows.
+ *
+ * Every metric under the scope its LABEL can carry, and every metric the
+ * label cannot carry EXCLUDED — null, and out of the denominator — rather
+ * than counted as a zero. That single rule is what separates a ranking defect
+ * from a recall list, and it is why `n` travels beside each value: a number
+ * over three questions and a number over ninety are not the same number.
+ */
+function buildEvaluation(rs: Row[]) {
+  return {
+    n: rs.length,
+    routing: ratioOf(rs, (e) => e.routingOk),
+    entityResolution: ratioOf(rs, (e) => e.entityOk),
+    retrieval: ratioOf(rs, (e) => e.retrievalOk),
+    contextSufficiency: ratioOf(rs, (e) => e.contextSufficiency),
+    contextRelevance: meanOf(rs, (e) => e.contextRelevance),
+    evidenceCoverage: meanOf(rs, (e) => e.evidenceCoverage),
+    irrelevantContextRatio: meanOf(rs, (e) => e.irrelevantContextRatio),
+    duplicateContextRatio: meanOf(rs, (e) => e.duplicateContextRatio),
+    multiDocumentRecall: meanOf(rs, (e) => e.multiDocumentRecall),
+    groundedness: ratioOf(rs, (e) => e.groundedOk),
+    citationCorrectness: ratioOf(rs, (e) => e.citationOk),
+    answerCorrectness: ratioOf(rs, (e) => e.answerCorrect),
+    noAnswerRecall: ratioOf(rs, (e) => e.noAnswerOk),
+    falseNoAnswerRate: rs.filter((r) => r.evaluation.falseNoAnswer).length / Math.max(rs.length, 1),
+    unsupportedAnswerRate:
+      rs.filter((r) => r.evaluation.unsupportedAnswer).length /
+      Math.max(rs.filter((r) => r.evaluation.scope === "no_evidence").length, 1),
+    wrongDocumentRate: rs.filter((r) => r.evaluation.wrongDocument).length / Math.max(rs.length, 1),
+    wrongPageRate: rs.filter((r) => r.evaluation.wrongPage).length / Math.max(rs.length, 1),
+    finishReasonFailures: rs.filter(
+      (r) => r.trace?.outcome.finishReason && r.trace.outcome.finishReason !== "stop",
+    ).length,
+  };
+}
+
+/**
+ * What a LIVE run may not do, and what merely warrants a look.
+ *
+ * THE SPLIT IS THE POINT (§23 of the AI Brain 2.1 brief). A real model's
+ * wording moves run to run and a channel that pages somebody for that stops
+ * being read within a month. So the HARD gates are all properties that are
+ * either true or false regardless of phrasing — a citation the retrieval set
+ * does not contain, an answer the output cap cut off, an unanswerable
+ * question answered — and everything else is a warning with a number beside
+ * it.
+ *
+ * `finishReason` is first because it is the defect AI Brain 2.0 found and
+ * could not have found offline: Gemini charges thinking tokens against
+ * `maxOutputTokens`, so every evidence answer was being cut after one
+ * sentence while every mock metric stayed green. lib/ai/output-budget.test.ts
+ * pins the arithmetic; only a live run can prove the provider still agrees
+ * with it.
+ */
+interface LiveGate {
+  id: string;
+  hard: boolean;
+  describe: string;
+  /** True when the run VIOLATES the gate. */
+  failed: (m: LiveMetrics) => boolean;
+  actual: (m: LiveMetrics) => string;
+}
+
+interface LiveMetrics {
+  modelCalls: number;
+  finishReasonFailures: number;
+  hallucinatedCitations: number;
+  groundedCitations: number;
+  unsupportedAnswers: number;
+  wrongDocuments: number;
+  /** Wrong-document answers that did NOT tell the reader anything was missing. */
+  silentWrongDocuments: number;
+  falseNoAnswers: number;
+  groundedness: number | null;
+  answerCorrectness: number | null;
+  emptyAnswers: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  latencyP50: number;
+  latencyP95: number;
+}
+
+const LIVE_GATES: readonly LiveGate[] = [
+  {
+    id: "finish-reason",
+    hard: true,
+    describe: "every answer finished (finishReason=stop)",
+    failed: (m) => m.finishReasonFailures > 0,
+    actual: (m) => `${m.finishReasonFailures} answer(s) did not finish`,
+  },
+  {
+    id: "hallucinated-citations",
+    hard: true,
+    describe: "no citation names a page the retrieval set does not contain",
+    failed: (m) => m.hallucinatedCitations > 0,
+    actual: (m) => `${m.hallucinatedCitations} hallucinated`,
+  },
+  {
+    id: "unsupported-answers",
+    hard: true,
+    describe: "no unanswerable question was answered",
+    failed: (m) => m.unsupportedAnswers > 0,
+    actual: (m) => `${m.unsupportedAnswers} answered`,
+  },
+  {
+    id: "wrong-document",
+    hard: true,
+    // SILENT is the operative word, and it was bought with a false alarm.
+    //
+    // The first live smoke run failed this gate on cmp-002, a comparison of
+    // two works where one side had no indexed passages. The model's answer
+    // opened "a full comparison is not possible because one of the sides is
+    // missing from the passages" and then named what it did have. Retrieval
+    // was genuinely incomplete — `multiDocumentRecall` 0.5, exactly what that
+    // metric exists to catch — but the ANSWER was honest, and paging somebody
+    // at 2 a.m. for a system correctly reporting its own gap is how a channel
+    // stops being read (§23).
+    //
+    // So the hard gate is the dangerous case only: an answer built on the
+    // wrong works that does NOT say so. The honest one is counted, reported,
+    // and left to the weekly trend.
+    describe: "no answer SILENTLY drew on works outside the ones its question required",
+    failed: (m) => m.silentWrongDocuments > 0,
+    actual: (m) =>
+      `${m.silentWrongDocuments} silent of ${m.wrongDocuments} wrong-document answer(s)`,
+  },
+  {
+    id: "empty-answers",
+    hard: true,
+    describe: "no model call returned nothing",
+    failed: (m) => m.emptyAnswers > 0,
+    actual: (m) => `${m.emptyAnswers} empty`,
+  },
+  {
+    id: "groundedness",
+    hard: false,
+    describe: "≥ 95% of answers that owed a citation carry one",
+    failed: (m) => m.groundedness !== null && m.groundedness < 0.95,
+    actual: (m) => (m.groundedness === null ? "n/a" : `${(m.groundedness * 100).toFixed(0)}%`),
+  },
+  {
+    id: "false-no-answer",
+    hard: false,
+    describe: "no answerable question was refused",
+    failed: (m) => m.falseNoAnswers > 0,
+    actual: (m) => `${m.falseNoAnswers} refused`,
+  },
+  {
+    id: "answer-correctness",
+    hard: false,
+    describe: "every requiredClaim the labels state is present",
+    failed: (m) => m.answerCorrectness !== null && m.answerCorrectness < 1,
+    actual: (m) => (m.answerCorrectness === null ? "n/a" : `${(m.answerCorrectness * 100).toFixed(0)}%`),
+  },
+];
+
+function liveMetrics(rows: readonly Row[], e: ReturnType<typeof buildEvaluation>): LiveMetrics {
+  const model = rows.filter((r) => r.live && !r.deterministic);
+  const lat = model.map((r) => r.live!.latencyMs).sort((a, b) => a - b);
+  const q = (p: number) => lat[Math.min(lat.length - 1, Math.floor(lat.length * p))] ?? 0;
+  return {
+    modelCalls: model.length,
+    finishReasonFailures: model.filter((r) => r.live!.finishReason && r.live!.finishReason !== "stop").length,
+    hallucinatedCitations: rows.reduce((n, r) => n + (r.live?.citations.hallucinated ?? 0), 0),
+    groundedCitations: rows.reduce((n, r) => n + (r.live?.citations.grounded ?? 0), 0),
+    unsupportedAnswers: rows.filter((r) => r.evaluation.unsupportedAnswer).length,
+    wrongDocuments: rows.filter((r) => r.evaluation.wrongDocument).length,
+    silentWrongDocuments: rows.filter(
+      (r) => r.evaluation.wrongDocument && r.answerClass !== "refusal" && r.answerChars > 0,
+    ).length,
+    falseNoAnswers: rows.filter((r) => r.evaluation.falseNoAnswer).length,
+    groundedness: e.groundedness.value,
+    answerCorrectness: e.answerCorrectness.value,
+    emptyAnswers: model.filter((r) => r.answerChars === 0).length,
+    inputTokens: rows.reduce((n, r) => n + (r.live?.inputTokens ?? 0), 0),
+    outputTokens: rows.reduce((n, r) => n + (r.live?.outputTokens ?? 0), 0),
+    totalTokens: rows.reduce((n, r) => n + (r.live?.totalTokens ?? 0), 0),
+    latencyP50: q(0.5),
+    latencyP95: q(0.95),
+  };
 }
 
 /**
@@ -532,7 +1016,9 @@ function renderFailureMatrix(rows: Row[], corpus: string, live: boolean): string
 /** Expected intents by question id, for the matrix. Filled in main(). */
 const fixtureIntents = new Map<string, string[]>();
 
-main().then(() => process.exit(0)).catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+main()
+  .then((code) => process.exit(code ?? 0))
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });

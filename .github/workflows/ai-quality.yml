@@ -1,0 +1,153 @@
+# Weekly AI answer-quality monitor.
+#
+# WHY THIS EXISTS, and why it cannot be a PR check
+# ────────────────────────────────────────────────
+# AI Brain 2.0 fixed two defects that the offline benchmark is structurally
+# blind to — Gemini charging thinking tokens against `maxOutputTokens`, so
+# most evidence answers were cut off after one sentence, and a grounding
+# parser that read one citation form while the model wrote six. Every mock
+# metric was green throughout. A suite that only ever runs against a mock
+# cannot see a provider change, and a provider is a thing that changes
+# without telling you.
+#
+# It runs weekly rather than per-PR for two reasons, both from §28 of the
+# brief. It COSTS money — real generation calls against the production model
+# — and a check that bills on every push is a check somebody turns off. And
+# it needs the production corpus: CI has no Supabase with 270 books in it, so
+# a run here would measure an empty library.
+#
+# WHAT IT CAN AND CANNOT FAIL ON (§23)
+# ────────────────────────────────────
+# `--gate` fails the job ONLY on a hard regression: an answer the output cap
+# cut off, a citation naming a page the retrieval set does not contain, an
+# unanswerable question answered, an answer drawn from outside the works its
+# question required, an empty model response. Every one of those is true or
+# false regardless of how the model phrased itself.
+#
+# Wording drift, latency drift and small retrieval fluctuation are WARNINGS
+# printed in the summary and never a failure. A model's prose moves run to
+# run; a job that goes red for that stops being read within a month, which is
+# the failure mode this split exists to avoid.
+#
+# A run whose embedding provider was unreachable is announced as DEGRADED and
+# passes: its numbers describe the outage, not the pipeline, and failing on
+# them teaches everybody to ignore the job.
+#
+# READ-ONLY. Every statement the benchmark issues is a SELECT (§29); it
+# creates no content, mutates no reader state and writes nothing to the
+# database.
+#
+# Required repository secrets:
+#   NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
+#   SUPABASE_SERVICE_ROLE_KEY   the production corpus, read-only
+#   GEMINI_API_KEY              the model under test
+# Without them the job SKIPS rather than failing: a red cross that means
+# "unconfigured" is indistinguishable from one that means "the AI regressed".
+name: AI Quality
+
+on:
+  schedule:
+    # Sundays 19:00 UTC = 02:00 Monday Asia/Phnom_Penh — the quietest hour for
+    # this college, and after the Sunday file-health sweep rather than beside
+    # it, so the two do not contend for the box.
+    - cron: "0 19 * * 0"
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "Live suite to run"
+        type: choice
+        options: [smoke, regression]
+        default: smoke
+
+concurrency:
+  group: ai-quality
+  cancel-in-progress: false
+
+jobs:
+  live-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check configuration
+        id: config
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$GEMINI_API_KEY" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "### AI Quality skipped" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "No corpus or model credentials are configured for this repository." >> "$GITHUB_STEP_SUMMARY"
+            echo "See docs/AI-BRAIN-2-1-LIVE-MONITORING.md." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.config.outputs.configured == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        if: steps.config.outputs.configured == 'true'
+        run: npm ci
+
+      - name: Offline contract (free, and the half a live run cannot prove)
+        if: steps.config.outputs.configured == 'true'
+        run: npx vitest run lib/ai/live-contract.test.ts lib/ai/evaluation.test.ts lib/ai/spellcheck.test.ts lib/ai/page-quality.test.ts lib/ai/answer-failure.test.ts
+
+      - name: Live answer quality
+        if: steps.config.outputs.configured == 'true'
+        id: live
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: |
+          set -o pipefail
+          npm run ai:answer-benchmark -- \
+            --suite all \
+            --live-suite "${{ inputs.suite || 'smoke' }}" \
+            --artifact \
+            --gate | tee run.txt
+        continue-on-error: true
+
+      - name: Summary
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          {
+            echo "## AI answer quality — ${{ inputs.suite || 'smoke' }}"
+            echo ""
+            echo '```'
+            # The 2.1 scorecard and the gate table; the per-question prose is
+            # deliberately NOT published — a summary carrying model output is a
+            # summary nobody can leave public.
+            sed -n '/EVALUATION 2.1/,/finishReason/p' run.txt || true
+            sed -n '/^LIVE MODEL/,/^$/p' run.txt || true
+            sed -n '/^gates/,/^$/p' run.txt || true
+            echo '```'
+            if [ "${{ steps.live.outcome }}" = "failure" ]; then
+              echo ""
+              echo "**HARD QUALITY REGRESSION.** See docs/AI-BRAIN-2-1-LIVE-MONITORING.md."
+              echo "Reproduce before changing anything: a single bad answer from a real model is not evidence (§25)."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload trend artifact
+        if: steps.config.outputs.configured == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-quality-${{ github.run_id }}
+          path: artifacts/ai-quality/
+          retention-days: 180
+          if-no-files-found: warn
+
+      - name: Fail on a hard regression
+        if: steps.config.outputs.configured == 'true' && steps.live.outcome == 'failure'
+        run: exit 1

@@ -19,6 +19,8 @@ function healthy(over: Partial<AnswerFacts> = {}): AnswerFacts {
     answeredAsRefusal: false,
     evidenceCount: 4,
     expectedSourceFound: true,
+    entityResolved: null,
+    answerCorrect: null,
     contextPrecision: 1,
     expectedSourcesExhaustive: true,
     expectGrounded: true,
@@ -136,5 +138,66 @@ describe("diagnoseAnswer", () => {
     // that it could not look, not that it looked and found none.
     expect(modelReasoningAssessable(false)).toBe(false);
     expect(modelReasoningAssessable(true)).toBe(true);
+  });
+});
+
+describe("B2 — entity resolution is its own stage, checked before retrieval", () => {
+  it("attaching the wrong work is an ENTITY failure, not a recall gap", () => {
+    // A question answered thoroughly from the wrong book is not a retrieval
+    // miss, and sending somebody to tune a lexical floor over it wastes the
+    // trip. Reported even when the evidence looks fine.
+    const d = diagnoseAnswer(healthy({ entityResolved: false }));
+    expect(d?.stage).toBe("ENTITY_RESOLUTION");
+    expect(d?.letter).toBe("B2");
+    expect(d?.remedy).toMatch(/lib\/ai\/entity\.ts/);
+  });
+
+  it("it outranks a retrieval miss it would have caused", () => {
+    const d = diagnoseAnswer(healthy({ entityResolved: false, expectedSourceFound: false }));
+    expect(d?.stage).toBe("ENTITY_RESOLUTION");
+  });
+
+  it("a question that named no work has no entity to get wrong", () => {
+    expect(diagnoseAnswer(healthy({ entityResolved: null }))).toBeNull();
+    expect(diagnoseAnswer(healthy({ entityResolved: true }))).toBeNull();
+  });
+
+  it("a routing failure still outranks it — nothing downstream of A is trustworthy", () => {
+    expect(diagnoseAnswer(healthy({ routingOk: false, entityResolved: false }))?.stage).toBe(
+      "QUERY_UNDERSTANDING",
+    );
+  });
+});
+
+describe("F — the Stage F monitor needs a model AND a stated claim", () => {
+  it("a wrong answer from verified-correct evidence is the ONLY model failure", () => {
+    const d = diagnoseAnswer(healthy({ answerCorrect: false }));
+    expect(d?.stage).toBe("MODEL_REASONING");
+    expect(d?.remedy).toMatch(/reproduce it across runs/);
+  });
+
+  it("the mock provider can never produce one", () => {
+    // A zero that means "we did not look" must not read as a clean bill of
+    // health — and a mock answer must never be filed as a reasoning failure.
+    expect(diagnoseAnswer(healthy({ answerCorrect: false, modelAnswered: false }))).toBeNull();
+    expect(modelReasoningAssessable(false)).toBe(false);
+  });
+
+  it("a label that states no claims cannot produce one either", () => {
+    expect(diagnoseAnswer(healthy({ answerCorrect: null }))).toBeNull();
+  });
+
+  it("any upstream defect is reported instead of F, with the same wrong answer", () => {
+    for (const upstream of [
+      { routingOk: false },
+      { entityResolved: false },
+      { expectedSourceFound: false },
+      { hallucinatedCitations: 2 },
+      { grounded: false },
+      { contextPrecision: 0.1 },
+    ]) {
+      const d = diagnoseAnswer(healthy({ answerCorrect: false, ...upstream }));
+      expect(d?.stage).not.toBe("MODEL_REASONING");
+    }
   });
 });

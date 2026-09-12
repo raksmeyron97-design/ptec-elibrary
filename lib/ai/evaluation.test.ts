@@ -6,7 +6,6 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  TOPIC_RECALL_MIN,
   claimsSatisfied,
   deriveEvidenceScope,
   evaluateAnswer,
@@ -68,10 +67,57 @@ describe("deriveEvidenceScope — a scope is a fact about the question", () => {
     );
   });
 
-  it("a comparison NAMES its works, so both are required", () => {
-    const q: QuestionLabel = { id: "c", category: "comparison", sources: ["a", "b"] };
+  it("a comparison that NAMES its works requires both", () => {
+    const q: QuestionLabel = {
+      id: "c",
+      category: "comparison",
+      question: 'Compare "Practical Research Methods" and "Social Research Methods"',
+      sources: ["practical-research-methods", "social-research-methods"],
+    };
     expect(deriveEvidenceScope(q)).toBe("multi_document");
-    expect(requiredDocuments(q, "multi_document")).toEqual(["a", "b"]);
+    expect(requiredDocuments(q, "multi_document")).toEqual([
+      "practical-research-methods",
+      "social-research-methods",
+    ]);
+  });
+
+  it("a `comparison` that names NOTHING is a topic, whatever the category says", () => {
+    // v2-cmp-001, verbatim: filed under comparison, labelled against eight
+    // books, and naming none of them. Counting sources cannot separate this
+    // from a real comparison; reading the question can.
+    const q: QuestionLabel = {
+      id: "v2-cmp-001",
+      category: "comparison",
+      question: "What is the difference between validity and reliability?",
+      sources: ["a-book", "b-book", "c-book", "d-book", "e-book", "f-book", "g-book", "h-book"],
+    };
+    expect(deriveEvidenceScope(q)).toBe("topic_unscoped");
+    expect(requiredDocuments(q, deriveEvidenceScope(q))).toEqual([]);
+  });
+
+  it("a synthesis labelled against FOUR books, naming none, is still a topic", () => {
+    // v2-synth-002 — under the recall-list threshold, so only reading the
+    // question keeps it out of multi_document.
+    const q: QuestionLabel = {
+      id: "v2-synth-002",
+      category: "cross_book_synthesis",
+      question: "What does the literature say about phonics?",
+      sources: ["one-book", "two-book", "three-book", "four-book"],
+    };
+    expect(deriveEvidenceScope(q)).toBe("topic_unscoped");
+  });
+
+  it("a third labelled book that the question does not name is not required", () => {
+    const q: QuestionLabel = {
+      id: "c",
+      category: "comparison",
+      question: 'Compare "Practical Research Methods" and "Social Research Methods"',
+      sources: ["practical-research-methods", "social-research-methods", "a-third-book-on-the-topic"],
+    };
+    expect(requiredDocuments(q, "multi_document")).toEqual([
+      "practical-research-methods",
+      "social-research-methods",
+    ]);
   });
 
   it("v1's `multi_document` category is a recall list, and is NOT multi_document", () => {
@@ -87,12 +133,13 @@ describe("deriveEvidenceScope — a scope is a fact about the question", () => {
     expect(requiredDocuments(q, deriveEvidenceScope(q))).toEqual([]);
   });
 
-  it("a label at the recall-list threshold is a recall list; one below it is a choice", () => {
-    const wide = Array.from({ length: TOPIC_RECALL_MIN }, (_, i) => `s${i}`);
+  it("ONE labelled record is a choice; several unnamed ones are a recall list", () => {
+    const wide = Array.from({ length: 6 }, (_, i) => `s${i}`);
     expect(deriveEvidenceScope({ id: "w", category: "definition", sources: wide })).toBe("topic_unscoped");
-    expect(deriveEvidenceScope({ id: "n", category: "definition", sources: wide.slice(1) })).toBe(
-      "single_document",
+    expect(deriveEvidenceScope({ id: "two", category: "definition", sources: ["a", "b"] })).toBe(
+      "topic_unscoped",
     );
+    expect(deriveEvidenceScope({ id: "one", category: "definition", sources: ["a"] })).toBe("single_document");
   });
 
   it("an unlabelled question has no set to be precise against", () => {
@@ -190,14 +237,15 @@ describe("multi_document — every named work must contribute", () => {
   const q: QuestionLabel = {
     id: "cmp-001",
     category: "comparison",
-    sources: ["book-a", "book-b"],
+    question: 'Compare "Book Alpha Methods" and "Book Beta Methods"',
+    sources: ["book-alpha-methods", "book-beta-methods"],
     expectIntent: ["document_compare"],
   };
 
   it("a comparison answered wholly from one side is NOT retrieval-correct", () => {
     // `sources.some(...)` scored this 100%: the defect that made the answer
     // benchmark's multi-document number meaningless.
-    const e = evaluateAnswer(q, observation({ passages: [passage("book-a", 3), passage("book-a", 9)] }));
+    const e = evaluateAnswer(q, observation({ passages: [passage("book-alpha-methods", 3), passage("book-alpha-methods", 9)] }));
     expect(e.retrievalOk).toBe(false);
     expect(e.multiDocumentRecall).toBe(0.5);
     expect(e.contextSufficiency).toBe(false);
@@ -207,7 +255,7 @@ describe("multi_document — every named work must contribute", () => {
   it("both sides present passes, and a third book does not break it", () => {
     const e = evaluateAnswer(
       q,
-      observation({ passages: [passage("book-a", 3), passage("book-b", 9), passage("book-c", 1)] }),
+      observation({ passages: [passage("book-alpha-methods", 3), passage("book-beta-methods", 9), passage("book-gamma-methods", 1)] }),
     );
     expect(e.retrievalOk).toBe(true);
     expect(e.multiDocumentRecall).toBe(1);
@@ -216,8 +264,12 @@ describe("multi_document — every named work must contribute", () => {
   });
 
   it("an explicit requiredDocuments list narrows what must appear", () => {
-    const optional: QuestionLabel = { ...q, sources: ["book-a", "book-b", "book-c"], requiredDocuments: ["book-a", "book-b"] };
-    const e = evaluateAnswer(optional, observation({ passages: [passage("book-a", 1), passage("book-b", 2)] }));
+    const optional: QuestionLabel = {
+      ...q,
+      sources: ["book-alpha-methods", "book-beta-methods", "book-gamma-methods"],
+      requiredDocuments: ["book-alpha-methods", "book-beta-methods"],
+    };
+    const e = evaluateAnswer(optional, observation({ passages: [passage("book-alpha-methods", 1), passage("book-beta-methods", 2)] }));
     expect(e.retrievalOk).toBe(true);
     expect(e.multiDocumentRecall).toBe(1);
   });
@@ -347,7 +399,12 @@ describe("scopeCensus — the derivation is auditable in the report", () => {
       { id: "1", category: "no_answer", expectNoAnswer: true },
       { id: "2", category: "single_document", scoped: true, sources: ["a"] },
       { id: "3", category: "exact_book", templateOk: true, sources: ["a"] },
-      { id: "4", category: "comparison", sources: ["a", "b"] },
+      {
+        id: "4",
+        category: "comparison",
+        question: 'Compare "Alpha Research Methods" and "Beta Research Methods"',
+        sources: ["alpha-research-methods", "beta-research-methods"],
+      },
       { id: "5", category: "definition", sources: ["a", "b", "c", "d", "e", "f"] },
     ];
     const census = scopeCensus(labels);

@@ -1,0 +1,53 @@
+{
+  "note": "Live suites for scripts/ai-answer-benchmark.ts --live --live-suite <name>. Question ids only: the questions themselves live in questions.json (v1, never edited) and questions-v2.json. Keeping the SETS here rather than in a flag means a live run is reproducible from a name, and the cost of each one is a number somebody chose rather than a number somebody typed.",
+  "suites": {
+    "smoke": {
+      "description": "The 14 questions a weekly run puts to the real model. One per property that only a live model can show — an answer that finishes, a citation form the parser must read, a refusal that stays a refusal — across both languages and both fixtures. Budgeted: about 9 model calls and 15k tokens.",
+      "ids": [
+        "def-001",
+        "expl-001",
+        "concept-003",
+        "multi-002",
+        "cmp-002",
+        "single-002",
+        "sum-001",
+        "km-001",
+        "km-005",
+        "mix-001",
+        "none-001",
+        "fact-001",
+        "cite-001",
+        "v2-typo-003"
+      ]
+    },
+    "regression": {
+      "description": "Every question that a previous live run found something on, plus the ones closest to a boundary. This is the set to run after a change to the prompt, the output budget, the citation parser or the provider.",
+      "ids": [
+        "def-001",
+        "def-012",
+        "expl-001",
+        "concept-003",
+        "multi-002",
+        "cmp-002",
+        "cmp-005",
+        "single-002",
+        "single-007",
+        "sum-001",
+        "sum-003",
+        "km-001",
+        "km-005",
+        "mix-001",
+        "none-001",
+        "none-004",
+        "none-007",
+        "fact-001",
+        "cite-001",
+        "v2-typo-003",
+        "v2-cmp-001",
+        "v2-synth-001",
+        "v2-cite-001",
+        "v2-cite-002"
+      ]
+    }
+  }
+}

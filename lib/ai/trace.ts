@@ -25,6 +25,13 @@ import type { AIResponse, AITelemetry } from "./response";
 export interface TraceEvidence {
   recordType: string;
   recordId: string;
+  /**
+   * The record's own URL, so a consumer can name the passage by SLUG rather
+   * than guessing from the title. The benchmark used to match trace titles
+   * against the result cards' titles to recover a slug, which silently
+   * produced a record id for any passage whose work was not among the cards.
+   */
+  url: string;
   title: string;
   page: number;
   pageEnd?: number;
@@ -140,6 +147,7 @@ export function buildTrace(
   const evidence: TraceEvidence[] = (retrieval.evidence ?? []).map((e) => ({
     recordType: e.recordType,
     recordId: e.recordId,
+    url: e.url,
     title: e.title,
     page: e.page,
     pageEnd: e.pageEnd,
