@@ -34,7 +34,9 @@ import { getTranslations } from "next-intl/server";
 import JsonLd from "@/components/seo/JsonLd";
 import ResourceConnections from "@/components/seo/ResourceConnections";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { getPublicResourceAuthors } from "@/lib/resources/public-contributors";
+import { getPublicResourceContributors } from "@/lib/resources/public-contributors";
+import { contributorNames } from "@/lib/resources/contributor-view";
+import { citationNames } from "@/lib/resources/contributor-identity";
 import {
   formatPublicationDate,
   getCoAdvisor,
@@ -52,15 +54,12 @@ import { thesisScholarMeta } from "@/lib/seo/citation";
 import { buildThesisMetadata, thesisJsonLd, type ThesisSeoInput } from "@/lib/seo/thesis-seo";
 import { ChevronRight, FileX2, Pencil } from "lucide-react";
 
-/** Split "Sok San, Chan Dara" → ["Sok San", "Chan Dara"]. */
-function splitAuthors(authorNames: string | null | undefined): string[] {
-  return authorNames
-    ? authorNames.split(",").flatMap((s: string) => {
-        const name = s.trim();
-        return name ? [name] : [];
-      })
-    : [];
-}
+/**
+ * The LEGACY-byline fallback, used only when the canonical graph has no
+ * credits for this thesis. It is the library's one splitter rather than a
+ * local `.split(",")`, which cited a single inverted name as two people.
+ */
+const splitAuthors = citationNames;
 
 export const revalidate = 3600;
 
@@ -104,20 +103,27 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: 'Thesis not found' };
   }
 
-  // Canonical authors feed the citation_* meta tags + JSON-LD, consistent with
-  // the visible page; defensive fallback to the legacy string.
-  const canonicalMetaAuthors = await getPublicResourceAuthors("thesis", report.id);
+  // Canonical credits feed the citation_* meta tags + JSON-LD, consistent with
+  // the visible page. ONE resolution — graph, then the legacy byline, with a
+  // failed read reported as `unavailable` rather than as no authors at all.
+  const metaOrg = await getOrgIdentity();
+  const metaContributors = await getPublicResourceContributors("thesis", report.id, {
+    byline: report.author_names,
+    org: metaOrg,
+  });
+  const metaAuthorNames = contributorNames(metaContributors.contributors);
   const seoRow = report;
   const reportForMeta =
-    canonicalMetaAuthors.length > 0
-      ? { ...report, author_names: canonicalMetaAuthors.join(", ") }
+    metaAuthorNames.length > 0
+      ? { ...report, author_names: metaAuthorNames.join(", ") }
       : report;
 
   const seoInput: ThesisSeoInput = {
     slug: report.slug,
     title: report.title,
     abstract: report.abstract,
-    authors: splitAuthors(reportForMeta.author_names),
+    authors: metaAuthorNames.length > 0 ? metaAuthorNames : splitAuthors(reportForMeta.author_names),
+    contributors: metaContributors.contributors,
     coverUrl: report.cover_url,
     // published_at is the academic publication date; the website deposit time
     // (created_at) is NOT used as datePublished. verified_at/updated_at is the
@@ -181,7 +187,12 @@ export default async function ThesisDetailPage({ params }: PageProps) {
   // absent (pre-migration) or empty. `report` itself is left untouched because
   // AuthorCard matches sibling theses by the exact legacy `author_names` string;
   // only `displayReport` carries the canonical form.
-  const canonicalAuthors = await getPublicResourceAuthors("thesis", id);
+  const pageOrg = await getOrgIdentity();
+  const contributorRead = await getPublicResourceContributors("thesis", id, {
+    byline: report.author_names,
+    org: pageOrg,
+  });
+  const canonicalAuthors = contributorNames(contributorRead.contributors);
   const displayReport =
     canonicalAuthors.length > 0
       ? { ...report, author_names: canonicalAuthors.join(", ") }
@@ -294,7 +305,8 @@ export default async function ThesisDetailPage({ params }: PageProps) {
       slug: canonicalSlug,
       title: report.title,
       abstract: report.abstract,
-      authors: splitAuthors(displayReport.author_names),
+      authors: canonicalAuthors.length > 0 ? canonicalAuthors : splitAuthors(displayReport.author_names),
+      contributors: contributorRead.contributors,
       coverUrl: report.cover_url,
       datePublished: report.published_at,
       dateModified: report.verified_at ?? report.updated_at ?? null,
@@ -306,7 +318,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
       references,
     },
     locale,
-    await getOrgIdentity(),
+    pageOrg,
   );
   const thesisBreadcrumbSchema = breadcrumbSchema([
     { name: tNav("home"), path: "/" },

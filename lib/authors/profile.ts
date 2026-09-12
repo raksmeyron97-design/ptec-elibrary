@@ -30,6 +30,15 @@ import { slugify } from "@/lib/books";
 import { parseAuthorNames } from "@/lib/resources/author-names";
 import { resolveDownloadAccess } from "@/lib/publications/access";
 import { yearOf, sortWorks } from "@/lib/authors/stats";
+import {
+  canonicalWorkRefs,
+  contributorRecordsForAuthor,
+  refsByType,
+  type AuthorContributorRecord,
+} from "@/lib/authors/canonical-works";
+import { kindOfCanonicalRow } from "@/lib/resources/contributor-view";
+import type { ContributorKind } from "@/lib/resources/contributor-identity";
+import type { OrgIdentity } from "@/lib/system-settings/org-identity";
 import type { AuthorProfile, AuthorWork } from "@/lib/authors/types";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -294,6 +303,192 @@ async function catalogWorks(
     }));
 }
 
+// ── Canonical works (§25) ────────────────────────────────────────────────────
+//
+// The same three record shapes, fetched by ID from the contributor graph
+// instead of by name. One batched query per resource type — never one per
+// work — and each mapper is the legacy leg's mapper applied to a different
+// WHERE clause, so a canonical hit and a legacy hit render identically.
+
+async function canonicalWorks(
+  supabase: ReturnType<typeof createServiceClient>,
+  records: readonly AuthorContributorRecord[],
+): Promise<AuthorWork[]> {
+  const contributorIds = records.map((r) => r.id);
+  if (contributorIds.length === 0) return [];
+  const refs = await canonicalWorkRefs(supabase, contributorIds);
+  if (refs.length === 0) return [];
+  const byType = refsByType(refs);
+
+  const [books, theses, publications] = await Promise.all([
+    byType.book.length > 0 ? canonicalBookWorks(supabase, byType.book) : Promise.resolve([]),
+    byType.thesis.length > 0 ? canonicalThesisWorks(supabase, byType.thesis) : Promise.resolve([]),
+    byType.publication.length > 0
+      ? canonicalPublicationWorks(supabase, byType.publication)
+      : Promise.resolve([]),
+  ]);
+  return [...publications, ...theses, ...books];
+}
+
+async function canonicalBookWorks(
+  supabase: ReturnType<typeof createServiceClient>,
+  ids: string[],
+): Promise<AuthorWork[]> {
+  const { data } = await supabase
+    .from("books")
+    .select("id, slug, title, description, cover_url, published_at, created_at")
+    .in("id", ids.slice(0, PER_TYPE_LIMIT))
+    .eq("is_published", true);
+  return ((data ?? []) as any[]).map((row) => ({
+    id: row.id,
+    type: "ebook" as const,
+    title: row.title,
+    href: `/books/${row.slug}`,
+    excerpt: clean(row.description),
+    year: yearOf(row.published_at ?? row.created_at),
+    venue: null,
+    byline: null,
+    doi: null,
+    coverUrl: clean(row.cover_url),
+    downloadable: true,
+  }));
+}
+
+async function canonicalThesisWorks(
+  supabase: ReturnType<typeof createServiceClient>,
+  ids: string[],
+): Promise<AuthorWork[]> {
+  const { data } = await supabase
+    .from("research_reports")
+    .select("id, slug, title, abstract, author_names, cover_url, doi, published_at, created_at, faculty, file_url")
+    .in("id", ids.slice(0, PER_TYPE_LIMIT))
+    .eq("is_published", true);
+  return ((data ?? []) as any[]).map((row) => ({
+    id: row.id,
+    type: "thesis" as const,
+    title: row.title,
+    href: `/theses/${row.slug ?? row.id}`,
+    excerpt: clean(row.abstract),
+    year: yearOf(row.published_at ?? row.created_at),
+    venue: clean(row.faculty),
+    byline: clean(row.author_names),
+    doi: clean(row.doi),
+    coverUrl: clean(row.cover_url),
+    downloadable: !!row.file_url,
+  }));
+}
+
+async function canonicalPublicationWorks(
+  supabase: ReturnType<typeof createServiceClient>,
+  ids: string[],
+): Promise<AuthorWork[]> {
+  // `author_names` is NOT a column on `publications` — it is an aggregate on
+  // publications_with_stats (0114), and naming it here makes PostgREST reject
+  // the whole query, which this fetcher would have reported as "no works".
+  // Same two-step the legacy leg above uses: rows first, bylines in one
+  // follow-up query for the whole page.
+  const { data } = await supabase
+    .from("publications")
+    .select(
+      "id, slug, title, abstract, journal_name, doi, cover_url, pdf_url, " +
+        "publication_date, published_at, publisher, license, allow_download, fulltext_redistributable",
+    )
+    .in("id", ids.slice(0, PER_TYPE_LIMIT))
+    .eq("is_published", true);
+
+  const rows = (data ?? []) as any[];
+  if (rows.length === 0) return [];
+
+  const { data: bylines } = await supabase
+    .from("publications_with_stats")
+    .select("id, author_names")
+    .in("id", rows.map((r) => r.id));
+  const bylineFor = new Map<string, string | null>(
+    ((bylines ?? []) as any[]).map((b) => [b.id, b.author_names ?? null]),
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    type: "publication" as const,
+    title: row.title,
+    href: `/publications/${row.slug}`,
+    excerpt: clean(row.abstract),
+    year: yearOf(row.publication_date ?? row.published_at),
+    venue: clean(row.journal_name),
+    byline: clean(bylineFor.get(row.id) ?? null),
+    doi: clean(row.doi),
+    coverUrl: clean(row.cover_url),
+    downloadable: resolveDownloadAccess({
+      slug: row.slug,
+      title: row.title,
+      publisher: row.publisher ?? null,
+      license: row.license ?? null,
+      allow_download: row.allow_download,
+      fulltext_redistributable: row.fulltext_redistributable,
+      pdf_url: row.pdf_url,
+    }).canDownload,
+  }));
+}
+
+/**
+ * One work per (type, id), whichever leg found it first.
+ *
+ * Canonical results are passed FIRST so a work the graph knows about keeps the
+ * graph's record. Without this the union would list a multi-author book twice
+ * on the one profile page the legacy `books.author_id` does reach.
+ */
+function dedupeWorks(...groups: AuthorWork[][]): AuthorWork[] {
+  const seen = new Set<string>();
+  const out: AuthorWork[] = [];
+  for (const group of groups) {
+    for (const work of group) {
+      const key = `${work.type}:${work.id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(work);
+    }
+  }
+  return out;
+}
+
+/**
+ * What the canonical graph says this author IS, or null when it has no record
+ * of them.
+ *
+ * Null is not a failure and the caller must not treat it as one: it means the
+ * page falls back to classifying the name, which is what `/authors/[slug]` did
+ * before and is still the only evidence available for a person the graph has
+ * not reached. Where records DO exist and disagree with each other, null is
+ * returned too — a contributor filed as a person in one row and an
+ * organisation in another is a data conflict for the audit to surface, not
+ * something to resolve by picking the first row.
+ */
+function canonicalKindOf(
+  records: readonly AuthorContributorRecord[],
+  name: string,
+  org?: OrgIdentity,
+): ContributorKind | null {
+  if (records.length === 0) return null;
+  const kinds = new Set(
+    records.map(
+      (r) =>
+        kindOfCanonicalRow(
+          {
+            contributorId: r.id,
+            displayName: r.displayName || name,
+            nameKm: r.nameKm,
+            contributorType: r.contributorType,
+            recordSource: r.recordSource,
+            role: "author",
+            sequence: 0,
+          },
+          org,
+        ).kind,
+    ),
+  );
+  return kinds.size === 1 ? [...kinds][0] : null;
+}
+
 // ── Entry point ──────────────────────────────────────────────────────────────
 
 /**
@@ -323,7 +518,20 @@ export async function getAuthorProfile(slug: string): Promise<AuthorProfile | nu
 
   const aliases = aliasesOf(name, clean(academic?.full_name_km) ?? null);
 
-  const [publications, books, theses, catalog] = await Promise.all([
+  // The canonical contributor records for this person, resolved once. They
+  // answer two questions the legacy tables cannot: which works credit them
+  // (§25), and WHAT they are — `contributors.contributor_type` is a stored
+  // fact where `/authors/[slug]` otherwise has only the name to go on (§13).
+  const contributorRecords = await contributorRecordsForAuthor(supabase, {
+    legacyAuthorId: bookAuthor?.id ?? null,
+    legacyPublicationAuthorId: academic?.id ?? null,
+    names: [name, clean(academic?.full_name_km) ?? ""].filter(Boolean),
+  });
+
+  const [canonical, publications, books, theses, catalog] = await Promise.all([
+    // §25: the contributor graph, which is the only leg that can credit the
+    // second and third author of a book — `books.author_id` is singular.
+    canonicalWorks(supabase, contributorRecords),
     academic ? publicationWorks(supabase, academic.id) : Promise.resolve([]),
     bookAuthor ? bookWorks(supabase, bookAuthor.id) : Promise.resolve([]),
     thesisWorks(supabase, aliases),
@@ -346,6 +554,8 @@ export async function getAuthorProfile(slug: string): Promise<AuthorProfile | nu
     websiteUrl: profileVisible ? clean(academic?.website_url) : null,
     googleScholarUrl: profileVisible ? clean(academic?.google_scholar_url) : null,
     researchGateUrl: profileVisible ? clean(academic?.research_gate_url) : null,
-    works: sortWorks([...publications, ...theses, ...books, ...catalog]),
+    contributorIds: contributorRecords.map((r) => r.id),
+    contributorKind: canonicalKindOf(contributorRecords, name),
+    works: sortWorks(dedupeWorks(canonical, publications, theses, books, catalog)),
   };
 }

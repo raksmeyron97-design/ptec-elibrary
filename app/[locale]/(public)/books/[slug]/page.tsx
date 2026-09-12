@@ -18,7 +18,8 @@ import { Badge } from "@/components/ui/core/Badge";
 import { VerifiedBadge, LicenseBadge } from "@/components/ui/trust/TrustBadges";
 import PhysicalCopiesList from "@/components/ui/books/PhysicalCopiesList";
 import { type Book, mapRowToBook } from "@/lib/books";
-import { getPublicResourceAuthors } from "@/lib/resources/public-contributors";
+import { getPublicResourceContributors } from "@/lib/resources/public-contributors";
+import { contributorNames, viewsFromLegacy } from "@/lib/resources/contributor-view";
 import { decodeSlugParam } from "@/lib/slug";
 
 import { createServiceClient } from "@/lib/supabase/server";
@@ -262,13 +263,27 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
   // Locale-correct canonical + breadcrumb URLs (Khmer under /km) so the
   // structured data matches the visible breadcrumbs and the page's canonical.
   const canonicalUrl = bookCanonicalUrl(slug, locale);
-  // Prefer canonical contributor credits; fall back to the legacy single author
-  // when they are absent (pre-migration) or empty. Output is byte-identical to
-  // before until a book actually gains multiple contributors.
-  const legacyAuthors =
-    book.author && book.author !== "Unknown" ? [book.author] : [];
-  const canonicalAuthors = book.dbId ? await getPublicResourceAuthors("book", book.dbId) : [];
-  const bookAuthors = canonicalAuthors.length > 0 ? canonicalAuthors : legacyAuthors;
+  // ── Contributors (SEO 3.2) ────────────────────────────────────────────────
+  //
+  // ONE resolution, spent by the visible byline AND the JSON-LD, so the two
+  // cannot disagree about who this book is by. `getPublicResourceContributors`
+  // applies the canonical read policy: graph when it has credits, the legacy
+  // byline when it does not, and `unavailable` — never a silent empty — when
+  // the read itself failed.
+  //
+  // The credits are handed to `bookJsonLd` as VIEWS rather than as strings.
+  // Passing strings is what made the builder re-classify a contributor the
+  // database had already typed, so a corporate body could come back out as a
+  // `Person` (docs/SEO-3.2-AUDIT.md C-1).
+  const legacyByline = book.author && book.author !== "Unknown" ? book.author : null;
+  const orgIdentity = await getOrgIdentity();
+  const contributorRead = book.dbId
+    ? await getPublicResourceContributors("book", book.dbId, {
+        byline: legacyByline,
+        org: orgIdentity,
+      })
+    : { contributors: viewsFromLegacy(legacyByline, orgIdentity), source: "legacy" as const };
+  const bookAuthors = contributorNames(contributorRead.contributors);
   const authorLabel = bookAuthors.length > 0 ? bookAuthors.join(", ") : book.author;
   const bookSchema = bookJsonLd(
     {
@@ -282,13 +297,14 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
       publishedAt: book.publicationDate ?? null,
       pages: book.pages,
       authors: bookAuthors,
+      contributors: contributorRead.contributors,
       department: book.department,
       category: book.category,
       tags: book.tags,
     },
     locale,
     avgRating > 0 ? { ratingValue: avgRating.toFixed(1), reviewCount } : null,
-    await getOrgIdentity(),
+    orgIdentity,
   );
   // The third crumb used to be the department, linked to `/books?dept=…` — a
   // URL this site serves as `noindex, follow` and canonicalises to `/books`

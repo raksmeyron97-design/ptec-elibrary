@@ -43,6 +43,7 @@ import {
   normalizeByline,
   type ContributorKind,
 } from "@/lib/resources/contributor-identity";
+import type { ResourceContributorView } from "@/lib/resources/contributor-view";
 import { ORGANIZATION_ID, ref } from "@/lib/seo/entity-ids";
 import type { OrgIdentity } from "@/lib/system-settings/org-identity";
 
@@ -94,10 +95,81 @@ function nodeFor(kind: ContributorKind, displayName: string): ContributorNode {
   return { "@type": "Person", name: displayName };
 }
 
+/**
+ * The SEO 3.2 entry point: project already-resolved contributor credits.
+ *
+ * This is the shape every resource builder should be given. A
+ * `ResourceContributorView` has ALREADY been separated into one entity per
+ * credit and ALREADY been typed — by the canonical graph where one exists, by
+ * `normalizeByline()` where only a legacy string does. Re-parsing it here
+ * would be the round trip SEO 3.2 removed: a contributor the database records
+ * as a corporate body coming back out of the renderer as a Person because a
+ * keyword heuristic over its name disagreed with the column.
+ *
+ * So this function classifies NOTHING. It maps `kind` to a node and stops.
+ */
+export function contributorNodesFromViews(
+  views: readonly ResourceContributorView[] | null | undefined,
+): ContributorNode[] {
+  return (views ?? [])
+    .filter((v) => v.name.trim().length > 0)
+    .map((v) => nodeFor(v.kind, v.name.trim()));
+}
+
 /** The same decision for a list of bylines (books/theses carry arrays). */
 export function contributorNodesFor(
   names: readonly (string | null | undefined)[] | null | undefined,
   org?: OrgIdentity,
 ): ContributorNode[] {
   return (names ?? []).flatMap((n) => contributorNodes(n, org));
+}
+
+/**
+ * What a resource builder should call: resolved credits when the caller has
+ * them, the legacy byline classification when it does not.
+ *
+ * The two are never combined. A caller that resolved contributors has already
+ * applied the canonical read policy (`resolveContributors()`), including its
+ * own legacy fallback — so re-adding `names` here would re-introduce exactly
+ * the duplicate the policy exists to prevent: one credit from the graph, one
+ * from the string the graph was built from.
+ *
+ * `views` being an EMPTY array is therefore meaningful and is honoured: it
+ * means the resolver found nothing it could stand behind. Only `null` or
+ * `undefined` — "this caller has not been wired to the graph yet" — falls
+ * through to the strings.
+ */
+export function resolveContributorNodes(
+  views: readonly ResourceContributorView[] | null | undefined,
+  names: readonly (string | null | undefined)[] | null | undefined,
+  org?: OrgIdentity,
+): ContributorNode[] {
+  if (views != null) return contributorNodesFromViews(views);
+  return contributorNodesFor(names, org);
+}
+
+/**
+ * The ONE entity a contributor URL may claim to be, or `undefined`.
+ *
+ * `/authors/<slug>` is one URL, so it can carry at most one identity. A byline
+ * that resolves to several — 43 of production's 157 contributor rows on
+ * 2026-09-12, every one of them a real multi-author title page — has no single
+ * answer, and the honest output is none.
+ *
+ * SEO 3.0 already reached that conclusion for the case where a byline cannot
+ * be SEPARATED. This is the other half, and it is the one that shipped:
+ * "Bert P.M. Creemers, Leonidas Kyriakides, Pam Sammons (Editors)" separates
+ * perfectly into three, so the page took `[0]` and published a `Person` named
+ * Bert P.M. Creemers at a URL denoting three editors — dropping two of them
+ * and misattributing the work to the first.
+ *
+ * Zero and several are deliberately the same answer here. They differ in the
+ * data (one is unsplittable, one splits into many) but not in what this URL
+ * may assert, and collapsing them keeps the rule impossible to apply by
+ * halves.
+ */
+export function soleContributorNode(
+  nodes: readonly ContributorNode[],
+): ContributorNode | undefined {
+  return nodes.length === 1 ? nodes[0] : undefined;
 }

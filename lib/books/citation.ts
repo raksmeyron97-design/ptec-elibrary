@@ -13,6 +13,7 @@ import {
   citationFileName,
   type CitationWork,
 } from "@/lib/citations";
+import { citationNames } from "@/lib/resources/contributor-identity";
 
 export type CiteFormat = "apa" | "bibtex" | "ris";
 
@@ -33,10 +34,7 @@ export function bookToCitationWork(book: Book): CitationWork {
     authors:
       book.author === "Unknown"
         ? [] // mapRowToBook placeholder — not a person named "Unknown"
-        : (book.author || "")
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean),
+        : citationNames(book.author),
     year: book.year ? String(book.year) : null,
     publisher: book.publisher?.trim() || null,
     isbn: book.isbn && book.isbn !== "N/A" ? book.isbn : null,

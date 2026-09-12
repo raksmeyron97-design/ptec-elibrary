@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import JsonLd from "@/components/seo/JsonLd";
 import { breadcrumbSchema } from "@/lib/seo/schema";
-import { contributorNodes } from "@/lib/seo/contributor";
+import { contributorNodes, soleContributorNode } from "@/lib/seo/contributor";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { openGraphBase } from "@/lib/seo/open-graph";
@@ -93,14 +93,22 @@ export default async function AuthorsHubPage({ params }: PageProps) {
       // (several people, not safely separable) is listed by URL and name only
       // — the link is true, the identity claim would not be.
       itemListElement: authors.map((a, i) => {
-        const [node] = contributorNodes(a.name, org);
+        // SEO 3.2: a byline that resolves to SEVERAL entities is untyped here
+        // for the same reason the profile page now asserts no identity for it
+        // — one URL cannot be three people, and typing it by its first name
+        // would publish that claim on the hub instead. 43 of production's 157
+        // rows are that shape (docs/SEO-3.2-AUDIT.md C-5).
+        const node = soleContributorNode(contributorNodes(a.name, org));
         const typed = node && "@type" in node ? { "@type": node["@type"] } : {};
+        const fragment = node && "@type" in node && node["@type"] === "Organization"
+          ? "organization"
+          : "person";
         return {
           "@type": "ListItem",
           position: i + 1,
           item: {
             ...typed,
-            "@id": `${authorUrl(a.slug)}#person`,
+            "@id": `${authorUrl(a.slug)}#${fragment}`,
             name: a.name,
             url: authorUrl(a.slug),
           },

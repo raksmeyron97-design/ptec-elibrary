@@ -13,6 +13,7 @@ import type { Publication } from "@/lib/publications";
 import { authorList } from "@/lib/citations";
 import { academicTextToPlainText } from "@/lib/publications/citations";
 import { normalizeDoi, normalizeIssn } from "@/lib/seo/identifiers";
+import { citationNames } from "@/lib/resources/contributor-identity";
 
 export type ScholarMeta = Record<string, string | string[]>;
 
@@ -37,13 +38,19 @@ export function formatScholarDate(
   return String(new Date().getFullYear());
 }
 
-/** "Sok San, Chan Dara" → ["Sok San", "Chan Dara"] */
+/**
+ * "Sok San, Chan Dara" → ["Sok San", "Chan Dara"] — one `citation_author` tag
+ * per name, which is what Google Scholar reads.
+ *
+ * The split is the library's ONE byline splitter (`citationNames`), not a
+ * local `.split(",")`. A comma is also how a single name is inverted, so the
+ * naive version published `citation_author: Smith` and `citation_author: John`
+ * for one person named "Smith, John" — two authors Scholar would index who do
+ * not exist. `citationNames()` splits only where every segment is a full name
+ * and otherwise emits the byline as one tag, which is less granular and true.
+ */
 export function splitAuthorNames(authorNames: string | null | undefined): string[] {
-  if (!authorNames) return [];
-  return authorNames
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  return citationNames(authorNames);
 }
 
 /** Accepts either a text[] column or a legacy comma-joined string. */

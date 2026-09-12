@@ -335,3 +335,32 @@ export function normalizeBylines(
 ): NormalizedByline[] {
   return (raws ?? []).map((r) => normalizeByline(r, org));
 }
+
+/**
+ * The names a BIBLIOGRAPHIC citation should list for a free-text byline.
+ *
+ * Citations need a different answer from schema.org, and pretending otherwise
+ * is what produced five private `.split(",")` splitters across this repository
+ * (docs/SEO-3.2-AUDIT.md C-3). The difference is what an unresolvable byline
+ * means:
+ *
+ *   JSON-LD  — a claim about an entity. Cannot be separated safely → publish
+ *              NOTHING, because a fabricated Person is worse than no author.
+ *   citation — a reference a human will follow. Cannot be separated safely →
+ *              print the SOURCE TEXT, because "Unknown author" is worse than a
+ *              byline that is merely less granular than ideal.
+ *
+ * So this returns the split when `splitByline()` says it is safe, and the
+ * whole byline as a single entry when it is not. It never invents a person and
+ * never drops one: `"Smith, John"` cites as `["Smith, John"]` — one inverted
+ * name — where a naive comma split cited two people who do not exist.
+ *
+ * The role marker is kept OFF the names ("(Editors)" is a role, not part of
+ * anyone's name); callers that render roles read `extractRole()` for it.
+ */
+export function citationNames(raw: string | null | undefined): string[] {
+  const cleaned = stripRoleSuffix(raw);
+  if (!cleaned) return [];
+  const parts = splitByline(cleaned);
+  return parts.length > 1 ? parts : [cleaned];
+}

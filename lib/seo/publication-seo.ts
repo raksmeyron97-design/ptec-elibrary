@@ -15,7 +15,8 @@
 
 import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/seo/site";
-import { contributorNodesFor } from "@/lib/seo/contributor";
+import { resolveContributorNodes } from "@/lib/seo/contributor";
+import type { ResourceContributorView } from "@/lib/resources/contributor-view";
 import { libraryNode, organizationNode } from "@/lib/seo/org-nodes";
 import {
   resolveOrgIdentity,
@@ -36,6 +37,14 @@ export type PublicationSeoInput = {
   /** Plain-text abstract (already stripped of markup/citation markers). */
   abstractText?: string | null;
   authors?: string[];
+  /**
+   * Resolved contributor credits (SEO 3.2). When present these are used
+   * VERBATIM — already separated, already typed by the canonical graph — and
+   * `authors` is left to the human-readable text (meta description, byline).
+   * Absent, the builder falls back to classifying `authors` itself, which is
+   * what every pre-3.2 caller still does.
+   */
+  contributors?: readonly ResourceContributorView[] | null;
   journalName?: string | null;
   volume?: string | null;
   issue?: string | null;
@@ -218,7 +227,7 @@ export function publicationJsonLd(
   const org = resolveOrgIdentity(orgArg);
   const url = publicationCanonicalUrl(pub.slug, locale);
   const authors = (pub.authors ?? []).map(clean).filter(Boolean);
-  const contributorNodes = contributorNodesFor(authors, org);
+  const contributorNodes = resolveContributorNodes(pub.contributors, authors, org);
   const keywords = [...new Set([...(pub.keywords ?? []), ...(pub.subjects ?? [])])].filter(Boolean);
   const doi = normalizeDoi(pub.doi);
   const issn = normalizeIssn(pub.issn);
@@ -334,7 +343,10 @@ export function publicationsCollectionJsonLd({
       numberOfItems: total,
       itemListElement: publications.map((pub, i) => {
         const authors = (pub.authors ?? []).map(clean).filter(Boolean);
-        const contributorNodes = contributorNodesFor(authors, org);
+        // A LISTING item is deliberately not wired to the graph: resolving
+        // credits per row is one query per result (§36 N+1). The page's own
+        // detail URL carries the canonical answer; the list carries the byline.
+        const contributorNodes = resolveContributorNodes(null, authors, org);
         const doi = normalizeDoi(pub.doi);
         const itemUrl = publicationCanonicalUrl(pub.slug, locale);
         return compact({

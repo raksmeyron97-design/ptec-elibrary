@@ -26,6 +26,7 @@ import {
 } from "@/lib/publications/citations";
 import type { ScholarlyWork, ScholarlyWorkType } from "@/lib/metadata-exports/scholarly";
 import { getOrgIdentity } from "@/lib/system-settings/config";
+import { citationNames } from "@/lib/resources/contributor-identity";
 
 export const EXPORT_TYPES: Record<string, ScholarlyWorkType> = {
   books: "book",
@@ -109,11 +110,23 @@ const THESIS_SELECT = `id, slug, title, abstract, author_names, advisor_name, la
   keywords, published_at, created_at, updated_at, license, doi, academic_year, program, faculty,
   file_url, verified_at, departments(name)`;
 
+/**
+ * Creator names for an exported record.
+ *
+ * This used to carry its own delimiter set, which made it a SIXTH definition
+ * of "where does one name end" — and the only one that split on a bare comma
+ * with no full-name guard, so a harvester received "Smith" and "John" as two
+ * creators of one thesis. `citationNames()` is the shared rule: split where
+ * every segment is a full name, otherwise emit the byline as one creator.
+ *
+ * Khmer "និង" (and) is not in the shared delimiter set and is therefore no
+ * longer split on. That is deliberate rather than an oversight: the shared
+ * splitter mirrors migration 0105's SQL, and a Khmer byline has no spaces to
+ * verify the segments with, so splitting it invents names — the failure this
+ * whole stack exists to stop. A Khmer byline is exported whole.
+ */
 function splitNames(raw: string | null | undefined): string[] {
-  return (raw ?? "")
-    .split(/[,;]| and | និង /)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  return citationNames(raw);
 }
 
 function mapThesis(row: Row): ScholarlyWork {

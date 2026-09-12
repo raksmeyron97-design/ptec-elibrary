@@ -27,6 +27,7 @@ import { getYear } from "@/lib/theses/report-fields";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { getCollectionStats } from "@/lib/collection-stats";
 import { chooseCountLabel } from "@/lib/listing-count";
+import { citationNames } from "@/lib/resources/contributor-identity";
 
 export const dynamic = "force-dynamic";
 
@@ -324,7 +325,7 @@ export default async function ThesesPage({
           slug: r.slug ?? r.id,
           title: r.title,
           authors: r.author_names
-            ? String(r.author_names).split(",").map((s: string) => s.trim()).filter(Boolean)
+            ? citationNames(String(r.author_names))
             : [],
           year: getYear(r),
           program: programNames.get(r.program) ?? r.program ?? null,
