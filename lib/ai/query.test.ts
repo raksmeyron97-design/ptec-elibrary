@@ -247,3 +247,39 @@ describe("v2 edge cases", () => {
     expect(parseQuery("សង្ខេបសៀវភៅនេះ").frame).toBe("none");
   });
 });
+
+describe("regexes over reader input are linear, not exponential", () => {
+  it("TITLE_CASE does not backtrack on a crafted capitalised run", () => {
+    // CodeQL js/redos, found on PR #175. The old alternation
+    // `(?:[a-z]{1,3}|[A-Z0-9:&-]\S*|\S*[A-Z]\S*)` under a `*` let one token
+    // match three ways — `\S*[A-Z]\S*` matches "AA" with an empty prefix OR
+    // an "A" prefix — so `"A " + "AA ".repeat(n) + "!"` cost 2 ms at n=8 and
+    // 2,885 ms at n=16. This regex runs on the reader's own topic on every AI
+    // request, so a crafted question could have pinned a CPU.
+    const attack = `A ${"AA ".repeat(400)}!`;
+    const started = performance.now();
+    // detectFrame is where TITLE_CASE is applied to reader input.
+    detectFrame(`Do you have the book ${attack}`);
+    parseQuery(attack);
+    expect(performance.now() - started).toBeLessThan(250);
+  });
+
+  it("and it still recognises a title written without quotes", () => {
+    for (const title of [
+      "Practical Research Methods",
+      "Research Methods in Education",
+      "From Teacher to Manager: Managing Language Teaching Organizations",
+      "100 Activities for Teaching Research Methods",
+    ]) {
+      expect(parseQuery(`Do you have the book ${title}?`).titleCandidates.length, title).toBeGreaterThan(0);
+    }
+  });
+
+  it("COMPARE_TRAIL needs real whitespace before the conjunction", () => {
+    // The separator was `\s*(?:\s|^)`, whose `^` could never match — it sat
+    // after a group that must consume two characters. Requiring `\s+` is what
+    // it was reaching for: without it "brand new" splits at "br|and".
+    expect(compareSides("How do brand and generic differ?")).toEqual(["brand", "generic"]);
+    expect(compareSides("How do brandnew items differ?")).toEqual([]);
+  });
+});

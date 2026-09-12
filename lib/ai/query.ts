@@ -280,8 +280,27 @@ export interface FrameMatch {
   scopeTitle?: string;
 }
 
-/** Two or more capitalised words: how a reader writes a title without quoting it. */
-const TITLE_CASE = /^(?:\S*[A-Z]\S*)(?:\s+(?:[a-z]{1,3}|[A-Z0-9:&-]\S*|\S*[A-Z]\S*))*$/u;
+/**
+ * Two or more capitalised words: how a reader writes a title without quoting
+ * it.
+ *
+ * THE ALTERNATION IS MUTUALLY EXCLUSIVE, and that is not tidiness. The first
+ * version was `(?:[a-z]{1,3}|[A-Z0-9:&-]\S*|\S*[A-Z]\S*)` under a `*`, and
+ * all three branches could match the same token: `\S*[A-Z]\S*` alone matches
+ * "AA" two different ways (empty prefix, or "A" prefix). CodeQL flagged it as
+ * exponential backtracking on input like `"A AA AA AA …"`, and it was right —
+ * this regex is applied to the reader's own topic on every AI request
+ * (`detectFrame`), so a crafted question could have pinned a CPU.
+ *
+ * Each branch now settles on whether the token contains a capital, and the
+ * two that cannot contain one are separated by their first character, so any
+ * given token matches exactly one branch in exactly one way:
+ *
+ *   [a-z]{1,3}            a short lowercase word — "of", "the", "and"
+ *   [0-9:&-][^A-Z\s]*     starts with a digit or connector, no capital
+ *   [^A-Z\s]*[A-Z]\S*     contains a capital, and the prefix cannot hide one
+ */
+const TITLE_CASE = /^[^A-Z\s]*[A-Z]\S*(?:\s+(?:[a-z]{1,3}|[0-9:&-][^A-Z\s]*|[^A-Z\s]*[A-Z]\S*))*$/u;
 const titleCaseWords = (s: string) => s.split(/\s+/).filter((w) => /^[A-Z]/.test(w)).length;
 
 /** Collection nouns that are not a work's title ("the books", "the literature"). */
@@ -331,9 +350,15 @@ const COMPARE_SPLIT = /\s+(?:and|versus|vs\.?|with|against|from|និង|ជា
  * to fall through to the ordinary evidence path, which answered it
  * acceptably; reading it as a comparison retrieves each side on its own and
  * balances them, which is the answer the question asks for.
+ *
+ * The separator is `\s+` and not `\s*(?:\s|^)`: that `^` could never match,
+ * because it sat after a group that must consume at least two characters.
+ * CodeQL called it an unmatchable assertion, and requiring real whitespace is
+ * what it was reaching for anyway — without it, "brand new" could be split at
+ * "br|and".
  */
 const COMPARE_TRAIL =
-  /^(?:តើ\s*|how\s+(?:do|does)\s+|in\s+what\s+ways?\s+(?:do|does)\s+)?(.{2,80}?)\s*(?:\s|^)(?:and|និង|ជាមួយ)\s+(.{2,80}?)\s*(?:differ|ខុសគ្នា|ប្រៀបធៀប)[^?]*\??\s*$/iu;
+  /^(?:តើ\s*|how\s+(?:do|does)\s+|in\s+what\s+ways?\s+(?:do|does)\s+)?(.{2,80}?)\s+(?:and|និង|ជាមួយ)\s+(.{2,80}?)\s*(?:differ|ខុសគ្នា|ប្រៀបធៀប)[^?]*\??\s*$/iu;
 
 /** The two sides of a comparison, quoted spans first, or []. */
 export function compareSides(text: string): string[] {

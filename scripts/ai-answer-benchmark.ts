@@ -990,6 +990,19 @@ function liveMetrics(rows: readonly Row[], e: ReturnType<typeof buildEvaluation>
  * stage, the root cause and the remedy. Rendered from the trace each row
  * already carries; nothing here is recomputed.
  */
+/**
+ * One cell of a Markdown table.
+ *
+ * The backslash is escaped FIRST and that order is the whole point: escaping
+ * `|` alone turns `a\|b` into `a\\|b`, where the reader's own backslash now
+ * escapes the one we added and the pipe breaks the table anyway. CodeQL flags
+ * the single-`replace` form as incomplete escaping, and on a title carrying a
+ * backslash it is right.
+ */
+function mdCell(text: string): string {
+  return text.replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
+}
+
 function renderFailureMatrix(rows: Row[], corpus: string, live: boolean): string {
   const failing = rows.filter((r) => r.diagnosis !== null);
   const lines: string[] = [
@@ -1015,7 +1028,7 @@ function renderFailureMatrix(rows: Row[], corpus: string, live: boolean): string
     lines.push(`| retrieved documents | ${r.evidenceSlugs.join(", ") || "—"} |`);
     lines.push(`| selected context | ${t?.context.passages ?? 0} passage(s), ${t?.context.works ?? 0} work(s), ${t?.context.facts ?? 0} fact(s), ~${t?.context.inputTokens ?? 0} input tokens |`);
     lines.push(`| prompt policy | locale ${t?.policy.locale ?? "—"}, verbosity ${t?.policy.verbosity ?? "—"}, evidence ${t?.policy.hasEvidence ? "yes" : "no"} |`);
-    lines.push(`| model output | ${r.answerClass}, ${r.answerChars} chars — ${r.answer.slice(0, 200).replace(/\s+/g, " ").replace(/\|/g, "\\|")} |`);
+    lines.push(`| model output | ${r.answerClass}, ${r.answerChars} chars — ${mdCell(r.answer.slice(0, 200).replace(/\s+/g, " "))} |`);
     lines.push(`| citations | grounded ${t?.citations.grounded ?? 0}, hallucinated ${r.hallucinated}, quoted ${t?.citations.quoted ?? 0}, attached ${r.sourceCount} — ${r.citedSlugs.join(", ") || "—"} |`);
     lines.push(`| expected evidence | ${r.expectedSlugs.join(", ") || "(no source labelled)"} |`);
     lines.push(`| actual failure | ${d.reason} |`);
@@ -1029,7 +1042,7 @@ function renderFailureMatrix(rows: Row[], corpus: string, live: boolean): string
       lines.push(`|---|---|---|---|---|---|`);
       t.evidence.forEach((e, i) => {
         const pages = e.pageEnd && e.pageEnd > e.page ? `${e.page}–${e.pageEnd}` : String(e.page);
-        lines.push(`| ${i + 1} | ${e.title.replace(/\|/g, "\\|")} | ${pages} | ${e.matchType} | ${e.score.toFixed(4)} | ${JSON.stringify(e.signals ?? {})} |`);
+        lines.push(`| ${i + 1} | ${mdCell(e.title)} | ${pages} | ${e.matchType} | ${e.score.toFixed(4)} | ${JSON.stringify(e.signals ?? {})} |`);
       });
       lines.push(``);
     }
