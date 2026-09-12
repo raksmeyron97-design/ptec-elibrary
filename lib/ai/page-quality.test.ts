@@ -66,8 +66,10 @@ const RME_PROSE =
   "and predict. Researchers should be clear about which theory they are using and why they are using it. " +
   "The choice is never neutral, and it shapes both what is asked and what counts as an answer.";
 
-// 100 Activities for Teaching Research Methods p.379 — 35 words, and a POINTER
-// to a definition rather than a definition.
+// 100 Activities for Teaching Research Methods p.379 — 35 words that name
+// three definitions without containing any of them. It is KEPT, and that is
+// the point: whether a paragraph is useful is a judgement about its subject,
+// and this module does not make those. Retrieval's scoring ranks it low.
 const CROSS_REFERENCE =
   "Useful terms See 'useful terms' in Activity 37 for a definition of 'structured', 'semi-structured' " +
   "and 'unstructured' interviews and Activity 40 for a definition of 'focus groups'. " +
@@ -108,16 +110,38 @@ describe("front matter is recognised as furniture", () => {
     expect(a.substantive).toBe(false);
   });
 
-  it("a title page, and a page that only points at a definition", () => {
-    expect(assessPageText("Interviewing as Qualitative Research A Guide for Researchers Third Edition").kind).toBe(
-      "sparse",
-    );
-    // 35 words naming three definitions and containing none of them.
-    expect(assessPageText(CROSS_REFERENCE).substantive).toBe(false);
+  it("a title page and a cross-reference stub carry no claim at all", () => {
+    // 16, 9 and 17 words. Everything this floor exists for is this short.
+    for (const stub of [
+      "Interviewing as Qualitative Research A Guide for Researchers Third Edition",
+      "Qualitative Coding The Manual Researchers for Johnny Saldaña 3E",
+      "Related activities Activity 36: Undertaking ethnographic work Activity 45: Using observation techniques",
+    ]) {
+      expect(assessPageText(stub).kind, stub).toBe("sparse");
+    }
   });
 });
 
 describe("prose is never dropped", () => {
+  it("a short paragraph is still a paragraph", () => {
+    // Found by CI: at a 40-word floor these five seeded pages were dropped as
+    // `sparse` and six e2e tests failed with an empty sources panel. They are
+    // 30–37 words with 5.4–6.7 sentence ends per 100 words.
+    for (const page of [
+      "Formative assessment is best understood as a continuous process rather than an event. The teacher gathers evidence of learning during instruction, interprets it against the intended outcome, and adjusts the next step accordingly.",
+      "Assessment for certification and assessment for learning answer different questions. Confusing the two produces a classroom where every task is graded and none of the grading changes what happens next.",
+    ]) {
+      const a = assessPageText(page);
+      expect(a.kind, page.slice(0, 40)).toBe("prose");
+      expect(a.substantive).toBe(true);
+    }
+  });
+
+  it("a paragraph that only POINTS at a definition is still prose", () => {
+    // Dropping it would be a judgement about the subject, not the structure.
+    expect(assessPageText(CROSS_REFERENCE).substantive).toBe(true);
+  });
+
   it("a chapter opening with no numbers at all", () => {
     const a = assessPageText(RME_PROSE);
     expect(a.kind).toBe("prose");

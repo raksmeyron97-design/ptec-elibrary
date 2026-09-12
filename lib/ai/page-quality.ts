@@ -78,7 +78,11 @@ const FURNITURE_MARKERS: readonly RegExp[] = [
   /\backnowledge?ments\b/iu,
   /\btable\s+of\s+contents\b/iu,
   /\b(?:author|subject|name)\s+index\b/iu,
-  /\bមាតិកា\b/u,
+  // No `\b` on the Khmer marker: a word boundary is defined on [A-Za-z0-9_],
+  // so `\bមាតិកា\b` can only match where Khmer sits directly against Latin —
+  // i.e. essentially never. It silently matched nothing until a change to the
+  // word floor stopped masking it.
+  /មាតិកា/u,
 ];
 
 /** Dot leaders — "Sampling error .......... 188" — are a contents page and nothing else. */
@@ -106,8 +110,28 @@ const BARE_NUMBER = /^\d{1,4}(?:[–-]\d{1,4})?$/u;
 
 const KHMER = /[ក-៿]/u;
 
-/** Below this many words a page cannot carry a claim worth citing. */
-const MIN_WORDS = 40;
+/**
+ * Below this many words there is no claim on the page at all — a title page,
+ * a running head, a cross-reference stub.
+ *
+ * 25, and the number was corrected by CI rather than chosen well the first
+ * time. At 40 it dropped the five seeded pages the e2e suite retrieves
+ * against, which are 30–37 words of unmistakable prose (5.4–6.7 sentence
+ * ends per 100 words), and six `e2e/ai-research.spec.ts` tests failed
+ * because the sources panel had nothing to render.
+ *
+ * The real gap is wide and 25 sits in the middle of it: the things this floor
+ * exists for run 9–17 words ("Qualitative Coding The Manual Researchers for
+ * Johnny Saldaña 3E"; "Related activities Activity 36: …"), and the shortest
+ * genuine paragraph measured runs 30.
+ *
+ * The 40-word version also dropped a 35-word page that names three
+ * definitions without containing any of them. Keeping that page is the
+ * correct outcome: whether a paragraph is USEFUL is a judgement about its
+ * subject, and this module does not make those — it decides whether the text
+ * is prose. Retrieval's own scoring is what ranks a weak paragraph low.
+ */
+const MIN_WORDS = 25;
 /**
  * Above this share of bare numbers — AND with no sentences at all — a page is
  * a locator list, not prose.
