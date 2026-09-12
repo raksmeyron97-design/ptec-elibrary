@@ -18,9 +18,16 @@ const ROOT = path.resolve(__dirname, "..");
 const SELF = "lib/resource-stats-consistency.test.ts";
 
 /** Repo-wide regex search over tracked source files (respects .gitignore). */
+// NOTE: `--untracked` is load-bearing. Plain `git grep` searches TRACKED
+// files only, so a NEWLY CREATED source file is invisible to this scan until
+// it is committed — a green local run then proves nothing about it. That
+// happened on 2026-09-12: a new lib/seo/contributor.ts carried the
+// institution name past four clean local suites and was caught only by CI,
+// after the commit made it tracked. `--untracked` still honours .gitignore,
+// so node_modules/.next stay out.
 function grepSource(pattern: string, globs = ["*.ts", "*.tsx"]): string[] {
   try {
-    const out = execFileSync("git", ["grep", "-l", "-E", pattern, "--", ...globs], {
+    const out = execFileSync("git", ["grep", "--untracked", "-l", "-E", pattern, "--", ...globs], {
       cwd: ROOT,
       encoding: "utf8",
     });

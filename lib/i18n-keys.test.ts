@@ -34,7 +34,16 @@ const en = JSON.parse(readFileSync(path.join(ROOT, "messages/en.json"), "utf8"))
 
 /** Files that could render a translated string. */
 function sourceFiles(): string[] {
-  const out = execFileSync("git", ["ls-files", "*.ts", "*.tsx"], { cwd: ROOT, encoding: "utf8" });
+  // `--others --exclude-standard` alongside `--cached` is load-bearing: plain
+  // `git ls-files` lists TRACKED files only, so a newly created source file is
+  // invisible to this scan until it is committed and a green local run proves
+  // nothing about it (see lib/settings-consistency.test.ts for the incident).
+  // `--exclude-standard` keeps .gitignore honoured, so node_modules stays out.
+  const out = execFileSync(
+    "git",
+    ["ls-files", "--cached", "--others", "--exclude-standard", "*.ts", "*.tsx"],
+    { cwd: ROOT, encoding: "utf8" },
+  );
   return out
     .split("\n")
     .filter(Boolean)

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  classifyContributor,
+  classifyName,
   contributorNodes,
   contributorNodesFor,
   looksLikeOrganization,
@@ -70,7 +70,7 @@ describe("a corporate body is an Organization, in both scripts", () => {
   it("does not mistake an ordinary human name for an organization", () => {
     for (const name of ["Adrian Wallwork", "Alan Bryman", "Anita Woolfolk", "Anne Burns"]) {
       expect(looksLikeOrganization(name)).toBe(false);
-      expect(classifyContributor(name, ORG)).toBe("person");
+      expect(classifyName(name, ORG)).toBe("person");
     }
   });
 });
@@ -208,7 +208,10 @@ const PERSON_ALLOWLIST = [
 
 describe("no byline may be typed Person by hand", () => {
   it("keeps Person assertions inside the classifier and the team pages", () => {
-    const roots = ["app", "lib/seo"].map((r) => join(process.cwd(), r));
+    // Whole `lib`, not just `lib/seo`: the classifier now lives in the domain
+    // layer, so a second one could just as easily appear in lib/resources or
+    // lib/admin. Scanning only the SEO folder would not see it.
+    const roots = ["app", "lib", "components"].map((r) => join(process.cwd(), r));
     const offenders: string[] = [];
 
     for (const root of roots) {

@@ -9,6 +9,8 @@ import { zimaDelete } from "@/lib/zima";
 import { logAdminAction } from "@/app/actions/audit";
 import { createAdminNotification } from "@/lib/admin-notifications";
 import { indexPdfPagesSafe } from "@/lib/pdf-page-index";
+import { recordResourceContributors } from "@/lib/resources/contributor-write";
+import { getOrgIdentity } from "@/lib/system-settings/config";
 import { notifyNewBookPublished } from "@/lib/push-events";
 import { EBOOKS_BASE_PATH } from "@/lib/admin/ebooks-url";
 import { findBookDuplicates } from "@/lib/books/duplicate-detection/service";
@@ -616,6 +618,27 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
   // only log — scripts/extract-pdf-text.ts remains the repair safety net.
   after(() => indexPdfPagesSafe("book", book.id, fileUrl));
 
+  // Canonical contributor credits (contributors + resource_contributors, 0105).
+  //
+  // `books.author_id` is a SINGULAR foreign key, so the legacy write above can
+  // record only ONE author for a book that may name five — which is why the
+  // byline string was the only place the truth lived, and why every renderer
+  // re-parsed it and 30% got it wrong (docs/SEO-3.0-AUDIT.md F-3). This records
+  // the normalized truth in the model that can actually hold it: typed
+  // person/organisation, ordered, with the role the byline stated.
+  //
+  // Additive on purpose. The legacy author row and author_id are untouched, so
+  // no author URL moves. Non-fatal and deferred, like the indexing above: a
+  // credit that cannot be written must never fail a book that is already saved.
+  after(async () => {
+    await recordResourceContributors(supabase, {
+      resourceType: "book",
+      resourceId: book.id,
+      byline: author,
+      org: await getOrgIdentity(),
+    });
+  });
+
   return { success: true, slug: book.slug };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -933,6 +956,18 @@ export async function updateBook(
         to: allowDownload,
       });
     }
+
+    // Re-record canonical credits: an edit can change the byline entirely, and
+    // a stale credit is worse than an absent one. Same contract as the create
+    // path — additive, deferred, non-fatal.
+    after(async () => {
+      await recordResourceContributors(supabase, {
+        resourceType: "book",
+        resourceId: bookId,
+        byline: author,
+        org: await getOrgIdentity(),
+      });
+    });
 
     revalidateBook(book.slug, { affectsHome: true });
     revalidatePath("/admin");

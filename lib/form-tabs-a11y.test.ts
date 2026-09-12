@@ -54,10 +54,17 @@ function openingTagAt(src: string, index: number): string {
 }
 
 /** Files that mount a <FormTabs idPrefix="…">, found rather than hardcoded. */
+// NOTE: `--untracked` is load-bearing. Plain `git grep` searches TRACKED
+// files only, so a NEWLY CREATED source file is invisible to this scan until
+// it is committed — a green local run then proves nothing about it. That
+// happened on 2026-09-12: a new lib/seo/contributor.ts carried the
+// institution name past four clean local suites and was caught only by CI,
+// after the commit made it tracked. `--untracked` still honours .gitignore,
+// so node_modules/.next stay out.
 function formTabsCallSites(): { file: string; prefixes: string[] }[] {
   const out = execFileSync(
     "git",
-    ["grep", "-l", "-e", 'idPrefix="', "--", "components", "app"],
+    ["grep", "--untracked", "-l", "-e", 'idPrefix="', "--", "components", "app"],
     { cwd: ROOT, encoding: "utf8" },
   );
   return out
