@@ -6,9 +6,16 @@ import { isLocaleScoped } from "./locale-scope";
 
 const ROOT = path.resolve(__dirname, "..", "..");
 
+// NOTE: `--untracked` is load-bearing. Plain `git grep` searches TRACKED
+// files only, so a NEWLY CREATED source file is invisible to this scan until
+// it is committed — a green local run then proves nothing about it. That
+// happened on 2026-09-12: a new lib/seo/contributor.ts carried the
+// institution name past four clean local suites and was caught only by CI,
+// after the commit made it tracked. `--untracked` still honours .gitignore,
+// so node_modules/.next stay out.
 function grepFiles(pattern: string): string[] {
   try {
-    return execFileSync("git", ["grep", "-l", "-E", pattern, "--", "*.tsx"], {
+    return execFileSync("git", ["grep", "--untracked", "-l", "-E", pattern, "--", "*.tsx"], {
       cwd: ROOT,
       encoding: "utf8",
     })
