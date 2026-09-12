@@ -38,6 +38,7 @@ import {
   classifyName,
   isOwnInstitution,
   normalizeByline,
+  stripRoleSuffix,
   type ContributorKind,
 } from "@/lib/resources/contributor-identity";
 import type { ContributorRole } from "@/lib/resources/types";
@@ -59,6 +60,16 @@ export type ResourceContributorView = {
   /** True when the stored `contributor_type` disagrees with what the name
    *  reads as. Observable rather than silent — see §28 of the audit doc. */
   typeConflict: boolean;
+  /**
+   * True when this credit was separated out of a canonical row that still held
+   * several entities in one `display_name` — a migration 0105 backfill
+   * artefact, 46 rows of it in production.
+   *
+   * Such a credit carries no `contributorId`: no stored row denotes this person
+   * alone, so it is a true CLAIM with no identity to link to. The flag lets the
+   * audit count how much of the graph still needs splitting at the source.
+   */
+  composite: boolean;
 };
 
 /**
@@ -138,29 +149,125 @@ export function kindOfCanonicalRow(
 
 // ── Projection ───────────────────────────────────────────────────────────────
 
-/** Canonical rows → views, in the sequence the cataloguer recorded. */
+/**
+ * Canonical rows → views, in the sequence the cataloguer recorded.
+ *
+ * ── A canonical row is supposed to be ONE entity. Verify it, don't assume it ──
+ *
+ * The whole read model rests on "a canonical row has already been separated,
+ * so never re-split it". That is true of every row `recordResourceContributors()`
+ * writes. It is NOT true of the rows migration 0105's backfill produced, and
+ * production proved it the day the backfill ran: `contributors` came out of it
+ * holding 46 rows whose own `display_name` still names several people, copied
+ * verbatim from the composite `authors` rows they came from —
+ *
+ *   "Oon-Seng Tan, Woon-Chia Liu, Ee-Ling Low (Editors)"     ← ONE row
+ *
+ * Publishing that row as one entity emits a single `Person` carrying three
+ * people's names and a role marker: a fabricated human, and strictly WORSE
+ * than the legacy string it replaced, which this same contract splits into
+ * three correct `Person` nodes. Preferring the canonical source must never
+ * lower the quality of the answer.
+ *
+ * So every row goes through the one normalization contract before it is
+ * believed:
+ *
+ *   names one entity        → the row stands; the STORED TYPE decides its kind
+ *   names several entities  → expanded here, with `contributorId: null`,
+ *                             because no single stored id denotes any one of
+ *                             them and claiming otherwise would invent identity
+ *   cannot be separated     → **nothing**, the same answer a legacy byline of
+ *                             that shape gets
+ *
+ * This is not "re-parsing what the graph decided". The backfill made no
+ * decision about these rows — it copied a string. A row the WRITE PATH
+ * produced (`source = 'manual'`) is taken exactly as stored, name included:
+ * `recordResourceContributors()` refuses to store an unresolvable byline, and
+ * that row is also what a librarian curates by hand — including into an
+ * inverted "Smith, John", which is one real person and must survive.
+ */
 export function viewsFromCanonical(
   rows: readonly CanonicalContributorRow[],
   org?: OrgIdentity,
 ): ResourceContributorView[] {
-  return rows
+  const ordered = rows
     .filter((r) => r.displayName.trim().length > 0)
     .slice()
     // Stable on sequence, then on the order the DB returned — never on name.
-    .sort((a, b) => a.sequence - b.sequence)
-    .map((row) => {
+    .sort((a, b) => a.sequence - b.sequence);
+
+  const out: ResourceContributorView[] = [];
+
+  for (const row of ordered) {
+    // A row the WRITE PATH produced is one entity by construction:
+    // `recordResourceContributors()` only ever stores names the normalizer
+    // returned, and refuses to store an unresolvable byline at all. It is also
+    // the row a librarian can curate by hand — including into an inverted form
+    // like "Smith, John", which is a real single person and must survive.
+    // So `manual` rows are taken as stored; only the backfill's copied strings
+    // are put back through the contract.
+    if (row.recordSource === "manual") {
       const { kind, typeConflict } = kindOfCanonicalRow(row, org);
-      return {
+      out.push({
         contributorId: row.contributorId,
         kind,
         name: row.displayName.trim(),
         nameKm: row.nameKm?.trim() || null,
         role: row.role,
-        sequence: row.sequence,
-        source: "canonical" as const,
+        sequence: out.length,
+        source: "canonical",
         typeConflict,
-      };
+        composite: false,
+      });
+      continue;
+    }
+
+    const normalized = normalizeByline(row.displayName, org);
+
+    // A role stated INSIDE the name ("… (Editors)") is better evidence than a
+    // backfill default of `author`. A row whose name states nothing keeps the
+    // role its column holds — which is how the thesis advisor stays an advisor.
+    const nameStatesRole = stripRoleMarker(row.displayName) !== collapseName(row.displayName);
+    const role = nameStatesRole ? normalized.role : row.role;
+
+    if (normalized.contributors.length > 1) {
+      for (const contributor of normalized.contributors) {
+        out.push({
+          contributorId: null,
+          kind: contributor.kind,
+          name: contributor.displayName,
+          nameKm: null,
+          role,
+          sequence: out.length,
+          source: "canonical",
+          typeConflict: false,
+          composite: true,
+        });
+      }
+      continue;
+    }
+
+    // Names several entities but cannot be separated safely: publish nothing,
+    // rather than one person wearing several names.
+    if (normalized.contributors.length === 0) continue;
+
+    const { kind, typeConflict } = kindOfCanonicalRow(row, org);
+    out.push({
+      contributorId: row.contributorId,
+      kind,
+      // The CLEANED name: a cataloguer's "(Editor)" is a role, not part of
+      // anyone's name, and 16 production rows carry one inside the name.
+      name: normalized.contributors[0].displayName,
+      nameKm: row.nameKm?.trim() || null,
+      role,
+      sequence: out.length,
+      source: "canonical",
+      typeConflict,
+      composite: false,
     });
+  }
+
+  return out;
 }
 
 /**
@@ -186,6 +293,7 @@ export function viewsFromLegacy(
     sequence: index,
     source: "legacy" as const,
     typeConflict: false,
+    composite: false,
   }));
 }
 
@@ -321,4 +429,14 @@ export function authorRoleContributors(
 ): ResourceContributorView[] {
   const authors = views.filter((v) => v.role === "author");
   return authors.length > 0 ? authors : views.slice();
+}
+
+/** Whitespace-collapsed name, for comparing against its role-stripped form. */
+function collapseName(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+/** The name with a trailing cataloguer role marker removed. */
+function stripRoleMarker(value: string): string {
+  return stripRoleSuffix(value);
 }

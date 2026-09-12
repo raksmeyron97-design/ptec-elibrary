@@ -199,6 +199,7 @@ describe("§19 an institution contributor never mints a second node", () => {
         sequence: 0,
         source: "canonical",
         typeConflict: false,
+        composite: false,
       },
     ]);
     expect(nodes).toEqual([{ "@id": ORGANIZATION_ID }]);

@@ -124,7 +124,7 @@ rather than a migration. It is not in scope here.
 The generated table is below. It asserts no identity: `Contributors` is how
 many entities the deterministic splitter finds, not a claim about who they are.
 
-### The 43 composite rows
+### The 43 composite rows (43)
 
 | # | Name | Slug | Works | Classification | Contributors | URL risk | Recommended |
 | --- | --- | --- | --- | --- | --- | --- | --- |

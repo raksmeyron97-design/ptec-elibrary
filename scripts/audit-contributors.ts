@@ -176,6 +176,26 @@ async function loadNames(): Promise<{ source: string; rows: SourceRow[] }> {
  * can be separated deterministically", not "these are the right people", and
  * the URL consequence is stated beside it every time.
  */
+/**
+ * One markdown TABLE CELL, escaped completely.
+ *
+ * The backslash is escaped FIRST and the pipe second. The other order is not a
+ * style preference: escaping `|` into `\|` while leaving `\` alone means an
+ * input already containing `\` produces `\\|`, which markdown reads as a
+ * literal backslash followed by a live column break — the cell escapes itself
+ * back out of the table. CodeQL flags exactly that shape
+ * (js/incomplete-sanitization), and it is right to.
+ *
+ * Newlines end a table row outright, so they are collapsed rather than escaped.
+ */
+function mdCell(value: unknown, max = 60): string {
+  return String(value ?? "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\|/g, "\\|")
+    .replace(/[\r\n]+/g, " ")
+    .slice(0, max);
+}
+
 function migrationMarkdown(rows: Row[], source: string, identity: boolean): string {
   const action = (r: Row): string => {
     if (r.category === "ORGANIZATION") return "ORGANIZATION";
@@ -185,14 +205,13 @@ function migrationMarkdown(rows: Row[], source: string, identity: boolean): stri
     return (r.resourceCount ?? 0) > 0 ? "SAFE_SPLIT" : "SAFE_SPLIT";
   };
   const composites = rows.filter((r) => r.category === "SAFE_MULTIPLE");
-  const esc = (v: string) => v.replace(/\|/g, "\\|");
 
   const head = [
     "| # | Name | Slug | Works | Classification | Contributors | URL risk | Recommended |",
     "| --- | --- | --- | --- | --- | --- | --- | --- |",
   ];
   const body = composites.map((r, i) =>
-    `| ${i + 1} | ${esc(r.name.slice(0, 80))} | \`${r.slug ?? "—"}\` | ${r.resourceCount ?? 0} | ${r.category} | ${r.contributorCount} | ${r.urlRisk} | ${action(r)} |`,
+    `| ${i + 1} | ${mdCell(r.name, 80)} | \`${mdCell(r.slug ?? "—", 120)}\` | ${r.resourceCount ?? 0} | ${r.category} | ${r.contributorCount} | ${r.urlRisk} | ${action(r)} |`,
   );
 
   const counts = (c: Category) => rows.filter((r) => r.category === c).length;

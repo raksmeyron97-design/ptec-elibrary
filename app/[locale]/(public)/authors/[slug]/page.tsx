@@ -126,6 +126,7 @@ export default async function AuthorPage({ params }: PageProps) {
           sequence: 0,
           source: "canonical",
           typeConflict: false,
+          composite: false,
         },
       ])
     : contributorNodes(author.name, pageOrg);

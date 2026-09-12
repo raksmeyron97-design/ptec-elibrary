@@ -90,15 +90,19 @@ Full architecture: `docs/SEO-3.2-CONTRIBUTOR-GRAPH.md`.
 All verified 2026-09-12 against `https://library.ptec.edu.kh` (HTTP) and
 `https://supabase.storage-ptec.online` (read-only service-role query).
 
-**P-1 — The canonical graph is empty in production.** `contributors` 0 rows,
-`resource_contributors` 0 rows, `resource_files` 0, `resource_subjects` 0 —
-against 298 books, 157 author rows and 1 thesis. The tables answer queries, so
-`0104`–`0109` are applied; their **backfill** produced nothing, because the
-self-hosted instance was created fresh at the 2026-09-06 cutover and the
-migration chain ran against an empty database before the content was imported.
-Consequence: every canonical read in production resolves to `legacy` today, and
-the SEO 3.2 fallback is what serves the site. Nothing regresses; nothing
-improves until a backfill runs.
+**P-1 — The canonical graph was empty in production, and has since been
+backfilled.** Measured 2026-09-12 **before** the backfill: `contributors` 0
+rows, `resource_contributors` 0 — against 298 books and 157 author rows. The
+tables answered queries, so `0104`–`0109` were applied; their BACKFILL produced
+nothing, because the self-hosted instance was created fresh at the 2026-09-06
+cutover and the migration chain ran against an empty database before the
+content was imported.
+
+**The backfill was executed the same day and is production-verified:
+`contributors` 162 rows, `resource_contributors` 303 edges, 0 duplicate edges,
+0 orphan references, and canonical coverage of 299/299 published resources
+(100%).** Full re-measurement, and the regression it exposed, are in
+`docs/SEO-3.2-FINAL-PRODUCTION-VERIFICATION.md`.
 
 **P-2 — A composite author URL published one person.** Live before this change:
 
@@ -131,26 +135,45 @@ Production, 2026-09-12, `scripts/audit-contributor-graph.ts` +
 `scripts/audit-contributors.ts`:
 
 ```
-canonical contributor coverage:   0 of 299 resources (0.0%)   PRODUCTION VERIFIED
-legacy fallback resources:      299 (298 books + 1 thesis)    PRODUCTION VERIFIED
-resources with no contributor:    0                           PRODUCTION VERIFIED
-conflicts:                        0  (no canonical rows to conflict with)
-duplicate canonical identities:   0  (no canonical rows)
-duplicate resource edges:         0  (no edges)
+canonical contributor coverage: 299 of 299 resources (100%)  PRODUCTION VERIFIED
+  books:                        298 / 298
+  theses:                         1 / 1
+  publications:                   0 / 0  (no publications exist)
+legacy fallback resources:        0                          PRODUCTION VERIFIED
+resources with no contributor:    0                          PRODUCTION VERIFIED
 
-contributor expressions (authors table): 157                  PRODUCTION VERIFIED
+contributor records:            162                          PRODUCTION VERIFIED
+  person:                        89
+  organization:                  27
+  institution:                    2
+  composite (row still names several entities):  44
+  unknown / no usable name:       0
+  stored type disagrees with the name:          29
+
+resource edges:                 303                          PRODUCTION VERIFIED
+  book / thesis:                298 / 5
+  roles: author 302, advisor 1
+  duplicate edges:                0
+  orphan contributor refs:        0
+  orphan resource refs:           0
+
+duplicate canonical identities:   0                          PRODUCTION VERIFIED
+conflicts:                        1 partial, 0 disagreements PRODUCTION VERIFIED
+
+contributor expressions (authors table): 157                 PRODUCTION VERIFIED
   person (SAFE_SINGLE):            85   54.1%
   composite (SAFE_MULTIPLE):       43   27.4%
   organizations:                   27   17.2%
   institutions:                     2    1.3%
-  ambiguous:                        0
-  unknown / empty:                  0
+  ambiguous / empty:                0
   role marker inside the name:     16
 ```
 
-The zero-valued integrity metrics are **arithmetic consequences of P-1**, not
-evidence of health. They become meaningful after a backfill; the script is the
-instrument for that.
+All figures are post-backfill and measured directly. The 44 composite
+contributor rows are a backfill artefact — 0105 copied composite `authors` rows
+verbatim — and are expanded by the read model at render time, so they are not a
+live SEO defect; they measure how much of the graph still needs splitting **at
+the source**.
 
 ## 7. Historical composite authors
 
@@ -243,14 +266,17 @@ real data through a real render.
 
 ## 11. Remaining work — evidence-backed only
 
-1. **Backfill the production contributor graph (P-1).** Everything in this phase
-   is inert until it runs. 0105's backfill block can be re-executed against the
-   now-populated tables, or `recordResourceContributors()` can be driven over
-   the 298 books. Verify with `scripts/audit-contributor-graph.ts` and expect
-   ~27 organizations, 2 institutions and 43 composites to appear.
-   **Blocking prerequisite for every metric in §6.**
-2. **Re-audit conflicts after the backfill.** `contributor-conflicts.md` is
-   empty only because there is nothing to conflict with.
+1. ~~**Backfill the production contributor graph (P-1).**~~ **DONE and
+   production-verified 2026-09-12** — 162 contributors, 303 edges, 100%
+   coverage. Re-measurement and the regression it exposed:
+   `docs/SEO-3.2-FINAL-PRODUCTION-VERIFICATION.md`.
+2. ~~**Re-audit conflicts after the backfill.**~~ **DONE** — 1 partial, 0 true
+   disagreements over 299 resources.
+3. **Split the 44 composite contributor ROWS at the source.** The read model
+   expands them correctly, so nothing is wrong on the page; but until the rows
+   are split, those credits carry no `contributorId` and cannot be linked to a
+   contributor page. Same URL question as the 43 composite `authors` rows, and
+   deferred with them.
 3. **Search (audit C-6).** The graph holds the same strings search already
    indexes, so switching buys no recall today and would cost it outright while
    the graph is empty. Revisit once coverage is measured.

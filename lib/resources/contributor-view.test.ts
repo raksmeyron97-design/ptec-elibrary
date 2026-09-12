@@ -56,11 +56,24 @@ describe("§16 a canonical row is not re-classified", () => {
     expect(kindOfCanonicalRow(row({ displayName: "Jane Doe" }), ORG).kind).toBe("person");
   });
 
-  it("never splits a canonical name", () => {
-    // A comma inside a stored contributor is part of one name — the split
-    // already happened at ingestion, or the row would not exist.
+  it("never splits a name the WRITE PATH stored", () => {
+    // A comma inside a contributor written by `recordResourceContributors()`
+    // is part of one name: that path refuses to store an unresolvable byline,
+    // and this is also the row a librarian curates by hand — "Smith, John" is
+    // one person written surname-first and must survive verbatim.
     const views = viewsFromCanonical([row({ displayName: "Smith, John" })], ORG);
     expect(views.map((v) => v.name)).toEqual(["Smith, John"]);
+  });
+
+  it("does NOT extend that trust to a backfilled row", () => {
+    // The 0105 backfill copied a string; it made no such promise. "Smith, John"
+    // there is one inverted name or two people, and neither reading may be
+    // published as fact.
+    const views = viewsFromCanonical(
+      [row({ displayName: "Smith, John", recordSource: "authors" })],
+      ORG,
+    );
+    expect(views).toEqual([]);
   });
 });
 
@@ -181,7 +194,7 @@ describe("§8 no duplicate contributors", () => {
   it("keeps a person and an organisation of the same name apart", () => {
     const person: ResourceContributorView = {
       contributorId: null, kind: "person", name: "Mekong", nameKm: null,
-      role: "author", sequence: 0, source: "legacy", typeConflict: false,
+      role: "author", sequence: 0, source: "legacy", typeConflict: false, composite: false,
     };
     const org: ResourceContributorView = { ...person, kind: "organization" };
     expect(contributorKey(person)).not.toBe(contributorKey(org));
@@ -303,5 +316,101 @@ describe("§10 roles stay semantic", () => {
       ORG,
     );
     expect(contributorNames(authorRoleContributors(views))).toEqual(["Ed Itor"]);
+  });
+});
+
+// ── The 0105 backfill artefact ───────────────────────────────────────────────
+//
+// Production's backfill copied composite `authors` rows verbatim into
+// `contributors`: 46 of 162 rows hold several people in one `display_name`.
+// Believing such a row as ONE entity publishes a fabricated human — and one
+// that is strictly worse than the legacy string it replaced, which the same
+// contract splits correctly. These fixtures are the production rows.
+
+const backfilled = (name: string, over: Partial<CanonicalContributorRow> = {}) =>
+  row({ displayName: name, contributorType: "person", recordSource: "authors", ...over });
+
+describe("a canonical row that still holds several entities", () => {
+  it("is expanded, not published as one person", () => {
+    const views = viewsFromCanonical(
+      [backfilled("Oon-Seng Tan, Woon-Chia Liu, Ee-Ling Low (Editors)")],
+      ORG,
+    );
+    expect(contributorNames(views)).toEqual(["Oon-Seng Tan", "Woon-Chia Liu", "Ee-Ling Low"]);
+    expect(views.every((v) => v.kind === "person")).toBe(true);
+  });
+
+  it("takes the role its NAME states over the backfill's `author` default", () => {
+    const views = viewsFromCanonical(
+      [backfilled("Oon-Seng Tan, Woon-Chia Liu, Ee-Ling Low (Editors)", { role: "author" })],
+      ORG,
+    );
+    expect(views.every((v) => v.role === "editor")).toBe(true);
+  });
+
+  it("numbers the expanded credits in printed order", () => {
+    const views = viewsFromCanonical(
+      [backfilled("Louis Cohen, Lawrence Manion, Keith Morrison")],
+      ORG,
+    );
+    expect(views.map((v) => v.sequence)).toEqual([0, 1, 2]);
+  });
+
+  it("carries no contributorId — no stored row denotes any one of them", () => {
+    const views = viewsFromCanonical([backfilled("David Scott, Marlene Morrison")], ORG);
+    expect(views.every((v) => v.contributorId === null)).toBe(true);
+    expect(views.every((v) => v.composite)).toBe(true);
+  });
+
+  it("expands a Khmer composite the same way", () => {
+    const views = viewsFromCanonical([backfilled("ខាំ សុមករា, គង់ ប៊ុនធី, ប៊ុន ស្រុង")], ORG);
+    expect(contributorNames(views)).toEqual(["ខាំ សុមករា", "គង់ ប៊ុនធី", "ប៊ុន ស្រុង"]);
+  });
+
+  it("publishes NOTHING when the row cannot be separated safely", () => {
+    // One inverted name or two people — unknowable. Rule E: omit.
+    expect(viewsFromCanonical([backfilled("Smith, John")], ORG)).toEqual([]);
+  });
+
+  it("never splits an organisation whose NAME contains a comma", () => {
+    const views = viewsFromCanonical(
+      [backfilled("Ministry of Education, Youth and Sport")],
+      ORG,
+    );
+    expect(contributorNames(views)).toEqual(["Ministry of Education, Youth and Sport"]);
+    expect(views[0].kind).toBe("organization");
+  });
+
+  it("strips a role marker the cataloguer typed into a single name", () => {
+    const views = viewsFromCanonical([backfilled("María Luisa Pérez Cañado (Editor)")], ORG);
+    expect(contributorNames(views)).toEqual(["María Luisa Pérez Cañado"]);
+    expect(views[0].role).toBe("editor");
+  });
+
+  it("leaves a real stored role alone when the name states none", () => {
+    // The production thesis advisor: role is a column fact, not a name marker.
+    const views = viewsFromCanonical([backfilled("ឡឹក ជំនោរ", { role: "advisor" })], ORG);
+    expect(views[0].role).toBe("advisor");
+  });
+
+  it("NEVER produces a worse answer than the legacy string it replaced", () => {
+    // The regression this whole block exists to prevent, stated as a property:
+    // for every production-shaped byline, canonical must not resolve to fewer
+    // contributors than the legacy path does.
+    for (const byline of [
+      "Oon-Seng Tan, Woon-Chia Liu, Ee-Ling Low (Editors)",
+      "Louis Cohen, Lawrence Manion, Keith Morrison",
+      "K. B. Everard, Geoffrey Morris, Ian Wilson",
+      "ខាំ សុមករា, គង់ ប៊ុនធី, ប៊ុន ស្រុង",
+      "Ministry of Education, Youth and Sport",
+      "María Luisa Pérez Cañado (Editor)",
+    ]) {
+      const canonical = viewsFromCanonical([backfilled(byline)], ORG);
+      const legacy = viewsFromLegacy(byline, ORG);
+      expect(
+        contributorNames(canonical),
+        `canonical resolved ${byline} worse than the legacy string`,
+      ).toEqual(contributorNames(legacy));
+    }
   });
 });

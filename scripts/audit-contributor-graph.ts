@@ -43,6 +43,7 @@ import { createClient } from "@supabase/supabase-js";
 
 import {
   kindOfCanonicalRow,
+  viewsFromCanonical,
   type CanonicalContributorRow,
 } from "../lib/resources/contributor-view";
 import { normalizeByline } from "../lib/resources/contributor-identity";
@@ -160,7 +161,9 @@ type Integrity = {
     organization: number;
     institution: number;
     /** A stored contributor whose own name still names more than one entity —
-     *  a composite that reached the canonical table. */
+     *  a composite that reached the canonical table. The read model expands
+     *  these at render time, so they are not a live SEO defect; they are a
+     *  measure of how much of the graph still needs splitting AT THE SOURCE. */
     composite: number;
     /** A row with no usable display name: it can denote nothing. */
     unknown: number;
@@ -323,11 +326,30 @@ async function main() {
 
     for (const r of normalizedRows) {
       const rows_ = canonicalByResource.get(`${spec.type}:${r.id}`) ?? [];
-      const canonicalNames = rows_
-        .slice()
-        .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
-        .map((e) => (byId.get(e.contributor_id)?.display_name ?? "").trim())
-        .filter(Boolean);
+
+      // Compare what the APPLICATION would publish, not the raw column. A
+      // 0105-backfilled row can still hold a whole composite byline in one
+      // `display_name`, and the read model expands it — so comparing the raw
+      // strings reported 53 "the two sources share no name" conflicts whose
+      // two sides were byte-identical. The conflict report must ask the same
+      // question the renderer does.
+      const canonicalNames = viewsFromCanonical(
+        rows_.map((e) => {
+          const c = byId.get(e.contributor_id);
+          const type = c?.contributor_type;
+          return {
+            contributorId: e.contributor_id,
+            displayName: (c?.display_name ?? "").trim(),
+            nameKm: c?.name_km ?? null,
+            contributorType:
+              type === "organization" || type === "person" ? type : null,
+            recordSource: c?.source ?? null,
+            role: (e.role ?? "author") as CanonicalContributorRow["role"],
+            sequence: e.sequence ?? 0,
+          };
+        }),
+        org,
+      ).map((v) => v.name);
 
       const legacy = (r.byline ?? "").trim();
 
@@ -427,6 +449,26 @@ function write(path: string, body: string) {
   writeFileSync(path, body.endsWith("\n") ? body : `${body}\n`, "utf8");
 }
 
+/**
+ * One markdown TABLE CELL, escaped completely.
+ *
+ * The backslash is escaped FIRST and the pipe second. The other order is not a
+ * style preference: escaping `|` into `\|` while leaving `\` alone means an
+ * input already containing `\` produces `\\|`, which markdown reads as a
+ * literal backslash followed by a live column break — the cell escapes itself
+ * back out of the table. CodeQL flags exactly that shape
+ * (js/incomplete-sanitization), and it is right to.
+ *
+ * Newlines end a table row outright, so they are collapsed rather than escaped.
+ */
+function mdCell(value: unknown, max = 60): string {
+  return String(value ?? "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\|/g, "\\|")
+    .replace(/[\r\n]+/g, " ")
+    .slice(0, max);
+}
+
 function table(rows: (string | number)[][]): string {
   const head = rows[0];
   const sep = head.map(() => "---");
@@ -492,7 +534,7 @@ function integrityMarkdown(r: Integrity): string {
       ? "None — no two contributor rows share an exact folded name within a type."
       : table([
           ["Name", "Type", "Rows"],
-          ...r.duplicateIdentities.slice(0, 50).map((d) => [d.name, d.type, d.ids.length]),
+          ...r.duplicateIdentities.slice(0, 50).map((d) => [mdCell(d.name), mdCell(d.type), d.ids.length]),
         ]),
     "",
     "> Duplicates are reported, never merged. Two rows sharing a name may be two",
@@ -518,11 +560,11 @@ function conflictMarkdown(r: Integrity, conflicts: Conflict[]): string {
         : table([
             ["Type", "Title", "Legacy byline", "Canonical credits", "Note"],
             ...list.slice(0, 100).map((c) => [
-              c.resourceType,
-              (c.title ?? "").slice(0, 60).replace(/\|/g, "\\|"),
-              c.legacy.slice(0, 60).replace(/\|/g, "\\|"),
-              c.canonical.join(" · ").slice(0, 60).replace(/\|/g, "\\|"),
-              c.note,
+              mdCell(c.resourceType),
+              mdCell(c.title),
+              mdCell(c.legacy),
+              mdCell(c.canonical.join(" · ")),
+              mdCell(c.note),
             ]),
           ]),
       "",
