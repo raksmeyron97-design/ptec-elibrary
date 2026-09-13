@@ -15,6 +15,7 @@
 import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/seo/site";
 import { resolveContributorNodes } from "@/lib/seo/contributor";
+import { bookLanguageCode } from "@/lib/books/language";
 import type { ResourceContributorView } from "@/lib/resources/contributor-view";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { libraryNode } from "@/lib/seo/org-nodes";
@@ -55,21 +56,21 @@ export type BookSeoInput = {
 
 // ── Language codes ───────────────────────────────────────────────────────────
 
-/** BCP-47 code for the human-readable language names stored in books.language.
- *  Returns undefined for unrecognized values — omitting inLanguage is better
- *  than emitting a wrong "en". */
+/**
+ * BCP-47 code for the value stored in `books.language`, or undefined when this
+ * library cannot say.
+ *
+ * The table itself lives in `lib/books/language.ts`, with the canonical
+ * spellings the upload form offers — because the same vocabulary decides what a
+ * reader sees, what the facet chips group by, and what this emits. Keeping a
+ * private copy here is what let `kh` fall through and strip `inLanguage` from
+ * 35 published books while `khmer` and `km` were both handled.
+ *
+ * Returning undefined for an unrecognised value is deliberate: omitting
+ * `inLanguage` is honest, guessing is a false claim about the book.
+ */
 export function languageCode(language: string | null | undefined): string | undefined {
-  const normalized = language?.trim().toLowerCase();
-  if (!normalized) return undefined;
-  const map: Record<string, string> = {
-    khmer: "km",
-    km: "km",
-    english: "en",
-    en: "en",
-    french: "fr",
-    fr: "fr",
-  };
-  return map[normalized];
+  return bookLanguageCode(language);
 }
 
 // ── Canonical URLs ───────────────────────────────────────────────────────────
