@@ -1,0 +1,252 @@
+# SEO 3.3 — Production Content & Topic Authority Audit
+
+**Date:** 2026-09-13 · **Base:** `main` @ `99d8311`
+**Evidence:** production database (`supabase.storage-ptec.online`), read-only service role, and live HTTP. Every number below was measured. Nothing is estimated; where a figure is unknown it says so.
+
+---
+
+## 0. Read this first — the brief's premise does not match production
+
+The kickoff describes *"the live published catalog (298 books, theses, publications)"* as three populations. Measured:
+
+| Resource type | Rows | Published |
+| --- | ---: | ---: |
+| Books | 298 | **296** |
+| Theses (`research_reports`) | 1 | **1** |
+| Publications | **0** | 0 |
+| Physical catalog | 6 | 6 active |
+| Learning paths | 9 | **9** |
+| Posts | 1 | 1 |
+
+**This is a 296-book collection.** There is no thesis corpus and no publication corpus to build topical authority from — one thesis is not a population. Every recommendation below is sized for that reality.
+
+Three further facts decide the whole phase:
+
+1. **`resource_subjects` holds 0 rows.** The canonical subject graph — `subjects` + `resource_subjects` (migration 0107) — is an empty shell, exactly as `contributors` was before SEO 3.2's backfill. The `subjects` table has 12 rows, **none** with a `parent_id`, **none** with a Khmer name. There is no concept hierarchy in the database today.
+2. **The topic hub surface already exists.** `/subjects/<slug>` is live, indexable, slug-gated (SEO 3.0) and carries 301s for retired slugs. The question is not whether to build a topic surface — it is whether to deepen the one we have.
+3. **923 distinct tags, 693 used exactly once (75%).** This is the single largest thin-page hazard in the dataset, and it is precisely what a programmatic `/topics/<tag>` family would turn into ~693 one-item pages.
+
+---
+
+## 1. Production content inventory
+
+### 1.1 Books by language — a data-quality defect first
+
+| Value | Books |
+| --- | ---: |
+| `Khmer` | 157 |
+| `English` | 102 |
+| `kh` | 35 |
+| `en` | 1 |
+| `khmer` | 1 |
+
+**Five values for two languages.** `books.language` is free text. Anything that facets, filters or emits `inLanguage` by this column is wrong for 37 of 296 books (12.5%) today. This must be normalised **before** any language-aware topic surface exists, not after.
+
+### 1.2 Retrieval corpus
+
+| Measure | Value |
+| --- | ---: |
+| Books with extracted full text (`indexed`) | **271 / 296 (91.6%)** |
+| `no_text_layer` (scans — a permanent fact) | 25 |
+| `failed` (our bug, retryable) | 2 |
+| Indexed pages | **60,778** |
+| Semantic chunks | 134,775 |
+| Books with a catalogue-level embedding | **213 / 296 (72.0%)** |
+
+The retrieval corpus is real and substantial. The catalogue-embedding gap (83 books) is the notable hole — see §7.
+
+---
+
+## 2. Subject / topic depth matrix
+
+24 of the 25 categories hold at least one published book. Depth, measured:
+
+| Category | Books | Indexed | Pages | Pages/book | Embedded | Tier |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| ស្រាវជ្រាវ (Research) | 65 | 59 | 19,922 | 306 | 63 | **DEEP** |
+| គរុកោសល្យ (Pedagogy) | 52 | 51 | 11,812 | 227 | 32 | **DEEP** |
+| ស្រាវជ្រាវប្រតិបត្តិ (Action research) | 18 | 18 | 3,212 | 178 | 18 | **DEEP** |
+| កញ្ជប់គណិតវិទ្យា (Math kit) | 18 | 12 | 952 | 53 | **0** | VIABLE* |
+| វិទ្យាសាស្ត្រ (Science) | 16 | 16 | 1,967 | 123 | 15 | **DEEP** |
+| គណិតវិទ្យា (Mathematics) | 13 | 13 | 1,596 | 123 | 10 | **DEEP** |
+| ភាសាអង់គ្លេសសិក្សា (English studies) | 13 | 9 | 2,257 | 174 | 9 | VIABLE |
+| ស្រាវជ្រាវបែបគុណភាព (Qualitative research) | 13 | 13 | 6,109 | **470** | 13 | **DEEP** |
+| ស្ថិតិ និងវិភាគទិន្នន័យ (Statistics) | 11 | 11 | 3,988 | 363 | 11 | **DEEP** |
+| គីមីវិទ្យា (Chemistry) | 8 | 8 | 884 | 111 | 7 | VIABLE |
+| ប្រវត្តិសាស្ត្រ (History) | 7 | 7 | 634 | 91 | 3 | VIABLE |
+| កម្មវិធីសិក្សា (Curriculum) | 7 | 6 | 764 | 109 | 2 | VIABLE |
+| បច្ចេកវិទ្យា (Technology) | 7 | 7 | 814 | 116 | 4 | VIABLE |
+| ទស្សនវិជ្ជា (Philosophy) | 7 | 5 | 1,207 | 172 | 2 | VIABLE |
+| អប់រំ (Education) | 6 | 6 | 650 | 108 | 2 | VIABLE |
+| សុខភាព (Health) | 6 | 5 | 245 | 41 | 4 | THIN |
+| រូបវិទ្យា (Physics) | 5 | 5 | 705 | 141 | 4 | THIN |
+| អក្សរសិល្ប៍ (Literature) | 5 | 4 | 295 | 59 | 1 | THIN |
+| ជីវវិទ្យា (Biology) | 5 | 5 | 633 | 127 | 5 | THIN |
+| ភាសា (Language) | 4 | 3 | 372 | 93 | 1 | THIN |
+| ចំណេះដឹងទូទៅ (General knowledge) | 3 | 2 | 379 | 126 | 2 | THIN |
+| វប្បធម៌ (Culture) | 3 | 2 | 333 | 111 | 1 | THIN |
+| ច្បាប់ (Law) | 3 | 3 | 1,025 | 342 | 3 | THIN |
+| វិធីសាស្ត្របង្រៀនរូបវិទ្យា (Physics teaching methods) | **1** | 1 | 23 | 23 | 1 | **SUPPRESS** |
+| កម្មវិធី PISA | **0** | — | — | — | — | **SUPPRESS** |
+
+\* `កញ្ជប់គណិតវិទ្យា` has 18 books but **0 catalogue embeddings and only 53 pages/book** — it is a workbook series, not a reading collection. Viable as a *browse* surface, weak as an *answer* surface.
+
+### 2.1 The concentration problem
+
+**117 of 296 books (40%) sit in two categories.** `ស្រាវជ្រាវ` and `គរុកោសល្យ` are where the authority actually is — and they are also the two broadest, least specific labels in the vocabulary. The long tail is 13 categories at ≤7 books.
+
+Departments are worse as a topic axis: `ស្រាវជ្រាវ` alone holds **115 of 296 (39%)**. That is a shelf, not a subject.
+
+---
+
+## 3. Topic clustering and concept hierarchy
+
+### 3.1 What hierarchy actually exists
+
+| Axis | Source | Rows | Hierarchical? |
+| --- | --- | ---: | --- |
+| Category | `books.category_id` → `categories` | 25 | **No** — flat |
+| Department | `books.department_id` → `departments` | 16 | **No** — flat |
+| Subject (canonical) | `subjects` | 12 | **No** — `parent_id` null on all 12 |
+| Tags | `books.tags[]` | 923 | **No** — folksonomy |
+| Learning path | `learning_paths` | 9 | **Yes** |
+
+**`learning_paths` is the only real curriculum hierarchy in production**, and it is genuinely well-formed:
+
+| Path | Subject | Grade | Difficulty |
+| --- | --- | --- | --- |
+| Early Grade Mathematics: Grade 1 | គណិតវិទ្យា | 1 | beginner |
+| Early Grade Mathematics: Grade 2 | គណិតវិទ្យា | 2 | beginner |
+| Early Grade Mathematics: Grade 3 | គណិតវិទ្យា | 3 | intermediate |
+| Early Grade Mathematics: Complete Primary | គណិតវិទ្យា | 1–3 | intermediate |
+| Early Grade Reading: Grade 1 Literacy & Phonics | ភាសាខ្មែរ | 1 | beginner |
+| Early Grade Reading: Grade 2 Fluency | ភាសាខ្មែរ | 2 | beginner |
+| Early Grade Reading: Grade 3 Comprehension | ភាសាខ្មែរ | 3 | intermediate |
+| Early Grade Reading: Complete Khmer Literacy | ភាសាខ្មែរ | 1–3 | intermediate |
+| Early Grade Learning: MoEYS Reading & Mathematics | អំណាន និងគណិតវិទ្យា | 1–3 | intermediate |
+
+This is `Subject → Grade → Path → Resources`, already live, already indexable, and already carrying the Track × Grade facets shipped in #180.
+
+### 3.2 The grade axis in books
+
+**60 of 296 books (20%) carry a grade tag.** Distribution:
+
+| Grade | Books | | Grade | Books |
+| --- | ---: | --- | --- | ---: |
+| ថ្នាក់ទី១ (1) | 11 | | ថ្នាក់ទី៩ (9) | 6 |
+| ថ្នាក់ទី៣ (3) | 11 | | ថ្នាក់ទី១១ (11) | 4 |
+| ថ្នាក់ទី២ (2) | 10 | | ថ្នាក់ទី១០ (10) | 2 |
+| ថ្នាក់ទី៨ (8) | 6 | | ថ្នាក់ទី១២ (12) | 1 |
+| ថ្នាក់ទី៧ (7) | 6 | | ថ្នាក់ទី៥, ទី៦ | 1 each |
+
+Grades 1–3 carry 32 books and are matched by 8 learning paths. **Grades 5–12 carry 27 books across 8 grades — an average of 3.4 per grade.** A `Subject × Grade` page family across all grades would be thin everywhere except primary.
+
+---
+
+## 4. Internal link opportunities
+
+Existing contextual links on a book page: subject crumb (one, and only when the category resolves to a subject with resources), related-by-category, and the author hub link. There is **no** link from a book to a learning path that contains it, and none from a subject to the paths that teach it.
+
+Measured opportunities, in order of evidence:
+
+| Opportunity | Basis | Scale |
+| --- | --- | --- |
+| Book → learning path that includes it | `learning_path_steps` (existing FK) | 9 paths, real membership |
+| Learning path → its subject hub | `learning_paths.subject` matches a category name | 9 of 9 resolve |
+| Subject → sibling subjects by co-occurrence | books sharing ≥2 tags across categories | **UNKNOWN — not yet measured** |
+| Grade tag → learning path of that grade | grade tag ↔ path grade | 32 primary books |
+
+The first two are data-backed, cost nothing, and are the highest-value internal linking available. The third needs measurement before it is promised.
+
+---
+
+## 5. Indexability criteria — proposed
+
+A topic surface may be indexable only when **all** of:
+
+1. **≥ 5 published resources.** Below this a hub is a list, not a page.
+2. **≥ 3 resources with extracted full text.** A hub whose items cannot be searched inside or cited by AI is a directory entry.
+3. **A distinct label** — not colliding with another taxonomy's page (§6.1).
+4. **A stable slug** already routable and gated.
+5. **Non-empty in both locales** or explicitly `noindex` in the locale where it is empty.
+
+Applying 1 + 2 to the measured matrix: **15 of 25 categories qualify**; 9 are THIN and must stay `noindex, follow`; 1 has a single book and 1 has none — both must be suppressed outright.
+
+---
+
+## 6. Thin-topic and cannibalization guards
+
+### 6.1 Name collisions — 12 measured, already present
+
+| Label | Appears as |
+| --- | --- |
+| ស្រាវជ្រាវ | category **+** department **+** subject |
+| គណិតវិទ្យា | category **+** department **+** subject |
+| គរុកោសល្យ | category **+** department **+** subject |
+| វិទ្យាសាស្ត្រ | category **+** department **+** subject |
+| កម្មវិធីសិក្សា | category **+** department **+** subject |
+| ជីវវិទ្យា | category + department |
+| សុខភាព, កម្មវិធី PISA, ភាសាអង់គ្លេសសិក្សា, ស្រាវជ្រាវបែបគុណភាព, ស្ថិតិ និងវិភាគទិន្នន័យ, កញ្ជប់គណិតវិទ្យា | category + subject |
+
+Five labels exist in **three** taxonomies simultaneously. Today only the category surface is routable, so nothing collides in practice. **The moment a second taxonomy gets a URL family, these 12 become 12 duplicate-intent page pairs.** This is the strongest single argument against adding a new topic URL family.
+
+### 6.2 Thin topics
+
+* **1 category with 1 book**, 1 with **0** — suppress from index and from the hub.
+* **693 tags used exactly once (75% of 923).** A tag-based page family is 693 thin pages. **Do not build one.**
+* Grades 5–12: 3.4 books per grade. No per-grade page above primary.
+
+---
+
+## 7. AI and knowledge-graph convergence
+
+The retrieval pipeline already consumes a topic signal: `match_record_chunks` (0135) filters inside the ANN candidate CTE, so scope is a retrieval *input*. A populated subject graph would let a reader ask a question *within a topic* rather than across the corpus.
+
+Two measured gaps block that:
+
+| Gap | Measured | Effect on AI |
+| --- | --- | --- |
+| `resource_subjects` empty | **0 rows** | No topic scope exists to retrieve within |
+| Catalogue embeddings | **213 / 296 (72%)** | 83 books invisible to the semantic leg at catalogue level |
+| `កញ្ជប់គណិតវិទ្យា` embeddings | **0 of 18** | The whole math-kit collection is lexical-only |
+
+Per-topic answer depth varies by an order of magnitude — `ស្រាវជ្រាវបែបគុណភាព` averages 470 indexed pages per book, `សុខភាព` 41. **Topic authority and answer authority are the same measurement here**, which is the genuinely useful convergence: the tier in §2 predicts both.
+
+---
+
+## 8. Proposed SEO 3.3 architecture
+
+### 8.1 What NOT to build, on this evidence
+
+* **No `/topics/*` family** — 693 singleton tags.
+* **No `/learn/*` family** — `/paths/*` already exists, is published, and covers the only real curriculum hierarchy.
+* **No `/grades/*` family** — 3.4 books per grade above primary.
+* **No second taxonomy URL family of any kind** — §6.1's 12 collisions become live duplicates the moment one exists.
+
+### 8.2 What the evidence does support
+
+**Phase A — data truth (no new URLs).**
+1. Normalise `books.language` to a two-value enum. 37 books are mislabelled today.
+2. Backfill `resource_subjects` from `books.category_id`, and give `subjects` its Khmer names and a `parent_id` where the vocabulary genuinely nests (e.g. ស្រាវជ្រាវប្រតិបត្តិ / ស្រាវជ្រាវបែបគុណភាព under ស្រាវជ្រាវ). This is the 3.2 contributor backfill pattern, applied to topics — **including its lesson: do not trust what the backfill writes; verify it.**
+3. Close the 83-book catalogue-embedding gap, starting with `កញ្ជប់គណិតវិទ្យា` (0 of 18).
+
+**Phase B — deepen the surface that exists.**
+4. Apply the §5 criteria to `/subjects/<slug>`: 15 indexable, 9 `noindex, follow`, 2 suppressed.
+5. Add the two data-backed internal links (book ↔ learning path, subject ↔ path).
+6. Emit the subject hierarchy as `about`/`hasPart` on existing hub pages once `parent_id` is real.
+
+**Phase C — measure before extending.** Re-run this audit. A topic family becomes defensible only if a subject's depth grows past the §5 bar.
+
+### 8.3 Validation gates
+
+Before any of this merges: an invariant test that no indexable topic surface falls below the §5 thresholds; a source scan that no second taxonomy gains a route while §6.1 collisions stand; and `scripts/verify-production-entities.ts` extended with subject-hub fixtures, verified post-deploy.
+
+---
+
+## 9. What is NOT known
+
+* Subject co-occurrence / semantic sibling strength — **not measured**.
+* Real search demand for any of these topics — no Search Console data in evidence.
+* Whether readers use `/subjects/*` at all — **query analytics not consulted in this pass.**
+
+None of these should be guessed. The first two are the natural next measurement.
