@@ -143,7 +143,8 @@ describe("the summary never folds unknown into a pass", () => {
 // deciding for themselves what a dropped connection meant.
 describe("every production verifier speaks this vocabulary", () => {
   const dir = join(__dirname, "..", "..", "scripts");
-  const verifiers = readdirSync(dir).filter((f) => /^verify-.*\.ts$/.test(f));
+  // The crawl audit is an instrument too, and was written to this contract.
+  const verifiers = readdirSync(dir).filter((f) => /^(verify-.*|audit-crawl-depth)\.ts$/.test(f));
 
   it("finds the verifiers", () => {
     expect(verifiers.length).toBeGreaterThanOrEqual(4);
