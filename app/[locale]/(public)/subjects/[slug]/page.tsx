@@ -1,8 +1,10 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
+import SubjectLearningPaths from "@/components/seo/SubjectLearningPaths";
 import JsonLd from "@/components/seo/JsonLd";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { SITE_URL } from "@/lib/seo/site";
@@ -199,6 +201,12 @@ export default async function SubjectPage({ params }: PageProps) {
             </p>
           )}
         </header>
+
+        {/* Curricula & Learning Paths — self-fetching from cached index; streams
+            independently and returns null when this subject has no learning paths */}
+        <Suspense fallback={null}>
+          <SubjectLearningPaths subjectName={subject.name} locale={locale} />
+        </Suspense>
 
         {groups.length === 0 ? (
           <div className="rounded-2xl border border-divider bg-bg-surface p-8 text-center">

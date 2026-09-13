@@ -21,6 +21,7 @@ import {
 } from "@/lib/seo/learning-path-seo";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { deriveScope, scopeLabelKeys } from "@/lib/learning-paths/taxonomy";
+import { getParentSubjectForPath } from "@/lib/learning-paths/subject-links";
 import { Bilingual, LangText } from "@/components/ui/core/LangText";
 
 export const dynamic = "force-dynamic";
@@ -78,9 +79,10 @@ export default async function LearningPathDetailPage({ params }: PageProps) {
   const { data: { user } } = await authClient.auth.getUser();
   const isLoggedIn = !!user;
 
-  const [progress, allPaths] = await Promise.all([
+  const [progress, allPaths, parentSubject] = await Promise.all([
     getUserPathProgress(path.id),
     getPublishedPaths(),
+    getParentSubjectForPath(path.subject),
   ]);
 
   const seoInput = toPathSeoInput(path);
@@ -98,6 +100,7 @@ export default async function LearningPathDetailPage({ params }: PageProps) {
   const pathBreadcrumb = breadcrumbSchema([
     { name: t("breadcrumbHome"), path: "/" },
     { name: t("breadcrumbPaths"), path: "/paths" },
+    ...(parentSubject ? [{ name: parentSubject.name, path: `/subjects/${parentSubject.slug}` }] : []),
     { name: title },
   ], { locale });
   const courseSchema = pathCourseJsonLd(seoInput, locale, await getOrgIdentity());
@@ -124,6 +127,12 @@ export default async function LearningPathDetailPage({ params }: PageProps) {
             <li><Link href="/" className="hover:text-brand">{t("breadcrumbHome")}</Link></li>
             <li aria-hidden="true">/</li>
             <li><Link href="/paths" className="hover:text-brand">{t("breadcrumbPaths")}</Link></li>
+            {parentSubject && (
+              <>
+                <li aria-hidden="true">/</li>
+                <li><Link href={`/subjects/${parentSubject.slug}`} className="hover:text-brand">{parentSubject.name}</Link></li>
+              </>
+            )}
             <li aria-hidden="true">/</li>
             <li className="min-w-0 truncate text-text-heading" aria-current="page"><LangText text={title} locale={locale} /></li>
           </ol>
@@ -142,6 +151,15 @@ export default async function LearningPathDetailPage({ params }: PageProps) {
           <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,300px)] sm:items-start sm:gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] lg:gap-10">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
+                {parentSubject && (
+                  <Link
+                    href={`/subjects/${parentSubject.slug}`}
+                    className="paths-eyebrow inline-flex items-center gap-1.5 rounded-full border border-divider bg-paper px-3 py-1 text-[11px] font-bold text-text-body transition-colors hover:border-brand/40 hover:text-brand"
+                  >
+                    <span className="text-text-muted">{t("parentSubject")}:</span>
+                    <span>{parentSubject.name}</span>
+                  </Link>
+                )}
                 {scopeLabel && (
                   <span className="paths-eyebrow inline-flex items-center gap-1.5 rounded-full border border-brand/20 bg-brand/8 px-3 py-1 text-[11px] font-bold text-brand">
                     <GraduationCap className="h-3.5 w-3.5" aria-hidden="true" />

@@ -3004,7 +3004,8 @@
     "continueWith": "Continue · {step}",
     "statBooks": "distinct resources",
     "partOfHeading": "Part of these learning paths",
-    "partOfIntro": "This book is a step in the following guided curricula."
+    "partOfIntro": "This book is a step in the following guided curricula.",
+    "parentSubject": "Subject"
   },
   "downloadProfile": {
     "title": "Download Access Profile",
@@ -7901,7 +7902,12 @@
     "emptyTitle": "Nothing here yet",
     "emptyBody": "No public resources are attached to this subject yet.",
     "backToSubjects": "All subjects",
-    "connectionsHeading": "Explore related"
+    "connectionsHeading": "Explore related",
+    "curriculumHeading": "Structured Curricula & Learning Paths",
+    "curriculumIntro": "Guided learning packages and curriculum sequences in this subject.",
+    "browseAllPaths": "Browse all paths",
+    "pathEyebrow": "Curriculum",
+    "viewCurriculum": "View curriculum"
   },
   "offline": {
     "libraryTitle": "Downloaded books",

@@ -62,3 +62,16 @@ export function catalogMatchesSubject(
 ): boolean {
   return containsSubject(category, subjectKey(name));
 }
+
+export type LearningPathSubjectFields = {
+  subject?: string | null;
+};
+
+/** Learning paths carry a free-text `subject`. Substring, like theses and catalog. */
+export function learningPathMatchesSubject(
+  row: LearningPathSubjectFields,
+  name: string,
+): boolean {
+  return containsSubject(row.subject, subjectKey(name));
+}
+
