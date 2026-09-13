@@ -1,0 +1,169 @@
+{
+  "base": "https://library.ptec.edu.kh",
+  "generatedAt": "2026-09-13T14:46:43.036Z",
+  "instrument": "scripts/audit-crawl-depth.ts",
+  "sitemapUrls": 508,
+  "crawled": 1650,
+  "checked": 1650,
+  "unknown": 0,
+  "incomplete": false,
+  "reachableByClick": 507,
+  "reachableIncludingAlternates": 507,
+  "orphansByClick": [
+    "/authors/kenneth-n-berk-patrick-carey"
+  ],
+  "orphansByAnyEdge": [
+    "/authors/kenneth-n-berk-patrick-carey"
+  ],
+  "brokenInternalLinks": 0,
+  "indexableDeadEnds": 0,
+  "clickDepthByFamily": {
+    "/": {
+      "n": 1,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "atLeast4": 0
+    },
+    "/about": {
+      "n": 7,
+      "min": 1,
+      "median": 1,
+      "max": 1,
+      "atLeast4": 0
+    },
+    "/authors": {
+      "n": 157,
+      "min": 1,
+      "median": 2,
+      "max": 2,
+      "atLeast4": 0
+    },
+    "/books": {
+      "n": 609,
+      "min": 1,
+      "median": 3,
+      "max": 11,
+      "atLeast4": 246
+    },
+    "/catalogs": {
+      "n": 7,
+      "min": 1,
+      "median": 2,
+      "max": 2,
+      "atLeast4": 0
+    },
+    "/contact": {
+      "n": 1,
+      "min": 1,
+      "median": 1,
+      "max": 1,
+      "atLeast4": 0
+    },
+    "/paths": {
+      "n": 10,
+      "min": 1,
+      "median": 2,
+      "max": 3,
+      "atLeast4": 0
+    },
+    "/policy": {
+      "n": 1,
+      "min": 1,
+      "median": 1,
+      "max": 1,
+      "atLeast4": 0
+    },
+    "/posts": {
+      "n": 2,
+      "min": 1,
+      "median": 1,
+      "max": 1,
+      "atLeast4": 0
+    },
+    "/privacy": {
+      "n": 1,
+      "min": 1,
+      "median": 1,
+      "max": 1,
+      "atLeast4": 0
+    },
+    "/publications": {
+      "n": 1,
+      "min": 1,
+      "median": 1,
+      "max": 1,
+      "atLeast4": 0
+    },
+    "/subjects": {
+      "n": 25,
+      "min": 1,
+      "median": 2,
+      "max": 2,
+      "atLeast4": 0
+    },
+    "/theses": {
+      "n": 3,
+      "min": 1,
+      "median": 2,
+      "max": 2,
+      "atLeast4": 0
+    }
+  },
+  "books": {
+    "inSitemap": 296,
+    "clickReachable": 296,
+    "medianDepth": 3,
+    "counterfactualNoHubOrPathEdges": {
+      "clickReachable": 296,
+      "medianDepth": 3,
+      "booksWhoseShortestPathRunsThroughHubOrPath": [
+        {
+          "url": "/books/វិធីសាស្ត្រគ្រប់គ្រងកំហឹង",
+          "actual": 3,
+          "counterfactual": 6
+        },
+        {
+          "url": "/books/សៀវភៅណែនាំគ្រូបង្រៀន-គីមីវិទ្យា-ថ្នាក់ទី៨-stepsam3",
+          "actual": 3,
+          "counterfactual": 10
+        },
+        {
+          "url": "/books/ថ្នាលអភិវឌ្ឍសមត្ថភាព-cdp",
+          "actual": 3,
+          "counterfactual": 4
+        },
+        {
+          "url": "/books/វិធីសាស្ត្របង្រៀន-ការអប់រំសុខភាពសម្រាប់គ្រូឧទ្ទេស",
+          "actual": 3,
+          "counterfactual": 5
+        },
+        {
+          "url": "/books/សៀវភៅណែនាំគ្រូបង្រៀន-ជីវវិទ្យា-ថ្នាក់ទី៩-stepsam3",
+          "actual": 3,
+          "counterfactual": 10
+        },
+        {
+          "url": "/books/ការអប់រំសុខភាពសម្រាប់មជ្ឈមណ្ឌលគរុកោសល្យភូមិភាគ",
+          "actual": 3,
+          "counterfactual": 5
+        },
+        {
+          "url": "/books/គីមីវិទ្យា-បណ្តុំវិទ្យាសាស្ត្រសង្គម",
+          "actual": 3,
+          "counterfactual": 9
+        },
+        {
+          "url": "/books/គេហសេដ្ឋកិច្ចវិទ្យា",
+          "actual": 3,
+          "counterfactual": 9
+        },
+        {
+          "url": "/books/ការអប់រំបំណិនជីវិតស្តីពីបរិស្ថាន",
+          "actual": 3,
+          "counterfactual": 8
+        }
+      ]
+    }
+  }
+}
