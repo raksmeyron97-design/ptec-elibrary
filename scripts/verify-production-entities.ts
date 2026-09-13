@@ -29,6 +29,16 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import {
+  errorOutcome,
+  exitCodeFor,
+  fetchWithRetry,
+  incompleteBanner,
+  summaryLine,
+  tally,
+  type Outcome,
+} from "../lib/verify/http";
+
 const argv = process.argv.slice(2);
 const flag = (name: string, fallback?: string) => {
   const i = argv.indexOf(`--${name}`);
@@ -142,7 +152,6 @@ const CHECKS: Check[] = [
 // One escalation: if MOST fixtures warn, the collection did not quietly drift
 // — something systemic happened (a bad sitemap, a routing change, the wrong
 // host) and a pile of warnings would hide it. See SYSTEMIC_WARN_RATIO.
-type Outcome = "ok" | "warn" | "fail";
 
 /** Above this share of warnings, the warnings themselves are the finding. */
 const SYSTEMIC_WARN_RATIO = 0.5;
@@ -173,7 +182,9 @@ async function run() {
     let actual: unknown;
 
     try {
-      const res = await fetch(url, { redirect: "follow" });
+      // 404/410 are answers this check interprets itself (a moved fixture),
+      // so they are allowed through rather than thrown as errors.
+      const res = await fetchWithRetry(url, { allowStatuses: [404, 410] });
       status = res.status;
 
       if (status === 404 || status === 410) {
@@ -195,25 +206,28 @@ async function run() {
         }
       }
     } catch (err) {
-      outcome = "fail";
-      detail = `request failed: ${(err as Error).message}`;
+      // A socket reset says nothing about this page's JSON-LD. Recording it as
+      // a defect is what made a clean site report a failure on 2026-09-13.
+      [outcome, detail] = errorOutcome(err);
     }
 
     results.push({ shape: check.shape, path: check.path, status, outcome, detail, actual });
-    const label = outcome === "ok" ? "ok  " : outcome === "warn" ? "WARN" : "FAIL";
+    const label =
+      outcome === "ok" ? "ok  " : outcome === "warn" ? "WARN" : outcome === "unknown" ? "????" : "FAIL";
     console.log(`  ${label}  ${check.shape.padEnd(44)} ${check.path}`);
     if (detail) console.log(`        ${detail}`);
   }
 
-  const failed = results.filter((r) => r.outcome === "fail").length;
-  const warned = results.filter((r) => r.outcome === "warn").length;
+  const t = tally(results.map((r) => r.outcome));
+  const failed = t.fail;
+  const warned = t.warn;
   const systemic = warned > 0 && warned / results.length > SYSTEMIC_WARN_RATIO;
 
-  console.log(
-    `\n${results.length - failed - warned}/${results.length} passed` +
-      (warned ? `, ${warned} warned` : "") +
-      (failed ? `, ${failed} FAILED` : ""),
-  );
+  // NOT `length - failed - warned`: an unanswered fixture is not a pass.
+  console.log(`\n${summaryLine(t)} (${results.length} fixtures)`);
+
+  const banner = incompleteBanner(t);
+  if (banner) console.log(`\n${banner}`);
 
   if (systemic) {
     console.log(
@@ -230,7 +244,14 @@ async function run() {
     writeFileSync(
       JSON_OUT,
       `${JSON.stringify(
-        { base: BASE, generatedAt: new Date().toISOString(), failed, warned, systemic, results },
+        {
+          base: BASE,
+          generatedAt: new Date().toISOString(),
+          ...t,
+          incomplete: t.unknown > 0,
+          systemic,
+          results,
+        },
         null,
         2,
       )}\n`,
@@ -239,8 +260,12 @@ async function run() {
   }
   console.log();
 
-  const bad = failed > 0 || systemic || (STRICT && warned > 0);
+  // A systemic warn (most fixtures missing) still fails: that is the origin
+  // answering consistently, not failing to answer.
+  const bad = exitCodeFor(t, STRICT) !== 0 || systemic;
   process.exit(bad ? 1 : 0);
 }
 
 run();
+
+export {};

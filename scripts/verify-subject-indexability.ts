@@ -34,6 +34,16 @@
 // suppressed. A suppressed hub is by definition linked from nowhere, so no
 // crawl of the site can discover it and no relation can be asserted about it.
 
+import {
+  errorOutcome,
+  exitCodeFor,
+  fetchText,
+  incompleteBanner,
+  summaryLine,
+  tally,
+  type Outcome,
+} from "../lib/verify/http";
+
 // `export {}` at the foot of this file is load-bearing: without it TypeScript
 // treats a script with no top-level import as a GLOBAL script, and its consts
 // collide with the identically-named ones in verify-production-entities.ts.
@@ -48,8 +58,9 @@ const BASE = (flag("base", "https://library.ptec.edu.kh") as string).replace(/\/
 const JSON_OUT = flag("json");
 /** A slug you believe is suppressed — asserted noindex AND absent from both lists. */
 const SUPPRESSED_SLUG = flag("slug");
+/** Manual audits want an incomplete run to be a failure; CI does not. */
+const STRICT = argv.includes("--strict");
 
-type Outcome = "ok" | "warn" | "fail";
 type Result = { check: string; outcome: Outcome; detail: string | null };
 
 const results: Result[] = [];
@@ -63,9 +74,7 @@ const record = (check: string, outcome: Outcome, detail: string | null = null) =
 // ── Reading what the site says ───────────────────────────────────────────────
 
 async function text(path: string): Promise<string> {
-  const res = await fetch(`${BASE}${encodeURI(path)}`, { redirect: "follow" });
-  if (!res.ok) throw new Error(`HTTP ${res.status} for ${path}`);
-  return res.text();
+  return fetchText(`${BASE}${encodeURI(path)}`);
 }
 
 /**
@@ -132,7 +141,7 @@ async function run() {
     try {
       pages.set(path, robotsOf(await text(path)));
     } catch (err) {
-      record(`GET ${path}`, "fail", (err as Error).message);
+      record(`GET ${path}`, ...errorOutcome(err));
       pages.set(path, null);
     }
   }
@@ -201,13 +210,15 @@ async function run() {
     );
   }
 
-  const failed = results.filter((r) => r.outcome === "fail").length;
-  const warned = results.filter((r) => r.outcome === "warn").length;
-  console.log(
-    `\n${results.length - failed - warned}/${results.length} passed` +
-      (warned ? `, ${warned} warned` : "") +
-      (failed ? `, ${failed} FAILED` : ""),
-  );
+  const t = tally(results.map((r) => r.outcome));
+  const failed = t.fail;
+  const warned = t.warn;
+  // NOT `length - failed - warned`: that arithmetic counts an unanswered check
+  // as a pass, which is the precise defect this module was written to remove.
+  console.log(`\n${summaryLine(t)} (${results.length} checks)`);
+
+  const banner = incompleteBanner(t);
+  if (banner) console.log(`\n${banner}`);
 
   if (JSON_OUT) {
     const { mkdirSync, writeFileSync } = await import("node:fs");
@@ -221,8 +232,8 @@ async function run() {
           generatedAt: new Date().toISOString(),
           advertised: advertised.length,
           linked: linked.length,
-          failed,
-          warned,
+          ...t,
+          incomplete: t.unknown > 0,
           results,
         },
         null,
@@ -233,12 +244,18 @@ async function run() {
   }
   console.log();
 
-  process.exit(failed > 0 ? 1 : 0);
+  process.exit(exitCodeFor(t, STRICT));
 }
 
 run().catch((err) => {
-  console.error(`\nverification could not run: ${(err as Error).message}\n`);
-  process.exit(1);
+  // Reaching here means the sitemap or the hub could not be read, so NOTHING
+  // was checked. A transport failure exits 0 with a loud banner rather than 1:
+  // the post-deploy workflow does `exit "$rc"`, and painting the build red for
+  // a socket reset is how a real red stops being read. `--strict` (a manual
+  // audit) still treats it as a failure.
+  const [outcome, detail] = errorOutcome(err);
+  console.error(`\nverification could not run — ${detail}\n`);
+  process.exit(outcome === "unknown" && !STRICT ? 0 : 1);
 });
 
 export {};

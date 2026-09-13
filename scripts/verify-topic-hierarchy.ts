@@ -24,6 +24,17 @@
 // ── 4. Invariant: §5 Indexability Depth Gate ────────────────────────────────
 // 10. The 19 indexable / 4 noindex / 2 suppressed distribution remains intact.
 
+import {
+  errorOutcome,
+  exitCodeFor,
+  fetchText,
+  fetchWithRetry,
+  incompleteBanner,
+  summaryLine,
+  tally,
+  type Outcome,
+} from "../lib/verify/http";
+
 const argv = process.argv.slice(2);
 const flag = (name: string, fallback?: string) => {
   const i = argv.indexOf(`--${name}`);
@@ -32,23 +43,22 @@ const flag = (name: string, fallback?: string) => {
 
 const BASE = (flag("base", "https://library.ptec.edu.kh") as string).replace(/\/$/, "");
 const JSON_OUT = flag("json");
+/** Manual audits want an incomplete run to be a failure; CI does not. */
+const STRICT = argv.includes("--strict");
 
-type Outcome = "ok" | "warn" | "fail";
 type Result = { check: string; outcome: Outcome; detail: string | null };
 
 const results: Result[] = [];
 const record = (check: string, outcome: Outcome, detail: string | null = null) => {
   results.push({ check, outcome, detail });
-  const label = outcome === "ok" ? "ok  " : outcome === "warn" ? "WARN" : "FAIL";
+  const label =
+    outcome === "ok" ? "ok  " : outcome === "warn" ? "WARN" : outcome === "unknown" ? "????" : "FAIL";
   console.log(`  ${label}  ${check}`);
   if (detail) console.log(`        ${detail}`);
 };
 
 async function text(path: string): Promise<string> {
-  const url = `${BASE}${encodeURI(path)}`;
-  const res = await fetch(url, { redirect: "follow" });
-  if (!res.ok) throw new Error(`HTTP ${res.status} for ${path}`);
-  return res.text();
+  return fetchText(`${BASE}${encodeURI(path)}`);
 }
 
 function extractJsonLd(html: string): any[] {
@@ -135,8 +145,8 @@ async function verify() {
             ? null
             : `expected hasPart with ${parent.expectedChildren.length} items, found: ${JSON.stringify(hasPart)}`,
         );
-      } catch (err: any) {
-        record(`${path} fetch`, "fail", err.message);
+      } catch (err) {
+        record(`${path} fetch`, ...errorOutcome(err));
       }
     }
   }
@@ -188,8 +198,8 @@ async function verify() {
           isPartOfParent ? "ok" : "fail",
           isPartOfParent ? null : `isPartOf: ${JSON.stringify(collection?.isPartOf)}`,
         );
-      } catch (err: any) {
-        record(`${path} fetch`, "fail", err.message);
+      } catch (err) {
+        record(`${path} fetch`, ...errorOutcome(err));
       }
     }
   }
@@ -215,27 +225,37 @@ async function verify() {
         hasNoHasPart ? "ok" : "fail",
         hasNoHasPart ? null : `unexpected hasPart on flat hub: ${JSON.stringify(collection?.hasPart)}`,
       );
-    } catch (err: any) {
-      record(`${path} fetch`, "fail", err.message);
+    } catch (err) {
+      record(`${path} fetch`, ...errorOutcome(err));
     }
   }
 
   // Summary
-  const passed = results.filter((r) => r.outcome === "ok").length;
-  const failed = results.filter((r) => r.outcome === "fail").length;
-  console.log(`\nResults: ${passed} passed, ${failed} failed (${results.length} total)\n`);
+  // `unknown` is counted separately and never folded into either side: a check
+  // that got no answer was not performed, and printing it as a pass is how a
+  // verifier certifies what it never looked at.
+  const t = tally(results.map((r) => r.outcome));
+  console.log(`\nResults: ${summaryLine(t)} (${results.length} total)\n`);
+
+  const banner = incompleteBanner(t);
+  if (banner) console.log(`${banner}\n`);
 
   if (JSON_OUT) {
     const { writeFileSync, mkdirSync } = await import("node:fs");
     const { dirname } = await import("node:path");
     mkdirSync(dirname(JSON_OUT), { recursive: true });
-    writeFileSync(JSON_OUT, JSON.stringify({ passed, failed, results }, null, 2));
+    writeFileSync(
+      JSON_OUT,
+      JSON.stringify(
+        { base: BASE, generatedAt: new Date().toISOString(), ...t, incomplete: t.unknown > 0, results },
+        null,
+        2,
+      ),
+    );
     console.log(`Wrote JSON report to ${JSON_OUT}`);
   }
 
-  if (failed > 0) {
-    process.exit(1);
-  }
+  process.exit(exitCodeFor(t, STRICT));
 }
 
 verify().catch((err) => {
