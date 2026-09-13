@@ -7907,7 +7907,10 @@
     "curriculumIntro": "Guided learning packages and curriculum sequences in this subject.",
     "browseAllPaths": "Browse all paths",
     "pathEyebrow": "Curriculum",
-    "viewCurriculum": "View curriculum"
+    "viewCurriculum": "View curriculum",
+    "subtopicsHeading": "Subtopics",
+    "subtopicsIntro": "Specialized subjects grouped under this discipline.",
+    "subtopicOf": "Subtopic of {parent}"
   },
   "offline": {
     "libraryTitle": "Downloaded books",

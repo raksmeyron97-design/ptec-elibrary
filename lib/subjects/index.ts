@@ -57,6 +57,22 @@ export {
   type SubjectResourceType,
 } from "@/lib/subjects/labels";
 
+export {
+  buildSubjectBreadcrumbs,
+  buildSubjectHierarchySchema,
+  type SubjectHierarchyNode,
+  type SubjectHierarchyRecord,
+  type SubjectHierarchyRef,
+  type SubjectHierarchyTree,
+} from "@/lib/subjects/hierarchy";
+
+import {
+  buildSubjectHierarchyTree,
+  type SubjectHierarchyRecord,
+  type SubjectHierarchyRef,
+  type SubjectHierarchyTree,
+} from "@/lib/subjects/hierarchy";
+
 import type { SubjectCounts, SubjectResourceType } from "@/lib/subjects/labels";
 
 export type SubjectSummary = {
@@ -79,6 +95,10 @@ export type SubjectItem = {
   excerpt: string | null;
 };
 
+export type SubjectChildSummary = SubjectHierarchyRef & {
+  counts: SubjectCounts;
+};
+
 export type SubjectDetail = {
   id: string;
   name: string;
@@ -91,6 +111,10 @@ export type SubjectDetail = {
    *  empty — the landing page then offers a plain "more subjects" list under a
    *  different heading rather than dressing a fallback up as a relationship. */
   related: SubjectSummary[];
+  /** The parent subject in the canonical 3-parent hierarchy (0146), if this is a subtopic. */
+  parent: SubjectHierarchyRef | null;
+  /** Direct child subjects in the canonical hierarchy, with their resource counts. */
+  children: SubjectChildSummary[];
 };
 
 const EMPTY_COUNTS: SubjectCounts = { book: 0, thesis: 0, publication: 0, catalog: 0, total: 0 };
@@ -280,6 +304,37 @@ export async function getSubjectsWithResources(): Promise<SubjectSummary[]> {
   return (await getSubjectIndex()).filter((s) => s.counts.total > 0);
 }
 
+async function loadSubjectHierarchyRecords(): Promise<SubjectHierarchyRecord[]> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("subjects")
+    .select("id, slug, name_en, name_km, parent_id, legacy_category_id")
+    .eq("status", "active");
+
+  if (error || !data) return [];
+  return data as SubjectHierarchyRecord[];
+}
+
+const cachedSubjectHierarchyRecords = unstable_cache(
+  loadSubjectHierarchyRecords,
+  ["subject-canonical-hierarchy-v1"],
+  {
+    revalidate: 3600,
+    tags: [TAGS.categories],
+  },
+);
+
+export const getSubjectHierarchy = cache(
+  async (locale?: string): Promise<SubjectHierarchyTree> => {
+    try {
+      const records = await cachedSubjectHierarchyRecords();
+      return buildSubjectHierarchyTree(records, locale);
+    } catch {
+      return buildSubjectHierarchyTree([], locale);
+    }
+  },
+);
+
 // ── Subject detail ───────────────────────────────────────────────────────────
 
 function clean(value: string | null | undefined): string | null {
@@ -288,112 +343,133 @@ function clean(value: string | null | undefined): string | null {
 }
 
 /**
- * One subject with the resources attached to it, its counts, and the subjects
- * it genuinely co-occurs with.
+ * One subject with the resources attached to it, its counts, its canonical
+ * parent/children in the topic hierarchy, and the subjects it genuinely
+ * co-occurs with.
  *
  * React-cached: generateMetadata and the page body call this for the same slug
  * in one request and must not issue the queries twice.
  */
-export const getSubjectDetail = cache(async (slug: string): Promise<SubjectDetail | null> => {
-  const supabase = createServiceClient();
+export const getSubjectDetail = cache(
+  async (slug: string, locale?: string): Promise<SubjectDetail | null> => {
+    const supabase = createServiceClient();
 
-  const { data: category } = await supabase
-    .from("categories")
-    .select("id, name, slug")
-    .eq("slug", slug)
-    .maybeSingle();
+    const { data: category } = await supabase
+      .from("categories")
+      .select("id, name, slug")
+      .eq("slug", slug)
+      .maybeSingle();
 
-  if (!category) return null;
+    if (!category) return null;
 
-  const name = category.name as string;
-  // PostgREST parses `.or()` as a comma-separated mini-language: a subject
-  // named "Maths, Science" would silently re-partition the filter rather than
-  // error. Names are admin-entered, so this is a correctness guard, not a
-  // user-input one — but the failure mode is identical.
-  const filterName = sanitizeFilterTerm(name);
+    const name = category.name as string;
+    // PostgREST parses `.or()` as a comma-separated mini-language: a subject
+    // named "Maths, Science" would silently re-partition the filter rather than
+    // error. Names are admin-entered, so this is a correctness guard, not a
+    // user-input one — but the failure mode is identical.
+    const filterName = sanitizeFilterTerm(name);
 
-  const [{ data: books }, { data: theses }, { data: publications }, { data: catalog }] =
-    await Promise.all([
-      supabase
-        .from("books")
-        .select("id, slug, title, description, authors(name)")
-        .eq("is_published", true)
-        .eq("category_id", category.id)
-        .order("download_count", { ascending: false })
-        .limit(ITEMS_PER_TYPE),
-      supabase
-        .from("research_reports")
-        .select("id, slug, title, abstract, author_names")
-        .eq("is_published", true)
-        .or(
-          `subject.ilike.%${filterName}%,program.ilike.%${filterName}%,faculty.ilike.%${filterName}%`,
-        )
-        .order("view_count", { ascending: false })
-        .limit(ITEMS_PER_TYPE),
-      supabase
-        .from("publications_with_stats")
-        .select("id, slug, title, abstract, author_names")
-        .eq("is_published", true)
-        .contains("subjects", [name])
-        .order("view_count", { ascending: false })
-        .limit(ITEMS_PER_TYPE),
-      supabase
-        .from("catalog_books")
-        .select("id, slug, title, description, author")
-        .eq("is_active", true)
-        .ilike("category", `%${filterName}%`)
-        .order("title", { ascending: true })
-        .limit(ITEMS_PER_TYPE),
+    const [{ data: books }, { data: theses }, { data: publications }, { data: catalog }] =
+      await Promise.all([
+        supabase
+          .from("books")
+          .select("id, slug, title, description, authors(name)")
+          .eq("is_published", true)
+          .eq("category_id", category.id)
+          .order("download_count", { ascending: false })
+          .limit(ITEMS_PER_TYPE),
+        supabase
+          .from("research_reports")
+          .select("id, slug, title, abstract, author_names")
+          .eq("is_published", true)
+          .or(
+            `subject.ilike.%${filterName}%,program.ilike.%${filterName}%,faculty.ilike.%${filterName}%`,
+          )
+          .order("view_count", { ascending: false })
+          .limit(ITEMS_PER_TYPE),
+        supabase
+          .from("publications_with_stats")
+          .select("id, slug, title, abstract, author_names")
+          .eq("is_published", true)
+          .contains("subjects", [name])
+          .order("view_count", { ascending: false })
+          .limit(ITEMS_PER_TYPE),
+        supabase
+          .from("catalog_books")
+          .select("id, slug, title, description, author")
+          .eq("is_active", true)
+          .ilike("category", `%${filterName}%`)
+          .order("title", { ascending: true })
+          .limit(ITEMS_PER_TYPE),
+      ]);
+
+    type Row = Record<string, any>;
+    const items: SubjectItem[] = [
+      ...((books ?? []) as Row[]).map((r) => ({
+        type: "book" as const,
+        title: r.title,
+        href: `/books/${r.slug}`,
+        author: clean(r.authors?.name),
+        excerpt: clean(r.description),
+      })),
+      ...((theses ?? []) as Row[]).map((r) => ({
+        type: "thesis" as const,
+        title: r.title,
+        href: `/theses/${r.slug ?? r.id}`,
+        author: clean(r.author_names),
+        excerpt: clean(r.abstract),
+      })),
+      ...((publications ?? []) as Row[]).map((r) => ({
+        type: "publication" as const,
+        title: r.title,
+        href: `/publications/${r.slug}`,
+        author: clean(r.author_names),
+        excerpt: clean(r.abstract),
+      })),
+      ...((catalog ?? []) as Row[]).map((r) => ({
+        type: "catalog" as const,
+        title: r.title,
+        href: `/catalogs/${r.slug ?? r.id}`,
+        author: clean(r.author),
+        excerpt: clean(r.description),
+      })),
+    ].filter((i) => Boolean(i.title));
+
+    const [index, hierarchy] = await Promise.all([
+      getSubjectIndex(),
+      getSubjectHierarchy(locale),
     ]);
+    const self = index.find((s) => s.slug === category.slug);
+    const counts = self?.counts ?? EMPTY_COUNTS;
 
-  type Row = Record<string, any>;
-  const items: SubjectItem[] = [
-    ...((books ?? []) as Row[]).map((r) => ({
-      type: "book" as const,
-      title: r.title,
-      href: `/books/${r.slug}`,
-      author: clean(r.authors?.name),
-      excerpt: clean(r.description),
-    })),
-    ...((theses ?? []) as Row[]).map((r) => ({
-      type: "thesis" as const,
-      title: r.title,
-      href: `/theses/${r.slug ?? r.id}`,
-      author: clean(r.author_names),
-      excerpt: clean(r.abstract),
-    })),
-    ...((publications ?? []) as Row[]).map((r) => ({
-      type: "publication" as const,
-      title: r.title,
-      href: `/publications/${r.slug}`,
-      author: clean(r.author_names),
-      excerpt: clean(r.abstract),
-    })),
-    ...((catalog ?? []) as Row[]).map((r) => ({
-      type: "catalog" as const,
-      title: r.title,
-      href: `/catalogs/${r.slug ?? r.id}`,
-      author: clean(r.author),
-      excerpt: clean(r.description),
-    })),
-  ].filter((i) => Boolean(i.title));
+    const node =
+      hierarchy.bySlug.get(category.slug) ?? hierarchy.byCategoryId.get(category.id);
+    const parent = node?.parent ?? null;
+    const children: SubjectChildSummary[] = (node?.children ?? []).map((c) => {
+      const childSummary = index.find((s) => s.slug === c.slug);
+      return {
+        id: c.id,
+        slug: c.slug,
+        name: c.name,
+        counts: childSummary?.counts ?? EMPTY_COUNTS,
+      };
+    });
 
-  const index = await getSubjectIndex();
-  const self = index.find((s) => s.slug === category.slug);
-  const counts = self?.counts ?? EMPTY_COUNTS;
-
-  return {
-    id: category.id,
-    name,
-    slug: category.slug,
-    counts,
-    // undefined only when the index read failed entirely; `null` then keeps
-    // §5.2 unevaluated rather than asserting this subject has no full text.
-    fullText: self ? self.fullText : null,
-    items,
-    related: await relatedSubjects(name, index),
-  };
-});
+    return {
+      id: category.id,
+      name,
+      slug: category.slug,
+      counts,
+      // undefined only when the index read failed entirely; `null` then keeps
+      // §5.2 unevaluated rather than asserting this subject has no full text.
+      fullText: self ? self.fullText : null,
+      items,
+      related: await relatedSubjects(name, index),
+      parent,
+      children,
+    };
+  },
+);
 
 /**
  * Subjects that appear alongside `name` on the same publication.
