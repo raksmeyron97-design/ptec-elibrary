@@ -201,14 +201,18 @@ test.describe("subject and author hubs", () => {
 
   test("a subject page's breadcrumb points at the subject hub, in nav and JSON-LD", async ({
     page,
-    request,
   }) => {
-    // Take a real subject from the sitemap rather than assuming a slug.
-    const sitemap = await (await request.get("/sitemap.xml")).text();
-    const match = sitemap.match(new RegExp(`<loc>${PROD_RE}(/subjects/[^<]+)</loc>`));
-    test.skip(!match, "no subject URLs in the sitemap for this dataset");
+    // Take a real subject from the HUB, not from the sitemap. Breadcrumbs are
+    // not an indexability question, and since the SEO 3.3 depth gate the
+    // sitemap carries only subjects with ≥ 5 resources — on a small seed that
+    // is none of them, and sourcing the URL there turned this into a test that
+    // silently skipped (lib/subjects/indexability.ts).
+    await page.goto("/subjects");
+    const first = page.locator('main a[href*="/subjects/"]').first();
+    test.skip((await first.count()) === 0, "no subjects with resources in this dataset");
+    const href = await first.getAttribute("href");
 
-    await page.goto(decodeURIComponent(match![1]));
+    await page.goto(decodeURIComponent(href!));
 
     // Visible breadcrumb links to /subjects — it used to link to /books.
     await expect(page.locator('nav[aria-label="Breadcrumb"] a[href$="/subjects"]')).toHaveCount(1);
@@ -222,6 +226,30 @@ test.describe("subject and author hubs", () => {
     const items: string[] = crumbs.itemListElement.map((i: { item?: string }) => i.item ?? "");
     expect(items).toContain(`${PROD}/subjects`);
     expect(items).not.toContain(`${PROD}/books`);
+  });
+
+  // SEO 3.3 §5: a subject hub is indexed on DEPTH. The sitemap and the page's
+  // robots meta are decided by one function (subjectVisibility), so a hub the
+  // sitemap omits must say `noindex` — and must still be crawlable and linked.
+  test("a subject hub below the depth bar is noindex, follow and out of the sitemap", async ({
+    page,
+    request,
+  }) => {
+    const sitemap = await (await request.get("/sitemap.xml")).text();
+
+    await page.goto("/subjects");
+    const hrefs = await page.locator('main a[href*="/subjects/"]').evaluateAll((els) =>
+      els.map((e) => (e as HTMLAnchorElement).getAttribute("href") ?? ""),
+    );
+    const thin = hrefs.find((h) => h && !sitemap.includes(encodeURI(`${PROD}${h}`)));
+    test.skip(!thin, "every linked subject clears the depth bar in this dataset");
+
+    await page.goto(decodeURIComponent(thin!));
+    const robots = await page.locator('meta[name="robots"]').getAttribute("content");
+    expect(robots, "a hub the sitemap omits must not be offered for indexing").toContain("noindex");
+    // `follow`, never `nofollow`: the hub's resources are real and must keep
+    // receiving the crawl. What is withdrawn is the claim about the PAGE.
+    expect(robots).not.toContain("nofollow");
   });
 
   test("every subject in the sitemap renders resources, not an empty page", async ({
