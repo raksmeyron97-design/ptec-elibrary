@@ -243,10 +243,113 @@ Before any of this merges: an invariant test that no indexable topic surface fal
 
 ---
 
-## 9. What is NOT known
+## 9. Reader demand — measured (added 2026-09-13)
 
-* Subject co-occurrence / semantic sibling strength — **not measured**.
-* Real search demand for any of these topics — no Search Console data in evidence.
-* Whether readers use `/subjects/*` at all — **query analytics not consulted in this pass.**
+`search_queries`, production, **131 searches over 16 days** (2026-08-29 → 09-13),
+54 distinct terms, 33 result clicks. A small sample: directional, not
+statistically strong. It is still the only real demand evidence available, and
+it is not what a keyword tool would have guessed.
 
-None of these should be guessed. The first two are the natural next measurement.
+**Khmer is the majority query language: 81 of 131 (62%)**, English 50. Every
+search used the `all` resource filter — nobody narrowed by type.
+
+| Term | Searches | Books behind it | Verdict |
+| --- | ---: | --- | --- |
+| ស្រាវជ្រាវ (research) | 17 | 65 | **demand meets depth** |
+| គណិតវិទ្យា + `mathematics` | 25 | 13 (+18 math-kit) | **demand meets depth** |
+| `lesson planning` | 7 | គរុកោសល្យ, 52 | **demand meets depth** |
+| ស្រាវជ្រាវប្រតិបត្តិ (action research) | 7 | 18 | **demand meets depth** |
+| `pisa` + កម្មវិធី pisa | 7 | **3, in 3 different categories** | **mismatch — see 9.2** |
+| វិធីសាស្ត្របង្រៀន (teaching methods) | 4 | a tag on 18 books, no category | tag-only |
+
+**The top five demand terms map onto the five DEEP tiers in §2.** Demand and
+depth agree here, which is a stronger result than either measurement alone: the
+categories worth deepening are the ones readers already ask for.
+
+### 9.1 Zero-result searches: 6 terms / 11 searches (8%)
+
+Low, and mostly long full-sentence thesis titles pasted into the box. Two
+looked like defects and **were checked against the live API rather than
+assumed** — `english` now returns 4 results and `pisa` returns 4. **These are
+historical records, not current bugs**; they predate the search-ranking work.
+No action.
+
+### 9.2 PISA — the one real demand/supply mismatch
+
+7 searches. The `កម្មវិធី PISA` **category holds 0 published books**, while three
+PISA books exist filed under three *other* categories:
+
+```
+ភាសា            ឯកសារជំនួយស្មារតីតេស្ត PISA-D អំណាន
+វិទ្យាសាស្ត្រ   ឯកសារជំនួយស្មារតីតេស្ត PISA-D វិទ្យាសាស្ត្រ
+គណិតវិទ្យា      ឯកសារជំនួយស្មារតីតេស្ត PISA-D គណិតវិទ្យា
+```
+
+An empty labelled shelf whose content sits elsewhere. Search finds them (verified
+live), so no reader is blocked. Three books is still below the §5 bar, so the fix
+is to **file them under the PISA category and keep that hub `noindex, follow`** —
+or retire the category. Either way it should not stay empty and indexable.
+
+## 10. Subject co-occurrence — measured (added 2026-09-13)
+
+103 category pairs share at least one tag. The strongest pairs are not noise —
+they reproduce a curriculum structure:
+
+| Shared tags | Pair | Reading |
+| ---: | --- | --- |
+| 18 | គណិតវិទ្យា ⇄ គរុកោសល្យ | maths **taught**; the pedagogy overlap |
+| 14 | គរុកោសល្យ ⇄ ស្រាវជ្រាវ | education research |
+| 12 | ស្ថិតិ ⇄ ស្រាវជ្រាវ | **method under research** |
+| 12 | ស្រាវជ្រាវ ⇄ ស្រាវជ្រាវបែបគុណភាព | **child under parent** |
+| 12 | គណិតវិទ្យា ⇄ វិទ្យាសាស្ត្រ | shared PISA-D / assessment tags |
+| 11 | គីមីវិទ្យា ⇄ វិទ្យាសាស្ត្រ | **child under parent** |
+| 10 | កញ្ជប់គណិតវិទ្យា ⇄ គណិតវិទ្យា | **child under parent** |
+| 9 | ស្រាវជ្រាវ ⇄ ស្រាវជ្រាវប្រតិបត្តិ | **child under parent** |
+| 8 | ជីវវិទ្យា ⇄ វិទ្យាសាស្ត្រ | **child under parent** |
+
+### 10.1 The hierarchy this justifies
+
+§8.2 proposed a `parent_id` structure as a hypothesis. The co-occurrence data
+**supports it empirically**, and the tree is small and defensible:
+
+```
+ស្រាវជ្រាវ (65)
+├── ស្រាវជ្រាវបែបគុណភាព (13)      12 shared tags
+├── ស្រាវជ្រាវប្រតិបត្តិ (18)       9 shared tags
+└── ស្ថិតិ និងវិភាគទិន្នន័យ (11)  12 shared tags
+
+វិទ្យាសាស្ត្រ (16)
+├── គីមីវិទ្យា (8)                11 shared tags
+├── ជីវវិទ្យា (5)                  8 shared tags
+└── រូបវិទ្យា (5)                 shared មធ្យមសិក្សា / ថ្នាក់ទី៨ cluster
+
+គណិតវិទ្យា (13)
+└── កញ្ជប់គណិតវិទ្យា (18)        10 shared tags
+```
+
+Two properties worth noting. The `គណិតវិទ្យា ⇄ គរុកោសល្យ` link is the strongest
+pair in the data (18) but is **not** a parent/child relation — it is a genuine
+cross-link, and it is exactly the "maths teaching" intent `lesson planning`
+(7 searches) expresses. And `កញ្ជប់គណិតវិទ្យា` has **more** books than its
+proposed parent, which is a naming problem, not a structural one.
+
+### 10.2 What this changes in the plan
+
+Phase A's subject backfill now has an evidence-backed shape rather than a
+guessed one: 3 parents, 7 children, 1 strong cross-link. Everything else stays
+flat. Sibling links on a hub should be drawn from measured co-occurrence, not
+from name similarity.
+
+## 11. What is NOT known
+
+* ~~Subject co-occurrence~~ — **measured, §10.**
+* ~~Real search demand~~ — **measured from on-site search, §9.** Note the limits:
+  131 searches over 16 days is directional, not statistically strong, and it is
+  on-site search only. There is still **no Search Console data**, so nothing
+  here describes what readers search for *before* they arrive.
+* Whether readers use `/subjects/*` at all — **still UNKNOWN.** `search_result_clicks`
+  (33 rows) records clicks on search results, not hub navigation. Answering it
+  needs page-level analytics this audit did not consult.
+* Whether any of this moves rankings — unknowable without Search Console.
+
+The remaining two should not be guessed either.
