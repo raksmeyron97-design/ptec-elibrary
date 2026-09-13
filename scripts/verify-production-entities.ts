@@ -37,6 +37,8 @@ const flag = (name: string, fallback?: string) => {
 
 const BASE = (flag("base", "https://library.ptec.edu.kh") as string).replace(/\/$/, "");
 const JSON_OUT = flag("json");
+/** Treat a missing fixture as a failure too. For a one-off manual audit. */
+const STRICT = argv.includes("--strict");
 
 type Check = {
   /** What entity shape this fixture is the example of. */
@@ -116,6 +118,35 @@ const CHECKS: Check[] = [
   { shape: "author · composite (several people, one URL)", path: "/authors/bert-p-m-creemers-leonidas-kyriakides-pam-sammons-editors", node: "ProfilePage", property: "mainEntity", expect: expectNoIdentity },
 ];
 
+// ── Outcomes: a wrong entity is not the same event as a moved record ─────────
+//
+// This runs unattended on every deploy, so what it does with an unexpected
+// result decides whether anyone still reads it in six months. The repository
+// already learned this twice — `docs/ALERT-CATALOG.md` hygiene rule 2, and the
+// AI live-monitoring contract in CLAUDE.md: "a job that goes red for wording
+// drift stops being read, and the hard gates stop being read with it."
+//
+// The fixtures are ten real production records, each the only example of its
+// entity shape. A librarian unpublishing one is ordinary cataloguing, and it
+// must not page anybody. A Person appearing where an Organization belongs is
+// the regression this exists to catch.
+//
+//   404 / 410              → WARN   the record moved. Data, not code.
+//   200, structured data   → FAIL   the page renders but lost its JSON-LD.
+//     node missing
+//   200, wrong entity      → FAIL   the regression itself.
+//   5xx, timeout, other    → FAIL   the deploy is broken; that is worth waking
+//                                   someone for even though it is not an
+//                                   entity defect.
+//
+// One escalation: if MOST fixtures warn, the collection did not quietly drift
+// — something systemic happened (a bad sitemap, a routing change, the wrong
+// host) and a pile of warnings would hide it. See SYSTEMIC_WARN_RATIO.
+type Outcome = "ok" | "warn" | "fail";
+
+/** Above this share of warnings, the warnings themselves are the finding. */
+const SYSTEMIC_WARN_RATIO = 0.5;
+
 // ── Runner ───────────────────────────────────────────────────────────────────
 
 function jsonLdNodes(html: string): any[] {
@@ -131,41 +162,66 @@ function jsonLdNodes(html: string): any[] {
 }
 
 async function run() {
-  console.log(`\nEntity smoke test — ${BASE}\n`);
+  console.log(`\nEntity smoke test — ${BASE}${STRICT ? " (strict)" : ""}\n`);
   const results: any[] = [];
-  let failed = 0;
 
   for (const check of CHECKS) {
     const url = `${BASE}${encodeURI(check.path)}`;
+    let outcome: Outcome = "ok";
     let status = 0;
-    let error: string | null = null;
+    let detail: string | null = null;
     let actual: unknown;
 
     try {
       const res = await fetch(url, { redirect: "follow" });
       status = res.status;
-      if (!res.ok) {
-        error = `HTTP ${status}`;
+
+      if (status === 404 || status === 410) {
+        outcome = "warn";
+        detail = `HTTP ${status} — the fixture record is gone or unpublished`;
+      } else if (!res.ok) {
+        outcome = "fail";
+        detail = `HTTP ${status}`;
       } else {
         const html = await res.text();
         const node = jsonLdNodes(html).find((d) => d?.["@type"] === check.node);
-        if (!node) error = `no ${check.node} JSON-LD on the page`;
-        else {
+        if (!node) {
+          outcome = "fail";
+          detail = `the page rendered but carries no ${check.node} JSON-LD`;
+        } else {
           actual = node[check.property];
-          error = check.expect(actual);
+          detail = check.expect(actual);
+          if (detail) outcome = "fail";
         }
       }
     } catch (err) {
-      error = `request failed: ${(err as Error).message}`;
+      outcome = "fail";
+      detail = `request failed: ${(err as Error).message}`;
     }
 
-    if (error) failed++;
-    results.push({ shape: check.shape, path: check.path, status, ok: !error, error, actual });
-    console.log(`  ${error ? "FAIL" : "ok  "}  ${check.shape.padEnd(44)} ${check.path}`);
-    if (error) console.log(`        ${error}`);
+    results.push({ shape: check.shape, path: check.path, status, outcome, detail, actual });
+    const label = outcome === "ok" ? "ok  " : outcome === "warn" ? "WARN" : "FAIL";
+    console.log(`  ${label}  ${check.shape.padEnd(44)} ${check.path}`);
+    if (detail) console.log(`        ${detail}`);
   }
 
-  console.log(`\n${CHECKS.length - failed}/${CHECKS.length} passed\n`);
+  const failed = results.filter((r) => r.outcome === "fail").length;
+  const warned = results.filter((r) => r.outcome === "warn").length;
+  const systemic = warned > 0 && warned / results.length > SYSTEMIC_WARN_RATIO;
+
+  console.log(
+    `\n${results.length - failed - warned}/${results.length} passed` +
+      (warned ? `, ${warned} warned` : "") +
+      (failed ? `, ${failed} FAILED` : ""),
+  );
+
+  if (systemic) {
+    console.log(
+      `\n${warned} of ${results.length} fixtures are missing. That is not ` +
+        "cataloguing drift — check the host, the sitemap and the routing before " +
+        "editing fixtures.",
+    );
+  }
 
   if (JSON_OUT) {
     const { mkdirSync, writeFileSync } = await import("node:fs");
@@ -173,12 +229,18 @@ async function run() {
     mkdirSync(dirname(JSON_OUT), { recursive: true });
     writeFileSync(
       JSON_OUT,
-      `${JSON.stringify({ base: BASE, generatedAt: new Date().toISOString(), failed, results }, null, 2)}\n`,
+      `${JSON.stringify(
+        { base: BASE, generatedAt: new Date().toISOString(), failed, warned, systemic, results },
+        null,
+        2,
+      )}\n`,
     );
-    console.log(`Wrote ${JSON_OUT}\n`);
+    console.log(`Wrote ${JSON_OUT}`);
   }
+  console.log();
 
-  process.exit(failed > 0 ? 1 : 0);
+  const bad = failed > 0 || systemic || (STRICT && warned > 0);
+  process.exit(bad ? 1 : 0);
 }
 
 run();
