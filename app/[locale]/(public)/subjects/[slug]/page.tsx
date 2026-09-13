@@ -14,6 +14,7 @@ import { decodeSlugParam } from "@/lib/slug";
 import {
   getSubjectDetail,
   otherSubjects,
+  subjectVisibility,
   subjectBreakdown,
   subjectTypeKey,
   SUBJECT_RESOURCE_TYPES,
@@ -70,11 +71,19 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title,
     description,
     alternates,
-    // A subject with nothing attached is a soft-404: HTTP 200 with an empty
-    // body. It stays crawlable (`follow`) so any link equity passes through,
-    // but it is never offered for indexing. Ten such URLs were indexable and
-    // in sitemap.xml before V2 — docs/SEO-V2-AUDIT.md F-1.
-    ...(subject.counts.total === 0 ? { robots: { index: false, follow: true } } : {}),
+    // The §5 depth gate, from the SAME function the sitemap filters with
+    // (lib/subjects/indexability.ts) — a hub is never submitted for indexing
+    // and then found answering `noindex`.
+    //
+    // `follow` in every case: a hub below the bar is still a set of real links
+    // to real resources, and withdrawing the crawl would strand them. What is
+    // withdrawn is the claim that this PAGE is a search result. V2 applied that
+    // to EMPTY subjects (ten were live and in sitemap.xml — F-1); 3.3 applies
+    // it to thin ones, one of which held a single 23-page book and was
+    // advertised exactly like the 65-book research collection.
+    ...(subjectVisibility(subject.counts, subject.fullText) === "index"
+      ? {}
+      : { robots: { index: false, follow: true } }),
     openGraph: {
       ...(await openGraphBase(locale)),
       title: `${title} | ${org.libraryName}`,

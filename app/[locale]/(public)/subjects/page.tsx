@@ -9,7 +9,7 @@ import { localeAlternates } from "@/lib/seo/alternates";
 import { openGraphBase } from "@/lib/seo/open-graph";
 import { libraryNode } from "@/lib/seo/org-nodes";
 import { getOrgIdentity } from "@/lib/system-settings/config";
-import { getIndexableSubjects, subjectBreakdown, type SubjectSummary } from "@/lib/subjects";
+import { getBrowsableSubjects, subjectBreakdown, type SubjectSummary } from "@/lib/subjects";
 
 // ISR. The hub renders taxonomy + counts, both invalidated by the tags on
 // getSubjectIndex(), so publishing a book moves the numbers without a redeploy.
@@ -58,12 +58,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function SubjectsHubPage({ params }: PageProps) {
   const { locale } = await params;
   const [subjects, t, org] = await Promise.all([
-    getIndexableSubjects(),
+    getBrowsableSubjects(),
     getTranslations({ locale, namespace: "subjects" }),
     getOrgIdentity(),
   ]);
 
-  // toSorted, not [...x].sort(): getIndexableSubjects() hands back a CACHED
+  // Browsable, not indexable: a subject too thin to rank is still somewhere a
+  // reader can go, and the hub is the only place that says it exists. What is
+  // withheld here is only the subject with 0 or 1 resource — see
+  // lib/subjects/indexability.ts.
+  //
+  // toSorted, not [...x].sort(): getBrowsableSubjects() hands back a CACHED
   // array that must not be mutated, and toSorted returns a new one without the
   // separate spread copy.
   const sorted = subjects.toSorted(
