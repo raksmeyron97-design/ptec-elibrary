@@ -18,6 +18,17 @@
 // ── Invariant: §5 Indexability Depth Gate ───────────────────────────────────
 // 6. Paths do NOT count as primary resources; 19/4/2 remains intact.
 
+import {
+  errorOutcome,
+  exitCodeFor,
+  fetchText,
+  fetchWithRetry,
+  incompleteBanner,
+  summaryLine,
+  tally,
+  type Outcome,
+} from "../lib/verify/http";
+
 const argv = process.argv.slice(2);
 const flag = (name: string, fallback?: string) => {
   const i = argv.indexOf(`--${name}`);
@@ -26,28 +37,31 @@ const flag = (name: string, fallback?: string) => {
 
 const BASE = (flag("base", "https://library.ptec.edu.kh") as string).replace(/\/$/, "");
 const JSON_OUT = flag("json");
+/** Manual audits want an incomplete run to be a failure; CI does not. */
+const STRICT = argv.includes("--strict");
 
-type Outcome = "ok" | "warn" | "fail";
 type Result = { check: string; outcome: Outcome; detail: string | null };
 
 const results: Result[] = [];
 const record = (check: string, outcome: Outcome, detail: string | null = null) => {
   results.push({ check, outcome, detail });
-  const label = outcome === "ok" ? "ok  " : outcome === "warn" ? "WARN" : "FAIL";
+  const label =
+    outcome === "ok" ? "ok  " : outcome === "warn" ? "WARN" : outcome === "unknown" ? "????" : "FAIL";
   console.log(`  ${label}  ${check}`);
   if (detail) console.log(`        ${detail}`);
 };
 
 async function text(path: string): Promise<string> {
-  const url = `${BASE}${encodeURI(path)}`;
-  const res = await fetch(url, { redirect: "follow" });
-  if (!res.ok) throw new Error(`HTTP ${res.status} for ${path}`);
-  return res.text();
+  return fetchText(`${BASE}${encodeURI(path)}`);
 }
 
 async function statusOf(path: string): Promise<number> {
-  const url = `${BASE}${encodeURI(path)}`;
-  const res = await fetch(url, { method: "HEAD", redirect: "follow" });
+  // Every status is "an answer" here — the caller is asking WHAT the status is,
+  // so none of them is an error to retry past.
+  const res = await fetchWithRetry(`${BASE}${encodeURI(path)}`, {
+    method: "HEAD",
+    allowStatuses: [200, 301, 302, 307, 308, 404, 410, 500, 503],
+  });
   return res.status;
 }
 
@@ -113,7 +127,7 @@ async function run() {
         hasEnRail ? null : `missing id="book-learning-paths"`,
       );
     } catch (err) {
-      record(`Fetch /books/${item.slug}`, "fail", (err as Error).message);
+      record(`Fetch /books/${item.slug}`, ...errorOutcome(err));
     }
   }
 
@@ -128,7 +142,7 @@ async function run() {
         hasRail ? `unexpected id="book-learning-paths" found` : null,
       );
     } catch (err) {
-      record(`Fetch standalone /books/${slug}`, "warn", (err as Error).message);
+      record(`Fetch standalone /books/${slug}`, ...errorOutcome(err));
     }
   }
 
@@ -152,7 +166,7 @@ async function run() {
         hasLink ? null : `missing link to /paths/${item.expectedPathSlug}`,
       );
     } catch (err) {
-      record(`Fetch /subjects/${item.subjectSlug}`, "fail", (err as Error).message);
+      record(`Fetch /subjects/${item.subjectSlug}`, ...errorOutcome(err));
     }
   }
 
@@ -167,7 +181,7 @@ async function run() {
         hasRail ? `unexpected id="subject-learning-paths" found on /km/subjects/${slug}` : null,
       );
     } catch (err) {
-      record(`Fetch /subjects/${slug}`, "warn", (err as Error).message);
+      record(`Fetch /subjects/${slug}`, ...errorOutcome(err));
     }
   }
 
@@ -182,27 +196,35 @@ async function run() {
         hasSubjectLink ? null : `missing back-link to /subjects/${item.expectedSubjectSlug}`,
       );
     } catch (err) {
-      record(`Fetch /paths/${item.pathSlug}`, "fail", (err as Error).message);
+      record(`Fetch /paths/${item.pathSlug}`, ...errorOutcome(err));
     }
   }
 
-  // Summary
-  const fails = results.filter((r) => r.outcome === "fail").length;
-  const warns = results.filter((r) => r.outcome === "warn").length;
-  const oks = results.filter((r) => r.outcome === "ok").length;
+  // Summary. `unknown` is counted separately and never folded into either
+  // side — "19 passed, 1 could not be checked" is a different claim from
+  // "19 passed, 1 failed", and the run on 2026-09-13 that reported the second
+  // was really the first.
+  const t = tally(results.map((r) => r.outcome));
+  console.log(`\nSummary: ${summaryLine(t)}.\n`);
 
-  console.log(`\nSummary: ${oks} passed, ${warns} warned, ${fails} failed.\n`);
+  const banner = incompleteBanner(t);
+  if (banner) console.log(`${banner}\n`);
 
   if (JSON_OUT) {
     const fs = await import("node:fs");
     const path = await import("node:path");
     fs.mkdirSync(path.dirname(JSON_OUT), { recursive: true });
-    fs.writeFileSync(JSON_OUT, JSON.stringify({ base: BASE, results }, null, 2));
+    fs.writeFileSync(
+      JSON_OUT,
+      JSON.stringify(
+        { base: BASE, generatedAt: new Date().toISOString(), ...t, incomplete: t.unknown > 0, results },
+        null,
+        2,
+      ),
+    );
   }
 
-  if (fails > 0) {
-    process.exit(1);
-  }
+  process.exit(exitCodeFor(t, STRICT));
 }
 
 run().catch((err) => {
