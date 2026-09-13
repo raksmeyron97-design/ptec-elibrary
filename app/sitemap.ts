@@ -7,6 +7,8 @@ import { getSiteConfig } from '@/lib/system-settings/config';
 import { getIndexableSubjects } from '@/lib/subjects';
 import { validateSitemapEntry } from '@/lib/seo/validate';
 import { addressableAuthorSlug } from '@/lib/authors/slug';
+import { getListedAuthors } from '@/lib/authors/directory';
+import { authorUrlsWithWorks } from '@/lib/authors/sitemap-filter';
 
 // Revalidate hourly so the sitemap picks up newly published content
 // without being frozen at build time.
@@ -350,7 +352,36 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
     const slug = addressableAuthorSlug(a.slug, a.full_name);
     if (slug && !authorSlugSet.has(slug)) authorSlugSet.set(slug, a.created_at ?? null);
   }
-  const authorUrls: MetadataRoute.Sitemap = [...authorSlugSet.entries()].map(([slug, createdAt]) =>
+
+  // An author with no public works is a soft-404, exactly as an empty subject
+  // is, and this file emitted one: /authors/kenneth-n-berk-patrick-carey was
+  // advertised here while /authors omitted it and the page still answered
+  // `index, follow` (docs/SEO-3.3-FINAL-REPORT.md §5.5). Three rules had never
+  // met — the sitemap emitted every row, the directory listed only
+  // workCount > 0, and the page sent `noindex` only for a slug that does not
+  // resolve. The sitemap now asks the DIRECTORY'S question, so the two cannot
+  // disagree again.
+  //
+  // getAuthorDirectory() swallows its own errors and answers [] — so an empty
+  // roster is ambiguous: it means "no author has works" OR "the read failed".
+  // Filtering on the second reading would drop all 157 author URLs to remove
+  // one, which is far worse than the defect. An empty roster beside a
+  // non-empty row set is therefore treated as UNKNOWN and the unfiltered set
+  // is emitted, the pre-existing behaviour. Same rule as a contributor read
+  // reporting `unavailable` rather than an empty byline.
+  const listed = await getListedAuthors();
+  const { entries: withWorks, degraded } = authorUrlsWithWorks(
+    authorSlugSet,
+    new Set(listed.map((a) => a.slug).filter(Boolean)),
+  );
+  if (degraded) {
+    console.warn(
+      `[sitemap] author roster came back empty for ${authorSlugSet.size} author row(s) — ` +
+        'emitting unfiltered rather than dropping every author URL',
+    );
+  }
+
+  const authorUrls: MetadataRoute.Sitemap = withWorks.map(([slug, createdAt]) =>
     entry(`/authors/${slug}`, {
       lastModified: sitemapLastmod(createdAt),
       changeFrequency: 'monthly',

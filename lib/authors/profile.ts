@@ -43,8 +43,37 @@ import type { AuthorProfile, AuthorWork } from "@/lib/authors/types";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-/** How many works of each kind a profile page will show. */
-const PER_TYPE_LIMIT = 60;
+/**
+ * How many works of each kind a profile page will show.
+ *
+ * 120 rather than 60 because the cap was sized for people and this library has
+ * one INSTITUTIONAL author: ក្រសួងអប់រំ យុវជន និងកីឡា (MoEYS) has 93 published
+ * books where no other author has more than 10. At 60 the page showed 70 of
+ * them and 23 had no author path at all — six of those fell to click depth
+ * 6–10, reachable only by stepping through /books pagination
+ * (docs/SEO-3.3-FINAL-REPORT.md §4.3).
+ *
+ * 70, not 60, because the cap is applied PER LEG before the union: the
+ * canonical leg (resource_contributors) and the legacy leg (books.author_id)
+ * each return up to this many in different orders, and dedupeWorks() unions
+ * them. So the constant has never meant "works shown". At 120 both legs are
+ * complete for every author in the collection, which makes the distinction
+ * moot at this scale — but it is why raising it to exactly 93 would have been
+ * a coincidence rather than a fix.
+ *
+ * Keyed on COUNT, deliberately not on the author being an organisation. The
+ * invariant worth holding is that no author page hides works that exist; a
+ * person with 93 books would be equally broken. It also could not have been
+ * keyed on type: `authors` has no type column, and this author's canonical
+ * `contributors` row says `contributor_type = 'person'` because that is the
+ * 0105 backfill DEFAULT, which the 3.2 contract explicitly does not believe.
+ *
+ * Cost, measured on production: ~251 bytes gzipped per work, so MoEYS grows
+ * 79.6 KB → ~85.4 KB (+7%). Recurrence is detected by
+ * scripts/audit-crawl-depth.ts — a truncated works list costs books their
+ * author path, which is exactly what it measures.
+ */
+const PER_TYPE_LIMIT = 120;
 
 function clean(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
