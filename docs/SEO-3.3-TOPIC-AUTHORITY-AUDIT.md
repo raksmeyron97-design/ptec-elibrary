@@ -326,7 +326,11 @@ Per-topic answer depth varies by an order of magnitude — `ស្រាវជ�
 
 ### 8.3 Validation gates
 
-Before any of this merges: an invariant test that no indexable topic surface falls below the §5 thresholds; a source scan that no second taxonomy gains a route while §6.1 collisions stand; and `scripts/verify-production-entities.ts` extended with subject-hub fixtures, verified post-deploy.
+Before any of this merges: an invariant test that no indexable topic surface falls below the §5 thresholds; a source scan that no second taxonomy gains a route while §6.1 collisions stand; and a post-deploy check against production.
+
+**Status, 2026-09-13.** The first two shipped as `lib/subjects/indexability.test.ts`. The third did **not** ship the way this line proposed. Extending `scripts/verify-production-entities.ts` with subject fixtures was the wrong shape twice over: that script asserts JSON-LD entity TYPES against named records, which is a different question, and a fixture naming a subject goes stale the moment a book is published into it.
+
+`scripts/verify-subject-indexability.ts` instead asserts **relations between two things the site says about itself** — every URL in the sitemap answers `index`, every hub the sitemap omits answers `noindex`, no hub answers `nofollow`, and nothing indexable is unlinked. Those need no fixture and cannot go stale as the collection grows. Verified: 6 failures against production before the gate, 0 after; and with the sitemap input swapped for the hub's link list (the pre-3.3 behaviour, simulated) the contradiction check fires and names all four thin hubs.
 
 ---
 
