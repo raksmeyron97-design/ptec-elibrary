@@ -173,3 +173,42 @@ export function soleContributorNode(
 ): ContributorNode | undefined {
   return nodes.length === 1 ? nodes[0] : undefined;
 }
+
+/**
+ * Let the canonical graph CORRECT what the name said — never replace it.
+ *
+ * A keyword heuristic over a name gets one thing wrong that stored data can
+ * fix: a corporate body whose name contains no vocabulary this library knows
+ * ("Angkor Collective" reads as a person). So a stored `organization` may
+ * upgrade a `Person`.
+ *
+ * Everything else is left exactly as the contract resolved it, and the two
+ * exclusions are the whole point:
+ *
+ *   a bare `@id`  — the institution. It is a REFERENCE to the node the site
+ *                   graph already declares. Re-typing it from a stored kind
+ *                   mints a second node carrying the institution's name and
+ *                   its own `@id`, which is the duplicate-institution defect
+ *                   SEO V3 removed. A cached, cookieless data loader has no
+ *                   published `OrgIdentity` to compare against and therefore
+ *                   cannot answer `institution` at all.
+ *
+ *   `undefined`   — the byline named several entities, or none. A stored kind
+ *                   must not manufacture an identity the contract refused to
+ *                   find; that is how a 3-editor URL published all three names
+ *                   inside one `Person`.
+ *
+ * Both of those shipped to production on 2026-09-12 from a version that let
+ * the stored kind build its own node, and both are fixed by this direction of
+ * travel: name first, graph as a correction.
+ */
+export function correctedContributorNode(
+  node: ContributorNode | undefined,
+  storedKind: ContributorKind | null | undefined,
+): ContributorNode | undefined {
+  if (!node || !("@type" in node)) return node;
+  if (node["@type"] === "Person" && storedKind === "organization") {
+    return { "@type": "Organization", name: node.name };
+  }
+  return node;
+}

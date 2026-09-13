@@ -10,7 +10,11 @@ import { breadcrumbSchema } from "@/lib/seo/schema";
 import { SITE_URL } from "@/lib/seo/site";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { localeAlternates } from "@/lib/seo/alternates";
-import { contributorNodes, contributorNodesFromViews, soleContributorNode } from "@/lib/seo/contributor";
+import {
+  contributorNodes,
+  correctedContributorNode,
+  soleContributorNode,
+} from "@/lib/seo/contributor";
 
 import { getAuthorProfile } from "@/lib/authors/profile";
 import { authorStats } from "@/lib/authors/stats";
@@ -108,28 +112,36 @@ export default async function AuthorPage({ params }: PageProps) {
   // institution PTEC as a `Person`, inside the same document whose site graph
   // declares that same name as an `EducationalOrganization` at #organization.
   // See docs/SEO-3.0-AUDIT.md F-1..F-3.
-  // SEO 3.2: the graph's STORED answer outranks any reading of the name. A
-  // contributor filed as an organisation stays an organisation here even if
-  // its name happens to contain no vocabulary this library recognises — that
-  // is the difference between a fact and a heuristic. `contributorKind` is
-  // null when the graph has no record of this entity (or its records
-  // disagree), and only then does the name decide, exactly as in SEO 3.0.
+  // ── SEO 3.2: the graph CORRECTS the name, it does not replace reading it ──
+  //
+  // The first cut of this let a stored `contributorKind` bypass
+  // `contributorNodes()` entirely and build a node straight from
+  // `author.name`. That shipped, and broke two things in production the same
+  // hour (2026-09-12, fixed here):
+  //
+  //   * PTEC's own profile emitted a SECOND `Organization` node carrying the
+  //     institution's name and its own `@id`, instead of referencing the
+  //     `#organization` node the site graph already declares — the exact
+  //     duplicate-institution defect SEO V3 removed, reintroduced through a
+  //     door `entity-graph.test.ts` does not watch. The kind resolver had no
+  //     `OrgIdentity` to compare against, so it could never answer
+  //     `institution`.
+  //
+  //   * The 3-editor composite URL published the WHOLE byline as one Person's
+  //     name — "Bert P.M. Creemers, Leonidas Kyriakides, Pam Sammons
+  //     (Editors)" — because a synthetic view skips the normalization that
+  //     splits it. Strictly worse than the `[0]` it replaced.
+  //
+  // Both share one cause: the stored kind was allowed to REPLACE the contract
+  // rather than refine its answer. So the name goes through
+  // `contributorNodes()` first — which checks institution identity, splits a
+  // multi-entity byline and strips role markers — and the graph is consulted
+  // only to correct the one thing a keyword heuristic can get wrong on its
+  // own: a corporate body whose name contains no vocabulary this library
+  // knows. It can upgrade a Person to an Organization. It can never
+  // manufacture an entity the contract did not find.
   const pageOrg = await getOrgIdentity();
-  const entityNodes = author.contributorKind
-    ? contributorNodesFromViews([
-        {
-          contributorId: author.contributorIds[0] ?? null,
-          kind: author.contributorKind,
-          name: author.name,
-          nameKm: author.nameKm,
-          role: "author",
-          sequence: 0,
-          source: "canonical",
-          typeConflict: false,
-          composite: false,
-        },
-      ])
-    : contributorNodes(author.name, pageOrg);
+  const entityNodes = contributorNodes(author.name, pageOrg);
 
   // ── One URL, one entity — or no claim ─────────────────────────────────────
   //
@@ -148,7 +160,11 @@ export default async function AuthorPage({ params }: PageProps) {
   // not. Splitting the row into three URLs is the migration deliberately
   // deferred (docs/SEO-3.2-HISTORICAL-CONTRIBUTOR-MIGRATION.md); until then,
   // silence beats a wrong name.
-  const entityNode = soleContributorNode(entityNodes);
+  // The graph's one permitted correction — see correctedContributorNode().
+  const entityNode = correctedContributorNode(
+    soleContributorNode(entityNodes),
+    author.contributorKind,
+  );
 
   // A bare `@id` is the institution itself: reference the node the site graph
   // already declares rather than minting a second one. An entity node carries
