@@ -44,11 +44,24 @@ alerts in the audit scripts' markdown escaping — both at the root, not suppres
 | W-2 · thesis/publication ingestion writes no canonical credits | coverage decays from 100% as content is added | low now |
 | W-3 · 1 partial conflict on the single thesis | graph is richer than the byline; nothing missing | none |
 | W-4 · search intentionally legacy-backed | none — same strings | none |
-| W-5 · post-merge HTTP verification pending deploy | the deployed new code is not yet measured | low (296/296 parity) |
+| W-5 · ~~post-merge HTTP verification~~ **CLOSED** | found 2 author-page regressions; fixed in #182, deployed code now 10/10 | none |
 | W-6 · 29 rows' stored type disagrees with their name | resolved correctly at read time, reported | low |
 
-W-5 is the only one that blocks an unconditional COMPLETE, and it cannot be
-cleared until the merge deploys.
+W-5 is closed: the deployed code passes 10/10 entity-shape checks in production
+(2026-09-13 03:32 GMT). What keeps this COMPLETE **WITH WARNINGS** is W-1 and
+W-2 — real, measured gaps in the graph that are correct on the page today and a
+source of decay tomorrow.
+
+## The post-deploy step earned its place
+
+Verifying #181 after deploy found two regressions every pre-merge check had
+passed: PTEC's profile minted a SECOND `Organization` node instead of
+referencing `#organization`, and a 3-editor URL published the whole byline as
+one `Person`. Cause: a 296/296 book-JSON-LD parity proof was treated as
+evidence the merge was safe, when author pages were a different code path the
+same change touched. `scripts/verify-production-entities.ts` now checks one
+fixture per ENTITY SHAPE across both route families, and was negative-controlled
+against the live defect before the fix landed (8/10, failing exactly the two).
 
 ## Not done, deliberately
 

@@ -270,21 +270,71 @@ A role stated inside a name (`"… (Editors)"`) overrides a backfilled `author`
 default; a role held only in the column (the advisor) is preserved untouched.
 Both are pinned by tests.
 
-## 15. Author-page verification (PRODUCTION VERIFIED, pre-deploy)
+## 15. Author-page verification — and the regression it found
+
+This section is the reason the post-deploy step exists. It did not pass on the
+first attempt, and recording it as a pass would have been false.
+
+### 15.1 Pre-deploy (PRODUCTION VERIFIED)
 
 | Case | URL | Result |
 | --- | --- | --- |
-| Institution | `/authors/phnom-penh-teacher-education-college` | `{"@id":"…/#organization"}` — reference only, no second node |
-| Organization | `/authors/ministry-of-education-youth-and-sport` | `{"@type":"Organization", …}` — not Person |
-| Composite | `/authors/bert-p-m-creemers-…-editors` | **`{"@type":"Person","name":"Bert P.M. Creemers"}`** — one of three editors |
+| Institution | `/authors/phnom-penh-teacher-education-college` | `{"@id":"…/#organization"}` — reference only |
+| Organization | `/authors/ministry-of-education-youth-and-sport` | `{"@type":"Organization", …}` |
+| Composite | `/authors/bert-p-m-creemers-…-editors` | `{"@type":"Person","name":"Bert P.M. Creemers"}` — **defect C-5**, one of three editors |
 
-The third is defect C-5, fixed in this branch: that URL now asserts **no**
-identity (`soleContributorNode()`), because one URL cannot denote three people.
-Its works, breadcrumbs and canonical are unaffected.
+### 15.2 Post-deploy of #181 — TWO REGRESSIONS (PRODUCTION VERIFIED)
+
+```
+/authors/phnom-penh-teacher-education-college
+  before: {"@id": "https://library.ptec.edu.kh/#organization"}
+  after:  {"@type":"Organization","name":"Phnom Penh Teacher Education College",
+           "@id":"…/authors/phnom-penh-teacher-education-college#organization"}
+
+/authors/bert-p-m-creemers-leonidas-kyriakides-pam-sammons-editors
+  before: {"@type":"Person","name":"Bert P.M. Creemers"}          (1 of 3)
+  after:  {"@type":"Person","name":"Bert P.M. Creemers, Leonidas
+           Kyriakides, Pam Sammons (Editors)"}                    (all 3, as one)
+```
+
+The first is the **duplicate-institution defect SEO V3 removed**, re-entering
+through a door `lib/seo/entity-graph.test.ts` does not watch: it guards
+DECLARATION sites, not profile pages. The second is **worse than the `[0]`
+indexing it replaced** — a fabricated person wearing three names.
+
+**Cause.** #181 let a stored `contributorKind` BYPASS `contributorNodes()` and
+build a node straight from `author.name`, skipping the institution identity
+check, the multi-entity split and the role-marker strip. It also could never
+answer `institution`: `canonicalKindOf()` runs in a cookieless cached data
+loader with no `OrgIdentity`, so PTEC's row — typed `organization`, since
+0105's CHECK has no `institution` value — came back a plain organisation and
+the page minted a node for it.
+
+**Fix (#182, `cc0531e`).** The name is resolved by `contributorNodes()` first;
+the graph is consulted only to correct what a keyword heuristic gets wrong on
+its own — a corporate body whose name holds no recognised vocabulary.
+`correctedContributorNode()` may upgrade a `Person` to an `Organization` and
+nothing else: a bare `@id` and an `undefined` are returned untouched, which is
+what protects the institution reference and the "several entities, so assert
+nothing" answer. **Name first, graph as a correction.**
+
+### 15.3 Why the pre-merge evidence missed it
+
+The 296/296 book-JSON-LD parity proof (§10) was correct and complete **for
+books**. Author pages are a different code path that #181 also changed, and the
+proof said nothing about them — but it was treated as evidence that the merge
+was safe. The standing rule this produced: **never merge on a parity proof from
+one subsystem; every affected ROUTE is verified end to end before the merge.**
+
+### 15.4 Post-deploy of #182
+
+See §25.
+
+### 15.5 Works resolution (unchanged by either change)
 
 Author pages resolve works through `resource_contributors` **unioned** with the
-legacy legs (`books.author_id`, two `ILIKE` searches), deduped by `(type, id)`,
-so no work currently listed can disappear.
+legacy legs (`books.author_id`, two `ILIKE` searches), deduped by
+`(type, id)`, so no work currently listed can disappear.
 
 ## 16. JSON-LD production verification (PRODUCTION VERIFIED)
 
@@ -365,6 +415,71 @@ so the identity every kind decision needs costs one round trip per request.
   this branch's audit scripts were **fixed at the root**, not suppressed: the
   markdown cell escaper now escapes the backslash before the pipe.
 
+## 25. Post-deploy verification of the hotfix (#182)
+
+`npx tsx scripts/verify-production-entities.ts` — read-only HTTP, one fixture
+per ENTITY SHAPE across both route families, asserting entity TYPE and identity
+rather than any name a cataloguer may edit.
+
+Run against production **while the regression was still live**, as a negative
+control for the tool itself:
+
+```
+  ok    book · person                                /books/practical-research-methods
+  ok    book · several people                        /books/effective-school-management-4th-edition
+  ok    book · editor role marker                    /books/competency-based-…
+  ok    book · organization                          /books/moeys-capacity-development-platform
+  ok    book · the institution                       /books/action-research-series-volume-1
+  ok    book · Khmer, several people                 /books/រដ្ឋបាលសាធារណៈ
+  ok    author · person                              /authors/adrian-wallwork
+  ok    author · organization                        /authors/ministry-of-education-youth-and-sport
+  FAIL  author · THE INSTITUTION                     → a second Organization node
+  FAIL  author · composite (several people, one URL) → the whole byline as one Person
+  8/10 passed
+```
+
+The tool detects exactly the two defects that shipped, and passes the eight
+route shapes that were never affected. Post-deploy results: §25.1.
+
+### 25.1 Post-deploy of #182 — PRODUCTION VERIFIED
+
+Deploy landed 2026-09-13 03:32:56 GMT (`webpack-1f2057db51cf080b.js`;
+`Docker Publish` green on `cc0531e`). Same command, same fixtures:
+
+```
+  ok    book · person                                /books/practical-research-methods
+  ok    book · several people                        /books/effective-school-management-4th-edition
+  ok    book · editor role marker                    /books/competency-based-…
+  ok    book · organization                          /books/moeys-capacity-development-platform
+  ok    book · the institution                       /books/action-research-series-volume-1
+  ok    book · Khmer, several people                 /books/រដ្ឋបាលសាធារណៈ
+  ok    author · person                              /authors/adrian-wallwork
+  ok    author · organization                        /authors/ministry-of-education-youth-and-sport
+  ok    author · THE INSTITUTION                     /authors/phnom-penh-teacher-education-college
+  ok    author · composite (several people, one URL) /authors/bert-p-m-creemers-…-editors
+
+  10/10 passed
+```
+
+The two repaired URLs, read directly rather than via the tool:
+
+```
+/authors/phnom-penh-teacher-education-college
+  mainEntity: {"@id": "https://library.ptec.edu.kh/#organization"}
+
+/authors/bert-p-m-creemers-leonidas-kyriakides-pam-sammons-editors
+  mainEntity: ABSENT — no identity asserted
+```
+
+Both pages still serve their content, breadcrumbs and works. And the property
+that matters most for the institution, counted across the whole PTEC profile
+document: **one** `EducationalOrganization` node (the site graph's own
+declaration) and **four** `@id` references to it. No second institution entity
+exists anywhere on the page.
+
+**W-5 is closed.** The deployed code is measured, not predicted.
+
+
 ## 22. Warnings
 
 **W-1 — 44 composite contributor ROWS remain in the graph.**
@@ -388,9 +503,11 @@ byline does not. No byline name is missing. *Risk:* none. *Action:* reconcile
 
 **W-4 — Search remains legacy-backed by design.** Documented in §17.
 
-**W-5 — Production HTTP verification of the *post-merge* code is pending
-deploy.** Everything in §16 is pre-deploy evidence plus a 296/296 parity proof;
-it is not a measurement of the deployed new code.
+**W-5 — CLOSED, with a finding.** Post-deploy verification of #181 found two
+author-page regressions (§15.2); they were fixed in #182 and the deployed code
+now passes 10/10 entity-shape checks in production (§25.1). The warning is
+retired, but the finding is the reason §25 exists: a parity proof covers the
+routes it covered.
 
 **W-6 — 29 rows carry a `contributor_type` that disagrees with their name.**
 Resolved correctly at read time and reported as `typeConflict`. *Action:*
@@ -427,6 +544,13 @@ are correct in live HTML, roles and sequence survive, no duplicates or orphans
 exist, and the full suite and build pass. The one critical regression found was
 fixed and proven output-neutral across all 296 books.
 
-The six warnings in §22 are non-blocking, each scoped and with an action. W-5
-(post-deploy HTTP verification) is the only one that requires action before this
-can be called unconditionally COMPLETE, and it requires the merge to land first.
+W-5 is now closed: the deployed code was verified in production at 10/10, after
+the post-deploy step found and a hotfix repaired two author-page regressions
+that every pre-merge check had passed. The five remaining warnings are
+non-blocking, each scoped with an action, and none of them is a false claim in
+rendered output.
+
+The status stays COMPLETE **WITH WARNINGS** rather than COMPLETE because W-1
+(44 composite contributor rows) and W-2 (thesis/publication ingestion writes no
+canonical credits) are real, measured gaps in the graph — correct on the page
+today, but a source of decay tomorrow.
