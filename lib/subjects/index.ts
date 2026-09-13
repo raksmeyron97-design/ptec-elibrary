@@ -37,10 +37,18 @@ import {
   subjectKey,
   thesisMatchesSubject,
 } from "@/lib/subjects/matching";
+import { isBrowsableSubject, isIndexableSubject } from "@/lib/subjects/indexability";
 
 // The type vocabulary and the count→phrase mapping live in the pure sibling
 // module so the hub and the detail page share one copy. Re-exported here so
 // callers keep importing everything subject-related from "@/lib/subjects".
+export {
+  SUBJECT_MIN_FULL_TEXT,
+  SUBJECT_MIN_RESOURCES,
+  subjectVisibility,
+  type SubjectVisibility,
+} from "@/lib/subjects/indexability";
+
 export {
   SUBJECT_RESOURCE_TYPES,
   subjectBreakdown,
@@ -56,6 +64,11 @@ export type SubjectSummary = {
   name: string;
   slug: string;
   counts: SubjectCounts;
+  /** How many of this subject's resources have extracted full text — SEO 3.3
+   *  §5.2. `null` means the index-state read FAILED, which is not the same
+   *  answer as zero and must never demote a subject on its own; see
+   *  {@link subjectVisibility}. */
+  fullText: number | null;
 };
 
 export type SubjectItem = {
@@ -71,6 +84,7 @@ export type SubjectDetail = {
   name: string;
   slug: string;
   counts: SubjectCounts;
+  fullText: number | null;
   /** Matched resources, grouped by type and capped per type. */
   items: SubjectItem[];
   /** Subjects that genuinely co-occur with this one on a publication. May be
@@ -89,6 +103,11 @@ const ITEMS_PER_TYPE = 12;
  *  few enough that the links stay meaningful (brief §18: avoid link spam). */
 const RELATED_LIMIT = 8;
 
+/** The `resource_index_state.record_type` values whose rows correspond to a
+ *  resource this taxonomy counts. `research` is the thesis table's name there
+ *  (the DB still calls theses research_reports — see CLAUDE.md § Naming). */
+const INDEXABLE_RECORD_TYPES = new Set(["book", "research", "publication"]);
+
 // ── Subject index (all subjects + their public resource counts) ──────────────
 
 type CategoryRow = { id: string; name: string; slug: string; created_at: string | null };
@@ -104,45 +123,88 @@ type CategoryRow = { id: string; name: string; slug: string; created_at: string 
 async function loadSubjectIndex(): Promise<SubjectSummary[]> {
   const supabase = createServiceClient();
 
-  const [categories, books, theses, publications, catalog] = await Promise.all([
+  const [categories, books, theses, publications, catalog, indexState] = await Promise.all([
     supabase.from("categories").select("id, name, slug, created_at").order("name"),
-    supabase.from("books").select("category_id").eq("is_published", true),
-    supabase.from("research_reports").select("subject, program, faculty").eq("is_published", true),
-    supabase.from("publications").select("subjects").eq("is_published", true),
+    supabase.from("books").select("id, category_id").eq("is_published", true),
+    supabase
+      .from("research_reports")
+      .select("id, subject, program, faculty")
+      .eq("is_published", true),
+    supabase.from("publications").select("id, subjects").eq("is_published", true),
     supabase.from("catalog_books").select("category").eq("is_active", true),
+    // SEO 3.3 §5.2. `status = 'indexed'` is the only status that means text was
+    // extracted and stored — `no_text_layer` is a scan, `unfetchable` and
+    // `failed` produced nothing (lib/indexing/state.ts). The `pages` floor is
+    // belt-and-braces: a row claiming `indexed` with zero pages is not evidence
+    // a reader could search inside.
+    supabase
+      .from("resource_index_state")
+      .select("record_id, record_type")
+      .eq("status", "indexed")
+      .gt("pages", 0),
   ]);
 
   const rows = (categories.data ?? []) as CategoryRow[];
   if (rows.length === 0) return [];
 
-  const bookCountByCategoryId = new Map<string, number>();
-  for (const b of (books.data ?? []) as { category_id: string | null }[]) {
+  // A FAILED index-state read is `null`, never an empty set. Counting it as
+  // zero would push all 25 subjects below §5.2 at once and de-index the whole
+  // taxonomy on one flaky query; `subjectVisibility` is built to refuse that.
+  const fullTextIds: Set<string> | null = indexState.error
+    ? null
+    : new Set(
+        ((indexState.data ?? []) as { record_id: string; record_type: string }[])
+          .filter((r) => INDEXABLE_RECORD_TYPES.has(r.record_type))
+          .map((r) => r.record_id),
+      );
+
+  const bookIdsByCategoryId = new Map<string, string[]>();
+  for (const b of (books.data ?? []) as { id: string; category_id: string | null }[]) {
     if (!b.category_id) continue;
-    bookCountByCategoryId.set(b.category_id, (bookCountByCategoryId.get(b.category_id) ?? 0) + 1);
+    const list = bookIdsByCategoryId.get(b.category_id);
+    if (list) list.push(b.id);
+    else bookIdsByCategoryId.set(b.category_id, [b.id]);
   }
 
   const thesisRows = (theses.data ?? []) as {
+    id: string;
     subject: string | null;
     program: string | null;
     faculty: string | null;
   }[];
-  const publicationRows = (publications.data ?? []) as { subjects: string[] | null }[];
+  const publicationRows = (publications.data ?? []) as { id: string; subjects: string[] | null }[];
   const catalogRows = (catalog.data ?? []) as { category: string | null }[];
 
   return rows
     .filter((c) => c.slug && c.name)
     .map((c) => {
+      const bookIds = bookIdsByCategoryId.get(c.id) ?? [];
+      const thesisIds = thesisRows
+        .filter((t) => thesisMatchesSubject(t, c.name))
+        .map((t) => t.id);
+      const publicationIds = publicationRows
+        .filter((p) => publicationMatchesSubject(p.subjects, c.name))
+        .map((p) => p.id);
+
       const counts: SubjectCounts = {
-        book: bookCountByCategoryId.get(c.id) ?? 0,
-        thesis: thesisRows.filter((t) => thesisMatchesSubject(t, c.name)).length,
-        publication: publicationRows.filter((p) =>
-          publicationMatchesSubject(p.subjects, c.name),
-        ).length,
+        book: bookIds.length,
+        thesis: thesisIds.length,
+        publication: publicationIds.length,
         catalog: catalogRows.filter((r) => catalogMatchesSubject(r.category, c.name)).length,
         total: 0,
       };
       counts.total = counts.book + counts.thesis + counts.publication + counts.catalog;
-      return { id: c.id, name: c.name, slug: c.slug, counts };
+
+      // Catalog records are physical copies and are deliberately absent here:
+      // they count toward §5.1 (a reader can borrow one) and can never satisfy
+      // §5.2, because there is no file to extract.
+      const fullText =
+        fullTextIds === null
+          ? null
+          : [...bookIds, ...thesisIds, ...publicationIds].filter((id) => fullTextIds.has(id))
+              .length;
+
+      return { id: c.id, name: c.name, slug: c.slug, counts, fullText };
     });
 }
 
@@ -150,8 +212,14 @@ async function loadSubjectIndex(): Promise<SubjectSummary[]> {
  * Cached subject index. Tagged with every table it reads, so publishing a book
  * or a thesis moves the hub's counts — and, through
  * {@link getIndexableSubjects}, the sitemap — without a redeploy.
+ *
+ * `resource_index_state` has no tag: nothing publishes to it, a background job
+ * fills it, and the hourly revalidate is the right granularity for "this book
+ * became searchable". The key is v2 because the cached SHAPE gained `fullText`
+ * — a v1 entry would carry `undefined` there and read as "criterion 2 not
+ * evaluated" for as long as it lived.
  */
-const cachedSubjectIndex = unstable_cache(loadSubjectIndex, ["subject-index-v1"], {
+const cachedSubjectIndex = unstable_cache(loadSubjectIndex, ["subject-index-v2"], {
   revalidate: 3600,
   tags: [
     TAGS.categories,
@@ -174,13 +242,41 @@ export const getSubjectIndex = cache(async (): Promise<SubjectSummary[]> => {
 });
 
 /**
- * Subjects that have at least one public resource — the only ones that may be
- * advertised in the sitemap or linked as a destination.
+ * Subjects deep enough to be INDEXED and submitted in the sitemap — the SEO
+ * 3.3 §5 gate (≥ 5 resources and ≥ 3 of them with extracted full text).
  *
- * An empty subject page is a soft-404: HTTP 200 with nothing on it. Ten of
- * them were live and in sitemap.xml before V2 (audit F-1).
+ * This is the sitemap's list and nothing else's. The page's own `robots` meta
+ * must be decided by the same {@link subjectVisibility} call, or the sitemap
+ * advertises a URL that answers `noindex` — the contradiction V2 fixed for
+ * EMPTY subjects (docs/SEO-V2-AUDIT.md F-1) and 3.3 fixes for THIN ones: a
+ * one-book hub was `index, follow` and in sitemap.xml on the day this shipped.
  */
 export async function getIndexableSubjects(): Promise<SubjectSummary[]> {
+  return (await getSubjectIndex()).filter((s) => isIndexableSubject(s.counts, s.fullText));
+}
+
+/**
+ * Subjects that may be LINKED as a destination — the hub's list, the related
+ * rail, the ItemList describing either.
+ *
+ * Wider than {@link getIndexableSubjects} on purpose. A thin subject is a real
+ * place with real resources: withdrawing it from the index says "this page is
+ * not a search result", not "this page should be unreachable". Only a subject
+ * with nothing to stand on (0 or 1 resource) drops out.
+ */
+export async function getBrowsableSubjects(): Promise<SubjectSummary[]> {
+  return (await getSubjectIndex()).filter((s) => isBrowsableSubject(s.counts, s.fullText));
+}
+
+/**
+ * Subjects holding at least one public resource — what a reader can be TOLD
+ * about, which is a different question from what a crawler may index.
+ *
+ * The AI assistant answers from this one: a suppressed hub still holds a book,
+ * and refusing to name its subject because the page is not worth ranking would
+ * let an SEO policy decide a retrieval answer.
+ */
+export async function getSubjectsWithResources(): Promise<SubjectSummary[]> {
   return (await getSubjectIndex()).filter((s) => s.counts.total > 0);
 }
 
@@ -291,6 +387,9 @@ export const getSubjectDetail = cache(async (slug: string): Promise<SubjectDetai
     name,
     slug: category.slug,
     counts,
+    // undefined only when the index read failed entirely; `null` then keeps
+    // §5.2 unevaluated rather than asserting this subject has no full text.
+    fullText: self ? self.fullText : null,
     items,
     related: await relatedSubjects(name, index),
   };
@@ -331,7 +430,9 @@ async function relatedSubjects(
   if (cooccurrence.size === 0) return [];
 
   return index
-    .filter((s) => s.counts.total > 0 && cooccurrence.has(subjectKey(s.name)))
+    .filter(
+      (s) => isBrowsableSubject(s.counts, s.fullText) && cooccurrence.has(subjectKey(s.name)),
+    )
     .sort(
       (a, b) =>
         (cooccurrence.get(subjectKey(b.name)) ?? 0) -
@@ -340,10 +441,11 @@ async function relatedSubjects(
     .slice(0, RELATED_LIMIT);
 }
 
-/** Non-empty subjects other than `slug`, largest first — the honest fallback
- *  when {@link relatedSubjects} has no evidence to offer. */
+/** Linkable subjects other than `slug`, largest first — the honest fallback
+ *  when {@link relatedSubjects} has no evidence to offer. Browsable rather than
+ *  indexable: this rail is navigation for a reader, not an index nomination. */
 export async function otherSubjects(slug: string, limit = RELATED_LIMIT): Promise<SubjectSummary[]> {
-  return (await getIndexableSubjects())
+  return (await getBrowsableSubjects())
     .filter((s) => s.slug !== slug)
     .sort((a, b) => b.counts.total - a.counts.total)
     .slice(0, limit);

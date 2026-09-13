@@ -183,6 +183,11 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
     // (docs/SEO-V2-AUDIT.md F-1). getIndexableSubjects() applies the same
     // matching rule the page itself uses, so the sitemap can never advertise a
     // URL the page will render empty.
+    //
+    // Since SEO 3.3 it applies the §5 DEPTH gate too, and the page's robots
+    // meta is decided by the same subjectVisibility() call — so this list and
+    // the set of hubs answering `index, follow` are one set by construction,
+    // not two that happen to agree. A one-book hub was in both before.
     getIndexableSubjects(),
     // `slug` is optional in the select on purpose. Before migration 0125 the
     // column does not exist and the query errors, which fetchAllRows turns into

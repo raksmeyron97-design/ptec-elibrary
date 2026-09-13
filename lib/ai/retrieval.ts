@@ -60,7 +60,7 @@ import { makeSnippet } from "@/lib/search/snippet";
 import { getListedAuthors } from "@/lib/authors/directory";
 import { getAuthorProfile } from "@/lib/authors/profile";
 import type { AuthorWork } from "@/lib/authors/types";
-import { getIndexableSubjects, getSubjectDetail, type SubjectItem } from "@/lib/subjects";
+import { getSubjectDetail, getSubjectsWithResources, type SubjectItem } from "@/lib/subjects";
 import { personNameKey } from "@/lib/books/duplicate-detection/normalize";
 import { normalizeSearchText } from "@/lib/search/normalize";
 import { rankWorks } from "./work-ranking";
@@ -1764,7 +1764,11 @@ export async function searchAuthors(
 export async function searchSubjects(rawQuery: string): Promise<RetrievalOutcome> {
   const started = Date.now();
   const out = emptyOutcome();
-  const subjects = await getIndexableSubjects();
+  // Every subject holding a resource — NOT the sitemap's list. A hub can be
+  // too thin to index and still be the right answer to "what do you have on
+  // physics teaching methods"; letting an indexing policy narrow retrieval
+  // would make a reader's answer depend on a crawler's budget.
+  const subjects = await getSubjectsWithResources();
   out.dbQueries = 1;
 
   const q = normalizeSearchText(rawQuery);
