@@ -10,6 +10,7 @@ import { logAdminAction } from "@/app/actions/audit";
 import { createAdminNotification } from "@/lib/admin-notifications";
 import { indexPdfPagesSafe } from "@/lib/pdf-page-index";
 import { recordResourceContributors } from "@/lib/resources/contributor-write";
+import { normalizeBookLanguage } from "@/lib/books/language";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { notifyNewBookPublished } from "@/lib/push-events";
 import { EBOOKS_BASE_PATH } from "@/lib/admin/ebooks-url";
@@ -380,7 +381,11 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
   const author     = input.author?.trim();
   const department = input.department?.trim();
   const category   = input.category?.trim();
-  const language   = input.language?.trim();
+  // Normalised on the way in, not just validated. The form offers two options,
+  // but this action is also the common save path for the bulk importer — and an
+  // import is exactly what wrote 35 books as "kh", which `languageCode()` then
+  // could not read, stripping `inLanguage` from 11.8% of the catalogue.
+  const language   = normalizeBookLanguage(input.language) ?? undefined;
   const summary    = input.summary?.trim() || "";
   const fileUrl    = input.fileUrl?.trim();
 
@@ -741,7 +746,7 @@ export async function updateBook(
     const author     = requiredText(formData, "author");
     const department = requiredText(formData, "department");
     const category   = requiredText(formData, "category");
-    const language   = requiredText(formData, "language");
+    const language   = normalizeBookLanguage(requiredText(formData, "language")) ?? "";
     const summary    = formData.get("summary")?.toString().trim() || "";
 
     const isbn      = formData.get("isbn")?.toString().trim() || null;

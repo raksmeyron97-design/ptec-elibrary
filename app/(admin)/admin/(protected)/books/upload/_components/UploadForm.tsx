@@ -60,8 +60,11 @@ import {
   Globe,
   X,
 } from "lucide-react";
+import { BOOK_LANGUAGES } from "@/lib/books/language";
 
-const LANGUAGES = ["Khmer", "English"] as const;
+// The one vocabulary — shared with the normalizer and the SEO builder so a
+// third spelling cannot enter through this form.
+const LANGUAGES = BOOK_LANGUAGES;
 
 /** Pre-filled, not entered. See `yearTouched`. */
 const DEFAULT_YEAR = String(new Date().getFullYear());
