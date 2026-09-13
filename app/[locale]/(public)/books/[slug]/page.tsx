@@ -17,6 +17,7 @@ import DownloadCount from "@/components/ui/pwa/DownloadCount";
 import { Badge } from "@/components/ui/core/Badge";
 import { VerifiedBadge, LicenseBadge } from "@/components/ui/trust/TrustBadges";
 import PhysicalCopiesList from "@/components/ui/books/PhysicalCopiesList";
+import BookLearningPaths from "@/components/seo/BookLearningPaths";
 import { type Book, mapRowToBook } from "@/lib/books";
 import { getPublicResourceContributors } from "@/lib/resources/public-contributors";
 import { contributorNames, viewsFromLegacy } from "@/lib/resources/contributor-view";
@@ -542,6 +543,13 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
             subjectNames={[book.category]}
             authorNames={bookAuthors}
           />
+        </Suspense>
+
+        {/* Curriculum membership — self-fetching from one cached index, so a
+            book taught in no path costs nothing. Streams like the blocks
+            around it rather than holding up the record itself. */}
+        <Suspense fallback={null}>
+          <BookLearningPaths bookId={book.dbId} locale={locale} />
         </Suspense>
 
         {/* Related Books — self-fetching; stream after the main content */}
