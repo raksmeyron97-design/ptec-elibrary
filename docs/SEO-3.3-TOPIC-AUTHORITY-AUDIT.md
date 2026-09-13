@@ -89,6 +89,12 @@ The retrieval corpus is real and substantial. The catalogue-embedding gap (83 bo
 | វិធីសាស្ត្របង្រៀនរូបវិទ្យា (Physics teaching methods) | **1** | 1 | 23 | 23 | 1 | **SUPPRESS** |
 | កម្មវិធី PISA | **0** | — | — | — | — | **SUPPRESS** |
 
+**The `Tier` column is a reading aid and decides nothing.** It weighs
+pages-per-book and counts books only; the indexability gate counts every public
+resource and reads full-text state from `resource_index_state` (§5.1), so four
+categories labelled THIN here are `index` under the rule. Where the two
+disagree, §5 is authoritative.
+
 \* `កញ្ជប់គណិតវិទ្យា` has 18 books but **0 catalogue embeddings and only 53 pages/book** — it is a workbook series, not a reading collection. Viable as a *browse* surface, weak as an *answer* surface.
 
 ### 2.1 The concentration problem
@@ -160,19 +166,98 @@ The first two are data-backed, cost nothing, and are the highest-value internal 
 
 ---
 
-## 5. Indexability criteria — proposed
+## 5. Indexability criteria — applied
+
+> **Correction, 2026-09-13.** This section's arithmetic was wrong in the first
+> revision, and the error is worth stating plainly because the numbers were
+> approved before they were checked. It read *"15 of 25 categories qualify; 9
+> are THIN; 1 has a single book and 1 has none"* — which sums to **26 of 25
+> categories**. The 15 was not produced by the rule below at all: it was
+> `DEEP + VIABLE` from the §2 tier column, a hand-assigned judgement that
+> weighed pages-per-book and counted **books only**, while the rule counts every
+> public resource. Running the shipped `subjectVisibility()` over production
+> gives **19 index / 4 noindex / 2 suppressed**. The rule is what shipped; the
+> tier column is a reading aid and decides nothing.
 
 A topic surface may be indexable only when **all** of:
 
 1. **≥ 5 published resources.** Below this a hub is a list, not a page.
-2. **≥ 3 resources with extracted full text.** A hub whose items cannot be searched inside or cited by AI is a directory entry.
+2. **≥ 3 resources with extracted full text.** A hub whose items cannot be
+   searched inside or cited by AI is a directory entry.
 3. **A distinct label** — not colliding with another taxonomy's page (§6.1).
 4. **A stable slug** already routable and gated.
-5. **Non-empty in both locales** or explicitly `noindex` in the locale where it is empty.
+5. **Non-empty in both locales** or explicitly `noindex` in the locale where it
+   is empty.
 
-Applying 1 + 2 to the measured matrix: **15 of 25 categories qualify**; 9 are THIN and must stay `noindex, follow`; 1 has a single book and 1 has none — both must be suppressed outright.
+Only 1 and 2 vary per subject on this schema, so only they are evaluated per
+request. The others are structural and already hold: categories are the sole
+routable taxonomy, so the 12 collisions in §6.1 cannot yet produce two competing
+URLs; every hub is slug-gated; and one row set renders both locales, so a
+subject is never non-empty in one and empty in the other. **Adding a second
+routable taxonomy is what makes 3 a live per-subject question** — and it must
+then be re-decided in `lib/subjects/indexability.ts`, not at the new surface.
 
----
+### 5.1 Measured outcome — 19 index / 4 noindex / 2 suppressed
+
+Counting every public resource (books + theses + publications + physical
+catalog) and full text from `resource_index_state`:
+
+| Verdict | Categories | What it means |
+| --- | ---: | --- |
+| `index, follow` | **19** | in the sitemap, linked, indexable |
+| `noindex, follow` | **4** | linked from `/subjects`, out of the sitemap |
+| suppressed | **2** | also dropped from the hub's list and ItemList |
+
+Held back: `ភាសា` (4 resources), `ចំណេះដឹងទូទៅ` (3), `ច្បាប់` (3), `វប្បធម៌` (3).
+Suppressed: `កម្មវិធី PISA` (0) and `វិធីសាស្ត្របង្រៀនរូបវិទ្យា` (1).
+
+The sitemap therefore carries **19** subject URLs where it carried 24, and
+`/subjects` links **23** where it linked 24. Figures produced by running the
+shipped `subjectVisibility()` over the production database, not by a separate
+script reimplementing the rule — an earlier draft of this paragraph said 5/1
+because a throwaway script had its own copy of the thresholds.
+
+Four categories the §2 tier column called THIN clear the rule comfortably —
+`សុខភាព` (6 resources / 5 with full text), `ជីវវិទ្យា` (5/5), `រូបវិទ្យា` (5/5),
+`អក្សរសិល្ប៍` (5/4). They are thin in *pages per book*, which is a different
+claim from thin in *resources*, and §5 measures the second. Raising criterion 1
+to ≥ 7 would reproduce the 15 the first revision asserted; that is one constant
+(`SUBJECT_MIN_RESOURCES`) and no other change.
+
+### 5.2 What was actually live before this
+
+`getIndexableSubjects()` was `counts.total > 0`. Verified on production
+2026-09-13, before the fix:
+
+```
+/subjects/វិធីសាស្ត្របង្រៀនរូបវិទ្យា  (1 book)   index, follow   IN SITEMAP
+/subjects/ចំណេះដឹងទូទៅ                (3 books)  index, follow   IN SITEMAP
+/subjects/ស្រាវជ្រាវ                  (65 books) index, follow   IN SITEMAP
+```
+
+A one-book hub was advertised on exactly the terms of the 65-book collection.
+
+### 5.3 `កម្មវិធី PISA` — no defect, and the fix would have caused one
+
+An earlier draft of this audit called the empty PISA category "empty and
+indexable". **It is neither.** Verified on production:
+
+| Check | Result |
+| --- | --- |
+| `/subjects/កម្មវិធី-pisa` robots | `noindex, follow` |
+| In `sitemap.xml`? | No — only the 3 PISA *books* are |
+| Linked from `/subjects`? | No — 24 links, PISA absent |
+
+The V2 `total > 0` gate already handled the zero case correctly; the audit
+overstated it. Nothing about PISA needed fixing.
+
+Filing the 3 PISA books into it would have been an active loss.
+**`books.category_id` is a single foreign key**: filing a book under PISA
+*removes* it from `ភាសា` / `វិទ្យាសាស្ត្រ` / `គណិតវិទ្យា`. The trade is a true
+classification destroyed (the PISA-D reading book genuinely is a language book;
+`ភាសា` would fall 4 → 3) for a hub that holds 3 books — still below criterion 1,
+so still `noindex` either way. "This book is both PISA and language" is a
+many-to-many statement, and `resource_subjects` is where it belongs.
 
 ## 6. Thin-topic and cannibalization guards
 
@@ -192,7 +277,9 @@ Five labels exist in **three** taxonomies simultaneously. Today only the categor
 
 ### 6.2 Thin topics
 
-* **1 category with 1 book**, 1 with **0** — suppress from index and from the hub.
+* **1 category with 1 book**, 1 with **0** — suppressed from the index, the
+  sitemap and the hub's link list as of `lib/subjects/indexability.ts`. The
+  zero-resource case was already handled by the V2 gate (§5.3).
 * **693 tags used exactly once (75% of 923).** A tag-based page family is 693 thin pages. **Do not build one.**
 * Grades 5–12: 3.4 books per grade. No per-grade page above primary.
 
@@ -231,7 +318,7 @@ Per-topic answer depth varies by an order of magnitude — `ស្រាវជ�
 3. Close the 83-book catalogue-embedding gap, starting with `កញ្ជប់គណិតវិទ្យា` (0 of 18).
 
 **Phase B — deepen the surface that exists.**
-4. Apply the §5 criteria to `/subjects/<slug>`: 15 indexable, 9 `noindex, follow`, 2 suppressed.
+4. ~~Apply the §5 criteria to `/subjects/<slug>`~~ — **done**, and moved ahead of Phase A: it needed no schema change and the defect was live. Measured outcome **19 indexable / 4 `noindex, follow` / 2 suppressed** (§5.1), not the 15/9/2 this line first claimed. `lib/subjects/indexability.ts`.
 5. Add the two data-backed internal links (book ↔ learning path, subject ↔ path).
 6. Emit the subject hierarchy as `about`/`hasPart` on existing hub pages once `parent_id` is real.
 
@@ -286,9 +373,19 @@ PISA books exist filed under three *other* categories:
 ```
 
 An empty labelled shelf whose content sits elsewhere. Search finds them (verified
-live), so no reader is blocked. Three books is still below the §5 bar, so the fix
-is to **file them under the PISA category and keep that hub `noindex, follow`** —
-or retire the category. Either way it should not stay empty and indexable.
+live: `pisa` returns 4 results), so **no reader is blocked**.
+
+> **Correction, 2026-09-13.** This section originally proposed filing the three
+> books under the PISA category, and closed "it should not stay empty and
+> indexable". Both halves were wrong, and §5.3 has the evidence: the hub is
+> already `noindex`, already out of the sitemap and already off `/subjects`,
+> and `books.category_id` is a **single FK** — filing a book under PISA deletes
+> its true category. Three books is below the §5 bar either way, so the move
+> buys no indexability and costs a correct classification.
+
+The real fix is `resource_subjects` (Phase A item 2), where a book can be both
+PISA and language. Until then: no action, and do not retire the category — the
+label is a real MoEYS programme and the graph will need it.
 
 ## 10. Subject co-occurrence — measured (added 2026-09-13)
 
