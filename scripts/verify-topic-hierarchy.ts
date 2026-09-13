@@ -242,3 +242,5 @@ verify().catch((err) => {
   console.error("Verification crashed:", err);
   process.exit(1);
 });
+
+export {};
