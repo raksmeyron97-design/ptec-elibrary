@@ -3002,7 +3002,9 @@
     "markNotDone": "Mark “{title}” not done",
     "openStep": "Open",
     "continueWith": "Continue · {step}",
-    "statBooks": "distinct resources"
+    "statBooks": "distinct resources",
+    "partOfHeading": "Part of these learning paths",
+    "partOfIntro": "This book is a step in the following guided curricula."
   },
   "downloadProfile": {
     "title": "Download Access Profile",
