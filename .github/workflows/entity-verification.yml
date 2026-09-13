@@ -1,0 +1,250 @@
+# Post-deploy entity verification — does production still say true things about
+# who wrote what?
+#
+# ── Why this exists ─────────────────────────────────────────────────────────
+#
+# On 2026-09-13 a change that passed tsc, lint, 4,777 unit tests, a clean
+# build, CodeQL and a full e2e suite shipped two false claims to production:
+# PTEC's own author profile minted a SECOND `Organization` node instead of
+# referencing the `#organization` the site graph already declares, and a URL
+# naming three editors published the whole byline as one `Person`.
+#
+# Nothing caught it because nothing looked. The pre-merge evidence was a diff
+# of all 296 BOOK pages proving the JSON-LD byte-identical — correct, complete,
+# and silent about author pages, which the same change also touched. A proof
+# covers the routes it covered.
+#
+# So this looks, on every deploy, at one fixture per way a contributor can be
+# wrong, across BOTH public route families that render one.
+#
+# ── Why it polls instead of sleeping ────────────────────────────────────────
+#
+# lighthouse.yml sleeps 180s after a push and audits whatever is live, which is
+# right for a quality score. This job has to audit THE CODE THAT JUST SHIPPED,
+# and production is not deployed by this workflow: docker-publish.yml publishes
+# an image and the ZimaOS box pulls it on its own watch tick. Measured
+# end-to-end on 2026-09-13: 1,215s and 1,220s. A fixed sleep would either
+# audit the OLD build and pass, or fire before the box had pulled and fail —
+# both worse than not running.
+#
+# The one externally visible fingerprint of a new build is the hashed
+# `/_next/static` chunk (see docs/ZIMAOS-DEPLOYMENT.md: health, build id and
+# route output all survive a deploy unchanged). So: capture it, wait for it to
+# change, then verify.
+#
+# ── Why a missing fixture does not page anybody ─────────────────────────────
+#
+# The fixtures are ten real production records. A librarian unpublishing one is
+# ordinary cataloguing and must not go red — `docs/ALERT-CATALOG.md` hygiene
+# rule 2, and the same reasoning CLAUDE.md applies to the AI live suite: a job
+# that goes red for drift stops being read, and its real gates stop being read
+# with it. The script's four outcomes carry that distinction; see its header.
+#
+# The escalation is that MOST fixtures vanishing is not drift. That is a bad
+# host, a routing change or a broken sitemap, and a pile of individually
+# reasonable warnings would bury it.
+
+name: Entity verification
+
+on:
+  push:
+    branches: ["main"]
+  schedule:
+    # Weekly, off the top-of-hour cron rush. Catches drift that no deploy
+    # caused — a byline edited in the admin panel, a record unpublished, a
+    # contributor row rewritten by a backfill.
+    - cron: "23 3 * * 1" # Mondays 03:23 UTC (10:23 Phnom Penh)
+  workflow_dispatch:
+    inputs:
+      strict:
+        description: "Fail on a missing fixture too"
+        type: boolean
+        default: false
+
+permissions:
+  actions: read # read this workflow's own previous run conclusion
+  contents: read
+
+concurrency:
+  # Never two verifications of the same branch at once: the later push is the
+  # one whose deploy matters, and the earlier job would be polling for a
+  # fingerprint that is already superseded.
+  group: entity-verification-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SITE: https://library.ptec.edu.kh
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    # 25 min of polling + the run itself. The deploy takes ~20 min; a box that
+    # has not pulled in 25 is a deploy problem, and the step says so.
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # The verifier is a single file with no imports beyond node: builtins, so
+      # it needs tsx and nothing else. `npm ci` here would install the whole
+      # dependency tree to run one script.
+      - name: Install tsx
+        run: npm install --no-save tsx@4
+
+      # ── Wait for the deploy, on push only ────────────────────────────────
+      - name: Wait for the new build to reach production
+        id: deploy
+        if: github.event_name == 'push'
+        run: |
+          set -uo pipefail
+
+          fingerprint() {
+            curl -sS --max-time 20 "$SITE/" \
+              | grep -oE '/_next/static/chunks/webpack-[a-f0-9]+\.js' \
+              | head -1
+          }
+
+          before=$(fingerprint)
+          if [ -z "$before" ]; then
+            echo "::warning title=No fingerprint::Could not read a /_next/static chunk from $SITE/ — verifying whatever is live instead of waiting."
+            echo "waited=unknown" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Fingerprint before deploy: $before"
+
+          # 33 x 45s = ~25 min. The box pulls within 5 min of the image being
+          # published, and docker-publish.yml gates on the full ci job first.
+          for i in $(seq 1 33); do
+            sleep 45
+            now=$(fingerprint)
+            if [ -n "$now" ] && [ "$now" != "$before" ]; then
+              echo "Deploy landed after $((i * 45))s: $now"
+              echo "waited=$((i * 45))" >> "$GITHUB_OUTPUT"
+              # Let the box settle before asking it 10 questions.
+              sleep 20
+              exit 0
+            fi
+          done
+
+          # NOT a failure of this job's subject. The entities may be perfectly
+          # correct; we simply never saw the new code. Verifying the old build
+          # and reporting it as a pass would be the actual harm.
+          echo "::warning title=Deploy not observed::The /_next/static fingerprint did not change in 25 minutes. Verifying whatever is live, which may be the previous build."
+          echo "waited=timeout" >> "$GITHUB_OUTPUT"
+
+      - name: Verify contributor entities
+        id: verify
+        run: |
+          set -uo pipefail
+          npx tsx scripts/verify-production-entities.ts \
+            --base "$SITE" \
+            --json entity-smoke.json \
+            ${{ (github.event_name == 'workflow_dispatch' && inputs.strict) && '--strict' || '' }} \
+            | tee verify.out
+          # PIPESTATUS is rebuilt by the NEXT command, so it has to be read
+          # into a variable before anything else runs — including the echo
+          # that reports it. Reading it twice returns the echo's own status.
+          rc=${PIPESTATUS[0]}
+          echo "status=$rc" >> "$GITHUB_OUTPUT"
+          exit "$rc"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Entity verification"
+            echo
+            echo '```'
+            cat verify.out 2>/dev/null || echo "(the verifier produced no output)"
+            echo '```'
+            if [ "${{ steps.deploy.outputs.waited }}" = "timeout" ]; then
+              echo
+              echo "> The deploy was never observed — this may describe the PREVIOUS build."
+            elif [ -n "${{ steps.deploy.outputs.waited }}" ]; then
+              echo
+              echo "Deploy observed after \`${{ steps.deploy.outputs.waited }}\`s."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: entity-smoke-${{ github.run_id }}
+          path: entity-smoke.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+      # ── Alerting ─────────────────────────────────────────────────────────
+      #
+      # State-transition, exactly as uptime.yml does it: the previous run's
+      # conclusion IS the dedupe state, so a continuing failure says nothing
+      # and the GitHub failure email remains the per-run record. Twelve
+      # identical messages for one problem is what that pattern exists to stop.
+      - name: Read previous run conclusion
+        id: previous
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          prev=$(gh run list \
+                   --workflow entity-verification.yml \
+                   --branch "${{ github.ref_name }}" \
+                   --status completed \
+                   --limit 5 \
+                   --json databaseId,conclusion \
+                   --jq "[.[] | select(.databaseId != ${{ github.run_id }})] | .[0].conclusion" 2>/dev/null || echo "")
+          # Unlike uptime.yml, an unknown previous state defaults to FAILURE
+          # here — i.e. toward staying quiet. A missed availability alert costs
+          # an outage; a duplicate correctness alert costs trust in the channel,
+          # and this signal is only useful while it is still read. The failing
+          # run is red in Actions either way.
+          if [ -z "$prev" ] || [ "$prev" = "null" ]; then prev="failure"; fi
+          echo "conclusion=$prev" >> "$GITHUB_OUTPUT"
+          echo "Previous run concluded: $prev"
+
+      - name: Checkout (alerting runs only)
+        if: >-
+          always() &&
+          ((failure() && steps.previous.outputs.conclusion == 'success') ||
+           (success() && steps.previous.outputs.conclusion == 'failure'))
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions/telegram-alert
+          sparse-checkout-cone-mode: false
+
+      # Sev 2, not Sev 1. Nothing is down and no reader is blocked: the site
+      # serves, and what is wrong is a machine-readable claim search engines
+      # will re-crawl. It needs fixing today, not at 03:00.
+      - name: Telegram alert (first failure)
+        if: failure() && steps.previous.outputs.conclusion == 'success'
+        uses: ./.github/actions/telegram-alert
+        with:
+          severity: "2"
+          title: Production entity verification failed
+          service: library.ptec.edu.kh
+          message: >-
+            A contributor entity on a live page no longer matches what the
+            catalogue says it is — a Person where an Organization belongs, a
+            second institution node, or a byline published as one person.
+            Structured data is asserting something untrue. See the run summary
+            for the failing shape and what the page emitted.
+          runbook: docs/SEO-3.2-CONTRIBUTOR-GRAPH.md
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Telegram alert (recovered)
+        if: success() && steps.previous.outputs.conclusion == 'failure'
+        uses: ./.github/actions/telegram-alert
+        with:
+          severity: "4"
+          title: Production entity verification recovered
+          service: library.ptec.edu.kh
+          message: All contributor entity shapes verify correctly again.
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
