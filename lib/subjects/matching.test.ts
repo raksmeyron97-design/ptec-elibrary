@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   catalogMatchesSubject,
+  learningPathMatchesSubject,
   publicationMatchesSubject,
   subjectKey,
   thesisMatchesSubject,
@@ -87,3 +88,26 @@ describe("catalogMatchesSubject", () => {
     expect(catalogMatchesSubject(null, "Chemistry")).toBe(false);
   });
 });
+
+describe("learningPathMatchesSubject", () => {
+  it("is a substring match on the free-text subject", () => {
+    expect(learningPathMatchesSubject({ subject: "គណិតវិទ្យា" }, "គណិតវិទ្យា")).toBe(true);
+    expect(learningPathMatchesSubject({ subject: "ភាសាខ្មែរ" }, "ភាសា")).toBe(true);
+    expect(learningPathMatchesSubject({ subject: "អំណាន និងគណិតវិទ្យា" }, "គណិតវិទ្យា")).toBe(true);
+  });
+
+  it("does not match unrelated subjects", () => {
+    expect(learningPathMatchesSubject({ subject: "ភាសាខ្មែរ" }, "រូបវិទ្យា")).toBe(false);
+    expect(learningPathMatchesSubject({ subject: "គណិតវិទ្យា" }, "ភាសា")).toBe(false);
+  });
+
+  it("handles null or undefined subject", () => {
+    expect(learningPathMatchesSubject({ subject: null }, "គណិតវិទ្យា")).toBe(false);
+    expect(learningPathMatchesSubject({}, "គណិតវិទ្យា")).toBe(false);
+  });
+
+  it("never matches on empty subject query", () => {
+    expect(learningPathMatchesSubject({ subject: "គណិតវិទ្យា" }, "")).toBe(false);
+  });
+});
+
