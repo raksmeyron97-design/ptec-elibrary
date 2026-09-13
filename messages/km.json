@@ -7912,7 +7912,10 @@
     "curriculumIntro": "កញ្ចប់សិក្សាណែនាំ និងលំដាប់លំដោយកម្មវិធីសិក្សាសម្រាប់មុខវិជ្ជានេះ។",
     "browseAllPaths": "មើលវគ្គសិក្សាទាំងអស់",
     "pathEyebrow": "កញ្ចប់សិក្សា",
-    "viewCurriculum": "ចូលមើលវគ្គសិក្សា"
+    "viewCurriculum": "ចូលមើលវគ្គសិក្សា",
+    "subtopicsHeading": "ប្រធានបទរង",
+    "subtopicsIntro": "មុខវិជ្ជាឯកទេសស្ថិតក្រោមប្រធានបទធំនេះ។",
+    "subtopicOf": "ប្រធានបទរងនៃ {parent}"
   },
   "offline": {
     "libraryTitle": "សៀវភៅដែលបានទាញយក",

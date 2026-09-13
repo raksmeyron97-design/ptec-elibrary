@@ -14,6 +14,8 @@ import { libraryNode } from "@/lib/seo/org-nodes";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { decodeSlugParam } from "@/lib/slug";
 import {
+  buildSubjectBreadcrumbs,
+  buildSubjectHierarchySchema,
   getSubjectDetail,
   otherSubjects,
   subjectVisibility,
@@ -52,7 +54,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   // Next delivers non-ASCII segments percent-encoded to the page body and
   // decoded to generateMetadata — Khmer subject slugs never match otherwise.
   const [subject, t, org] = await Promise.all([
-    getSubjectDetail(decodeSlugParam(rawSlug)),
+    getSubjectDetail(decodeSlugParam(rawSlug), locale),
     getTranslations({ locale, namespace: "subjects" }),
     getOrgIdentity(),
   ]);
@@ -99,7 +101,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function SubjectPage({ params }: PageProps) {
   const { slug: rawSlug, locale } = await params;
-  const subject = await getSubjectDetail(decodeSlugParam(rawSlug));
+  const subject = await getSubjectDetail(decodeSlugParam(rawSlug), locale);
   if (!subject) notFound();
 
   const [t, org, fallbackSubjects] = await Promise.all([
@@ -119,15 +121,20 @@ export default async function SubjectPage({ params }: PageProps) {
     return items.length > 0 ? [{ type, items }] : [];
   });
 
-  // The breadcrumb now points at a subject hub that exists. It used to read
-  // "Subjects" while linking to /books, in the visible nav AND in the emitted
-  // BreadcrumbList — a machine-readable claim that this page lived somewhere
-  // it did not (docs/SEO-V2-AUDIT.md F-5).
-  const breadcrumbs = breadcrumbSchema([
-    { name: t("breadcrumbHome"), path: "/" },
-    { name: t("breadcrumbSubjects"), path: "/subjects" },
-    { name: subject.name },
-  ], { locale });
+  // Hierarchical breadcrumbs: 4 levels for child topics (Home → Subjects → Parent → Child)
+  // and 3 levels for parent / flat topics (Home → Subjects → Topic).
+  const crumbs = buildSubjectBreadcrumbs(subject, subject.parent, t);
+  const breadcrumbs = breadcrumbSchema(crumbs, { locale, pageUrl: subjectUrl });
+
+  // Schema.org CollectionPage hierarchy markup (SEO 3.3 Phase B Item 6)
+  const hierarchySchema = buildSubjectHierarchySchema({
+    subjectSlug: subject.slug,
+    subjectName: subject.name,
+    locale,
+    parent: subject.parent,
+    children: subject.children,
+    hubSeoTitle: t("hubSeoTitle"),
+  });
 
   const collectionSchema = {
     "@context": "https://schema.org",
@@ -137,13 +144,10 @@ export default async function SubjectPage({ params }: PageProps) {
     url: subjectUrl,
     inLanguage: locale === "km" ? "km" : "en",
     isAccessibleForFree: true,
-    about: { "@type": "Thing", name: subject.name },
     provider: libraryNode(org),
-    isPartOf: {
-      "@type": "CollectionPage",
-      name: t("hubSeoTitle"),
-      url: `${prefix}/subjects`,
-    },
+    isPartOf: hierarchySchema.isPartOf,
+    about: hierarchySchema.about,
+    ...(hierarchySchema.hasPart ? { hasPart: hierarchySchema.hasPart } : {}),
     // The items actually rendered, in the order rendered. numberOfItems is the
     // full match count, which may exceed the listed items (each type is capped)
     // — that is what ItemList's numberOfItems means.
@@ -183,6 +187,17 @@ export default async function SubjectPage({ params }: PageProps) {
           >
             {t("breadcrumbSubjects")}
           </Link>
+          {subject.parent && (
+            <>
+              <span aria-hidden="true">/</span>
+              <Link
+                href={`/subjects/${subject.parent.slug}`}
+                className="focus-field rounded-sm transition-colors hover:text-brand"
+              >
+                {subject.parent.name}
+              </Link>
+            </>
+          )}
           <span aria-hidden="true">/</span>
           <span className="max-w-[220px] truncate font-semibold text-text-heading sm:max-w-none">
             {subject.name}
@@ -190,6 +205,16 @@ export default async function SubjectPage({ params }: PageProps) {
         </nav>
 
         <header className="mb-8">
+          {subject.parent && (
+            <div className="mb-3">
+              <Link
+                href={`/subjects/${subject.parent.slug}`}
+                className="focus-field inline-flex items-center gap-1.5 rounded-full border border-brand/20 bg-brand/5 px-3 py-1 text-[12px] font-semibold text-brand transition-colors hover:border-brand/40"
+              >
+                ← {t("subtopicOf", { parent: subject.parent.name })}
+              </Link>
+            </div>
+          )}
           <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-brand">
             {t("eyebrow")}
           </p>
@@ -201,6 +226,36 @@ export default async function SubjectPage({ params }: PageProps) {
             </p>
           )}
         </header>
+
+        {/* Subtopics Rail — rendered on parent hubs (ស្រាវជ្រាវ, វិទ្យាសាស្ត្រ, គណិតវិទ្យា)
+            to pass internal link equity down to canonical child subjects */}
+        {subject.children.length > 0 && (
+          <section
+            id="subject-subtopics"
+            aria-labelledby="subtopics-heading"
+            className="mb-10 rounded-2xl border border-divider bg-bg-surface p-6 sm:p-8"
+          >
+            <h2 id="subtopics-heading" className="text-[18px] font-bold text-text-heading">
+              {t("subtopicsHeading")}
+            </h2>
+            <p className="mt-1 text-[13px] text-text-muted">{t("subtopicsIntro")}</p>
+            <ul className="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+              {subject.children.map((c) => (
+                <li key={c.slug}>
+                  <Link
+                    href={`/subjects/${c.slug}`}
+                    className="focus-field flex items-center justify-between rounded-xl border border-divider bg-bg-body px-4 py-3 transition-colors hover:border-brand/40 hover:text-brand"
+                  >
+                    <span className="font-semibold text-[14px] text-text-heading">{c.name}</span>
+                    <span className="rounded-full bg-brand/10 px-2.5 py-0.5 text-[11.5px] font-bold text-brand">
+                      {c.counts.total}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {/* Curricula & Learning Paths — self-fetching from cached index; streams
             independently and returns null when this subject has no learning paths */}
