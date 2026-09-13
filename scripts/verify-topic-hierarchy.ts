@@ -28,7 +28,6 @@ import {
   errorOutcome,
   exitCodeFor,
   fetchText,
-  fetchWithRetry,
   incompleteBanner,
   summaryLine,
   tally,

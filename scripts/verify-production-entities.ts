@@ -219,9 +219,7 @@ async function run() {
   }
 
   const t = tally(results.map((r) => r.outcome));
-  const failed = t.fail;
-  const warned = t.warn;
-  const systemic = warned > 0 && warned / results.length > SYSTEMIC_WARN_RATIO;
+  const systemic = t.warn > 0 && t.warn / results.length > SYSTEMIC_WARN_RATIO;
 
   // NOT `length - failed - warned`: an unanswered fixture is not a pass.
   console.log(`\n${summaryLine(t)} (${results.length} fixtures)`);
@@ -231,7 +229,7 @@ async function run() {
 
   if (systemic) {
     console.log(
-      `\n${warned} of ${results.length} fixtures are missing. That is not ` +
+      `\n${t.warn} of ${results.length} fixtures are missing. That is not ` +
         "cataloguing drift — check the host, the sitemap and the routing before " +
         "editing fixtures.",
     );

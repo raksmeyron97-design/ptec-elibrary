@@ -211,8 +211,6 @@ async function run() {
   }
 
   const t = tally(results.map((r) => r.outcome));
-  const failed = t.fail;
-  const warned = t.warn;
   // NOT `length - failed - warned`: that arithmetic counts an unanswered check
   // as a pass, which is the precise defect this module was written to remove.
   console.log(`\n${summaryLine(t)} (${results.length} checks)`);
