@@ -91,7 +91,7 @@ export default async function ArticleJournalContext({
       {details.length > 0 && (
         <>
           <h3 className="sr-only">{t("metadataHeading")}</h3>
-          <dl className="mt-6 grid gap-x-8 gap-y-3 border-t border-divider pt-5 text-[13.5px] sm:grid-cols-2">
+          <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-divider pt-5 text-[13.5px] sm:gap-x-8">
             {details.map((d) => (
               <div key={d.label} className="min-w-0">
                 <dt className="text-text-muted">{d.label}</dt>

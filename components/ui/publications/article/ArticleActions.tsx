@@ -14,9 +14,9 @@ export const ARTICLE_ACTIONS_ID = "article-actions";
 // Two tiers, and the difference is the point. Primary is what you came to do
 // with a paper — read it, take the PDF. Secondary is housekeeping around it.
 const primarySolid =
-  "inline-flex min-h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-brand px-6 text-[15px] font-bold text-brand-contrast shadow-sm transition-colors duration-150 hover:bg-brand-hover min-[420px]:flex-none";
+  "inline-flex min-h-12 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-brand px-3 text-[15px] font-bold text-brand-contrast shadow-sm transition-colors duration-150 hover:bg-brand-hover sm:flex-none sm:px-6";
 const primaryOutline =
-  "inline-flex min-h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-brand bg-bg-surface px-6 text-[15px] font-bold text-brand transition-colors duration-150 hover:bg-brand/5 min-[420px]:flex-none";
+  "inline-flex min-h-12 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-brand bg-bg-surface px-3 text-[15px] font-bold text-brand transition-colors duration-150 hover:bg-brand/5 sm:flex-none sm:px-6";
 const secondary =
   "inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 text-[14px] font-semibold text-text-body transition-colors duration-150 hover:bg-paper hover:text-brand";
 
@@ -50,7 +50,7 @@ export default function ArticleActions({
   return (
     <div id={ARTICLE_ACTIONS_ID} className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5">
       {(canRead || canDownload) && (
-        <div className="flex flex-col gap-2 min-[420px]:flex-row">
+        <div className="flex gap-2">
           {canRead && (
             // A real in-page link first: without JavaScript it still jumps to
             // the full-text section.
@@ -75,7 +75,9 @@ export default function ArticleActions({
         </div>
       )}
 
-      <div className="-ml-3 flex flex-wrap items-center gap-x-1 gap-y-1">
+      {/* 2 × 2 on a phone, so no action is left alone on a second row; one
+          wrapping row from `sm`. */}
+      <div className="grid grid-cols-2 gap-1 sm:-ml-3 sm:flex sm:flex-wrap sm:items-center">
         <button type="button" onClick={() => openCiteDialog()} aria-haspopup="dialog" className={secondary}>
           <Quote className="h-4 w-4" aria-hidden="true" />
           {t("cite")}

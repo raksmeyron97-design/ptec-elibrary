@@ -78,6 +78,14 @@ export default async function ArticleHeader({
   // English.
   const titleLang = KHMER_RE.test(pub.title) ? "km" : pub.language && pub.language !== "km" ? pub.language : "en";
   const issueLine = [issue.label, issue.year].filter(Boolean);
+  // The title is never truncated, so a very long one steps down a size rather
+  // than filling a screen: ~280 characters at 42 px is eight lines on a laptop.
+  const titleSize =
+    pub.title.length > 200
+      ? "text-[25px] sm:text-[30px] lg:text-[34px]"
+      : pub.title.length > 120
+        ? "text-[27px] sm:text-[33px] lg:text-[38px]"
+        : "text-[29px] sm:text-[36px] lg:text-[42px]";
 
   return (
     <header id="publication-masthead" className="scroll-mt-24">
@@ -95,7 +103,7 @@ export default async function ArticleHeader({
 
       {/* ── Journal context: the article's home shelf ── */}
       {(journal.name || issueLine.length > 0) && (
-        <div className="mt-4 border-l-2 border-accent-line pl-3.5">
+        <div className="mt-3 border-l-2 border-accent-line pl-3.5">
           {journal.name &&
             (journal.href ? (
               <Link
@@ -127,11 +135,11 @@ export default async function ArticleHeader({
       )}
 
       {/* ── What is this ── */}
-      <p className={`mt-7 text-accent-text ${EYEBROW}`}>{typeLabel}</p>
+      <p className={`mt-6 text-accent-text ${EYEBROW}`}>{typeLabel}</p>
       <h1
         id={ARTICLE_TITLE_ID}
         lang={titleLang}
-        className="mt-2 max-w-[980px] text-balance break-words font-khmer-serif text-[29px] font-bold leading-[1.2] tracking-[-0.012em] text-text-heading hyphens-auto sm:text-[36px] lg:text-[42px] [&:lang(km)]:leading-[1.55] [&:lang(km)]:tracking-normal"
+        className={`mt-2 max-w-[980px] text-balance break-words font-khmer-serif font-bold leading-[1.2] tracking-[-0.012em] text-text-heading hyphens-auto [&:lang(km)]:leading-[1.55] [&:lang(km)]:tracking-normal ${titleSize}`}
       >
         {pub.title}
       </h1>
@@ -155,7 +163,7 @@ export default async function ArticleHeader({
       />
 
       {/* ── Where, when, and its identifier ── */}
-      <div className="mt-6 space-y-2.5 border-t border-divider pt-5">
+      <div className="mt-5 space-y-2.5 border-t border-divider pt-4">
         {citationLine && (
           <p className="text-[14.5px] leading-6 text-text-body">
             <span className="font-semibold text-text-heading">{t("citeThis")}</span> <cite className="not-italic">{citationLine}</cite>
@@ -181,7 +189,7 @@ export default async function ArticleHeader({
       </div>
 
       {/* ── How do I read it ── */}
-      <div className="mt-6">
+      <div className="mt-5">
         <ArticleActions
           id={pub.id}
           title={pub.title}

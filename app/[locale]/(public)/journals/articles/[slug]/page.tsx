@@ -477,7 +477,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
               the page's h1 a few pixels further down, so the visible trail
               stops at its parent; the full trail is still read out and still
               mirrors the BreadcrumbList. */}
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <nav
               aria-label="Breadcrumb"
               className="flex min-w-0 flex-wrap items-center gap-1.5 text-[13px] font-medium text-text-muted"
@@ -547,7 +547,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
                 the section list before the text, but it is placed in the
                 right-hand column; on phones it is replaced by the inline
                 "Jump to" row at the top of the text. */}
-            <div className="mt-10 grid border-t border-divider pt-10 lg:grid-cols-[minmax(0,1fr)_220px] lg:gap-x-14 xl:grid-cols-[minmax(0,1fr)_240px] xl:gap-x-20">
+            <div className="mt-8 grid border-t border-divider pt-8 lg:grid-cols-[minmax(0,1fr)_220px] lg:gap-x-14 xl:grid-cols-[minmax(0,1fr)_240px] xl:gap-x-20">
               <aside className="hidden lg:col-start-2 lg:row-start-1 lg:block">
                 <div className="sticky top-28">
                   <ArticleSectionNav

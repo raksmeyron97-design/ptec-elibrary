@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { ChevronDown } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { slugify } from "@/lib/book-utils";
 import { secondaryValue } from "@/lib/publications/integrity";
@@ -120,8 +121,12 @@ export default async function ArticleAuthors({
         <div className="mt-3 max-w-[80ch]">
           {affiliations.length > OPEN_AFFILIATIONS ? (
             <details className="group">
-              <summary className="inline-flex min-h-9 cursor-pointer select-none items-center gap-1 text-[13.5px] font-semibold text-text-body hover:text-brand">
+              <summary className="inline-flex min-h-9 cursor-pointer select-none list-none items-center gap-1 text-[13.5px] font-semibold text-text-body hover:text-brand [&::-webkit-details-marker]:hidden">
                 {t("affiliationsLabel")} ({affiliations.length})
+                <ChevronDown
+                  aria-hidden="true"
+                  className="h-4 w-4 transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none"
+                />
               </summary>
               <div className="mt-2">{affiliationList}</div>
             </details>

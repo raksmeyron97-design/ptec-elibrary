@@ -34,7 +34,7 @@ export default function ArticleMobileDock({
   const t = useTranslations("publicationDetail");
 
   return (
-    <FloatingDock watchId={ARTICLE_ACTIONS_ID} className="lg:hidden">
+    <FloatingDock watchId={ARTICLE_ACTIONS_ID} revealAfterPassed className="lg:hidden">
       {canRead ? (
         <a
           href="#fulltext"
