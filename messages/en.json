@@ -192,7 +192,8 @@
     "offlineNow": "Offline",
     "reconnecting": "Reconnecting…",
     "readerLabel": "{title} — reader",
-    "retrying": "Retrying…"
+    "retrying": "Retrying…",
+    "askAboutBook": "Ask about this book"
   },
   "nav": {
     "home": "Home",

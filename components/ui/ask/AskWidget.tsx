@@ -315,10 +315,12 @@ export default function AskWidget() {
   const [open, setOpen] = useState(false);
   // The reading routes own the bottom-right corner and are a focused surface;
   // a learning-path detail page docks its own primary action along the bottom
-  // edge on phones. The assistant steps aside on both — the definition lives
-  // in lib/nav/shell-routes.ts, shared with the tab bar.
+  // edge on phones. The FAB steps aside on both — the definition lives in
+  // lib/nav/shell-routes.ts, shared with the tab bar. The PANEL can still be
+  // opened there on request: the reader's ⋯ menu offers "Ask about this
+  // book" through lib/ask/open.ts.
   const pathname = usePathname();
-  const onReaderRoute = assistantFabHidden(pathname ?? "");
+  const fabHidden = assistantFabHidden(pathname ?? "");
   // On a phone book page the read dock carries "Ask about this book"
   // (MobileReadDock), so the FAB would be a second floating control in the
   // same corner. The panel still opens — only the button steps aside.
@@ -544,7 +546,6 @@ export default function AskWidget() {
     ? [t("bookStarter1"), t("bookStarter2"), t("bookStarter3")]
     : [t("starter1"), t("starter2"), t("starter3")];
 
-  if (onReaderRoute) return null;
 
   return (
     <>
@@ -771,7 +772,10 @@ export default function AskWidget() {
         </div>
       )}
 
-      {/* ── FAB ───────────────────────────────────────────────────── */}
+      {/* ── FAB ─────────────────────────────────────────────────────
+          Not rendered where the FAB steps aside (reading routes, a path's
+          detail page); the panel above still opens on request there. */}
+      {!fabHidden && (
       <button type="button" onClick={() => setOpen((v) => !v)}
         aria-label={open ? t("close") : t("open")}
         aria-expanded={open}
@@ -808,6 +812,7 @@ export default function AskWidget() {
           <LibraryAssistantIcon className="ask-fab-icon h-6 w-6 sm:h-7 sm:w-7" />
         )}
       </button>
+      )}
     </>
   );
 }

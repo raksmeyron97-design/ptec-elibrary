@@ -32,9 +32,11 @@ import {
   Save,
   Search as SearchIcon,
   Settings2,
+  Sparkles,
   Square,
 } from "lucide-react";
 import Icon from "@/components/ui/core/Icon";
+import { openLibraryAssistant } from "@/lib/ask/open";
 import { useLocale, useTranslations } from "next-intl";
 import { incrementDownloadCount } from "@/app/actions/download";
 import { nfc, renderItemHtml, type ItemDecoration } from "@/lib/reader/search-matches";
@@ -1287,6 +1289,21 @@ export default function PDFViewer({
       ? [{ id: "save", label: progress.isSaved ? t("saved") : t("save"), icon: <Save className="h-4 w-4" />, disabled: progress.isSaved, onSelect: progress.saveNow } as MoreMenuItem]
       : []),
     ...(citation ? [{ id: "cite", label: t("citeThisBook"), icon: <Quote className="h-4 w-4" />, onSelect: () => setCitationOpen(true) } as MoreMenuItem] : []),
+    // The library assistant, scoped to this document (it reads the record
+    // from the URL). Online only — it answers from the server. Focus mode is
+    // a fixed layer above everything, so it is left first or the assistant
+    // would open underneath it.
+    ...(!offline
+      ? [{
+          id: "ask",
+          label: t("askAboutBook"),
+          icon: <Sparkles className="h-4 w-4" />,
+          onSelect: () => {
+            setFocusMode(false);
+            openLibraryAssistant();
+          },
+        } as MoreMenuItem]
+      : []),
     ...(allowDownload
       ? [{
           id: "download",
