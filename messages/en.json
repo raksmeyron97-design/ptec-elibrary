@@ -598,6 +598,7 @@
     "aboutHeading": "What is this book about?",
     "defaultSummary": "{title} is a public resource in the PTEC Library collection.",
     "openFullReader": "Open full-screen reader",
+    "askAboutBook": "Ask the library assistant about this book",
     "topicsHeading": "Topics covered",
     "topicsPageCount": "{count, plural, one {# page} other {# pages}}",
     "topicsProvenance": "Identified from this book's own text. Each count is the number of pages of the book that discuss the topic; contents pages, front matter and bibliographies are not counted."
