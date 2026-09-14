@@ -34,6 +34,7 @@
 // suppressed. A suppressed hub is by definition linked from nowhere, so no
 // crawl of the site can discover it and no relation can be asserted about it.
 
+import { hubSlug } from "../lib/verify/subject-graduation";
 import {
   errorOutcome,
   exitCodeFor,
@@ -230,6 +231,11 @@ async function run() {
           generatedAt: new Date().toISOString(),
           advertised: advertised.length,
           linked: linked.length,
+          // The indexable SET, not just its size — §7.4's graduation check
+          // diffs membership between runs, and a count cannot tell "ភាសា
+          // graduated and ច្បាប់ fell back" from "nothing happened".
+          // Sorted so two runs of an unchanged set produce identical bytes.
+          indexableSlugs: [...advertised].map(hubSlug).sort(),
           ...t,
           incomplete: t.unknown > 0,
           results,
