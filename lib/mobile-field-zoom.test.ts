@@ -25,13 +25,15 @@ const ROOT = path.resolve(__dirname, "..");
 const EXEMPT = new Set(["components/ui/chat/FloatingChat.tsx"]);
 
 function publicComponentFiles(): string[] {
-  const list = (args: string[]) =>
-    execFileSync("git", args, { cwd: ROOT, encoding: "utf8" }).split("\n").filter(Boolean);
-  // ls-files alone misses a file nobody has `git add`ed yet.
-  const files = [
-    ...list(["ls-files", "components", "app/[locale]"]),
-    ...list(["ls-files", "--others", "--exclude-standard", "components", "app/[locale]"]),
-  ];
+  // Tracked AND untracked, so a field in a brand-new file is checked before
+  // anyone runs `git add` (lib/invariant-scan-coverage.test.ts).
+  const files = execFileSync(
+    "git",
+    ["ls-files", "--cached", "--others", "--exclude-standard", "components", "app/[locale]"],
+    { cwd: ROOT, encoding: "utf8" },
+  )
+    .split("\n")
+    .filter(Boolean);
   return [...new Set(files)].filter(
     (f) => f.endsWith(".tsx") && !f.includes(".test.") && !f.includes("/admin") && !EXEMPT.has(f),
   );

@@ -158,14 +158,15 @@ describe("the phone shell's geometry is declared once", () => {
     // indicator": 64px, 4.5rem, 5.5rem, 76px + 14px. They drifted apart by
     // 8px before anyone noticed. Reserve var(--ptec-mobile-nav-clearance).
     //
-    // git grep reads tracked files only — a brand-new component is invisible
-    // to it until `git add`, so `ls-files --others` is unioned in.
-    const tracked = execFileSync("git", ["ls-files", "app", "components"], { cwd: ROOT, encoding: "utf8" });
-    const untracked = execFileSync("git", ["ls-files", "--others", "--exclude-standard", "app", "components"], {
-      cwd: ROOT,
-      encoding: "utf8",
-    });
-    const files = [...tracked.split("\n"), ...untracked.split("\n")].filter((f) => /\.(tsx|ts)$/.test(f));
+    // Tracked AND untracked: a brand-new component must be visible to the scan
+    // before anyone runs `git add` (lib/invariant-scan-coverage.test.ts).
+    const files = execFileSync(
+      "git",
+      ["ls-files", "--cached", "--others", "--exclude-standard", "app", "components"],
+      { cwd: ROOT, encoding: "utf8" },
+    )
+      .split("\n")
+      .filter((f) => /\.(tsx|ts)$/.test(f));
     // `[^)\]]{0,24}` spans an added term like the footer's `64px+1.5rem+env(`.
     const HAND_WRITTEN = /(?:64px|76px|4\.5rem|5\.5rem)[^)\]]{0,24}env\(safe-area-inset-bottom/;
     const offenders = files.filter((f) => {

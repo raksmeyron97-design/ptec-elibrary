@@ -15,8 +15,11 @@ vi.mock("@/i18n/navigation", () => ({
 function renderRecovery(locale: "en" | "km", retry = vi.fn(), subject?: "book") {
   const error = Object.assign(new Error("database said: relation \"books\" does not exist"), { digest: "123" });
   vi.spyOn(console, "error").mockImplementation(() => {});
+  // Only the namespace the component reads: the whole catalogue is ~340 KB,
+  // and parsing it into the provider is what timed this test out under load.
+  const messages = { errors: (locale === "km" ? kmMessages : enMessages).errors };
   render(
-    <NextIntlClientProvider locale={locale} messages={locale === "km" ? kmMessages : enMessages}>
+    <NextIntlClientProvider locale={locale} messages={messages}>
       <ErrorRecovery error={error} retry={retry} subject={subject} logLabel="/test" />
     </NextIntlClientProvider>,
   );
