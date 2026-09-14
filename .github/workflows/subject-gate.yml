@@ -139,14 +139,55 @@ jobs:
           path: baseline/subject-indexable-baseline.json
           retention-days: 90
 
+      # ── 3. Topic hierarchy (SEO 3.3 Phase B Item 6) ─────────────────────
+      # Breadcrumbs, subtopic rails, hasPart/isPartOf schema against live HTTP.
+      - name: Verify topic hierarchy
+        id: topic_hierarchy
+        if: always()
+        run: |
+          set -uo pipefail
+          mkdir -p reports
+          npx tsx scripts/verify-topic-hierarchy.ts \
+            --json reports/topic-hierarchy.json \
+            ${{ inputs.strict && '--strict' || '' }} 2>&1 | tee reports/topic-hierarchy.log
+
+      # ── 4. Curriculum links (SEO 3.3 Phase B) ───────────────────────────
+      # Book ⇄ Learning Paths and Subject ⇄ Learning Paths reciprocal rails.
+      - name: Verify curriculum links
+        id: curriculum_links
+        if: always()
+        run: |
+          set -uo pipefail
+          mkdir -p reports
+          npx tsx scripts/verify-curriculum-links.ts \
+            --json reports/curriculum-links.json \
+            ${{ inputs.strict && '--strict' || '' }} 2>&1 | tee reports/curriculum-links.log
+
       - name: Summary
         if: always()
         run: |
           {
-            echo "### Subject depth gate"
+            echo "### Subject depth gate & graduations"
             echo
             sed -n '1,40p' reports/verify.log 2>/dev/null || echo "(verifier produced no log)"
+            echo
+            echo "### Topic hierarchy"
+            echo
+            sed -n '1,40p' reports/topic-hierarchy.log 2>/dev/null || echo "(topic hierarchy produced no log)"
+            echo
+            echo "### Curriculum links"
+            echo
+            sed -n '1,40p' reports/curriculum-links.log 2>/dev/null || echo "(curriculum links produced no log)"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload verification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: subject-gate-reports-${{ github.run_id }}
+          path: reports/
+          if-no-files-found: ignore
+          retention-days: 30
 
       # ── Alerting ────────────────────────────────────────────────────────
       - name: Read previous run conclusion
