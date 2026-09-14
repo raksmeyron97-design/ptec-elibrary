@@ -78,7 +78,9 @@ Phase C therefore began by giving all four instruments one fault vocabulary (`li
 
 ## 4. The crawl graph — click depth, orphans, and what Phase B bought
 
-`scripts/audit-crawl-depth.ts`, breadth-first from `/`, same-origin anchors only, `robots.txt` honoured as Googlebot reads it, six concurrent fetches. Counts-only artifact: `artifacts/seo/crawl-depth-2026-09-13.json`. The first run is **not** the record — it had 17 unanswered pages including `/authors` and `/subjects` themselves (§5.6); the corrected run below had **1,650 fetches, 0 unanswered, 0 needed a retry**.
+`scripts/audit-crawl-depth.ts`, breadth-first from `/`, same-origin anchors only, `robots.txt` honoured as Googlebot reads it, six concurrent fetches. Counts-only artifacts: `artifacts/seo/crawl-depth-2026-09-13.json` (before the §7.3 fix) and `artifacts/seo/crawl-depth-2026-09-14-after.json` (after). Both runs: **1,650 fetches, 0 unanswered, 0 retries needed**. An earlier attempt is not of record — it had 17 unanswered pages including `/authors` and `/subjects` themselves (§5.6).
+
+**§4.1–4.3 below report the state BEFORE the hardening in §7.3 shipped, because that is the measurement the phase was judged on. §4.4 is the state now.** Both are kept: the second only makes sense against the first.
 
 ### 4.1 What the sitemap promises vs what the links deliver
 
@@ -121,9 +123,45 @@ There is no pre-Phase-B site to crawl. The instrument instead re-walks the measu
 
 Stated plainly: **the dominant depth-reducer for books is the author page, and it predates this phase.** Every one of 157 author pages is within two clicks, so a book is at three through its author; `RelatedBooks` rails do the rest. Phase B's measurable depth effect is confined to nine books, all rescued by **subject hubs — none by learning paths** — and for those nine it is large: two STEPSAM3 teacher guides move from click 10 to click 3.
 
+> **Superseded by §4.4, 2026-09-14.** This paragraph closed with "the nine books it reaches were the ones nothing else did". That was true when measured and is **false now**, because §7.3 fixed the thing that was stopping something else from reaching them. After the author cap was raised, the count of books whose shortest path runs through a hub or path is **0**. The correction matters more than the number: Phase B's justification is topical association, not crawl depth — which is what the paragraph below §4.3 already said depth does not measure.
+
 **Why those fifteen, and not others — verified against the database, not inferred.** All six deep books and all nine rescued books have the same author: **ក្រសួងអប់រំ យុវជន និងកីឡា (MoEYS)**, with **93 published books** — the only author in the library above 10. Its author page links **70** of them, because the works list is capped at `PER_TYPE_LIMIT = 60` (`lib/authors/profile.ts`), so **23 MoEYS books have no author path at all**. From there the subject hub decides: it lists at most `ITEMS_PER_TYPE = 12` books per hub (`lib/subjects/index.ts`), so a MoEYS book in a small category (គីមីវិទ្យា 8, ជីវវិទ្យា 5, សុខភាព 6, បច្ចេកវិទ្យា 7, វិទ្យាសាស្ត្រ 16) is on its hub and reached at click 3 — the nine — while a MoEYS book in គរុកោសល្យ (52 books) is past the cap, and falls all the way to listing pagination — the six. Two caps, one institutional author who wrote a third of the collection. The lever is §7.3.
 
 What the depth audit does **not** measure is the phase's main deliverable — topical association: hub ↔ book, hub ↔ path, parent ↔ child, and the `CollectionPage`/`hasPart`/`isPartOf` graph that `verify-topic-hierarchy.ts` checks 40 ways. Depth was never going to move much on a site whose author pages already reach nearly every book; the claim this section supports is narrower and true: nothing Phase B added made any page deeper, nothing is orphaned by it, and the nine books it reaches were the ones nothing else did.
+
+### 4.4 After the §7.3 hardening — measured 2026-09-14
+
+`PER_TYPE_LIMIT` 60 → 120 and the workless-author filter shipped in #196
+(`9a028cd`), verified live before this run: the ghost author left the sitemap
+(1 → 0 `<loc>`) and MoEYS went from 70 to 93 book links.
+
+| Measure | §4.1–4.3 (before) | After #196 |
+| --- | ---: | ---: |
+| URLs in `sitemap.xml` | 508 | **507** |
+| Reachable by clicking from `/` | 507 (99.8%) | **507 / 507 (100%)** |
+| Orphans — no path of any kind | 1 | **0** |
+| `/books` median / max click depth | 3 / 10 | **3 / 3** |
+| Books at ≥ 4 clicks | 6 (2.0%) | **0** |
+| Broken internal links · dead ends | 0 · 0 | **0 · 0** |
+
+Every one of the 296 books, by click depth:
+
+```
+before:  1→17   2→51   3→222   6→2  7→2  8→1  10→1
+after:   1→17   2→51   3→228
+```
+
+The six that were reachable only through listing pagination collapsed to click
+3 by the predicted route — `/` → `/authors` → MoEYS → book. Page weight came in
+at **84.7 KB gzipped against a forecast of ~85.4 KB**, a 0.9% error.
+
+**The counterfactual went to zero, and that is the honest headline.** Books
+whose *shortest* path runs through a subject hub or learning path: **9 → 0**.
+Raising the author cap did not diminish Phase B; it removed the only condition
+under which depth could credit it. A hub still reaches those nine books — it is
+simply no longer the shortest route, now that the author page is not hiding a
+third of the collection. Depth was the wrong instrument for judging topical
+association, which §4.3 said in advance and this run demonstrates.
 
 ---
 
@@ -143,10 +181,10 @@ The hub was already `noindex`, already out of the sitemap, already off `/subject
 ### 5.4 A scanner watermark defeats `no_text_layer` detection
 `គន្លឹះធរណីមាត្រ ថ្នាក់ទី ១១` is `status = indexed, pages = 32` — every page reads `"Scanned by CamScanner"` and nothing else. The chunker was right to refuse it. Blast radius measured: **1 record in 271**; logged as maintenance, not acted on.
 
-### 5.5 A workless author page is indexable and in the sitemap — VERIFIED, NOT FIXED
+### 5.5 A workless author page is indexable and in the sitemap — FIXED (#196, #197)
 `/authors/kenneth-n-berk-patrick-carey` answers 200 with `index, follow`, an `<h1>`, **zero book links and no Person/Organization node**. `/authors` correctly omits it (156 of 157 sitemap author pages are linked); the sitemap still advertises it. It is a soft-404 of exactly the shape the V2 subject fix removed, and the composite name ties it to the 3.2 backlog (§7.2).
 
-The mechanism is three rules that never met: `fetchAuthorRows()` in `app/sitemap.ts` emits **every** row of `authors` and `publication_authors` with no works filter; `lib/authors/directory.ts` lists an entry only when `workCount >= 1` ("always ≥ 1 for a listed entry"); and `app/[locale]/(public)/authors/[slug]/page.tsx` sends `noindex` only for a slug that is *not found*, so a found author with zero works renders `index, follow`. The fix is one rule in one place — the sitemap and the page must both ask the directory's question — and it is deliberately not made in this measurement branch.
+The mechanism is three rules that never met: `fetchAuthorRows()` in `app/sitemap.ts` emits **every** row of `authors` and `publication_authors` with no works filter; `lib/authors/directory.ts` lists an entry only when `workCount >= 1` ("always ≥ 1 for a listed entry"); and `app/[locale]/(public)/authors/[slug]/page.tsx` sends `noindex` only for a slug that is *not found*, so a found author with zero works renders `index, follow`. **Fixed.** #196 filtered the sitemap through `getListedAuthors()` — the same call `/authors` makes — taking author URLs 157 → 156, exactly the set the hub already linked. #197 added the other half: the page itself now sends `noindex, follow` when `works.length === 0`, because removing a URL from a sitemap stops recommending it but does not de-index a page already in the index. Both halves use one predicate so they cannot drift. The page still answers 200 to a direct link — unadvertised, not deleted — and returns to the index by itself when a librarian attaches a work, since the directory's cache is tagged on `TAGS.books`.
 
 ### 5.6 Instrument defects found and fixed during Phase C
 * **`/auth` swallowed `/authors`** in the crawler's own skip list — the robots.txt trap from SEO V2, reproduced three lines under a comment citing it. Caught because the sitemap count came out 350 instead of 508; fixed to segment-boundary matching; pinned in `lib/verify/crawl-policy.test.ts`.
@@ -173,8 +211,10 @@ Preconditions are met: `robots.txt` is well-formed (every rule `$`-anchored or s
 ### 7.2 The composite-author backlog (SEO 3.2 W-1)
 43 of 157 `authors` rows and 46 of 162 `contributors` rows name several people. The public read model already handles them correctly (`soleContributorNode()`, `citationNames()`, re-normalised backfill rows), so no fabricated `Person` is published. What remains is that each composite row owns **one URL** that asserts no single identity; §5.5 is the first measured consequence. The path is the one the 3.2 audit set out: split at ingestion (already live for new records), then a deliberate, audited split of the historical rows with 301s — not a bulk migration.
 
-### 7.3 The institutional-author cap (from §4.3)
-One author, MoEYS, has 93 books; every other author has ≤ 10. The author page's `PER_TYPE_LIMIT = 60` was sized for people, and it leaves 23 MoEYS books with no author path — six of them at click 6–10, reachable only through paginated listing. The fix is not to raise the cap for everyone: it is to give an *organisation* author a complete, paginated works list (or a "view all" into `/books?author=…`, which is `noindex, follow` and still carries the crawl), and to let a subject hub with more than 12 books of one type link a paginated continuation rather than stop at 12. Both are one-file changes; both should be verified with `scripts/audit-crawl-depth.ts` — the expected result is the six deep books moving to click ≤ 3 and the counterfactual's "rescued" count rising, since more books would then have a hub path.
+### 7.3 The institutional-author cap (from §4.3) — ✅ DONE (#196)
+One author, MoEYS, has 93 books; every other author has ≤ 10. The author page's `PER_TYPE_LIMIT = 60` was sized for people, and it leaves 23 MoEYS books with no author path — six of them at click 6–10, reachable only through paginated listing. The fix is not to raise the cap for everyone: it is to give an *organisation* author a complete, paginated works list (or a "view all" into `/books?author=…`, which is `noindex, follow` and still carries the crawl), and to let a subject hub with more than 12 books of one type link a paginated continuation rather than stop at 12. **Shipped as the simpler half of that: `PER_TYPE_LIMIT` 60 → 120**, keyed on count rather than on the author being an organisation — `authors` has no type column, and MoEYS's canonical row says `contributor_type = 'person'` because that is the 0105 backfill default the 3.2 contract refuses to believe, so a type-keyed fix would have been a silent no-op. The subject hub's 12-per-type cap was left alone: with every author path complete it no longer decides any book's reachability.
+
+The prediction stated here was half right. The six deep books did move to click ≤ 3 (§4.4). The counterfactual's "rescued" count did **not** rise — it fell to 0, because completing the author paths made the hub route redundant rather than additional. Recorded rather than rewritten.
 
 ### 7.4 Thin-hub graduation
 The gate is dynamic — a hub crossing 5 books flips to `index` and enters the sitemap on the next hourly revalidation with no deploy. What is missing is **notification**. Proposed: `verify-subject-indexability.ts --json` on the existing post-deploy workflow plus a weekly schedule, diffed against a committed baseline of the indexable set; a change in membership (not a count) posts to the existing Telegram alert, using the state-transition pattern `uptime.yml` already uses so a stable set stays quiet.

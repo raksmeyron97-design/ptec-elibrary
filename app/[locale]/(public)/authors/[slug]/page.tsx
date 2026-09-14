@@ -54,6 +54,20 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title,
     description,
     alternates,
+    // An author with no public works is a soft-404 — a name, and nothing to
+    // read. #196 stopped app/sitemap.ts advertising one, but removing a URL
+    // from a sitemap only stops RECOMMENDING it: a page already in the index
+    // stays there, and anything that links to it keeps it discoverable. Only
+    // `noindex` withdraws it. Same rule and same predicate the sitemap filter
+    // uses (lib/authors/sitemap-filter.ts), so the two cannot drift.
+    //
+    // `follow`, not `nofollow`: the page is crawlable and its links — the hub
+    // crumb, the taxonomy — are real. What is withdrawn is the claim that THIS
+    // page is a search result. Verified on production: exactly one author
+    // qualifies (Kenneth N. Berk, Patrick Carey), and the moment a librarian
+    // attaches a work the directory's cache tag refreshes and the page returns
+    // to the index with no deploy.
+    ...(author.works.length === 0 ? { robots: { index: false, follow: true } } : {}),
     openGraph: {
       title,
       description,

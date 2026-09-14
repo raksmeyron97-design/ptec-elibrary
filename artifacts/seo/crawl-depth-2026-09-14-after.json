@@ -1,0 +1,125 @@
+{
+  "base": "https://library.ptec.edu.kh",
+  "generatedAt": "2026-09-13T16:52:55.242Z",
+  "instrument": "scripts/audit-crawl-depth.ts",
+  "note": "after #196 (PER_TYPE_LIMIT 60->120, workless-author sitemap filter)",
+  "sitemapUrls": 507,
+  "crawled": 1650,
+  "checked": 1650,
+  "unknown": 0,
+  "incomplete": false,
+  "reachableByClick": 507,
+  "reachableIncludingAlternates": 507,
+  "orphansByClick": [],
+  "orphansByAnyEdge": [],
+  "brokenInternalLinks": 0,
+  "indexableDeadEnds": 0,
+  "clickDepthByFamily": {
+    "/": {
+      "n": 1,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "atLeast4": 0
+    },
+    "/about": {
+      "n": 7,
+      "min": 1,
+      "median": 1,
+      "max": 1,
+      "atLeast4": 0
+    },
+    "/authors": {
+      "n": 157,
+      "min": 1,
+      "median": 2,
+      "max": 2,
+      "atLeast4": 0
+    },
+    "/books": {
+      "n": 609,
+      "min": 1,
+      "median": 3,
+      "max": 9,
+      "atLeast4": 240
+    },
+    "/catalogs": {
+      "n": 7,
+      "min": 1,
+      "median": 2,
+      "max": 2,
+      "atLeast4": 0
+    },
+    "/contact": {
+      "n": 1,
+      "min": 1,
+      "median": 1,
+      "max": 1,
+      "atLeast4": 0
+    },
+    "/paths": {
+      "n": 10,
+      "min": 1,
+      "median": 2,
+      "max": 3,
+      "atLeast4": 0
+    },
+    "/policy": {
+      "n": 1,
+      "min": 1,
+      "median": 1,
+      "max": 1,
+      "atLeast4": 0
+    },
+    "/posts": {
+      "n": 2,
+      "min": 1,
+      "median": 1,
+      "max": 1,
+      "atLeast4": 0
+    },
+    "/privacy": {
+      "n": 1,
+      "min": 1,
+      "median": 1,
+      "max": 1,
+      "atLeast4": 0
+    },
+    "/publications": {
+      "n": 1,
+      "min": 1,
+      "median": 1,
+      "max": 1,
+      "atLeast4": 0
+    },
+    "/subjects": {
+      "n": 25,
+      "min": 1,
+      "median": 2,
+      "max": 2,
+      "atLeast4": 0
+    },
+    "/theses": {
+      "n": 3,
+      "min": 1,
+      "median": 2,
+      "max": 2,
+      "atLeast4": 0
+    }
+  },
+  "books": {
+    "inSitemap": 296,
+    "clickReachable": 296,
+    "medianDepth": 3,
+    "depthDistribution": {
+      "1": 17,
+      "2": 51,
+      "3": 228
+    },
+    "counterfactualNoHubOrPathEdges": {
+      "clickReachable": 296,
+      "medianDepth": 3,
+      "booksWhoseShortestPathRunsThroughHubOrPath": []
+    }
+  }
+}

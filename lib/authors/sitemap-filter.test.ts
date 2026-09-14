@@ -78,6 +78,18 @@ describe("the call sites keep the rules that make this safe", () => {
     expect(src).toMatch(/if \(degraded\)/);
   });
 
+  it("the author PAGE withdraws itself too, not just the sitemap entry", () => {
+    // Removing a URL from a sitemap stops recommending it; it does not
+    // de-index a page already in the index, and it does not stop anything that
+    // links to the page from keeping it discoverable. Only `noindex` does.
+    // Both halves must use the same predicate or they drift apart again.
+    const page = read("app/[locale]/(public)/authors/[slug]/page.tsx");
+    expect(page).toContain("author.works.length === 0");
+    expect(page).toContain("robots: { index: false, follow: true }");
+    // `follow`, never `nofollow`: the page's own links are real.
+    expect(page).not.toContain("follow: false");
+  });
+
   it("the author works cap clears the largest author in the collection", () => {
     // MoEYS has 93 published books; at 60 the page showed 70 and 23 books had
     // no author path. The cap is applied per leg before the union, so it has
