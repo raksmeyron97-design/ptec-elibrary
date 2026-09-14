@@ -120,7 +120,7 @@ export default function ReviewForm({
             rows={4}
             defaultValue={existingContent ?? ""}
             placeholder="What did you find most useful about this resource?"
-            className="w-full resize-none rounded-lg border border-divider p-4 text-sm text-text-heading placeholder:text-text-muted outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15"
+            className="w-full resize-none rounded-lg border border-divider p-4 text-base text-text-heading sm:text-sm placeholder:text-text-muted outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15"
           />
         </div>
 

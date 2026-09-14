@@ -20,6 +20,7 @@ import NewArrivals from "@/components/ui/home/NewArrivals";
 import ForYouShelf from "@/components/ui/home/ForYouShelf";
 import GrowTheCollection from "@/components/ui/home/GrowTheCollection";
 import MobileFeaturedStrip from "@/components/ui/home/MobileFeaturedStrip";
+import QuickAccessRow from "@/components/ui/home/QuickAccessRow";
 import BrowseBooksSection from "@/components/ui/home/BrowseBooksSection";
 import CategoryGrid from "@/components/ui/home/CategoryGrid";
 import TrendingResearch from "@/components/ui/home/TrendingResearch";
@@ -292,14 +293,22 @@ export default async function HomePage() {
                 />
               </div>
 
+              {/* Quick access — phones only. Search, then the collections it
+                  searches, one swipe away, before any shelf. */}
+              <div className="mt-6 lg:hidden">
+                <QuickAccessRow />
+              </div>
+
               {/* Constellation affordance — desktop only (the canvas glow is
                   behind the left overlay and barely visible on phones) */}
               <p className="mt-3 hidden text-[12px] text-blue-300/65 lg:block">
                 {t("constellationHint")}
               </p>
 
-              {/* Mobile book strip — unchanged component */}
-              <div className="mt-10 lg:hidden">
+              {/* Mobile book strip — unchanged component. Its own root already
+                  carries mt-9; the old mt-10 here stacked 76px of empty ink
+                  above the "Featured" label. */}
+              <div className="mt-1 lg:hidden">
                 <MobileFeaturedStrip books={heroBooks} />
               </div>
 

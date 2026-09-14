@@ -8,6 +8,8 @@ import { createPublicClient } from "@/lib/supabase/public";
 import type { CatalogBook, CopyStatusRow } from "@/lib/catalog";
 import CatalogCard from "@/components/ui/books/CatalogCard";
 import CatalogSearchBar from "@/components/ui/search/CatalogSearchBar";
+import LibraryVisitStrip from "@/components/ui/books/LibraryVisitStrip";
+import { resolveLibraryStatus } from "@/lib/about/status";
 import Pagination from "@/components/ui/core/Pagination";
 import { ClientNavWrapper } from "@/components/ui/books/ClientNavWrapper";
 import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
@@ -237,6 +239,17 @@ export default async function CatalogsPage({
 
           {catalogEmpty ? null : (
           <>
+          {/* Can I go there now? — the empty state below carries the same
+              facts at length, so this only shows once there are records. */}
+          <LibraryVisitStrip
+            initialStatus={resolveLibraryStatus(new Date(), cfg.hours.openingHoursSpec, cfg.hours.closures)}
+            spec={[...cfg.hours.openingHoursSpec]}
+            closures={cfg.hours.closures}
+            locale={locale === "km" ? "km" : "en"}
+            mapHref={cfg.links.mapPlace}
+            directionsLabel={t("emptyVisitCta")}
+          />
+
           {/* Search bar */}
           <Suspense fallback={<div className="h-11 w-full rounded-xl bg-paper animate-pulse" />}>
             <CatalogSearchBar />

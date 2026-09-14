@@ -1,26 +1,27 @@
+// Mirrors <BookCard>'s anatomy so the swap from skeleton to card does not
+// jump: a full-bleed 3:4 cover, two title lines, the author, a metrics line,
+// and the CTA row — which, like the card's, phones do not draw.
 export default function BookCardSkeleton() {
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-xl bg-bg-surface border border-divider shadow-sm">
+    <div className="flex h-full flex-col overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-sm" aria-hidden="true">
       {/* Cover */}
-      <div className="relative mx-3 mt-3 aspect-[3/4] rounded-lg sm:mx-3.5 sm:mt-3.5 skeleton border border-divider/30" />
+      <div className="skeleton aspect-[3/4] w-full" />
 
-      <div className="flex flex-1 flex-col px-3.5 pb-3.5 pt-4 sm:px-4 sm:pb-4 gap-2">
-        {/* Category badge */}
-        <div className="skeleton h-3 w-14 rounded-full" />
-        {/* Title line 1 */}
-        <div className="skeleton h-4 w-full rounded sm:h-5" />
-        {/* Title line 2 */}
-        <div className="skeleton h-4 w-3/4 rounded sm:h-5" />
+      <div className="flex flex-1 flex-col gap-2 px-3 pb-3 pt-2.5">
+        {/* Title, two lines */}
+        <div className="skeleton h-3.5 w-full rounded" />
+        <div className="skeleton h-3.5 w-3/4 rounded" />
         {/* Author */}
-        <div className="skeleton h-3 w-1/2 rounded sm:h-3.5" />
+        <div className="skeleton h-3 w-1/2 rounded" />
 
-        <div className="mt-auto pt-3 flex justify-between items-center">
-          {/* Stars */}
-          <div className="skeleton h-3.5 w-16 rounded" />
-          {/* Tag */}
-          <div className="skeleton h-6 w-14 rounded-full" />
+        <div className="mt-auto pt-2.5">
+          {/* Metrics */}
+          <div className="skeleton h-3 w-16 rounded" />
+          {/* CTA — sm and up only, as on the card */}
+          <div className="mt-2.5 hidden h-px bg-divider sm:block" />
+          <div className="skeleton mt-2.5 hidden h-8 w-full rounded-lg sm:block" />
         </div>
       </div>
     </div>
-  )
+  );
 }

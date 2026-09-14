@@ -22,9 +22,10 @@ describe("ReaderViewportFill", () => {
     window.dispatchEvent(new Event("resize"));
     expect(el.style.getPropertyValue("--reader-top-offset")).toBe("120px");
     expect(el.style.height).toBe("calc(100dvh - var(--reader-top-offset, 0px) - var(--reader-bottom-reserve, 0px))");
-    // The phone-only reserve is a class-driven custom property, cleared at lg.
-    expect(el.className).toContain("[--reader-bottom-reserve:calc(4.5rem+env(safe-area-inset-bottom))]");
-    expect(el.className).toContain("lg:[--reader-bottom-reserve:0px]");
+    // The tab bar is hidden on the reading route (lib/nav/shell-routes.ts), so
+    // the reader reserves nothing for it — and never a private copy of its
+    // height (lib/glass-tokens.test.ts).
+    expect(el.className).not.toContain("--reader-bottom-reserve");
   });
 
   it("never reports a negative offset when the page is scrolled past it", () => {

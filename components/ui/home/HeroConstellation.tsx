@@ -143,7 +143,13 @@ export default function HeroConstellation({ terms = [], className = "" }: Props)
           ctx.beginPath();
           ctx.arc(px, py, n.r, 0, Math.PI * 2);
           ctx.fill();
-          if (n.label && f > 0.04) {
+          // Labels are a desktop affordance (the "constellation" hint that
+          // explains them is lg-only). Below lg the text column spans the
+          // hero, so a label lands behind the description, the search hint
+          // or the chips — and the reduced-motion still frame (focus 0.45)
+          // printed them there permanently, for exactly the readers who
+          // asked for less going on. The dots and links stay.
+          if (n.label && W >= 1024 && f > 0.04) {
             // Khmer fallbacks so KM trending terms render on the canvas.
             ctx.font = '600 12px Inter, Hanuman, "Khmer OS", system-ui, sans-serif';
             const tw = ctx.measureText(n.label).width;

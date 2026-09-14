@@ -511,12 +511,12 @@ export default function ThesisSidebar({
         aria-haspopup="dialog"
         aria-expanded={mobileOpen}
         // Bottom-LEFT, and matched to the Ask widget's own offset.
-        // <AskWidget> is fixed bottom-right at
-        // `bottom-[calc(76px+env(safe-area-inset-bottom)+14px)] right-4`, so a
-        // filter pill in the same corner sat underneath it — the two overlapped
-        // on every phone. Same vertical offset, opposite corner: both clear the
-        // mobile bottom nav and neither covers the other.
-        className="fixed bottom-[calc(76px+env(safe-area-inset-bottom)+14px)] left-4 z-20 flex cursor-pointer items-center gap-2 rounded-full bg-brand px-5 py-3 text-sm font-bold text-brand-contrast shadow-lg transition-colors duration-150 hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 lg:hidden"
+        // <AskWidget> is fixed bottom-right, one step above the tab bar
+        // (`var(--ptec-mobile-nav-clearance)` + 0.75rem), so a filter pill in
+        // the same corner sat underneath it — the two overlapped on every
+        // phone. Same vertical offset, opposite corner: both clear the tab bar
+        // and neither covers the other.
+        className="fixed bottom-[calc(var(--ptec-mobile-nav-clearance)+0.75rem)] left-4 z-20 flex cursor-pointer items-center gap-2 rounded-full bg-brand px-5 py-3 text-sm font-bold text-brand-contrast shadow-lg transition-colors duration-150 hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 lg:hidden"
       >
         <SlidersHorizontal className="w-4 h-4" />
         Filters

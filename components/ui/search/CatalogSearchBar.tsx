@@ -32,6 +32,7 @@ export default function CatalogSearchBar() {
           <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" strokeLinecap="round" />
         </svg>
 
+        {/* text-base below sm: iOS zooms into any field under 16px on focus. */}
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -41,7 +42,7 @@ export default function CatalogSearchBar() {
           className="
             h-11 w-full rounded-xl
             border border-divider bg-bg-surface
-            pl-10 pr-4 text-sm text-text-heading
+            pl-10 pr-4 text-base text-text-heading sm:text-sm
             placeholder:text-text-muted caret-brand
             outline-none ring-0
             transition

@@ -12,6 +12,7 @@ import type { LearningPathDetail, StepResourceType } from "@/app/actions/learnin
 import { enrollInPath, setStepComplete } from "@/app/actions/learning-paths";
 import { progressPercent } from "@/lib/learning-paths/format";
 import { LangText } from "@/components/ui/core/LangText";
+import FloatingDock from "@/components/ui/glass/FloatingDock";
 import { formatDuration } from "./format-duration";
 
 const RESOURCE_ICON: Record<StepResourceType, typeof BookOpen> = {
@@ -194,7 +195,7 @@ export default function PathExperience({
           progress to navigate — at 0% they were two 36px targets that did
           nothing, beside the one control that mattered. */}
       {flatSteps.length > 0 && (
-        <div className="sticky top-2 z-20 mb-6 rounded-2xl border border-divider bg-bg-surface/95 p-3.5 shadow-sm backdrop-blur sm:p-4">
+        <div id="path-progress-card" className="sticky top-2 z-20 mb-6 rounded-2xl border border-divider bg-bg-surface/95 p-3.5 shadow-sm backdrop-blur sm:p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="min-w-0 flex-1">
               <div className="mb-1 flex items-center justify-between gap-3 text-[12.5px] font-semibold tabular-nums text-text-body">
@@ -462,24 +463,27 @@ export default function PathExperience({
       {/* ── Docked phone action ──
           The one control a teacher arriving from a shared link needs, always
           reachable: without it the first action sat ~1,900px down a 375px
-          screen. Sits above the bottom tab bar (64px + the safe-area inset);
-          the assistant FAB steps aside on this route (AskWidget) so two
-          floating controls never share the corner. The spacer keeps the last
+          screen. A FloatingDock — the same one the book page uses — so the two
+          read as one pattern. It watches the sticky progress card: while that
+          card (with its own Start button) is pinned on screen the dock stays
+          away, where before both were drawn at once through the whole steps
+          list; it also steps away at the footer. The assistant FAB steps aside
+          on this route (lib/nav/shell-routes.ts). The spacer keeps the last
           content from hiding behind it. `md:hidden` because from md the sticky
-          progress card's own action is on screen. */}
+          card's action is always on screen. */}
       {flatSteps.length > 0 && (
         <>
           <div aria-hidden="true" className="h-20 md:hidden" />
-          <div className="fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-40 border-t border-divider bg-bg-surface/95 px-4 py-2.5 backdrop-blur md:hidden">
+          <FloatingDock watchId="path-progress-card" className="md:hidden">
             <button
               type="button"
               onClick={handleStart}
-              className="btn-brand-gradient flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 text-[15px] font-bold text-white"
+              className="btn-brand-gradient flex min-h-12 w-full items-center justify-center gap-2 rounded-[16px] px-4 text-[15px] font-bold text-white"
             >
               <PlayCircle className="h-4.5 w-4.5 shrink-0" aria-hidden="true" />
               <span className="truncate">{dockLabel}</span>
             </button>
-          </div>
+          </FloatingDock>
         </>
       )}
     </div>
