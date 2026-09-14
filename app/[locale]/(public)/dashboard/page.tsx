@@ -203,6 +203,15 @@ export default async function DashboardPage() {
           <DashboardSearch />
           <QuickActions />
           <ContinueReadingHero book={heroBook} />
+          {/* Phones: a path in progress is "continue" work too, so it sits
+              with Continue Reading in the first screen — it used to be the
+              last block of the page, under stats, shelves and activity.
+              From lg it lives in the sticky sidebar, unchanged. */}
+          {inProgressPaths.length > 0 && (
+            <div className="lg:hidden">
+              <ContinueLearningPaths paths={inProgressPaths} />
+            </div>
+          )}
           <LibrarySnapshot
             saved={savedBooks.length}
             inProgress={inProgress.length}
@@ -288,9 +297,9 @@ export default async function DashboardPage() {
           </aside>
         </div>
 
-        {/* Mobile: sidebar content below main content */}
+        {/* Mobile: sidebar content below main content (Continue Learning
+            Paths moved up into the first screen, above). */}
         <div className="mt-8 lg:hidden space-y-4">
-          <ContinueLearningPaths paths={inProgressPaths} />
           <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
             <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">{t("accountInfo")}</p>
             <div className="grid grid-cols-2 gap-2.5">

@@ -195,7 +195,9 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
                 // bar on a 393px phone and pushed the placeholder out of it.
                 // Fixed width + ellipsis keeps the input usable; the full label
                 // is always visible once the menu is open.
-                className="h-10 w-[92px] cursor-pointer appearance-none overflow-hidden text-ellipsis whitespace-nowrap rounded-lg border border-white/15 bg-white/5 py-0 pl-3 pr-7 text-[13px] font-semibold text-blue-50 outline-none transition-colors hover:border-cyan-400/50 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400 sm:w-[132px]"
+                // 16px below sm: iOS Safari zooms the page into a select, like
+                // an input, when its text is under 16px.
+                className="h-10 w-[92px] cursor-pointer appearance-none overflow-hidden text-ellipsis whitespace-nowrap rounded-lg border border-white/15 bg-white/5 py-0 pl-3 pr-7 text-base font-semibold text-blue-50 outline-none transition-colors hover:border-cyan-400/50 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400 sm:w-[132px] sm:text-[13px]"
                 style={{
                   // Inline so the caret follows the control's own colour rather
                   // than needing a second background utility per theme.
@@ -236,7 +238,8 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
                 onChange={(e) => setValue(e.target.value)}
                 onFocus={() => setFocused(true)}
                 onBlur={() => setFocused(false)}
-                className="h-14 w-full bg-transparent text-[15px] text-white outline-none placeholder:text-transparent [&::-webkit-search-cancel-button]:appearance-none"
+                // 16px below sm, or iOS zooms the page in on focus.
+                className="h-14 w-full bg-transparent text-base text-white outline-none placeholder:text-transparent [&::-webkit-search-cancel-button]:appearance-none sm:text-[15px]"
               />
               {!value && (
                 // `truncate`: the prompts rotate and are translated, so any of
@@ -245,7 +248,7 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
                 // out of the bar on a phone.
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute inset-0 flex items-center truncate text-[15px] text-blue-300/80 transition-opacity duration-[250ms]"
+                  className="pointer-events-none absolute inset-0 flex items-center truncate text-base text-blue-300/80 transition-opacity duration-[250ms] sm:text-[15px]"
                   style={{ opacity: promptVisible ? 1 : 0 }}
                 >
                   <span className="truncate">{prompts[promptIdx] ?? ""}</span>
@@ -258,13 +261,20 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
               /
             </kbd>
 
-            {/* Search button */}
+            {/* Search button. Icon-only below sm: on a 390px phone the word
+                cost the field ~45px, and the rotating prompt was cut to "Find
+                a book ab…". The word stays as the button's name (sr-only),
+                so assistive tech hears the same thing at every width. */}
             <button
               type="submit"
-              className="relative z-10 ml-1 h-10 shrink-0 cursor-pointer rounded-xl bg-gradient-to-b from-gold-400 to-gold-500 px-5 text-[14px] font-bold text-blue-950 transition-all hover:brightness-110 active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
+              className="relative z-10 ml-1 flex h-10 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-gradient-to-b from-gold-400 to-gold-500 text-[14px] font-bold text-blue-950 transition-all hover:brightness-110 active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400 sm:w-auto sm:px-5"
               style={{ boxShadow: "0 2px 0 rgba(0,0,0,0.25), 0 0 28px -6px rgba(245,158,11,0.75)" }}
             >
-              {askLabel}
+              <svg className="h-[18px] w-[18px] sm:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <circle cx="11" cy="11" r="7" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+              <span className="max-sm:sr-only">{askLabel}</span>
             </button>
           </div>
         </div>

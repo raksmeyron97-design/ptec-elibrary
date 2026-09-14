@@ -125,7 +125,7 @@ export default function PublicationsHero({
               name="q"
               defaultValue={currentQuery}
               placeholder={labels.searchPlaceholder}
-              className="h-12 w-full min-w-0 bg-transparent px-3 text-[15px] text-text-body outline-none placeholder:text-text-muted"
+              className="h-12 w-full min-w-0 bg-transparent px-3 text-base text-text-body sm:text-[15px] outline-none placeholder:text-text-muted"
             />
             <button
               type="submit"

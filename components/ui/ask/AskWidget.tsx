@@ -9,6 +9,8 @@ import { usePathname } from "next/navigation";
 import { getRemainingAiQuota } from "@/app/actions/ai-usage";
 import { saveSourceToResearch } from "@/app/actions/reading-lists";
 import { useSession } from "@/components/providers/SessionProvider";
+import { assistantFabHidden, assistantFabHiddenOnPhone } from "@/lib/nav/shell-routes";
+import { ASK_OPEN_EVENT, type AskOpenDetail } from "@/lib/ask/open";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Book {
@@ -311,14 +313,18 @@ export default function AskWidget() {
   const headingId = useId();
 
   const [open, setOpen] = useState(false);
-  // The PDF reader routes own the bottom-right corner (their panel toggle
-  // sits exactly under this FAB on phones) and are a focused surface — the
-  // library assistant is one tap away on the book page the reader came from.
+  // The reading routes own the bottom-right corner and are a focused surface;
+  // a learning-path detail page docks its own primary action along the bottom
+  // edge on phones. The FAB steps aside on both — the definition lives in
+  // lib/nav/shell-routes.ts, shared with the tab bar. The PANEL can still be
+  // opened there on request: the reader's ⋯ menu offers "Ask about this
+  // book" through lib/ask/open.ts.
   const pathname = usePathname();
-  // A learning-path detail page docks its own primary action ("Start
-  // learning") along the bottom edge on phones; two floating controls in one
-  // corner means neither reads as the next step, so the FAB steps aside there.
-  const onReaderRoute = /\/books\/[^/]+\/read\/?$|\/offline-reader|\/paths\/[^/]+\/?$/.test(pathname ?? "");
+  const fabHidden = assistantFabHidden(pathname ?? "");
+  // On a phone book page the read dock carries "Ask about this book"
+  // (MobileReadDock), so the FAB would be a second floating control in the
+  // same corner. The panel still opens — only the button steps aside.
+  const fabHiddenOnPhone = assistantFabHiddenOnPhone(pathname ?? "");
   // The resource page the reader is on. Retrieval scopes to it, so a question
   // asked here is answered from THIS document rather than the whole library.
   const pageContext = resourceContext(pathname ?? "");
@@ -349,13 +355,18 @@ export default function AskWidget() {
     }
   }, [messages, loading, open, reduceMotion]);
 
-  // Focus management
+  // Focus management. Closing returns focus to whatever opened the panel: the
+  // FAB, or an entry point elsewhere (lib/ask/open.ts) — on a phone book page
+  // the FAB is hidden, and focusing a hidden button drops focus to <body>.
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     if (open) {
       const id = setTimeout(() => inputRef.current?.focus(), reduceMotion ? 0 : 210);
       return () => clearTimeout(id);
     } else {
-      fabRef.current?.focus();
+      const opener = returnFocusRef.current;
+      returnFocusRef.current = null;
+      (opener?.isConnected ? opener : fabRef.current)?.focus();
     }
   }, [open, reduceMotion]);
 
@@ -371,6 +382,22 @@ export default function AskWidget() {
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, [open]);
+
+  // Other surfaces open the assistant through lib/ask/open.ts. A prompt only
+  // pre-fills the input: sending spends the reader's quota, so that stays the
+  // reader's own tap.
+  useEffect(() => {
+    const onOpen = (event: Event) => {
+      const prompt = (event as CustomEvent<AskOpenDetail>).detail?.prompt?.trim();
+      if (prompt) setInput(prompt.slice(0, 500));
+      if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
+        returnFocusRef.current = document.activeElement;
+      }
+      setOpen(true);
+    };
+    window.addEventListener(ASK_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(ASK_OPEN_EVENT, onOpen);
+  }, []);
 
   // Fetch today's remaining quota on first open so the badge shows before
   // the first message (remaining stays null for admins — unlimited).
@@ -519,7 +546,6 @@ export default function AskWidget() {
     ? [t("bookStarter1"), t("bookStarter2"), t("bookStarter3")]
     : [t("starter1"), t("starter2"), t("starter3")];
 
-  if (onReaderRoute) return null;
 
   return (
     <>
@@ -723,7 +749,9 @@ export default function AskWidget() {
                     placeholder={quotaExhausted ? t("quotaReached") : t("placeholder")}
                     aria-label={t("placeholder")}
                     disabled={inputDisabled}
-                    className="h-9 flex-1 bg-transparent text-[13px] text-white outline-none placeholder:text-blue-300/40 disabled:opacity-40"
+                    // 16px below sm: iOS zooms the page into any smaller field
+                    // on focus, and this one is focused the moment it opens.
+                    className="h-9 flex-1 bg-transparent text-base text-white outline-none placeholder:text-blue-300/40 disabled:opacity-40 sm:text-[13px]"
                   />
                   <button
                     type="button"
@@ -744,14 +772,17 @@ export default function AskWidget() {
         </div>
       )}
 
-      {/* ── FAB ───────────────────────────────────────────────────── */}
+      {/* ── FAB ─────────────────────────────────────────────────────
+          Not rendered where the FAB steps aside (reading routes, a path's
+          detail page); the panel above still opens on request there. */}
+      {!fabHidden && (
       <button type="button" onClick={() => setOpen((v) => !v)}
         aria-label={open ? t("close") : t("open")}
         aria-expanded={open}
         className={`
           group fixed z-40
-          ${open ? "hidden sm:flex" : "flex"}
-          bottom-[calc(76px+env(safe-area-inset-bottom)+14px)] right-4
+          ${open ? "hidden sm:flex" : fabHiddenOnPhone ? "hidden lg:flex" : "flex"}
+          bottom-[calc(var(--ptec-mobile-nav-clearance)+0.75rem)] right-4
           lg:bottom-5 lg:right-5
           h-13 w-13 sm:h-14 sm:w-14 rounded-full
           bg-gradient-to-br from-gold-400 to-gold-500
@@ -781,6 +812,7 @@ export default function AskWidget() {
           <LibraryAssistantIcon className="ask-fab-icon h-6 w-6 sm:h-7 sm:w-7" />
         )}
       </button>
+      )}
     </>
   );
 }

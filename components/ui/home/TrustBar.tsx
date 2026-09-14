@@ -65,12 +65,17 @@ export default async function TrustBar() {
     },
   ].filter((tile) => tile.animate === false || tile.value > 0);
 
+  // Phones: one row, as many columns as figures survived the zero filter.
+  // Three stacked figures measured ~230 px on a 390 px phone — most of a
+  // screen between the hero and the first goal card — to say three numbers.
+  const phoneCols = tiles.length >= 3 ? "grid-cols-3" : tiles.length === 2 ? "grid-cols-2" : "grid-cols-1";
+
   return (
     <section className="border-b border-divider/60 bg-paper" aria-labelledby="trustbar-title">
       <h2 id="trustbar-title" className="sr-only">
         {t("trustTitle")}
       </h2>
-      <div className="mx-auto max-w-[1400px] px-4 py-7 sm:py-8 md:px-12">
+      <div className="mx-auto max-w-[1400px] px-4 py-5 sm:py-8 md:px-12">
         {/* A plain list, not a <dl> — same call as PublicationMetricsRow.
             A description list may only directly contain dt/dd (or a div
             grouping exactly those), but each tile needs an icon plate beside a
@@ -78,17 +83,17 @@ export default async function TrustBar() {
             AND dlitem (both serious) on the live homepage and cost the
             Lighthouse a11y gate. The sr-only <dt> also duplicated the visible
             label, so every figure was announced twice. */}
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+        <ul className={`grid ${phoneCols} gap-2 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3`}>
           {tiles.map(({ key, value, label, Icon, plate, animate }) => (
-            <li key={key} className="flex items-center gap-4">
+            <li key={key} className="flex min-w-0 flex-col items-center gap-2 text-center sm:flex-row sm:items-center sm:gap-4 sm:text-left">
               <span
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${plate}`}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl sm:h-12 sm:w-12 ${plate}`}
                 aria-hidden
               >
-                <Icon className="h-6 w-6" strokeWidth={1.9} />
+                <Icon className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.9} />
               </span>
               <div className="min-w-0">
-                <p className="text-[28px] font-bold leading-none tracking-tight text-text-heading sm:text-[32px]">
+                <p className="text-[22px] font-bold leading-none tracking-tight text-text-heading sm:text-[32px]">
                   {/* Years are printed raw: formatCount() would group them
                       into "2,017". Only quantities get separators. */}
                   {animate ? (
@@ -97,7 +102,7 @@ export default async function TrustBar() {
                     String(value)
                   )}
                 </p>
-                <p className="mt-1.5 text-[13.5px] font-medium text-text-muted">{label}</p>
+                <p className="mt-1.5 text-[12px] font-medium leading-snug text-text-muted sm:text-[13.5px]">{label}</p>
               </div>
             </li>
           ))}

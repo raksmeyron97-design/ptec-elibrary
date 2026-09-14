@@ -41,6 +41,7 @@ import ResourceConnections from "@/components/seo/ResourceConnections";
 import BookTopics from "@/components/ui/books/BookTopics";
 import { resolveSubjectLinks } from "@/lib/resources/connections";
 import RelatedBooks from "@/components/ui/books/RelatedBooks";
+import MobileReadDock from "@/components/ui/books/MobileReadDock";
 import CiteBook from "@/components/ui/books/CiteBook";
 import BookNotes from "@/components/ui/books/BookNotes";
 import ReadingListButton from "@/components/ui/books/ReadingListButton";
@@ -445,7 +446,10 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               ))}
             </dl>
 
-            <div className="mt-5 sm:mt-7 flex flex-col gap-3 sm:flex-row">
+            {/* The id is what <MobileReadDock> watches: the dock shows only
+                while this row is off screen, so the primary action is never
+                drawn twice and never out of reach on a phone. */}
+            <div id="book-primary-actions" className="mt-5 sm:mt-7 flex flex-col gap-3 sm:flex-row">
               <Suspense
                 fallback={
                   <>
@@ -637,7 +641,7 @@ async function ActionButtons({
   fileSrc: string | null;
   slug: string;
 }) {
-  const t = await getTranslations("bookDetail");
+  const [t, tHome] = await Promise.all([getTranslations("bookDetail"), getTranslations("home")]);
   const user = await getSessionUser();
 
   const [savedProgress, isSaved, listIds] = await Promise.all([
@@ -650,13 +654,25 @@ async function ActionButtons({
   return (
     <>
       {book.pdfUrl ? (
-        <Link
-          href={`/books/${slug}/read`}
-          className="inline-flex items-center justify-center gap-2.5 rounded-[14px] bg-brand px-6 py-3.5 text-[15px] font-bold text-brand-contrast transition-all hover:-translate-y-0.5 hover:bg-brand-hover hover:shadow-lg hover:shadow-brand/30"
-        >
-          <Icon name="pdf" className="text-[20px]" />
-          {resuming ? t("continueReading") : t("readOnline")}
-        </Link>
+        <>
+          <Link
+            href={`/books/${slug}/read`}
+            className="inline-flex items-center justify-center gap-2.5 rounded-[14px] bg-brand px-6 py-3.5 text-[15px] font-bold text-brand-contrast transition-all hover:-translate-y-0.5 hover:bg-brand-hover hover:shadow-lg hover:shadow-brand/30"
+          >
+            <Icon name="pdf" className="text-[20px]" />
+            {resuming ? t("continueReading") : t("readOnline")}
+          </Link>
+          {/* Phones only (lg:hidden inside). Fixed-position, so where it sits
+              in this row does not affect the row's layout. */}
+          <MobileReadDock
+            watchId="book-primary-actions"
+            href={`/books/${slug}/read`}
+            label={resuming ? t("continueReading") : t("readOnline")}
+            progressPct={resuming ? savedProgress!.progressPct : undefined}
+            progressLabel={resuming ? tHome("readPct", { pct: savedProgress!.progressPct }) : undefined}
+            askLabel={t("askAboutBook")}
+          />
+        </>
       ) : (
         <span className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-paper border border-divider px-6 py-3.5 text-sm font-semibold text-text-muted">
           {t("pdfNotAvailable")}

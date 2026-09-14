@@ -192,7 +192,8 @@
     "offlineNow": "Offline",
     "reconnecting": "Reconnecting…",
     "readerLabel": "{title} — reader",
-    "retrying": "Retrying…"
+    "retrying": "Retrying…",
+    "askAboutBook": "Ask about this book"
   },
   "nav": {
     "home": "Home",
@@ -236,6 +237,14 @@
     "settings": "Settings",
     "searchLibrary": "Search the library",
     "searchShort": "Search",
+    "tabBarLabel": "Main navigation",
+    "libraryShort": "Library",
+    "pathsShort": "Paths",
+    "librarySheetTitle": "Browse the library",
+    "physicalLibraryDescription": "Printed books on our shelves",
+    "subjectsDescription": "Every resource, grouped by topic",
+    "authorsDescription": "Browse works by author",
+    "close": "Close",
     "profile": "Profile",
     "profileMenu": "Profile menu",
     "signInHint": "Sign in to access your library account.",
@@ -519,7 +528,8 @@
     "growSubmitting": "Submitting…",
     "growClose": "Close",
     "askHintKeyboard": "Press / to start typing.",
-    "heroMostDownloaded": "Most downloaded books"
+    "heroMostDownloaded": "Most downloaded books",
+    "quickAccessLabel": "Browse the collections"
   },
   "books": {
     "title": "Books",
@@ -592,6 +602,7 @@
     "aboutHeading": "What is this book about?",
     "defaultSummary": "{title} is a public resource in the PTEC Library collection.",
     "openFullReader": "Open full-screen reader",
+    "askAboutBook": "Ask the library assistant about this book",
     "topicsHeading": "Topics covered",
     "topicsPageCount": "{count, plural, one {# page} other {# pages}}",
     "topicsProvenance": "Identified from this book's own text. Each count is the number of pages of the book that discuss the topic; contents pages, front matter and bibliographies are not counted."
@@ -842,10 +853,6 @@
     "eventPostponedNote": "This event has been postponed. New dates will be announced.",
     "eventOnlineNote": "Online event",
     "eventExternalNote": "Opens the registration site in a new tab",
-    "errorTitle": "Unable to load News & Events",
-    "errorBody": "Something went wrong while loading this page. Please try again.",
-    "errorRetry": "Try again",
-    "errorGoHome": "Go home",
     "detailBreadcrumbAria": "Breadcrumb",
     "minRead": "{minutes} min read",
     "minShort": "{minutes} min",
@@ -1416,6 +1423,11 @@
     "ariaLabel": "Search the PTEC Library",
     "searchButton": "Search",
     "clearInput": "Clear search input",
+    "pageTitle": "Library Search",
+    "pageSubtitle": "Books · Theses · Publications · Physical library · Learning paths · News",
+    "showResults": "{count, plural, =0 {No results} one {Show # result} other {Show # results}}",
+    "askTitle": "Ask the library about “{query}”",
+    "askBody": "The library assistant answers from this library's own collection and shows the sources it used.",
     "searchingFor": "Searching for",
     "resultsFor": "Results for",
     "tabAll": "All",
@@ -7961,6 +7973,16 @@
     "errorStorage": "Couldn’t save this book offline. Your device may be low on storage — remove a downloaded book and try again.",
     "errorUnsupported": "This browser cannot store books for offline reading.",
     "retry": "Try again"
+  },
+  "errors": {
+    "title": "We couldn’t load this page",
+    "bookTitle": "We couldn’t load this book",
+    "publicationTitle": "We couldn’t load this article",
+    "body": "This is usually temporary. Try again, or find what you need another way.",
+    "retry": "Try again",
+    "retrying": "Trying again…",
+    "search": "Search the library",
+    "home": "Go to the homepage"
   },
   "journals": {
     "shelfHeading": "Journals in the library",

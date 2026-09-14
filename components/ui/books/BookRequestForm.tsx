@@ -112,7 +112,7 @@ export default function BookRequestForm() {
                       required
                       maxLength={300}
                       placeholder="e.g. Introduction to Education Theory"
-                      className="w-full rounded-[10px] border border-divider bg-paper px-3.5 py-2.5 text-[13.5px] text-text-body placeholder:text-text-muted/50 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                      className="w-full rounded-[10px] border border-divider bg-paper px-3.5 py-2.5 text-base text-text-body sm:text-[13.5px] placeholder:text-text-muted/50 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
                     />
                   </div>
 
@@ -124,7 +124,7 @@ export default function BookRequestForm() {
                       name="author"
                       maxLength={200}
                       placeholder="e.g. John Dewey"
-                      className="w-full rounded-[10px] border border-divider bg-paper px-3.5 py-2.5 text-[13.5px] text-text-body placeholder:text-text-muted/50 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                      className="w-full rounded-[10px] border border-divider bg-paper px-3.5 py-2.5 text-base text-text-body sm:text-[13.5px] placeholder:text-text-muted/50 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
                     />
                   </div>
 
@@ -136,7 +136,7 @@ export default function BookRequestForm() {
                       name="isbn"
                       maxLength={20}
                       placeholder="e.g. 978-0-06-112008-4"
-                      className="w-full rounded-[10px] border border-divider bg-paper px-3.5 py-2.5 text-[13.5px] text-text-body placeholder:text-text-muted/50 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                      className="w-full rounded-[10px] border border-divider bg-paper px-3.5 py-2.5 text-base text-text-body sm:text-[13.5px] placeholder:text-text-muted/50 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
                     />
                   </div>
 
@@ -149,7 +149,7 @@ export default function BookRequestForm() {
                       rows={3}
                       maxLength={500}
                       placeholder="Briefly explain why this book would be useful…"
-                      className="w-full resize-none rounded-[10px] border border-divider bg-paper px-3.5 py-2.5 text-[13.5px] text-text-body placeholder:text-text-muted/50 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                      className="w-full resize-none rounded-[10px] border border-divider bg-paper px-3.5 py-2.5 text-base text-text-body sm:text-[13.5px] placeholder:text-text-muted/50 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
                     />
                   </div>
 

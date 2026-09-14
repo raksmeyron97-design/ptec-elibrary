@@ -37,9 +37,11 @@ type FacetGroupProps = {
   items: FacetCount[];
   labelOf?: (value: string) => string;
   onToggle: (dim: FacetDimension, value: string) => void;
+  /** Touch sizing: 44px rows and a larger box, for the phone sheet. */
+  touch: boolean;
 };
 
-function FacetGroup({ dim, title, items, labelOf, onToggle }: FacetGroupProps) {
+function FacetGroup({ dim, title, items, labelOf, onToggle, touch }: FacetGroupProps) {
   const t = useTranslations("search");
   const [expanded, setExpanded] = useState(false);
   if (items.length === 0) return null;
@@ -59,7 +61,9 @@ function FacetGroup({ dim, title, items, labelOf, onToggle }: FacetGroupProps) {
         {[...visible, ...hiddenSelected].map((item) => (
           <label
             key={item.value}
-            className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 text-[12.5px] transition-colors hover:bg-[color-mix(in_srgb,var(--ptec-border)_35%,transparent)]"
+            className={`flex cursor-pointer items-center rounded-lg transition-colors hover:bg-[color-mix(in_srgb,var(--ptec-border)_35%,transparent)] ${
+              touch ? "min-h-11 gap-3 px-2 py-1.5 text-[14px]" : "gap-2 px-1.5 py-1 text-[12.5px]"
+            }`}
             style={{ color: item.selected ? "var(--ptec-text-heading)" : "var(--ptec-text-body)" }}
           >
             <input
@@ -68,7 +72,7 @@ function FacetGroup({ dim, title, items, labelOf, onToggle }: FacetGroupProps) {
               onChange={() => onToggle(dim, item.value)}
               data-facet-dim={dim}
               data-facet-value={item.value}
-              className="h-3.5 w-3.5 shrink-0 cursor-pointer accent-[var(--ptec-brand)]"
+              className={`shrink-0 cursor-pointer accent-[var(--ptec-brand)] ${touch ? "h-[18px] w-[18px]" : "h-3.5 w-3.5"}`}
             />
             <span className="min-w-0 flex-1 truncate font-medium">
               {labelOf ? labelOf(item.value) : item.value}
@@ -104,9 +108,19 @@ type SearchFacetsProps = {
   selectedCount: number;
   onToggle: (dim: FacetDimension, value: string) => void;
   onClearAll: () => void;
+  /** "panel" is the desktop sidebar card. "sheet" renders inside the phone
+   *  GlassSheet, which supplies the title and the Clear action itself. */
+  variant?: "panel" | "sheet";
 };
 
-export default function SearchFacets({ facetCounts, showTypes, selectedCount, onToggle, onClearAll }: SearchFacetsProps) {
+export default function SearchFacets({
+  facetCounts,
+  showTypes,
+  selectedCount,
+  onToggle,
+  onClearAll,
+  variant = "panel",
+}: SearchFacetsProps) {
   const t = useTranslations("search");
 
   const groups: { dim: FacetDimension; title: string; labelOf?: (value: string) => string }[] = [
@@ -133,13 +147,15 @@ export default function SearchFacets({ facetCounts, showTypes, selectedCount, on
   const hasAnyValues = groups.some((g) => facetCounts[g.dim].length > 0);
   if (!hasAnyValues) return null;
 
+  const sheet = variant === "sheet";
+
   return (
     <div
       data-testid="search-facets"
-      className="space-y-5 rounded-[14px] border p-4"
-      style={{ background: "var(--ptec-bg-surface)", borderColor: "var(--ptec-border)" }}
+      className={sheet ? "space-y-5 px-2 pt-1" : "space-y-5 rounded-[14px] border p-4"}
+      style={sheet ? undefined : { background: "var(--ptec-bg-surface)", borderColor: "var(--ptec-border)" }}
     >
-      <div className="flex items-center justify-between">
+      <div className={sheet ? "hidden" : "flex items-center justify-between"}>
         <h2 className="text-[12px] font-bold uppercase tracking-[0.08em]" style={{ color: "var(--ptec-text-heading)" }}>
           {t("filter")}
         </h2>
@@ -162,6 +178,7 @@ export default function SearchFacets({ facetCounts, showTypes, selectedCount, on
           items={group.dim === "availability" ? orderAvailability(facetCounts[group.dim]) : facetCounts[group.dim]}
           labelOf={group.labelOf}
           onToggle={onToggle}
+          touch={sheet}
         />
       ))}
     </div>

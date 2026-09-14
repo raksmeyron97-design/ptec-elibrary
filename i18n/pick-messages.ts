@@ -44,6 +44,7 @@ export const PUBLIC_NAMESPACES = [
   "cite",
   "dashboard",
   "downloadProfile",
+  "errors",
   "footer",
   "home",
   "metrics",

@@ -47,7 +47,7 @@ export default async function NotFoundContent({ locale }: { locale?: string }) {
               required
               placeholder={t("searchPlaceholder")}
               aria-label={t("searchPlaceholder")}
-              className="h-12 w-full rounded-xl border border-divider bg-bg-surface pl-10 pr-4 text-[15px] text-text-heading placeholder:text-text-muted outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15"
+              className="h-12 w-full rounded-xl border border-divider bg-bg-surface pl-10 pr-4 text-base text-text-heading sm:text-[15px] placeholder:text-text-muted outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15"
             />
           </div>
           <Button type="submit" size="lg" className="shrink-0">

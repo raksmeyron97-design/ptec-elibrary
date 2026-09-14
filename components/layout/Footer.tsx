@@ -227,9 +227,9 @@ export default async function Footer() {
         className="h-px w-full bg-gradient-to-r from-transparent via-gold-300/70 to-transparent"
       />
 
-      {/* Bottom padding clears the fixed <MobileBottomNav> (64px) plus the
-          device's home-indicator inset; lg+ has no bottom nav. */}
-      <div className="mx-auto max-w-[1360px] px-5 pb-[calc(64px+1.5rem+env(safe-area-inset-bottom))] pt-12 sm:px-8 lg:px-10 lg:pb-10 lg:pt-14">
+      {/* Bottom padding clears the floating <MobileBottomNav> (its clearance
+          token already carries the home-indicator inset); lg+ has none. */}
+      <div className="mx-auto max-w-[1360px] px-5 pb-[calc(var(--ptec-mobile-nav-clearance)+1.5rem)] pt-12 sm:px-8 lg:px-10 lg:pb-10 lg:pt-14">
         <div className="grid grid-cols-1 gap-x-8 gap-y-2 md:grid-cols-2 md:gap-y-10 lg:grid-cols-[1.5fr_1fr_1fr_1fr_1.35fr] lg:gap-x-10">
           {/* ── Brand block ── */}
           <section
@@ -400,7 +400,9 @@ export default async function Footer() {
         </div>
       </div>
 
-      <MobileBottomNav />
+      {/* Same published hours as the Visit column, so the tab bar's Library
+          sheet can say whether the physical library is open right now. */}
+      <MobileBottomNav hours={{ spec, closures }} />
     </footer>
   );
 }

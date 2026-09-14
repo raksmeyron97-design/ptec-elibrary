@@ -121,15 +121,18 @@ export default function BookCard({ book, variant = "browse", priority = false }:
 
           {/* NEW badge — solid pill, top-left, only on browse + new books */}
           {isNew && (
-            <span className="absolute left-2 top-2 z-[4] rounded-[4px] bg-brand px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-brand-contrast">
+            <span className="absolute left-2 top-2 z-[4] rounded-[4px] bg-brand px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-brand-contrast">
               {tc("new")}
             </span>
           )}
 
           {/* Category pill — bottom-left, frosted white. Only over real cover
-              images: the generated cover already carries its category label. */}
+              images: the generated cover already carries its category label.
+              10px and not uppercased: the name is usually Khmer, and at the
+              old 8px its subscript consonants were unreadable; truncated so a
+              long compound never runs off the cover. */}
           {book.coverUrl && (book.category || book.department) && (
-            <span className="absolute bottom-2 left-2 z-[4] rounded-[4px] bg-white/90 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-blue-700 shadow-sm backdrop-blur-sm">
+            <span className="absolute bottom-2 left-2 z-[4] max-w-[calc(100%-1rem)] truncate rounded-[4px] bg-white/90 px-2 py-0.5 text-[10px] font-bold leading-[1.45] text-blue-700 shadow-sm backdrop-blur-sm">
               {book.category || book.department}
             </span>
           )}
@@ -158,8 +161,10 @@ export default function BookCard({ book, variant = "browse", priority = false }:
             </p>
           )}
 
-          {/* Title */}
-          <h3 className="min-h-[2.6em] text-[13px] font-khmer-serif font-bold leading-[1.5] text-text-heading line-clamp-2 sm:text-[13.5px]">
+          {/* Title — up to three lines on phones, where a two-column card is
+              ~165px wide and a Khmer title gets a dozen clusters per line;
+              the space comes from the View button phones no longer draw. */}
+          <h3 className="min-h-[2.6em] text-[13px] font-khmer-serif font-bold leading-[1.5] text-text-heading line-clamp-3 sm:line-clamp-2 sm:text-[13.5px]">
             {book.title}
           </h3>
 
@@ -175,7 +180,7 @@ export default function BookCard({ book, variant = "browse", priority = false }:
                 hidden: "0 views · 0 downloads · No reviews yet" is anti-proof,
                 not information. */}
             {!isContinue && ((book.viewCount ?? 0) > 0 || (book.downloadCount ?? 0) > 0 || reviews > 0) && (
-              <div className="mb-2.5 flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1.5 sm:mb-2.5">
                 <ResourceMetrics
                   views={book.viewCount}
                   downloads={book.downloadCount}
@@ -195,15 +200,19 @@ export default function BookCard({ book, variant = "browse", priority = false }:
               </div>
             )}
 
-            {/* Divider */}
-            <div className="mb-2.5 h-px bg-divider" aria-hidden />
+            {/* Divider + CTA. The CTA is a <span> inside the card's own link —
+                the whole card is the target — so on a phone, where there is
+                no hover to reveal, it was ~46px of card per book saying what
+                the card already does. Kept for "Continue", which carries the
+                reader's progress, and from `sm` up as the hover affordance. */}
+            <div className={`mb-2.5 h-px bg-divider ${isContinue ? "" : "max-sm:hidden"}`} aria-hidden />
 
             {/* CTA button */}
             <span
               className={`flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[11.5px] font-bold transition-all duration-200 ${
                 isContinue
                   ? "bg-brand text-brand-contrast"
-                  : "border border-brand/20 bg-transparent text-brand group-hover:border-brand group-hover:bg-brand group-hover:text-brand-contrast"
+                  : "max-sm:hidden border border-brand/20 bg-transparent text-brand group-hover:border-brand group-hover:bg-brand group-hover:text-brand-contrast"
               }`}
             >
               {isContinue ? tc("continue") : tc("view")}
