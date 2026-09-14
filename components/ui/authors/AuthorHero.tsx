@@ -1,6 +1,7 @@
 import AuthorPhoto from "@/components/ui/authors/AuthorPhoto";
 import AuthorProfileLinks from "@/components/ui/authors/AuthorProfileLinks";
 import AuthorStatsStrip from "@/components/ui/authors/AuthorStatsStrip";
+import EntityBadge from "@/components/ui/collection/EntityBadge";
 import { authorLinks, type AuthorLinkKind } from "@/lib/authors/links";
 import type { AuthorProfile, AuthorStats } from "@/lib/authors/types";
 
@@ -30,6 +31,7 @@ export default function AuthorHero({
     eyebrow: string;
     stats: { works: string; span: string; types: string };
     links: Record<AuthorLinkKind, string>;
+    entityLabels?: { author?: string; organization?: string };
   };
 }) {
   const links = authorLinks({
@@ -46,15 +48,23 @@ export default function AuthorHero({
           url={author.photoUrl}
           name={author.name}
           size={128}
-          className="h-24 w-24 sm:h-32 sm:w-32"
+          className="h-24 w-24 shrink-0 rounded-2xl shadow-xs sm:h-32 sm:w-32"
         />
 
         <div className="min-w-0 flex-1">
-          <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-brand">
-            {labels.eyebrow}
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-brand">
+              {labels.eyebrow}
+            </p>
+            {author.contributorKind && (
+              <EntityBadge
+                kind={author.contributorKind}
+                labels={labels.entityLabels}
+              />
+            )}
+          </div>
 
-          <h1 className="mt-1.5 text-[clamp(24px,4.5vw,36px)] font-bold leading-[1.2] tracking-tight text-text-heading">
+          <h1 className="mt-1.5 text-[clamp(24px,4.5vw,36px)] font-bold leading-[1.2] tracking-tight text-text-heading [text-wrap:balance]">
             {author.name}
           </h1>
 
@@ -62,7 +72,7 @@ export default function AuthorHero({
               not simply a copy of the Latin one. lang="km" so a screen reader
               switches voice and the Khmer font stack applies. */}
           {author.nameKm && author.nameKm !== author.name && (
-            <p lang="km" className="mt-1 font-khmer-serif text-[17px] leading-[1.9] text-text-muted">
+            <p lang="km" className="mt-1 font-khmer-serif text-[17px] leading-[1.9] text-text-muted [text-wrap:balance]">
               {author.nameKm}
             </p>
           )}

@@ -298,6 +298,10 @@ export default async function AuthorPage({ params }: PageProps) {
               scholar: t("linkScholar"),
               researchgate: t("linkResearchgate"),
             },
+            entityLabels: {
+              author: t("entityAuthor"),
+              organization: t("entityOrganization"),
+            },
           }}
         />
 

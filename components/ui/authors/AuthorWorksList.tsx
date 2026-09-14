@@ -3,6 +3,7 @@
 import { useDeferredValue, useId, useMemo, useState } from "react";
 import { Link } from "@/i18n/navigation";
 import { Download, Lock, Search, X } from "lucide-react";
+import ResourceTypeBadge from "@/components/ui/collection/ResourceTypeBadge";
 import type { AuthorWork, AuthorWorkType } from "@/lib/authors/types";
 
 /**
@@ -47,14 +48,6 @@ function haystack(work: AuthorWork): string {
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
-}
-
-function TypeBadge({ label }: { label: string }) {
-  return (
-    <span className="inline-flex shrink-0 items-center rounded-full border border-divider bg-paper px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.08em] text-text-muted">
-      {label}
-    </span>
-  );
 }
 
 export default function AuthorWorksList({
@@ -137,16 +130,16 @@ export default function AuthorWorksList({
                 onChange={(e) => setQuery(e.target.value)}
                 aria-label={labels.searchLabel}
                 placeholder={labels.searchPlaceholder}
-                className="min-h-11 w-full bg-transparent pl-9 pr-9 text-[14px] text-text-body outline-none placeholder:text-text-muted"
+                className="min-h-11 w-full bg-transparent pl-9 pr-10 text-[16px] text-text-body outline-none placeholder:text-text-muted sm:text-[14px]"
               />
               {query && (
                 <button
                   type="button"
                   onClick={() => setQuery("")}
                   aria-label={labels.clearSearch}
-                  className="focus-field absolute right-2 cursor-pointer rounded-md p-1.5 text-text-muted transition-colors hover:text-text-heading"
+                  className="focus-field absolute right-1.5 flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-md p-1.5 text-text-muted transition-colors hover:text-text-heading"
                 >
-                  <X className="h-3.5 w-3.5" aria-hidden="true" />
+                  <X className="h-4 w-4" aria-hidden="true" />
                 </button>
               )}
             </div>
@@ -169,7 +162,7 @@ export default function AuthorWorksList({
                     role="radio"
                     aria-checked={active}
                     onClick={() => setFilter(chip.key)}
-                    className={`focus-field inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                    className={`focus-field inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors sm:min-h-9 ${
                       active
                         ? "border-brand bg-brand/10 text-brand"
                         : "border-divider bg-bg-surface text-text-muted hover:border-brand/40 hover:text-text-body"
@@ -210,9 +203,12 @@ export default function AuthorWorksList({
 
               <ul className="divide-y divide-divider border-y border-divider">
                 {items.map((work) => (
-                  <li key={`${work.type}-${work.id}`} className="py-4">
+                  <li
+                    key={`${work.type}-${work.id}`}
+                    className="group py-4 transition-colors hover:bg-bg-surface/50 sm:-mx-3 sm:rounded-xl sm:px-3"
+                  >
                     <div className="flex items-baseline gap-2.5">
-                      <TypeBadge label={labels.types[work.type]} />
+                      <ResourceTypeBadge type={work.type} label={labels.types[work.type]} />
                       <h4 className="min-w-0 text-[15.5px] font-bold leading-[1.45] text-text-heading">
                         <Link
                           href={work.href}
@@ -246,12 +242,12 @@ export default function AuthorWorksList({
                           its own icon and its own words. */}
                       {work.downloadable ? (
                         <span className="inline-flex items-center gap-1 font-semibold text-success">
-                          <Download className="h-3 w-3" aria-hidden="true" />
+                          <Download className="h-3.5 w-3.5" aria-hidden="true" />
                           {labels.downloadable}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 font-semibold text-text-muted">
-                          <Lock className="h-3 w-3" aria-hidden="true" />
+                          <Lock className="h-3.5 w-3.5" aria-hidden="true" />
                           {labels.readOnly}
                         </span>
                       )}

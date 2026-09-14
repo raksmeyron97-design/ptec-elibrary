@@ -36,11 +36,14 @@ export default function AuthorProfileSkeleton() {
         </div>
 
         {/* Statistics strip */}
-        <div className="mt-6 flex gap-8 border-t border-divider pt-5">
+        <div className="mt-6 flex flex-wrap gap-3 border-t border-divider pt-5">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="space-y-2">
+            <div
+              key={i}
+              className="flex min-w-[130px] flex-1 flex-col-reverse rounded-xl border border-divider bg-bg-surface px-4 py-3 sm:flex-initial"
+            >
+              <div className="mt-1 skeleton h-3 w-20 rounded" />
               <div className="skeleton h-6 w-12 rounded" />
-              <div className="skeleton h-3 w-24 rounded" />
             </div>
           ))}
         </div>
