@@ -9,6 +9,7 @@ import { validateSitemapEntry } from '@/lib/seo/validate';
 import { addressableAuthorSlug } from '@/lib/authors/slug';
 import { getListedAuthors } from '@/lib/authors/directory';
 import { authorUrlsWithWorks } from '@/lib/authors/sitemap-filter';
+import { normalizeByline } from '@/lib/resources/contributor-identity';
 
 // Revalidate hourly so the sitemap picks up newly published content
 // without being frozen at build time.
@@ -343,12 +344,24 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
   // URL is a hard 404 at the edge. 154 of the 157 author URLs this file
   // emitted were exactly that (measured 2026-09-07). addressableAuthorSlug()
   // owns the rule, including why a MISSING column still gets the fallback.
+  // A COMPOSITE byline names several people, so since 0147 each of them has
+  // their own row and the shared URL answers `noindex, follow` as a
+  // disambiguation page. Advertising it here would submit for indexing a URL
+  // whose page declines to be indexed — the same contradiction the subject
+  // gate exists to prevent, and exactly what this sitemap did for empty
+  // subjects before V2. The page and this file must agree, so both ask
+  // normalizeByline().
+  const composite = (name: string | null | undefined) =>
+    normalizeByline(name).contributors.length > 1;
+
   const authorSlugSet = new Map<string, string | null>();
   for (const a of authors) {
+    if (composite(a.name)) continue;
     const slug = addressableAuthorSlug(a.slug, a.name);
     if (slug) authorSlugSet.set(slug, a.created_at ?? null);
   }
   for (const a of publicationAuthors) {
+    if (composite(a.full_name)) continue;
     const slug = addressableAuthorSlug(a.slug, a.full_name);
     if (slug && !authorSlugSet.has(slug)) authorSlugSet.set(slug, a.created_at ?? null);
   }

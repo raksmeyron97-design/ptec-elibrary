@@ -414,3 +414,93 @@ describe("a canonical row that still holds several entities", () => {
     }
   });
 });
+
+// ── The regression migration 0147 shipped ───────────────────────────────────
+// Splitting composite bylines gave each scholar their own contributors row,
+// while the 0105 edge for the composite stayed attached to the same book. One
+// person then arrived twice: once expanded from the composite (contributorId
+// null, composite true, keyed by NAME) and once as a real row (keyed by ID).
+// Keying on id alone published 6 Person nodes where 3 belong — verified live
+// on /books/effective-school-management-4th-edition before this was fixed.
+describe("a person arriving under both an id and a bare name is ONE credit", () => {
+  const view = (
+    over: Partial<ResourceContributorView> & Pick<ResourceContributorView, "name">,
+  ): ResourceContributorView => ({
+    contributorId: null,
+    kind: "person",
+    nameKm: null,
+    role: "author",
+    sequence: 0,
+    source: "canonical",
+    typeConflict: false,
+    composite: false,
+    ...over,
+  });
+
+  it("merges the composite-derived view with the identified one", () => {
+    const out = dedupeContributors([
+      view({ name: "K. B. Everard", composite: true, sequence: 0 }),
+      view({ name: "Geoffrey Morris", composite: true, sequence: 1 }),
+      view({ name: "K. B. Everard", contributorId: "c-1", sequence: 2 }),
+      view({ name: "Geoffrey Morris", contributorId: "c-2", sequence: 3 }),
+    ]);
+    expect(out.map((v) => v.name)).toEqual(["K. B. Everard", "Geoffrey Morris"]);
+  });
+
+  it("keeps the identity from whichever credit carries one", () => {
+    // Dropping the later credit outright would discard a real contributors id
+    // in favour of a composite-derived view that has none.
+    const [kept] = dedupeContributors([
+      view({ name: "K. B. Everard", composite: true, sequence: 0 }),
+      view({ name: "K. B. Everard", contributorId: "c-1", sequence: 1 }),
+    ]);
+    expect(kept.contributorId).toBe("c-1");
+    expect(kept.composite).toBe(false);
+  });
+
+  it("keeps the FIRST position, which is the public order", () => {
+    const out = dedupeContributors([
+      view({ name: "Second", composite: true, sequence: 0 }),
+      view({ name: "First", contributorId: "c-1", sequence: 1 }),
+      view({ name: "Second", contributorId: "c-2", sequence: 2 }),
+    ]);
+    expect(out.map((v) => v.name)).toEqual(["Second", "First"]);
+  });
+
+  it("merges whichever order the two arrive in", () => {
+    const out = dedupeContributors([
+      view({ name: "K. B. Everard", contributorId: "c-1", sequence: 0 }),
+      view({ name: "K. B. Everard", composite: true, sequence: 1 }),
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0].contributorId).toBe("c-1");
+  });
+
+  it("still refuses to merge two DIFFERENT people", () => {
+    // The fold is exact after casefolding and punctuation removal. A shared
+    // surname or initial is not evidence, and merging on it would publish a
+    // claim no data supports.
+    const out = dedupeContributors([
+      view({ name: "K. B. Everard", contributorId: "c-1" }),
+      view({ name: "J. B. Everard", contributorId: "c-2" }),
+      view({ name: "Everard", composite: true }),
+    ]);
+    expect(out).toHaveLength(3);
+  });
+
+  it("still refuses to merge the same name across KINDS", () => {
+    const out = dedupeContributors([
+      view({ name: "Ministry of Education", kind: "organization", contributorId: "c-1" }),
+      view({ name: "Ministry of Education", kind: "person" }),
+    ]);
+    expect(out).toHaveLength(2);
+  });
+
+  it("still collapses two credits that share one id", () => {
+    const out = dedupeContributors([
+      view({ name: "A", contributorId: "c-1", role: "author" }),
+      view({ name: "A", contributorId: "c-1", role: "translator" }),
+    ]);
+    expect(out).toHaveLength(1);
+  });
+});
