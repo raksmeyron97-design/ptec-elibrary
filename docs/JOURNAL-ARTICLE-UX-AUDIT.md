@@ -202,3 +202,25 @@ Every item in the brief's preservation list exists today and is load-bearing:
 7. Related scholarship is ordered journal → authors → related → books, as
    **lists** for articles and a lighter shelf for books, de-duplicated across
    blocks.
+
+---
+
+## 8. What shipped (phases B–I)
+
+| Decision | Where it lives |
+|---|---|
+| What to show, decided once and tested offline: section list from `has.*`, related de-duplication (journal > author > related), the record's own dates, affiliation numbering (a marker never points at nothing) | `lib/publications/article-layout.ts` (+ test) |
+| Previous / next in the issue's printed order | `issueNeighbours()` in `lib/journals/order.ts` (+ test) |
+| Editorial header: back link, journal context, type eyebrow, title (steps down a size past 120 / 200 characters, never truncated), structured authors, affiliations (folded past four), citation line, dates, DOI with copy | `components/ui/publications/article/ArticleHeader.tsx`, `ArticleAuthors.tsx`, `ArticleDoi.tsx` |
+| Primary vs secondary actions, drawn only from `resolveDownloadAccess()` | `ArticleActions.tsx` |
+| Cite as a native `<dialog>` (bottom sheet on phones), opened from the header, the rail or the dock | `CiteArticleDialog.tsx`, `lib/publications/cite-bus.ts`; `CitePublication.tsx` is now the chrome-less panel inside it |
+| "On this page": sticky rail ≥ 1024 px, non-sticky "Jump to" below | `ArticleSectionNav.tsx` (replaces `SectionQuickNav`) |
+| Phone action dock, shown only once the header's actions have scrolled past; carries the assistant, which now scopes to the article again | `ArticleMobileDock.tsx`, `FloatingDock` `revealAfterPassed`, `lib/ask/resource-context.ts`, `lib/nav/shell-routes.ts` |
+| "Published in" block with the remaining record facts | `ArticleJournalContext.tsx` |
+| Related scholarship as lists, books last on a lighter shelf | `ArticleScholarship.tsx`, `SimilarBooks.tsx`; queries moved into `lib/publications/related.ts` |
+| Body restyle: calmer section headings, abstract 17/18 px and folded only past ~2,400 characters, bibliography-style references, fixed-ratio figures with a visible Enlarge control, list-style authors, lighter TOC / outcomes / FAQ | `ArticleSectionHeading.tsx`, `PublicationAbstractSection.tsx`, `ReferencesSection.tsx`, `PublicationFigures.tsx`, `AuthorBiosSection.tsx`, `TableOfContentsSection.tsx`, `LearningOutcomesSection.tsx`, `PublicationFAQ.tsx` |
+| Loading state in the page's own order | `components/ui/skeletons/PublicationDetailSkeleton.tsx` |
+
+Retired (no other importer): `PublicationHero`, `PublicationSidebar`, `PublicationMetadataCard`, `AuthorAffiliationPanel`, `SectionQuickNav`, `MoreFromJournal`, `MoreFromAuthor`, `RelatedPublications`.
+
+Unchanged by design: `generateMetadata`, `toPublicationSeoInput`, the JSON-LD builders and the Scholar tags. Rendered head + JSON-LD were diffed old-vs-new on seven article URLs (both locales, every access state) and are identical.
