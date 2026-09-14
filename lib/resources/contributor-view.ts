@@ -321,6 +321,11 @@ export function viewsFromLegacyList(
  * fold the rest of the contributor stack uses. Nothing fuzzy: a shared surname
  * or a shared initial is not evidence that two credits are one person, and
  * merging on it would publish a claim no data supports (§29).
+ *
+ * NOTE: this returns ONE key, and a credit can legitimately be reachable by
+ * two — an id and a name — when the same person arrives from both the
+ * canonical graph and a composite row expanded on read. dedupeContributors()
+ * therefore consults both rather than calling this once; see the note there.
  */
 export function contributorKey(view: ResourceContributorView): string {
   if (view.contributorId) return `id:${view.contributorId}`;
@@ -349,13 +354,41 @@ function foldName(value: string): string {
 export function dedupeContributors(
   views: readonly ResourceContributorView[],
 ): ResourceContributorView[] {
-  const seen = new Set<string>();
   const out: ResourceContributorView[] = [];
+  /** key → index in `out`, so a later credit can UPGRADE the one already kept. */
+  const index = new Map<string, number>();
+
   for (const view of views) {
-    const key = contributorKey(view);
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const idKey = view.contributorId ? `id:${view.contributorId}` : null;
+    const nameKey = `name:${view.kind}:${foldName(view.name)}`;
+    // BOTH keys are consulted, because one person can arrive under each. That
+    // is not hypothetical: migration 0147 gave every scholar inside a
+    // composite byline their own contributors row, and the 0105 edge for the
+    // composite is still attached to the same book. The first expands to
+    // `contributorId: null, composite: true` views keyed by name; the second
+    // arrives keyed by id. Keying on id alone published every one of those
+    // people TWICE on the live book page (6 Person nodes where 3 belong,
+    // 12 where 6 belong) until this looked at the name as well.
+    const at = (idKey !== null ? index.get(idKey) : undefined) ?? index.get(nameKey);
+
+    if (at !== undefined) {
+      // Same person. Keep the FIRST — which after viewsFromCanonical() is the
+      // lowest sequence, i.e. the public order — but take the identity from
+      // whichever credit actually carries one. Dropping the later credit
+      // outright would discard a real contributors id in favour of a
+      // composite-derived view that has none.
+      const kept = out[at];
+      if (!kept.contributorId && view.contributorId) {
+        out[at] = { ...kept, contributorId: view.contributorId, composite: false };
+        index.set(`id:${view.contributorId}`, at);
+      }
+      continue;
+    }
+
+    const position = out.length;
     out.push(view);
+    index.set(nameKey, position);
+    if (idKey !== null) index.set(idKey, position);
   }
   return out;
 }
