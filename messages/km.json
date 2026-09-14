@@ -7841,7 +7841,9 @@
     "hubSearchLabel": "ត្រងអ្នកនិពន្ធតាមឈ្មោះ",
     "hubSearchPlaceholder": "ស្វែងរកអ្នកនិពន្ធ…",
     "hubNoMatches": "គ្មានអ្នកនិពន្ធត្រូវនឹងឈ្មោះនោះទេ។",
-    "backToAuthors": "អ្នកនិពន្ធទាំងអស់"
+    "backToAuthors": "អ្នកនិពន្ធទាំងអស់",
+    "disambiguationHeading": "អ្នកប្រាជ្ញច្រើនរូបរួមប្រើទំព័រនេះ",
+    "disambiguationIntro": "ឈ្មោះអ្នកនិពន្ធនេះសំដៅលើមនុស្ស {count} នាក់។ ម្នាក់ៗមានទំព័រផ្ទាល់ខ្លួន៖"
   },
   "adminErrors": {
     "title": "មានបញ្ហាកើតឡើង",
