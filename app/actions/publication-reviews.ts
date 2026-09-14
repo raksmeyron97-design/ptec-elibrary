@@ -10,6 +10,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 import type { Review } from "@/app/actions/reviews";
+import { articlePath } from "@/lib/journals/urls";
 
 export type SubmitPublicationReviewResult =
   | { success: true }
@@ -104,7 +105,7 @@ export async function submitPublicationReview(
     }
   }
 
-  revalidatePath(`/publications/${publication.slug ?? publicationSlug}`);
+  revalidatePath(articlePath(publication.slug ?? publicationSlug));
   return { success: true };
 }
 

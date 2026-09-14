@@ -6,6 +6,7 @@ import {
   revalidateLocalizedPath as revalidatePath,
   revalidateUserWorkspace,
 } from "@/lib/cache/revalidate";
+import { ARTICLES_BASE_PATH } from "@/lib/journals/urls";
 
 /**
  * A reading list is a research collection: it holds books, theses and
@@ -171,7 +172,7 @@ const RESOURCE_TABLE: Record<ResourceRecordType, string> = {
 const RESOURCE_ROUTE: Record<ResourceRecordType, string> = {
   book: "/books",
   research: "/theses",
-  publication: "/publications",
+  publication: ARTICLES_BASE_PATH,
 };
 
 /**

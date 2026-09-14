@@ -1,9 +1,10 @@
 "use client";
 
-// Shown when the publication detail page throws (bad slug handled separately by notFound()).
+// Shown when the journal-article detail page throws (bad slug handled separately by notFound()).
 
 import { useEffect } from "react";
 import { Link } from "@/i18n/navigation";
+import { JOURNALS_PATH } from "@/lib/journals/urls";
 export default function PublicationDetailError({
   error,
   reset,
@@ -12,7 +13,7 @@ export default function PublicationDetailError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[/publications/[slug] error]", error);
+    console.error("[/journals/articles/[slug] error]", error);
   }, [error]);
 
   return (
@@ -23,9 +24,9 @@ export default function PublicationDetailError({
             d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
         </svg>
       </div>
-      <h1 className="text-xl font-bold text-text-heading">Unable to load this publication</h1>
+      <h1 className="text-xl font-bold text-text-heading">Unable to load this article</h1>
       <p className="mt-2 max-w-sm text-sm text-text-muted">
-        Something went wrong while fetching the publication details. Please try again.
+        Something went wrong while fetching the article details. Please try again.
       </p>
       <div className="mt-6 flex gap-3">
         <button
@@ -36,10 +37,10 @@ export default function PublicationDetailError({
           Try again
         </button>
         <Link
-          href="/publications"
+          href={JOURNALS_PATH}
           className="inline-flex h-10 items-center rounded-[12px] border border-divider px-5 text-sm font-semibold text-text-body transition hover:bg-paper"
         >
-          Back to publications
+          Back to journals
         </Link>
       </div>
     </section>

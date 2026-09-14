@@ -1,4 +1,4 @@
-// Streaming fallback for /publications.
+// Streaming fallback for /journals (the article listing).
 //
 // Mirrors the real route rather than re-exporting GenericPageSkeleton: this
 // page opens on an ink hero, then a filter row, then a 2/3/4/4/5-column card

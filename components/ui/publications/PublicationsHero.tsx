@@ -1,4 +1,5 @@
 import { Link } from "@/i18n/navigation";
+import { JOURNALS_PATH } from "@/lib/journals/urls";
 import { Search, BookOpen, Library, CalendarRange, Download } from "lucide-react";
 
 type HeroStats = {
@@ -61,7 +62,14 @@ export default function PublicationsHero({
   preservedParams,
   labels,
   badge,
+  formAction = JOURNALS_PATH,
 }: {
+  /**
+   * Locale-prefixed listing path for the GET search form. A plain <form> is
+   * not locale-aware, so the page passes "/km/journals" on the Khmer listing —
+   * otherwise a Khmer reader's search landed on the English page.
+   */
+  formAction?: string;
   stats: HeroStats;
   popularKeywords: string[];
   currentQuery: string;
@@ -106,7 +114,7 @@ export default function PublicationsHero({
         </p>
 
         {/* Primary search */}
-        <form action="/publications" method="get" role="search" className="mt-6 w-full">
+        <form action={formAction} method="get" role="search" className="mt-6 w-full">
           {Object.entries(preservedParams).map(([key, value]) =>
             value ? <input key={key} type="hidden" name={key} value={value} /> : null,
           )}
@@ -138,7 +146,7 @@ export default function PublicationsHero({
             {popularKeywords.map((kw) => (
               <Link
                 key={kw}
-                href={`/publications?keyword=${encodeURIComponent(kw)}`}
+                href={`${JOURNALS_PATH}?keyword=${encodeURIComponent(kw)}`}
                 className="rounded-full border border-divider bg-bg-surface px-2.5 py-1 text-[11.5px] font-medium text-text-body transition-colors hover:border-brand/40 hover:bg-brand/5 hover:text-brand"
               >
                 {kw}

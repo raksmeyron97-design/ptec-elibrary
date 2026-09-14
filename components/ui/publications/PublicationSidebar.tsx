@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { JOURNALS_PATH } from "@/lib/journals/urls";
 import BackToTopButton from "@/components/ui/detail/BackToTopButton";
 import CitePublication from "@/components/ui/publications/CitePublication";
 import PublicationMetadataCard from "@/components/ui/publications/PublicationMetadataCard";
@@ -53,7 +54,7 @@ export default async function PublicationSidebar({
         <div className="space-y-4 rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
           <SubjectList
             subjects={pub.subjects}
-            basePath="/publications"
+            basePath={JOURNALS_PATH}
             heading={t("subjectsHeading")}
           />
           {pub.subjects.length > 0 && pub.keywords.length > 0 && (
@@ -61,7 +62,7 @@ export default async function PublicationSidebar({
           )}
           <KeywordList
             keywords={pub.keywords}
-            basePath="/publications"
+            basePath={JOURNALS_PATH}
             heading={t("researchAreasKeywords")}
           />
         </div>

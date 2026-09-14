@@ -3,6 +3,7 @@ import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 import type { Suggestion } from "@/app/api/books/suggestions/route";
 import { pushRecentSearch } from "@/lib/recent-searches";
+import { articlePath } from "@/lib/journals/urls";
 
 type UseBookSuggestionsProps = {
   initialQuery?: string;
@@ -75,7 +76,7 @@ export function useBookSuggestions({ initialQuery = "", onClose, basePath = "/bo
       pushRecentSearch(s.label);
       setOpen(false);
       if (onClose) onClose();
-      router.push(`/publications/${s.slug}`);
+      router.push(articlePath(s.slug));
     } else if (s.type === "catalog") {
       pushRecentSearch(s.label);
       setOpen(false);

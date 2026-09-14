@@ -70,6 +70,7 @@ import PublicationContext from "./workspace/PublicationContext";
 import ContentWorkspace from "./workspace/ContentWorkspace";
 import SaveBar, { type AutosaveState } from "./workspace/SaveBar";
 import ReviewPublishPanel from "./workspace/ReviewPublishPanel";
+import { articlePath, ARTICLES_BASE_PATH } from "@/lib/journals/urls";
 
 type StepKey = ReviewStep | "review";
 
@@ -827,7 +828,7 @@ export default function PublicationForm({
     setPreviewNonce((n) => n + 1);
   }, []);
 
-  const publicHref = isPublished && initial?.slug ? `/publications/${slug || initial.slug}` : null;
+  const publicHref = isPublished && initial?.slug ? articlePath(slug || initial.slug) : null;
 
 
   return (
@@ -974,7 +975,7 @@ export default function PublicationForm({
                     value={slug}
                     onChange={setSlug}
                     source={title}
-                    routePrefix="/publications"
+                    routePrefix={ARTICLES_BASE_PATH}
                     siteUrl={SITE_URL}
                     slugify={slugify}
                     // Closed over this publication's own id so editing never

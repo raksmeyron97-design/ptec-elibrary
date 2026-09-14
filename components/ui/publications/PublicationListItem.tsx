@@ -7,6 +7,7 @@ import AccessBadge from "@/components/ui/publications/AccessBadge";
 import type { Publication } from "@/lib/publications";
 import { citationYear } from "@/lib/citations";
 import { academicTextToPlainText } from "@/lib/publications/citations";
+import { articlePath } from "@/lib/journals/urls";
 
 const TYPE_LABELS: Record<string, string> = {
   article: "Article",
@@ -90,7 +91,7 @@ export default function PublicationListItem({
               single unreadable accessible name. */}
           <h3 className="font-khmer-serif text-[15.5px] font-bold leading-snug text-text-heading transition-colors group-hover:text-brand sm:text-[17px]">
             <Link
-              href={`/publications/${publication.slug}`}
+              href={articlePath(publication.slug)}
               prefetch={false}
               className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
             >

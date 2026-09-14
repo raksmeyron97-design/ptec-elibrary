@@ -23,6 +23,7 @@ import {
   type OaiRecord,
   type OaiSetSpec,
 } from "@/lib/oai/xml";
+import { articlePath } from "@/lib/journals/urls";
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
 
@@ -289,7 +290,7 @@ function mapPublicationRow(row: any): OaiRecord {
       row.abstract,
       normalizePublicationReferences(row.references),
     ) || null,
-    identifierUrl: `${SITE_URL}/publications/${row.slug}`,
+    identifierUrl: `${SITE_URL}${articlePath(row.slug)}`,
     languages: normalizeDcLanguages(row.language),
     type: ARTICLE_TYPE_LABELS[row.article_type as string] ?? "Journal Article",
   };

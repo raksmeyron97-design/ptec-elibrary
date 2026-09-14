@@ -10,6 +10,8 @@ import { addressableAuthorSlug } from '@/lib/authors/slug';
 import { getListedAuthors } from '@/lib/authors/directory';
 import { authorUrlsWithWorks } from '@/lib/authors/sitemap-filter';
 import { normalizeByline } from '@/lib/resources/contributor-identity';
+import { articlePath, JOURNALS_PATH } from '@/lib/journals/urls';
+import { journalSitemapPaths, type SitemapIssue, type SitemapJournal } from '@/lib/journals/sitemap';
 
 // Revalidate hourly so the sitemap picks up newly published content
 // without being frozen at build time.
@@ -161,11 +163,11 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
           .order('created_at', { ascending: false })
           .range(from, to),
     ),
-    fetchAllRows<{ slug: string; updated_at: string | null; created_at: string | null }>(
+    fetchAllRows<{ slug: string; updated_at: string | null; created_at: string | null; journal_id?: string | null }>(
       (from, to) =>
         supabase
           .from('publications')
-          .select('slug, updated_at, created_at')
+          .select('slug, updated_at, created_at, journal_id')
           .eq('is_published', true)
           .order('created_at', { ascending: false })
           .range(from, to),
@@ -255,8 +257,10 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
     }),
   );
 
+  // Article URLs never depend on a journal row (/journals/articles/<slug>), so
+  // a failed journal read below can drop journal URLs but never these.
   const publicationUrls: MetadataRoute.Sitemap = publications.map((p) =>
-    entry(`/publications/${p.slug}`, {
+    entry(articlePath(p.slug), {
       lastModified: sitemapLastmod(p.updated_at, p.created_at),
       changeFrequency: 'monthly',
       priority: 0.9,
@@ -294,7 +298,7 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
     ...hub('/theses/summary', reports.length, { changeFrequency: 'daily', priority: 0.6 }),
     ...hub('/catalogs', catalogBooks.length, { changeFrequency: 'weekly', priority: 0.8 }),
     ...hub('/posts', posts.length, { changeFrequency: 'daily', priority: 0.8 }),
-    ...hub('/publications', publications.length, { changeFrequency: 'daily', priority: 0.9 }),
+    ...hub(JOURNALS_PATH, publications.length, { changeFrequency: 'daily', priority: 0.9 }),
     ...hub('/paths', paths.length, { changeFrequency: 'weekly', priority: 0.8 }),
     // Informational pages — rarely change, and each is real content regardless
     // of how many resources the library holds, so none of them is gated.
@@ -420,6 +424,40 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
 
   // Hub pages are advertised only when they have something to list — an empty
   // hub is the same soft-404 as an empty subject page.
+  // ── Journals, issue lists and issues (0148) ──
+  // Read directly, not through lib/journals/data.ts: that module is cached
+  // under request-scoped React cache() and throws on failure, while here a
+  // failure must degrade to "no journal URLs this run" (null), never to
+  // "there are no journals". journalSitemapPaths() owns the rule.
+  const [journalRows, issueRows] = await Promise.all([
+    supabase
+      .from('journals')
+      .select('id, slug, is_published, is_indexable, updated_at')
+      .eq('is_published', true)
+      .then(({ data, error }) => {
+        if (error) console.warn('[sitemap] journals unavailable — journal URLs omitted this run:', error.message);
+        return error ? null : ((data ?? []) as SitemapJournal[]);
+      }),
+    supabase
+      .from('journal_issues_public')
+      .select('slug, journal_id')
+      .then(({ data, error }) => {
+        if (error) console.warn('[sitemap] journal issues unavailable — issue URLs omitted this run:', error.message);
+        return error ? null : ((data ?? []) as SitemapIssue[]);
+      }),
+  ]);
+  const journalUrls: MetadataRoute.Sitemap = journalSitemapPaths(
+    journalRows,
+    publications.map((p) => ({ journal_id: p.journal_id ?? null, updated_at: p.updated_at ?? p.created_at })),
+    issueRows,
+  ).map((j) =>
+    entry(j.path, {
+      lastModified: j.lastModified,
+      changeFrequency: j.kind === 'issue' ? 'monthly' : 'weekly',
+      priority: j.kind === 'journal' ? 0.7 : j.kind === 'issues' ? 0.5 : 0.6,
+    }),
+  );
+
   const authorHubUrls: MetadataRoute.Sitemap =
     authorUrls.length > 0
       ? [entry('/authors', { changeFrequency: 'weekly', priority: 0.8 })]
@@ -431,6 +469,7 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
     ...authorHubUrls,
     ...reportUrls,
     ...publicationUrls,
+    ...journalUrls,
     ...bookUrls,
     ...postUrls,
     ...catalogUrls,

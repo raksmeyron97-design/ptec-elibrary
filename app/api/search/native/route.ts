@@ -69,6 +69,7 @@ import {
 // answer.
 import { makeSnippet } from "@/lib/search/snippet";
 import { clientIp } from "@/lib/client-ip";
+import { articlePath } from "@/lib/journals/urls";
 
 export type { ActiveSearchType, SearchResult, SearchResultType, SearchSort } from "@/lib/search/ranking";
 
@@ -754,7 +755,7 @@ async function searchPublications(db: DB, rawQ: string, filters: Filters, limit:
       title: p.title,
       author: p.author_names ?? "Unknown",
       coverUrl: coverUrlOf(p.cover_url),
-      url: `/publications/${p.slug}`,
+      url: articlePath(p.slug),
       year,
       language: canonicalLanguage(p.language),
       category: p.article_type ?? "Publication",
@@ -769,11 +770,11 @@ async function searchPublications(db: DB, rawQ: string, filters: Filters, limit:
       format: p.pdf_url ? "PDF" : null,
       availability: digitalAvailability({ hasFile: Boolean(p.pdf_url), canDownload }),
       actions: {
-        view: `/publications/${p.slug}`,
-        read: p.pdf_url ? `/publications/${p.slug}#fulltext` : undefined,
+        view: articlePath(p.slug),
+        read: p.pdf_url ? `${articlePath(p.slug)}#fulltext` : undefined,
         download: canDownload ? `/api/publications/${p.slug}/file?download=1` : undefined,
-        cite: `/publications/${p.slug}#cite-panel`,
-        save: `/publications/${p.slug}#save`,
+        cite: `${articlePath(p.slug)}#cite-panel`,
+        save: `${articlePath(p.slug)}#save`,
       },
       searchableText: [p.title, p.title_km, p.author_names, p.journal_name, p.publisher, abstract, abstractKm, keywords.join(" "), subjects.join(" ")].filter(Boolean).join(" "),
       titleText: [p.title, p.title_km].filter(Boolean).join(" "),
@@ -1036,7 +1037,7 @@ async function searchLearningPaths(db: DB, rawQ: string, filters: Filters, limit
 const FUZZY_URL: Record<SearchResultType, (ref: string) => string> = {
   book: (ref) => `/books/${ref}`,
   research: (ref) => `/theses/${ref}`,
-  publication: (ref) => `/publications/${ref}`,
+  publication: (ref) => articlePath(ref),
   catalog: (ref) => `/catalogs/${ref}`,
   learning_path: (ref) => `/paths/${ref}`,
   post: (ref) => `/posts/${ref}`,
@@ -1137,7 +1138,7 @@ async function searchPageContent(
         if (r) hits.push({ recordType: "research", recordId: row.record_id, title: r.title, url: `/theses/${r.slug ?? row.record_id}`, pageNo: row.page_no, snippet: makeSnippet(row.content, q), matchType: "exact" });
       } else if (row.record_type === "publication") {
         const p = publicationMap.get(row.record_id);
-        if (p) hits.push({ recordType: "publication", recordId: row.record_id, title: p.title, url: `/publications/${p.slug}`, pageNo: row.page_no, snippet: makeSnippet(row.content, q), matchType: "exact" });
+        if (p) hits.push({ recordType: "publication", recordId: row.record_id, title: p.title, url: articlePath(p.slug), pageNo: row.page_no, snippet: makeSnippet(row.content, q), matchType: "exact" });
       }
     }
     return hits;

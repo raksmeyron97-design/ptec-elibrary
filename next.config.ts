@@ -4,6 +4,7 @@ import withNextIntl from 'next-intl/plugin';
 // Relative import: path aliases are not resolved inside next.config.ts.
 import { isIndexableEnvironment, NOINDEX_HEADER_VALUE } from "./lib/seo/indexing";
 import { subjectSlugRedirectRules } from "./lib/seo/subject-slug-redirects";
+import { legacyPublicationRedirectRules } from "./lib/journals/urls";
 
 const withNextIntlPlugin = withNextIntl('./i18n/request.ts');
 
@@ -204,8 +205,13 @@ const nextConfig: NextConfig = {
   // both locale forms are listed explicitly: middleware has not stripped /km
   // at this point. lib/seo/subject-slug-redirects.ts is the one source of
   // truth, shared with the migration and pinned by its tests.
+  //
+  // The retired internal /publications collection is /journals since 0148
+  // (docs/JOURNALS-ARCHITECTURE.md). Its rules live beside the route helpers
+  // in lib/journals/urls.ts — one 301 hop from every locale form, including
+  // /en/…, straight to the final URL.
   async redirects() {
-    return subjectSlugRedirectRules();
+    return [...subjectSlugRedirectRules(), ...legacyPublicationRedirectRules()];
   },
   async rewrites() {
     return {

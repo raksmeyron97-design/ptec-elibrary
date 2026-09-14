@@ -27,6 +27,7 @@ import {
 import type { ScholarlyWork, ScholarlyWorkType } from "@/lib/metadata-exports/scholarly";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { citationNames } from "@/lib/resources/contributor-identity";
+import { articlePath } from "@/lib/journals/urls";
 
 export const EXPORT_TYPES: Record<string, ScholarlyWorkType> = {
   books: "book",
@@ -191,8 +192,8 @@ function mapPublication(row: Row): ScholarlyWork {
     abstract:
       academicTextToPlainText(row.abstract, normalizePublicationReferences(row.references)) || null,
     keywords: [...new Set([...strArray(row.keywords), ...strArray(row.subjects)])],
-    landingUrl: `${SITE_URL}/publications/${row.slug}`,
-    fileUrl: row.pdf_url ? `${SITE_URL}/publications/${row.slug}` : null,
+    landingUrl: `${SITE_URL}${articlePath(row.slug)}`,
+    fileUrl: row.pdf_url ? `${SITE_URL}${articlePath(row.slug)}` : null,
     format: row.pdf_url ? "application/pdf" : null,
     doi: row.doi ?? null,
     isbn: null,

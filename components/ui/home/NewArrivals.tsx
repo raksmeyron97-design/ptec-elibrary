@@ -11,6 +11,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 import { getRecentAdditions, type RecentItem, type RecentItemType } from "@/lib/home-data";
 import RecentCover from "./RecentCover";
 import { HomeSection, SectionHeader } from "./HomeSection";
+import { ARTICLES_BASE_PATH } from "@/lib/journals/urls";
 
 // Route + badge per type. Both reuse what the rest of the site already
 // established — the palette and labels are the search results' TYPE_BADGE, so
@@ -32,7 +33,7 @@ const TYPE_META: Record<
       "bg-green-600/15 text-green-800 border-green-600/25 dark:bg-green-400/10 dark:text-green-300 dark:border-green-400/25",
   },
   publication: {
-    hrefBase: "/publications",
+    hrefBase: ARTICLES_BASE_PATH,
     labelKey: "badgePublication",
     badgeClass:
       "bg-cyan-600/15 text-cyan-800 border-cyan-500/25 dark:bg-cyan-400/10 dark:text-cyan-300 dark:border-cyan-400/25",

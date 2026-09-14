@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { CanDo, useCan } from "@/components/admin/access/AdminCapabilities";
+import { articlePath } from "@/lib/journals/urls";
 
 type PublicationRow = {
   id: string;
@@ -615,7 +616,7 @@ export default function PublicationsClient({
                         ) : (
                           <div className="flex items-center justify-end gap-1 text-text-muted">
                             <Link
-                              href={`/publications/${pub.slug}`}
+                              href={articlePath(pub.slug)}
                               target="_blank"
                               className="rounded-md p-1.5 transition-colors hover:bg-paper hover:text-brand"
                               title="View public page"
