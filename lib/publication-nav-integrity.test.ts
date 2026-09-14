@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
+import { ARTICLE_SECTIONS } from "@/lib/publications/article-layout";
 
 // ──────────────────────────────────────────────────────────────────────────
 // A jump link that lands on nothing is worse than no jump link.
@@ -18,6 +19,11 @@ import path from "node:path";
 //
 // When this fails, the fix is in the page, not in the test: either gate the
 // new section on a `has.*` key, or stop advertising it in the nav.
+//
+// Since the article redesign the nav list itself is derived by
+// articleSections() (lib/publications/article-layout.ts, unit-tested); this
+// file enforces the page's half — that the derivation is the only source, and
+// that every section it can list is gated in the markup by the same key.
 // ──────────────────────────────────────────────────────────────────────────
 
 const PAGE = path.resolve(
@@ -35,9 +41,10 @@ const SRC = fs.readFileSync(PAGE, "utf8");
 
 /** Keys declared on the `const has = { … }` content-gate object. */
 function gateKeys(): string[] {
-  const start = SRC.indexOf("const has = {");
-  expect(start, "the `has` content-gate object is gone").toBeGreaterThan(-1);
-  const open = SRC.indexOf("{", start);
+  // The object may carry a type annotation (`const has: ArticleSectionFlags = {`).
+  const match = /const has(?::\s*\w+)?\s*=\s*\{/.exec(SRC);
+  expect(match, "the `has` content-gate object is gone").not.toBeNull();
+  const open = match!.index + match![0].length - 1;
   let depth = 0;
   let end = open;
   for (let i = open; i < SRC.length; i++) {
@@ -51,88 +58,63 @@ function gateKeys(): string[] {
   return [...block.matchAll(/^\s{4}(\w+)\s*:/gm)].map((m) => m[1]);
 }
 
-/** Entries of the `const sections: QuickNavSection[] = [ … ]` array. */
-function navEntries(): { id: string; gated: boolean; tracked: boolean }[] {
-  const decl = "const sections: QuickNavSection[] = [";
-  const start = SRC.indexOf(decl);
-  expect(start, "the sections array is gone").toBeGreaterThan(-1);
-  // Anchor on the array's own bracket, not the one in `QuickNavSection[]`.
-  const open = start + decl.length - 1;
-  let depth = 0;
-  let end = open;
-  for (let i = open; i < SRC.length; i++) {
-    if (SRC[i] === "[") depth++;
-    else if (SRC[i] === "]" && --depth === 0) {
-      end = i;
-      break;
-    }
-  }
-  const block = SRC.slice(open + 1, end);
-
-  return block
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.includes('id: "'))
-    .map((line) => ({
-      id: /id: "([^"]+)"/.exec(line)![1],
-      gated: line.startsWith("...(has."),
-      tracked: !line.includes("track: false"),
-    }));
+/** The markup for section `id` is guarded by `has.<id>` (`&&` or a ternary). */
+function gatedMarkup(id: string): boolean {
+  return SRC.includes(`{has.${id} && (`) || SRC.includes(`{has.${id} ? (`);
 }
 
+// The nav is no longer a hand-written array next to the markup. It is
+// `articleSections(has, labels)` (lib/publications/article-layout.ts), which
+// lists ARTICLE_SECTIONS filtered by the SAME `has` object — so an entry
+// cannot exist without its flag, and the order is fixed in one place. What is
+// left to enforce here is that the page feeds the nav from that function and
+// nothing else, and that every section it can list is gated in the markup.
 describe("publication detail: section nav integrity", () => {
   const gates = gateKeys();
-  const entries = navEntries();
 
-  it("declares content gates and nav entries at all", () => {
+  it("declares content gates and builds the nav from them", () => {
     expect(gates.length).toBeGreaterThan(0);
-    expect(entries.length).toBeGreaterThan(0);
+    expect(SRC, "the nav must be derived from `has` via articleSections()").toContain("articleSections(has, {");
+    // Every "On this page" instance is handed that derived list, never a literal.
+    const navProps = [...SRC.matchAll(/<ArticleSectionNav\s+sections=\{(\w+)\}/g)].map((m) => m[1]);
+    expect(navProps.length).toBeGreaterThan(0);
+    expect(new Set(navProps)).toEqual(new Set(["sections"]));
+    expect(SRC).toMatch(/const sections = articleSections\(has, \{/);
   });
 
-  it("gates every scroll-tracked nav entry on a content check", () => {
-    // `track: false` entries point into the sticky rail, which always renders.
-    const ungated = entries.filter((e) => e.tracked && !e.gated).map((e) => e.id);
+  it("gates every section the nav can list on a content check", () => {
+    const ungated = ARTICLE_SECTIONS.filter((id) => !gates.includes(id));
     expect(
       ungated,
-      `nav entries advertised unconditionally — they will land on an empty section when the record has no such content: ${ungated.join(", ")}`,
+      `sections the nav can advertise with no content gate — they would land on an empty region: ${ungated.join(", ")}`,
     ).toEqual([]);
   });
 
-  it("renders a matching <section id> for every nav entry", () => {
-    for (const entry of entries) {
-      expect(
-        SRC.includes(`id="${entry.id}"`) ||
-          // Rail targets live in the sidebar component, not this file.
-          !entry.tracked,
-        `nav offers "#${entry.id}" but no element in the page carries that id`,
-      ).toBe(true);
+  it("renders a matching element id for every section the nav can list", () => {
+    for (const id of ARTICLE_SECTIONS) {
+      expect(SRC.includes(`id="${id}"`), `nav can offer "#${id}" but no element in the page carries that id`).toBe(true);
     }
   });
 
-  it("guards every gated section's markup with the same boolean as its nav entry", () => {
-    for (const entry of entries.filter((e) => e.gated)) {
-      const key = new RegExp(`\\.\\.\\.\\(has\\.(\\w+) \\? \\[\\{ id: "${entry.id}"`).exec(SRC);
-      expect(key, `nav entry "${entry.id}" is not gated by a has.* key`).not.toBeNull();
+  it("guards every section's markup with the same boolean as its nav entry", () => {
+    for (const id of ARTICLE_SECTIONS) {
       expect(
-        SRC.includes(`{has.${key![1]} && (`),
-        `has.${key![1]} gates the "${entry.id}" nav entry but nothing in the markup — the anchor would resolve to an empty region`,
+        gatedMarkup(id),
+        `has.${id} gates the "${id}" nav entry but not its markup — the anchor could resolve to an empty region`,
       ).toBe(true);
     }
   });
 
   it("uses every declared gate — a dead gate means a section silently vanished", () => {
     for (const key of gates) {
-      expect(
-        SRC.includes(`has.${key}`),
-        `has.${key} is declared but never read`,
-      ).toBe(true);
+      expect(SRC.includes(`has.${key}`), `has.${key} is declared but never read`).toBe(true);
     }
   });
 
   it("no longer advertises the sections that rendered empty headings", () => {
     // "overview" was a second name for the abstract; keywords/outcomes/FAQ
-    // are now conditional or moved to the rail.
-    expect(entries.map((e) => e.id)).not.toContain("overview");
+    // are conditional.
+    expect(ARTICLE_SECTIONS as readonly string[]).not.toContain("overview");
     expect(SRC).not.toContain('id="overview"');
   });
 });
