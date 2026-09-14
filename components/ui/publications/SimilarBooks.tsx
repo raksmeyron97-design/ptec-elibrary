@@ -2,7 +2,6 @@ import { Link } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
 import { ArrowRight } from "lucide-react";
 import BookCard from "@/components/ui/books/BookCard";
-import HorizontalCarousel from "@/components/ui/core/HorizontalCarousel";
 import type { Book } from "@/lib/books";
 
 /**
@@ -46,13 +45,17 @@ export default async function SimilarBooks({
         </Link>
       </div>
 
-      <HorizontalCarousel>
+      {/* A plain row that scrolls sideways where it must (phones), with no
+          overlaid arrow buttons: HorizontalCarousel's arrow sits over the
+          first card, which axe reports as a WCAG 2.2 target-size (overlap)
+          failure. The cards are links, so the row is keyboard-reachable. */}
+      <ul className="-mx-1 flex snap-x gap-4 overflow-x-auto px-1 pb-2 [scrollbar-width:thin]">
         {books.map((book) => (
-          <div key={book.slug} className="w-[148px] shrink-0 sm:w-[164px]">
+          <li key={book.slug} className="w-[148px] shrink-0 snap-start sm:w-[164px]">
             <BookCard book={book} />
-          </div>
+          </li>
         ))}
-      </HorizontalCarousel>
+      </ul>
     </section>
   );
 }
