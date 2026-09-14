@@ -198,16 +198,19 @@ export default async function ArticleHeader({
           canRead={access.canReadOnline}
           canDownload={access.canDownload}
         />
-        <PublicationAccessNotice
-          access={access}
-          labels={{
-            unavailableHeading: t("downloadUnavailable"),
-            readOnlyBody: t("downloadReadOnlyBody"),
-            rightsBody: t("downloadRightsBody"),
-            noFileHeading: t("noFileHeading"),
-            noFileBody: t("noFileBody"),
-          }}
-        />
+        {/* Aligned to the text column rather than spanning the page. */}
+        <div className="max-w-[760px]">
+          <PublicationAccessNotice
+            access={access}
+            labels={{
+              unavailableHeading: t("downloadUnavailable"),
+              readOnlyBody: t("downloadReadOnlyBody"),
+              rightsBody: t("downloadRightsBody"),
+              noFileHeading: t("noFileHeading"),
+              noFileBody: t("noFileBody"),
+            }}
+          />
+        </div>
       </div>
     </header>
   );
