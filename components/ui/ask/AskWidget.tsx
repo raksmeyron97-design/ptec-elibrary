@@ -748,7 +748,9 @@ export default function AskWidget() {
                     placeholder={quotaExhausted ? t("quotaReached") : t("placeholder")}
                     aria-label={t("placeholder")}
                     disabled={inputDisabled}
-                    className="h-9 flex-1 bg-transparent text-[13px] text-white outline-none placeholder:text-blue-300/40 disabled:opacity-40"
+                    // 16px below sm: iOS zooms the page into any smaller field
+                    // on focus, and this one is focused the moment it opens.
+                    className="h-9 flex-1 bg-transparent text-base text-white outline-none placeholder:text-blue-300/40 disabled:opacity-40 sm:text-[13px]"
                   />
                   <button
                     type="button"

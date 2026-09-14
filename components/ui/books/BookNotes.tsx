@@ -95,7 +95,7 @@ export default function BookNotes({
         onChange={handleChange}
         placeholder="Add your private notes about this book… (auto-saved as you type)"
         rows={5}
-        className="w-full resize-none rounded-xl border border-divider bg-bg-app px-3.5 py-3 text-[13px] leading-relaxed text-text-body placeholder:text-text-muted/60 outline-none focus:border-brand/60 focus:ring-2 focus:ring-brand/10 transition-all"
+        className="w-full resize-none rounded-xl border border-divider bg-bg-app px-3.5 py-3 text-base leading-relaxed sm:text-[13px] text-text-body placeholder:text-text-muted/60 outline-none focus:border-brand/60 focus:ring-2 focus:ring-brand/10 transition-all"
       />
 
       <p className="mt-1.5 text-[11px] text-text-muted">

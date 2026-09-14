@@ -6,6 +6,10 @@ import { Link, useRouter } from "@/i18n/navigation";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import Icon from "@/components/ui/core/Icon";
+import { SlidersHorizontal, Sparkles } from "lucide-react";
+import GlassSheet from "@/components/ui/glass/GlassSheet";
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
+import { openLibraryAssistant } from "@/lib/ask/open";
 import type { SearchResult, SearchCounts, SearchResultType, PageHit } from "@/app/api/search/native/route";
 import type { Suggestion } from "@/app/api/books/suggestions/route";
 import { useBookSuggestions } from "@/components/ui/search/useBookSuggestions";
@@ -143,11 +147,23 @@ function trackSearchClick(result: SearchResult, query: string, action: string) {
 }
 
 // ── Single result card ─────────────────────────────────────────────────────────
+// One grid, two arrangements, and never two copies of a link:
+//   phones  [cover | text]      actions on their own full-width line, one row
+//           [ actions ────── ]  that scrolls rather than wrapping to two
+//   sm+     [cover | text   ]   actions back under the text, wrapping, exactly
+//           [      | actions]   as before
+// Measured on production at 390px, five 32px buttons wrapping to two rows plus
+// up to five match chips made each result ~270px — two and a half per screen.
 function ResultCard({ result, query }: { result: SearchResult; query: string }) {
   const t = useTranslations("search");
   const badge = TYPE_BADGE[result.type];
+  // Phones get 40px targets and the first action (Read, when there is one)
+  // filled, so the most useful tap is the obvious one; from sm the original
+  // compact outline buttons are unchanged.
   const actionClass =
-    "inline-flex h-8 items-center gap-1.5 rounded-lg border border-divider bg-bg-surface px-2.5 text-[11.5px] font-semibold text-text-muted transition-colors hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/40";
+    "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-3 text-[12.5px] font-semibold text-text-muted transition-colors hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/40 sm:h-8 sm:rounded-lg sm:px-2.5 sm:text-[11.5px]";
+  const primaryActionClass =
+    "max-sm:border-brand max-sm:bg-brand max-sm:text-brand-contrast max-sm:hover:text-brand-contrast";
 
   const actions = [
     result.actions?.read ? { key: "read", href: result.actions.read, label: t("actionRead"), icon: "pdf" as const } : null,
@@ -159,21 +175,21 @@ function ResultCard({ result, query }: { result: SearchResult; query: string }) 
 
   return (
     <article
-      className="group flex gap-3.5 rounded-[14px] border border-divider bg-bg-surface p-4 transition-all duration-150 hover:border-brand/30 hover:shadow-sm"
+      className="group grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-3 rounded-[14px] border border-divider bg-bg-surface p-3.5 transition-all duration-150 hover:border-brand/30 hover:shadow-sm sm:gap-x-3.5 sm:p-4"
     >
       {/* Cover */}
       <Link
         href={result.url}
         onClick={() => trackSearchClick(result, query, "cover")}
-        className="h-16 w-12 shrink-0 overflow-hidden rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+        className="h-[76px] w-14 shrink-0 overflow-hidden rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 sm:row-span-2 sm:h-16 sm:w-12"
         aria-label={result.title}
       >
         {result.coverUrl ? (
           <Image
             src={result.coverUrl}
             alt=""
-            width={48}
-            height={64}
+            width={56}
+            height={76}
             className="h-full w-full object-cover"
             unoptimized
           />
@@ -183,7 +199,7 @@ function ResultCard({ result, query }: { result: SearchResult; query: string }) 
       </Link>
 
       {/* Body */}
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0">
         <div className="mb-1 flex flex-wrap items-center gap-1.5">
           <span
             className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badge.className}`}
@@ -210,48 +226,53 @@ function ResultCard({ result, query }: { result: SearchResult; query: string }) 
           )}
         </div>
 
+        {/* Three lines on phones: a Khmer title needs them at this width, and
+            1.5 leading keeps the clamp from shaving the subscripts off the
+            last visible line. */}
         <Link
           href={result.url}
           onClick={() => trackSearchClick(result, query, "title")}
-          className="line-clamp-2 rounded-sm text-[14px] font-semibold leading-snug transition-colors group-hover:text-[color:var(--ptec-brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+          className="line-clamp-3 rounded-sm text-[15px] font-semibold leading-[1.5] transition-colors group-hover:text-[color:var(--ptec-brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 sm:line-clamp-2 sm:text-[14px] sm:leading-snug"
           style={{ color: "var(--ptec-text-heading)" }}
         >
           {highlightMatch(result.title, query)}
         </Link>
 
         {result.author && (
-          <p className="mt-0.5 text-[12px]" style={{ color: "var(--ptec-text-muted)" }}>
+          <p className="mt-0.5 line-clamp-1 text-[12.5px] sm:line-clamp-none sm:text-[12px]" style={{ color: "var(--ptec-text-muted)" }}>
             {highlightMatch(result.author, query)}
           </p>
         )}
 
         {result.excerpt && (
           <p
-            className="mt-1 line-clamp-2 text-[12px] leading-relaxed"
+            className="mt-1 line-clamp-2 text-[12.5px] leading-[1.6] sm:text-[12px] sm:leading-relaxed"
             style={{ color: "var(--ptec-text-body)" }}
           >
             {highlightMatch(result.excerpt, query)}
           </p>
         )}
 
+        {/* Match evidence: one line on phones (the tail fades rather than
+            wrapping to a second row of chips), wrapping from sm as before. */}
         {(result.matchedFields?.length || result.availability || result.format) && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <div className="mt-2 flex gap-1.5 max-sm:flex-nowrap max-sm:overflow-hidden max-sm:[mask-image:linear-gradient(to_right,#000_82%,transparent)] sm:flex-wrap">
             {result.matchedFields?.slice(0, 4).map((field) => (
               <span
                 key={field}
-                className="rounded-full px-2 py-0.5 text-[10.5px] font-medium"
+                className="shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-medium"
                 style={{ background: "var(--ptec-bg-body)", color: "var(--ptec-text-muted)" }}
               >
                 {t("matchedField", { field })}
               </span>
             ))}
             {result.format && (
-              <span className="rounded-full px-2 py-0.5 text-[10.5px] font-medium" style={{ background: "var(--ptec-bg-body)", color: "var(--ptec-text-muted)" }}>
+              <span className="shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-medium" style={{ background: "var(--ptec-bg-body)", color: "var(--ptec-text-muted)" }}>
                 {result.format}
               </span>
             )}
             {result.availability && (
-              <span className="rounded-full px-2 py-0.5 text-[10.5px] font-medium" style={{ background: "var(--ptec-bg-body)", color: "var(--ptec-text-muted)" }}>
+              <span className="shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-medium" style={{ background: "var(--ptec-bg-body)", color: "var(--ptec-text-muted)" }}>
                 {isAvailability(result.availability) ? t(`availabilityValue.${result.availability}`) : result.availability}
               </span>
             )}
@@ -295,21 +316,57 @@ function ResultCard({ result, query }: { result: SearchResult; query: string }) 
           </div>
         )}
 
-        <div className="mt-3 flex flex-wrap gap-2">
-          {actions.slice(0, 5).map((action) => (
+      </div>
+
+      {actions.length > 0 && (
+        <div className="scroll-row col-span-2 flex gap-2 overflow-x-auto sm:col-span-1 sm:col-start-2 sm:flex-wrap sm:overflow-visible">
+          {actions.slice(0, 5).map((action, index) => (
             <Link
               key={action.key}
               href={action.href}
               onClick={() => trackSearchClick(result, query, action.key)}
-              className={actionClass}
+              className={`${actionClass} ${index === 0 ? primaryActionClass : ""}`}
             >
               <Icon name={action.icon} className="text-[12px]" />
               {action.label}
             </Link>
           ))}
         </div>
-      </div>
+      )}
     </article>
+  );
+}
+
+// ── "Ask the library" ─────────────────────────────────────────────────────────
+// The search results' door to the assistant. Not an <article> — the result
+// count on this page is `article` elements (e2e/search-facets.spec.ts) — and
+// the query only PRE-FILLS the assistant: sending spends the reader's quota.
+function AskLibraryCard({ query }: { query: string }) {
+  const t = useTranslations("search");
+  const tAsk = useTranslations("ask");
+  return (
+    <div
+      data-testid="search-ask-library"
+      className="flex items-start gap-3 rounded-[14px] border border-surface-brand-line bg-surface-brand-soft p-4"
+    >
+      <span
+        aria-hidden="true"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-contrast"
+      >
+        <Sparkles className="h-5 w-5" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[14.5px] font-semibold leading-snug text-text-heading">{t("askTitle", { query })}</p>
+        <p className="mt-1 text-[12.5px] leading-relaxed text-text-body">{t("askBody")}</p>
+        <button
+          type="button"
+          onClick={() => openLibraryAssistant({ prompt: query })}
+          className="mt-3 inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-brand px-4 text-[13px] font-semibold text-brand-contrast transition-colors hover:bg-brand-hover"
+        >
+          {tAsk("open")}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -348,6 +405,10 @@ type SearchPageClientProps = {
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function SearchPageClient({ departments, languages, categories }: SearchPageClientProps) {
   const t = useTranslations("search");
+  const tNav = useTranslations("nav");
+  // Where the facets live: a sidebar from lg (the grid's own breakpoint), a
+  // bottom sheet below it. See the results region.
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const params = useSearchParams();
   const router = useRouter();
   const q = params.get("q") ?? "";
@@ -373,6 +434,7 @@ export default function SearchPageClient({ departments, languages, categories }:
   const [counts, setCounts] = useState<SearchCounts | null>(null);
   const [facetCounts, setFacetCounts] = useState<SearchFacetCounts | null>(null);
   const [mobileFacetsOpen, setMobileFacetsOpen] = useState(false);
+  const closeFacets = useCallback(() => setMobileFacetsOpen(false), []);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [fuzzy, setFuzzy] = useState(false);
@@ -743,7 +805,9 @@ export default function SearchPageClient({ departments, languages, categories }:
             aria-haspopup="listbox"
             aria-controls="search-page-listbox"
             aria-activedescendant={suggestOpen && activeIdx >= 0 ? `search-suggestion-${activeIdx}` : undefined}
-            className="flex-1 min-w-0 h-full bg-transparent text-[15px] font-medium outline-none placeholder:font-normal"
+            // 16px on phones: iOS Safari zooms the whole page into any field
+            // under 16px on focus, and the reader then has to pinch back out.
+            className="flex-1 min-w-0 h-full bg-transparent text-base font-medium outline-none placeholder:font-normal sm:text-[15px]"
             style={{ color: "var(--ptec-text-heading)" }}
           />
 
@@ -941,8 +1005,33 @@ export default function SearchPageClient({ departments, languages, categories }:
         )}
       </form>
 
-      {/* SearchAdvancedModal renders its own <form> — must stay outside the search-bar form above (nested forms are invalid HTML) */}
-      <div className="flex flex-wrap items-center gap-2 mb-6 px-1">
+      {/* SearchAdvancedModal renders its own <form> — must stay outside the search-bar form above (nested forms are invalid HTML).
+          One control row. On phones it scrolls instead of wrapping, and it
+          carries the Filter toggle that used to sit on a row of its own
+          above the tabs — three stacked rows of controls became one. */}
+      <div className="scroll-row mb-5 flex items-center gap-2 overflow-x-auto px-1 max-sm:-mx-4 max-sm:px-4 sm:mb-6 sm:flex-wrap sm:overflow-visible">
+        {hasFacetValues && (
+          <button
+            type="button"
+            onClick={() => setMobileFacetsOpen((v) => !v)}
+            aria-expanded={mobileFacetsOpen}
+            aria-haspopup="dialog"
+            data-testid="facets-toggle"
+            className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border px-3 text-[12.5px] font-semibold shadow-sm lg:hidden"
+            style={{ background: "var(--ptec-bg-surface)", borderColor: "var(--ptec-border)", color: "var(--ptec-text-body)" }}
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
+            {t("filter")}
+            {selectedFacetCount > 0 && (
+              <span
+                className="rounded-full px-1.5 py-0.5 text-[10px] font-bold"
+                style={{ background: "color-mix(in srgb, var(--ptec-brand) 12%, transparent)", color: "var(--ptec-brand)" }}
+              >
+                {selectedFacetCount}
+              </span>
+            )}
+          </button>
+        )}
         <SearchAdvancedModal
           currentQ={q}
           currentAuthor={filterAuthor}
@@ -964,12 +1053,12 @@ export default function SearchPageClient({ departments, languages, categories }:
           languages={languages}
           departments={departments}
         />
-        <label className="inline-flex h-9 items-center gap-2 rounded-xl border border-divider bg-bg-surface px-3 text-[12.5px] font-semibold text-text-body shadow-sm">
+        <label className="inline-flex h-9 shrink-0 items-center gap-2 rounded-xl border border-divider bg-bg-surface px-3 text-[12.5px] font-semibold text-text-body shadow-sm">
           <span className="text-text-muted">{t("sortLabel")}</span>
           <select
             value={sort}
             onChange={(e) => handleSortChange(e.target.value)}
-            className="h-7 cursor-pointer rounded-md bg-transparent text-[12.5px] font-semibold text-text-heading outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+            className="h-7 cursor-pointer rounded-md bg-transparent text-base font-semibold text-text-heading outline-none focus-visible:ring-2 focus-visible:ring-focus-ring sm:text-[12.5px]"
             aria-label={t("sortLabel")}
           >
             <option value="relevance">{t("sortRelevance")}</option>
@@ -999,7 +1088,7 @@ export default function SearchPageClient({ departments, languages, categories }:
           value ? (
             <span
               key={key}
-              className="inline-flex items-center gap-1.5 rounded-full pl-3 pr-1.5 py-1 text-[12px] font-medium"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full pl-3 pr-1.5 py-1 text-[12px] font-medium"
               style={{ background: "var(--ptec-bg-body)", border: "1px solid var(--ptec-border)", color: "var(--ptec-text-body)" }}
             >
               {label}: {value}
@@ -1018,7 +1107,7 @@ export default function SearchPageClient({ departments, languages, categories }:
           <button
             type="button"
             onClick={clearFilters}
-            className="text-[12px] font-semibold cursor-pointer hover:underline underline-offset-2"
+            className="shrink-0 text-[12px] font-semibold cursor-pointer hover:underline underline-offset-2"
             style={{ color: "var(--ptec-text-muted)" }}
           >
             {t("clearFilters")}
@@ -1046,38 +1135,60 @@ export default function SearchPageClient({ departments, languages, categories }:
 
       {/* ── Results region: facet sidebar + main column ─────────────────── */}
       <div className={hasFacetValues ? "lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start lg:gap-8" : undefined}>
-      {hasFacetValues && facetCounts && (
-        <aside className="mb-6 lg:sticky lg:top-24 lg:mb-0" aria-label={t("filter")}>
-          {/* Mobile: facets collapse behind a toggle; desktop: always visible */}
-          <button
-            type="button"
-            onClick={() => setMobileFacetsOpen((v) => !v)}
-            aria-expanded={mobileFacetsOpen}
-            aria-controls="search-facets-panel"
-            data-testid="facets-toggle"
-            className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border px-3 text-[12.5px] font-semibold lg:hidden"
-            style={{ background: "var(--ptec-bg-surface)", borderColor: "var(--ptec-border)", color: "var(--ptec-text-body)" }}
-          >
-            {t("filter")}
-            {selectedFacetCount > 0 && (
-              <span
-                className="rounded-full px-1.5 py-0.5 text-[10px] font-bold"
-                style={{ background: "color-mix(in srgb, var(--ptec-brand) 12%, transparent)", color: "var(--ptec-brand)" }}
-              >
-                {selectedFacetCount}
-              </span>
-            )}
-          </button>
-          <div id="search-facets-panel" className={`${mobileFacetsOpen ? "mt-3 block" : "hidden"} lg:mt-0 lg:block`}>
-            <SearchFacets
-              facetCounts={facetCounts}
-              showTypes={activeType === "all"}
-              selectedCount={selectedFacetCount}
-              onToggle={toggleFacet}
-              onClearAll={clearFilters}
-            />
-          </div>
+      {/* Facets: a sidebar from lg, a bottom sheet below it — and only ever
+          ONE SearchFacets instance, chosen by media query rather than hidden
+          by CSS, so each checkbox exists once (the e2e spec addresses them by
+          data-facet-* and a second copy would make that ambiguous). Facets
+          arrive with the first client fetch, so there is no server markup for
+          the query to disagree with. The sheet stays open while facets are
+          toggled — they are multi-select — and says live how many results
+          the choice leaves. */}
+      {hasFacetValues && facetCounts && isDesktop && (
+        <aside className="lg:sticky lg:top-24" aria-label={t("filter")}>
+          <SearchFacets
+            facetCounts={facetCounts}
+            showTypes={activeType === "all"}
+            selectedCount={selectedFacetCount}
+            onToggle={toggleFacet}
+            onClearAll={clearFilters}
+          />
         </aside>
+      )}
+      {hasFacetValues && facetCounts && !isDesktop && (
+        <GlassSheet
+          open={mobileFacetsOpen}
+          onClose={closeFacets}
+          title={t("filter")}
+          closeLabel={tNav("close")}
+          footer={
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={clearFilters}
+                disabled={selectedFacetCount === 0}
+                className="flex min-h-12 flex-1 items-center justify-center rounded-2xl border border-divider px-4 text-[14px] font-semibold text-text-body transition-colors hover:bg-glass-selected disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {t("clearFilters")}
+              </button>
+              <button
+                type="button"
+                onClick={closeFacets}
+                className="flex min-h-12 flex-[1.4] items-center justify-center rounded-2xl bg-brand px-4 text-[14px] font-semibold text-brand-contrast transition-colors hover:bg-brand-hover"
+              >
+                {t("showResults", { count: counts?.total ?? 0 })}
+              </button>
+            </div>
+          }
+        >
+          <SearchFacets
+            facetCounts={facetCounts}
+            showTypes={activeType === "all"}
+            selectedCount={selectedFacetCount}
+            onToggle={toggleFacet}
+            onClearAll={clearFilters}
+            variant="sheet"
+          />
+        </GlassSheet>
       )}
       <div className="min-w-0">
 
@@ -1126,21 +1237,29 @@ export default function SearchPageClient({ departments, languages, categories }:
         </div>
       )}
 
-      {/* ── Loading skeleton ───────────────────────────────────────────── */}
+      {/* ── Loading skeleton ─────────────────────────────────────────────
+          The same grid as <ResultCard>, so results land where the skeleton
+          stood: cover + lines, then the action row (full width on phones,
+          under the text from sm). */}
       {loading && (
         <div className="space-y-3" aria-hidden="true">
           {[0, 1, 2, 3].map((i) => (
             <div
               key={i}
-              className="flex gap-3.5 rounded-[14px] p-4 animate-pulse"
+              className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-3 rounded-[14px] p-3.5 animate-pulse sm:gap-x-3.5 sm:p-4"
               style={{ background: "var(--ptec-bg-surface)", border: "1px solid var(--ptec-border)" }}
             >
-              <div className="h-16 w-12 shrink-0 rounded-lg" style={{ background: "var(--ptec-border)" }} />
-              <div className="flex-1 space-y-2 py-1">
+              <div className="h-[76px] w-14 shrink-0 rounded-lg sm:row-span-2 sm:h-16 sm:w-12" style={{ background: "var(--ptec-border)" }} />
+              <div className="space-y-2 py-1">
                 <div className="h-3 w-1/5 rounded" style={{ background: "var(--ptec-border)" }} />
                 <div className="h-4 w-3/4 rounded" style={{ background: "var(--ptec-border)" }} />
                 <div className="h-3 w-1/3 rounded" style={{ background: "var(--ptec-border)" }} />
                 <div className="h-3 w-full rounded" style={{ background: "var(--ptec-border)" }} />
+              </div>
+              <div className="col-span-2 flex gap-2 sm:col-span-1 sm:col-start-2">
+                {[0, 1, 2].map((j) => (
+                  <div key={j} className="h-10 w-20 rounded-xl sm:h-8 sm:w-16 sm:rounded-lg" style={{ background: "var(--ptec-border)" }} />
+                ))}
               </div>
             </div>
           ))}
@@ -1238,6 +1357,13 @@ export default function SearchPageClient({ departments, languages, categories }:
           </Link>
         </div>
       )}
+      {/* Nothing in the catalogue matched — the assistant reads the texts,
+          which is exactly the second opinion this reader needs. */}
+      {noResults && !error && (
+        <div className="mt-4">
+          <AskLibraryCard query={q} />
+        </div>
+      )}
 
       {/* ── Closest-matches notice (typo-tolerant fallback) ───────────── */}
       {!loading && hasResults && fuzzy && (
@@ -1313,6 +1439,10 @@ export default function SearchPageClient({ departments, languages, categories }:
               </button>
             </div>
           )}
+
+          <div className="mt-8">
+            <AskLibraryCard query={q} />
+          </div>
         </>
       )}
       {/* ── Found inside PDFs — trailing placement ────────────────────
@@ -1347,7 +1477,7 @@ export default function SearchPageClient({ departments, languages, categories }:
             }}
           />
 
-          <div className="relative flex flex-col items-center gap-7 py-16 px-6 text-center">
+          <div className="relative flex flex-col items-center gap-6 px-5 py-10 text-center sm:gap-7 sm:px-6 sm:py-16">
             <div
               className="flex items-center justify-center w-14 h-14 rounded-2xl shadow-sm"
               style={{
