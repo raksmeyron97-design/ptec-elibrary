@@ -25,6 +25,7 @@ import {
   type SubjectItem,
   type SubjectResourceType,
 } from "@/lib/subjects";
+import { JOURNALS_PATH } from "@/lib/journals/urls";
 
 export const revalidate = 3600;
 
@@ -34,7 +35,7 @@ type PageProps = { params: Promise<{ slug: string; locale: string }> };
 const LISTING_PATH: Record<SubjectResourceType, string> = {
   book: "/books",
   thesis: "/theses",
-  publication: "/publications",
+  publication: JOURNALS_PATH,
   catalog: "/catalogs",
 };
 

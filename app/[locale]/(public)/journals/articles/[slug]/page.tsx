@@ -56,6 +56,9 @@ import { Download, Pencil } from "lucide-react";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import type { OrgIdentity } from "@/lib/system-settings/org-identity";
 import { publicationContributorViews } from "@/lib/publications/contributors";
+import { getArticleJournalContext, type ArticleJournalContext } from "@/lib/journals/data";
+import { articlePath, issuePath, journalPath, JOURNALS_PATH } from "@/lib/journals/urls";
+import { issueLabel, journalTitle } from "@/lib/journals/types";
 
 /**
  * Adapt a Publication row into the typed, browser-safe SEO input.
@@ -70,9 +73,30 @@ import { publicationContributorViews } from "@/lib/publications/contributors";
 function toPublicationSeoInput(
   pub: import("@/lib/publications").Publication,
   org?: OrgIdentity,
+  ctx?: ArticleJournalContext | null,
 ): PublicationSeoInput {
   const contributors = publicationContributorViews(pub, org);
   return {
+    journalRef: ctx
+      ? {
+          slug: ctx.journal.slug,
+          title: ctx.journal.title,
+          titleKm: ctx.journal.title_km,
+          issn: ctx.journal.issn,
+          eIssn: ctx.journal.e_issn,
+          printIssn: ctx.journal.print_issn,
+          publisher: ctx.journal.publisher_name,
+          issue: ctx.issue
+            ? {
+                slug: ctx.issue.slug,
+                issueNumber: ctx.issue.issue_number,
+                volumeNumber: ctx.issue.volume?.volume_number ?? null,
+                title: ctx.issue.title,
+                datePublished: ctx.issue.published_date,
+              }
+            : null,
+        }
+      : null,
     slug: pub.slug,
     title: pub.title,
     titleKm: pub.title_km,
@@ -119,7 +143,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { data: pub } = await getPublicationOnce(slug);
 
   if (!pub) {
-    return { title: "Publication not found" };
+    return { title: "Article not found" };
   }
 
   // Typed, localized metadata (validated identifiers, Khmer-aware). Google
@@ -214,6 +238,8 @@ export default async function PublicationDetailPage({ params }: PageProps) {
   const primaryAuthor = authorships[0]?.author ?? null;
   const citationLine = toCitationLine(pub);
   const publishedOn = formatDate(pub.publication_date ?? pub.published_at);
+  // The file API keeps its /api/publications path: it is not part of the
+  // information architecture, and it is the ONE place the rights gate runs.
   const fileHref = `/api/publications/${slug}/file`;
 
   // ONE resolution of "may this reader have the file", shared with the API
@@ -230,7 +256,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
     fulltext_redistributable: pub.fulltext_redistributable,
     pdf_url: pub.pdf_url,
   });
-  const shareUrl = `${SITE_URL}/publications/${slug}`;
+  const shareUrl = `${SITE_URL}${articlePath(slug)}`;
   const year = citationYear(pub);
 
   // Inline-citation anchors rendered inside the abstracts, used by the
@@ -296,9 +322,13 @@ export default async function PublicationDetailPage({ params }: PageProps) {
   // ── JSON-LD (ScholarlyArticle) ────────────────────────────────────────────
   // Validated identifiers, verified-license-only, locale-correct URLs, and no
   // "Unknown Author" fabrication — see lib/seo/publication-seo.ts.
-  const pageOrg = await getOrgIdentity();
+  const [pageOrg, journalCtx] = await Promise.all([getOrgIdentity(), getArticleJournalContext(pub)]);
+  const journalHref = journalCtx ? journalPath(journalCtx.journal.slug) : null;
+  const issueHref = journalCtx?.issue ? issuePath(journalCtx.journal.slug, journalCtx.issue.slug) : null;
+  const journalName = journalCtx ? journalTitle(journalCtx.journal, locale) : pub.journal_name;
+  const issueName = journalCtx?.issue ? issueLabel(journalCtx.issue, locale) : null;
   const scholarlyArticleSchema = publicationJsonLd(
-    toPublicationSeoInput(pub, pageOrg),
+    toPublicationSeoInput(pub, pageOrg, journalCtx),
     locale,
     // An aggregateRating may only be emitted where the rating is actually
     // shown. Publications have reviews disabled, so no rating goes into the
@@ -323,17 +353,17 @@ export default async function PublicationDetailPage({ params }: PageProps) {
         }
       : null;
 
-  // Mirrors the visible trail, journal level included. The journal is only
-  // hidden by CSS on narrow screens — it is still part of the hierarchy.
+  // Mirrors the visible trail. Journal and issue are real, indexable pages
+  // since 0148, so they are real crumbs — but only when the article is mapped
+  // to a PUBLIC journal. The old journal crumb pointed at a filtered listing
+  // served noindex (docs/SEO-V3-AUDIT.md D-5); an unmapped article still gets
+  // no journal crumb for exactly that reason, and still states its journal on
+  // the page and in `isPartOf`.
   const pubBreadcrumbSchema = breadcrumbSchema([
-    { name: "Home", path: "/" },
-    { name: "Publications", path: "/publications" },
-    // The journal crumb used to link `/publications?journal=…` — a filtered
-    // listing this site serves as `noindex, follow` and canonicalises to
-    // `/publications` (docs/SEO-V3-AUDIT.md D-5). A journal has no landing
-    // page, so the crumb is dropped rather than pointed at a URL crawlers are
-    // told to ignore. The journal is still stated on the page and in the
-    // ScholarlyArticle `isPartOf`.
+    { name: t("breadcrumbHome"), path: "/" },
+    { name: t("breadcrumbPublications"), path: JOURNALS_PATH },
+    ...(journalCtx && journalHref ? [{ name: journalName ?? journalCtx.journal.title, path: journalHref }] : []),
+    ...(issueHref && issueName ? [{ name: issueName, path: issueHref }] : []),
     { name: pub.title },
   ], { locale });
 
@@ -353,19 +383,29 @@ export default async function PublicationDetailPage({ params }: PageProps) {
           >
             <Link href="/" className="transition-colors hover:text-brand">{t("breadcrumbHome")}</Link>
             <Icon name="chevron-right" className="text-[16px] text-divider" />
-            <Link href="/publications" className="transition-colors hover:text-brand">{t("breadcrumbPublications")}</Link>
-            {/* The journal is a real level of the hierarchy, but it is the
-                first thing worth dropping on a narrow screen — the title must
-                keep its room. Hidden below sm, chevron and all. */}
-            {pub.journal_name && (
+            <Link href={JOURNALS_PATH} className="transition-colors hover:text-brand">{t("breadcrumbPublications")}</Link>
+            {/* Journal and issue are real levels of the hierarchy, but they are
+                the first things worth dropping on a narrow screen — the title
+                must keep its room. Hidden below sm, chevron and all. An
+                unmapped article names its journal as text on the masthead
+                instead: there is no journal page to link. */}
+            {journalHref && journalName && (
               <span className="hidden items-center gap-1.5 sm:inline-flex sm:gap-2">
                 <Icon name="chevron-right" className="text-[16px] text-divider" />
                 <Link
-                  href={`/publications?journal=${encodeURIComponent(pub.journal_name)}`}
+                  href={journalHref}
                   className="max-w-[220px] truncate transition-colors hover:text-brand"
-                  title={pub.journal_name}
+                  title={journalName}
                 >
-                  {pub.journal_name}
+                  {journalName}
+                </Link>
+              </span>
+            )}
+            {issueHref && issueName && (
+              <span className="hidden items-center gap-1.5 md:inline-flex md:gap-2">
+                <Icon name="chevron-right" className="text-[16px] text-divider" />
+                <Link href={issueHref} className="max-w-[160px] truncate transition-colors hover:text-brand" title={issueName}>
+                  {issueName}
                 </Link>
               </span>
             )}
@@ -398,6 +438,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
           shareUrl={shareUrl}
           metrics={metrics}
           access={access}
+          journalPageHref={journalHref}
         />
 
         {/* ── Sticky section nav ──────────────────────────────────────────
@@ -572,7 +613,12 @@ export default async function PublicationDetailPage({ params }: PageProps) {
         />
 
         {/* ── More from this journal / author ── */}
-        <MoreFromJournal currentId={pub.id} journalName={pub.journal_name} />
+        <MoreFromJournal
+          currentId={pub.id}
+          journalName={journalName}
+          journalId={journalCtx?.journal.id ?? null}
+          journalHref={journalHref}
+        />
         {primaryAuthor && <MoreFromAuthor currentId={pub.id} author={primaryAuthor} />}
 
         {/* ── Keep reading ──────────────────────────────────────────────────

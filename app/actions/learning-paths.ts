@@ -5,6 +5,7 @@ import { requirePermission } from "@/lib/auth/requireAdmin";
 import { logAdminAction } from "@/app/actions/audit";
 import { revalidateLocalizedPath as revalidatePath, revalidateLearningPath } from "@/lib/cache/revalidate";
 import { slugify } from "@/lib/books";
+import { articlePath } from "@/lib/journals/urls";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -145,7 +146,7 @@ function stepUrl(type: StepResourceType, resourceId: string | null, externalUrl:
   if (type === "book") return `/books/${resourceId}`; // resolved to slug below
   if (type === "research") return `/theses/${resourceId}`; // resolved to slug below
   if (type === "catalog") return `/catalogs/${resourceId}`; // resolved to slug below
-  if (type === "publication") return `/publications/${resourceId}`; // resolved to slug below
+  if (type === "publication") return articlePath(resourceId); // resolved to slug below
   return null;
 }
 
@@ -348,7 +349,7 @@ export async function getPathBySlug(slug: string): Promise<LearningPathDetail | 
             if (c) { url = `/catalogs/${c.slug}`; coverUrl = c.cover_url; liveTitle = c.title; missing = false; }
           } else if (s.resource_type === "publication" && s.resource_id) {
             const p = publicationMap.get(s.resource_id);
-            if (p) { url = `/publications/${p.slug ?? s.resource_id}`; coverUrl = p.cover_url; liveTitle = p.title; missing = false; }
+            if (p) { url = articlePath(p.slug ?? s.resource_id); coverUrl = p.cover_url; liveTitle = p.title; missing = false; }
           }
 
           return {

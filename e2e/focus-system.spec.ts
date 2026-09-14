@@ -71,7 +71,7 @@ async function auditTabOrder(page: Page, stops = 45) {
   return rows;
 }
 
-const ROUTES = ['/', '/books', '/posts', '/theses', '/publications', '/search', '/km', '/km/books'];
+const ROUTES = ['/', '/books', '/posts', '/theses', '/journals', '/search', '/km', '/km/books'];
 
 test.describe('Focus system', () => {
   for (const route of ROUTES) {

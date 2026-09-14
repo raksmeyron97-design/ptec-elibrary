@@ -34,6 +34,7 @@ import {
 } from "./dashboard-shared";
 import { generateInsights, type Insight } from "./insights";
 import { EBOOKS_BASE_PATH } from "@/lib/admin/ebooks-url";
+import { articlePath } from "@/lib/journals/urls";
 
 /**
  * Per-view data loaders for the Admin Intelligence Dashboard.
@@ -1561,7 +1562,7 @@ const EDIT_HREF: Record<ContentType, (id: string) => string> = {
 const PUBLIC_HREF: Record<ContentType, (meta: ContentMeta) => string | null> = {
   book: (m) => (m.slug ? `/books/${m.slug}` : null),
   research_report: (m) => `/theses/${m.slug ?? m.id}`,
-  publication: (m) => (m.slug ? `/publications/${m.slug}` : null),
+  publication: (m) => (m.slug ? articlePath(m.slug) : null),
   post: (m) => (m.slug ? `/posts/${m.slug}` : null),
 };
 

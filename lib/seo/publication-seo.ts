@@ -1,5 +1,7 @@
-// Pure, typed, browser-safe SEO builders for the publications collection
-// (/publications, /publications/[slug] and their /km equivalents).
+// Pure, typed, browser-safe SEO builders for the scholarly-article collection
+// (/journals, /journals/articles/[slug] and their /km equivalents). The
+// collection was /publications until 0148 — see docs/JOURNALS-ARCHITECTURE.md;
+// the builder keeps its name because `publications` is still the table.
 // Unit-tested in publication-seo.test.ts — no server-only imports.
 //
 // Accuracy rules (do not weaken):
@@ -25,6 +27,8 @@ import {
 import { localeAlternates } from "@/lib/seo/alternates";
 import { normalizeDoi, doiUrl, normalizeIssn, normalizeLicense } from "@/lib/seo/identifiers";
 import { languageCode } from "@/lib/seo/book-seo";
+import { articlePath, JOURNALS_PATH } from "@/lib/journals/urls";
+import { partOfChain, type IssueSeoRef, type JournalSeoRef } from "@/lib/seo/journal-seo";
 
 export const FALLBACK_OG_IMAGE = `${SITE_URL}/og-default.png`;
 
@@ -62,18 +66,26 @@ export type PublicationSeoInput = {
   copyright?: string | null;
   language?: string | null;
   coverUrl?: string | null;
+  /**
+   * The canonical journal (and issue) the article belongs to (0148), when it
+   * is mapped to a PUBLIC journal. Present → `isPartOf` is the full
+   * Issue → Volume → Periodical chain with the same @ids the journal and
+   * issue pages declare. Absent → the pre-0148 Periodical built from the
+   * article's own journal text, exactly as before.
+   */
+  journalRef?: (JournalSeoRef & { issue?: IssueSeoRef | null }) | null;
 };
 
 // ── Canonical URLs ───────────────────────────────────────────────────────────
 
 export function publicationCanonicalUrl(slug: string, locale: string): string {
   return locale === "km"
-    ? `${SITE_URL}/km/publications/${slug}`
-    : `${SITE_URL}/publications/${slug}`;
+    ? `${SITE_URL}/km${articlePath(slug)}`
+    : `${SITE_URL}${articlePath(slug)}`;
 }
 
 export function publicationsCollectionUrl(locale: string, page = 1): string {
-  const base = locale === "km" ? `${SITE_URL}/km/publications` : `${SITE_URL}/publications`;
+  const base = locale === "km" ? `${SITE_URL}/km${JOURNALS_PATH}` : `${SITE_URL}${JOURNALS_PATH}`;
   return page > 1 ? `${base}?page=${page}` : base;
 }
 
@@ -152,7 +164,7 @@ export function buildPublicationMetadata(
   orgArg?: OrgIdentity,
 ): Metadata {
   const org = resolveOrgIdentity(orgArg);
-  const alternates = localeAlternates(`/publications/${pub.slug}`, locale);
+  const alternates = localeAlternates(articlePath(pub.slug), locale);
   const canonicalUrl = alternates.canonical;
   // Admin override wins; otherwise the localized article title. A blank
   // override falls back so an empty field never blanks the tag.
@@ -260,13 +272,19 @@ export function publicationJsonLd(
     datePublished: pub.publicationDate || undefined,
     dateModified: pub.dateModified || undefined,
     keywords: keywords.length > 0 ? keywords.join(", ") : undefined,
-    isPartOf: pub.journalName
-      ? compact({
-          "@type": "Periodical",
-          name: clean(pub.journalName),
-          issn: issn ?? undefined,
+    isPartOf: pub.journalRef
+      ? partOfChain(pub.journalRef, locale, {
+          issue: pub.journalRef.issue ?? null,
+          volumeNumber: pub.volume,
+          fallbackIssn: pub.issn,
         })
-      : undefined,
+      : pub.journalName
+        ? compact({
+            "@type": "Periodical",
+            name: clean(pub.journalName),
+            issn: issn ?? undefined,
+          })
+        : undefined,
     volumeNumber: clean(pub.volume) || undefined,
     issueNumber: clean(pub.issue) || undefined,
     pagination:

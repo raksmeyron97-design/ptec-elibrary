@@ -12,6 +12,7 @@
 // on every public page and the public tree must stay prerenderable.
 // <MobileBottomNav> reads the viewer from <SessionProvider> instead.
 
+import { JOURNALS_PATH, PTEC_PUBLICATIONS_URL } from "@/lib/journals/urls";
 import type { ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -88,7 +89,16 @@ function FooterColumn({
   );
 }
 
-function FooterLinkList({ links, locale }: { links: FooterLink[]; locale: "en" | "km" }) {
+function FooterLinkList({
+  links,
+  locale,
+  newTabLabel,
+}: {
+  links: FooterLink[];
+  locale: "en" | "km";
+  /** Screen-reader note on external links — the icon alone is aria-hidden. */
+  newTabLabel: string;
+}) {
   const lineHeight = locale === "km" ? "leading-7" : "";
   return (
     <ul className="flex flex-col">
@@ -103,6 +113,7 @@ function FooterLinkList({ links, locale }: { links: FooterLink[]; locale: "en" |
             >
               {link.label}
               <ExternalLink className="h-3.5 w-3.5 opacity-70" aria-hidden="true" />
+              <span className="sr-only"> {newTabLabel}</span>
             </a>
           ) : (
             <Link href={link.href} className={`${LINK_CLASS} ${lineHeight}`}>
@@ -165,7 +176,7 @@ export default async function Footer() {
   const libraryLinks: FooterLink[] = [
     { label: navT("eBooks"), href: "/books" },
     { label: navT("theses"), href: "/theses" },
-    { label: navT("publications"), href: "/publications" },
+    { label: navT("journals"), href: JOURNALS_PATH },
     { label: navT("learningPaths"), href: "/paths" },
     { label: navT("booksInLibrary"), href: "/catalogs" },
     // The two hub pages. Every /subjects/* and /authors/* URL was an orphan
@@ -173,6 +184,10 @@ export default async function Footer() {
     // both taxonomies reachable by a crawler, pinned by e2e/seo.spec.ts.
     { label: navT("subjects"), href: "/subjects" },
     { label: navT("authors"), href: "/authors" },
+    // Not a library collection: the college's own publications page. Listed
+    // with the collections because that is where a reader looks for it, and
+    // marked external so it cannot be mistaken for one.
+    { label: navT("ptecPublications"), href: PTEC_PUBLICATIONS_URL, external: true },
   ];
 
   const helpLinks: FooterLink[] = [
@@ -277,13 +292,13 @@ export default async function Footer() {
           {/* ── Link columns ── */}
           <nav aria-label={t("navLabel")} className="contents">
             <FooterColumn id="footer-library-heading" title={t("columns.library")} locale={locale}>
-              <FooterLinkList links={libraryLinks} locale={locale} />
+              <FooterLinkList links={libraryLinks} locale={locale} newTabLabel={navT("opensNewTab")} />
             </FooterColumn>
             <FooterColumn id="footer-help-heading" title={t("columns.help")} locale={locale}>
-              <FooterLinkList links={helpLinks} locale={locale} />
+              <FooterLinkList links={helpLinks} locale={locale} newTabLabel={navT("opensNewTab")} />
             </FooterColumn>
             <FooterColumn id="footer-about-heading" title={t("columns.about")} locale={locale}>
-              <FooterLinkList links={aboutLinks} locale={locale} />
+              <FooterLinkList links={aboutLinks} locale={locale} newTabLabel={navT("opensNewTab")} />
             </FooterColumn>
           </nav>
 

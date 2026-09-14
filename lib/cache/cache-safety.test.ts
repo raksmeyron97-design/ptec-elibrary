@@ -50,12 +50,24 @@ const SERVER_PERSONALISED = [
   "/profile",
   "/books/[slug]",
   "/books/[slug]/read",
-  "/publications",
-  "/publications/[slug]",
+  // The journal-article LISTING (subscribe badge) and the article detail
+  // page (admin edit link, reviews). Journal and issue pages are NOT here:
+  // they are prerendered, and SERVER_PERSONALISED_EXACT below keeps this
+  // entry from exempting them by prefix.
+  "/journals",
+  "/journals/articles/[slug]",
   "/theses/[slug]",
   "/posts/[slug]",
   "/paths/[slug]",
 ];
+
+/**
+ * Entries above that exempt ONLY their own route, not every route under it.
+ * `/journals` reads the session for its subscribe badge, but /journals/<j>,
+ * its issue list and its issues are shared-cached pages that must never read
+ * one — a prefix match on `/journals` would have waved them through.
+ */
+const SERVER_PERSONALISED_EXACT = new Set(["/journals"]);
 
 const AUTH_READS = [
   ["cookies()", /\bcookies\s*\(\s*\)/],
@@ -68,7 +80,12 @@ const AUTH_READS = [
 describe("public cache safety", () => {
   const all = filesUnder(PUBLIC_TREE);
   const sharedCached = all.filter(
-    (f) => !SERVER_PERSONALISED.some((r) => routeOf(f) === r || routeOf(f).startsWith(`${r}/`)),
+    (f) =>
+      !SERVER_PERSONALISED.some(
+        (r) =>
+          routeOf(f) === r ||
+          (!SERVER_PERSONALISED_EXACT.has(r) && routeOf(f).startsWith(`${r}/`)),
+      ),
   );
 
   it("finds the public tree", () => {

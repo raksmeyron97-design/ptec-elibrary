@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { ArrowRight } from "lucide-react";
 import PublicationCard from "@/components/ui/publications/PublicationCard";
 import type { RelatedPublication } from "@/lib/publications/related";
+import { JOURNALS_PATH } from "@/lib/journals/urls";
 
 /**
  * Related publications, already fetched and ranked by
@@ -42,7 +43,7 @@ export default async function RelatedPublications({ items }: { items: RelatedPub
           <p className="mt-1 text-[13px] text-text-muted">{t("relatedSubtitle")}</p>
         </div>
         <Link
-          href="/publications"
+          href={JOURNALS_PATH}
           className="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-4 py-2 text-[13px] font-semibold text-text-body shadow-sm transition-colors duration-150 hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
         >
           {t("browseAll")}

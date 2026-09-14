@@ -37,6 +37,7 @@ import type {
   SpecialCollection,
   SpecialScheduleRow,
 } from "./types";
+import { JOURNALS_PATH } from "@/lib/journals/urls";
 
 /**
  * When the library last reviewed the institutional content on these pages.
@@ -834,6 +835,6 @@ export const SPECIAL_COLLECTIONS: SpecialCollection[] = [
         "Educational journals and research articles, including the college’s " +
         "own research bulletin.",
     },
-    href: "/publications",
+    href: JOURNALS_PATH,
   },
 ];

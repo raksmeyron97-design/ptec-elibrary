@@ -260,7 +260,7 @@ describe("listing totals come from the database, not from the loaded page", () =
   it.each([
     ["app/[locale]/(public)/books/page.tsx", "books"],
     ["app/[locale]/(public)/theses/page.tsx", "theses"],
-    ["app/[locale]/(public)/publications/page.tsx", "publications"],
+    ["app/[locale]/(public)/journals/page.tsx", "publications"],
     ["app/[locale]/(public)/catalogs/page.tsx", "physicalCatalogs"],
     ["app/[locale]/(public)/paths/page.tsx", "learningPaths"],
   ])("%s reads the canonical global total", (file, metric) => {
@@ -272,7 +272,7 @@ describe("listing totals come from the database, not from the loaded page", () =
   it.each([
     "app/[locale]/(public)/books/page.tsx",
     "app/[locale]/(public)/theses/page.tsx",
-    "app/[locale]/(public)/publications/page.tsx",
+    "app/[locale]/(public)/journals/page.tsx",
     "app/[locale]/(public)/catalogs/page.tsx",
   ])("%s distinguishes the filtered total from the global one", (file) => {
     expect(read(file)).toContain("chooseCountLabel");

@@ -17,6 +17,7 @@ import {
   X,
   GraduationCap,
   ScrollText,
+  BookMarked,
   Megaphone,
   Newspaper,
   BarChart3,
@@ -177,6 +178,7 @@ function getNavTree(
   if (reach("posts.manage"))              content.push({ name: t("posts"),          href: "/admin/posts",           icon: FileText      });
   if (reach("theses.manage"))             content.push({ name: t("theses"),         href: "/admin/theses",          icon: GraduationCap });
   if (reach("publications.manage"))       content.push({ name: t("publications"),   href: "/admin/publications",    icon: ScrollText    });
+  if (reach("journals.manage"))           content.push({ name: t("journals"),       href: "/admin/journals",        icon: BookMarked    });
   if (reach("paths.manage"))              content.push({ name: t("learningPaths"),  href: "/admin/paths",           icon: Route         });
   if (reach("announcements.manage"))      content.push({ name: t("announcements"),  href: "/admin/announcements",   icon: Megaphone     });
   if (reach("homepagePhotos.manage"))     content.push({ name: t("homepagePhotos"), href: "/admin/homepage-photos", icon: Images        });

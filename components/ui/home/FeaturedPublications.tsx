@@ -6,6 +6,7 @@ import { Link } from "@/i18n/navigation";
 import { getFeaturedPublicationsCached } from "@/lib/home-data";
 import { getTranslations, getLocale } from "next-intl/server";
 import type { ArticleType } from "@/lib/publications";
+import { articlePath, JOURNALS_PATH } from "@/lib/journals/urls";
 
 type PubRow = {
   id: string;
@@ -78,7 +79,7 @@ export default async function FeaturedPublications() {
             </h2>
           </div>
           <Link
-            href="/publications"
+            href={JOURNALS_PATH}
             className="hidden shrink-0 items-center gap-1.5 text-[13.5px] font-semibold text-brand transition-colors hover:text-brand-hover sm:inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 rounded-sm"
           >
             {t("pubsViewAll")}
@@ -106,7 +107,7 @@ export default async function FeaturedPublications() {
 
             <h3 className="font-khmer-serif mt-4 text-[19px] font-bold leading-snug text-text-heading sm:text-[22px]">
               <Link
-                href={`/publications/${lead.slug}`}
+                href={articlePath(lead.slug)}
                 className="after:absolute after:inset-0 hover:text-brand transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 rounded-sm"
               >
                 {leadTitle}
@@ -150,7 +151,7 @@ export default async function FeaturedPublications() {
                   </div>
                   <h3 className="font-khmer-serif mt-1.5 text-[15px] font-bold leading-snug text-text-heading line-clamp-2">
                     <Link
-                      href={`/publications/${pub.slug}`}
+                      href={articlePath(pub.slug)}
                       className="after:absolute after:inset-0 hover:text-brand transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 rounded-sm"
                     >
                       {title}
@@ -169,7 +170,7 @@ export default async function FeaturedPublications() {
         {/* Mobile view-all */}
         <div className="mt-6 sm:hidden">
           <Link
-            href="/publications"
+            href={JOURNALS_PATH}
             className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-brand"
           >
             {t("pubsViewAll")}

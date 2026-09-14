@@ -111,6 +111,16 @@ export interface Publication {
   journal_name: string | null;
   volume: string | null;
   issue_no: string | null;
+  /**
+   * Canonical journal / volume / issue (migration 0148). Resolved from the
+   * three text fields above by a database trigger, which also keeps that text
+   * mirrored from the canonical rows — so `journal_name` stays correct for
+   * every existing reader. Optional in the type: a row read before 0148 has no
+   * such columns, and consumers treat absent as "unmapped".
+   */
+  journal_id?: string | null;
+  volume_id?: string | null;
+  issue_id?: string | null;
   page_start: string | null;
   page_end: string | null;
   article_no: string | null;
@@ -246,6 +256,9 @@ export function mapRowToPublication(row: any): Publication {
     journal_name: row.journal_name ?? null,
     volume: row.volume ?? null,
     issue_no: row.issue_no ?? null,
+    ...("journal_id" in row ? { journal_id: row.journal_id ?? null } : {}),
+    ...("volume_id" in row ? { volume_id: row.volume_id ?? null } : {}),
+    ...("issue_id" in row ? { issue_id: row.issue_id ?? null } : {}),
     page_start: row.page_start ?? null,
     page_end: row.page_end ?? null,
     article_no: row.article_no ?? null,

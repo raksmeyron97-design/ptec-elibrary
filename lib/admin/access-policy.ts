@@ -184,6 +184,11 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   { id: "publications.edit", route: "/admin/publications/edit/[id]", requires: perm("publications", "write"), backTo: "/admin/publications" },
   { id: "publications.authors", route: "/admin/publications/authors", requires: perm("publications", "read"), backTo: "/admin/publications" },
 
+  // ── Journals (0148) — same `publications` resource as the articles they hold ─
+  { id: "journals.manage", route: "/admin/journals", requires: perm("publications", "read"), navKey: "journals" },
+  { id: "journals.create", route: "/admin/journals/new", requires: perm("publications", "write"), backTo: "/admin/journals" },
+  { id: "journals.edit", route: "/admin/journals/[id]", requires: perm("publications", "write"), backTo: "/admin/journals" },
+
   // ── Learning paths ────────────────────────────────────────────────────────
   { id: "paths.manage", route: "/admin/paths", requires: perm("learning_paths", "read"), navKey: "learningPaths" },
   { id: "paths.create", route: "/admin/paths/create", requires: perm("learning_paths", "write"), backTo: "/admin/paths" },
@@ -336,6 +341,9 @@ export const ACTION_POLICIES: Readonly<Record<string, Requirement>> = {
   "publications.edit": perm("publications", "write"),
   "publications.delete": perm("publications", "write"),
   "publications.authors.merge": perm("publications", "write"),
+  "journals.create": perm("publications", "write"),
+  "journals.edit": perm("publications", "write"),
+  "journals.delete": perm("publications", "write"),
   "paths.create": perm("learning_paths", "write"),
   "paths.edit": perm("learning_paths", "write"),
   "paths.delete": perm("learning_paths", "write"),

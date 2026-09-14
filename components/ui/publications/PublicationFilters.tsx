@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "@/i18n/navigation";
+import { JOURNALS_PATH } from "@/lib/journals/urls";
 import SearchableSelect from "@/components/ui/search/SearchableSelect";
 
 export type PublicationFilterValues = {
@@ -46,7 +47,12 @@ export default function PublicationFilters({
   labels,
 }: {
   filters: PublicationFilterValues;
-  journals: string[];
+  /**
+   * Journal facet options. `value` is the journal SLUG for a canonical journal
+   * (0148) and the raw name for an article that is not mapped to one — the
+   * listing accepts either in `?journal=`.
+   */
+  journals: { value: string; label: string }[];
   years: string[];
   labels: {
     searchPlaceholder: string;
@@ -72,7 +78,7 @@ export default function PublicationFilters({
       params.delete(key);
     }
     params.delete("page");
-    router.push(`/publications?${params.toString()}`);
+    router.push(`${JOURNALS_PATH}?${params.toString()}`);
   };
 
   return (
@@ -105,7 +111,7 @@ export default function PublicationFilters({
             onChange={(v) => update("journal", v)}
             options={[
               { value: "", label: labels.allJournals },
-              ...journals.map((j) => ({ value: j, label: j }))
+              ...journals
             ]}
             ariaLabel={labels.journalLabel}
           />

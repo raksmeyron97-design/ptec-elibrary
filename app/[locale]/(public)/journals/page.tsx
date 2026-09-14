@@ -25,6 +25,10 @@ import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { getCollectionStats } from "@/lib/collection-stats";
 import { chooseCountLabel } from "@/lib/listing-count";
+import { getPublicJournals, type JournalSummary } from "@/lib/journals/data";
+import { JOURNALS_PATH, PTEC_PUBLICATIONS_URL } from "@/lib/journals/urls";
+import { ExternalLink } from "lucide-react";
+import JournalShelf from "@/components/ui/journals/JournalShelf";
 
 export const dynamic = "force-dynamic";
 
@@ -68,7 +72,7 @@ export async function generateMetadata({
     // the table held zero rows. A NULL stats read means "unknown", not
     // "empty": only a hard 0 withholds the index entry.
     isEmpty: stats?.publications === 0,
-    path: "/publications",
+    path: JOURNALS_PATH,
     locale,
     title: tSeo("seoTitle"),
     description: tSeo("seoDescriptionEvergreen"),
@@ -127,7 +131,7 @@ async function SubscribeBadge() {
     <SubscribeButton
       filterType="publications"
       filterValue="all"
-      displayLabel="Publications"
+      displayLabel="Journal articles"
       initialSubscribed={subscribed}
       tooltipSubscribed="ឈប់ទទួលការជូនដំណឹងអំពីអត្ថបទសិក្សាថ្មីៗ"
       tooltipUnsubscribed="ទទួលបានការជូនដំណឹងពេលមានអត្ថបទសិក្សាថ្មីៗ"
@@ -146,32 +150,62 @@ export default async function PublicationsPage({
   // listing must not invent a second wording for the same claim. Both
   // translators and both params are independent of each other, so all four
   // resolve together instead of stacking round-trips.
-  const [t, tDetail, params, { locale }] = await Promise.all([
+  const [t, tDetail, tJ, params, { locale }] = await Promise.all([
     getTranslations("publications"),
     getTranslations("publicationDetail"),
+    getTranslations("journals"),
     searchParams,
     routeParams,
   ]);
-  const basePath = locale === "km" ? "/km/publications" : "/publications";
+  const basePath = locale === "km" ? `/km${JOURNALS_PATH}` : JOURNALS_PATH;
 
   // Fetch every published article once, then facet/filter in-page —
   // same approach as the theses listing (dataset is institutional-scale).
-  const [{ data }, stats] = await Promise.all([getPublications({}), getCollectionStats()]);
+  //
+  // Journals are read beside the articles, not per article. A failed journal
+  // read is NOT "there are no journals": the listing still lists every
+  // article, it only loses the journal shelf and the canonical facet labels.
+  const [{ data }, stats, journalList] = await Promise.all([
+    getPublications({}),
+    getCollectionStats(),
+    getPublicJournals().catch((e): JournalSummary[] | null => {
+      console.warn("[journals] listing: journals unavailable:", e instanceof Error ? e.message : e);
+      return null;
+    }),
+  ]);
   const all = data ?? [];
+  const journalById = new Map((journalList ?? []).map((j) => [j.id, j]));
+  // `?journal=` takes a journal SLUG (the facet writes one) or, for links
+  // minted before 0148, the journal NAME the old listing filtered on.
+  const journalFilter = params.journal
+    ? (journalList ?? []).find((j) => j.slug === params.journal) ?? null
+    : null;
 
   const publications = all.filter((pub) => {
     if (params.q && !matchesQ(pub, params.q)) return false;
     if (params.keyword && !pub.keywords.some((k) => k.toLowerCase() === params.keyword!.toLowerCase())) return false;
     if (params.subject && !pub.subjects.some((sub) => sub.toLowerCase() === params.subject!.toLowerCase())) return false;
     if (params.type && pub.article_type !== params.type) return false;
-    if (params.journal && pub.journal_name !== params.journal) return false;
+    if (params.journal) {
+      if (journalFilter ? pub.journal_id !== journalFilter.id : pub.journal_name !== params.journal) return false;
+    }
     if (params.year && citationYear(pub) !== params.year) return false;
     if (params.language && pub.language !== params.language) return false;
     return true;
   });
 
-  // Facet options derived from the full published set
-  const journals = [...new Set(all.map((p) => p.journal_name).filter(Boolean))] as string[];
+  // Facet options derived from the full published set: a canonical journal is
+  // offered by slug under its canonical title; an article not mapped to a
+  // public journal is still findable under the name it carries.
+  const journalOptions = new Map<string, string>();
+  for (const p of all) {
+    const j = p.journal_id ? journalById.get(p.journal_id) : undefined;
+    if (j) journalOptions.set(j.slug, locale === "km" && j.title_km ? j.title_km : j.title);
+    else if (p.journal_name) journalOptions.set(p.journal_name, p.journal_name);
+  }
+  const journals = [...journalOptions.entries()]
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label));
   const years = [...new Set(all.map((p) => citationYear(p)).filter(Boolean))].sort().reverse() as string[];
 
   // Hero: repository stats + most-used keywords across the published set
@@ -216,7 +250,13 @@ export default async function PublicationsPage({
   const appliedFilters: AppliedFilter[] = [
     params.q ? { key: "q", label: t("searchLabel"), value: params.q } : null,
     params.type ? { key: "type", label: t("typeLabel"), value: typeLabels[params.type] ?? params.type } : null,
-    params.journal ? { key: "journal", label: t("journalLabel"), value: params.journal } : null,
+    params.journal
+      ? {
+          key: "journal",
+          label: t("journalLabel"),
+          value: journalFilter ? (locale === "km" && journalFilter.title_km ? journalFilter.title_km : journalFilter.title) : params.journal,
+        }
+      : null,
     params.year ? { key: "year", label: t("yearLabel"), value: params.year } : null,
     params.language
       ? { key: "language", label: t("languageLabel"), value: params.language === "km" ? "ខ្មែរ" : "English" }
@@ -302,7 +342,33 @@ export default async function PublicationsPage({
                 <SubscribeBadge />
               </Suspense>
             }
+            formAction={basePath}
           />
+
+          {/* Every public journal, each a link to its own page. This is what
+              makes /journals/<journal> reachable from the collection hub —
+              a journal page no hub links to is an orphan. Hidden while a
+              filter or search narrows the listing. */}
+          {!hasFilters && journalList && journalList.length > 0 && (
+            <JournalShelf journals={journalList} locale={locale} />
+          )}
+
+          {/* The IA distinction, stated where a reader who came for
+              "Publications" lands: the college's own publications are on its
+              website, not in this collection. */}
+          <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-divider bg-bg-surface px-4 py-3 text-[13px] text-text-muted">
+            <span>{tJ("officialPublicationsNote")}</span>
+            <a
+              href={PTEC_PUBLICATIONS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-semibold text-brand underline-offset-2 hover:underline"
+            >
+              {tJ("officialPublicationsLink")}
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="sr-only"> {tJ("opensNewTab")}</span>
+            </a>
+          </p>
 
           <div className="mt-5 space-y-4">
             <PublicationFilters
@@ -383,7 +449,7 @@ export default async function PublicationsPage({
                 </p>
                 {hasFilters && (
                   <Link
-                    href="/publications"
+                    href={JOURNALS_PATH}
                     className="mt-5 inline-flex h-10 items-center rounded-full bg-brand px-6 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover"
                   >
                     {t("clearFilters")}

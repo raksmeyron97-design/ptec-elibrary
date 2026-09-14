@@ -14,7 +14,7 @@ export type ShellTab = "home" | "search" | "library" | "paths" | "profile";
 export const LIBRARY_ROUTES = [
   "/books",
   "/theses",
-  "/publications",
+  "/journals",
   "/catalogs",
   "/subjects",
   "/authors",

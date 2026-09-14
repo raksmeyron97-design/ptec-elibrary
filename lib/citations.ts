@@ -16,6 +16,7 @@ import { SITE_URL } from "@/lib/seo/site";
 import type { Publication } from "@/lib/publications";
 import { academicTextToPlainText } from "@/lib/publications/citations";
 import { citationNames } from "@/lib/resources/contributor-identity";
+import { articlePath } from "@/lib/journals/urls";
 
 export type CiteFormat = "apa" | "mla" | "chicago" | "ieee" | "bibtex" | "ris";
 
@@ -286,7 +287,7 @@ export function citationFileName(
 
 /** Public-facing link to an article (used inside citations when there is no DOI). */
 export function publicationUrl(slug: string): string {
-  return `${SITE_URL}/publications/${slug}`;
+  return `${SITE_URL}${articlePath(slug)}`;
 }
 
 export function citationYear(pub: Publication): string | null {

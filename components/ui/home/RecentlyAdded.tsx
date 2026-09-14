@@ -7,6 +7,7 @@
 import { Link } from "@/i18n/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslations, getLocale } from "next-intl/server";
+import { articlePath } from "@/lib/journals/urls";
 
 type FeedItem = {
   key: string;
@@ -67,7 +68,7 @@ async function getRecentItems(): Promise<FeedItem[]> {
       key: `pub-${p.slug}`,
       type: "publication" as const,
       title: p.title as string,
-      href: `/publications/${p.slug}`,
+      href: articlePath(p.slug),
       ...withAge(p.created_at as string),
     })),
   ];

@@ -1,6 +1,7 @@
 // components/ui/home/CollectionGrid.tsx
 // Homepage — "Browse by Collection": the four digital collections as equal,
-// tappable cards, plus SVA Library as a visually distinct external card.
+// tappable cards, plus the external destinations (SVA Library, PTEC's official
+// publications) as visually distinct cards of their own.
 //
 // WHY THIS READS THE NAV CONFIG. The collections are NOT re-declared here.
 // DIGITAL_LIBRARY_ITEMS is the same list the desktop mega menu and the mobile
@@ -40,7 +41,9 @@ const COUNT_FIELD: Partial<
 > = {
   eBooks: "books",
   theses: "theses",
-  publications: "publications",
+  // The stats field keeps its name: it counts rows of the `publications`
+  // table, which holds journal articles.
+  journals: "publications",
   learningPaths: "learningPaths",
 };
 
@@ -49,9 +52,10 @@ const COUNT_FIELD: Partial<
 const PLATE: Record<DigitalLibraryLabelKey, string> = {
   eBooks: "bg-brand/10 text-brand",
   theses: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300",
-  publications: "bg-accent/12 text-accent-text",
+  journals: "bg-accent/12 text-accent-text",
   learningPaths: "bg-violet-500/12 text-violet-700 dark:text-violet-300",
   svaLibrary: "bg-cyan-500/12 text-cyan-700 dark:text-cyan-300",
+  ptecPublications: "bg-brand/10 text-brand",
 };
 
 const ArrowIcon = (
@@ -72,7 +76,7 @@ export default async function CollectionGrid() {
   ]);
 
   const internal = DIGITAL_LIBRARY_ITEMS.filter((item) => !item.external);
-  const sva = DIGITAL_LIBRARY_ITEMS.find((item) => item.external);
+  const external = DIGITAL_LIBRARY_ITEMS.filter((item) => item.external);
 
   return (
     <HomeSection surface="paper" labelledBy="collection-grid-title">
@@ -128,9 +132,11 @@ export default async function CollectionGrid() {
         })}
       </ul>
 
-      {/* ── SVA Library — a partner catalogue, not ours ──
-          Visually separated (dashed border, full width, own row) so nobody
-          reads it as a fifth PTEC collection.
+      {/* ── Elsewhere: SVA Library (a partner catalogue) and PTEC's official
+          publications (the college website) — neither is a library collection ──
+          Visually separated (dashed border, own row) so nobody reads either as
+          a fifth PTEC collection. Every external item is rendered: this used to
+          take only the FIRST, which silently dropped any second one.
 
           The "opens in a new tab" note is real text, not an icon-only cue,
           and it sits INSIDE the link — so it is already part of the computed
@@ -138,43 +144,47 @@ export default async function CollectionGrid() {
           Chrome a11y tree showed that pointing one at this same span made it
           both the name's tail and the description, so a screen reader
           announced "…បើកក្នុងផ្ទាំងថ្មី" twice in a row. */}
-      {sva && (
-        <div className="mt-3 sm:mt-4">
-          <a
-            href={sva.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex min-h-[76px] flex-col gap-3 rounded-xl border border-dashed border-divider bg-bg-surface px-4 py-4 transition-all duration-200 hover:border-brand/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 sm:flex-row sm:items-center sm:gap-4 sm:px-5"
-          >
-            <span
-              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${PLATE.svaLibrary}`}
-              aria-hidden
-            >
-              <sva.icon className="h-5 w-5" strokeWidth={1.9} />
-            </span>
-
-            <span className="min-w-0 flex-1">
-              <span className="block font-khmer-serif text-[15px] font-bold leading-snug text-text-heading transition-colors group-hover:text-brand">
-                {tNav(sva.labelKey)}
-              </span>
-              <span className="mt-0.5 block text-[13px] leading-relaxed text-text-muted">
-                {tNav(sva.descriptionKey)}
-              </span>
-            </span>
-
-            <span className="inline-flex shrink-0 items-center gap-1.5 text-[12.5px] font-semibold text-text-muted">
-              <svg
-                className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden
+      {external.length > 0 && (
+        <ul className={`mt-3 grid gap-3 sm:mt-4 sm:gap-4 ${external.length > 1 ? "md:grid-cols-2" : ""}`}>
+          {external.map((item) => (
+            <li key={item.labelKey}>
+              <a
+                href={item.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex min-h-[76px] flex-col gap-3 rounded-xl border border-dashed border-divider bg-bg-surface px-4 py-4 transition-all duration-200 hover:border-brand/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 sm:flex-row sm:items-center sm:gap-4 sm:px-5"
               >
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                <polyline points="15 3 21 3 21 9" />
-                <line x1="10" y1="14" x2="21" y2="3" />
-              </svg>
-              {t("collectionsGridExternal")}
-            </span>
-          </a>
-        </div>
+                <span
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${PLATE[item.labelKey]}`}
+                  aria-hidden
+                >
+                  <item.icon className="h-5 w-5" strokeWidth={1.9} />
+                </span>
+
+                <span className="min-w-0 flex-1">
+                  <span className="block font-khmer-serif text-[15px] font-bold leading-snug text-text-heading transition-colors group-hover:text-brand">
+                    {tNav(item.labelKey)}
+                  </span>
+                  <span className="mt-0.5 block text-[13px] leading-relaxed text-text-muted">
+                    {tNav(item.descriptionKey)}
+                  </span>
+                </span>
+
+                <span className="inline-flex shrink-0 items-center gap-1.5 text-[12.5px] font-semibold text-text-muted">
+                  <svg
+                    className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden
+                  >
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
+                  {t("collectionsGridExternal")}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
       )}
     </HomeSection>
   );

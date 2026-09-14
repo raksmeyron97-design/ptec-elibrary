@@ -5,6 +5,7 @@ import { Link } from "@/i18n/navigation";
 import { NotebookPen, GraduationCap, FlaskConical, Compass } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import HorizontalCarousel from "@/components/ui/core/HorizontalCarousel";
+import { JOURNALS_PATH } from "@/lib/journals/urls";
 
 export default async function LearningIntent() {
   const t = await getTranslations("dashboard");
@@ -12,7 +13,7 @@ export default async function LearningIntent() {
   const tiles = [
     { href: "/books",        icon: NotebookPen,   title: t("intentLessonTitle"),   desc: t("intentLessonDesc") },
     { href: "/theses",       icon: GraduationCap, title: t("intentThesisTitle"),   desc: t("intentThesisDesc") },
-    { href: "/publications", icon: FlaskConical,  title: t("intentResearchTitle"), desc: t("intentResearchDesc") },
+    { href: JOURNALS_PATH, icon: FlaskConical,  title: t("intentResearchTitle"), desc: t("intentResearchDesc") },
     { href: "/paths",        icon: Compass,       title: t("intentExploreTitle"),  desc: t("intentExploreDesc") },
   ];
 

@@ -6,6 +6,7 @@ import { SITE_URL } from "@/lib/seo/site";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import type { OrgIdentity } from "@/lib/system-settings/org-identity";
 import { markdownLink } from "@/lib/markdown/link";
+import { PTEC_PUBLICATIONS_URL } from "@/lib/journals/urls";
 
 export const revalidate = 3600;
 
@@ -115,13 +116,13 @@ function collectionSnapshot(stats: PublicCollectionStats | null) {
   return `## Current Public Collection Snapshot
 
 Counting rule: "digital resources" is the sum of published e-books, theses and
-academic publications. Physical catalog records and learning paths are listed
+journal articles. Physical catalog records and learning paths are listed
 separately and are NOT part of that total.
 
 - Total published digital resources: ${stats.totalDigitalResources}
 - Published digital books (e-books): ${stats.books}
 - Published theses and research reports: ${stats.theses}
-- Published academic publications: ${stats.publications}
+- Published journal articles: ${stats.publications}
 - Active physical catalog records: ${stats.physicalCatalogs}
 - Published teacher learning paths: ${stats.learningPaths}
 
@@ -193,7 +194,8 @@ The ${org.siteName} preserves, organizes, and shares teaching and research mater
 - Digital books: ${SITE_URL}/books - online teaching resources, textbooks, and education materials that can be read through the public library interface.
 - Physical library catalog: ${SITE_URL}/catalogs - bibliographic records for print books and holdings in the ${org.abbreviation} library collection.
 - Student theses and research reports: ${SITE_URL}/theses - scholarly student research from ${org.abbreviation} programs, cohorts, departments, and academic years.
-- Academic publications and journal articles: ${SITE_URL}/publications - scholarly journal articles and publications, each with a bibliographic landing page, references, and citation metadata.
+- Scholarly journals and journal articles: ${SITE_URL}/journals - journals held by the library, each with its issues, and journal articles, each with a bibliographic landing page, references, and citation metadata. Article URLs are ${SITE_URL}/journals/articles/<slug>.
+- ${org.abbreviation}'s own official publications are on the college website, not in the library: ${PTEC_PUBLICATIONS_URL}
 - Teacher learning paths: ${SITE_URL}/paths - curated, ordered reading paths (books, theses, and resources) built around real teacher-training topics.
 
 ${collectionSnapshot(snapshot.stats)}
@@ -209,8 +211,8 @@ same content with a localized interface.
 - English theses: ${SITE_URL}/theses
 - Khmer theses: ${SITE_URL}/km/theses
 - Khmer catalog: ${SITE_URL}/km/catalogs
-- English publications: ${SITE_URL}/publications
-- Khmer publications: ${SITE_URL}/km/publications
+- English journals: ${SITE_URL}/journals
+- Khmer journals: ${SITE_URL}/km/journals
 - English learning paths: ${SITE_URL}/paths
 - Khmer learning paths: ${SITE_URL}/km/paths
 
@@ -222,7 +224,7 @@ same content with a localized interface.
 - ${SITE_URL}/km/books
 - ${SITE_URL}/catalogs
 - ${SITE_URL}/theses
-- ${SITE_URL}/publications
+- ${SITE_URL}/journals
 - ${SITE_URL}/paths
 - ${SITE_URL}/about
 
@@ -242,7 +244,7 @@ research reports, ${org.institutionName} is the dissertation-granting institutio
 
 Not every record is full-text open access. ${org.abbreviation}'s own works (student theses, most
 hosted books, and curated learning paths) are free to read and download. Some
-publications are bibliographic landing pages for third-party © journal articles:
+journal articles are bibliographic landing pages for third-party © journal articles:
 the metadata (title, authors, journal, DOI) is public, but the full text may be
 paywalled at the publisher and is not necessarily redistributable here. Only trust
 an open-access / free-redistribution claim when a specific verified license is
