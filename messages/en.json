@@ -850,10 +850,6 @@
     "eventPostponedNote": "This event has been postponed. New dates will be announced.",
     "eventOnlineNote": "Online event",
     "eventExternalNote": "Opens the registration site in a new tab",
-    "errorTitle": "Unable to load News & Events",
-    "errorBody": "Something went wrong while loading this page. Please try again.",
-    "errorRetry": "Try again",
-    "errorGoHome": "Go home",
     "detailBreadcrumbAria": "Breadcrumb",
     "minRead": "{minutes} min read",
     "minShort": "{minutes} min",
@@ -7971,5 +7967,15 @@
     "errorStorage": "Couldn’t save this book offline. Your device may be low on storage — remove a downloaded book and try again.",
     "errorUnsupported": "This browser cannot store books for offline reading.",
     "retry": "Try again"
+  },
+  "errors": {
+    "title": "We couldn’t load this page",
+    "bookTitle": "We couldn’t load this book",
+    "publicationTitle": "We couldn’t load this publication",
+    "body": "This is usually temporary. Try again, or find what you need another way.",
+    "retry": "Try again",
+    "retrying": "Trying again…",
+    "search": "Search the library",
+    "home": "Go to the homepage"
   }
 }
