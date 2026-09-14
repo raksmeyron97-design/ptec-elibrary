@@ -11,6 +11,8 @@ import { openGraphBase } from "@/lib/seo/open-graph";
 import { libraryNode } from "@/lib/seo/org-nodes";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { getListedAuthors } from "@/lib/authors/directory";
+import { authorFilterKey } from "@/lib/authors/filter-key";
+import AuthorDirectoryFilter from "@/components/ui/authors/AuthorDirectoryFilter";
 
 export const revalidate = 3600;
 
@@ -155,29 +157,44 @@ export default async function AuthorsHubPage({ params }: PageProps) {
             {t("hubEmpty")}
           </div>
         ) : (
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {authors.map((author) => (
-              <li key={author.slug}>
-                <Link
-                  href={`/authors/${author.slug}`}
-                  className="focus-field flex h-full flex-col rounded-xl border border-divider bg-bg-surface p-4 transition-colors hover:border-brand/40"
-                >
-                  <h2 className="text-[15px] font-bold text-text-heading">{author.name}</h2>
-                  {/* The Khmer form of the name is a fact the record carries,
-                      not a translation — shown whenever it exists, in either
-                      locale, because it identifies the same person. */}
-                  {author.nameKm && author.nameKm !== author.name && (
-                    <p className="mt-0.5 font-khmer-serif text-[13px] text-text-muted">
-                      {author.nameKm}
+          <>
+            {/* Progressive: the list below is complete without it. */}
+            <AuthorDirectoryFilter
+              listId="author-directory"
+              label={t("hubSearchLabel")}
+              placeholder={t("hubSearchPlaceholder")}
+              noMatches={t("hubNoMatches")}
+              clearLabel={t("worksClearSearch")}
+            />
+            {/* Phones: a compact row — name left, works count right — where
+                each card used to be ~100 px, so 269 authors ran to ~27,000 px.
+                From sm the cards are unchanged. */}
+            <ul id="author-directory" className="grid gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
+              {authors.map((author) => (
+                <li key={author.slug} data-author-key={authorFilterKey(author.name, author.nameKm)}>
+                  <Link
+                    href={`/authors/${author.slug}`}
+                    className="focus-field flex h-full items-center justify-between gap-3 rounded-xl border border-divider bg-bg-surface px-3.5 py-3 transition-colors hover:border-brand/40 sm:flex-col sm:items-start sm:justify-start sm:p-4"
+                  >
+                    <div className="min-w-0">
+                      <h2 className="text-[15px] font-bold leading-snug text-text-heading">{author.name}</h2>
+                      {/* The Khmer form of the name is a fact the record carries,
+                          not a translation — shown whenever it exists, in either
+                          locale, because it identifies the same person. */}
+                      {author.nameKm && author.nameKm !== author.name && (
+                        <p className="mt-0.5 font-khmer-serif text-[13px] text-text-muted">
+                          {author.nameKm}
+                        </p>
+                      )}
+                    </div>
+                    <p className="shrink-0 whitespace-nowrap rounded-full bg-surface-brand-soft px-2.5 py-1 text-[12.5px] font-semibold text-brand sm:mt-1.5 sm:rounded-none sm:bg-transparent sm:p-0">
+                      {t("hubCountWorks", { count: author.workCount })}
                     </p>
-                  )}
-                  <p className="mt-1.5 text-[12.5px] font-semibold text-brand">
-                    {t("hubCountWorks", { count: author.workCount })}
-                  </p>
-                </Link>
-              </li>
-            ))}
-          </ul>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </div>
     </main>

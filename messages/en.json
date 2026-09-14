@@ -525,7 +525,8 @@
     "growSubmitting": "Submitting…",
     "growClose": "Close",
     "askHintKeyboard": "Press / to start typing.",
-    "heroMostDownloaded": "Most downloaded books"
+    "heroMostDownloaded": "Most downloaded books",
+    "quickAccessLabel": "Browse the collections"
   },
   "books": {
     "title": "Books",
