@@ -8,9 +8,40 @@
 // the library cannot observe. A repository that shows a fabricated impact
 // metric is worse than one that shows none.
 
-import type { AuthorStats, AuthorWork, AuthorWorkType } from "@/lib/authors/types";
+import type { AuthorStats, AuthorWork, AuthorWorkStats, AuthorWorkType } from "@/lib/authors/types";
 
 const TYPE_ORDER: AuthorWorkType[] = ["publication", "thesis", "ebook", "catalog"];
+
+export function authorWorkStats(works: AuthorWork[]): AuthorWorkStats {
+  const years = works
+    .map((w) => w.year)
+    .filter((y): y is number => typeof y === "number" && Number.isFinite(y));
+
+  let ebooks = 0;
+  let theses = 0;
+  let publications = 0;
+  let physicalBooks = 0;
+
+  for (const w of works) {
+    if (w.type === "ebook") ebooks++;
+    else if (w.type === "thesis") theses++;
+    else if (w.type === "publication") publications++;
+    else if (w.type === "catalog") physicalBooks++;
+  }
+
+  return {
+    totalWorks: works.length,
+    ebooks,
+    theses,
+    publications,
+    physicalBooks,
+    publicationSpan: {
+      from: years.length > 0 ? Math.min(...years) : null,
+      to: years.length > 0 ? Math.max(...years) : null,
+    },
+  };
+}
+
 
 export function authorStats(works: AuthorWork[]): AuthorStats {
   const years = works

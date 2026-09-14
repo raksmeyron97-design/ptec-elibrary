@@ -1,15 +1,25 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { ArrowUpRight } from "lucide-react";
 
 import { Link } from "@/i18n/navigation";
 import JsonLd from "@/components/seo/JsonLd";
+import Icon from "@/components/ui/core/Icon";
+import CollectionHeader from "@/components/ui/collection/CollectionHeader";
+import SubjectDirectoryFilter from "@/components/ui/subjects/SubjectDirectoryFilter";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { openGraphBase } from "@/lib/seo/open-graph";
 import { libraryNode } from "@/lib/seo/org-nodes";
 import { getOrgIdentity } from "@/lib/system-settings/config";
-import { getBrowsableSubjects, subjectBreakdown, type SubjectSummary } from "@/lib/subjects";
+import {
+  getBrowsableSubjects,
+  getSubjectHierarchy,
+  subjectBreakdown,
+  type SubjectSummary,
+  type SubjectHierarchyRef,
+} from "@/lib/subjects";
 
 // ISR. The hub renders taxonomy + counts, both invalidated by the tags on
 // getSubjectIndex(), so publishing a book moves the numbers without a redeploy.
@@ -57,8 +67,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function SubjectsHubPage({ params }: PageProps) {
   const { locale } = await params;
-  const [subjects, t, org] = await Promise.all([
+  const [subjects, hierarchy, t, org] = await Promise.all([
     getBrowsableSubjects(),
+    getSubjectHierarchy(locale),
     getTranslations({ locale, namespace: "subjects" }),
     getOrgIdentity(),
   ]);
@@ -111,50 +122,78 @@ export default async function SubjectsHubPage({ params }: PageProps) {
   };
 
   return (
-    <main className="min-h-screen bg-bg-body px-4 py-10 sm:px-6 md:px-12">
+    <main className="min-h-screen bg-bg-body px-4 py-8 sm:px-6 sm:py-10 md:px-12">
       <JsonLd data={breadcrumbs} />
       {sorted.length > 0 && <JsonLd data={collectionSchema} />}
 
       <div className="mx-auto max-w-5xl">
         <nav
           aria-label="Breadcrumb"
-          className="mb-5 flex flex-wrap items-center gap-2 text-[13px] font-medium text-text-muted"
+          className="mb-6 flex flex-wrap items-center gap-1.5 text-[13px] font-medium text-text-muted sm:gap-2"
         >
           <Link href="/" className="focus-field rounded-sm transition-colors hover:text-brand">
             {t("breadcrumbHome")}
           </Link>
-          <span aria-hidden="true">/</span>
+          <Icon name="chevron-right" className="text-[16px] text-divider" />
           <span className="font-semibold text-text-heading">{t("breadcrumbSubjects")}</span>
         </nav>
 
-        <header className="mb-8">
-          <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-brand">
-            {t("breadcrumbSubjects")}
-          </p>
-          <h1 className="mt-2 text-3xl font-bold text-text-heading sm:text-4xl">
-            {t("hubTitle")}
-          </h1>
-          <p className="mt-3 max-w-2xl text-[15px] leading-7 text-text-muted">{t("hubIntro")}</p>
-          {sorted.length > 0 && (
-            <p className="mt-3 text-[13px] font-semibold text-text-muted">
-              {t("hubCountSubjects", { count: sorted.length })} ·{" "}
-              {t("hubCountResources", { count: totalResources })}
-            </p>
-          )}
-        </header>
+        <CollectionHeader
+          eyebrow={t("breadcrumbSubjects")}
+          title={t("hubTitle")}
+          description={t("hubIntro")}
+          stats={
+            sorted.length > 0 ? (
+              <>
+                <span className="inline-flex items-center rounded-full border border-divider bg-bg-surface px-3.5 py-1 text-[12.5px] font-semibold text-text-body shadow-2xs">
+                  {t("hubCountSubjects", { count: sorted.length })}
+                </span>
+                <span className="inline-flex items-center rounded-full border border-divider bg-bg-surface px-3.5 py-1 text-[12.5px] font-semibold text-text-body shadow-2xs">
+                  {t("hubCountResources", { count: totalResources })}
+                </span>
+              </>
+            ) : null
+          }
+        />
 
         {sorted.length === 0 ? (
           <div className="rounded-2xl border border-divider bg-bg-surface p-8 text-center text-text-muted">
             {t("hubEmpty")}
           </div>
         ) : (
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {sorted.map((subject) => (
-              <li key={subject.slug}>
-                <SubjectTile subject={subject} t={t} />
-              </li>
-            ))}
-          </ul>
+          <>
+            <SubjectDirectoryFilter
+              listId="subjects-grid"
+              label={t("hubSearchLabel")}
+              placeholder={t("hubSearchPlaceholder")}
+              noMatches={t("hubNoMatches")}
+              clearLabel={t("hubClearSearch")}
+            />
+
+            <ul id="subjects-grid" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {sorted.map((subject) => {
+                const node =
+                  hierarchy.bySlug.get(subject.slug) ?? hierarchy.byCategoryId.get(subject.id);
+                const parent = node?.parent ?? null;
+                const childrenCount = node?.children?.length ?? 0;
+
+                return (
+                  <li
+                    key={subject.slug}
+                    data-subject-key={`${subject.name} ${subject.slug} ${parent?.name ?? ""}`}
+                    className="h-full"
+                  >
+                    <SubjectTile
+                      subject={subject}
+                      parent={parent}
+                      childrenCount={childrenCount}
+                      t={t}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          </>
         )}
       </div>
     </main>
@@ -163,9 +202,13 @@ export default async function SubjectsHubPage({ params }: PageProps) {
 
 function SubjectTile({
   subject,
+  parent,
+  childrenCount,
   t,
 }: {
   subject: SubjectSummary;
+  parent: SubjectHierarchyRef | null;
+  childrenCount: number;
   t: Awaited<ReturnType<typeof getTranslations>>;
 }) {
   const parts = subjectBreakdown(subject.counts, t);
@@ -173,14 +216,42 @@ function SubjectTile({
   return (
     <Link
       href={`/subjects/${subject.slug}`}
-      className="focus-field flex h-full flex-col rounded-xl border border-divider bg-bg-surface p-4 transition-colors hover:border-brand/40"
+      className="group focus-field relative flex h-full flex-col justify-between rounded-2xl border border-divider bg-bg-surface p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-md"
     >
-      <h2 className="text-[15px] font-bold text-text-heading">{subject.name}</h2>
-      <p className="mt-1 text-[12.5px] font-semibold text-brand">
-        {t("resourceCount", { count: subject.counts.total })}
-      </p>
+      <div>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            {parent && (
+              <p className="text-[11.5px] font-medium text-text-muted">
+                {t("subtopicOf", { parent: parent.name })}
+              </p>
+            )}
+            <h2 className="text-[16px] font-bold leading-snug tracking-tight text-text-heading transition-colors group-hover:text-brand [text-wrap:balance]">
+              {subject.name}
+            </h2>
+          </div>
+          <ArrowUpRight
+            className="h-4 w-4 shrink-0 text-text-muted transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-brand"
+            aria-hidden="true"
+          />
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <span className="inline-flex items-center rounded-md border border-brand/20 bg-brand/5 px-2 py-0.5 text-[11.5px] font-bold text-brand tabular-nums">
+            {t("resourceCount", { count: subject.counts.total })}
+          </span>
+          {childrenCount > 0 && (
+            <span className="inline-flex items-center rounded-md border border-divider bg-bg-body px-2 py-0.5 text-[11px] font-medium text-text-muted">
+              {t("subtopicCount", { count: childrenCount })}
+            </span>
+          )}
+        </div>
+      </div>
+
       {parts.length > 0 && (
-        <p className="mt-1.5 text-[12px] leading-5 text-text-muted">{parts.join(" · ")}</p>
+        <p className="mt-4 border-t border-divider/60 pt-3 text-[12px] leading-relaxed text-text-muted">
+          {parts.join(" · ")}
+        </p>
       )}
     </Link>
   );

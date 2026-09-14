@@ -35,6 +35,8 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { addressableAuthorSlug } from "@/lib/authors/slug";
 import { TAGS } from "@/lib/cache/revalidate";
 
+import { parseAuthorNames } from "@/lib/resources/author-names";
+
 export type AuthorDirectoryEntry = {
   slug: string;
   name: string;
@@ -47,27 +49,16 @@ export type AuthorDirectoryEntry = {
   hasProfile: boolean;
 };
 
-/** Comparison key for a byline match — case-folded, whitespace-collapsed. */
-function nameKey(value: string | null | undefined): string {
-  return (value ?? "").normalize("NFC").replace(/\s+/g, " ").trim().toLowerCase();
-}
-
-/** Does a byline string name this person? Bylines are free text
- *  ("Sok Dara; Chan Vuthy"), so this is a containment test on the whole
- *  string — the same shape lib/authors/profile.ts uses for thesis matching. */
-function bylineNames(byline: string | null | undefined, keys: string[]): boolean {
-  const hay = nameKey(byline);
-  if (!hay) return false;
-  return keys.some((k) => k.length >= 3 && hay.includes(k));
+/** Does a free-text byline string name any of this author's aliases? */
+function isNamedIn(raw: string | null | undefined, names: string[]): boolean {
+  if (!raw) return false;
+  const listed = parseAuthorNames(raw).map((n) => n.toLowerCase());
+  return names.some((n) => listed.includes(n));
 }
 
 async function loadAuthorDirectory(): Promise<AuthorDirectoryEntry[]> {
   const supabase = createServiceClient();
 
-  // `slug` does not exist before migration 0125. Naming a missing column makes
-  // PostgREST fail the WHOLE query, which would empty the directory rather
-  // than degrade it — so both author reads fall back to a name-derived slug,
-  // matching what app/sitemap.ts has always done.
   const selectWithFallback = async <T,>(table: string, columns: string, fallback: string) => {
     const first = await supabase.from(table).select(columns).limit(5000);
     if (!first.error) return (first.data ?? []) as T[];
@@ -77,34 +68,34 @@ async function loadAuthorDirectory(): Promise<AuthorDirectoryEntry[]> {
 
   const [academics, bookAuthors, books, authorships, theses, catalog, contributors, credits] =
     await Promise.all([
-    selectWithFallback<{ id: string; full_name: string; full_name_km: string | null; slug?: string | null }>(
-      "publication_authors",
-      "id, full_name, full_name_km, slug",
-      "id, full_name, full_name_km",
-    ),
-    selectWithFallback<{ id: string; name: string; slug?: string | null }>(
-      "authors",
-      "id, name, slug",
-      "id, name",
-    ),
-    supabase.from("books").select("id, author_id").eq("is_published", true),
-    supabase.from("publication_authorships").select("author_id, publications!inner(is_published)"),
-    supabase.from("research_reports").select("author_names").eq("is_published", true),
-    supabase.from("catalog_books").select("author").eq("is_active", true),
-    // Canonical credits. `books.author_id` is a SINGLE foreign key, so a book
-    // with three authors can name only one of them there — every other
-    // contributor's credit lives here, and counting only the FK is what left
-    // 113 scholars with `workCount` 0, unlisted and unlinkable, while their
-    // names were rendered on the book page (SEO 3.3 §7.2). Asked for
-    // defensively: before 0105 the table does not exist and naming it would
-    // fail the WHOLE directory rather than degrade it.
-    supabase.from("contributors").select("id, legacy_author_id").limit(5000),
-    supabase
-      .from("resource_contributors")
-      .select("contributor_id, resource_id, resource_type")
-      .eq("resource_type", "book")
-      .limit(10000),
-  ]);
+      selectWithFallback<{ id: string; full_name: string; full_name_km: string | null; slug?: string | null }>(
+        "publication_authors",
+        "id, full_name, full_name_km, slug",
+        "id, full_name, full_name_km",
+      ),
+      selectWithFallback<{ id: string; name: string; slug?: string | null }>(
+        "authors",
+        "id, name, slug",
+        "id, name",
+      ),
+      supabase.from("books").select("id, author_id").eq("is_published", true),
+      supabase.from("publication_authorships").select("author_id, publications!inner(is_published)"),
+      supabase.from("research_reports").select("author_names").eq("is_published", true),
+      supabase.from("catalog_books").select("author").eq("is_active", true),
+      // Canonical credits. `books.author_id` is a SINGLE foreign key, so a book
+      // with three authors can name only one of them there — every other
+      // contributor's credit lives here, and counting only the FK is what left
+      // 113 scholars with `workCount` 0, unlisted and unlinkable, while their
+      // names were rendered on the book page (SEO 3.3 §7.2). Asked for
+      // defensively: before 0105 the table does not exist and naming it would
+      // fail the WHOLE directory rather than degrade it.
+      supabase.from("contributors").select("id, legacy_author_id").limit(5000),
+      supabase
+        .from("resource_contributors")
+        .select("contributor_id, resource_id, resource_type")
+        .eq("resource_type", "book")
+        .limit(10000),
+    ]);
 
   const bookCountByAuthorId = new Map<string, number>();
   const countedBooks = new Map<string, Set<string>>();
@@ -172,16 +163,13 @@ async function loadAuthorDirectory(): Promise<AuthorDirectoryEntry[]> {
   ) => {
     const cleanName = name?.replace(/\s+/g, " ").trim();
     if (!cleanName) return;
-    // NULL slug (column present, value missing) means middleware's gate will
-    // 404 this profile, so the hub must not link it — see
-    // addressableAuthorSlug(). A MISSING column still falls back to the name.
     const slug = addressableAuthorSlug(rawSlug, cleanName);
     if (!slug) return;
 
-    const byName = opts.aliases.length > 0 ? opts.aliases : [nameKey(cleanName)];
+    const byName = opts.aliases.length > 0 ? opts.aliases : [cleanName.toLowerCase()];
     const nameMatched =
-      thesisBylines.filter((b) => bylineNames(b, byName)).length +
-      catalogBylines.filter((b) => bylineNames(b, byName)).length;
+      thesisBylines.filter((b) => isNamedIn(b, byName)).length +
+      catalogBylines.filter((b) => isNamedIn(b, byName)).length;
 
     const existing = bySlug.get(slug);
     if (existing) {
@@ -200,7 +188,9 @@ async function loadAuthorDirectory(): Promise<AuthorDirectoryEntry[]> {
   };
 
   for (const a of academics) {
-    const aliases = [nameKey(a.full_name), nameKey(a.full_name_km)].filter((k) => k.length >= 3);
+    const aliases = [a.full_name, a.full_name_km]
+      .map((n) => n?.trim().toLowerCase())
+      .filter((n): n is string => !!n && n.length >= 2);
     add(a.slug, a.full_name, {
       nameKm: a.full_name_km?.trim() || null,
       hasProfile: true,
@@ -212,7 +202,7 @@ async function loadAuthorDirectory(): Promise<AuthorDirectoryEntry[]> {
     add(a.slug, a.name, {
       hasProfile: false,
       count: bookCountByAuthorId.get(a.id) ?? 0,
-      aliases: [nameKey(a.name)].filter((k) => k.length >= 3),
+      aliases: [a.name.trim().toLowerCase()].filter((k) => k.length >= 2),
     });
   }
 

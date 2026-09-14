@@ -36,12 +36,15 @@ export default function AuthorStatsStrip({
   if (stats.workCount === 0) return null;
 
   return (
-    <dl className="mt-6 flex flex-wrap gap-x-8 gap-y-4 border-t border-divider pt-5">
+    <dl className="mt-6 flex flex-wrap gap-3 border-t border-divider pt-5">
       {items.map((item) => (
         // A <dl> group is <dt> then <dd>; the figure reads above its label, so
         // the visual order is flipped in CSS rather than in the markup.
-        <div key={item.key} className="flex flex-col-reverse">
-          <dt className="mt-1.5 text-[11.5px] font-semibold uppercase tracking-[0.1em] text-text-muted">
+        <div
+          key={item.key}
+          className="flex min-w-[130px] flex-1 flex-col-reverse rounded-xl border border-divider bg-bg-surface px-4 py-3 sm:flex-initial"
+        >
+          <dt className="mt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
             {item.label}
           </dt>
           <dd className="text-[22px] font-bold leading-none tracking-tight text-text-heading tabular-nums">

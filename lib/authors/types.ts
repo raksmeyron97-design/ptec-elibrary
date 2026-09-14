@@ -76,3 +76,21 @@ export interface AuthorStats {
   /** Counts per type, for the works-list filter chips. Only non-zero types. */
   byType: { type: AuthorWorkType; count: number }[];
 }
+
+/**
+ * Authoritative author work statistics model/read model across directory and profile.
+ * Represents the canonical collection attributable to an author.
+ */
+export interface AuthorWorkStats {
+  totalWorks: number;
+  ebooks: number;
+  theses: number;
+  publications: number;
+  physicalBooks: number;
+  other?: number;
+  publicationSpan: {
+    from: number | null;
+    to: number | null;
+  };
+}
+
