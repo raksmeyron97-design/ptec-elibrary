@@ -7836,7 +7836,9 @@
     "hubSearchLabel": "Filter authors by name",
     "hubSearchPlaceholder": "Find an author…",
     "hubNoMatches": "No authors match that name.",
-    "backToAuthors": "All authors"
+    "backToAuthors": "All authors",
+    "disambiguationHeading": "Several scholars share this page",
+    "disambiguationIntro": "This byline names {count} people. Each has their own page:"
   },
   "adminErrors": {
     "title": "Something went wrong",

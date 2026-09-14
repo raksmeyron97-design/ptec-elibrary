@@ -75,7 +75,8 @@ async function loadAuthorDirectory(): Promise<AuthorDirectoryEntry[]> {
     return (second.data ?? []) as T[];
   };
 
-  const [academics, bookAuthors, books, authorships, theses, catalog] = await Promise.all([
+  const [academics, bookAuthors, books, authorships, theses, catalog, contributors, credits] =
+    await Promise.all([
     selectWithFallback<{ id: string; full_name: string; full_name_km: string | null; slug?: string | null }>(
       "publication_authors",
       "id, full_name, full_name_km, slug",
@@ -86,16 +87,62 @@ async function loadAuthorDirectory(): Promise<AuthorDirectoryEntry[]> {
       "id, name, slug",
       "id, name",
     ),
-    supabase.from("books").select("author_id").eq("is_published", true),
+    supabase.from("books").select("id, author_id").eq("is_published", true),
     supabase.from("publication_authorships").select("author_id, publications!inner(is_published)"),
     supabase.from("research_reports").select("author_names").eq("is_published", true),
     supabase.from("catalog_books").select("author").eq("is_active", true),
+    // Canonical credits. `books.author_id` is a SINGLE foreign key, so a book
+    // with three authors can name only one of them there — every other
+    // contributor's credit lives here, and counting only the FK is what left
+    // 113 scholars with `workCount` 0, unlisted and unlinkable, while their
+    // names were rendered on the book page (SEO 3.3 §7.2). Asked for
+    // defensively: before 0105 the table does not exist and naming it would
+    // fail the WHOLE directory rather than degrade it.
+    supabase.from("contributors").select("id, legacy_author_id").limit(5000),
+    supabase
+      .from("resource_contributors")
+      .select("contributor_id, resource_id, resource_type")
+      .eq("resource_type", "book")
+      .limit(10000),
   ]);
 
   const bookCountByAuthorId = new Map<string, number>();
-  for (const b of (books.data ?? []) as { author_id: string | null }[]) {
+  const countedBooks = new Map<string, Set<string>>();
+  const creditBook = (authorId: string, bookId: string) => {
+    // A SET per author, not a counter: the legacy FK and the canonical credit
+    // describe the same book for a single-author title, and adding both would
+    // report every ordinary author as having written each of their books
+    // twice.
+    const seen = countedBooks.get(authorId) ?? new Set<string>();
+    seen.add(bookId);
+    countedBooks.set(authorId, seen);
+  };
+
+  const publishedBookIds = new Set(
+    ((books.data ?? []) as { id?: string | null }[]).map((b) => b.id).filter(Boolean) as string[],
+  );
+  for (const b of (books.data ?? []) as { id?: string | null; author_id: string | null }[]) {
     if (!b.author_id) continue;
-    bookCountByAuthorId.set(b.author_id, (bookCountByAuthorId.get(b.author_id) ?? 0) + 1);
+    if (b.id) creditBook(b.author_id, b.id);
+    else bookCountByAuthorId.set(b.author_id, (bookCountByAuthorId.get(b.author_id) ?? 0) + 1);
+  }
+
+  // contributor → the authors row it denotes, so a canonical credit can be
+  // attributed to the author URL the directory is built from.
+  const authorIdByContributor = new Map<string, string>();
+  for (const c of (contributors.data ?? []) as { id: string; legacy_author_id: string | null }[]) {
+    if (c.legacy_author_id) authorIdByContributor.set(c.id, c.legacy_author_id);
+  }
+  for (const rc of (credits.data ?? []) as { contributor_id: string; resource_id: string }[]) {
+    const authorId = authorIdByContributor.get(rc.contributor_id);
+    // Only PUBLISHED books count, exactly as the legacy leg does — a credit on
+    // an unpublished book is not a public work.
+    if (!authorId || !publishedBookIds.has(rc.resource_id)) continue;
+    creditBook(authorId, rc.resource_id);
+  }
+
+  for (const [authorId, seen] of countedBooks) {
+    bookCountByAuthorId.set(authorId, (bookCountByAuthorId.get(authorId) ?? 0) + seen.size);
   }
 
   const pubCountByAuthorId = new Map<string, number>();

@@ -18,6 +18,8 @@ import {
 
 import { getAuthorProfile } from "@/lib/authors/profile";
 import { authorStats } from "@/lib/authors/stats";
+import { normalizeByline } from "@/lib/resources/contributor-identity";
+import { resolveAuthorLinks } from "@/lib/resources/connections";
 import { authorLinks } from "@/lib/authors/links";
 import AuthorHero from "@/components/ui/authors/AuthorHero";
 import AuthorAbout from "@/components/ui/authors/AuthorAbout";
@@ -54,6 +56,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title,
     description,
     alternates,
+    // A COMPOSITE slug names several people, so it cannot be the canonical
+    // result for any one of them. Since #197 each of those people has their
+    // own page; this URL stays alive as a disambiguation page — `follow`, so
+    // the crawl reaches the individuals it links — but it is withdrawn as a
+    // search result rather than competing with them for their own names.
+    // No redirect: a 301 takes ONE target and this has three, which is the
+    // blocker SEO 3.2's audit recorded and never resolved.
+    ...(normalizeByline(author.name).contributors.length > 1
+      ? { robots: { index: false, follow: true } }
+      : {}),
     // An author with no public works is a soft-404 — a name, and nothing to
     // read. #196 stopped app/sitemap.ts advertising one, but removing a URL
     // from a sitemap only stops RECOMMENDING it: a page already in the index
@@ -98,6 +110,17 @@ export default async function AuthorPage({ params }: PageProps) {
   if (!author) notFound();
 
   const stats = authorStats(author.works);
+
+  // Who this byline actually names. >1 means the slug is a composite: several
+  // scholars behind one URL, a shape 0105 left behind and #197 split apart.
+  // resolveAuthorLinks() returns only those with public works, so a person
+  // whose page would be empty is named as plain text rather than linked to a
+  // soft-404 — the same rule /books uses for its byline.
+  const namedPeople = normalizeByline(author.name).contributors;
+  const isComposite = namedPeople.length > 1;
+  const constituents = isComposite
+    ? await resolveAuthorLinks(namedPeople.map((c) => c.displayName))
+    : [];
   const links = authorLinks({
     orcid: author.orcid,
     websiteUrl: author.websiteUrl,
@@ -295,6 +318,38 @@ export default async function AuthorPage({ params }: PageProps) {
               searchLabel={(topic) => t("searchTopic", { topic })}
             />
           </div>
+        )}
+
+        {/* A composite URL is a signpost, not a person. It says so, and sends
+            the reader to the individuals — which is also how link equity
+            reaches them, since this page is `noindex, follow`. */}
+        {isComposite && constituents.length > 0 && (
+          <section
+            aria-labelledby="author-disambiguation"
+            className="mb-8 rounded-2xl border border-divider bg-bg-surface p-5"
+          >
+            <h2
+              id="author-disambiguation"
+              className="text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted"
+            >
+              {t("disambiguationHeading")}
+            </h2>
+            <p className="mt-2 text-[13.5px] leading-6 text-text-muted">
+              {t("disambiguationIntro", { count: constituents.length })}
+            </p>
+            <ul className="mt-4 flex flex-wrap gap-2">
+              {constituents.map((person) => (
+                <li key={person.href}>
+                  <Link
+                    href={person.href}
+                    className="focus-field inline-flex items-center rounded-full border border-divider bg-bg-app px-3.5 py-1.5 text-[13.5px] font-semibold text-text-body transition-colors hover:border-brand/40 hover:text-brand"
+                  >
+                    {person.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
 
         {/* The main body: what this person wrote. */}
