@@ -470,7 +470,7 @@ export default function PathExperience({
       {flatSteps.length > 0 && (
         <>
           <div aria-hidden="true" className="h-20 md:hidden" />
-          <div className="fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-40 border-t border-divider bg-bg-surface/95 px-4 py-2.5 backdrop-blur md:hidden">
+          <div className="fixed inset-x-0 bottom-[var(--ptec-mobile-nav-clearance)] z-40 border-t border-divider bg-bg-surface/95 px-4 py-2.5 backdrop-blur md:hidden">
             <button
               type="button"
               onClick={handleStart}

@@ -4,10 +4,12 @@ import { useLayoutEffect, useRef, type ReactNode } from "react";
 
 /* Sizes the dedicated reader routes to the viewport that is actually free.
    The public layout is shared and prerendered: a sticky navbar (and an
-   optional announcement banner) above, and below `lg` a FIXED bottom
-   navigation the layout reserves 4.5 rem + the safe-area inset for. A plain
-   `h-dvh` reader therefore ran past the bottom of the screen on phones, with
-   its own bottom bar and its sheet behind the site's tab bar.
+   optional announcement banner) above. Below `lg` the site also has a fixed
+   bottom tab bar — but NOT on this route: lib/nav/shell-routes.ts hides it
+   here, because the reader carries its own top bar (with Back) and bottom
+   bar, and two stacked bottom bars cost a phone ~74px of page. So nothing is
+   reserved at the bottom; `--reader-bottom-reserve` stays available (0 by
+   default) for a shell that ever needs one.
 
    Height = viewport − this element's document offset − the reserved strip.
    The offset is re-measured when the document resizes (the banner being
@@ -37,7 +39,7 @@ export default function ReaderViewportFill({ children }: { children: ReactNode }
     <div
       ref={ref}
       data-reader-fill
-      className="flex min-h-[420px] flex-col [--reader-bottom-reserve:calc(4.5rem+env(safe-area-inset-bottom))] lg:[--reader-bottom-reserve:0px]"
+      className="flex min-h-[420px] flex-col"
       style={{ height: "calc(100dvh - var(--reader-top-offset, 0px) - var(--reader-bottom-reserve, 0px))" }}
     >
       {children}

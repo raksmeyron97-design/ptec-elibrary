@@ -107,7 +107,7 @@ export default function UpdateAvailable() {
     <div
       role="status"
       aria-live="polite"
-      className="fixed inset-x-3 z-[200] mx-auto max-w-md rounded-xl border border-divider bg-bg-surface p-3 shadow-lg bottom-[calc(5.5rem+env(safe-area-inset-bottom))] sm:inset-x-auto sm:right-4 lg:bottom-[calc(1rem+env(safe-area-inset-bottom))]"
+      className="fixed inset-x-3 z-[200] mx-auto max-w-md rounded-xl border border-divider bg-bg-surface p-3 shadow-lg bottom-[calc(var(--ptec-mobile-nav-clearance)+0.75rem)] sm:inset-x-auto sm:right-4 lg:bottom-[calc(1rem+env(safe-area-inset-bottom))]"
     >
       <div className="flex items-center gap-3">
         <p className="min-w-0 flex-1 text-sm text-text-body">

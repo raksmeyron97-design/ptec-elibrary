@@ -86,6 +86,54 @@
   --ptec-surface-brand-soft: #F5F7FD;
   --ptec-surface-brand-line: #D4DEF4;
 
+  /* ── Glass: the interaction layer ────────────────────────────────
+     Solid academic content, glass CONTROLS: the tab bar, sheets, floating
+     action docks. Never behind a book cover, a PDF page, a result card or
+     running text (docs/MOBILE-GLASS-UI.md).
+
+     Three opacities, and the split is the point:
+       --ptec-glass-bg         decorative glass that carries no small text
+       --ptec-glass-bg-strong  glass that carries LABELS (tab bar, dock)
+       --ptec-glass-bg-sheet   panels with secondary text (sheets) — the
+                               only strength --ptec-text-muted may sit on
+
+     0.88 is not a taste value. A bottom bar's worst backdrop is real: the
+     homepage hero (#060B1A) sits under it on first load. Composited over
+     black, 0.72 gives --ptec-text-body 3.8:1; 0.88 gives 5.8:1, and
+     --ptec-brand (the active label) 7.9:1. --ptec-text-muted stays below
+     4.5:1 even at 0.88, so it is never used on glass.
+     lib/glass-tokens.test.ts recomputes every pair against the worst
+     backdrop in both themes. */
+  --ptec-glass-bg: rgba(255, 255, 255, .72);
+  --ptec-glass-bg-strong: rgba(255, 255, 255, .88);
+  --ptec-glass-bg-sheet: rgba(255, 255, 255, .94);
+  /* What glass becomes where it cannot be glass: no backdrop-filter, or the
+     reader asked for reduced transparency. Opaque, so contrast is exact. */
+  --ptec-glass-fallback: #FFFFFF;
+  --ptec-glass-border: rgba(255, 255, 255, .72);
+  /* An outer hairline, because a white rim on a white page is invisible —
+     the edge has to read on paper AND on a dark cover scrolling underneath. */
+  --ptec-glass-edge: rgba(11, 21, 48, .10);
+  --ptec-glass-highlight: rgba(255, 255, 255, .80);
+  --ptec-glass-shadow: 0 12px 32px -12px rgba(11, 21, 48, .28), 0 2px 8px -2px rgba(11, 21, 48, .10);
+  /* The selected tab's indicator — a brand tint, not a second blue. */
+  --ptec-glass-selected: rgba(30, 58, 138, .10);
+  --ptec-glass-blur: 20px;
+  /* Glass on INK — controls over the dark hero photo, which stay dark with
+     white type in both themes (the hero is not re-themed). */
+  --ptec-glass-ink-bg: rgba(255, 255, 255, .08);
+  --ptec-glass-ink-border: rgba(255, 255, 255, .18);
+
+  /* ── The phone shell ─────────────────────────────────────────────
+     The floating tab bar's geometry, declared ONCE. Six components used to
+     hand-write their own copy of its height (64px, 4.5rem, 5.5rem, 76px +
+     14px …) and they had already drifted apart by 8px. Anything fixed to the
+     bottom of a phone reserves --ptec-mobile-nav-clearance; it is 0px from
+     `lg` up, where there is no tab bar. */
+  --ptec-mobile-nav-height: 4rem;
+  --ptec-mobile-nav-gap: 0.625rem;
+  --ptec-mobile-nav-clearance: calc(var(--ptec-mobile-nav-height) + var(--ptec-mobile-nav-gap) + env(safe-area-inset-bottom, 0px));
+
   /* ── Admin forms palette ───────────────────────────────────────── */
   --ptec-navy-700: #27499f;
   --ptec-navy-950: #152258;
@@ -229,6 +277,26 @@
 
   --ptec-surface-brand-soft: rgba(138, 164, 228, .08);
   --ptec-surface-brand-line: rgba(138, 164, 228, .28);
+
+  /* Glass, dark. The base is --ptec-bg-surface (#161C2B); the worst backdrop
+     flips to WHITE (a pale book cover under the bar). At 0.88 the dark brand
+     label (#8AA4E4) holds 4.8:1 there — 0.84 drops it to 4.2:1. */
+  --ptec-glass-bg: rgba(22, 28, 43, .72);
+  --ptec-glass-bg-strong: rgba(22, 28, 43, .88);
+  --ptec-glass-bg-sheet: rgba(22, 28, 43, .94);
+  --ptec-glass-fallback: #161C2B;
+  --ptec-glass-border: rgba(255, 255, 255, .10);
+  --ptec-glass-edge: rgba(0, 0, 0, .50);
+  --ptec-glass-highlight: rgba(255, 255, 255, .06);
+  --ptec-glass-shadow: 0 14px 36px -12px rgba(0, 0, 0, .70), 0 2px 8px -2px rgba(0, 0, 0, .45);
+  --ptec-glass-selected: rgba(138, 164, 228, .18);
+}
+
+/* No tab bar from `lg` up, so nothing reserves room for one. */
+@media (min-width: 64rem) {
+  :root {
+    --ptec-mobile-nav-clearance: 0px;
+  }
 }
 
 @theme inline {
@@ -317,6 +385,9 @@
   /* bg-surface-brand-soft / border-surface-brand-line */
   --color-surface-brand-soft: var(--ptec-surface-brand-soft);
   --color-surface-brand-line: var(--ptec-surface-brand-line);
+
+  /* bg-glass-selected — the tab bar's active indicator. */
+  --color-glass-selected: var(--ptec-glass-selected);
 
   /* Fonts */
   --font-sans: var(--font-var-sans), "Hanuman", var(--font-var-hanuman), Arial, Helvetica, sans-serif;
@@ -589,6 +660,108 @@ html:lang("en") body {
     outline: var(--focus-ring-width) solid CanvasText;
     outline-offset: var(--focus-ring-offset);
   }
+}
+
+/* ══ GLASS SURFACES ══════════════════════════════════════════════════
+   The interaction layer's only visual vocabulary. Components compose these
+   with layout utilities; no call site writes its own blur, rim or tint, so
+   the tab bar, the sheets and the read dock cannot drift into three
+   slightly different glasses. Tokens and rules: the `--ptec-glass-*` block
+   in :root, docs/MOBILE-GLASS-UI.md.
+
+   In `@layer components` so a call site's utilities still win (radius,
+   padding, position) — the same contract as `.focus-shell`.
+
+     .glass-surface            translucent control surface
+     .glass-surface--strong    add for any glass that carries text labels
+     .glass-surface--sheet     add for panels with secondary (muted) text
+     .glass-ink                controls over the dark hero photo */
+@layer components {
+  .glass-surface {
+    background-color: var(--ptec-glass-bg);
+    border: 1px solid var(--ptec-glass-border);
+    /* Inner highlight, outer hairline, lift. The hairline is what separates
+       a white bar from a white page; the highlight is what separates it from
+       a dark cover scrolling underneath. */
+    box-shadow:
+      inset 0 1px 0 var(--ptec-glass-highlight),
+      0 0 0 1px var(--ptec-glass-edge),
+      var(--ptec-glass-shadow);
+    -webkit-backdrop-filter: blur(var(--ptec-glass-blur)) saturate(1.8);
+    backdrop-filter: blur(var(--ptec-glass-blur)) saturate(1.8);
+  }
+
+  .glass-surface--strong {
+    background-color: var(--ptec-glass-bg-strong);
+  }
+
+  .glass-surface--sheet {
+    background-color: var(--ptec-glass-bg-sheet);
+  }
+
+  .glass-ink {
+    background-color: var(--ptec-glass-ink-bg);
+    border: 1px solid var(--ptec-glass-ink-border);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+
+  /* No backdrop-filter (older WebViews, some Android browsers): translucent
+     without blur is the worst of both — busy AND low-contrast. Go opaque. */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .glass-surface,
+    .glass-surface--strong,
+    .glass-surface--sheet {
+      background-color: var(--ptec-glass-fallback);
+    }
+    .glass-ink {
+      background-color: rgba(6, 11, 26, .88);
+    }
+  }
+
+  /* The reader asked for less transparency: honour it completely. */
+  @media (prefers-reduced-transparency: reduce) {
+    .glass-surface,
+    .glass-surface--strong,
+    .glass-surface--sheet {
+      background-color: var(--ptec-glass-fallback);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+    .glass-ink {
+      background-color: rgba(6, 11, 26, .88);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+
+  /* Forced colours drop box-shadow and ignore translucency; give the
+     surface a real system boundary so a control never loses its edge. */
+  @media (forced-colors: active) {
+    .glass-surface,
+    .glass-surface--strong,
+    .glass-surface--sheet,
+    .glass-ink {
+      background: Canvas;
+      border-color: CanvasText;
+      box-shadow: none;
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+}
+
+/* Horizontal chip rows on phones: scroll, never wrap onto a second line, and
+   show no scrollbar over the chips. Shares its reasoning with
+   .quicknav-scroller below, minus the edge mask (callers add one only where
+   the row actually overflows). */
+.scroll-row {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+.scroll-row::-webkit-scrollbar {
+  display: none;
 }
 
 .khmer {
