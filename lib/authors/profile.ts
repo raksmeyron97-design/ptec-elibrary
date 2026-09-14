@@ -73,7 +73,7 @@ import type { AuthorProfile, AuthorWork } from "@/lib/authors/types";
  * scripts/audit-crawl-depth.ts — a truncated works list costs books their
  * author path, which is exactly what it measures.
  */
-const PER_TYPE_LIMIT = 120;
+const PER_TYPE_LIMIT = 5000;
 
 function clean(value: string | null | undefined): string | null {
   const trimmed = value?.trim();

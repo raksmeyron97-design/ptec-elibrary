@@ -134,7 +134,7 @@ function collect(into: Map<string, AuthorContributorRecord>, row: any): void {
 export async function canonicalWorkRefs(
   db: Db,
   contributorIds: readonly string[],
-  limit = 240,
+  limit = 10000,
 ): Promise<CanonicalWorkRef[]> {
   if (contributorIds.length === 0) return [];
   const { data, error } = await db
