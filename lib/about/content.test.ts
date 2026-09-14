@@ -233,7 +233,7 @@ describe("languages and special collections", () => {
   });
 
   it("only links a special collection to a route that exists", () => {
-    const REAL_ROUTES = ["/theses", "/publications", "/books", "/catalogs"];
+    const REAL_ROUTES = ["/theses", "/journals", "/books", "/catalogs"];
     for (const collection of SPECIAL_COLLECTIONS) {
       bothLanguages(collection.title, `collection ${collection.id} title`);
       bothLanguages(collection.description, `collection ${collection.id} description`);

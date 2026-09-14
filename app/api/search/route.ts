@@ -27,6 +27,7 @@ import { detectLanguage, normalizeQuery } from "@/lib/ai/intent";
 import { estimateTokens } from "@/lib/ai/token-budget";
 import { recordAiRequest } from "@/lib/ai/telemetry";
 import { noResults } from "@/lib/ai/templates";
+import { articlePath } from "@/lib/journals/urls";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -202,7 +203,7 @@ async function keywordSearch(
       author: (p as any).author_names ?? "Unknown",
       category: (p as any).journal_name ?? "Publication",
       coverUrl: coverUrlOf((p as any).cover_url ?? null),
-      url: `/publications/${(p as any).slug}`,
+      url: articlePath((p as any).slug),
     });
   for (const p of paths ?? [])
     out.push({

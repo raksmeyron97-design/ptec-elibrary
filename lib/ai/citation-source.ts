@@ -29,6 +29,7 @@ import {
 } from "@/lib/citations";
 import type { EvidenceRecordType } from "./evidence";
 import type { Source } from "./response";
+import { articlePath } from "@/lib/journals/urls";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -94,7 +95,7 @@ export async function getCitationSource(
   const publication = mapRowToPublication(data as any);
   const work = publicationToCitationWork(publication);
   if (!hasCitableMetadata(work)) return null;
-  return { work, title: publication.title, reference: apa(work), url: `/publications/${publication.slug}` };
+  return { work, title: publication.title, reference: apa(work), url: articlePath(publication.slug) };
 }
 
 /**

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
-const PUBLICATION_PATH = "/publications/journal-of-chemical-education";
+const PUBLICATION_PATH = "/journals/articles/journal-of-chemical-education";
 
 async function openPublicationReader(page: Page, locale: "en" | "km" = "en") {
   const prefix = locale === "km" ? "/km" : "";

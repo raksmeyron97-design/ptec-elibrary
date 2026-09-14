@@ -8,6 +8,7 @@ import {
 } from "@/app/actions/publication-reviews";
 import ReviewList from "@/components/ui/reviews/ReviewList";
 import PublicationReviewForm from "@/components/ui/publications/PublicationReviewForm";
+import { articlePath } from "@/lib/journals/urls";
 
 /**
  * Ratings & comments block: distribution summary + review list (reusing the
@@ -54,7 +55,7 @@ export default async function PublicationReviewsSection({
           <h3 className="text-base font-bold text-text-heading">{t("leaveAReview")}</h3>
           <p className="mt-2 text-sm text-text-muted">{t("signInToReview")}</p>
           <Link
-            href={`/auth/login?callbackUrl=${locale === "km" ? "/km" : ""}/publications/${slug}#reviews`}
+            href={`/auth/login?callbackUrl=${locale === "km" ? "/km" : ""}${articlePath(slug)}#reviews`}
             className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand text-sm font-bold text-brand-contrast transition hover:bg-brand-hover"
           >
             {t("signInToReview")}

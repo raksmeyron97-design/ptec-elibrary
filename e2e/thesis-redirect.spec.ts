@@ -19,7 +19,10 @@ const UNKNOWN_UUID = "00000000-0000-4000-8000-000000000000";
 const unknown = () => `no-such-slug-${Math.random().toString(36).slice(2)}`;
 
 test.describe("detail routes return real 404s for unknown slugs", () => {
-  for (const segment of ["books", "theses", "publications", "catalogs"]) {
+  // Journal articles live at /journals/articles/<slug> since 0148, and a
+  // journal at /journals/<slug>; both are gated. The retired /publications
+  // path is asserted separately below — it now 301s before it can 404.
+  for (const segment of ["books", "theses", "journals/articles", "journals", "catalogs"]) {
     test(`/${segment}/<unknown> → 404`, async ({ request }) => {
       const res = await request.get(`/${segment}/${unknown()}`, { maxRedirects: 0 });
       expect(res.status()).toBe(404);
@@ -28,6 +31,20 @@ test.describe("detail routes return real 404s for unknown slugs", () => {
     test(`/km/${segment}/<unknown> → 404`, async ({ request }) => {
       const res = await request.get(`/km/${segment}/${unknown()}`, { maxRedirects: 0 });
       expect(res.status()).toBe(404);
+    });
+  }
+});
+
+test.describe("retired /publications detail URLs", () => {
+  for (const prefix of ["", "/km"]) {
+    test(`${prefix}/publications/<unknown> → one 301 to ${prefix}/journals/articles/<unknown>, which is a real 404`, async ({ request }) => {
+      const slug = unknown();
+      const res = await request.get(`${prefix}/publications/${slug}`, { maxRedirects: 0 });
+      expect(res.status()).toBe(301);
+      const target = new URL(res.headers()["location"], PROD).pathname;
+      expect(target).toBe(`${prefix}/journals/articles/${slug}`);
+      const final = await request.get(target, { maxRedirects: 0 });
+      expect(final.status()).toBe(404);
     });
   }
 });

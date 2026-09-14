@@ -11,6 +11,7 @@
 import { Link } from "@/i18n/navigation";
 import { getCollectionStats, formatCount } from "@/lib/collection-stats";
 import { getTranslations, getLocale } from "next-intl/server";
+import { JOURNALS_PATH } from "@/lib/journals/urls";
 
 export default async function SignupCta() {
   const [t, locale, stats] = await Promise.all([
@@ -45,7 +46,7 @@ export default async function SignupCta() {
             { key: "total", value: stats.totalDigitalResources, label: t("statDigitalResources"), href: "/books" },
             { key: "books", value: stats.books, label: t("statEbooks"), href: "/books" },
             { key: "theses", value: stats.theses, label: t("statTheses"), href: "/theses" },
-            { key: "publications", value: stats.publications, label: t("statPublications"), href: "/publications" },
+            { key: "publications", value: stats.publications, label: t("statPublications"), href: JOURNALS_PATH },
           ] as const
         ).filter((f) => f.key === "total" || f.value > 0);
 

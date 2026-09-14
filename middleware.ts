@@ -45,6 +45,19 @@ const LEGACY_THESIS_RE =
 const UUID_SLUG_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Journal routes that the generic `^/<segment>/<slug>$` shape cannot express
+// (lib/resource-slug-gate.ts, 0148):
+//   * /journals/<j> and /journals/<j>/issues both 404 on an unknown journal;
+//   * /journals/<j>/issues/<i> gates on the "<j>/<i>" pair.
+// `articles` is excluded from the journal capture outright (it is the
+// `reserved` static child): /journals/articles/<slug> has its own generic
+// entry, and without the exclusion /journals/articles/issues would be taken
+// for journal "articles" and waved through to a soft 404.
+const JOURNAL_GATE_PATTERNS: Partial<Record<string, RegExp>> = {
+  journals: /^\/journals\/(?!articles(?:\/|$))([^/]+)(?:\/issues)?$/,
+  "journals/issues": /^\/journals\/([^/]+)\/issues\/([^/]+)$/,
+};
+
 export async function middleware(request: NextRequest) {
   // ── One host, always ───────────────────────────────────────────────────
   // The Cloudflare Tunnel publishes this same container on both the canonical
@@ -420,7 +433,9 @@ export async function middleware(request: NextRequest) {
 
   for (const [segment, cfg] of [
     ["theses", RESOURCE_GATES.theses],
-    ["publications", RESOURCE_GATES.publications],
+    ["journals", RESOURCE_GATES.journals],
+    ["journals/articles", RESOURCE_GATES["journals/articles"]],
+    ["journals/issues", RESOURCE_GATES["journals/issues"]],
     ["catalogs", RESOURCE_GATES.catalogs],
     ["posts", RESOURCE_GATES.posts],
     // Two-segment prefix — the regex below is built from the segment string,
@@ -436,7 +451,7 @@ export async function middleware(request: NextRequest) {
     ["subjects", RESOURCE_GATES.subjects],
   ] as const) {
     const match = pathWithoutLocale.match(
-      new RegExp(`^/${segment}/([^/]+)$`),
+      JOURNAL_GATE_PATTERNS[segment] ?? new RegExp(`^/${segment}/([^/]+)$`),
     );
     if (!match) continue;
     // Posts are the only gated type with a signed-in read path on the PUBLIC
@@ -450,7 +465,11 @@ export async function middleware(request: NextRequest) {
     if (segment === "posts" && hasSessionCookie) break;
     let slug: string | null = null;
     try {
-      slug = decodeURIComponent(match[1]);
+      // Two captures only for an issue: "<journal>/<issue>", the key
+      // journal_issues_public exposes. Each half is decoded on its own.
+      slug = match[2] !== undefined
+        ? `${decodeURIComponent(match[1])}/${decodeURIComponent(match[2])}`
+        : decodeURIComponent(match[1]);
     } catch {
       slug = null; // malformed escape — let the route 404 it
     }

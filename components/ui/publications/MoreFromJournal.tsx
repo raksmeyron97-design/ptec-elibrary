@@ -1,6 +1,7 @@
 import { Link } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
 import { ArrowRight } from "lucide-react";
+import { JOURNALS_PATH } from "@/lib/journals/urls";
 import { createServiceClient } from "@/lib/supabase/server";
 import { mapRowToPublication } from "@/lib/publications";
 import PublicationCard from "@/components/ui/publications/PublicationCard";
@@ -9,18 +10,21 @@ import HorizontalCarousel from "@/components/ui/core/HorizontalCarousel";
 export default async function MoreFromJournal({
   currentId,
   journalName,
+  journalId = null,
+  journalHref = null,
 }: {
   currentId: string;
   journalName: string | null;
+  /** Canonical journal (0148). Siblings are matched on it when present. */
+  journalId?: string | null;
+  /** The journal's public page; falls back to the listing filtered by name. */
+  journalHref?: string | null;
 }) {
   if (!journalName) return null;
 
   const supabase = createServiceClient();
-  const { data } = await supabase
-    .from("publications_with_stats")
-    .select("*")
-    .eq("is_published", true)
-    .eq("journal_name", journalName)
+  const base = supabase.from("publications_with_stats").select("*").eq("is_published", true);
+  const { data } = await (journalId ? base.eq("journal_id", journalId) : base.eq("journal_name", journalName))
     .neq("id", currentId)
     .order("publication_date", { ascending: false, nullsFirst: false })
     .limit(10);
@@ -44,10 +48,10 @@ export default async function MoreFromJournal({
           </h2>
         </div>
         <Link
-          href={`/publications?journal=${encodeURIComponent(journalName)}`}
+          href={journalHref ?? `${JOURNALS_PATH}?journal=${encodeURIComponent(journalName)}`}
           className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-4 py-2 text-[13px] font-semibold text-text-body shadow-sm transition-colors duration-150 hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
         >
-          {t("browseAll")}
+          {journalHref ? t("viewJournal") : t("browseAll")}
           <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>

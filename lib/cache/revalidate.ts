@@ -2,6 +2,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 // Next 16's revalidateTag takes a cache-life profile as its second argument;
 // "max" expires the entry everywhere rather than only in this region.
 import { routing } from "@/i18n/routing";
+import { articlePath, journalPath, JOURNALS_PATH } from "@/lib/journals/urls";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Invalidating PUBLIC pages.
@@ -70,6 +71,8 @@ export const TAGS = {
   thesis: (slug: string) => `thesis:${slug}`,
   publications: "publications",
   publication: (slug: string) => `publication:${slug}`,
+  /** Journals, volumes and issues (0148) — lib/journals/data.ts. */
+  journals: "journals",
   posts: "posts",
   post: (slug: string) => `post:${slug}`,
   paths: "paths",
@@ -228,13 +231,29 @@ export function revalidateThesis(slug?: string | null) {
 
 export function revalidatePublication(slug?: string | null) {
   revalidateTag(TAGS.publications, "max");
+  // An article save can move it between issues or journals (0148's trigger
+  // re-resolves the mapping), so every journal surface is stale with it.
+  revalidateTag(TAGS.journals, "max");
   if (slug) {
     revalidateTag(TAGS.publication(slug), "max");
-    revalidatePublicPath(`/publications/${slug}`);
+    revalidatePublicPath(articlePath(slug));
   }
-  revalidatePublicPath("/publications");
+  revalidatePublicPath(JOURNALS_PATH);
   revalidateTag(TAGS.homePublications, "max");
   revalidateCollectionStats();
+}
+
+/**
+ * A journal, volume or issue changed (admin Journals section). Journal and
+ * issue pages read through unstable_cache under TAGS.journals; the listing is
+ * per-request. Article pages carry the journal title in their breadcrumb and
+ * JSON-LD, so the article tag goes too.
+ */
+export function revalidateJournals(journalSlug?: string | null) {
+  revalidateTag(TAGS.journals, "max");
+  revalidateTag(TAGS.publications, "max");
+  revalidatePublicPath(JOURNALS_PATH);
+  if (journalSlug) revalidatePublicPath(journalPath(journalSlug));
 }
 
 /**

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
+import { JOURNALS_PATH } from "@/lib/journals/urls";
 import { CalendarDays, ScrollText, Scale, FileText } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { slugify } from "@/lib/book-utils";
@@ -40,6 +41,7 @@ export default async function PublicationHero({
   shareUrl,
   metrics,
   access,
+  journalPageHref = null,
 }: {
   pub: Publication;
   authorships: PublicationAuthorship[];
@@ -57,15 +59,20 @@ export default async function PublicationHero({
    * what the server will actually serve cannot drift apart.
    */
   access: DownloadAccess;
+  /**
+   * The article's public journal page (0148), when it is mapped to one. The
+   * badge then names a real, indexable place instead of a filtered listing.
+   */
+  journalPageHref?: string | null;
 }) {
   const t = await getTranslations("publicationDetail");
 
-  // The journal is the article's home shelf, so the badge is a filter link
-  // into the listing rather than inert text. Falls back to a plain span when
-  // the record has no journal — there is nothing to browse to.
-  const journalHref = pub.journal_name
-    ? `/publications?journal=${encodeURIComponent(pub.journal_name)}`
-    : null;
+  // The journal is the article's home shelf. A mapped article links to its
+  // journal page; an unmapped one still filters the listing by the name it
+  // carries; no journal at all is a plain span — there is nothing to browse to.
+  const journalHref =
+    journalPageHref ??
+    (pub.journal_name ? `${JOURNALS_PATH}?journal=${encodeURIComponent(pub.journal_name)}` : null);
   const badgeClass =
     "inline-flex items-center gap-1.5 rounded-full border border-brand/20 bg-brand/8 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-brand";
   const badgeInner = (

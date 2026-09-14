@@ -2,6 +2,7 @@
 
 import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { articlePath } from "@/lib/journals/urls";
 
 // 'department'/'category' filter books; 'publications' is a content-type-level
 // channel (filter_value 'all') for new journal articles (migration 0054).
@@ -184,7 +185,7 @@ export async function getNewContentForSubscriptions(): Promise<NewContentAlert[]
           cover_url:     p.cover_url,
           created_at:    p.published_at,
           matched_label: sub.display_label ?? "Publications",
-          url:           `/publications/${p.slug}`,
+          url:           articlePath(p.slug),
         });
       }
     }

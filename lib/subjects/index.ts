@@ -74,6 +74,7 @@ import {
 } from "@/lib/subjects/hierarchy";
 
 import type { SubjectCounts, SubjectResourceType } from "@/lib/subjects/labels";
+import { articlePath } from "@/lib/journals/urls";
 
 export type SubjectSummary = {
   id: string;
@@ -422,7 +423,7 @@ export const getSubjectDetail = cache(
       ...((publications ?? []) as Row[]).map((r) => ({
         type: "publication" as const,
         title: r.title,
-        href: `/publications/${r.slug}`,
+        href: articlePath(r.slug),
         author: clean(r.author_names),
         excerpt: clean(r.abstract),
       })),

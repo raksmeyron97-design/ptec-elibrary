@@ -91,7 +91,23 @@ export const RESOURCE_GATES = {
     publishedColumn: "is_published",
     reserved: ["summary"],
   },
-  publications: { table: "publications", publishedColumn: "is_published" },
+  // Journals (0148). /journals/<slug> AND /journals/<slug>/issues both gate on
+  // the journal — middleware's JOURNAL_GATE_PATTERNS widens the match for this
+  // key, and excludes `articles` (the segment holding the article route) from
+  // the capture, so no `reserved` entry is needed: /journals/articles itself
+  // is a 301 to /journals in next.config (lib/journals/urls.ts).
+  journals: { table: "journals", publishedColumn: "is_published" },
+  // Journal articles — the `publications` table, which kept its name. This is
+  // the gate /publications/<slug> had; that URL now 301s here in next.config
+  // before middleware runs.
+  "journals/articles": { table: "publications", publishedColumn: "is_published" },
+  // An issue slug is unique only WITHIN its journal, which this gate's
+  // one-slug shape cannot express — so journal_issues_public (0148) exposes the
+  // pair as one string, "<journal slug>/<issue slug>", and middleware builds
+  // the same string from the URL. Its WHERE is the issue page's own
+  // visibility rule (published issue, published journal, ≥1 published
+  // article), so an empty issue is a real 404 rather than an empty page.
+  "journals/issues": { table: "journal_issues_public", publishedColumn: "is_published" },
   // Posts gate on is_published, which is the trigger-maintained mirror of
   // `status` (0073). Two visibility cases make this safe to gate:
   //   * `unlisted` posts are is_published = true — they are excluded from the

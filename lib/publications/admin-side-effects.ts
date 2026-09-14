@@ -12,6 +12,7 @@ import {
   academicTextToPlainText,
   normalizePublicationReferences,
 } from "@/lib/publications/citations";
+import { articlePath } from "@/lib/journals/urls";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -76,7 +77,7 @@ export async function notifyPublicationSubscribers(publicationId: string): Promi
     await broadcastPush(userIds, {
       title: "New publication",
       body: pub.title,
-      url: `/publications/${pub.slug}`,
+      url: articlePath(pub.slug),
     });
   } catch (e) {
     console.error("[publications] subscriber push failed:", errorMessage(e));

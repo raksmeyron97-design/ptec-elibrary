@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/core/Badge";
 import type { Publication } from "@/lib/publications";
 import { citationYear } from "@/lib/citations";
 import ResourceMetrics from "@/components/ui/core/ResourceMetrics";
+import { articlePath } from "@/lib/journals/urls";
 
 const TYPE_LABELS: Record<string, string> = {
   article: "Article",
@@ -26,7 +27,7 @@ export default function PublicationCard({ publication }: { publication: Publicat
         className="absolute inset-x-0 top-0 z-20 h-[3px] origin-left scale-x-0 bg-accent transition-transform duration-300 group-hover:scale-x-100"
       />
 
-      <Link href={`/publications/${publication.slug}`} prefetch={false} className="flex h-full flex-col">
+      <Link href={articlePath(publication.slug)} prefetch={false} className="flex h-full flex-col">
         {/* ── Graphical abstract — the dominant visual element ── */}
         <div className="relative mx-3 mt-3 overflow-hidden rounded-xl sm:mx-3.5 sm:mt-3.5 border border-divider/60 shadow-sm ring-1 ring-black/[0.03]">
           <div className="relative aspect-[3/4] w-full bg-paper">

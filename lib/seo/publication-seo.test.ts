@@ -86,7 +86,7 @@ describe("publicationJsonLd", () => {
   it("uses the real publisher (not PTEC) and locale-correct url", () => {
     const schema = publicationJsonLd(acs, "km") as any;
     expect(schema.publisher).toMatchObject({ name: "American Chemical Society" });
-    expect(schema.url).toBe(`${SITE}/km/publications/journal-of-chemical-education`);
+    expect(schema.url).toBe(`${SITE}/km/journals/articles/journal-of-chemical-education`);
     expect(schema.datePublished).toBe("2014-04-03");
   });
 });
@@ -94,7 +94,7 @@ describe("publicationJsonLd", () => {
 describe("buildPublicationMetadata", () => {
   it("is locale-correct and uses the article's real publisher", () => {
     const md = buildPublicationMetadata(acs, "km");
-    expect(md.alternates?.canonical).toBe(`${SITE}/km/publications/journal-of-chemical-education`);
+    expect(md.alternates?.canonical).toBe(`${SITE}/km/journals/articles/journal-of-chemical-education`);
     expect(md.publisher).toBe("American Chemical Society");
     expect(md.openGraph?.locale).toBe("km_KH");
   });
@@ -138,7 +138,7 @@ describe("publicationsCollectionJsonLd", () => {
       publications: [{ slug: "journal-of-chemical-education", title: "T", authors: ["A"], journalName: "JCE", year: "2014", doi: "10.1234/eds" }],
     }) as any;
     expect(schema["@type"]).toBe("CollectionPage");
-    expect(schema.url).toBe(`${SITE}/publications`);
+    expect(schema.url).toBe(`${SITE}/journals`);
     expect(schema.mainEntity.numberOfItems).toBe(1);
     // placeholder DOI stays out even in the collection listing
     expect(schema.mainEntity.itemListElement[0].item.identifier).toBeUndefined();
@@ -147,7 +147,7 @@ describe("publicationsCollectionJsonLd", () => {
 
 describe("publicationCanonicalUrl", () => {
   it("is locale-correct", () => {
-    expect(publicationCanonicalUrl("x", "en")).toBe(`${SITE}/publications/x`);
-    expect(publicationCanonicalUrl("x", "km")).toBe(`${SITE}/km/publications/x`);
+    expect(publicationCanonicalUrl("x", "en")).toBe(`${SITE}/journals/articles/x`);
+    expect(publicationCanonicalUrl("x", "km")).toBe(`${SITE}/km/journals/articles/x`);
   });
 });

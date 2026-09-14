@@ -492,6 +492,93 @@ Before joining PTEC he taught Grade 4 and 5 in Kampong Cham for nine years. He c
 ON CONFLICT (id) DO NOTHING;
 
 
+-- ── Journals (0148) ─────────────────────────────────────────────────────────
+-- Inserted BEFORE the articles below, so 0148's trigger maps every article
+-- from its journal_name as it is inserted and creates the volumes/issues each
+-- one names. Guarded on to_regclass so this seed still loads on a database
+-- that predates 0148. What each row exercises:
+--
+--   * CJTE — a complete journal record (Khmer title, description, aims and
+--     scope, frequency), a volume with a year, and an issue with a date and a
+--     description. Its articles carry ISSN 2789-0001, which FAILS its check
+--     digit; the journal deliberately holds no ISSN rather than that one.
+--   * Journal of Chemical Education — a third-party journal holding only what
+--     its article states (publisher, a valid ISSN). No description invented.
+--   * Southeast Asian Review of Education — name only: the journal page must
+--     render with no description, no ISSN, no aims.
+--   * PTEC Working Papers — UNPUBLISHED. Must appear on no public surface.
+--   * CJTE Vol. 7 No. 3 — a PUBLISHED issue with no articles: its URL must be
+--     a real 404, never an empty page.
+DO $journals$
+DECLARE
+  r         record;
+  v_journal uuid;
+  v_volume  uuid;
+BEGIN
+  IF to_regclass('public.journals') IS NULL THEN
+    RAISE NOTICE 'seed: journals table absent (pre-0148) — skipping journal fixtures';
+    RETURN;
+  END IF;
+
+  -- Matched by NAME, not by a fixed id: on a database seeded before 0148, the
+  -- migration's backfill has already created these journals from the
+  -- articles' names, and a second row with the same name is refused. Such a
+  -- journal gets the fixture metadata instead.
+  FOR r IN
+    SELECT * FROM (VALUES
+      ('cambodian-journal-of-teacher-education', 'CJTE',
+       'Cambodian Journal of Teacher Education', 'ទស្សនាវដ្ដីគរុកោសល្យកម្ពុជា',
+       'A peer-reviewed journal of research on teacher preparation, induction and professional practice in Cambodia.',
+       'ទស្សនាវដ្ដីស្រាវជ្រាវអំពីការបណ្តុះបណ្តាលគ្រូ ការណែនាំគ្រូថ្មី និងការអនុវត្តវិជ្ជាជីវៈនៅកម្ពុជា។',
+       'PTEC Press', 'en', 'Cambodia', 'Three issues a year',
+       'Empirical and policy research on how teachers are prepared, posted and supported, with a focus on primary education.',
+       NULL::text, true),
+      ('journal-of-chemical-education', NULL,
+       'Journal of Chemical Education', NULL, NULL, NULL,
+       'American Chemical Society', 'en', NULL, NULL, NULL, '0021-9584', true),
+      ('southeast-asian-review-of-education', NULL,
+       'Southeast Asian Review of Education', NULL, NULL, NULL,
+       NULL, NULL, NULL, NULL, NULL, NULL, true),
+      ('ptec-working-papers', NULL,
+       'PTEC Working Papers', NULL, NULL, NULL,
+       'PTEC Press', 'en', NULL, NULL, NULL, NULL, false)
+    ) AS t(slug, code, title, title_km, description, description_km, publisher_name,
+           language, country, frequency, aims_scope, issn, is_published)
+  LOOP
+    UPDATE public.journals j
+       SET code = r.code, title_km = r.title_km, description = r.description,
+           description_km = r.description_km, publisher_name = r.publisher_name,
+           language = r.language, country = r.country, frequency = r.frequency,
+           aims_scope = r.aims_scope, issn = r.issn, is_published = r.is_published
+     WHERE public.journal_match_key(j.title) = public.journal_match_key(r.title);
+    IF NOT FOUND THEN
+      INSERT INTO public.journals
+        (slug, code, title, title_km, description, description_km, publisher_name,
+         language, country, frequency, aims_scope, issn, is_published, is_indexable)
+      VALUES
+        (r.slug, r.code, r.title, r.title_km, r.description, r.description_km, r.publisher_name,
+         r.language, r.country, r.frequency, r.aims_scope, r.issn, r.is_published, true);
+    END IF;
+  END LOOP;
+
+  -- CJTE Vol. 7 (2025): issue 2 with a date and a description, and issue 3 —
+  -- published, dated, and holding NO article.
+  SELECT id INTO v_journal FROM public.journals
+   WHERE public.journal_match_key(title) = public.journal_match_key('Cambodian Journal of Teacher Education');
+  v_volume := public.journal_ensure_volume(v_journal, '7');
+  UPDATE public.journal_volumes SET year = 2025 WHERE id = v_volume;
+  PERFORM public.journal_ensure_issue(v_journal, v_volume, '2');
+  PERFORM public.journal_ensure_issue(v_journal, v_volume, '3');
+  UPDATE public.journal_issues
+     SET published_date = '2025-06-18',
+         description = 'Induction and retention in the first years of posting.'
+   WHERE journal_id = v_journal AND volume_id = v_volume AND issue_number = '2';
+  UPDATE public.journal_issues
+     SET published_date = '2025-10-01'
+   WHERE journal_id = v_journal AND volume_id = v_volume AND issue_number = '3';
+END
+$journals$;
+
 -- ── Publications ────────────────────────────────────────────────────────────
 
 INSERT INTO public.publications

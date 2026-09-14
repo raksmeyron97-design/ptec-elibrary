@@ -40,6 +40,7 @@ import { kindOfCanonicalRow } from "@/lib/resources/contributor-view";
 import type { ContributorKind } from "@/lib/resources/contributor-identity";
 import type { OrgIdentity } from "@/lib/system-settings/org-identity";
 import type { AuthorProfile, AuthorWork } from "@/lib/authors/types";
+import { articlePath } from "@/lib/journals/urls";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -221,7 +222,7 @@ async function publicationWorks(
     id: row.id,
     type: "publication" as const,
     title: row.title,
-    href: `/publications/${row.slug}`,
+    href: articlePath(row.slug),
     excerpt: clean(row.abstract),
     year: yearOf(row.publication_date ?? row.published_at),
     venue: clean(row.journal_name),
@@ -440,7 +441,7 @@ async function canonicalPublicationWorks(
     id: row.id,
     type: "publication" as const,
     title: row.title,
-    href: `/publications/${row.slug}`,
+    href: articlePath(row.slug),
     excerpt: clean(row.abstract),
     year: yearOf(row.publication_date ?? row.published_at),
     venue: clean(row.journal_name),

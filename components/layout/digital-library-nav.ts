@@ -2,23 +2,27 @@ import type { LucideIcon } from "lucide-react";
 import {
   BookOpen,
   GraduationCap,
+  Landmark,
   Newspaper,
   Waypoints,
 } from "lucide-react";
+import { JOURNALS_PATH, PTEC_PUBLICATIONS_URL } from "@/lib/journals/urls";
 
 export type DigitalLibraryLabelKey =
   | "eBooks"
   | "theses"
-  | "publications"
+  | "journals"
   | "learningPaths"
-  | "svaLibrary";
+  | "svaLibrary"
+  | "ptecPublications";
 
 export type DigitalLibraryDescriptionKey =
   | "digitalLibraryBooksDescription"
   | "digitalLibraryThesesDescription"
-  | "digitalLibraryPublicationsDescription"
+  | "digitalLibraryJournalsDescription"
   | "digitalLibraryPathsDescription"
-  | "digitalLibrarySvaDescription";
+  | "digitalLibrarySvaDescription"
+  | "digitalLibraryPtecPublicationsDescription";
 
 export type DigitalLibraryItem = {
   labelKey: DigitalLibraryLabelKey;
@@ -42,10 +46,13 @@ export const DIGITAL_LIBRARY_ITEMS = [
     href: "/theses",
     icon: GraduationCap,
   },
+  // The library's own scholarly-article collection. It was labelled
+  // "Publications" until 0148; "Publications" now means the college's official
+  // publications page, which is the external item at the end of this list.
   {
-    labelKey: "publications",
-    descriptionKey: "digitalLibraryPublicationsDescription",
-    href: "/publications",
+    labelKey: "journals",
+    descriptionKey: "digitalLibraryJournalsDescription",
+    href: JOURNALS_PATH,
     icon: Newspaper,
   },
   {
@@ -60,6 +67,18 @@ export const DIGITAL_LIBRARY_ITEMS = [
     href: "https://svacamelib.org/",
     icon: BookOpen,
     imageSrc: "/sva.jpg",
+    external: true,
+  },
+  // PTEC's official publications live on the college website, not in the
+  // library. External on every surface that renders this list (new tab, the
+  // external-link icon, an sr-only "opens in a new tab"), grouped under the
+  // same "elsewhere" heading as SVA — never routed through /publications on
+  // this origin. lib/journals/urls.test.ts pins the URL.
+  {
+    labelKey: "ptecPublications",
+    descriptionKey: "digitalLibraryPtecPublicationsDescription",
+    href: PTEC_PUBLICATIONS_URL,
+    icon: Landmark,
     external: true,
   },
 ] satisfies DigitalLibraryItem[];

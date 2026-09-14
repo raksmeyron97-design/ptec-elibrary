@@ -3,6 +3,7 @@
 import { AlertTriangle, CheckCircle2, FileText, Globe, Search, Users } from "lucide-react";
 import { ContextPanel } from "@/components/admin/kit/form";
 import type { PublicationReviewResult } from "@/lib/publications/review";
+import { articlePath } from "@/lib/journals/urls";
 
 type StepKey = "basic" | "authors" | "content" | "details" | "files" | "review";
 
@@ -49,7 +50,7 @@ export default function PublicationContext(props: PublicationContextProps) {
 function SeoPreview({ siteUrl, title, slug, abstract, journalName }: PublicationContextProps) {
   const shownTitle = title.trim() || "Untitled article";
   const description = abstract.trim().replace(/\s+/g, " ");
-  const url = `${siteUrl}/publications/${slug || "…"}`;
+  const url = `${siteUrl}${articlePath(slug || "…")}`;
 
   return (
     <ContextPanel

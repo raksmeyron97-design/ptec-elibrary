@@ -62,9 +62,21 @@ describe("RESOURCE_GATES config maps each type to its real table + public column
     });
   });
 
-  it("publications gate reads publications.is_published", () => {
-    expect(RESOURCE_GATES.publications).toEqual({
+  it("journal articles gate reads publications.is_published — the table kept its name when the route became /journals/articles (0148)", () => {
+    expect(RESOURCE_GATES["journals/articles"]).toEqual({
       table: "publications",
+      publishedColumn: "is_published",
+    });
+  });
+
+  it("journals gate reads journals.is_published, and no /publications gate remains — /publications/<slug> 301s in next.config before middleware", () => {
+    expect(RESOURCE_GATES.journals).toEqual({ table: "journals", publishedColumn: "is_published" });
+    expect(RESOURCE_GATES).not.toHaveProperty("publications");
+  });
+
+  it("issue gate reads journal_issues_public — an issue slug is unique only within its journal, so the view keys it as '<journal>/<issue>'", () => {
+    expect(RESOURCE_GATES["journals/issues"]).toEqual({
+      table: "journal_issues_public",
       publishedColumn: "is_published",
     });
   });

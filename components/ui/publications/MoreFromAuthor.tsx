@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { ExternalLink } from "lucide-react";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { PublicationAuthor } from "@/lib/publications";
+import { articlePath } from "@/lib/journals/urls";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -100,7 +101,7 @@ export default async function MoreFromAuthor({
           {otherWorks.map((w) => (
             <li key={w.id}>
               <Link
-                href={`/publications/${w.slug}`}
+                href={articlePath(w.slug)}
                 className="group flex items-start gap-2.5 rounded-xl p-2 transition-colors duration-150 hover:bg-bg-app focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
               >
                 <span className="min-w-0 line-clamp-2 text-[13.5px] font-medium text-text-body transition-colors group-hover:text-brand">

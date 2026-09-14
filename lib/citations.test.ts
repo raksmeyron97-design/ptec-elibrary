@@ -120,7 +120,7 @@ describe('toAPA', () => {
 
   it('falls back to the article URL when there is no DOI', () => {
     const noDoi = { ...pub, doi: null };
-    expect(toAPA(noDoi)).toContain('/publications/digital-pedagogy-2026');
+    expect(toAPA(noDoi)).toContain('/journals/articles/digital-pedagogy-2026');
   });
 });
 

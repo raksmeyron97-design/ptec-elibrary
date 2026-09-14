@@ -64,6 +64,7 @@ import { getSubjectDetail, getSubjectsWithResources, type SubjectItem } from "@/
 import { personNameKey } from "@/lib/books/duplicate-detection/normalize";
 import { normalizeSearchText } from "@/lib/search/normalize";
 import { rankWorks } from "./work-ranking";
+import { articlePath, ARTICLES_BASE_PATH } from "@/lib/journals/urls";
 
 const COVERS_URL = process.env.NEXT_PUBLIC_R2_COVERS_URL ?? "";
 
@@ -122,7 +123,7 @@ const ROUTE_FOR: Record<string, string> = {
   book: "/books",
   research: "/theses",
   catalog: "/catalogs",
-  publication: "/publications",
+  publication: ARTICLES_BASE_PATH,
   learning_path: "/paths",
   post: "/posts",
 };
@@ -877,7 +878,7 @@ export async function resolveRecord(
     title: row.title,
     author: row.author_names ?? "Unknown",
     year: row.publication_date ? String(row.publication_date).slice(0, 4) : null,
-    url: `/publications/${row.slug}`,
+    url: articlePath(row.slug),
   };
 }
 
@@ -972,7 +973,7 @@ export async function findRecordByTitle(rawTitle: string): Promise<ResolvedRecor
     title: publication.title,
     author: publication.author_names ?? "Unknown",
     year: publication.publication_date ? String(publication.publication_date).slice(0, 4) : null,
-    url: `/publications/${publication.slug}`,
+    url: articlePath(publication.slug),
   };
 }
 
