@@ -26,7 +26,8 @@ const PAGE = path.resolve(
   "app",
   "[locale]",
   "(public)",
-  "publications",
+  "journals",
+  "articles",
   "[slug]",
   "page.tsx",
 );

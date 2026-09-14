@@ -205,8 +205,16 @@ export default function PublicationForm({
   pageTitle,
   pageDescription,
   headerActions,
+  journalOptions = [],
 }: {
   initial?: Publication;
+  /**
+   * Titles (and admin-confirmed aliases) of the journals in /admin/journals.
+   * Offered as suggestions on the journal-name field: a name that matches one
+   * links the article to that journal when it is saved (migration 0148's
+   * trigger does the matching); any other name is kept as text only.
+   */
+  journalOptions?: string[];
   /*
     The form owns FormShell rather than the route, because the context sidebar
     is a live view of this component's own state — a page-level slot could not
@@ -1037,14 +1045,28 @@ export default function PublicationForm({
                     htmlFor="pf-field-journal_name"
                     error={fieldIssues.journal_name}
                     className="md:col-span-2"
+                    hint={
+                      journalOptions.length > 0
+                        ? "Choose a journal from the suggestions to link the article to its journal and issue pages. Any other name is saved as text only."
+                        : "No journals exist yet — create one under Journals to give articles a journal page."
+                    }
                   >
                     {(p) => (
-                      <input
-                        {...p}
-                        name="journal_name"
-                        defaultValue={defaults.journal_name}
-                        placeholder="e.g. PTEC Journal of Education"
-                      />
+                      <>
+                        <input
+                          {...p}
+                          name="journal_name"
+                          defaultValue={defaults.journal_name}
+                          placeholder="e.g. PTEC Journal of Education"
+                          list="pf-journal-options"
+                          autoComplete="off"
+                        />
+                        <datalist id="pf-journal-options">
+                          {journalOptions.map((name) => (
+                            <option key={name} value={name} />
+                          ))}
+                        </datalist>
+                      </>
                     )}
                   </Field>
                   <Field label="Volume" htmlFor="pf-field-volume" error={fieldIssues.volume}>

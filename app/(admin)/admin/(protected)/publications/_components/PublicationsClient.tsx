@@ -430,7 +430,7 @@ export default function PublicationsClient({
       <div className="overflow-hidden rounded-xl border border-divider bg-bg-surface">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <caption className="sr-only">Publications list</caption>
+            <caption className="sr-only">Journal articles</caption>
             <thead className="border-b border-divider bg-paper text-xs text-text-muted">
               <tr>
                 {/* Selection only feeds the bulk bar below, which is publish/unpublish/delete */}

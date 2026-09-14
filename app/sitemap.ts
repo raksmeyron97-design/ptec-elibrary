@@ -10,7 +10,7 @@ import { addressableAuthorSlug } from '@/lib/authors/slug';
 import { getListedAuthors } from '@/lib/authors/directory';
 import { authorUrlsWithWorks } from '@/lib/authors/sitemap-filter';
 import { normalizeByline } from '@/lib/resources/contributor-identity';
-import { articlePath, JOURNALS_PATH } from '@/lib/journals/urls';
+import { articlePath } from '@/lib/journals/urls';
 import { journalSitemapPaths, type SitemapIssue, type SitemapJournal } from '@/lib/journals/sitemap';
 
 // Revalidate hourly so the sitemap picks up newly published content
@@ -298,7 +298,7 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
     ...hub('/theses/summary', reports.length, { changeFrequency: 'daily', priority: 0.6 }),
     ...hub('/catalogs', catalogBooks.length, { changeFrequency: 'weekly', priority: 0.8 }),
     ...hub('/posts', posts.length, { changeFrequency: 'daily', priority: 0.8 }),
-    ...hub(JOURNALS_PATH, publications.length, { changeFrequency: 'daily', priority: 0.9 }),
+    ...hub('/journals', publications.length, { changeFrequency: 'daily', priority: 0.9 }),
     ...hub('/paths', paths.length, { changeFrequency: 'weekly', priority: 0.8 }),
     // Informational pages — rarely change, and each is real content regardless
     // of how many resources the library holds, so none of them is gated.

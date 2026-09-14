@@ -8078,6 +8078,12 @@
     "errorTitleRequired": "A title is required.",
     "errorSlug": "The slug must be one URL segment (letters, digits, hyphens) and not 'articles'.",
     "errorDuplicate": "Another journal already uses this title, alias or slug.",
-    "errorInUse": "This journal still has articles. Move them first."
+    "errorInUse": "This journal still has articles. Move them first.",
+    "unsaved": "Unsaved changes",
+    "sectionIdentity": "Name and address",
+    "sectionAbout": "About the journal",
+    "sectionAboutHint": "Shown on the public journal page only when filled in. Leave blank rather than guess.",
+    "sectionFacts": "Publication facts",
+    "sectionVisibility": "Visibility"
   }
 }

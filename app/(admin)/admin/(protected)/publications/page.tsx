@@ -3,7 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import PublicationsClient from "./_components/PublicationsClient";
 import Pagination from "@/components/ui/core/Pagination";
 import Link from "next/link";
-import { Plus, Users } from "lucide-react";
+import { Plus, Users, BookMarked } from "lucide-react";
 import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 const PAGE_SIZE = 20;
@@ -129,8 +129,8 @@ export default async function AdminPublicationsPage({
     <div className="w-full space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-text-heading">Manage Publications</h1>
-          <p className="text-text-muted text-sm mt-1">Manage and publish journal articles</p>
+          <h1 className="text-2xl font-bold text-text-heading">Journal articles</h1>
+          <p className="text-text-muted text-sm mt-1">Manage and publish the articles in the library’s journals.</p>
         </div>
         <div className="flex items-center gap-2">
           <Link
@@ -140,6 +140,13 @@ export default async function AdminPublicationsPage({
             <Users className="w-4 h-4" />
             Authors
           </Link>
+          <Link
+            href="/admin/journals"
+            className="inline-flex items-center gap-2 border border-divider text-text-body px-4 py-2 rounded-lg hover:bg-paper transition-colors"
+          >
+            <BookMarked className="w-4 h-4" />
+            Journals
+          </Link>
           {/* The create route requires write — a read-only viewer offered this
               button would land on a 403 for pressing the page's primary CTA. */}
           {canCreate && (
@@ -148,7 +155,7 @@ export default async function AdminPublicationsPage({
               className="inline-flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-lg hover:bg-brand/90 transition-colors"
             >
               <Plus className="w-4 h-4" />
-              New Publication
+              New article
             </Link>
           )}
         </div>

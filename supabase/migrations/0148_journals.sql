@@ -576,6 +576,31 @@ create trigger trg_journal_issues_propagate_names
   after update of issue_number on public.journal_issues
   for each row execute function public.journals_propagate_names();
 
+-- Map every still-unmapped article whose name now resolves to exactly one
+-- journal. Setting journal_id takes the trigger's FK path, so volumes and
+-- issues are found or created from the legacy text and the text is mirrored.
+-- Used by the backfill below and by the admin after a journal is created or
+-- gains an alias (app/actions/journals.ts). Service-role only.
+create or replace function public.journal_remap_unmapped()
+returns integer
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_count integer;
+begin
+  update public.publications p
+     set journal_id = public.journal_resolve_id(p.journal_name)
+   where p.journal_id is null
+     and public.journal_resolve_id(p.journal_name) is not null;
+  get diagnostics v_count = row_count;
+  return v_count;
+end;
+$$;
+
+revoke all on function public.journal_remap_unmapped() from public, anon, authenticated;
+
 -- ── 6. publications_with_stats: pick up the new columns ──────────────────────
 -- `select p.*` is frozen at CREATE time (the 0114 / 0125 lesson). Body is
 -- 0125's, byte-for-byte.
@@ -762,11 +787,7 @@ begin
   -- Setting journal_id takes the trigger's FK path: parents are filled,
   -- volumes/issues are found or created from the legacy text, and the text is
   -- re-mirrored from the canonical row.
-  update public.publications p
-     set journal_id = public.journal_resolve_id(p.journal_name)
-   where p.journal_id is null
-     and public.journal_resolve_id(p.journal_name) is not null;
-  get diagnostics v_mapped = row_count;
+  v_mapped := public.journal_remap_unmapped();
 
   raise notice '0148 backfill: % journal(s) created, % article(s) mapped', v_created, v_mapped;
 end $$;
@@ -787,7 +808,7 @@ end $$;
 --   drop column if exists journal_id;
 -- (then recreate publications_with_stats exactly as 0125 did)
 -- drop table if exists public.journal_issues, public.journal_volumes, public.journals;
--- drop function if exists public.journal_ensure_issue(uuid, uuid, text),
+-- drop function if exists public.journal_remap_unmapped(), public.journal_ensure_issue(uuid, uuid, text),
 --   public.journal_ensure_volume(uuid, text), public.journal_resolve_id(text),
 --   public.journals_propagate_names(), public.journals_keys_unique(),
 --   public.journal_issues_fill_slug(), public.journal_issue_default_slug(text, text, text),

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // Server-side reads for the public journal surfaces (/journals/<journal>,
 // its issues, and the journal context of an article page).
 //

@@ -124,6 +124,7 @@ const ADMIN_ACTION_FILES = [
   "duplicates.ts",
   "ebooks.ts",
   "homepage-photos.ts",
+  "journals.ts",
   "learning-paths.ts",
   "post-drafts.ts",
   "publication-workspace.ts",
