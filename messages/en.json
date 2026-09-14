@@ -7930,7 +7930,13 @@
     "viewCurriculum": "View curriculum",
     "subtopicsHeading": "Subtopics",
     "subtopicsIntro": "Specialized subjects grouped under this discipline.",
-    "subtopicOf": "Subtopic of {parent}"
+    "subtopicOf": "Subtopic of {parent}",
+    "subtopicCount": "{count, plural, =1 {# subtopic} other {# subtopics}}",
+    "parentDiscipline": "Discipline",
+    "hubSearchPlaceholder": "Search subjects by name or topic…",
+    "hubSearchLabel": "Search subjects",
+    "hubNoMatches": "No subjects match that search.",
+    "hubClearSearch": "Clear search"
   },
   "offline": {
     "libraryTitle": "Downloaded books",

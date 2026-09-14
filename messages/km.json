@@ -7935,7 +7935,13 @@
     "viewCurriculum": "ចូលមើលវគ្គសិក្សា",
     "subtopicsHeading": "ប្រធានបទរង",
     "subtopicsIntro": "មុខវិជ្ជាឯកទេសស្ថិតក្រោមប្រធានបទធំនេះ។",
-    "subtopicOf": "ប្រធានបទរងនៃ {parent}"
+    "subtopicOf": "ប្រធានបទរងនៃ {parent}",
+    "subtopicCount": "{count} ប្រធានបទរង",
+    "parentDiscipline": "ប្រធានបទមេ",
+    "hubSearchPlaceholder": "ស្វែងរកមុខវិជ្ជាតាមឈ្មោះ ឬប្រធានបទ…",
+    "hubSearchLabel": "ស្វែងរកមុខវិជ្ជា",
+    "hubNoMatches": "គ្មានមុខវិជ្ជាត្រូវនឹងការស្វែងរកនោះទេ។",
+    "hubClearSearch": "សម្អាតការស្វែងរក"
   },
   "offline": {
     "libraryTitle": "សៀវភៅដែលបានទាញយក",
