@@ -20,21 +20,24 @@ import { useTranslations } from "next-intl";
 import { ChevronDown, Clock, FileText } from "lucide-react";
 import AbstractReaderDialog from "@/components/ui/publications/AbstractReaderDialog";
 import AcademicText from "@/components/ui/publications/AcademicText";
-import SectionHeading from "@/components/ui/detail/SectionHeading";
+import ArticleSectionHeading from "@/components/ui/publications/article/ArticleSectionHeading";
 import ReaderToolbar from "@/components/ui/reader/ReaderToolbar";
 import { useReaderPreferences } from "@/components/ui/reader/useReaderPreferences";
 import type { PublicationReference } from "@/lib/publications";
 import { academicTextToPlainText } from "@/lib/publications/citations";
 
 const WORDS_PER_MINUTE = 200;
-// ~14 clipped lines at the block's own 1.8 line-height.
+// Only a genuinely long abstract is ever clipped, and the decision is made on
+// its LENGTH, not on how many lines it happens to wrap to.
 //
-// This was 6 lines, which clipped essentially every abstract in the
-// collection: a scholarly abstract runs 150-300 words, so the one block the
-// page exists to deliver arrived behind a "Show more" while six generated FAQ
-// accordions sat open below it. At 14 lines a normal abstract renders whole
-// and only a genuinely long one still offers the control.
-const COLLAPSED_MAX_HEIGHT = "25.2em";
+// It used to be a 14-line height cap. That rendered a normal abstract whole
+// on a laptop and clipped the same abstract on a phone, where 14 lines is ~80
+// words: the live 86-word abstract arrived behind "Show more" at 375 px. A
+// scholarly abstract runs 150-300 words; past ~2,400 characters (≈400 words,
+// or a long Khmer abstract) it is long enough that the rest of the article
+// deserves to be reachable, and the block folds to 28 lines.
+const LONG_ABSTRACT_CHARS = 2400;
+const COLLAPSED_MAX_HEIGHT = "49em";
 
 type ReaderScaleStyle = CSSProperties & { "--reader-scale": number };
 
@@ -50,6 +53,7 @@ function ExpandableAcademicBlock({
   languageLabel,
   textSize,
   className = "",
+  collapsible,
 }: {
   text: string;
   references: PublicationReference[];
@@ -58,6 +62,8 @@ function ExpandableAcademicBlock({
   languageLabel: string;
   textSize: number;
   className?: string;
+  /** Whether this block is long enough to fold at all. */
+  collapsible: boolean;
 }) {
   const t = useTranslations("publicationDetail");
   const reactId = useId();
@@ -68,20 +74,23 @@ function ExpandableAcademicBlock({
   const [overflowing, setOverflowing] = useState(false);
   const contentStyle: ReaderScaleStyle = {
     "--reader-scale": textSize / 100,
-    ...(expanded ? {} : { maxHeight: COLLAPSED_MAX_HEIGHT }),
+    ...(expanded || !collapsible ? {} : { maxHeight: COLLAPSED_MAX_HEIGHT }),
   };
 
   // Only show the control when the collapsed block actually clips content.
   useLayoutEffect(() => {
     if (expanded) return; // keep the last collapsed measurement
     const el = contentRef.current;
-    if (!el) return;
+    if (!el || !collapsible) {
+      setOverflowing(false);
+      return;
+    }
     const measure = () => setOverflowing(el.scrollHeight > el.clientHeight + 1);
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [expanded, text]);
+  }, [expanded, text, collapsible]);
 
   // A citation backlink (#citation-…) must reveal its clipped target before
   // the browser can meaningfully scroll to and focus it.
@@ -130,7 +139,7 @@ function ExpandableAcademicBlock({
           id={contentId}
           ref={contentRef}
           lang={lang}
-          className={`abstract-reader-copy overflow-hidden text-text-body print:!max-h-none ${className}`}
+          className={`abstract-reader-copy abstract-reader-copy--article overflow-hidden text-text-body print:!max-h-none ${className}`}
           style={contentStyle}
         >
           <AcademicText
@@ -215,6 +224,7 @@ export default function PublicationAbstractSection({
       languageLabel={t("abstractEnglish")}
       textSize={textSize}
       className="font-sans"
+      collapsible={abstract.length > LONG_ABSTRACT_CHARS}
     />
   ) : (
     <p className="text-[15px] text-text-muted">{t("abstractNone")}</p>
@@ -229,6 +239,7 @@ export default function PublicationAbstractSection({
       languageLabel={t("abstractKhmer")}
       textSize={textSize}
       className="font-khmer-serif"
+      collapsible={abstractKm.length > LONG_ABSTRACT_CHARS}
     />
   ) : null;
 
@@ -237,9 +248,9 @@ export default function PublicationAbstractSection({
       {/* Heading first, then the reading cost. The word count used to sit
           above the heading, so the section opened on "6 min read · 1,166
           words" and only then said what was being read. */}
-      <SectionHeading
+      <ArticleSectionHeading
         id="abstract-heading"
-        className="mb-2"
+        className="mb-3"
         aside={
           <ReaderToolbar
             textSize={textSize}
@@ -256,7 +267,7 @@ export default function PublicationAbstractSection({
         }
       >
         {heading}
-      </SectionHeading>
+      </ArticleSectionHeading>
 
       {words > 0 && (
         <p className="mb-4 flex flex-wrap items-center gap-3 text-[12px] text-text-muted">

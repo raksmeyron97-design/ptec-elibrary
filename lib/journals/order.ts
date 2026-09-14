@@ -59,6 +59,25 @@ export function compareArticlesInIssue(a: OrderableArticle, b: OrderableArticle)
   );
 }
 
+/**
+ * The articles printed immediately before and after `currentId` in its issue.
+ *
+ * The order is the issue page's own (`compareArticlesInIssue`), re-applied
+ * here rather than trusted from the caller, so "Next article" on an article
+ * page and the next row of that issue's table of contents can never disagree.
+ * An article that is not in the list — a stale cache, an unpublished sibling
+ * — has no neighbours, rather than neighbours guessed from somewhere else.
+ */
+export function issueNeighbours<T extends OrderableArticle>(
+  articles: readonly T[],
+  currentId: string,
+): { previous: T | null; next: T | null } {
+  const ordered = [...articles].sort(compareArticlesInIssue);
+  const at = ordered.findIndex((a) => a.id === currentId);
+  if (at === -1) return { previous: null, next: null };
+  return { previous: ordered[at - 1] ?? null, next: ordered[at + 1] ?? null };
+}
+
 /** Newest first: the article's own date, then id (for stability). */
 export function compareArticlesNewestFirst(
   a: Pick<OrderableArticle, "id" | "publication_date">,

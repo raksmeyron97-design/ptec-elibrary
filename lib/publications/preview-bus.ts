@@ -8,7 +8,14 @@ const EVENT_NAME = "publication-preview-open";
 
 export function activatePublicationPreview() {
   window.dispatchEvent(new CustomEvent(EVENT_NAME));
-  document.getElementById("fulltext")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const target = document.getElementById("fulltext");
+  if (!target) return;
+  const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+  target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  // Move keyboard focus with the view, so the next Tab continues inside the
+  // reader rather than back at the button that was pressed. The section is a
+  // tabindex="-1" landmark target, never a tab stop of its own.
+  if (target.hasAttribute("tabindex")) target.focus({ preventScroll: true });
 }
 
 export function onPublicationPreviewOpen(handler: () => void): () => void {

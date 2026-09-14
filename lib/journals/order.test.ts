@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareArticlesInIssue, compareIssuesNewestFirst, type OrderableArticle } from "@/lib/journals/order";
+import { compareArticlesInIssue, compareIssuesNewestFirst, issueNeighbours, type OrderableArticle } from "@/lib/journals/order";
 
 const a = (id: string, over: Partial<OrderableArticle> = {}): OrderableArticle => ({
   id, title: id, page_start: null, article_no: null, publication_date: null, ...over,
@@ -37,5 +37,43 @@ describe("compareIssuesNewestFirst", () => {
   it("newest volume first, then newest issue — numerically", () => {
     const list = [issue("6-3", "6", "3"), issue("7-1", "7", "1"), issue("7-2", "7", "2"), issue("10-1", "10", "1")];
     expect(list.sort(compareIssuesNewestFirst).map((i) => i.id)).toEqual(["10-1", "7-2", "7-1", "6-3"]);
+  });
+});
+
+describe("issueNeighbours — previous / next in the printed order", () => {
+  // Deliberately handed over out of order: the neighbours must follow the
+  // table of contents, never the order the rows arrived in.
+  const issue = [
+    a("third", { page_start: "40" }),
+    a("first", { page_start: "1" }),
+    a("unpositioned"),
+    a("second", { page_start: "12" }),
+  ];
+
+  it("follows compareArticlesInIssue, whatever order the rows arrive in", () => {
+    expect(issueNeighbours(issue, "second")).toEqual({
+      previous: expect.objectContaining({ id: "first" }),
+      next: expect.objectContaining({ id: "third" }),
+    });
+  });
+
+  it("has no previous at the start and no next at the end", () => {
+    expect(issueNeighbours(issue, "first").previous).toBeNull();
+    expect(issueNeighbours(issue, "first").next?.id).toBe("second");
+    // An article with no stated position sorts last, so it is the end.
+    expect(issueNeighbours(issue, "unpositioned").next).toBeNull();
+    expect(issueNeighbours(issue, "unpositioned").previous?.id).toBe("third");
+  });
+
+  it("invents nothing for an article that is not in the issue, or an issue of one", () => {
+    expect(issueNeighbours(issue, "missing")).toEqual({ previous: null, next: null });
+    expect(issueNeighbours([a("only", { page_start: "1" })], "only")).toEqual({ previous: null, next: null });
+    expect(issueNeighbours([], "only")).toEqual({ previous: null, next: null });
+  });
+
+  it("does not reorder the caller's array", () => {
+    const before = issue.map((r) => r.id);
+    issueNeighbours(issue, "second");
+    expect(issue.map((r) => r.id)).toEqual(before);
   });
 });

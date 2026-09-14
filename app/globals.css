@@ -812,9 +812,21 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   line-height: 0;
 }
 
+/* A journal article's own abstract, inline on its page: the one block the
+   page exists to deliver, so a step larger than a thesis card's abstract —
+   17px on phones, 18px from `sm`. The fullscreen reader keeps its own size. */
+.abstract-reader-copy--article {
+  font-size: calc(1.0625rem * var(--reader-scale, 1));
+  line-height: 1.75;
+}
+
 @media (min-width: 640px) {
   .abstract-reader-copy {
     font-size: calc(1.0625rem * var(--reader-scale, 1));
+  }
+
+  .abstract-reader-copy--article {
+    font-size: calc(1.125rem * var(--reader-scale, 1));
   }
 
   .abstract-reader-copy--fullscreen {
