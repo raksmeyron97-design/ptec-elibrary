@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { ArrowUpRight } from "lucide-react";
 
 import { Link } from "@/i18n/navigation";
 import JsonLd from "@/components/seo/JsonLd";
+import Icon from "@/components/ui/core/Icon";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { contributorNodes, soleContributorNode } from "@/lib/seo/contributor";
 import { SITE_URL } from "@/lib/seo/site";
@@ -13,21 +15,12 @@ import { getOrgIdentity } from "@/lib/system-settings/config";
 import { getListedAuthors } from "@/lib/authors/directory";
 import { authorFilterKey } from "@/lib/authors/filter-key";
 import AuthorDirectoryFilter from "@/components/ui/authors/AuthorDirectoryFilter";
+import { CollectionHeader, CollectionEmptyState, EntityBadge } from "@/components/ui/collection";
 
 export const revalidate = 3600;
 
 type PageProps = { params: Promise<{ locale: string }> };
 
-/**
- * The author hub. Its absence is why /authors/[slug] breadcrumbs pointed at
- * /publications while reading "Authors" — there was nowhere truthful to send
- * a visitor (docs/SEO-V2-AUDIT.md F-4, F-5).
- *
- * Lists only authors with public work. The roster carries names and counts and
- * nothing else: `publication_authors` may hold a biography and an ORCID, but a
- * directory row is not the place to assert either, and an e-book author row has
- * neither to assert.
- */
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale } = await params;
   const [t, org] = await Promise.all([
@@ -67,16 +60,16 @@ export default async function AuthorsHubPage({ params }: PageProps) {
     locale === "km" ? `${SITE_URL}/km/authors/${slug}` : `${SITE_URL}/authors/${slug}`;
   const totalWorks = authors.reduce((sum, a) => sum + a.workCount, 0);
 
+  // Extract distinct first letters for alphabetical navigation
+  const availableLetters = Array.from(
+    new Set(authors.map((a) => a.name.trim()[0]?.toUpperCase()).filter(Boolean)),
+  ).sort();
+
   const breadcrumbs = breadcrumbSchema([
     { name: t("breadcrumbHome"), path: "/" },
     { name: t("breadcrumbAuthors") },
   ], { locale });
 
-  // ItemList of Person nodes carrying ONLY name and url. A directory knows a
-  // person's name and where their page is; it does not know their job title or
-  // affiliation, and /authors/[slug] is where those are asserted when they
-  // exist. Repeating a thinner Person here would be a second, weaker claim
-  // about the same entity.
   const collectionSchema = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
@@ -89,17 +82,7 @@ export default async function AuthorsHubPage({ params }: PageProps) {
     mainEntity: {
       "@type": "ItemList",
       numberOfItems: authors.length,
-      // Each entry is typed by lib/seo/contributor.ts rather than assumed to
-      // be a Person: this hub lists ministries, universities and multi-person
-      // bylines alongside individuals. A byline that resolves to no entity
-      // (several people, not safely separable) is listed by URL and name only
-      // — the link is true, the identity claim would not be.
       itemListElement: authors.map((a, i) => {
-        // SEO 3.2: a byline that resolves to SEVERAL entities is untyped here
-        // for the same reason the profile page now asserts no identity for it
-        // — one URL cannot be three people, and typing it by its first name
-        // would publish that claim on the hub instead. 43 of production's 157
-        // rows are that shape (docs/SEO-3.2-AUDIT.md C-5).
         const node = soleContributorNode(contributorNodes(a.name, org));
         const typed = node && "@type" in node ? { "@type": node["@type"] } : {};
         const fragment = node && "@type" in node && node["@type"] === "Organization"
@@ -120,79 +103,125 @@ export default async function AuthorsHubPage({ params }: PageProps) {
   };
 
   return (
-    <main className="min-h-screen bg-bg-body px-4 py-10 sm:px-6 md:px-12">
+    <main className="min-h-screen bg-bg-body px-4 py-8 sm:px-6 sm:py-10 md:px-12">
       <JsonLd data={breadcrumbs} />
       {authors.length > 0 && <JsonLd data={collectionSchema} />}
 
       <div className="mx-auto max-w-5xl">
+        {/* Semantic Breadcrumb */}
         <nav
           aria-label="Breadcrumb"
-          className="mb-5 flex flex-wrap items-center gap-2 text-[13px] font-medium text-text-muted"
+          className="mb-5 flex flex-wrap items-center gap-1.5 text-[13px] font-medium text-text-muted"
         >
           <Link href="/" className="focus-field rounded-sm transition-colors hover:text-brand">
             {t("breadcrumbHome")}
           </Link>
-          <span aria-hidden="true">/</span>
+          <Icon name="chevron-right" className="text-[15px] text-divider" />
           <span className="font-semibold text-text-heading">{t("breadcrumbAuthors")}</span>
         </nav>
 
-        <header className="mb-8">
-          <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-brand">
-            {t("breadcrumbAuthors")}
-          </p>
-          <h1 className="mt-2 text-3xl font-bold text-text-heading sm:text-4xl">
-            {t("hubTitle")}
-          </h1>
-          <p className="mt-3 max-w-2xl text-[15px] leading-7 text-text-muted">{t("hubIntro")}</p>
-          {authors.length > 0 && (
-            <p className="mt-3 text-[13px] font-semibold text-text-muted">
-              {t("hubCountAuthors", { count: authors.length })} ·{" "}
-              {t("hubCountWorks", { count: totalWorks })}
-            </p>
-          )}
-        </header>
+        {/* Editorial Academic Header */}
+        <CollectionHeader
+          eyebrow={t("breadcrumbAuthors")}
+          title={t("hubSubtitle")}
+          description={t("hubIntro")}
+          stats={
+            authors.length > 0 ? (
+              <>
+                <span className="inline-flex items-center rounded-md border border-divider bg-bg-surface px-2.5 py-1 text-[12.5px] font-semibold text-text-heading shadow-xs">
+                  {t("hubCountAuthors", { count: authors.length })}
+                </span>
+                <span className="text-divider">·</span>
+                <span className="inline-flex items-center rounded-md border border-divider bg-bg-surface px-2.5 py-1 text-[12.5px] font-semibold text-brand shadow-xs">
+                  {t("hubCountWorks", { count: totalWorks })}
+                </span>
+              </>
+            ) : null
+          }
+        />
 
         {authors.length === 0 ? (
-          <div className="rounded-2xl border border-divider bg-bg-surface p-8 text-center text-text-muted">
-            {t("hubEmpty")}
-          </div>
+          <CollectionEmptyState
+            title={t("hubEmpty")}
+            description={t("hubIntro")}
+            action={{ label: t("breadcrumbHome"), href: "/" }}
+          />
         ) : (
           <>
-            {/* Progressive: the list below is complete without it. */}
+            {/* Progressive DOM filtering island with search & alphabetical index */}
             <AuthorDirectoryFilter
               listId="author-directory"
               label={t("hubSearchLabel")}
               placeholder={t("hubSearchPlaceholder")}
               noMatches={t("hubNoMatches")}
               clearLabel={t("worksClearSearch")}
+              availableLetters={availableLetters}
+              allLetterLabel={t("hubAlphabetAll")}
+              khmerLetterLabel={t("hubAlphabetKhmer")}
+              alphabetNavLabel={t("hubAlphabetNav")}
             />
-            {/* Phones: a compact row — name left, works count right — where
-                each card used to be ~100 px, so 269 authors ran to ~27,000 px.
-                From sm the cards are unchanged. */}
-            <ul id="author-directory" className="grid gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
-              {authors.map((author) => (
-                <li key={author.slug} data-author-key={authorFilterKey(author.name, author.nameKm)}>
-                  <Link
-                    href={`/authors/${author.slug}`}
-                    className="focus-field flex h-full items-center justify-between gap-3 rounded-xl border border-divider bg-bg-surface px-3.5 py-3 transition-colors hover:border-brand/40 sm:flex-col sm:items-start sm:justify-start sm:p-4"
+
+            {/* Academic Directory Grid: 2-3 columns on tablet/desktop, compact rows on mobile */}
+            <ul id="author-directory" className="grid gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
+              {authors.map((author) => {
+                const node = soleContributorNode(contributorNodes(author.name, org));
+                const isOrg = !!(node && "@type" in node && node["@type"] === "Organization");
+                const kind = isOrg ? "organization" : node ? "author" : null;
+                const firstChar = author.name.trim()[0]?.toUpperCase() ?? "";
+                const isKhmer = /[\u1780-\u17FF]/.test(author.name);
+
+                return (
+                  <li
+                    key={author.slug}
+                    data-author-key={authorFilterKey(author.name, author.nameKm)}
+                    data-letter={firstChar}
+                    data-is-khmer={isKhmer ? "true" : "false"}
                   >
-                    <div className="min-w-0">
-                      <h2 className="text-[15px] font-bold leading-snug text-text-heading">{author.name}</h2>
-                      {/* The Khmer form of the name is a fact the record carries,
-                          not a translation — shown whenever it exists, in either
-                          locale, because it identifies the same person. */}
-                      {author.nameKm && author.nameKm !== author.name && (
-                        <p className="mt-0.5 font-khmer-serif text-[13px] text-text-muted">
-                          {author.nameKm}
-                        </p>
-                      )}
-                    </div>
-                    <p className="shrink-0 whitespace-nowrap rounded-full bg-surface-brand-soft px-2.5 py-1 text-[12.5px] font-semibold text-brand sm:mt-1.5 sm:rounded-none sm:bg-transparent sm:p-0">
-                      {t("hubCountWorks", { count: author.workCount })}
-                    </p>
-                  </Link>
-                </li>
-              ))}
+                    <Link
+                      href={`/authors/${author.slug}`}
+                      className="group focus-field flex h-full flex-col justify-between rounded-xl border border-divider bg-bg-surface p-3.5 transition-all duration-150 hover:border-brand/40 hover:bg-paper/50 sm:p-4"
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            {kind && (
+                              <EntityBadge
+                                kind={kind}
+                                labels={{
+                                  author: t("entityAuthor"),
+                                  organization: t("entityOrganization"),
+                                }}
+                                className="mb-1.5"
+                              />
+                            )}
+                            <h2 className="text-[15px] font-bold leading-snug text-text-heading transition-colors group-hover:text-brand">
+                              {author.name}
+                            </h2>
+                            {author.nameKm && author.nameKm !== author.name && (
+                              <p
+                                lang="km"
+                                className="mt-1 font-khmer-serif text-[13px] leading-relaxed text-text-muted"
+                              >
+                                {author.nameKm}
+                              </p>
+                            )}
+                          </div>
+                          <ArrowUpRight
+                            className="h-4 w-4 shrink-0 text-text-muted/50 transition-transform duration-150 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-brand"
+                            aria-hidden="true"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between border-t border-divider/60 pt-2.5">
+                        <span className="text-[12px] font-semibold text-text-muted">
+                          {t("hubCountWorks", { count: author.workCount })}
+                        </span>
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </>
         )}
@@ -200,3 +229,4 @@ export default async function AuthorsHubPage({ params }: PageProps) {
     </main>
   );
 }
+
