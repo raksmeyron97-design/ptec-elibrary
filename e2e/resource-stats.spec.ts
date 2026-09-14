@@ -29,7 +29,7 @@ test.describe.configure({ timeout: 60_000 });
 // touches once, cheaply, without a browser — after this each test navigates
 // against a compiled route, which is what lets the budgets above stay tight.
 test.beforeAll(async ({ request }) => {
-  for (const path of ["/", "/km", "/books", "/theses", "/publications", "/catalogs"]) {
+  for (const path of ["/", "/km", "/books", "/theses", "/journals", "/catalogs"]) {
     await request
       .get(path, { timeout: 180_000, failOnStatusCode: false })
       .catch(() => {}); // a warm-up failure is not a test failure
@@ -115,12 +115,13 @@ const BOOKS_NOUN = /(?:resources?|e-books?)\b/;
  * statsSection(): an empty environment cannot demonstrate consistency
  * between two numbers.
  */
-async function requireListingCount(page: Page, noun: RegExp) {
+async function requireListingCount(page: Page, noun: RegExp, scope = "body") {
   let found: ReturnType<typeof listingCount> = null;
   await expect
     .poll(
       async () => {
-        found = listingCount(await page.locator("body").innerText(), noun);
+        const text = await page.locator(scope).first().innerText().catch(() => "");
+        found = listingCount(text, noun);
         return found !== null;
       },
       { timeout: 15_000 },
@@ -221,13 +222,16 @@ test.describe("listing totals match the homepage categories", () => {
     expect(toInt(m![1])).toBe(homepageTheses);
   });
 
-  test("/publications total equals the homepage Publications figure", async ({ page }) => {
+  test("/journals total equals the homepage journal-articles figure", async ({ page }) => {
     await visit(page, "/");
     const homepagePublications = await homepageStat(page, "publications");
 
-    await visit(page, "/publications");
+    await visit(page, "/journals");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    const count = await requireListingCount(page, /publications?\b/);
+    // Scoped to the result toolbar's live count: the journal shelf above it
+    // also says "N articles" — per journal — and the first match on the page
+    // would be that, not the listing total.
+    const count = await requireListingCount(page, /articles?\b/, 'p[aria-live="polite"]');
     expect(count.filtered).toBe(homepagePublications);
   });
 });

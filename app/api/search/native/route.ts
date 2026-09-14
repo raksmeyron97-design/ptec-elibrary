@@ -718,7 +718,10 @@ async function searchPublications(db: DB, rawQ: string, filters: Filters, limit:
 
   const { data, count, error } = await fetchPools(
     build,
-    orFilter(["title", "title_km", "abstract", "abstract_km", "author_names", "journal_name", "publisher", "isbn"], tokens),
+    // `doi` and `issn` so a reader who pastes an identifier finds the article
+    // (candidate coverage only — ranking stays in lib/search/ranking.ts).
+    // `journal_name` is the canonical journal title since 0148 mirrors it.
+    orFilter(["title", "title_km", "abstract", "abstract_km", "author_names", "journal_name", "publisher", "isbn", "doi", "issn"], tokens),
     phraseFilter(["title", "title_km", "author_names"], prepared, filters, true, seedIds),
     limit,
   );
@@ -776,7 +779,7 @@ async function searchPublications(db: DB, rawQ: string, filters: Filters, limit:
         cite: `${articlePath(p.slug)}#cite-panel`,
         save: `${articlePath(p.slug)}#save`,
       },
-      searchableText: [p.title, p.title_km, p.author_names, p.journal_name, p.publisher, abstract, abstractKm, keywords.join(" "), subjects.join(" ")].filter(Boolean).join(" "),
+      searchableText: [p.title, p.title_km, p.author_names, p.journal_name, p.publisher, p.doi, p.issn, abstract, abstractKm, keywords.join(" "), subjects.join(" ")].filter(Boolean).join(" "),
       titleText: [p.title, p.title_km].filter(Boolean).join(" "),
       authorText: p.author_names ?? "",
       subjectText: [subject, p.journal_name, subjects.join(" ")].filter(Boolean).join(" "),

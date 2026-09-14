@@ -19,17 +19,17 @@ test.describe('PTEC Library Smoke Tests', () => {
     await expect(page.getByRole('heading', { level: 1, name: /Physical Library/i })).toBeVisible();
   });
 
-  test('publications page loads', async ({ page }) => {
-    await page.goto('/publications');
+  test('journals page loads', async ({ page }) => {
+    await page.goto('/journals');
     await expect(
-      page.getByRole('heading', { name: 'Publications', exact: true }),
+      page.getByRole('heading', { name: 'Journals', exact: true }),
     ).toBeVisible();
   });
 
-  test('unknown publication slug shows not-found page', async ({ page }) => {
-    // Status is 200 because the (public) loading boundary streams the shell
-    // before notFound() fires — same behavior as /books/[slug].
-    await page.goto('/publications/this-slug-does-not-exist');
+  test('unknown journal article slug shows not-found page', async ({ page }) => {
+    // A real 404: the edge gate (RESOURCE_GATES["journals/articles"]) answers
+    // before the loading boundary can stream a 200 shell.
+    await page.goto('/journals/articles/this-slug-does-not-exist');
     // app/not-found.tsx heading (note the curly apostrophe in "couldn’t").
     await expect(
       page.getByRole('heading', { name: /find that page/i }),

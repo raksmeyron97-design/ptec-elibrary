@@ -26,7 +26,8 @@ import { getOrgIdentity } from "@/lib/system-settings/config";
 import { getCollectionStats } from "@/lib/collection-stats";
 import { chooseCountLabel } from "@/lib/listing-count";
 import { getPublicJournals, type JournalSummary } from "@/lib/journals/data";
-import { JOURNALS_PATH } from "@/lib/journals/urls";
+import { JOURNALS_PATH, PTEC_PUBLICATIONS_URL } from "@/lib/journals/urls";
+import { ExternalLink } from "lucide-react";
 import JournalShelf from "@/components/ui/journals/JournalShelf";
 
 export const dynamic = "force-dynamic";
@@ -149,9 +150,10 @@ export default async function PublicationsPage({
   // listing must not invent a second wording for the same claim. Both
   // translators and both params are independent of each other, so all four
   // resolve together instead of stacking round-trips.
-  const [t, tDetail, params, { locale }] = await Promise.all([
+  const [t, tDetail, tJ, params, { locale }] = await Promise.all([
     getTranslations("publications"),
     getTranslations("publicationDetail"),
+    getTranslations("journals"),
     searchParams,
     routeParams,
   ]);
@@ -350,6 +352,23 @@ export default async function PublicationsPage({
           {!hasFilters && journalList && journalList.length > 0 && (
             <JournalShelf journals={journalList} locale={locale} />
           )}
+
+          {/* The IA distinction, stated where a reader who came for
+              "Publications" lands: the college's own publications are on its
+              website, not in this collection. */}
+          <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-divider bg-bg-surface px-4 py-3 text-[13px] text-text-muted">
+            <span>{tJ("officialPublicationsNote")}</span>
+            <a
+              href={PTEC_PUBLICATIONS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-semibold text-brand underline-offset-2 hover:underline"
+            >
+              {tJ("officialPublicationsLink")}
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="sr-only"> {tJ("opensNewTab")}</span>
+            </a>
+          </p>
 
           <div className="mt-5 space-y-4">
             <PublicationFilters

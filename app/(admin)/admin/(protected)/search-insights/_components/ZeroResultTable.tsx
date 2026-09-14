@@ -14,6 +14,7 @@ import {
   type ZeroResultEntry,
 } from "@/app/actions/search-insights";
 import { StatusBadge, useToast, type StatusTone } from "@/components/admin/kit";
+import { ARTICLES_BASE_PATH, LEGACY_PUBLICATIONS_PATH } from "@/lib/journals/urls";
 
 /**
  * Status never travels on colour alone: every badge carries its label, and
@@ -269,7 +270,9 @@ function Row({
                       () => addCuratedSearchResult(entry.normalizedTerm, {
                         type: curatedUrl.startsWith("/books/") ? "book"
                           : curatedUrl.startsWith("/theses/") ? "thesis"
-                          : curatedUrl.startsWith("/publications/") ? "publication"
+                          // An article URL is /journals/articles/<slug> since 0148; a
+                          // curated URL pasted in the retired shape 301s there.
+                          : curatedUrl.startsWith(`${ARTICLES_BASE_PATH}/`) || curatedUrl.startsWith(`${LEGACY_PUBLICATIONS_PATH}/`) ? "publication"
                           : "page",
                         url: curatedUrl,
                         title: curatedTitle,

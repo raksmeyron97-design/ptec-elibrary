@@ -23,6 +23,14 @@ function cmpText(a: string | null | undefined, b: string | null | undefined): nu
   return (a ?? "").localeCompare(b ?? "", "en", { numeric: true });
 }
 
+/** Text order where a missing value sorts AFTER any present one. */
+function cmpTextNullsLast(a: string | null | undefined, b: string | null | undefined): number {
+  const hasA = !!a?.trim();
+  const hasB = !!b?.trim();
+  if (hasA !== hasB) return hasA ? -1 : 1;
+  return cmpText(a, b);
+}
+
 export type OrderableArticle = {
   id: string;
   title: string;
@@ -44,8 +52,8 @@ export function compareArticlesInIssue(a: OrderableArticle, b: OrderableArticle)
   return (
     cmpNullableNumber(leadingInt(a.page_start), leadingInt(b.page_start)) ||
     cmpNullableNumber(leadingInt(a.article_no), leadingInt(b.article_no)) ||
-    cmpText(a.article_no, b.article_no) ||
-    cmpText(a.publication_date, b.publication_date) ||
+    cmpTextNullsLast(a.article_no, b.article_no) ||
+    cmpTextNullsLast(a.publication_date, b.publication_date) ||
     cmpText(a.title, b.title) ||
     cmpText(a.id, b.id)
   );
