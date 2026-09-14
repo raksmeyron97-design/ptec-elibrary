@@ -1,0 +1,211 @@
+# Subject depth gate — correctness, and graduation notices.
+#
+# Two questions about https://library.ptec.edu.kh/subjects, asked on a schedule
+# because both are answered by CONTENT rather than by a deploy:
+#
+#   1. Does the gate still hold? Every URL in sitemap.xml must answer
+#      `index, follow`, every hub the sitemap omits must answer `noindex`, and
+#      no hub may be `nofollow`. scripts/verify-subject-indexability.ts.
+#
+#   2. Has the indexable SET changed? The §5 gate is dynamic — it is computed
+#      from live counts behind a one-hour cache — so the day a librarian
+#      publishes the fifth book in a hub, that hub enters the index with no
+#      deploy and no ticket. Nobody was being told.
+#      scripts/check-subject-graduation.ts.
+#
+# ── Why there is no `push` trigger ───────────────────────────────────────────
+#
+# The set moves when the CATALOGUE moves, not when code ships, and the gate's
+# own logic is already pinned by lib/subjects/indexability.test.ts plus the e2e
+# suite on every PR. A push trigger would mean re-implementing the deploy-wait
+# polling from entity-verification.yml — and that polling watches a build
+# fingerprint, which was measured to change for a docs-only commit
+# (docs/SEO-3.3-FINAL-REPORT.md §5.6). Weekly, against live HTTP, answers the
+# question this workflow actually asks.
+#
+# ── Why a graduation never fails the run ─────────────────────────────────────
+#
+# It is a librarian doing their job. A workflow that goes red for that is one
+# people learn to ignore, and the red that matters gets ignored with it — the
+# same reasoning that keeps a transport failure out of `fail` in
+# lib/verify/http.ts and blocked sign-ins out of Sev 2 in docs/ALERT-CATALOG.md.
+# A change is a Sev 4 notice; only the gate BREAKING is a failure.
+
+name: Subject gate
+
+on:
+  schedule:
+    # Mondays, an hour after entity-verification.yml so two alerts about the
+    # same deploy do not arrive in the same minute.
+    - cron: "41 4 * * 1" # 04:41 UTC (11:41 Phnom Penh)
+  workflow_dispatch:
+    inputs:
+      strict:
+        description: "Treat an unreachable hub as a failure too"
+        type: boolean
+        default: false
+
+permissions:
+  actions: read # this workflow's own previous run: conclusion + baseline artifact
+  contents: read
+
+concurrency:
+  group: subject-gate
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci --ignore-scripts
+
+      # ── The previous baseline ───────────────────────────────────────────
+      # From the last SUCCESSFUL run of this workflow. Absent is a legitimate
+      # answer (first run, expired artifact, a run that was incomplete and so
+      # deliberately wrote none) and is handled as "bootstrap" by the checker —
+      # NOT as an empty set, which would report every hub as newly graduated.
+      - name: Fetch previous baseline
+        id: baseline
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          prev=$(gh run list \
+                   --workflow subject-gate.yml \
+                   --status success \
+                   --limit 10 \
+                   --json databaseId \
+                   --jq "[.[] | select(.databaseId != ${{ github.run_id }})] | .[0].databaseId" 2>/dev/null || echo "")
+          if [ -z "$prev" ] || [ "$prev" = "null" ]; then
+            echo "No previous successful run — this one will bootstrap the baseline."
+            exit 0
+          fi
+          echo "Previous successful run: $prev"
+          gh run download "$prev" --name subject-indexable-baseline --dir prev 2>/dev/null \
+            || echo "That run published no baseline (it may have been incomplete) — bootstrapping."
+
+      # ── 1. Does the gate still hold? ────────────────────────────────────
+      # Its own exit code decides the job. A defect here is a live
+      # contradiction: a URL submitted for indexing whose page declines it.
+      - name: Verify the depth gate
+        id: verify
+        run: |
+          set -uo pipefail
+          mkdir -p reports
+          npx tsx scripts/verify-subject-indexability.ts \
+            --json reports/subject-indexability.json \
+            ${{ inputs.strict && '--strict' || '' }} 2>&1 | tee reports/verify.log
+          # PIPESTATUS is rebuilt by the NEXT command, so read it once, now.
+          rc=${PIPESTATUS[0]}
+          echo "Verifier exit: $rc"
+          exit "$rc"
+
+      # ── 2. Has the indexable set changed? ───────────────────────────────
+      # `always()`: a failing gate does not make the membership question
+      # uninteresting, and the checker refuses to compare an incomplete run
+      # by itself.
+      - name: Check for graduations
+        id: graduation
+        if: always()
+        run: |
+          set -uo pipefail
+          prev_arg=""
+          if [ -f prev/subject-indexable-baseline.json ]; then
+            prev_arg="--previous prev/subject-indexable-baseline.json"
+          fi
+          npx tsx scripts/check-subject-graduation.ts \
+            --current reports/subject-indexability.json \
+            $prev_arg \
+            --baseline-out baseline/subject-indexable-baseline.json
+
+      # Only ever written by a COMPLETE run — the checker refuses otherwise, so
+      # an outage cannot shrink the baseline and make the next run report the
+      # missing hubs as fresh graduations.
+      - name: Publish the baseline
+        if: always() && hashFiles('baseline/subject-indexable-baseline.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: subject-indexable-baseline
+          path: baseline/subject-indexable-baseline.json
+          retention-days: 90
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Subject depth gate"
+            echo
+            sed -n '1,40p' reports/verify.log 2>/dev/null || echo "(verifier produced no log)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # ── Alerting ────────────────────────────────────────────────────────
+      - name: Read previous run conclusion
+        id: previous
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          prev=$(gh run list \
+                   --workflow subject-gate.yml \
+                   --status completed \
+                   --limit 5 \
+                   --json databaseId,conclusion \
+                   --jq "[.[] | select(.databaseId != ${{ github.run_id }})] | .[0].conclusion" 2>/dev/null || echo "")
+          # Unknown defaults to FAILURE, i.e. toward staying quiet — a repeated
+          # correctness alert costs trust in the channel, and this signal is
+          # only useful while it is still read. The run is red in Actions either
+          # way. Same choice as entity-verification.yml.
+          if [ -z "$prev" ] || [ "$prev" = "null" ]; then prev="failure"; fi
+          echo "conclusion=$prev" >> "$GITHUB_OUTPUT"
+
+      - name: Telegram alert (gate broken)
+        if: failure() && steps.previous.outputs.conclusion == 'success'
+        uses: ./.github/actions/telegram-alert
+        with:
+          severity: "2"
+          title: Subject depth gate failed
+          service: library.ptec.edu.kh
+          message: >-
+            A subject hub and sitemap.xml now disagree — a URL submitted for
+            indexing whose page answers noindex, a hub below the bar still
+            indexable, or a hub gone nofollow. Nothing is down; a
+            machine-readable claim is wrong. See the run summary.
+          runbook: docs/SEO-3.3-FINAL-REPORT.md
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Telegram alert (gate recovered)
+        if: success() && steps.previous.outputs.conclusion == 'failure'
+        uses: ./.github/actions/telegram-alert
+        with:
+          severity: "4"
+          title: Subject depth gate recovered
+          service: library.ptec.edu.kh
+          message: The sitemap and every subject hub agree again.
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      # Sev 4: informational. The catalogue grew (or shrank) and the gate
+      # responded on its own — this is the design working, not an incident.
+      - name: Telegram notice (indexable set changed)
+        if: always() && steps.graduation.outputs.alert == 'true'
+        uses: ./.github/actions/telegram-alert
+        with:
+          severity: "4"
+          title: ${{ steps.graduation.outputs.title }}
+          service: library.ptec.edu.kh
+          message: ${{ steps.graduation.outputs.message }}
+          runbook: docs/SEO-3.3-FINAL-REPORT.md
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
