@@ -227,7 +227,7 @@ export default function PathExperience({
                     type="button"
                     onClick={() => gotoRelative(-1)}
                     aria-label={t("prevStep")}
-                    className="flex h-11 w-11 items-center justify-center rounded-lg border border-divider text-text-body transition hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                    className="focus-field flex h-11 w-11 items-center justify-center rounded-lg border border-divider text-text-body transition hover:border-brand/40 hover:text-brand"
                   >
                     <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                   </button>
@@ -235,7 +235,7 @@ export default function PathExperience({
                     type="button"
                     onClick={() => gotoRelative(1)}
                     aria-label={t("nextStep")}
-                    className="flex h-11 w-11 items-center justify-center rounded-lg border border-divider text-text-body transition hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                    className="focus-field flex h-11 w-11 items-center justify-center rounded-lg border border-divider text-text-body transition hover:border-brand/40 hover:text-brand"
                   >
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </button>
@@ -245,7 +245,7 @@ export default function PathExperience({
                 <button
                   type="button"
                   onClick={handleStart}
-                  className="btn-brand-gradient inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-4 text-[13.5px] font-bold text-white sm:flex-none"
+                  className="btn-brand-gradient focus-field inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-4 text-[13.5px] font-bold text-white sm:flex-none"
                 >
                   <PlayCircle className="h-4 w-4" aria-hidden="true" />
                   {startLabel}
@@ -275,7 +275,7 @@ export default function PathExperience({
             type="button"
             onClick={toggleAll}
             aria-expanded={allOpen}
-            className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2.5 text-[12.5px] font-semibold text-text-body transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+            className="focus-field inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2.5 text-[12.5px] font-semibold text-text-body transition-colors hover:text-brand"
           >
             {allOpen ? <ChevronsDownUp className="h-4 w-4" aria-hidden="true" /> : <ChevronsUpDown className="h-4 w-4" aria-hidden="true" />}
             {allOpen ? t("collapseAll") : t("expandAll")}
@@ -300,7 +300,7 @@ export default function PathExperience({
                   onClick={() => toggleModule(mod.id)}
                   aria-expanded={isOpen}
                   aria-controls={panelId}
-                  className="flex w-full items-center gap-3 p-4 text-left transition hover:bg-paper/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring/50 sm:p-5"
+                  className="focus-field flex w-full items-center gap-3 p-4 text-left transition hover:bg-paper/40 sm:p-5"
                 >
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand/10 text-[13px] font-bold text-brand tabular-nums">
                     {mi + 1}
@@ -334,7 +334,7 @@ export default function PathExperience({
                     <LangText as="p" text={moduleDesc} locale={locale} className="mb-3 mt-3 text-[13px] leading-relaxed text-text-body" />
                   )}
                   <ol className="space-y-2.5">
-                    {mod.steps.map((step) => {
+                    {mod.steps.map((step, stepIndex) => {
                       const Icon = RESOURCE_ICON[step.resource_type];
                       const isDone = completed.has(step.id);
                       const isCurrent = currentStep?.id === step.id;
@@ -353,7 +353,7 @@ export default function PathExperience({
                         <li
                           key={step.id}
                           ref={(el) => { if (el) stepRefs.current.set(step.id, el); }}
-                          className={`relative flex items-start gap-2 rounded-xl border p-3 pl-2 transition sm:p-3.5 sm:pl-2.5 ${
+                          className={`relative flex items-start gap-2.5 rounded-xl border p-3 pl-2 transition sm:p-3.5 sm:pl-2.5 ${
                             isCurrent
                               ? "border-brand/50 bg-brand/[0.04] ring-1 ring-brand/20"
                               : "border-divider bg-paper/50"
@@ -364,7 +364,7 @@ export default function PathExperience({
                             onClick={() => toggleStep(step.id)}
                             aria-pressed={isDone}
                             aria-label={isDone ? t("markNotDone", { title: stepTitle }) : t("markDone", { title: stepTitle })}
-                            className="relative z-10 -my-1.5 grid h-11 w-11 shrink-0 place-items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                            className="focus-field relative z-10 -my-1.5 grid h-11 w-11 shrink-0 place-items-center rounded-full"
                           >
                             <span
                               aria-hidden="true"
@@ -379,11 +379,11 @@ export default function PathExperience({
                           </button>
 
                           <div className="min-w-0 flex-1 pt-1">
-                            {/* Meta. "Required" is the default for every step, so
-                                only the exception is badged — a badge on 4 of 4
-                                rows, at 9.5px and 2:1 contrast, said nothing
-                                and was the least readable text on the site. */}
                             <div className="paths-eyebrow flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold text-text-body">
+                              {/* Step Number (01, 02…) */}
+                              <span className="font-mono text-[11px] font-bold text-text-muted tabular-nums">
+                                {String(step.position || stepIndex + 1).padStart(2, "0")}
+                              </span>
                               <span className="inline-flex items-center gap-1">
                                 <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                                 {t(RESOURCE_TYPE_KEY[step.resource_type])}
@@ -394,8 +394,14 @@ export default function PathExperience({
                                   {duration}
                                 </span>
                               )}
-                              {!step.is_required && (
-                                <span className="rounded bg-paper px-1.5 py-0.5 text-[11px] font-bold text-text-body">{t("optionalLabel")}</span>
+                              {step.is_required ? (
+                                <span className="rounded bg-brand/10 px-1.5 py-0.5 text-[10.5px] font-bold text-brand">
+                                  {t("requiredLabel")}
+                                </span>
+                              ) : (
+                                <span className="rounded bg-paper px-1.5 py-0.5 text-[10.5px] font-bold text-text-muted">
+                                  {t("optionalLabel")}
+                                </span>
                               )}
                               {isCurrent && (
                                 <span className="inline-flex items-center gap-1 rounded bg-brand px-1.5 py-0.5 text-[11px] font-bold text-white">
@@ -417,7 +423,7 @@ export default function PathExperience({
                                   href={step.url}
                                   target={isExternal ? "_blank" : undefined}
                                   rel={isExternal ? "noopener noreferrer" : undefined}
-                                  className={`${titleClass} inline-flex items-center gap-1 hover:text-brand focus-visible:outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-focus-ring`}
+                                  className={`${titleClass} focus-field inline-flex items-center gap-1 hover:text-brand after:absolute after:inset-0 after:rounded-xl`}
                                 >
                                   <LangText text={stepTitle} locale={locale} />
                                   {isExternal && <ExternalLink className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-label={t("opensInNewTab")} />}
@@ -429,8 +435,14 @@ export default function PathExperience({
                               </p>
                             )}
 
+                            {/* Curator Rationale / Note */}
                             {instruction && (
-                              <LangText as="p" text={instruction} locale={locale} className="mt-1 text-[13px] leading-relaxed text-text-body" />
+                              <div className="mt-2 rounded-lg border border-brand/15 bg-brand/[0.03] px-3 py-2 text-[12.5px] leading-relaxed">
+                                <span className="mr-1.5 font-bold text-brand">
+                                  {t("rationaleLabel")}
+                                </span>
+                                <LangText text={instruction} locale={locale} className="text-text-body" />
+                              </div>
                             )}
                           </div>
                         </li>

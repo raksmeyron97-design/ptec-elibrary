@@ -54,6 +54,7 @@ export interface LearningPathSummary {
    * collection figures count each resource once, not once per step.
    */
   stepResources: StepResourceRef[];
+  enrollmentCount?: number;
 }
 
 export interface StepResourceRef {
@@ -225,17 +226,32 @@ function mapSummary(p: any): LearningPathSummary {
 
 export async function getPublishedPaths(): Promise<LearningPathSummary[]> {
   const db = createServiceClient();
-  const { data, error } = await db
-    .from("learning_paths")
-    .select(SUMMARY_SELECT)
-    .eq("status", "published")
-    .order("position", { ascending: true });
+  const [{ data, error }, { data: enrollData }] = await Promise.all([
+    db
+      .from("learning_paths")
+      .select(SUMMARY_SELECT)
+      .eq("status", "published")
+      .order("position", { ascending: true }),
+    db.from("learning_path_enrollments").select("path_id"),
+  ]);
 
   if (error) {
     console.error("[getPublishedPaths]", error.message);
     return [];
   }
-  return (data ?? []).map(mapSummary);
+
+  const enrollmentMap = new Map<string, number>();
+  for (const e of enrollData ?? []) {
+    if (e.path_id) {
+      enrollmentMap.set(e.path_id, (enrollmentMap.get(e.path_id) ?? 0) + 1);
+    }
+  }
+
+  return (data ?? []).map((p) => {
+    const summary = mapSummary(p);
+    summary.enrollmentCount = enrollmentMap.get(summary.id) ?? 0;
+    return summary;
+  });
 }
 
 /**
@@ -615,11 +631,22 @@ export async function enrollInPath(pathId: string): Promise<{ success: true } | 
   if (!user) return { error: "Sign in to enroll in this learning path." };
 
   const db = createServiceClient();
+  const { data: pathRow } = await db
+    .from("learning_paths")
+    .select("id, slug, status")
+    .eq("id", pathId)
+    .maybeSingle();
+
+  if (!pathRow || pathRow.status !== "published") {
+    return { error: "Learning path not found or not published." };
+  }
+
   const { error } = await db
     .from("learning_path_enrollments")
     .upsert({ user_id: user.id, path_id: pathId }, { onConflict: "user_id,path_id", ignoreDuplicates: true });
 
   if (error) return { error: error.message };
+  revalidateLearningPath(pathRow.slug);
   revalidatePath("/dashboard");
   return { success: true };
 }
@@ -634,6 +661,22 @@ export async function setStepComplete(
   if (!user) return { error: "Sign in required." };
 
   const db = createServiceClient();
+
+  // Verify step belongs to path and retrieve slug for revalidation
+  const { data: stepRow, error: stepErr } = await db
+    .from("learning_path_steps")
+    .select("id, learning_path_modules!inner(path_id, learning_paths!inner(slug, status))")
+    .eq("id", stepId)
+    .maybeSingle();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pathData = (stepRow?.learning_path_modules as any)?.learning_paths;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const stepPathId = (stepRow?.learning_path_modules as any)?.path_id;
+
+  if (stepErr || !stepRow || stepPathId !== pathId) {
+    return { error: "Invalid step or path mismatch." };
+  }
 
   if (completed) {
     const { error } = await db
@@ -671,6 +714,9 @@ export async function setStepComplete(
     .eq("user_id", user.id)
     .eq("path_id", pathId);
 
+  if (pathData?.slug) {
+    revalidateLearningPath(pathData.slug);
+  }
   revalidatePath("/dashboard");
   return { success: true };
 }

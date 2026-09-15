@@ -4,20 +4,15 @@ import { useState } from "react";
 import Image from "next/image";
 import { Link } from "@/i18n/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Layers, Clock, Signal, ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
+import { Layers, Clock, ArrowRight, CheckCircle2, BookOpen } from "lucide-react";
 import type { LearningPathSummary, PathProgressRecord } from "@/app/actions/learning-paths";
 import { progressState, progressPercent } from "@/lib/learning-paths/format";
 import { deriveScope, scopeLabelKeys } from "@/lib/learning-paths/taxonomy";
 import { LangText } from "@/components/ui/core/LangText";
+import { Badge } from "@/components/ui/core/Badge";
 import { formatDuration } from "./format-duration";
 import PathCoverFallback from "./PathCoverFallback";
 
-/**
- * Compact completion dial shown on the cover corner once a learner has
- * started. `aria-hidden` because the same percentage is announced by the
- * labelled progress bar in the card body — without that the card would read
- * its progress out twice.
- */
 function ProgressDial({ pct, done }: { pct: number; done: boolean }) {
   const r = 9;
   const circumference = 2 * Math.PI * r;
@@ -45,33 +40,14 @@ function ProgressDial({ pct, done }: { pct: number; done: boolean }) {
   );
 }
 
-/**
- * A learning path as a grid cell. Presentational + accessible: the whole card
- * is a single link (no nested interactive elements) with a visible text CTA.
- *
- * Layout decisions worth keeping:
- *
- * • The cover is 2:1, not the 16:6 letterbox it was. At 16:6 a real cover was
- *   cropped to a strip too shallow to read as a picture, and the fallback
- *   hatch had no room to look deliberate.
- *
- * • Audience and difficulty moved OFF the cover and into the body. Pills
- *   floated over an arbitrary photograph need a scrim to stay legible, and
- *   that scrim was the only reason the cover carried a gradient overlay at
- *   all; as body text they are higher contrast and cost nothing. The cover
- *   now carries only the two things that are genuinely about the image's
- *   corner — "new", and how far you are.
- *
- * • The CTA is pinned to the bottom with `mt-auto` above a hairline. Cards in
- *   a row hold different amounts of text, and before this the CTA sat at a
- *   different height in every one of them.
- *
- * • Free-text tags are gone. The card already states audience, level, step
- *   count and duration; tags added a fifth metadata row that pushed the CTA
- *   down, and — being inside the card's own link — could not be clicked to
- *   filter by, so they were decoration. They remain fully searchable: the
- *   explorer's query still matches against them.
- */
+function getCategoryMarkerColor(subjectOrTrack?: string | null): string {
+  const s = (subjectOrTrack ?? "").toLowerCase();
+  if (s.includes("math") || s.includes("គណិត")) return "text-brand";
+  if (s.includes("read") || s.includes("អំណាន") || s.includes("ភាសា")) return "text-accent-text";
+  if (s.includes("sci") || s.includes("វិទ្យា")) return "text-success";
+  return "text-info";
+}
+
 export default function PathCard({
   path,
   progress,
@@ -80,14 +56,7 @@ export default function PathCard({
 }: {
   path: LearningPathSummary;
   progress?: PathProgressRecord | null;
-  /** Position in the grid — drives the entrance stagger only. */
   index?: number;
-  /**
-   * Decided by the CALLER (the explorer ranks by `published_at` and caps the
-   * badge at three), not per card: every path was re-saved on the same day
-   * and, measured from `updated_at`, 9 of 9 cards wore the badge — a badge
-   * that is always on is chrome spending the loudest colour to say nothing.
-   */
   isNew?: boolean;
 }) {
   const t = useTranslations("paths");
@@ -101,31 +70,43 @@ export default function PathCard({
   const pct = progress ? progressPercent(progress.completedSteps, progress.totalSteps) : 0;
   const started = !!progress && state !== "not-started";
 
-  const cta =
-    state === "completed" ? t("cardReview") : state === "in-progress" ? t("cardContinue") : t("cardStart");
-  // A cover_url can point at a file that has since been deleted from storage
-  // (one of these 404s today). Without this the card renders the browser's
-  // broken-image glyph, which looks like a bug in the page rather than a
-  // missing asset — fall back to the same pattern an uncovered path gets.
+  let cta = t("cardStart");
+  if (state === "completed") {
+    cta = t("cardReview");
+  } else if (state === "in-progress") {
+    cta = t("cardContinuePct", { pct });
+  }
+
   const [coverFailed, setCoverFailed] = useState(false);
   const showCover = !!path.cover_url && !coverFailed;
-  // Eyebrow: "Grade 1 · Mathematics", derived from the row (lib/learning-
-  // paths/taxonomy.ts). It replaced the raw `audience` string — a ~90-char
-  // bilingual sentence, uppercased, letter-spaced and truncated at 40 chars,
-  // so every card's eyebrow read identically for its first six words while
-  // the letter-spacing pulled the Khmer subscripts off their bases.
-  const scopeLabel = scopeLabelKeys(deriveScope(path)).map((k) => t(k)).join(" · ");
-  // Capped so a late card in a long list is not held back for a full second.
+
+  const scope = deriveScope(path);
+  const scopeKeys = scopeLabelKeys(scope);
+  const scopeLabel = scopeKeys.length > 0 ? scopeKeys.map((k) => t(k)).join(" · ") : null;
+  const categoryLabel = path.subject || scopeLabel || t("categoryLabel");
+
+  const resourceCount =
+    path.stepResources && path.stepResources.length > 0
+      ? new Set(path.stepResources.map((r) => r.key)).size
+      : path.stepCount;
+
+  const difficultyVariant =
+    path.difficulty === "beginner"
+      ? "success"
+      : path.difficulty === "advanced"
+        ? "warning"
+        : "brand";
+
   const stagger = `${Math.min(index, 7) * 45}ms`;
 
   return (
     <Link
       href={`/paths/${path.slug}`}
       aria-label={`${title} — ${cta}`}
-      className="paths-card-enter group relative flex h-full flex-col overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm transition-[transform,box-shadow,border-color] duration-200 hover:border-brand/40 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-body motion-safe:hover:-translate-y-0.5"
+      className="paths-card-enter focus-field group relative flex h-full flex-col overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm transition-[transform,box-shadow,border-color] duration-200 hover:border-brand/40 hover:shadow-lg motion-safe:hover:-translate-y-0.5"
       style={{ animationDelay: stagger }}
     >
-      {/* Cover */}
+      {/* Cover (16:9) */}
       <div className="relative aspect-video w-full overflow-hidden bg-gradient-to-br from-brand/12 via-brand/6 to-paper">
         {showCover ? (
           <Image
@@ -148,45 +129,56 @@ export default function PathCard({
       </div>
 
       <div className="flex flex-1 flex-col p-4 sm:p-5">
-        {(scopeLabel || isNew) && (
-          <p className="mb-2 flex items-center gap-2 text-[11px] font-bold text-brand">
-            {scopeLabel && <span className="paths-eyebrow">{scopeLabel}</span>}
+        {/* Category with color marker and Level badge */}
+        <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+          <span className="inline-flex items-center text-xs font-semibold text-text-muted">
+            <span
+              className={`mr-1.5 text-xs ${getCategoryMarkerColor(path.subject || scope.track)}`}
+              aria-hidden="true"
+            >
+              ●
+            </span>
+            <span>{categoryLabel}</span>
+          </span>
+
+          <div className="flex items-center gap-1.5">
             {isNew && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-600 px-2 py-0.5 text-[10.5px] font-semibold leading-[1.4] text-white">
-                <Sparkles className="h-3 w-3" aria-hidden="true" />
+              <span className="inline-flex items-center rounded-full bg-amber-600 px-2 py-0.5 text-[10.5px] font-semibold text-white">
                 {t("badgeNew")}
               </span>
             )}
-          </p>
-        )}
+            {path.difficulty && (
+              <Badge variant={difficultyVariant} className="text-[11px] font-semibold">
+                {t(`difficulty.${path.difficulty}`)}
+              </Badge>
+            )}
+          </div>
+        </div>
 
-        <h3 className="line-clamp-2 text-[16.5px] font-bold leading-snug text-text-heading">
+        {/* Title */}
+        <h3 className="line-clamp-2 text-[16px] font-bold leading-snug text-text-heading group-hover:text-brand">
           <LangText text={title} locale={locale} />
         </h3>
 
+        {/* One-line description */}
         {description && (
           <LangText
             as="p"
             text={description}
             locale={locale}
-            className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-text-muted"
+            className="mt-1.5 line-clamp-1 text-[13px] leading-relaxed text-text-muted"
           />
         )}
 
-        {/* Meta. Module count is deliberately absent: "4 modules · 12 steps"
-            is one granularity more than a browsing decision needs, and steps
-            is the number that maps to effort. Modules are shown on the detail
-            page, where the curriculum is the point. */}
+        {/* Metadata row: Steps, Resources, Duration */}
         <ul className="mt-3 flex list-none flex-wrap items-center gap-x-3.5 gap-y-1.5 text-[12px] font-medium text-text-muted">
-          {path.difficulty && (
-            <li className="inline-flex items-center gap-1">
-              <Signal className="h-3.5 w-3.5" aria-hidden="true" />
-              {t(`difficulty.${path.difficulty}`)}
-            </li>
-          )}
           <li className="inline-flex items-center gap-1">
             <Layers className="h-3.5 w-3.5" aria-hidden="true" />
             {t("steps", { count: path.stepCount })}
+          </li>
+          <li className="inline-flex items-center gap-1">
+            <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
+            {t("resourceCount", { count: resourceCount })}
           </li>
           {duration && (
             <li className="inline-flex items-center gap-1">
@@ -196,6 +188,7 @@ export default function PathCard({
           )}
         </ul>
 
+        {/* Progress bar: only real progress (never 0% for anonymous) */}
         {started && (
           <div className="mt-3.5">
             <div className="mb-1 flex items-center justify-between text-[11px] font-semibold tabular-nums text-text-muted">
@@ -211,15 +204,16 @@ export default function PathCard({
               className="h-1.5 w-full overflow-hidden rounded-full bg-paper"
             >
               <div
-                className={`h-full rounded-full transition-all duration-500 ${state === "completed" ? "bg-emerald-600" : "bg-brand"}`}
+                className={`h-full rounded-full transition-all duration-500 ${
+                  state === "completed" ? "bg-emerald-600" : "bg-brand"
+                }`}
                 style={{ width: `${pct}%` }}
               />
             </div>
           </div>
         )}
 
-        {/* Footer. `mt-auto` is what aligns the CTA across a row of cards
-            whose titles and descriptions run to different lengths. */}
+        {/* Footer CTA */}
         <div className="mt-auto pt-4">
           <div className="flex items-center gap-1.5 border-t border-divider pt-3.5 text-[13px] font-bold text-brand">
             {cta}

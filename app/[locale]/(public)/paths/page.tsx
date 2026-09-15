@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { GraduationCap, Layers, Clock } from "lucide-react";
+import { GraduationCap, Layers, Clock, ChevronRight } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
+import { Link } from "@/i18n/navigation";
 import { getPublishedPaths, getFeaturedPath, getPathBySlug } from "@/app/actions/learning-paths";
 import { getCollectionStats } from "@/lib/collection-stats";
 import JsonLd from "@/components/seo/JsonLd";
-import PathsExplorer from "./_components/PathsExplorer";
+import { breadcrumbSchema } from "@/lib/seo/schema";
+import PathsCatalogueClient from "./_components/PathsCatalogueClient";
 import PathJourneyVisual from "./_components/PathJourneyVisual";
 import PathCardSkeleton from "./_components/PathCardSkeleton";
+import { parsePathsFilterParams, filterAndSortPaths } from "@/lib/learning-paths/filter";
 import {
   buildPathsListingMetadata,
   pathsCollectionJsonLd,
@@ -16,7 +19,7 @@ import {
 import { getOrgIdentity } from "@/lib/system-settings/config";
 
 // ISR: this page renders no per-visit/per-user data (learner progress is fetched
-// client-side inside PathsExplorer, so the shell stays cacheable). getPublished-
+// client-side inside PathsCatalogueClient, so the shell stays cacheable). getPublished-
 // Paths is invalidated by the admin mutations via the "paths" tag.
 export const revalidate = 3600;
 
@@ -26,13 +29,6 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  // With no published paths this page renders only "No learning paths published
-  // yet" — a soft-404 that was indexable and sitemap-advertised. getCollection-
-  // Stats() is one cached row (the page body already reads it), and a NULL read
-  // means "unknown", not "empty", so only a hard 0 withholds the index entry.
-  //
-  // All three reads are independent once `locale` is known, so they run
-  // together — adding the stats read must not serialize this metadata path.
   const [t, stats, org] = await Promise.all([
     getTranslations({ locale, namespace: "paths" }),
     getCollectionStats(),
@@ -49,7 +45,14 @@ export async function generateMetadata({
   );
 }
 
-export default async function LearningPathsPage() {
+export default async function LearningPathsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const rawParams = searchParams ? await searchParams : undefined;
+  const filterParams = parsePathsFilterParams(rawParams);
+
   const [paths, featuredSummary, locale, t, stats] = await Promise.all([
     getPublishedPaths(),
     getFeaturedPath(),
@@ -58,15 +61,13 @@ export default async function LearningPathsPage() {
     getCollectionStats(),
   ]);
 
+  // Execute pure filter and sort on the server so initial HTML is fully filtered
+  const filteredPaths = filterAndSortPaths(paths, filterParams);
+
   // Featured path needs its outcomes + curriculum shape for the hero card.
   const featured = featuredSummary ? await getPathBySlug(featuredSummary.slug) : null;
 
   const pathTotal = stats?.learningPaths ?? paths.length;
-  // DISTINCT resources, and the hours to read them once. The same 28 MoEYS
-  // titles sit in a grade path, its series master and the combined package,
-  // so summing step counts reported 82 resources / 84 hours for a collection
-  // a teacher finishes in 28 — exactly triple, and the kind of figure that
-  // makes every other number on the page less trusted.
   const distinct = new Map<string, number>();
   for (const p of paths) {
     for (const r of p.stepResources) {
@@ -95,6 +96,14 @@ export default async function LearningPathsPage() {
     paths: seoPaths,
   });
 
+  const breadcrumbs = breadcrumbSchema(
+    [
+      { name: t("breadcrumbHome"), path: "/" },
+      { name: t("breadcrumbPaths") },
+    ],
+    { locale },
+  );
+
   const heroStats = [
     { icon: <GraduationCap className="h-4 w-4" aria-hidden="true" />, value: pathTotal, label: t("statPaths") },
     { icon: <Layers className="h-4 w-4" aria-hidden="true" />, value: totalResources, label: t("statResources") },
@@ -104,25 +113,21 @@ export default async function LearningPathsPage() {
   return (
     <div className="paths-page min-h-screen bg-bg-body">
       {paths.length > 0 && <JsonLd data={collectionSchema} />}
+      <JsonLd data={breadcrumbs} />
       <div className="mx-auto max-w-[1200px] px-4 py-8 md:px-8 md:py-10">
-        {/* ── Hero ──
-            Everything here is server-rendered: the figure's motion is CSS, and
-            the stats come from data already fetched above, so the hero adds no
-            client JS and no extra round-trip to an ISR page.
+        {/* Semantic Breadcrumb */}
+        <nav
+          aria-label="Breadcrumb"
+          className="mb-5 flex flex-wrap items-center gap-1.5 text-[13px] font-medium text-text-muted"
+        >
+          <Link href="/" className="focus-field rounded-sm transition-colors hover:text-brand">
+            {t("breadcrumbHome")}
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5 text-divider" aria-hidden="true" />
+          <span className="font-semibold text-text-heading">{t("breadcrumbPaths")}</span>
+        </nav>
 
-            It is deliberately SHORT. This is a listing page, and the hero's
-            job is to say what a learning path is to someone who has never seen
-            one — not to occupy the first screen. Two changes carry that:
-
-            • The figure column is capped at 380px instead of taking a near-even
-              split with the copy. It is decorative-but-explanatory, and it was
-              claiming as much width as the sentence that actually explains the
-              page.
-
-            • The "Explore paths" jump link is gone. A listing page needing a
-              button to reach its own listing is a symptom of a hero that is
-              too tall, and the cure is the hero, not another control. The
-              `#paths-catalogue` anchor stays for inbound deep links. */}
+        {/* ── Hero ── */}
         <header className="mb-8 border-b border-divider pb-7">
           <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)] lg:gap-12">
             <div>
@@ -140,17 +145,11 @@ export default async function LearningPathsPage() {
               </p>
             </div>
 
-            {/* Hidden below lg rather than stacked: on a phone it would push
-                the catalogue an entire screen down for no added meaning. */}
             <div className="hidden lg:block">
               <PathJourneyVisual />
             </div>
           </div>
 
-          {/* Collection figures as one divided strip rather than three bordered
-              tiles. Boxing each number made them read as three controls to
-              press; unboxed and baseline-aligned they read as one sentence
-              about the collection's size, which is what they are. */}
           {heroStats.length > 0 && (
             <ul className="mt-7 flex list-none flex-wrap items-center gap-x-7 gap-y-3">
               {heroStats.map((s) => (
@@ -177,7 +176,12 @@ export default async function LearningPathsPage() {
         ) : (
           <div id="paths-catalogue" className="scroll-mt-24">
             <Suspense fallback={<CatalogueSkeleton />}>
-              <PathsExplorer paths={paths} featured={featured} />
+              <PathsCatalogueClient
+                paths={filteredPaths}
+                totalCount={paths.length}
+                filterParams={filterParams}
+                featured={featured}
+              />
             </Suspense>
           </div>
         )}
