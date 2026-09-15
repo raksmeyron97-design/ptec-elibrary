@@ -22,6 +22,7 @@ import InstallPWA from "@/components/ui/pwa/InstallPWA";
 import LanguageSwitcher from "@/components/ui/core/LanguageSwitcher";
 import { getSiteConfig } from "@/lib/system-settings/config";
 import { resolveLibraryStatus } from "@/lib/about/status";
+import { compactHoursLabel } from "@/lib/library-hours";
 import MobileBottomNav from "./MobileBottomNav";
 import FooterOpenStatus from "./FooterOpenStatus";
 import FooterBackToTop from "./FooterBackToTop";
@@ -400,9 +401,20 @@ export default async function Footer() {
         </div>
       </div>
 
-      {/* Same published hours as the Visit column, so the tab bar's Library
-          sheet can say whether the physical library is open right now. */}
-      <MobileBottomNav hours={{ spec, closures }} />
+      {/* Same published hours as the Visit column, so the tab bar's Explore
+          sheet can say whether the physical library is open right now; the
+          contact details are what the More sheet lists (they used to be in
+          the ☰ drawer, which is gone below lg). */}
+      <MobileBottomNav
+        hours={{ spec, closures }}
+        contact={{
+          phone: cfg.phone,
+          phoneTel: cfg.phoneTel,
+          email: cfg.email,
+          mapPlace: cfg.links.mapPlace,
+          hoursLabel: compactHoursLabel(locale, spec),
+        }}
+      />
     </footer>
   );
 }

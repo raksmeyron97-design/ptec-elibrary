@@ -12,9 +12,11 @@
 //
 // Behaviour notes that are load-bearing:
 //
-//   • STICKY AT top-0. The site header (components/layout/Navbar) is
-//     `position: relative`, not sticky, so there is no header height to
-//     offset against — a `top-16` here would leave a 64px gap of page
+//   • STICKY UNDER THE TOP BAR. Below `lg` the site header is sticky and
+//     steps aside on scroll-down (app/globals.css `.site-header`), so this
+//     bar sits at --ptec-sticky-top: the header's height while it is shown,
+//     0 while it is hidden. From `lg` up the header is `position: relative`
+//     and the token is 0 — a `top-16` there would leave a 64px gap of page
 //     scrolling past under the bar.
 //   • ONE ROW, ALWAYS. Khmer labels are long ("បណ្ដុំឯកសារបណ្ណាល័យ"), and
 //     letting five of them wrap produces a two-row bar that eats a third of a
@@ -61,7 +63,7 @@ export default function AboutSubNavigation() {
   return (
     <div
       data-about-print="hide"
-      className="sticky top-0 z-40 border-b border-divider bg-bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-bg-surface/80"
+      className="sticky top-[var(--ptec-sticky-top)] z-40 border-b border-divider bg-bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-bg-surface/80"
     >
       <nav aria-label={t("subnav.label")} className="mx-auto max-w-[1240px] px-4 sm:px-6">
         <div

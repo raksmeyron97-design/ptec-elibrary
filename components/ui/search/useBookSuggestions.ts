@@ -3,7 +3,7 @@ import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 import type { Suggestion } from "@/app/api/books/suggestions/route";
 import { pushRecentSearch } from "@/lib/recent-searches";
-import { articlePath } from "@/lib/journals/urls";
+import { suggestionDetailHref } from "@/lib/search/suggestion-href";
 
 type UseBookSuggestionsProps = {
   initialQuery?: string;
@@ -62,36 +62,15 @@ export function useBookSuggestions({ initialQuery = "", onClose, basePath = "/bo
   }
 
   function pickSuggestion(s: Suggestion) {
-    if (s.type === "book") {
+    // A suggestion that names a page opens it — lib/search/suggestion-href.ts
+    // is the one mapping, shared with the phone search overlay. An author or
+    // a subject names no page, so it becomes a search for its label.
+    const href = suggestionDetailHref(s);
+    if (href) {
       pushRecentSearch(s.label);
       setOpen(false);
       if (onClose) onClose();
-      router.push(`/books/${s.slug}`);
-    } else if (s.type === "research") {
-      pushRecentSearch(s.label);
-      setOpen(false);
-      if (onClose) onClose();
-      router.push(`/theses/${s.slug ?? s.id}`);
-    } else if (s.type === "publication") {
-      pushRecentSearch(s.label);
-      setOpen(false);
-      if (onClose) onClose();
-      router.push(articlePath(s.slug));
-    } else if (s.type === "catalog") {
-      pushRecentSearch(s.label);
-      setOpen(false);
-      if (onClose) onClose();
-      router.push(`/catalogs/${s.slug}`);
-    } else if (s.type === "learning_path") {
-      pushRecentSearch(s.label);
-      setOpen(false);
-      if (onClose) onClose();
-      router.push(`/paths/${s.slug}`);
-    } else if (s.type === "post") {
-      pushRecentSearch(s.label);
-      setOpen(false);
-      if (onClose) onClose();
-      router.push(`/posts/${s.slug}`);
+      router.push(href);
     } else {
       setQuery(s.label);
       navigate(s.label);

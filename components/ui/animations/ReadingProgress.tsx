@@ -12,10 +12,12 @@ export default function ReadingProgress() {
       : { stiffness: 100, damping: 30, restDelta: 0.001 },
   );
 
+  // z-[101]: one above the sticky phone header (z-100), so the progress line
+  // draws over the header's gold top rule instead of being covered by it.
   return (
     <motion.div
       aria-hidden="true"
-      className="fixed left-0 right-0 top-0 z-[100] h-[3px] origin-left bg-gradient-to-r from-brand to-accent"
+      className="fixed left-0 right-0 top-0 z-[101] h-[3px] origin-left bg-gradient-to-r from-brand to-accent"
       style={{ scaleX }}
     />
   );

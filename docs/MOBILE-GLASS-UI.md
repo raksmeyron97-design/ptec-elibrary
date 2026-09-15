@@ -36,7 +36,7 @@ focus system, the status tokens, dark mode, and the homepage band order.
 | Tokens | `--ptec-*` colour tokens, status surfaces, focus tokens, Tailwind's 4 px spacing scale and radius scale | `--ptec-glass-*` (light + dark, three strengths) and `--ptec-mobile-nav-*` in the first `:root` / `:root.dark` blocks of `app/globals.css`; `.glass-surface`, `--strong`, `--sheet`, `.glass-ink` in `@layer components`, with no-backdrop-filter, `prefers-reduced-transparency` and forced-colours fallbacks. |
 | Sheet | `useFocusTrap`, `useMountTransition` | `components/ui/glass/GlassSheet.tsx` — the one bottom sheet, portalled to `<body>`. |
 | Dock | — | `components/ui/glass/FloatingDock.tsx` — a page's primary action above the tab bar, shown only while the in-page control it stands in for is off screen, never over the footer. Used by the book page (`MobileReadDock`) and the learning-path page. |
-| Shell | `MobileBottomNav` session/avatar logic, `DIGITAL_LIBRARY_ITEMS`, `FooterOpenStatus`'s resolver | Floating glass tab bar: Home · Search · Library · Paths · Profile. *Library* opens a sheet built from the nav config plus the physical library (with its live open/closed line), subjects and authors. *News* moved into the Profile sheet. `lib/nav/shell-routes.ts` is the one definition of which tab owns a route and where the bar and FAB step aside. |
+| Shell | `MobileBottomNav` session/avatar logic, `DIGITAL_LIBRARY_ITEMS`, `FooterOpenStatus`'s resolver, `MobileAboutAccordion` | Floating glass tab bar, reworked 2026-09: Home · Explore · Search · Saved · More. *Search* is the raised centre tab and opens a one-tap overlay (`MobileSearchOverlay`, `lib/search/open.ts`) whose field is focused inside the tap, so the phone keyboard comes up — a link to /search could not do that. *Explore* is the former Library sheet with Learning Paths first; *Saved* holds the dashboard, saved books, reading lists and this device's downloads; *More* holds the account, notifications, News, every About page, appearance, language, contact details and the install button. That is everything the ☰ drawer carried, and the drawer is gone below `lg` (`components/layout/mobile-shell-parity.test.ts`). The active indicator is one pill that slides between slots by transform. The phone top bar is sticky, steps aside on scroll-down and returns on scroll-up (`.site-header` in `app/globals.css`, state written by `NavbarStickyWrapper` onto `<html>`); page-level sticky bars offset by `--ptec-sticky-top`. `lib/nav/shell-routes.ts` is the one definition of which tab owns a route and where the bar and FAB step aside. |
 | Assistant | `AskWidget` (retrieval, grounding, quota untouched) | `lib/ask/open.ts` opens it pre-filled — never sent. Entry points: search results and no-results, the book dock, the reader's ⋯ menu. The FAB is not rendered on reading routes; the panel opens there on request. |
 | Search | `SearchPageClient`, `SearchFacets` | Localised compact header; one control row; phone facets in a `GlassSheet` (one `SearchFacets` instance, placed by `useMediaQuery`); a compact result card built as one grid; "Ask the library"; 16 px fields. |
 | Books | `BookCard`, `ActionButtons` | View CTA hidden on phones; legible category pill; the read dock. |
@@ -81,10 +81,17 @@ Performance before/after is recorded in the pull request.
    `lib/nav/shell-routes.ts`.**
 6. **Fields are 16 px on phones** (`text-base`, original size from `sm:`).
 7. **Every public `error.tsx` renders `ErrorRecovery`,** which calls `retry`.
+8. **A page-level sticky bar sits at `--ptec-sticky-top`,** never at a
+   hand-written `top-0`. Below `lg` the site header is sticky and steps aside
+   on scroll-down; the token is its height while it is shown and 0 while it
+   is not (and 0 from `lg` up).
+9. **Nothing the ☰ drawer carried may drop out of the sheets.** The drawer is
+   gone below `lg`; Explore, Saved and More carry its destinations.
 
 Pinned by `lib/glass-tokens.test.ts`, `lib/nav/shell-routes.test.ts`,
-`lib/mobile-field-zoom.test.ts`, `lib/error-boundaries.test.ts` and
-`components/ui/core/ErrorRecovery.test.tsx`.
+`lib/mobile-field-zoom.test.ts`, `lib/error-boundaries.test.ts`,
+`components/ui/core/ErrorRecovery.test.tsx`,
+`components/layout/mobile-shell-parity.test.ts` and `e2e/mobile-shell.spec.ts`.
 
 ## 5. Not done here
 

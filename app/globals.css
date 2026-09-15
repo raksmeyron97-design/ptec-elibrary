@@ -134,6 +134,17 @@
   --ptec-mobile-nav-gap: 0.625rem;
   --ptec-mobile-nav-clearance: calc(var(--ptec-mobile-nav-height) + var(--ptec-mobile-nav-gap) + env(safe-area-inset-bottom, 0px));
 
+  /* The phone TOP bar (below `lg`): sticky, and it steps aside on
+     scroll-down. Its height is the 3px gold rule + the 56px row + the row's
+     2px gold underline (components/layout/Navbar.tsx, NavbarStickyWrapper) +
+     the notch inset; e2e/mobile-shell.spec.ts measures the real header
+     against it. Page-level sticky bars that must sit UNDER it (the About
+     sub-navigation, thesis tabs, a learning path's progress card) offset by
+     --ptec-sticky-top: this height while the bar is shown, 0 while it is
+     hidden — and 0 from `lg` up, where nothing changes. */
+  --ptec-topbar-height: calc(3.5rem + 5px + env(safe-area-inset-top, 0px));
+  --ptec-sticky-top: 0px;
+
   /* ── Admin forms palette ───────────────────────────────────────── */
   --ptec-navy-700: #27499f;
   --ptec-navy-950: #152258;
@@ -296,6 +307,47 @@
 @media (min-width: 64rem) {
   :root {
     --ptec-mobile-nav-clearance: 0px;
+  }
+}
+
+/* ── The phone top bar ───────────────────────────────────────────────
+   Below `lg` the site header is sticky. NavbarStickyWrapper only writes
+   state onto <html>; these rules are the whole behaviour:
+     data-topbar="hidden"       scrolled down — slide the bar away
+     data-topbar-scrolled       off the very top — give it a surface
+     data-topbar-mode="static"  the reading route — not sticky at all
+   Transform only, 200 ms ease-out, none under reduced motion. The surface
+   switches instantly and is never a blur: a full-width backdrop blur is
+   re-rasterised on every scrolled frame, on the phones this is read on.
+   Unlayered on purpose, so it wins over the header's `relative` utility. */
+@media (max-width: 63.999rem) {
+  :root {
+    --ptec-sticky-top: var(--ptec-topbar-height);
+  }
+  :root[data-topbar="hidden"],
+  :root[data-topbar-mode="static"] {
+    --ptec-sticky-top: 0px;
+  }
+  .site-header {
+    position: sticky;
+    top: 0;
+    transition: transform 200ms ease-out;
+  }
+  :root[data-topbar-scrolled] .site-header {
+    background-color: var(--ptec-bg-surface);
+    box-shadow: 0 1px 0 var(--ptec-divider), 0 6px 16px -10px rgba(11, 21, 48, 0.35);
+  }
+  :root[data-topbar="hidden"] .site-header {
+    transform: translateY(-100%);
+  }
+  :root[data-topbar-mode="static"] .site-header {
+    position: relative;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-header {
+    transition: none;
   }
 }
 

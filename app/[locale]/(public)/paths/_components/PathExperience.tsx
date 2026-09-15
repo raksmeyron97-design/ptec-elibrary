@@ -195,7 +195,7 @@ export default function PathExperience({
           progress to navigate — at 0% they were two 36px targets that did
           nothing, beside the one control that mattered. */}
       {flatSteps.length > 0 && (
-        <div id="path-progress-card" className="sticky top-2 z-20 mb-6 rounded-2xl border border-divider bg-bg-surface/95 p-3.5 shadow-sm backdrop-blur sm:p-4">
+        <div id="path-progress-card" className="sticky top-[calc(var(--ptec-sticky-top)+0.5rem)] z-20mb-6 rounded-2xl border border-divider bg-bg-surface/95 p-3.5 shadow-sm backdrop-blur sm:p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="min-w-0 flex-1">
               <div className="mb-1 flex items-center justify-between gap-3 text-[12.5px] font-semibold tabular-nums text-text-body">

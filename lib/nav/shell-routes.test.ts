@@ -5,8 +5,12 @@ import {
   activeTab,
   assistantFabHidden,
   assistantFabHiddenOnPhone,
+  EXPLORE_ROUTES,
   isImmersiveReaderRoute,
-  LIBRARY_ROUTES,
+  MORE_ROUTES,
+  SAVED_ROUTES,
+  SHELL_TABS,
+  shellTabIndex,
   stripLocale,
   tabBarVisible,
 } from "./shell-routes";
@@ -22,30 +26,44 @@ describe("stripLocale", () => {
   });
 });
 
+describe("the tab order", () => {
+  it("is Home · Explore · Search · Saved · More, with Search in the centre", () => {
+    // The sliding indicator is positioned from this order, so it is the layout.
+    expect([...SHELL_TABS]).toEqual(["home", "explore", "search", "saved", "more"]);
+    expect(shellTabIndex("search")).toBe(Math.floor(SHELL_TABS.length / 2));
+  });
+});
+
 describe("activeTab", () => {
   it.each([
     ["/", "home"],
     ["/km", "home"],
     ["/search", "search"],
     ["/km/search", "search"],
-    ["/paths", "paths"],
-    ["/paths/early-grade-learning-package", "paths"],
-    ["/books", "library"],
-    ["/books/some-book", "library"],
-    ["/theses/a-thesis", "library"],
-    ["/journals", "library"],
-    ["/journals/articles/an-article", "library"],
-    ["/km/journals/a-journal/issues/vol-1-issue-1", "library"],
-    ["/catalogs", "library"],
-    ["/km/subjects/x", "library"],
-    ["/authors/kenneth-berk", "library"],
-    ["/dashboard", "profile"],
-    ["/dashboard/settings", "profile"],
-    ["/lists/abc", "profile"],
-    ["/offline-books", "profile"],
-    ["/about", null],
-    ["/posts/news-item", null],
-    ["/contact", null],
+    // Learning Paths moved into Explore when Search took the centre slot.
+    ["/paths", "explore"],
+    ["/paths/early-grade-learning-package", "explore"],
+    ["/books", "explore"],
+    ["/books/some-book", "explore"],
+    ["/theses/a-thesis", "explore"],
+    ["/journals", "explore"],
+    ["/journals/articles/an-article", "explore"],
+    ["/km/journals/a-journal/issues/vol-1-issue-1", "explore"],
+    ["/catalogs", "explore"],
+    ["/km/subjects/x", "explore"],
+    ["/authors/kenneth-berk", "explore"],
+    ["/dashboard", "saved"],
+    ["/lists/abc", "saved"],
+    ["/offline-books", "saved"],
+    ["/km/offline-reader", "saved"],
+    // Settings sit under /dashboard but belong to the account, which More carries.
+    ["/dashboard/settings", "more"],
+    ["/about", "more"],
+    ["/km/about/team", "more"],
+    ["/posts/news-item", "more"],
+    ["/contact", "more"],
+    ["/privacy", "more"],
+    ["/policy", "more"],
   ] as const)("%s → %s", (pathname, tab) => {
     expect(activeTab(pathname)).toBe(tab);
   });
@@ -54,6 +72,14 @@ describe("activeTab", () => {
     expect(activeTab("/booksmith")).toBeNull();
     expect(activeTab("/searching")).toBeNull();
     expect(activeTab("/authorship")).toBeNull();
+    expect(activeTab("/aboutness")).toBeNull();
+    expect(activeTab("/dashboards")).toBeNull();
+  });
+
+  it("only ever answers with a tab the bar draws", () => {
+    for (const p of ["/", "/search", "/books", "/dashboard", "/about"]) {
+      expect(SHELL_TABS as readonly string[]).toContain(activeTab(p));
+    }
   });
 });
 
@@ -113,13 +139,16 @@ describe("assistantFabHiddenOnPhone", () => {
   });
 });
 
-describe("the Library tab and the routes that exist", () => {
+describe("the routes the tabs own", () => {
   it("names only public routes that have a page", () => {
     // A tab that lights for a route with no page, or a sheet row that 404s,
-    // is the defect this guards against.
+    // is the defect this guards against. /lists has no index of its own — it
+    // is the prefix of /lists/[id], one of the reader's lists.
     const root = path.resolve(__dirname, "../../app/[locale]/(public)");
-    for (const route of LIBRARY_ROUTES) {
+    const routes = [...EXPLORE_ROUTES, ...SAVED_ROUTES, ...MORE_ROUTES].filter((r) => r !== "/lists");
+    for (const route of routes) {
       expect(fs.existsSync(path.join(root, route.slice(1), "page.tsx")), route).toBe(true);
     }
+    expect(fs.existsSync(path.join(root, "lists", "[id]", "page.tsx"))).toBe(true);
   });
 });
