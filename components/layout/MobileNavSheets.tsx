@@ -473,7 +473,7 @@ export default function MobileNavSheets({
           <ThemeToggle />
         </ControlRow>
         <ControlRow Icon={Languages} label={t("language")}>
-          <LanguageSwitcher locale={locale} />
+          <LanguageSwitcher locale={locale} size="touch" />
         </ControlRow>
 
         {contact && (

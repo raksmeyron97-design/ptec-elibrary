@@ -939,29 +939,40 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 }
 
 /* ── Site footer ────────────────────────────────────────────────── */
-/* Columns are native <details>: accordions on small screens, plain columns
-   from md up. A closed <details> cannot be opened by CSS, so the footer's
-   inline script sets `open` on md+ before paint (see components/layout/
-   Footer.tsx); these rules only remove the accordion chrome there. Without
-   JS a desktop reader gets four collapsed, working columns. */
-.footer-col > summary {
-  list-style: none;
-}
-.footer-col > summary::-webkit-details-marker {
-  display: none;
-}
+/* The link groups are plain headed lists (components/layout/Footer.tsx).
+   Below md they stack inside the phone's single "More links" disclosure
+   (FooterMoreLinks), each with a rule above its heading row; from md up they
+   are grid columns with no rule and no heading-row height — the look the
+   old per-column <details> had there. */
 @media (min-width: 48rem) {
   .footer-col {
     border-top: 0;
     padding: 0;
   }
-  .footer-col > summary {
-    pointer-events: none;
+  .footer-col > .footer-col-head {
     min-height: 0;
     padding: 0;
   }
-  .footer-col > summary .footer-col-chevron {
+}
+
+/* The phone footer's "More links" (components/layout/FooterMoreLinks.tsx):
+   a native <details> with an empty body, followed by the links it reveals.
+   One sibling rule opens them — no JavaScript, so a tap before hydration is
+   never lost. From md up the <details> is hidden and the body is
+   `display: contents` (Tailwind classes on the element), so none of this
+   applies there. */
+@media (max-width: 47.999rem) {
+  .footer-more-body {
     display: none;
+  }
+  .footer-more[open] + .footer-more-body {
+    display: block;
+    animation: tab-panel-in 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+@media (max-width: 47.999rem) and (prefers-reduced-motion: reduce) {
+  .footer-more[open] + .footer-more-body {
+    animation: none;
   }
 }
 
