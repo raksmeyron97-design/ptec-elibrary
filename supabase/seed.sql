@@ -838,3 +838,194 @@ ON CONFLICT (record_type, record_id, page_no) DO NOTHING;
 INSERT INTO public.resource_index_state (record_type, record_id, status, pages, chunks, attempted_at)
 VALUES ('book', '33333333-3333-4333-8333-333333333301', 'indexed', 5, 0, now())
 ON CONFLICT (record_type, record_id) DO NOTHING;
+
+
+-- ============================================================================
+-- 14. Learning Paths Curriculum
+-- ============================================================================
+
+INSERT INTO public.learning_paths (
+  id, slug, title, title_km, description, description_km, audience, cover_url,
+  is_published, status, featured, difficulty, subject, language, estimated_minutes,
+  position, tags, outcomes, prerequisites, created_by, published_at, updated_at
+) VALUES
+  (
+    '77777777-7777-4777-8777-777777777001',
+    'early-grade-learning-package',
+    'Early Grade Learning: MoEYS Reading & Mathematics Curriculum (Grades 1–3)',
+    'កញ្ចប់សិក្សាថ្នាក់ដំបូង៖ អំណាន និងគណិតវិទ្យា (ថ្នាក់ទី១ ដល់ទី៣)',
+    'Complete MoEYS integrated curriculum package for early grade teachers covering foundational literacy, reading fluency, and core numeracy.',
+    'កញ្ចប់កម្មវិធីសិក្សារួមបញ្ចូលគ្នារបស់ក្រសួងអប់រំ យុវជន និងកីឡា សម្រាប់គ្រូបង្រៀនថ្នាក់ដំបូង គ្របដណ្តប់លើអក្ខរកម្មមូលដ្ឋាន ភាពស្ទាត់ជំនាញក្នុងការអាន និងគណិតវិទ្យាស្នូល។',
+    'Early Grade Primary Teachers (Grades 1–3) / គ្រូបង្រៀនកម្រិតថ្នាក់ដំបូង (ថ្នាក់ទី១ ដល់ទី៣)',
+    '/hero/ptec-library-960.webp',
+    true, 'published', true, 'intermediate', 'អំណាន និងគណិតវិទ្យា', 'both', 135, 0,
+    ARRAY['ថ្នាក់ទី១', 'ថ្នាក់ទី២', 'ថ្នាក់ទី៣', 'គណិតវិទ្យា', 'ភាសាខ្មែរ', 'MoEYS'],
+    '[{"en":"Master foundational reading and numeracy pedagogy for primary classrooms","km":"ស្ទាត់ជំនាញវិធីសាស្ត្របង្រៀនអំណាន និងគណិតវិទ្យាមូលដ្ឋានសម្រាប់ថ្នាក់បឋមសិក្សា"},{"en":"Apply active learning techniques using classroom manipulatives and storybooks","km":"អនុវត្តវិធីសាស្ត្រសិក្សាសកម្មដោយប្រើសម្ភារឧបទេស និងសៀវភៅរឿងក្នុងថ្នាក់រៀន"},{"en":"Conduct continuous formative assessment to identify and support struggling pupils","km":"ធ្វើការវាយតម្លៃបន្តដើម្បីកំណត់អត្តសញ្ញាណ និងជួយគាំទ្រសិស្សដែលជួបការលំបាក"}]'::jsonb,
+    '[{"en":"Basic understanding of primary school curriculum structure","km":"ការយល់ដឹងជាមូលដ្ឋានអំពីរចនាសម្ព័ន្ធកម្មវិធីសិក្សាបឋមសិក្សា"}]'::jsonb,
+    '22222222-2222-2222-2222-222222222222', now(), now()
+  ),
+  (
+    '77777777-7777-4777-8777-777777777002',
+    'early-grade-reading-grade-1',
+    'Early Grade Reading: Grade 1 Literacy & Phonics Curriculum',
+    'កញ្ចប់អំណានថ្នាក់ដំបូង ថ្នាក់ទី១៖ វិធីសាស្ត្របង្រៀន និងកម្រងអំណាន',
+    'Essential literacy instruction techniques and decodable stories for Grade 1 Khmer language teachers.',
+    'វិធីសាស្ត្របង្រៀនអក្ខរកម្មសំខាន់ៗ និងរឿងអានកម្រិតដំបូងសម្រាប់គ្រូបង្រៀនភាសាខ្មែរថ្នាក់ទី១។',
+    'Grade 1 Teachers / គ្រូបង្រៀនថ្នាក់ទី១',
+    '/hero/ptec-library-960.webp',
+    true, 'published', false, 'beginner', 'ភាសាខ្មែរ', 'km', 60, 1,
+    ARRAY['ថ្នាក់ទី១', 'ភាសាខ្មែរ', 'អំណាន', 'ព្យញ្ជនៈ'],
+    '[{"en":"Guide pupils from consonant recognition to blend-sound decoding","km":"ដឹកនាំសិស្សពីការចំណាំព្យញ្ជនៈទៅកាន់ការផ្សំសូរប្រកបពាក្យ"}]'::jsonb,
+    '[]'::jsonb,
+    '22222222-2222-2222-2222-222222222222', now(), now()
+  ),
+  (
+    '77777777-7777-4777-8777-777777777003',
+    'early-grade-reading-grade-2',
+    'Early Grade Reading: Grade 2 Reading Fluency & Writing Curriculum',
+    'កញ្ចប់អំណានថ្នាក់ដំបូង ថ្នាក់ទី២៖ វិធីសាស្ត្របង្រៀន និងកម្រងអំណាន',
+    'Techniques for developing oral reading fluency, sentence construction, and comprehension in Grade 2.',
+    'បច្ចេកទេសពង្រឹងភាពស្ទាត់ជំនាញក្នុងការអាន ការតែងប្រយោគ និងការយល់ន័យអត្ថបទសម្រាប់ថ្នាក់ទី២។',
+    'Grade 2 Teachers / គ្រូបង្រៀនថ្នាក់ទី២',
+    '/hero/ptec-library-960.webp',
+    true, 'published', false, 'intermediate', 'ភាសាខ្មែរ', 'km', 55, 2,
+    ARRAY['ថ្នាក់ទី២', 'ភាសាខ្មែរ', 'ភាពស្ទាត់ជំនាញ', 'ការសរសេរ'],
+    '[]'::jsonb, '[]'::jsonb,
+    '22222222-2222-2222-2222-222222222222', now(), now()
+  ),
+  (
+    '77777777-7777-4777-8777-777777777004',
+    'early-grade-reading-grade-3',
+    'Early Grade Reading: Grade 3 Comprehension, Grammar & Homework Curriculum',
+    'កញ្ចប់អំណានថ្នាក់ដំបូង ថ្នាក់ទី៣៖ វិធីសាស្ត្របង្រៀន និងកម្រងអំណាន',
+    'Advanced reading comprehension strategies, Khmer grammar rules, and guided writing for Grade 3.',
+    'យុទ្ធសាស្ត្រអានស្វែងយល់កម្រិតខ្ពស់ វេយ្យាករណ៍ភាសាខ្មែរ និងការសរសេរតាមការណែនាំសម្រាប់ថ្នាក់ទី៣។',
+    'Grade 3 Teachers / គ្រូបង្រៀនថ្នាក់ទី៣',
+    '/hero/ptec-library-960.webp',
+    true, 'published', false, 'advanced', 'ភាសាខ្មែរ', 'km', 50, 3,
+    ARRAY['ថ្នាក់ទី៣', 'ភាសាខ្មែរ', 'ការយល់ន័យ', 'វេយ្យាករណ៍'],
+    '[]'::jsonb, '[]'::jsonb,
+    '22222222-2222-2222-2222-222222222222', now(), now()
+  ),
+  (
+    '77777777-7777-4777-8777-777777777005',
+    'early-grade-reading',
+    'Early Grade Reading: Complete Khmer Literacy Curriculum (Grades 1–3)',
+    'កញ្ចប់អំណានថ្នាក់ដំបូង ភាសាខ្មែរ (ថ្នាក់ទី១ ទី២ និងទី៣)',
+    'Comprehensive 3-year Khmer literacy scope and sequence connecting phonics to independent reading.',
+    'កម្មវិធីអក្ខរកម្មភាសាខ្មែរពេញលេញរយៈពេល៣ឆ្នាំ តភ្ជាប់ពីការប្រកបអក្សរទៅកាន់ការអានដោយឯករាជ្យ។',
+    'Primary School Coordinators & Head Teachers',
+    '/hero/ptec-library-960.webp',
+    true, 'published', false, 'intermediate', 'ភាសាខ្មែរ', 'both', 80, 4,
+    ARRAY['ថ្នាក់ទី១', 'ថ្នាក់ទី២', 'ថ្នាក់ទី៣', 'ភាសាខ្មែរ', 'កម្មវិធីពេញលេញ'],
+    '[]'::jsonb, '[]'::jsonb,
+    '22222222-2222-2222-2222-222222222222', now(), now()
+  ),
+  (
+    '77777777-7777-4777-8777-777777777006',
+    'early-grade-mathematics-grade-1-curriculum-manipulatives',
+    'Early Grade Mathematics: Grade 1 Curriculum & Manipulatives',
+    'កញ្ចប់គណិតវិទ្យាថ្នាក់ដំបូង ថ្នាក់ទី១៖ វិធីសាស្ត្របង្រៀន និងកម្រងលំហាត់',
+    'Foundational numeracy, counting strategies, and hands-on manipulative techniques for Grade 1 math.',
+    'វិធីសាស្ត្របង្រៀនលេខនព្វន្តមូលដ្ឋាន ការរាប់ និងការប្រើប្រាស់សម្ភារឧបទេសជាក់ស្តែងសម្រាប់ថ្នាក់ទី១។',
+    'Grade 1 Math Teachers / គ្រូបង្រៀនគណិតវិទ្យាថ្នាក់ទី១',
+    '/hero/ptec-library-960.webp',
+    true, 'published', false, 'beginner', 'គណិតវិទ្យា', 'km', 60, 5,
+    ARRAY['ថ្នាក់ទី១', 'គណិតវិទ្យា', 'សម្ភារឧបទេស', 'លេខនព្វន្ត'],
+    '[]'::jsonb, '[]'::jsonb,
+    '22222222-2222-2222-2222-222222222222', now(), now()
+  ),
+  (
+    '77777777-7777-4777-8777-777777777007',
+    'early-grade-math-grade-2',
+    'Early Grade Mathematics: Grade 2 Curriculum & Manipulatives',
+    'កញ្ចប់គណិតវិទ្យាថ្នាក់ដំបូង ថ្នាក់ទី២៖ វិធីសាស្ត្របង្រៀន និងកម្រងលំហាត់',
+    'Place value, two-digit operations, mental arithmetic, and word problem solving for Grade 2.',
+    'តម្លៃលេខតាមខ្ទង់ ប្រមាណវិធីលើចំនួនពីរខ្ទង់ ការគណនាក្នុងចិត្ត និងការដោះស្រាយចំណោទថ្នាក់ទី២។',
+    'Grade 2 Math Teachers / គ្រូបង្រៀនគណិតវិទ្យាថ្នាក់ទី២',
+    '/hero/ptec-library-960.webp',
+    true, 'published', false, 'intermediate', 'គណិតវិទ្យា', 'km', 65, 6,
+    ARRAY['ថ្នាក់ទី២', 'គណិតវិទ្យា', 'តម្លៃតាមខ្ទង់', 'ចំណោទ'],
+    '[]'::jsonb, '[]'::jsonb,
+    '22222222-2222-2222-2222-222222222222', now(), now()
+  ),
+  (
+    '77777777-7777-4777-8777-777777777008',
+    'early-grade-math-grade-3',
+    'Early Grade Mathematics: Grade 3 Curriculum & Advanced Foundations',
+    'កញ្ចប់គណិតវិទ្យាថ្នាក់ដំបូង ថ្នាក់ទី៣៖ វិធីសាស្ត្របង្រៀន និងកម្រងលំហាត់',
+    'Multiplication foundations, division concepts, measurement, and geometry for Grade 3 classrooms.',
+    'មូលដ្ឋានគ្រឹះប្រមាណវិធីគុណ ចែក រង្វាស់រង្វាល់ និងធរណីមាត្រសម្រាប់ថ្នាក់ទី៣។',
+    'Grade 3 Math Teachers / គ្រូបង្រៀនគណិតវិទ្យាថ្នាក់ទី៣',
+    '/hero/ptec-library-960.webp',
+    true, 'published', false, 'advanced', 'គណិតវិទ្យា', 'km', 60, 7,
+    ARRAY['ថ្នាក់ទី៣', 'គណិតវិទ្យា', 'ប្រមាណវិធីគុណ', 'ធរណីមាត្រ'],
+    '[]'::jsonb, '[]'::jsonb,
+    '22222222-2222-2222-2222-222222222222', now(), now()
+  ),
+  (
+    '77777777-7777-4777-8777-777777777009',
+    'early-grade-math',
+    'Early Grade Mathematics: Complete Primary Curriculum (Grades 1–3)',
+    'កញ្ចប់គណិតវិទ្យាថ្នាក់ដំបូង (ថ្នាក់ទី១ ទី២ និងទី៣)',
+    'Complete early grade mathematics progression spanning number sense, operations, and spatial thinking.',
+    'ដំណើរការសិក្សាគណិតវិទ្យាថ្នាក់ដំបូងពេញលេញ គ្របដណ្តប់លើការយល់ដឹងពីចំនួន ប្រមាណវិធី និងធរណីមាត្រ។',
+    'Primary Mathematics Mentors & Subject Leads',
+    '/hero/ptec-library-960.webp',
+    true, 'published', false, 'intermediate', 'គណិតវិទ្យា', 'both', 75, 8,
+    ARRAY['ថ្នាក់ទី១', 'ថ្នាក់ទី២', 'ថ្នាក់ទី៣', 'គណិតវិទ្យា', 'កម្មវិធីពេញលេញ'],
+    '[]'::jsonb, '[]'::jsonb,
+    '22222222-2222-2222-2222-222222222222', now(), now()
+  )
+ON CONFLICT (id) DO UPDATE SET
+  title = EXCLUDED.title,
+  title_km = EXCLUDED.title_km,
+  description = EXCLUDED.description,
+  description_km = EXCLUDED.description_km,
+  status = EXCLUDED.status,
+  is_published = EXCLUDED.is_published,
+  featured = EXCLUDED.featured,
+  difficulty = EXCLUDED.difficulty,
+  subject = EXCLUDED.subject,
+  estimated_minutes = EXCLUDED.estimated_minutes,
+  position = EXCLUDED.position;
+
+INSERT INTO public.learning_path_modules (id, path_id, title, title_km, description, description_km, position)
+VALUES
+  ('88888888-8888-4888-8888-888888881001', '77777777-7777-4777-8777-777777777001', 'Module 1: Foundations of Early Grade Literacy', 'ម៉ូឌុលទី១៖ មូលដ្ឋានគ្រឹះអក្ខរកម្មថ្នាក់ដំបូង', 'Core phonological awareness, sound-symbol relationships, and decodable reading techniques.', 'ការយល់ដឹងអំពីសូរសំឡេង ទំនាក់ទំនងរវាងសូរនិងតួអក្សរ និងបច្ចេកទេសអានអត្ថបទកម្រិតដំបូង។', 0),
+  ('88888888-8888-4888-8888-888888881002', '77777777-7777-4777-8777-777777777001', 'Module 2: Mathematics Foundations & Manipulatives', 'ម៉ូឌុលទី២៖ មូលដ្ឋានគ្រឹះគណិតវិទ្យា និងសម្ភារឧបទេស', 'Hands-on numeracy methods, concrete-to-abstract representation, and early place value concepts.', 'វិធីសាស្ត្របង្រៀនលេខនព្វន្តដោយប្រើសម្ភារជាក់ស្តែង ការបំប្លែងពីវត្ថុជាក់ស្តែងទៅជានិមិត្តសញ្ញា និងតម្លៃលេខតាមខ្ទង់។', 1),
+  ('88888888-8888-4888-8888-888888881003', '77777777-7777-4777-8777-777777777001', 'Module 3: Formative Assessment & Classroom Routines', 'ម៉ូឌុលទី៣៖ ការវាយតម្លៃបន្ត និងទម្លាប់ក្នុងថ្នាក់រៀន', 'Techniques for rapid diagnostic checks, corrective feedback, and pupil behavior routines.', 'បច្ចេកទេសធ្វើតេស្តរហ័សដើម្បីកំណត់កម្រិតសមត្ថភាព ការផ្តល់មតិកែលម្អ និងការរៀបចំវិន័យក្នុងថ្នាក់រៀន។', 2)
+ON CONFLICT (id) DO UPDATE SET
+  title = EXCLUDED.title,
+  title_km = EXCLUDED.title_km,
+  description = EXCLUDED.description,
+  description_km = EXCLUDED.description_km,
+  position = EXCLUDED.position;
+
+INSERT INTO public.learning_path_steps (
+  id, module_id, resource_type, resource_id, resource_title, external_url,
+  instruction, instruction_km, est_minutes, is_required, position
+) VALUES
+  ('99999999-9999-4999-8999-888888880001', '88888888-8888-4888-8888-888888881001', 'book', '33333333-3333-4333-8333-333333333303', 'វិធីសាស្ត្របង្រៀនភាសាខ្មែរ', null, 'Read Chapter 1 on phonological awareness and letter-sound correspondence before introducing decodable readers.', 'អានជំពូកទី១ ស្តីពីការយល់ដឹងអំពីសូរសំឡេង និងការផ្សំសំឡេងអក្សរ មុនពេលណែនាំសៀវភៅអានបន្ថែម។', 30, true, 0),
+  ('99999999-9999-4999-8999-888888880002', '88888888-8888-4888-8888-888888881001', 'book', '33333333-3333-4333-8333-333333333301', 'Foundations of Education', null, 'Study the pedagogical frameworks supporting early literacy development and student motivation.', 'ពិនិត្យក្របខ័ណ្ឌគរុកោសល្យដែលគាំទ្រដល់ការអភិវឌ្ឍអក្ខរកម្មដំបូង និងការលើកទឹកចិត្តសិស្ស។', 25, true, 1),
+  ('99999999-9999-4999-8999-888888880003', '88888888-8888-4888-8888-888888881002', 'book', '33333333-3333-4333-8333-333333333305', 'គណិតវិទ្យាសម្រាប់គ្រូបឋមសិក្សា', null, 'Examine concrete-representational-abstract (CRA) approaches for multi-digit addition and place value.', 'សិក្សាវិធីសាស្ត្របង្រៀនពីវត្ថុជាក់ស្តែងទៅជារូបភាព និងនិមិត្តសញ្ញា (CRA) សម្រាប់តម្លៃលេខតាមខ្ទង់ និងប្រមាណវិធីបូក។', 35, true, 0),
+  ('99999999-9999-4999-8999-888888880004', '88888888-8888-4888-8888-888888881002', 'publication', '99999999-9999-4999-8999-99999999b006', 'Multigrade Teaching in Cambodia: A Working Paper', null, 'Optional reference: practical strategies for adapting math routines in multigrade and large classrooms.', 'ឯកសារពិគ្រោះបន្ថែម៖ យុទ្ធសាស្ត្រជាក់ស្តែងសម្រាប់ការកែសម្រួលសកម្មភាពគណិតវិទ្យាក្នុងថ្នាក់ចម្រុះកម្រិត។', 20, false, 1),
+  ('99999999-9999-4999-8999-888888880005', '88888888-8888-4888-8888-888888881003', 'book', '33333333-3333-4333-8333-333333333304', 'Assessment for Learning', null, 'Apply formative check techniques during reading lessons to monitor student comprehension in real time.', 'អនុវត្តបច្ចេកទេសវាយតម្លៃដើម្បីតាមដានការយល់ដឹងរបស់សិស្សក្នុងអំឡុងម៉ោងអានជាក់ស្តែង។', 25, true, 0)
+ON CONFLICT (id) DO UPDATE SET
+  resource_type = EXCLUDED.resource_type,
+  resource_id = EXCLUDED.resource_id,
+  resource_title = EXCLUDED.resource_title,
+  instruction = EXCLUDED.instruction,
+  instruction_km = EXCLUDED.instruction_km,
+  est_minutes = EXCLUDED.est_minutes,
+  is_required = EXCLUDED.is_required,
+  position = EXCLUDED.position;
+
+INSERT INTO public.learning_path_enrollments (user_id, path_id, enrolled_at)
+VALUES ('44444444-4444-4444-4444-444444444444', '77777777-7777-4777-8777-777777777001', now() - interval '2 days')
+ON CONFLICT (user_id, path_id) DO NOTHING;
+
+INSERT INTO public.learning_path_step_progress (user_id, step_id, completed_at)
+VALUES ('44444444-4444-4444-4444-444444444444', '99999999-9999-4999-8999-888888880001', now() - interval '1 day')
+ON CONFLICT (user_id, step_id) DO NOTHING;
+
