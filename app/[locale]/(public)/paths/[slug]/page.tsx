@@ -3,7 +3,7 @@ import { decodeSlugParam } from "@/lib/slug";
 import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { GraduationCap, Layers, Clock, BookMarked, Signal, CheckCircle2, ListChecks, Globe, ArrowLeft, Users } from "lucide-react";
+import { GraduationCap, Layers, Clock, BookMarked, Signal, CheckCircle2, ListChecks, Globe, ArrowLeft, Users, BookOpen } from "lucide-react";
 import { getPathBySlug, getUserPathProgress, getPublishedPaths } from "@/app/actions/learning-paths";
 import type { LearningPathDetail } from "@/app/actions/learning-paths";
 import { createClient } from "@/lib/supabase/server";
@@ -89,7 +89,18 @@ export default async function LearningPathDetailPage({ params }: PageProps) {
   const title = pathLocalizedTitle(seoInput, locale);
   const description = pathLocalizedDescription(seoInput, locale);
   const duration = formatMinutes(path.durationMinutes, t);
-  const scopeLabel = scopeLabelKeys(deriveScope(path)).map((k) => t(k)).join(" · ");
+  const scope = deriveScope(path);
+  const scopeLabel = scopeLabelKeys(scope).map((k) => t(k)).join(" · ");
+  const categoryLabel = path.subject || scopeLabel || t("categoryLabel");
+  const distinctResources = new Set(path.stepResources?.map((r) => r.key)).size || path.stepCount;
+
+  const categoryMarkerColor = (() => {
+    const s = (path.subject || scope.track || "").toLowerCase();
+    if (s.includes("math") || s.includes("គណិត")) return "text-brand";
+    if (s.includes("read") || s.includes("អំណាន") || s.includes("ភាសា")) return "text-accent-text";
+    if (s.includes("sci") || s.includes("វិទ្យា")) return "text-success";
+    return "text-info";
+  })();
 
   // Recommendations: other published paths, same audience first, max 3.
   const recommendations = allPaths
@@ -110,11 +121,7 @@ export default async function LearningPathDetailPage({ params }: PageProps) {
       <JsonLd data={pathBreadcrumb} />
       <JsonLd data={courseSchema} />
       <div className="mx-auto max-w-[1200px] px-4 py-6 md:px-8 md:py-12">
-        {/* ── Breadcrumb ──
-            On a phone the trail collapses to one "← Learning Paths" link: the
-            third crumb is this page's own title, truncated, and a truncated
-            heading is no help where a reader is choosing between paths. The
-            full trail (and the BreadcrumbList JSON-LD) is unchanged from sm. */}
+        {/* ── Breadcrumb ── */}
         <nav aria-label="Breadcrumb" className="mb-4 text-[13px] font-medium text-text-muted sm:mb-5">
           <Link
             href="/paths"
@@ -138,19 +145,16 @@ export default async function LearningPathDetailPage({ params }: PageProps) {
           </ol>
         </nav>
 
-        {/* ── Hero ──
-            Order is what a reader arriving from a shared link needs, in the
-            order they need it: what this is (scope + title), how big it is
-            (modules · steps · hours), what it says about itself, THEN the
-            picture. The cover used to lead the phone screen as a 148×197
-            portrait crop of a 16:9 artwork — cut straight through its own
-            Khmer title — followed by three lines of uppercase audience string,
-            and the first action was ~1,900px down. The primary action now
-            docks along the bottom edge on phones (PathExperience). */}
+        {/* ── Hero ── */}
         <header className="gradient-top-border overflow-hidden rounded-[28px] border border-divider bg-bg-surface p-5 shadow-sm sm:p-8">
           <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,300px)] sm:items-start sm:gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] lg:gap-10">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
+                {/* Category with dot marker */}
+                <span className="paths-eyebrow inline-flex items-center gap-1.5 rounded-full border border-divider bg-paper px-3 py-1 text-[11px] font-bold text-text-body">
+                  <span className={`text-[10px] ${categoryMarkerColor}`} aria-hidden="true">●</span>
+                  <span>{categoryLabel}</span>
+                </span>
                 {parentSubject && (
                   <Link
                     href={`/subjects/${parentSubject.slug}`}
@@ -187,6 +191,7 @@ export default async function LearningPathDetailPage({ params }: PageProps) {
               <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px] font-semibold text-text-body">
                 <span className="inline-flex items-center gap-1.5"><BookMarked className="h-3.5 w-3.5" aria-hidden="true" />{t("modules", { count: path.moduleCount })}</span>
                 <span className="inline-flex items-center gap-1.5"><Layers className="h-3.5 w-3.5" aria-hidden="true" />{t("steps", { count: path.stepCount })}</span>
+                <span className="inline-flex items-center gap-1.5"><BookOpen className="h-3.5 w-3.5" aria-hidden="true" />{t("resourceCount", { count: distinctResources })}</span>
                 {duration && <span className="inline-flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" aria-hidden="true" />{t("durationTotal", { duration })}</span>}
               </div>
 
@@ -196,7 +201,6 @@ export default async function LearningPathDetailPage({ params }: PageProps) {
             </div>
 
             {path.cover_url && (
-              /* 16:9 like the artwork, requested at the width it is drawn. */
               <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-divider/60 bg-paper shadow-md">
                 <Image
                   src={path.cover_url}
@@ -210,10 +214,7 @@ export default async function LearningPathDetailPage({ params }: PageProps) {
             )}
           </div>
 
-          {/* Who it's for — the audience string, in sentence case, each half in
-              its own language. It used to be the eyebrow chip: uppercased,
-              letter-spaced (which pulls Khmer subscripts off their bases) and
-              wrapping to three lines above the title on a phone. */}
+          {/* Who it's for & prerequisites */}
           {(path.audience || path.prerequisites.length > 0) && (
             <dl className="mt-5 grid gap-4 border-t border-divider pt-5 sm:grid-cols-2">
               {path.audience && (
@@ -270,6 +271,16 @@ export default async function LearningPathDetailPage({ params }: PageProps) {
               </ul>
             </div>
           )}
+
+          {/* Why this order? concise bilingual rationale note */}
+          <div className="mt-6 rounded-2xl border border-brand/20 bg-brand/[0.04] p-5">
+            <h3 className="mb-1 text-[13.5px] font-bold text-text-heading">
+              {t("whyThisOrder")}
+            </h3>
+            <p className="text-[13px] leading-relaxed text-text-body">
+              {t("whyThisOrderDesc")}
+            </p>
+          </div>
         </header>
 
         {/* ── Curriculum + progress ── */}
