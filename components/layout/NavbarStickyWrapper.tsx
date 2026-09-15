@@ -1,28 +1,96 @@
 "use client";
 
-import { useState, useEffect, useRef, type ReactNode } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+// components/layout/NavbarStickyWrapper.tsx
+// The header's scroll behaviour, in two shapes that never overlap:
+//
+//   ≥ lg (desktop, unchanged): after 60 px the bar re-forms as a floating
+//   light "pill"; it slides away on scroll-down and back on scroll-up.
+//
+//   < lg (phones and tablets): the whole <header> is sticky — the rules are
+//   `.site-header` in app/globals.css. This component only WRITES the state,
+//   as attributes on <html>, and CSS does the rest:
+//     data-topbar="hidden"       scrolled down past the bar — slide it away
+//     data-topbar-scrolled       off the very top — give it a solid surface
+//     data-topbar-mode="static"  the reading route — not sticky at all
+//   Attributes rather than React state because the bar is a SERVER-rendered
+//   element this client component sits inside, and a scroll handler that
+//   re-renders is the jank this work removes. The same attribute switches
+//   --ptec-sticky-top, so the page-level sticky bars (About sub-navigation,
+//   thesis tabs, a learning path's progress card) sit under the top bar while
+//   it is shown and at the top edge while it is not.
+//
+// No animation library. The pill's slide is the same 300 ms ease it had under
+// framer-motion — now a CSS transition on transform — and the phone bar's is
+// 200 ms ease-out in CSS; both are off under reduced motion.
+
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { usePathname } from "@/i18n/navigation";
+import { isImmersiveReaderRoute } from "@/lib/nav/shell-routes";
 
 type ScrollPhase = "top" | "fading" | "pill";
+
+/** Phones: the bar never hides while it still sits over the page's own top. */
+const PHONE_HIDE_AFTER = 80;
+/** Phones: px of travel before a change of direction counts. Momentum
+ *  scrolling jitters by a few px, and a bar that flickers is worse than one
+ *  that never hides. */
+const PHONE_SLOP = 6;
+
+const LG_QUERY = "(min-width: 1024px)";
+function subscribeLg(onChange: () => void) {
+  const media = window.matchMedia(LG_QUERY);
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
+function readLg() {
+  return window.matchMedia(LG_QUERY).matches;
+}
 
 export default function NavbarStickyWrapper({ children }: { children: ReactNode }) {
   const [phase, setPhase] = useState<ScrollPhase>("top");
   const [hidden, setHidden] = useState(false);
   const ticking = useRef(false);
   const lastY = useRef(0);
-  const reduceMotion = useReducedMotion();
+  const anchorY = useRef(0);
+  const pathname = usePathname() ?? "/";
+  // `true` on the server and through hydration — what the old
+  // useState(true) + effect gave — then the real answer, with no effect that
+  // sets state.
+  const isLg = useSyncExternalStore(subscribeLg, readLg, () => true);
 
   useEffect(() => {
+    const root = document.documentElement;
+    const setBar = (state: "shown" | "hidden") => {
+      if (root.dataset.topbar !== state) root.dataset.topbar = state;
+    };
     const update = () => {
       ticking.current = false;
-      const y = window.scrollY;
+      const y = Math.max(0, window.scrollY);
+
+      // ≥ lg: the floating pill, exactly as before.
       setPhase(y < 10 ? "top" : y < 60 ? "fading" : "pill");
       // Hide on scroll-down (once the pill has fully formed), reveal the
       // moment the user scrolls back up. Only visible while the header is
-      // actually fixed (pill phase) — harmless no-op otherwise, since a
-      // relatively-positioned header already scrolls away with the page.
+      // actually fixed (pill phase).
       setHidden(y > lastY.current && y > 80);
       lastY.current = y;
+
+      // < lg: the sticky top bar (CSS reads these; see the note at the top).
+      root.toggleAttribute("data-topbar-scrolled", y >= 10);
+      if (y <= PHONE_HIDE_AFTER) {
+        setBar("shown");
+        anchorY.current = y;
+        return;
+      }
+      const travel = y - anchorY.current;
+      if (travel > PHONE_SLOP) {
+        // Keyboard focus inside the bar keeps it on screen.
+        if (!document.activeElement?.closest(".site-header")) setBar("hidden");
+        anchorY.current = y;
+      } else if (travel < -PHONE_SLOP) {
+        setBar("shown");
+        anchorY.current = y;
+      }
     };
     const onScroll = () => {
       if (!ticking.current) {
@@ -30,19 +98,34 @@ export default function NavbarStickyWrapper({ children }: { children: ReactNode 
         requestAnimationFrame(update);
       }
     };
+    // A keyboard user tabbing into a hidden bar brings it back.
+    const onFocusIn = (event: FocusEvent) => {
+      if (event.target instanceof Element && event.target.closest(".site-header")) setBar("shown");
+    };
     update();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    document.addEventListener("focusin", onFocusIn);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("focusin", onFocusIn);
+      delete root.dataset.topbar;
+      root.removeAttribute("data-topbar-scrolled");
+    };
   }, []);
 
-  const [isLg, setIsLg] = useState(true);
+  // A new page starts with the bar on screen. On the reading route it is not
+  // sticky at all: the reader fills the viewport below the header and carries
+  // its own top bar, which a header sliding back in would cover.
   useEffect(() => {
-    const media = window.matchMedia("(min-width: 1024px)");
-    setIsLg(media.matches);
-    const listener = (e: MediaQueryListEvent) => setIsLg(e.matches);
-    media.addEventListener("change", listener);
-    return () => media.removeEventListener("change", listener);
-  }, []);
+    const root = document.documentElement;
+    root.dataset.topbar = "shown";
+    anchorY.current = window.scrollY;
+    if (isImmersiveReaderRoute(pathname)) root.dataset.topbarMode = "static";
+    else delete root.dataset.topbarMode;
+    return () => {
+      delete root.dataset.topbarMode;
+    };
+  }, [pathname]);
 
   const isPill = phase === "pill" && isLg;
   const isTop  = phase === "top";
@@ -91,18 +174,15 @@ export default function NavbarStickyWrapper({ children }: { children: ReactNode 
       {isPill && <div className="hidden lg:block h-[72px] w-full" aria-hidden="true" />}
 
       {/* ── Outer shell ─────────────────────────────────────── */}
-      <motion.div
-        animate={{ y: hidden ? "-100%" : 0 }}
-        transition={reduceMotion ? { duration: 0 } : { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+      <div
         className={
           isPill
-            ? "hidden lg:flex fixed top-0 inset-x-0 z-50 justify-center items-start pt-2.5 px-5 pointer-events-none"
+            ? "hidden lg:flex fixed top-0 inset-x-0 z-50 justify-center items-start pt-2.5 px-5 pointer-events-none transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] motion-reduce:transition-none"
             : "relative w-full z-40"
         }
+        style={isPill && hidden ? { transform: "translateY(-100%)" } : undefined}
       >
-        {/* ── Pill / bar shape morph — plain CSS transition, not framer-motion
-             (the outer wrapper already pulls in framer-motion for hide/show,
-             but this shape morph is cheap enough to stay CSS-only) ── */}
+        {/* ── Pill / bar shape morph — plain CSS transition ── */}
         <div
           style={{
             borderRadius: isPill ? 9999 : 0,
@@ -123,15 +203,17 @@ export default function NavbarStickyWrapper({ children }: { children: ReactNode 
                 ].join(" ")
               : [
                   "w-full border-b-2 border-accent",
+                  // Below lg the <header> itself carries the scrolled
+                  // surface (app/globals.css `.site-header`) — and no blur.
                   isTop
                     ? "bg-transparent"
-                    : "bg-bg-surface/90 backdrop-blur-md shadow-sm",
+                    : "lg:bg-bg-surface/90 lg:backdrop-blur-md lg:shadow-sm",
                 ].join(" "),
           ].join(" ")}
         >
           {children}
         </div>
-      </motion.div>
+      </div>
     </>
   );
 }

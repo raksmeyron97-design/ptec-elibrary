@@ -107,7 +107,7 @@ test.describe("Responsive navbar", () => {
     await expectNoHorizontalOverflow(page);
   });
 
-  test("km @390: compact header with search and menu, no overflow", async ({
+  test("km @390: compact header — the brand and search, no drawer, no overflow", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -116,20 +116,20 @@ test.describe("Responsive navbar", () => {
 
     await expectNoHorizontalOverflow(page);
     const header = page.locator("header");
-    await expect(
-      header.getByRole("link", { name: "ស្វែងរកក្នុងបណ្ណាល័យ" }),
-    ).toBeVisible();
-    await expect(
-      header.getByRole("button", { name: "បើកម៉ឺនុយ" }),
-    ).toBeVisible();
+    const search = header.getByRole("link", { name: "ស្វែងរកក្នុងបណ្ណាល័យ" });
+    await expect(search).toBeVisible();
 
-    const menuBox = await header
-      .getByRole("button", { name: "បើកម៉ឺនុយ" })
-      .boundingBox();
+    // The ☰ drawer is gone below lg — its destinations live in the tab bar's
+    // sheets (e2e/mobile-shell.spec.ts) — so search is the bar's last control,
+    // pinned to the right edge at a full 44px tap target.
+    await expect(header.getByRole("button", { name: "បើកម៉ឺនុយ" })).toHaveCount(0);
+    const searchBox = await search.boundingBox();
     const viewport = page.viewportSize()!;
-    expect(menuBox).not.toBeNull();
-    expect(menuBox!.x + menuBox!.width).toBeGreaterThanOrEqual(
-      viewport.width - 20,
-    );
+    expect(searchBox).not.toBeNull();
+    expect(searchBox!.x + searchBox!.width).toBeGreaterThanOrEqual(viewport.width - 20);
+    expect(searchBox!.width).toBeGreaterThanOrEqual(44);
+    await expect(
+      page.getByRole("navigation", { name: "ការរុករកចម្បង" }).getByRole("button", { name: "បន្ថែម" }),
+    ).toBeVisible();
   });
 });

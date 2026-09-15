@@ -42,13 +42,20 @@ test.describe("About navigation", () => {
     await expect(trigger).toHaveAttribute("aria-expanded", "false");
   });
 
-  test("mobile drawer presents About as an accordion", async ({ page }) => {
+  test("phone More sheet presents About as an accordion", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/about/team");
 
-    await page.getByRole("button", { name: "Open menu" }).click();
+    // The ☰ drawer is gone below lg; the About pages live in the tab bar's
+    // More sheet, whose tab lights because /about/* is its section.
+    const moreTab = page
+      .getByRole("navigation", { name: "Main navigation" })
+      .getByRole("button", { name: "More" });
+    await expect(moreTab).toHaveAttribute("aria-current", "true");
+    await moreTab.click();
 
-    const trigger = page.getByRole("button", { name: /^About$/i });
+    const sheet = page.getByRole("dialog", { name: "More" });
+    const trigger = sheet.getByRole("button", { name: /^About$/i });
     await expect(trigger).toBeVisible();
     await expect(trigger).toHaveAttribute("aria-expanded", "true");
 

@@ -41,7 +41,7 @@ export default function ThesisTabs({
       <div
         role="tablist"
         aria-label="Thesis sections"
-        className="sticky top-4 z-10 flex gap-0.5 overflow-x-auto rounded-t-2xl border-b border-divider bg-bg-app/80 px-2 backdrop-blur-sm sm:px-3"
+        className="sticky top-[calc(var(--ptec-sticky-top)+1rem)] z-10 flex gap-0.5 overflow-x-auto rounded-t-2xl border-b border-divider bg-bg-app/80 px-2 backdrop-blur-sm sm:px-3"
       >
         {tabs.map((t) => {
           const isActive = active === t.id;

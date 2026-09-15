@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, type MouseEvent } from "react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
+import { openSearchOverlay } from "@/lib/search/open";
 
 const SearchIcon = () => (
   <svg
@@ -34,15 +35,28 @@ export default function NavSearch() {
     return () => window.removeEventListener("keydown", handler);
   }, [router]);
 
+  // Phones: open the search overlay in place, so the keyboard comes up with
+  // this tap (lib/search/open.ts). The overlay only answers below `lg`; at
+  // desktop sizes — and before its code has loaded — this stays a plain link
+  // to /search.
+  const onCompactClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return;
+    }
+    if (openSearchOverlay()) event.preventDefault();
+  };
+
   return (
     <>
       {/* Compact variant (below 1440px): icon-only button. Keeps the actions
           zone narrow so long Khmer nav labels collapse into "More" instead of
-          fighting the search field for space. 44px tap target on touch. */}
+          fighting the search field for space. 44px tap target below lg (where
+          it is the phone top bar's only control); 40px from lg, as before. */}
       <Link
         href="/search"
+        onClick={onCompactClick}
         aria-label={t("searchLibrary")}
-        className="group relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-divider bg-bg-surface text-text-muted shadow-sm transition-colors duration-200 hover:border-brand/30 hover:text-brand active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app motion-reduce:transition-none sm:h-10 sm:w-10 xl:w-auto xl:gap-2 xl:px-3.5 min-[1440px]:hidden"
+        className="group relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-divider bg-bg-surface text-text-muted shadow-sm transition-colors duration-200 hover:border-brand/30 hover:text-brand active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app motion-reduce:transition-none lg:h-10 lg:w-10 xl:w-auto xl:gap-2 xl:px-3.5 min-[1440px]:hidden"
       >
         <SearchIcon />
         <span className="hidden whitespace-nowrap text-sm xl:inline">

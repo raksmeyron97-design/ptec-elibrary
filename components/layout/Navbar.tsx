@@ -1,6 +1,5 @@
 import { Link } from "@/i18n/navigation";
 import NavbarSession from "./NavbarSession";
-import MobileMenu from "./MobileMenu";
 import NavSearch from "@/components/layout/NavSearch";
 import ThemeToggle from "@/components/ui/core/ThemeToggle";
 import { Seal } from "@/components/ui/core/Seal";
@@ -66,12 +65,6 @@ export default async function Navbar() {
     { kind: "about" },
   ];
 
-  const mobileNavLinks = [
-    { label: t("home"), href: "/" },
-    { label: t("booksInLibrary"), href: "/catalogs" },
-    { label: t("posts"), href: "/posts" },
-  ];
-
   // Opening hours for the utility strip. Derived from the published
   // openingHoursSpec, never from a hand-written string, so a schedule change in
   // /admin/system-settings propagates here too. Deliberately the SCHEDULE and
@@ -84,10 +77,12 @@ export default async function Navbar() {
   // a cookies() read plus a Supabase Auth round-trip plus a profiles query on
   // every public page render — it blocked first byte and made the whole public
   // tree uncacheable. The viewer's identity now arrives client-side via
-  // <SessionProvider>; <NavbarSession> and <MobileMenu> read it from there.
+  // <SessionProvider>; <NavbarSession> and the tab bar's sheets read it there.
 
   return (
-    <header className="relative z-[100] w-full border-t-[3px] border-accent font-sans pt-[env(safe-area-inset-top)]">
+    // `site-header`: below lg this element is sticky and steps aside on
+    // scroll-down (app/globals.css; the state comes from NavbarStickyWrapper).
+    <header className="site-header relative z-[100] w-full border-t-[3px] border-accent font-sans pt-[env(safe-area-inset-top)]">
       {/* Top utility strip */}
         <div className="relative z-[70] hidden border-b border-white/10 bg-blue-950 text-[13px] text-gold-100 dark:bg-bg-surface dark:text-text-body xl:block">
           <div className="mx-auto flex h-9 w-full max-w-[1536px] items-center justify-between gap-6 px-6 xl:px-8">
@@ -140,8 +135,10 @@ export default async function Navbar() {
             - Nav:   minmax(0,1fr) — the only zone allowed to shrink; its
                      items collapse into "More" (PriorityNav) as it narrows.
             - Actions: auto + shrink-0 children — search, theme, bell, and
-                     the avatar can never be pushed off-viewport. */}
-        <div className="mx-auto grid h-16 max-w-[1536px] grid-cols-[minmax(0,auto)_minmax(0,1fr)_auto] items-center gap-1.5 px-3 sm:px-5 lg:h-[72px] xl:gap-3 xl:px-8">
+                     the avatar can never be pushed off-viewport.
+            56px tall below lg (the slim, sticky phone bar — its height is
+            --ptec-topbar-height in app/globals.css), 72px from lg as before. */}
+        <div className="mx-auto grid h-14 max-w-[1536px] grid-cols-[minmax(0,auto)_minmax(0,1fr)_auto] items-center gap-1.5 px-3 sm:px-5 lg:h-[72px] xl:gap-3 xl:px-8">
           {/* Zone 1: brand */}
           {/* Brand mark. `prefetch={false}` deliberately: this is the way
               BACK to the homepage, not a destination a reader is heading for,
@@ -174,26 +171,20 @@ export default async function Navbar() {
               <ThemeToggle />
             </div>
 
-            {/* Search */}
+            {/* Search. Below lg it opens the one-tap search overlay. */}
             <NavSearch />
 
             {/* Bell (logged in only) + login button OR avatar dropdown.
                 Both depend on the viewer, so they hydrate from
-                <SessionProvider> instead of being rendered server-side. */}
+                <SessionProvider> instead of being rendered server-side.
+                Both are lg+ only. */}
             <NavbarSession />
 
-            {/* Hamburger + drawer — mobile/tablet only (below lg) */}
-            <MobileMenu
-              navLinks={mobileNavLinks}
-              locale={locale}
-              contact={{
-                phone: cfg.phone,
-                phoneTel: cfg.phoneTel,
-                email: cfg.email,
-                mapPlace: cfg.links.mapPlace,
-                hours: hoursLabel,
-              }}
-            />
+            {/* No hamburger below lg. Everything the drawer carried — the
+                collections, About, the account, appearance, language, the
+                contact details — lives in the tab bar's Explore / Saved /
+                More sheets (components/layout/MobileNavSheets.tsx), so the
+                phone top bar is the brand and a search button. */}
           </div>
         </div>
       </NavbarStickyWrapper>

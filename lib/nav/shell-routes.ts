@@ -7,11 +7,25 @@
 // assistant carried its own reader-route regex and the tab bar had none, so
 // the two could only agree by coincidence.
 
-export type ShellTab = "home" | "search" | "library" | "paths" | "profile";
+export type ShellTab = "home" | "explore" | "search" | "saved" | "more";
 
-/** Everything a reader reaches through the Library sheet. Order is the
- *  sheet's order; the tab lights for any of them. */
-export const LIBRARY_ROUTES = [
+/**
+ * The bar's tabs, left to right. Search is the CENTRE slot on purpose — the
+ * raised, emphasised one, one tap from anywhere. The sliding indicator takes
+ * its position from this order, so this array IS the layout: reorder it and
+ * the indicator follows.
+ */
+export const SHELL_TABS = ["home", "explore", "search", "saved", "more"] as const satisfies readonly ShellTab[];
+
+/** Below Tailwind's `lg` — where the tab bar, its sheets and the search
+ *  overlay exist. The one media query every script in the phone shell uses. */
+export const PHONE_SHELL_QUERY = "(max-width: 63.999rem)";
+
+/** Everything a reader reaches through the Explore sheet. Learning Paths
+ *  leads: it lost its own tab when Search took the centre, and it is the one
+ *  thing this library has that a shelf does not. */
+export const EXPLORE_ROUTES = [
+  "/paths",
   "/books",
   "/theses",
   "/journals",
@@ -20,8 +34,17 @@ export const LIBRARY_ROUTES = [
   "/authors",
 ] as const;
 
-/** A reader's own things: the dashboard, their collections, their device. */
-const PROFILE_ROUTES = ["/dashboard", "/lists", "/offline-books"] as const;
+/** What a reader has kept: the dashboard (continue reading, saved books,
+ *  reading lists), one of their lists, and this device's downloads. */
+export const SAVED_ROUTES = ["/dashboard", "/lists", "/offline-books", "/offline-reader"] as const;
+
+/** Reached from the More sheet. Checked BEFORE Saved: settings live under
+ *  /dashboard but belong to the account, which More carries. */
+export const MORE_ROUTES = ["/dashboard/settings", "/about", "/contact", "/posts", "/policy", "/privacy"] as const;
+
+export function shellTabIndex(tab: ShellTab): number {
+  return SHELL_TABS.indexOf(tab);
+}
 
 /** `/km/books` → `/books`, `/en` → `/`. Anything else passes through. */
 export function stripLocale(pathname: string): string {
@@ -74,13 +97,13 @@ export function assistantFabHiddenOnPhone(pathname: string): boolean {
   return /^\/books\/[^/]+\/?$/.test(path) || /^\/journals\/articles\/[^/]+\/?$/.test(path);
 }
 
-/** The tab that should read as current, or null (e.g. /about, /posts). */
+/** The tab that should read as current, or null for a route no tab owns. */
 export function activeTab(pathname: string): ShellTab | null {
   const path = stripLocale(pathname);
   if (path === "/") return "home";
   if (under(path, "/search")) return "search";
-  if (under(path, "/paths")) return "paths";
-  if (LIBRARY_ROUTES.some((base) => under(path, base))) return "library";
-  if (PROFILE_ROUTES.some((base) => under(path, base))) return "profile";
+  if (MORE_ROUTES.some((base) => under(path, base))) return "more";
+  if (EXPLORE_ROUTES.some((base) => under(path, base))) return "explore";
+  if (SAVED_ROUTES.some((base) => under(path, base))) return "saved";
   return null;
 }
