@@ -19,12 +19,21 @@ import { useEffect, useState, type ReactNode } from "react";
 export default function FloatingDock({
   watchId,
   className = "",
+  revealAfterPassed = false,
   children,
 }: {
   /** id of the in-page control this dock stands in for. */
   watchId?: string;
   /** e.g. "lg:hidden" — where the dock has no job. */
   className?: string;
+  /**
+   * Show only once the watched control has scrolled ABOVE the viewport, not
+   * while the reader has yet to reach it. For a page whose action row sits a
+   * screen down (a journal article's header), a dock at load would repeat the
+   * row the reader is about to see; the book page leaves this off on purpose,
+   * because there the dock IS how "Read online" gets above the fold.
+   */
+  revealAfterPassed?: boolean;
   children: ReactNode;
 }) {
   // Start hidden when there is something to watch: a dock that flashes in on
@@ -45,10 +54,36 @@ export default function FloatingDock({
         else setFooterVisible(entry.isIntersecting);
       }
     });
-    if (watched) observer.observe(watched);
     if (footer) observer.observe(footer);
-    return () => observer.disconnect();
-  }, [watchId]);
+
+    // "Passed" is a question about position, not about crossing: a jump from
+    // below the control straight back to the top (Home key, a back-to-top
+    // link) never intersects it, so an observer would never report the change
+    // and the dock would stay up over the header it stands in for. So in this
+    // mode the watched control is read on scroll instead — one rect per frame.
+    let frame = 0;
+    const check = () => {
+      frame = 0;
+      if (watched) setWatchedVisible(watched.getBoundingClientRect().bottom > 0);
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(check);
+    };
+    if (revealAfterPassed && watched) {
+      check();
+      window.addEventListener("scroll", onScroll, { passive: true });
+      window.addEventListener("resize", onScroll);
+    } else if (watched) {
+      observer.observe(watched);
+    }
+
+    return () => {
+      observer.disconnect();
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [watchId, revealAfterPassed]);
 
   const shown = !watchedVisible && !footerVisible;
 

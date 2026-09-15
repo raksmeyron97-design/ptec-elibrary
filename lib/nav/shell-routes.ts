@@ -66,10 +66,12 @@ export function assistantFabHidden(pathname: string): boolean {
 /**
  * Routes where the FAB steps aside on PHONES only, because the page docks its
  * own assistant entry point there: a book's detail page, whose read dock
- * carries "Ask about this book". From `lg` the FAB is back — no dock.
+ * carries "Ask about this book", and a journal article, whose action dock
+ * carries "Ask about this article". From `lg` the FAB is back — no dock.
  */
 export function assistantFabHiddenOnPhone(pathname: string): boolean {
-  return /^\/books\/[^/]+\/?$/.test(stripLocale(pathname));
+  const path = stripLocale(pathname);
+  return /^\/books\/[^/]+\/?$/.test(path) || /^\/journals\/articles\/[^/]+\/?$/.test(path);
 }
 
 /** The tab that should read as current, or null (e.g. /about, /posts). */

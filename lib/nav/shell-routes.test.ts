@@ -4,6 +4,7 @@ import path from "node:path";
 import {
   activeTab,
   assistantFabHidden,
+  assistantFabHiddenOnPhone,
   isImmersiveReaderRoute,
   LIBRARY_ROUTES,
   stripLocale,
@@ -88,6 +89,27 @@ describe("assistantFabHidden", () => {
     "/km/theses/y",
   ])("agrees with the legacy AskWidget rule for %s", (pathname) => {
     expect(assistantFabHidden(pathname)).toBe(LEGACY.test(pathname));
+  });
+});
+
+describe("assistantFabHiddenOnPhone", () => {
+  // Pages whose phone dock carries the assistant, so the FAB would otherwise
+  // be a second floating control in the same corner.
+  it.each([
+    ["/books/x", true],
+    ["/km/books/x/", true],
+    ["/journals/articles/handmade-conductivity", true],
+    ["/km/journals/articles/handmade-conductivity", true],
+    // Collections and the reader own no dock.
+    ["/books", false],
+    ["/books/x/read", false],
+    ["/journals", false],
+    ["/journals/articles", false],
+    ["/journals/cambodian-journal-of-teacher-education", false],
+    ["/journals/cambodian-journal-of-teacher-education/issues/vol-7-issue-2", false],
+    ["/theses/y", false],
+  ])("%s → %s", (pathname, hidden) => {
+    expect(assistantFabHiddenOnPhone(pathname)).toBe(hidden);
   });
 });
 

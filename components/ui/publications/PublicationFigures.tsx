@@ -106,54 +106,49 @@ export default function PublicationFigures({
 
   return (
     <>
-      <ol className="space-y-8">
+      <ol className="space-y-10">
         {figures.map((figure, index) => {
           const number = index + 1;
           const caption = captionFor(figure);
           return (
             <li key={figure.id}>
               <figure>
-                <div className="group relative overflow-hidden rounded-xl border border-divider bg-paper">
-                  {/* Intrinsic sizing with an unknown aspect ratio: width/height
-                      are unknown for an uploaded figure, so the wrapper fixes a
-                      max height and the image scales inside it. That reserves
-                      the space up front and is what keeps the article from
-                      reflowing as figures decode. */}
-                  <div className="relative mx-auto flex max-h-[520px] w-full items-center justify-center">
-                    <Image
-                      src={figure.image_url}
-                      alt={figure.alt_text?.trim() || ""}
-                      width={1200}
-                      height={800}
-                      sizes="(max-width: 1024px) 100vw, 820px"
-                      className="h-auto max-h-[520px] w-full object-contain"
-                    />
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setOpenIndex(index)}
-                    aria-label={fill(labels.enlarge, { n: number })}
-                    // Always visible on touch screens, where there is no hover to
-                    // reveal it — a control that only appears on :hover is a
-                    // control a phone user does not have.
-                    className="focus-field absolute right-3 top-3 inline-flex min-h-9 min-w-9 cursor-pointer items-center justify-center rounded-lg border border-divider bg-bg-surface/90 text-text-body backdrop-blur-sm transition-opacity hover:text-brand focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-                  >
-                    <Maximize2 className="h-4 w-4" aria-hidden="true" />
-                  </button>
+                {/* A fixed-ratio frame with the image contained inside it.
+                    An uploaded figure's size is not recorded, so any
+                    intrinsic-size approach reflows the article as each image
+                    decodes; a 16:10 box reserves the space up front, and a
+                    tall or wide figure is letterboxed on paper rather than
+                    cropped. The full image is one tap away. */}
+                <div className="relative aspect-[16/10] w-full overflow-hidden rounded-lg border border-divider bg-paper">
+                  <Image
+                    src={figure.image_url}
+                    alt={figure.alt_text?.trim() || ""}
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 760px"
+                    className="object-contain p-2"
+                  />
                 </div>
 
-                <figcaption className="mt-2.5 text-[13.5px] leading-6 text-text-body">
-                  <span className="font-bold text-text-heading">
-                    {fill(labels.figureLabel, { n: number })}.
-                  </span>{" "}
+                <figcaption className="mt-3 text-[14px] leading-6 text-text-body [&:lang(km)]:leading-7">
+                  <span className="font-bold text-text-heading">{fill(labels.figureLabel, { n: number })}.</span>{" "}
                   {caption}
                   {figure.credit && (
-                    <span className="mt-1 block text-[12px] text-text-muted">
+                    <span className="mt-1 block text-[12.5px] text-text-muted">
                       {labels.credit}: {figure.credit}
                     </span>
                   )}
                 </figcaption>
+                {/* A real button, always visible — a control that appears
+                    only on :hover is one a phone user does not have. Its
+                    name says which figure it opens. */}
+                <button
+                  type="button"
+                  onClick={() => setOpenIndex(index)}
+                  className="mt-1.5 -ml-2 inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg px-2 text-[13.5px] font-semibold text-brand transition-colors hover:bg-brand/5"
+                >
+                  <Maximize2 className="h-4 w-4" aria-hidden="true" />
+                  {fill(labels.enlarge, { n: number })}
+                </button>
               </figure>
             </li>
           );

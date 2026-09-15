@@ -11,6 +11,9 @@ import { saveSourceToResearch } from "@/app/actions/reading-lists";
 import { useSession } from "@/components/providers/SessionProvider";
 import { assistantFabHidden, assistantFabHiddenOnPhone } from "@/lib/nav/shell-routes";
 import { ASK_OPEN_EVENT, type AskOpenDetail } from "@/lib/ask/open";
+// The resource page the reader is on, if any. Sent as `context` so retrieval
+// can scope to that record (lib/ask/resource-context.ts).
+import { resourceContext } from "@/lib/ask/resource-context";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Book {
@@ -151,21 +154,6 @@ interface ChatMessage {
   sources?: AnswerSource[];
   isError?: boolean;
   errorKind?: "quota" | "cooldown" | "global_limit" | "auth" | "general";
-}
-
-/**
- * The resource page the reader is on, if any. Sent as `context` so retrieval
- * can scope to that record: the server has accepted this field all along, and
- * no client ever sent it, which is why "what does this book say about X" used
- * to search the whole library.
- */
-function resourceContext(pathname: string): { slug: string; slugType: "book" | "research" | "publication" } | null {
-  const match = /^(?:\/km)?\/(books|theses|publications)\/([^/?#]+)/.exec(pathname);
-  if (!match) return null;
-  const slug = decodeURIComponent(match[2]);
-  if (!slug || slug === "read") return null;
-  const slugType = match[1] === "books" ? "book" : match[1] === "theses" ? "research" : "publication";
-  return { slug, slugType };
 }
 
 // ── Sparkle icon ──────────────────────────────────────────────────────────────

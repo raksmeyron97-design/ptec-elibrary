@@ -35,6 +35,8 @@ interface Props {
   isLoggedIn?: boolean;
   initialListIds?: string[];
   className?: string;
+  /** Localised trigger text. Omitted, the trigger keeps its English wording. */
+  label?: { add: string; inLists: (count: number) => string };
 }
 
 export default function ReadingListButton({
@@ -43,6 +45,7 @@ export default function ReadingListButton({
   isLoggedIn: isLoggedInProp,
   initialListIds = [],
   className,
+  label,
 }: Props) {
   const { user } = useSession();
   const isLoggedIn = isLoggedInProp ?? !!user;
@@ -144,8 +147,14 @@ export default function ReadingListButton({
           }`
         }
       >
-        <BookMarked className="h-4 w-4" />
-        {inAny ? `In ${inLists.size} list${inLists.size > 1 ? "s" : ""}` : "Add to List"}
+        <BookMarked className="h-4 w-4" aria-hidden="true" />
+        {label
+          ? inAny
+            ? label.inLists(inLists.size)
+            : label.add
+          : inAny
+            ? `In ${inLists.size} list${inLists.size > 1 ? "s" : ""}`
+            : "Add to List"}
         <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 

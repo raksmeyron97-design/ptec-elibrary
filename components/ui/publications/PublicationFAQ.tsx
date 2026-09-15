@@ -7,14 +7,14 @@ import type { PublicationFaq } from "@/lib/publications";
  */
 export default function PublicationFAQ({ faqs }: { faqs: PublicationFaq[] }) {
   return (
-    <div className="divide-y divide-divider/60 overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
+    <div className="divide-y divide-divider/70 border-y border-divider/70">
       {faqs.map((faq, i) => (
         <details key={i} className="group">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 text-[14px] font-semibold text-text-heading transition-colors hover:text-brand sm:px-5 [&::-webkit-details-marker]:hidden">
+          <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 py-3 text-[15px] font-semibold text-text-heading transition-colors hover:text-brand [&::-webkit-details-marker]:hidden">
             {faq.question}
-            <ChevronDown className="h-4 w-4 shrink-0 text-text-muted transition-transform duration-200 group-open:rotate-180" />
+            <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-text-muted transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none" />
           </summary>
-          <p className="px-4 pb-4 text-[13.5px] leading-7 text-text-body sm:px-5">{faq.answer}</p>
+          <p className="pb-4 text-[14.5px] leading-7 text-text-body">{faq.answer}</p>
         </details>
       ))}
     </div>
