@@ -20,7 +20,7 @@ export default function PublicationCard({ publication }: { publication: Publicat
   const year = citationYear(publication);
 
   return (
-    <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl bg-bg-surface border border-divider shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg hover:border-brand/30">
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl bg-bg-surface border border-divider shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg hover:border-brand/30 pointer-coarse:active:scale-[0.97]">
       {/* Gold top-rule accent on hover */}
       <span
         aria-hidden
@@ -62,7 +62,7 @@ export default function PublicationCard({ publication }: { publication: Publicat
 
             {/* Year badge — top right */}
             {year && (
-              <span className="absolute right-2 top-2 z-[4] rounded-md bg-bg-surface/90 px-2 py-[3px] text-[9px] font-bold uppercase tracking-wider text-text-muted shadow-sm backdrop-blur-sm border border-divider/50">
+              <span className="absolute right-2 top-2 z-[4] rounded-md bg-bg-surface/90 px-2 py-[3px] text-[9px] font-bold uppercase tracking-wider text-text-muted shadow-sm backdrop-blur-sm max-lg:backdrop-blur-none border border-divider/50">
                 {year}
               </span>
             )}

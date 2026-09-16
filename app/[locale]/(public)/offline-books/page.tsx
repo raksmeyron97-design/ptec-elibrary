@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import Icon, { type IconName } from "@/components/ui/core/Icon";
+import RecentlyViewedList from "@/components/ui/pwa/RecentlyViewedList";
 import { useSession } from "@/components/providers/SessionProvider";
 import {
   formatBytes,
@@ -235,6 +236,16 @@ export default function OfflineBooksPage() {
             ))}
           </ul>
         )}
+
+        {/* What this device looked at recently. Device state, so it is here
+            with no network at all; renders nothing when there is none. */}
+        <RecentlyViewedList
+          title={t("recentlyViewedTitle")}
+          note={t("recentlyViewedNote")}
+          localePrefix={locale === "km" ? "/km" : ""}
+          lang={locale}
+          className="mt-12"
+        />
       </div>
     </div>
   );

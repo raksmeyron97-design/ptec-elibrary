@@ -46,9 +46,18 @@ import { PWA_SPLASH, PWA_SPLASH_DARK } from "@/lib/pwa/launch";
 // SAFETY. The whole thing is inside `@supports selector(body:has(*))`, so a
 // browser that cannot evaluate the hiding rule never renders the overlay in the
 // first place — it cannot be trapped behind it. A failsafe keyframe uncovers
-// the app after 8 s in the one remaining bad case (the response dies mid-stream
-// and the marker never arrives), so a broken load shows the partial page rather
-// than an eternal splash.
+// the app after 2 s in the one remaining bad case (the response is slow or
+// dies mid-stream and the marker has not arrived), so a slow load shows the
+// partial page — which is real progress — rather than a splash about it.
+//
+// ONCE PER SESSION. THEME_INIT_SCRIPT (lib/csp.ts) marks <html> with
+// `data-ptec-booted` on every document load after the first in a browser
+// session, and that hides the overlay before it can paint: a second full load
+// is a warm start, and covering it would only make a fast load look slow. A
+// fresh launch of the installed app is a new session, so it gets the splash.
+//
+// The indicator is a sliding bar, transform only — the old three bouncing dots
+// ran an infinite animation apiece.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Inline, so it is parsed with the document instead of waiting on the
@@ -73,7 +82,9 @@ const BOOT_STYLES = `
 display:grid;grid-template-rows:1fr auto;justify-items:center;
 padding:calc(2.5rem + env(safe-area-inset-top)) 1.5rem calc(2.5rem + env(safe-area-inset-bottom));
 background:${PWA_SPLASH};color:#0B1530;text-align:center;
-animation:ptec-boot-failsafe 1ms linear 8s forwards}
+animation:ptec-boot-failsafe 1ms linear 2s forwards}
+/* Not the first document of this session: never shown (see the file header). */
+html[data-ptec-booted] #ptec-boot{display:none}
 
 /* A whisper of the brand navy at the top and gold at the foot. Two very low
    alpha radials rather than a gradient across the whole surface, so there is
@@ -107,11 +118,10 @@ font-family:var(--font-var-sans),system-ui,sans-serif}
 gap:.625rem;font-size:.75rem;color:#59677E;
 font-family:var(--font-var-sans),system-ui,sans-serif}
 #ptec-boot-status .km{font-family:var(--font-var-hanuman),system-ui,sans-serif;line-height:1.8}
-#ptec-boot-dots{display:flex;gap:.375rem}
-#ptec-boot-dots i{width:6px;height:6px;border-radius:50%;background:#1E3A8A;opacity:.25;
-animation:ptec-boot-dot 1.3s ease-in-out infinite}
-#ptec-boot-dots i:nth-child(2){animation-delay:.18s}
-#ptec-boot-dots i:nth-child(3){animation-delay:.36s}
+#ptec-boot-bar{position:relative;width:7.5rem;height:3px;border-radius:3px;overflow:hidden;
+background:rgba(30,58,138,.14)}
+#ptec-boot-bar i{position:absolute;inset:0;width:40%;border-radius:inherit;background:#1E3A8A;
+transform:translateX(-100%);animation:ptec-boot-bar 1.1s cubic-bezier(.4,0,.2,1) infinite}
 
 /* Dark readers get the same composition on the app's own dark surface, so the
    startup screen never flashes bright at someone who chose dark. The class is
@@ -124,10 +134,11 @@ radial-gradient(90% 45% at 50% 100%,rgba(244,222,138,.05),transparent 70%)}
 .dark #ptec-boot-name{color:#EEF2FB}
 .dark #ptec-boot-org,.dark #ptec-boot-status{color:#A9B6D4}
 .dark #ptec-boot-rule{background:#F4DE8A}
-.dark #ptec-boot-dots i{background:#8AA4E4}
+.dark #ptec-boot-bar{background:rgba(138,164,228,.18)}
+.dark #ptec-boot-bar i{background:#8AA4E4}
 
 @keyframes ptec-boot-breathe{0%,100%{opacity:.9;transform:scale(1)}50%{opacity:1;transform:scale(1.025)}}
-@keyframes ptec-boot-dot{0%,100%{opacity:.22;transform:translateY(0)}50%{opacity:.95;transform:translateY(-3px)}}
+@keyframes ptec-boot-bar{to{transform:translateX(250%)}}
 @keyframes ptec-boot-failsafe{to{opacity:0;visibility:hidden}}
 
 /* The hand-off. Scale is on the brand block, not the full-screen overlay: a
@@ -138,8 +149,8 @@ body:has([data-ptec-shell-ready]) #ptec-boot-brand{
 transform:scale(.99);transition:transform .22s ease}
 
 @media (prefers-reduced-motion:reduce){
-#ptec-boot-emblem,#ptec-boot-dots i{animation:none}
-#ptec-boot-dots i{opacity:.55}
+#ptec-boot-emblem,#ptec-boot-bar i{animation:none}
+#ptec-boot-bar i{transform:none;opacity:.6}
 body:has([data-ptec-shell-ready]) #ptec-boot{transition:none}
 body:has([data-ptec-shell-ready]) #ptec-boot-brand{transform:none;transition:none}}
 }
@@ -201,9 +212,7 @@ export default function PTECBootScreen({
       </div>
 
       <div id="ptec-boot-status">
-        <div id="ptec-boot-dots" aria-hidden="true">
-          <i />
-          <i />
+        <div id="ptec-boot-bar" aria-hidden="true">
           <i />
         </div>
         <span>Opening PTEC Library…</span>

@@ -758,6 +758,26 @@ html:lang("en") body {
     backdrop-filter: blur(12px);
   }
 
+  /* Phones and small tablets: no backdrop blur at all. A blur re-samples
+     everything under the bar on every scrolled frame — the most expensive
+     thing the shell did on a low-end Android GPU — and the opaque fallback
+     is also the most legible surface there is. From lg up the glass is
+     unchanged. */
+  @media (max-width: 63.999rem) {
+    .glass-surface,
+    .glass-surface--strong,
+    .glass-surface--sheet {
+      background-color: var(--ptec-glass-fallback);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+    .glass-ink {
+      background-color: rgba(6, 11, 26, .88);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+
   /* No backdrop-filter (older WebViews, some Android browsers): translucent
      without blur is the worst of both — busy AND low-contrast. Go opaque. */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -921,20 +941,24 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 
 .hero-stagger > * {
   opacity: 0; transform: translateY(14px);
-  animation: hero-rise .65s cubic-bezier(.22,1,.36,1) forwards;
+  /* 300 ms, 40 ms apart. The hero is the first thing painted and it starts
+     transparent, so every millisecond here is a millisecond the page's
+     headline is not readable (it was 0.65 s with the last line starting at
+     0.62 s — 1.27 s before the hero was complete). */
+  animation: hero-rise .3s cubic-bezier(.22,1,.36,1) forwards;
 }
-.hero-stagger > *:nth-child(1){animation-delay:.05s}
-.hero-stagger > *:nth-child(2){animation-delay:.15s}
-.hero-stagger > *:nth-child(3){animation-delay:.25s}
-.hero-stagger > *:nth-child(4){animation-delay:.38s}
-.hero-stagger > *:nth-child(5){animation-delay:.5s}
-.hero-stagger > *:nth-child(6){animation-delay:.62s}
+.hero-stagger > *:nth-child(1){animation-delay:0s}
+.hero-stagger > *:nth-child(2){animation-delay:.04s}
+.hero-stagger > *:nth-child(3){animation-delay:.08s}
+.hero-stagger > *:nth-child(4){animation-delay:.12s}
+.hero-stagger > *:nth-child(5){animation-delay:.16s}
+.hero-stagger > *:nth-child(6){animation-delay:.2s}
 @keyframes hero-rise { to { opacity:1; transform:translateY(0); } }
 
 @media (prefers-reduced-motion: reduce) {
   .aurora { animation: none; }
   .hero-stagger > * { opacity:1; transform:none; animation:none; }
-  .skeleton, .ptec-reveal { animation: none !important; }
+  .skeleton, .skeleton::after, .ptec-reveal { animation: none !important; }
   .modal-backdrop-in, .modal-pop-in, .drawer-slide-in, .fade-rise-in, .tab-panel-in { animation: none !important; }
 }
 
@@ -1000,20 +1024,31 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   --skeleton-shine: #223480;
 }
 
-@keyframes skeleton-shimmer {
-  0%   { background-position: -600px 0; }
-  100% { background-position: 600px 0; }
+/* One shimmer for every placeholder: a highlight band that SLIDES across a
+   flat block — transform only, so the compositor moves it — instead of a
+   gradient whose background-position is re-painted on every frame of every
+   placeholder on the page. There used to be two @keyframes with this name,
+   and the later one (for a class nothing used) silently replaced this one.
+   Reduced motion: a flat block (the rule above).
+   In @layer components so a utility on the same element (`absolute`,
+   `bg-*`) still wins over the base styles. */
+@layer components {
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--skeleton-base);
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, var(--skeleton-shine), transparent);
+    animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  }
 }
-
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--skeleton-base) 25%,
-    var(--skeleton-shine) 50%,
-    var(--skeleton-base) 75%
-  );
-  background-size: 1200px 100%;
-  animation: skeleton-shimmer 1.8s ease-in-out infinite;
+@keyframes skeleton-shimmer {
+  to { transform: translateX(100%); }
 }
 
 /* ── Shared enter animations (modals, drawers, empty/error states) ─ */
@@ -1052,18 +1087,23 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 .scroll-reveal-stagger .scroll-reveal-item {
   opacity: 1;
   transform: none;
-  transition: opacity .7s ease-out, transform .7s ease-out;
+  /* 250 ms, 12 px, 40 ms apart. Long enough to read as "arriving", short
+     enough that someone scrolling at reading speed never lands on a block
+     that is still invisible — at the old 0.7 s plus 0.75 s of stagger, the
+     sixth tile of a grid stayed blank for most of a second and a half after
+     it was on screen. */
+  transition: opacity .25s ease-out, transform .25s ease-out;
 }
 .scroll-reveal[data-revealed="false"],
 .scroll-reveal-stagger[data-revealed="false"] .scroll-reveal-item {
   opacity: 0;
-  transform: translateY(40px);
+  transform: translateY(12px);
 }
-.scroll-reveal-stagger .scroll-reveal-item:nth-child(2) { transition-delay: .15s; }
-.scroll-reveal-stagger .scroll-reveal-item:nth-child(3) { transition-delay: .3s; }
-.scroll-reveal-stagger .scroll-reveal-item:nth-child(4) { transition-delay: .45s; }
-.scroll-reveal-stagger .scroll-reveal-item:nth-child(5) { transition-delay: .6s; }
-.scroll-reveal-stagger .scroll-reveal-item:nth-child(n+6) { transition-delay: .75s; }
+.scroll-reveal-stagger .scroll-reveal-item:nth-child(2) { transition-delay: .04s; }
+.scroll-reveal-stagger .scroll-reveal-item:nth-child(3) { transition-delay: .08s; }
+.scroll-reveal-stagger .scroll-reveal-item:nth-child(4) { transition-delay: .12s; }
+.scroll-reveal-stagger .scroll-reveal-item:nth-child(5) { transition-delay: .16s; }
+.scroll-reveal-stagger .scroll-reveal-item:nth-child(n+6) { transition-delay: .2s; }
 @media (prefers-reduced-motion: reduce) {
   .scroll-reveal, .scroll-reveal-item { transition: none !important; }
 }
@@ -1077,16 +1117,96 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   contain-intrinsic-size: auto 600px;
 }
 
-/* ── Navigation progress bar ────────────────────────────────────── */
-@keyframes nav-progress-indeterminate {
-  0%   { transform: translateX(-100%); }
-  60%  { transform: translateX(0%); }
-  100% { transform: translateX(100%); }
+/* ── Navigation progress bar (components/ui/NavigationProgress.tsx) ──
+   Re-mounted per navigation. One keyframe grows it by scaleX from the left
+   edge and fades it at the end — the old component stepped its WIDTH through
+   five timers, a React render and a layout per step. Same 1.9 s cadence and
+   gradient as before; the box-shadow glow is gone, because a shadow on a
+   scaling element is repainted on every frame. Hidden under reduced motion. */
+.nav-progress {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 9999;
+  height: 3px;
+  pointer-events: none;
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, #1E3A8A 0%, #3A5FC4 60%, #DDB022 100%);
+  animation: nav-progress 1.9s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+@keyframes nav-progress {
+  0%   { transform: scaleX(0); opacity: 1; }
+  8%   { transform: scaleX(0.2); }
+  26%  { transform: scaleX(0.5); }
+  47%  { transform: scaleX(0.72); }
+  74%  { transform: scaleX(0.85); }
+  84%  { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-progress { display: none; }
 }
 
-@keyframes nav-progress-glow {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.7; }
+/* ── Reading progress (components/ui/animations/ReadingProgress.tsx) ──
+   A scroll-driven animation: the line's scaleX follows the document's
+   scroll position with no script at all. Where scroll timelines are not
+   supported the line is simply not drawn — deliberately no JS polyfill, a
+   scroll listener on every public page being the main-thread work this
+   replaced. Not drawn under reduced motion either. z-index 101: one above
+   the phone's sticky header (z-100), so it draws over the header's gold
+   rule instead of under it. */
+.reading-progress { display: none; }
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .reading-progress {
+      display: block;
+      position: fixed;
+      inset: 0 0 auto 0;
+      z-index: 101;
+      height: 3px;
+      pointer-events: none;
+      transform-origin: 0 50%;
+      transform: scaleX(0);
+      background: linear-gradient(to right, var(--ptec-brand), var(--ptec-accent));
+      animation: reading-progress auto linear both;
+      animation-timeline: scroll(root block);
+    }
+  }
+}
+@keyframes reading-progress { to { transform: scaleX(1); } }
+
+/* ── Book covers (components/ui/books/SmartBookCover.tsx) ──────────
+   A cover that had painted nothing when it mounted fades in once it has
+   loaded: the attribute is set before first paint and removed in onLoad.
+   Never on a priority cover, and never on one the server-rendered page was
+   already painting — a cover must not blink out at hydration. */
+.cover-fade { transition: opacity 0.2s ease-out; }
+.cover-fade[data-fade="pending"] { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .cover-fade { transition: none; }
+}
+
+/* ── Page transitions (components/layout/PageTransition.tsx) ───────
+   Behind PAGE_TRANSITIONS (lib/motion/flags.ts). Only the page content
+   takes part: the root — header, tab bar, footer — swaps in place, so the
+   chrome never blinks. The outgoing page stays fully opaque UNDER the
+   incoming one while the new page fades in over 200 ms: if both faded at
+   once, the two layers would add up to less than full opacity mid-way and
+   the background would show through — a flash on every navigation.
+   Clicks pass through to the live page while it runs. */
+::view-transition { pointer-events: none; }
+::view-transition-old(root),
+::view-transition-new(root) { animation: none; }
+::view-transition-group(.page-exit),
+::view-transition-group(.page-enter) { animation: none; }
+::view-transition-group(.page-exit) { z-index: 0; }
+::view-transition-group(.page-enter) { z-index: 1; }
+::view-transition-old(.page-exit) { animation: none; }
+::view-transition-new(.page-enter) { animation: page-enter 0.2s ease-out both; }
+@keyframes page-enter { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) { animation: none !important; }
 }
 
 
@@ -1580,29 +1700,6 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   }
   .paths-route {
     stroke-dashoffset: 0 !important;
-  }
-}
-
-/* Skeleton shimmer — pulsing gradient for loading placeholders. */
-.skeleton-shimmer {
-  background: linear-gradient(
-    90deg,
-    var(--ptec-bg-surface) 25%,
-    var(--ptec-paper) 50%,
-    var(--ptec-bg-surface) 75%
-  );
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.5s infinite;
-}
-
-@keyframes skeleton-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .skeleton-shimmer {
-    animation: none;
   }
 }
 

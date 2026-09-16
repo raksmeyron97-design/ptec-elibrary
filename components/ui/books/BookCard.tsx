@@ -3,7 +3,6 @@
 
 import { Link } from "@/i18n/navigation";
 import { useState, useEffect } from "react";
-import Tilt from "react-parallax-tilt";
 import type { Book } from "@/lib/books";
 import SmartBookCover from "@/components/ui/books/SmartBookCover";
 import RatingStars from "@/components/ui/reviews/RatingStars";
@@ -29,6 +28,8 @@ type BookCardProps = {
 
 const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
 
+type TiltComponent = typeof import("react-parallax-tilt").default;
+
 const formatCount = (n: number) =>
   n >= 1_000_000
     ? `${(n / 1_000_000).toFixed(1)}M`
@@ -43,12 +44,22 @@ export default function BookCard({ book, variant = "browse", priority = false }:
   // Tilt only for a real mouse (fine pointer + hover support) and only when
   // motion is welcome — a touch drag-scroll over the card would otherwise
   // read as an unwanted wobble, and react-parallax-tilt listens on touch
-  // events too. Starts false so SSR/first paint match; flips after mount.
-  const [tiltEnabled, setTiltEnabled] = useState(false);
+  // events too. The library itself is loaded only then (one shared dynamic
+  // import), so a phone never downloads or parses it. Null on the server and
+  // the first client render, so both match; the card renders untilted until
+  // the module arrives.
+  const [Tilt, setTilt] = useState<TiltComponent | null>(null);
   useEffect(() => {
     const precise = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    setTiltEnabled(precise && !reduceMotion);
+    if (!precise || reduceMotion) return;
+    let active = true;
+    import("react-parallax-tilt").then((m) => {
+      if (active) setTilt(() => m.default);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const t = useTranslations("home");
@@ -78,8 +89,12 @@ export default function BookCard({ book, variant = "browse", priority = false }:
   // View analytics moved to the detail page's BookViewPing (one event per
   // real detail view, anonymous included) — card clicks no longer log.
 
+  // Touch: the card presses DOWN to 0.97 while a finger is on it (the
+  // hover lift is hover-only, so a phone never gets it). The GPU layer hint
+  // is desktop-only — on a phone it cost one compositor layer per card on
+  // screen, which is memory a low-end device does not have.
   const card = (
-    <article className="group relative flex h-full flex-col overflow-hidden rounded-xl bg-bg-surface border border-white/10 shadow-lg transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-[0_8px_24px_-6px_rgba(79,70,229,0.3)] transform-gpu will-change-transform">
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-xl bg-bg-surface border border-white/10 shadow-lg transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-[0_8px_24px_-6px_rgba(79,70,229,0.3)] pointer-coarse:active:scale-[0.97] lg:transform-gpu lg:will-change-transform">
 
       {/* Brand-colored top-rule accent — reveals on hover */}
       <span
@@ -132,7 +147,7 @@ export default function BookCard({ book, variant = "browse", priority = false }:
               old 8px its subscript consonants were unreadable; truncated so a
               long compound never runs off the cover. */}
           {book.coverUrl && (book.category || book.department) && (
-            <span className="absolute bottom-2 left-2 z-[4] max-w-[calc(100%-1rem)] truncate rounded-[4px] bg-white/90 px-2 py-0.5 text-[10px] font-bold leading-[1.45] text-blue-700 shadow-sm backdrop-blur-sm">
+            <span className="absolute bottom-2 left-2 z-[4] max-w-[calc(100%-1rem)] truncate rounded-[4px] bg-white/90 px-2 py-0.5 text-[10px] font-bold leading-[1.45] text-blue-700 shadow-sm backdrop-blur-sm max-lg:backdrop-blur-none">
               {book.category || book.department}
             </span>
           )}
@@ -235,7 +250,7 @@ export default function BookCard({ book, variant = "browse", priority = false }:
     </article>
   );
 
-  if (!tiltEnabled) return card;
+  if (!Tilt) return card;
 
   return (
     <Tilt

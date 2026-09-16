@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Icon from "@/components/ui/core/Icon";
 import { Button } from "@/components/ui/core/Button";
+import RecentlyViewedList from "@/components/ui/pwa/RecentlyViewedList";
 
 // The PWA offline fallback. Precached by app/sw.ts (it is the only precache
 // entry), and served whenever a navigation cannot be answered from the network
@@ -56,6 +57,14 @@ export default function OfflinePage() {
             Try again · ព្យាយាមម្ដងទៀត
           </Button>
         </div>
+
+        {/* Books this device opened recently — the pages the service worker
+            may still have. Bilingual like the rest of this page. */}
+        <RecentlyViewedList
+          title="Recently viewed · បានមើលថ្មីៗ"
+          note="Pages you opened recently may still open on this device. · ទំព័រដែលអ្នកបានបើកថ្មីៗ អាចនៅតែបើកបាននៅលើឧបករណ៍នេះ។"
+          className="mt-12"
+        />
       </div>
     </div>
   );

@@ -1,7 +1,14 @@
 "use client";
 
+// components/ui/animations/AnimatedAccordion.tsx
+// A disclosure row (the homepage FAQ). Opening fades and lifts the panel in —
+// opacity + transform, 200 ms (`.tab-panel-in`, app/globals.css) — instead of
+// tweening its height: height is a layout property, so every frame of the old
+// framer-motion animation re-laid-out the whole FAQ column, on the low-end
+// phones this library is read on. The chevron turns by transform. Reduced
+// motion turns both off (the `.tab-panel-in` rule and motion-reduce).
+
 import { useId, useState, type ReactNode } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 type AnimatedAccordionProps = {
   title: ReactNode;
@@ -17,7 +24,9 @@ export default function AnimatedAccordion({
   className,
 }: AnimatedAccordionProps) {
   const [open, setOpen] = useState(defaultOpen);
-  const reduceMotion = useReducedMotion();
+  // A row open by default is simply open on first render; the entrance is
+  // for a reader's tap.
+  const [toggled, setToggled] = useState(false);
   const panelId = useId();
 
   return (
@@ -29,14 +38,17 @@ export default function AnimatedAccordion({
         type="button"
         aria-expanded={open}
         aria-controls={panelId}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          setOpen((o) => !o);
+          setToggled(true);
+        }}
         className="flex w-full cursor-pointer items-center justify-between gap-4 rounded-xl px-5 py-4 text-left text-[14.5px] font-bold text-text-heading transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
       >
         {title}
-        <motion.svg
-          animate={{ rotate: open ? 180 : 0 }}
-          transition={reduceMotion ? { duration: 0 } : { duration: 0.25 }}
-          className="h-4 w-4 shrink-0 text-text-muted"
+        <svg
+          className={`h-4 w-4 shrink-0 text-text-muted transition-transform duration-200 ease-out motion-reduce:transition-none ${
+            open ? "rotate-180" : ""
+          }`}
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -46,22 +58,13 @@ export default function AnimatedAccordion({
           aria-hidden
         >
           <path d="m6 9 6 6 6-6" />
-        </motion.svg>
+        </svg>
       </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            id={panelId}
-            initial={reduceMotion ? false : { height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={reduceMotion ? undefined : { height: 0, opacity: 0 }}
-            transition={reduceMotion ? { duration: 0 } : { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
-            className="overflow-hidden"
-          >
-            <div className="px-5 pb-4">{children}</div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {open && (
+        <div id={panelId} className={toggled ? "tab-panel-in" : undefined}>
+          <div className="px-5 pb-4">{children}</div>
+        </div>
+      )}
     </div>
   );
 }

@@ -88,6 +88,20 @@ Performance before/after is recorded in the pull request.
    is not (and 0 from `lg` up).
 9. **Nothing the ☰ drawer carried may drop out of the sheets.** The drawer is
    gone below `lg`; Explore, Saved and More carry its destinations.
+10. **No backdrop blur below `lg`.** `.glass-surface` and `.glass-ink` take
+    their opaque fallback on phones and small tablets, and page-level sticky
+    bars and cover badges drop theirs (`max-lg:backdrop-blur-none`): a blur
+    re-samples everything under it on every scrolled frame — the most
+    expensive thing the shell did on a low-end GPU. Modal scrims keep theirs;
+    they are on screen for a moment, not for a scroll.
+11. **Motion is transform and opacity, 150–300 ms, ease-out, and off under
+    reduced motion.** No animation library — framer-motion is gone. A
+    scroll-linked effect is a CSS scroll-driven animation behind
+    `@supports (animation-timeline: scroll())` and is simply not drawn where
+    unsupported, never a scroll listener. Touch feedback is a press DOWN to
+    0.97 on `:active` for coarse pointers (`pointer-coarse:active:scale-[0.97]`);
+    the zoom is hover-only. Page transitions are behind `PAGE_TRANSITIONS`
+    (`lib/motion/flags.ts`), pinned by `e2e/mobile-motion.spec.ts`.
 
 Pinned by `lib/glass-tokens.test.ts`, `lib/nav/shell-routes.test.ts`,
 `lib/mobile-field-zoom.test.ts`, `lib/error-boundaries.test.ts`,

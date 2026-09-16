@@ -8050,7 +8050,12 @@
     "errorGeneric": "Couldn’t save this book offline. Please check your connection and try again.",
     "errorStorage": "Couldn’t save this book offline. Your device may be low on storage — remove a downloaded book and try again.",
     "errorUnsupported": "This browser cannot store books for offline reading.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "bannerOffline": "You’re offline. Saved pages still open.",
+    "bannerOnline": "Back online.",
+    "bannerAction": "Downloaded books",
+    "recentlyViewedTitle": "Recently viewed on this device",
+    "recentlyViewedNote": "Pages you opened recently may still open without a connection."
   },
   "errors": {
     "title": "We couldn’t load this page",

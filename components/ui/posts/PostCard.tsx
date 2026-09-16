@@ -55,7 +55,7 @@ export default function PostCard({
   return (
     <Link
       href={`/posts/${post.slug}`}
-      className="group flex h-full flex-col rounded-xl border border-divider bg-bg-surface no-underline transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/50 hover:shadow-[0_8px_24px_rgba(11,21,48,0.10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+      className="group flex h-full flex-col rounded-xl border border-divider bg-bg-surface no-underline transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/50 hover:shadow-[0_8px_24px_rgba(11,21,48,0.10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app pointer-coarse:active:scale-[0.97] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
     >
       {/* Thumbnail. The wrapper does NOT clip: the date plate hangs below the
           image edge, and an overflow-hidden here sheared its lower half off. */}
@@ -102,7 +102,7 @@ export default function PostCard({
             date — when a ceremony happens is the fact a reader is scanning
             for; when the notice was posted is not. */}
         {dateParts && (
-          <span className="absolute bottom-3 left-3 z-10 rounded-md bg-plate/95 px-3 py-2 shadow-[0_4px_14px_rgba(11,21,48,0.35)] backdrop-blur-[2px]">
+          <span className="absolute bottom-3 left-3 z-10 rounded-md bg-plate/95 px-3 py-2 shadow-[0_4px_14px_rgba(11,21,48,0.35)] backdrop-blur-[2px] max-lg:backdrop-blur-none">
             <DateBlock parts={dateParts} tone="light" size="sm" />
           </span>
         )}

@@ -94,7 +94,7 @@ export default async function CategoryGrid() {
   const themes = assignThemes(departments.map((d) => d.name));
 
   const tile =
-    "group flex h-full min-h-[72px] items-center gap-3 rounded-xl border border-divider px-3.5 py-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 sm:min-h-[92px] sm:gap-4 sm:px-5 sm:py-4";
+    "group flex h-full min-h-[72px] items-center gap-3 rounded-xl border border-divider px-3.5 py-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg pointer-coarse:active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 sm:min-h-[92px] sm:gap-4 sm:px-5 sm:py-4";
 
   return (
     <HomeSection surface="surface" labelledBy="category-grid-title">
