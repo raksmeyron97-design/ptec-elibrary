@@ -47,6 +47,7 @@ import BookNotes from "@/components/ui/books/BookNotes";
 import ReadingListButton from "@/components/ui/books/ReadingListButton";
 import ShareButton from "@/components/ui/books/ShareButton";
 import BookQuickNav from "@/components/ui/books/BookQuickNav";
+import RecentlyViewedRecorder from "@/components/ui/books/RecentlyViewedRecorder";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 
 // The public book shell (title, cover, description, metadata) is served from
@@ -330,6 +331,8 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
       <JsonLd data={bookSchema} />
       <JsonLd data={bookBreadcrumbSchema} />
       {book.dbId && <BookViewPing bookId={book.dbId} />}
+      {/* This device's "recently viewed" list — what the offline pages show. */}
+      <RecentlyViewedRecorder slug={book.slug} title={book.title} author={book.author} coverUrl={book.coverUrl} />
       <div className="mx-auto max-w-[1200px]">
         <BookQuickNav
           hasPdf={book.fromSupabase && !!book.pdfUrl && !!book.dbId}

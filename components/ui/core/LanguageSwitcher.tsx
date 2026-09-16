@@ -9,9 +9,13 @@ import { setLocaleCookie } from '@/app/actions/locale';
 interface Props {
   locale: 'en' | 'km';
   className?: string;
+  /** "touch" gives the trigger a full 44px tap target, for phone surfaces
+   *  (the tab bar's More sheet, the phone footer). The default keeps the
+   *  compact 36px trigger the desktop header and footer were designed with. */
+  size?: 'default' | 'touch';
 }
 
-export default function LanguageSwitcher({ locale, className }: Props) {
+export default function LanguageSwitcher({ locale, className, size = 'default' }: Props) {
   const t = useTranslations('nav');
   const router = useRouter();
   const pathname = usePathname();
@@ -80,7 +84,7 @@ export default function LanguageSwitcher({ locale, className }: Props) {
         aria-haspopup="true"
         aria-expanded={open}
         aria-controls={menuId}
-        className="inline-flex min-h-9 items-center gap-2 rounded-full border border-current/15 bg-transparent px-3 text-sm font-medium text-current transition-colors hover:bg-current/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
+        className={`inline-flex ${size === 'touch' ? 'min-h-11' : 'min-h-9'} items-center gap-2 rounded-full border border-current/15 bg-transparent px-3 text-sm font-medium text-current transition-colors hover:bg-current/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface`}
       >
         <Globe className="h-4 w-4 shrink-0" aria-hidden="true" />
         <span className="whitespace-nowrap">{currentLabel}</span>

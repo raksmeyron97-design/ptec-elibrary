@@ -54,7 +54,6 @@ import {
   type ArticleSectionFlags,
 } from "@/lib/publications/article-layout";
 import { reviewsEnabled, aggregateRatingAllowed } from "@/lib/reviews/policy";
-import ReadingProgress from "@/components/ui/detail/ReadingProgress";
 import Icon from "@/components/ui/core/Icon";
 import JsonLd from "@/components/seo/JsonLd";
 import ResourceConnections from "@/components/seo/ResourceConnections";
@@ -467,7 +466,6 @@ export default async function PublicationDetailPage({ params }: PageProps) {
       <JsonLd data={pubBreadcrumbSchema} />
       {faqSchema && <JsonLd data={faqSchema} />}
       <PublicationViewPing id={pub.id} />
-      <ReadingProgress />
 
       {/* ── The article: one reading surface, header and body ───────────── */}
       <section className="bg-bg-surface px-4 pb-16 pt-5 sm:px-6 sm:pt-7 md:px-12">

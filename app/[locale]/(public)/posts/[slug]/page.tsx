@@ -13,7 +13,6 @@ import { contributorNodes } from "@/lib/seo/contributor";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import Markdown, { extractToc, computeReadingTime } from "./Markdown";
 import ViewTracker from "./ViewTracker";
-import ReadingProgress from "./ReadingProgress";
 import EngagementBar from "./EngagementBar";
 import ShareSection from "./ShareSection";
 import ImageGallery from "./ImageGallery";
@@ -374,7 +373,6 @@ export default async function PostDetailPage({
       <JsonLd data={eventSchema ?? postSchema} />
       <JsonLd data={postBreadcrumbSchema} />
       <ViewTracker postId={post.id} />
-      <ReadingProgress />
 
       {/* ── Hero ── */}
       <section

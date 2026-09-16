@@ -7,7 +7,9 @@
 // invisible if JS fails or the element is already in view.
 import { useEffect, useRef, type ReactNode } from "react";
 
-function useReveal<T extends HTMLElement>() {
+/** Arms `data-revealed` on an element that starts below the fold and flips it
+ *  when the element scrolls in. Shared with StaggerGrid. */
+export function useReveal<T extends HTMLElement>() {
   const ref = useRef<T>(null);
 
   useEffect(() => {
