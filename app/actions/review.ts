@@ -121,12 +121,14 @@ async function fetchQueueRows(db: Db, table: string, baseCols: string): Promise<
  * queue at all, while their public pages carried the "not yet verified by
  * library staff" citation warning. This is that queue.
  *
- * Capped: a library that predates the workflow can have every published row
- * unverified, and the card list is not a paginated table. Pre-0062 stacks
- * have no verified_at column at all — those return empty rather than throw,
- * matching this file's other legacy fallbacks.
+ * Cap: was 200 when this queue was an unpaginated card list (the whole DOM was
+ * rendered at once). The /admin/review page now has full server-side pagination
+ * (10 / 25 / 50 per page), so the cap is raised to match ID_SCAN_LIMIT and
+ * allow reviewers to work through the entire backlog. Pre-0062 stacks have no
+ * verified_at column — those return empty rather than throw, matching this
+ * file's other legacy fallbacks.
  */
-const UNVERIFIED_LIVE_CAP = 200;
+const UNVERIFIED_LIVE_CAP = 10_000;
 
 async function fetchUnverifiedLiveRows(db: Db, table: string, baseCols: string): Promise<Row[]> {
   const res = await db
