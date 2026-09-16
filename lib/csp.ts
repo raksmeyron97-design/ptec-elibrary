@@ -52,6 +52,17 @@ export const THEME_INIT_SCRIPT = `
         setModality("keyboard");
       }
     }, true);
+
+    // The startup screen (components/pwa/PTECBootScreen.tsx) belongs to the
+    // FIRST document of a browser session. A later full load in the same
+    // session is a warm start, and covering it would only make a fast load
+    // look slow. sessionStorage, so a fresh launch of the installed app gets
+    // the splash again. Its own try: a storage refusal must not cost the theme.
+    try {
+      if (sessionStorage.getItem("ptec.booted")) root.setAttribute("data-ptec-booted", "");
+      else sessionStorage.setItem("ptec.booted", "1");
+    } catch (_) {}
+
     const path = window.location.pathname;
     const isAdmin = path === "/admin" || path.startsWith("/admin/");
     const storedTheme = localStorage.getItem("ptec.theme");

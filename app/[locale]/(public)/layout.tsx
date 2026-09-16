@@ -5,7 +5,8 @@ import AnnouncementBanner from "@/components/ui/notifications/AnnouncementBanner
 import IntlProvider from "@/components/providers/IntlProvider";
 import SessionProvider from "@/components/providers/SessionProvider";
 import ReadingProgress from "@/components/ui/animations/ReadingProgress";
-import { setRequestLocale, getMessages } from "next-intl/server";
+import ConnectivityBanner from "@/components/ui/pwa/ConnectivityBanner";
+import { setRequestLocale, getMessages, getTranslations } from "next-intl/server";
 import { pickMessages, PUBLIC_NAMESPACES } from "@/i18n/pick-messages";
 import { getActiveBannerAnnouncements } from "@/lib/announcements-public";
 
@@ -28,9 +29,10 @@ export default async function PublicLayout({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  const [messages, banners] = await Promise.all([
+  const [messages, banners, tOffline] = await Promise.all([
     getMessages({ locale }).then((m) => pickMessages(m, PUBLIC_NAMESPACES)),
     getActiveBannerAnnouncements(locale),
+    getTranslations({ locale, namespace: "offline" }),
   ]);
 
   return (
@@ -43,6 +45,12 @@ export default async function PublicLayout({
           <main id="main-content" tabIndex={-1} className="flex-grow outline-none">{children}</main>
           <Footer />
           <AskWidget />
+          {/* Draws nothing while online; says so when the connection drops. */}
+          <ConnectivityBanner
+            offlineText={tOffline("bannerOffline")}
+            onlineText={tOffline("bannerOnline")}
+            actionLabel={tOffline("bannerAction")}
+          />
         </div>
       </SessionProvider>
     </IntlProvider>

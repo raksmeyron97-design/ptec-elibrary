@@ -1,17 +1,19 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { motion, useReducedMotion, type Variants } from "framer-motion";
+// components/ui/animations/StaggerGrid.tsx
+// A grid whose items rise in, one after another, as it scrolls into view.
+// CSS now: the same IntersectionObserver reveal as ScrollRevealWrapper sets
+// `data-revealed`, and `.scroll-reveal-stagger` (app/globals.css) does the
+// motion — opacity + transform, staggered by nth-child. It used to be
+// framer-motion variants, which put the whole animation library on the
+// homepage's critical path for eight subject tiles.
+//
+// Same API as before (`as="ul"` / `as="li"`), so call sites did not change.
+// No-JS and reduced motion: items are simply visible (the hidden start state
+// is only ever armed by the observer).
 
-const container: Variants = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.1 } },
-};
-
-const item: Variants = {
-  hidden: { opacity: 0, y: 30 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
-};
+import type { ReactNode, RefObject } from "react";
+import { useReveal } from "./ScrollRevealWrapper";
 
 type ContainerTag = "div" | "ul";
 type ItemTag = "div" | "li";
@@ -25,19 +27,16 @@ export function StaggerGrid({
   className?: string;
   as?: ContainerTag;
 }) {
-  const reduceMotion = useReducedMotion();
-  const Component = as === "ul" ? motion.ul : motion.div;
-
-  return (
-    <Component
-      variants={reduceMotion ? undefined : container}
-      initial={reduceMotion ? undefined : "hidden"}
-      whileInView={reduceMotion ? undefined : "show"}
-      viewport={{ once: true, margin: "-50px" }}
-      className={className}
-    >
+  const ref = useReveal<HTMLElement>();
+  const cls = `scroll-reveal-stagger ${className ?? ""}`;
+  return as === "ul" ? (
+    <ul ref={ref as RefObject<HTMLUListElement>} className={cls}>
       {children}
-    </Component>
+    </ul>
+  ) : (
+    <div ref={ref as RefObject<HTMLDivElement>} className={cls}>
+      {children}
+    </div>
   );
 }
 
@@ -50,12 +49,6 @@ export function StaggerItem({
   className?: string;
   as?: ItemTag;
 }) {
-  const reduceMotion = useReducedMotion();
-  const Component = as === "li" ? motion.li : motion.div;
-
-  return (
-    <Component variants={reduceMotion ? undefined : item} className={className}>
-      {children}
-    </Component>
-  );
+  const cls = `scroll-reveal-item ${className ?? ""}`;
+  return as === "li" ? <li className={cls}>{children}</li> : <div className={cls}>{children}</div>;
 }

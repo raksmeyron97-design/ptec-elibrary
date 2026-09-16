@@ -38,6 +38,8 @@ import { useTranslations } from "next-intl";
 import { Bookmark, Compass, House, Menu, Search, type LucideProps } from "lucide-react";
 import { useSession } from "@/components/providers/SessionProvider";
 import { activeTab, SHELL_TABS, shellTabIndex, tabBarVisible, type ShellTab } from "@/lib/nav/shell-routes";
+import { SHELL_TAB_TRANSITION } from "@/lib/motion/flags";
+import ShellChunkBoundary from "./ShellChunkBoundary";
 import { openSearchOverlay } from "@/lib/search/open";
 import type { HoursClosure } from "@/lib/system-settings/types";
 import type { ShellContact, ShellSheet } from "./MobileNavSheets";
@@ -219,6 +221,10 @@ export default function MobileBottomNav({ hours, contact }: MobileBottomNavProps
                       aria-current={active ? "page" : undefined}
                       // The active route is the one navigation that cannot happen.
                       prefetch={active ? false : undefined}
+                      // A tab switch is not a page transition: the indicator
+                      // slides live, and a page fade would freeze it (see
+                      // components/layout/PageTransition.tsx).
+                      transitionTypes={[SHELL_TAB_TRANSITION]}
                       className={TAB_CLASS}
                     >
                       <TabFace Icon={tab.Icon} label={tab.label} active={active} />
@@ -231,6 +237,7 @@ export default function MobileBottomNav({ hours, contact }: MobileBottomNavProps
                       aria-expanded={searchOpen}
                       aria-current={active ? "page" : undefined}
                       prefetch={active ? false : undefined}
+                      transitionTypes={[SHELL_TAB_TRANSITION]}
                       className={TAB_CLASS}
                     >
                       <SearchFace label={tab.label} active={active || searchOpen} />
@@ -261,10 +268,15 @@ export default function MobileBottomNav({ hours, contact }: MobileBottomNavProps
         </div>
       </nav>
 
-      {(ready || sheet !== null) && (
-        <MobileNavSheets sheet={sheet} onClose={closeSheet} hours={hours} contact={contact} showAvatar={showAvatar} />
-      )}
-      {ready && <MobileSearchOverlay onOpenChange={setSearchOpen} />}
+      {/* Both are fetched at idle, so both can fail on a connection that
+          drops mid-flight. A failed chunk must cost the sheet, never the page
+          the reader is on (components/layout/ShellChunkBoundary.tsx). */}
+      <ShellChunkBoundary>
+        {(ready || sheet !== null) && (
+          <MobileNavSheets sheet={sheet} onClose={closeSheet} hours={hours} contact={contact} showAvatar={showAvatar} />
+        )}
+        {ready && <MobileSearchOverlay onOpenChange={setSearchOpen} />}
+      </ShellChunkBoundary>
     </>
   );
 }

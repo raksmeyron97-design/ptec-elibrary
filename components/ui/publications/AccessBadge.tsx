@@ -30,7 +30,7 @@ export default function AccessBadge({
 
   const base =
     variant === "overlay"
-      ? "absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[9.5px] font-bold uppercase tracking-wide shadow-sm backdrop-blur-sm"
+      ? "absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[9.5px] font-bold uppercase tracking-wide shadow-sm backdrop-blur-sm max-lg:backdrop-blur-none"
       : "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide";
 
   if (status === "open") {

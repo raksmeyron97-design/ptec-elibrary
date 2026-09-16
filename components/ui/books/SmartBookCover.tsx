@@ -10,9 +10,18 @@
 // image icon) and the failure state resets if the URL prop changes. The
 // wrapper fills its positioned parent, so switching to the fallback causes no
 // layout shift.
+//
+// A cover that is still downloading fades in over 200 ms when it lands
+// (`.cover-fade`, app/globals.css) instead of popping in row by row. Two
+// exceptions, both deliberate: a `priority` cover (above the fold — it is the
+// thing being waited for, so it paints the moment it can), and a cover the
+// server-rendered page was ALREADY painting when this hydrated (hiding it
+// then would make it blink out on the slow connections this is for). So the
+// fade is armed before the first paint, and only for an image that has
+// decoded nothing yet.
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import GeneratedBookCover, {
   type GeneratedCoverVariant,
 } from "@/components/ui/books/GeneratedBookCover";
@@ -48,7 +57,14 @@ function isSafeCoverUrl(url: string | null | undefined): url is string {
   return /^https?:\/\//i.test(u) || (u.startsWith("/") && !u.startsWith("//"));
 }
 
-export default function SmartBookCover({
+/** A new URL is a new cover, so the attempt starts over — by REMOUNTING on
+ *  the url (React's own way to reset state), not by resetting `failed` and
+ *  `loaded` by hand during render. */
+export default function SmartBookCover(props: SmartBookCoverProps) {
+  return <Cover key={props.coverUrl ?? ""} {...props} />;
+}
+
+function Cover({
   coverUrl,
   title,
   author,
@@ -63,16 +79,29 @@ export default function SmartBookCover({
   imgClassName = "",
   className = "",
 }: SmartBookCoverProps) {
+  // Not an effect: an effect resetting these would run AFTER next/image has
+  // reported a cached cover as loaded, marking it unloaded again — which left
+  // the pulsing placeholder animating underneath every cached cover, forever.
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
-  // A new URL deserves a fresh attempt; a re-render of the same URL does not.
-  useEffect(() => {
-    setFailed(false);
-    setLoaded(false);
-  }, [coverUrl]);
-
   const showImage = isSafeCoverUrl(coverUrl) && !failed;
+  const fadeRef = useRef<HTMLDivElement>(null);
+
+  // Before first paint: an image that has decoded nothing yet starts
+  // transparent. The attribute is DOM-only (React never renders it), so it
+  // cannot disagree with the server's HTML.
+  useLayoutEffect(() => {
+    const box = fadeRef.current;
+    const img = box?.querySelector("img");
+    if (!box || !img || priority) return;
+    if (!img.complete && img.naturalWidth === 0) box.dataset.fade = "pending";
+  }, [showImage, coverUrl, priority]);
+
+  const reveal = () => {
+    setLoaded(true);
+    if (fadeRef.current) delete fadeRef.current.dataset.fade;
+  };
 
   return (
     <div className={`relative h-full w-full ${className}`}>
@@ -84,17 +113,19 @@ export default function SmartBookCover({
               className="absolute inset-0 animate-pulse bg-paper motion-reduce:animate-none"
             />
           )}
-          <Image
-            src={coverUrl}
-            alt={alt}
-            fill
-            sizes={sizes}
-            priority={priority}
-            unoptimized={unoptimized}
-            className={`object-cover ${imgClassName}`}
-            onLoad={() => setLoaded(true)}
-            onError={() => setFailed(true)}
-          />
+          <div ref={fadeRef} className="cover-fade absolute inset-0">
+            <Image
+              src={coverUrl}
+              alt={alt}
+              fill
+              sizes={sizes}
+              priority={priority}
+              unoptimized={unoptimized}
+              className={`object-cover ${imgClassName}`}
+              onLoad={reveal}
+              onError={() => setFailed(true)}
+            />
+          </div>
         </>
       ) : (
         <GeneratedBookCover
