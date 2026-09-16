@@ -25,6 +25,46 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 async function open(page: Page, path: string) {
   await page.goto(path);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await settle(page);
+}
+
+/**
+ * Wait for the page to stop moving before interacting with it.
+ *
+ * `AnnouncementBanner` renders nothing until it has hydrated and read its
+ * dismissal list from localStorage, then appears — so roughly a second after
+ * the h1 is visible the whole document drops by the banner's height. Measured
+ * at 44 px on this article. A control the harness pressed before the shift
+ * gets its pointerdown and its mouseup on two different elements, so no click
+ * is produced at all and the assertion fails on something that works perfectly
+ * for a person.
+ *
+ * This waits for the document height to hold still rather than for the banner
+ * specifically: a reader with it dismissed never gets one, and the next piece
+ * of late chrome should not need a second helper. The shift itself is a real
+ * (pre-existing, site-wide) defect — it is not this suite's to fix, and it is
+ * not this suite's to be broken by either.
+ */
+async function settle(page: Page) {
+  await page.waitForFunction(
+    () => {
+      const w = window as unknown as { __settleH?: number; __settleN?: number };
+      const h = document.documentElement.scrollHeight;
+      if (w.__settleH !== h) {
+        w.__settleH = h;
+        w.__settleN = 0;
+        return false;
+      }
+      w.__settleN = (w.__settleN ?? 0) + 1;
+      // Stillness alone is not enough: before the banner mounts the page is
+      // perfectly still, so a short window resolves on the calm BEFORE the
+      // shift rather than after it. The floor is measured — the drop landed
+      // between 600 ms and 1200 ms after the h1 on every run.
+      return w.__settleN >= 8 && performance.now() >= 2_000;
+    },
+    undefined,
+    { timeout: 20_000, polling: 100 },
+  );
 }
 
 const isPhone = (page: Page) => (page.viewportSize()?.width ?? 1280) < 1024;
@@ -159,7 +199,11 @@ test.describe("journal article: navigation", () => {
 test.describe("journal article: citation dialog", () => {
   test("opens from Cite, closes on Escape, and returns focus", async ({ page }) => {
     await open(page, FLAGSHIP);
-    const cite = page.locator("#article-actions").getByRole("button", { name: "Cite" });
+    // Cite is drawn once, and WHERE depends on the width: the tool rail from
+    // `lg`, the row under the primary buttons below it. Either way there is
+    // exactly one, which is the property worth asserting.
+    const cite = page.getByRole("button", { name: "Cite", exact: true });
+    await expect(cite).toHaveCount(1);
     await cite.click();
     const dialog = page.getByRole("dialog", { name: "Cite this article" });
     await expect(dialog).toBeVisible();
@@ -176,7 +220,18 @@ test.describe("journal article: locales and accessibility", () => {
     await open(page, `/km${FLAGSHIP}`);
     await expect(page.getByRole("link", { name: "ត្រឡប់ទៅលេខផ្សាយ" })).toBeVisible();
     await expect(page.getByRole("heading", { level: 1 })).toHaveAttribute("lang", "en");
-    await expect(page.locator("#article-actions").getByRole("button", { name: "ដកស្រង់" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "ដកស្រង់", exact: true })).toBeVisible();
+  });
+
+  test("each utility is drawn once, wherever the width puts it", async ({ page }) => {
+    await open(page, FLAGSHIP);
+    // The rail carries them from `lg` and the inline row below it. Rendering
+    // both would give a screen reader four "Share" buttons on one article.
+    for (const name of ["Cite", "Save", "Share"]) {
+      await expect(page.getByRole("button", { name, exact: true })).toHaveCount(1);
+    }
+    const inRail = isPhone(page) ? 0 : 1;
+    await expect(page.locator("#article-actions").getByRole("button", { name: "Cite", exact: true })).toHaveCount(1 - inRail);
   });
 
   test("no WCAG A/AA violations on the article", async ({ page }) => {

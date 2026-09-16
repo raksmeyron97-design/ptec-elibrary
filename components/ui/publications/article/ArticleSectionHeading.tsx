@@ -30,7 +30,10 @@ export default function ArticleSectionHeading({
     <div className={`mb-5 flex flex-wrap items-end justify-between gap-x-4 gap-y-3 border-b border-divider pb-3 ${className}`}>
       <h2
         id={id}
-        className="min-w-0 font-khmer-serif text-[21px] font-bold leading-snug text-text-heading sm:text-[23px]"
+        // A step up from the 21/23 it shipped at: against 17–18 px body copy
+        // the headings were barely a size apart from the text under them, so
+        // ten sections read as one undifferentiated column.
+        className="min-w-0 font-khmer-serif text-[22px] font-bold leading-[1.25] tracking-[-0.008em] text-text-heading [&:lang(km)]:leading-[1.5] [&:lang(km)]:tracking-normal sm:text-[26px]"
       >
         {children}
         {count !== undefined && (

@@ -31,6 +31,7 @@ import ArticleKeywords from "@/components/ui/publications/article/ArticleKeyword
 import ArticleJournalContext, { type ArticleDetail } from "@/components/ui/publications/article/ArticleJournalContext";
 import ArticlePrevNext from "@/components/ui/publications/article/ArticlePrevNext";
 import ArticleScholarship from "@/components/ui/publications/article/ArticleScholarship";
+import ArticleToolRail from "@/components/ui/publications/article/ArticleToolRail";
 import ArticleMobileDock from "@/components/ui/publications/article/ArticleMobileDock";
 import CiteArticleDialog from "@/components/ui/publications/article/CiteArticleDialog";
 import {
@@ -469,12 +470,14 @@ export default async function PublicationDetailPage({ params }: PageProps) {
       {/* ── The article: one reading surface, header and body ───────────── */}
       <section className="bg-bg-surface px-4 pb-16 pt-5 sm:px-6 sm:pt-7 md:px-12">
         <div className="mx-auto max-w-[1200px]">
-          {/* Quiet trail + the admin's edit link. Journal and issue crumbs
-              step aside on narrow screens — the header's context line names
-              both, with links, directly below. The article's own title is
-              the page's h1 a few pixels further down, so the visible trail
-              stops at its parent; the full trail is still read out and still
-              mirrors the BreadcrumbList. */}
+          {/* Quiet trail + the admin's edit link.
+              The visible trail stops at "Journals" on purpose. Journal and
+              issue used to be crumbs here too, which meant that at ≥ md the
+              page named "Cambodian Journal of Teacher Education · Vol. 7,
+              No. 2" twice within forty pixels — once as a crumb and again in
+              the masthead block below, which links both AND carries the year.
+              The full path is still read out, and the BreadcrumbList JSON-LD
+              (built separately) still carries every level. */}
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <nav
               aria-label="Breadcrumb"
@@ -483,22 +486,11 @@ export default async function PublicationDetailPage({ params }: PageProps) {
               <Link href="/" className="transition-colors hover:text-brand">{t("breadcrumbHome")}</Link>
               <Icon name="chevron-right" className="text-[15px] text-divider" />
               <Link href={JOURNALS_PATH} className="transition-colors hover:text-brand">{t("breadcrumbPublications")}</Link>
-              {journalHref && journalName && (
-                <span className="hidden items-center gap-1.5 sm:inline-flex">
-                  <Icon name="chevron-right" className="text-[15px] text-divider" />
-                  <Link href={journalHref} className="max-w-[260px] truncate transition-colors hover:text-brand" title={journalName}>
-                    {journalName}
-                  </Link>
-                </span>
-              )}
-              {issueHref && journalCtx?.issue && (
-                <span className="hidden items-center gap-1.5 md:inline-flex">
-                  <Icon name="chevron-right" className="text-[15px] text-divider" />
-                  <Link href={issueHref} className="max-w-[200px] truncate transition-colors hover:text-brand">
-                    {issueLabel(journalCtx.issue, locale)}
-                  </Link>
-                </span>
-              )}
+              {/* Heard, not seen: the levels the masthead states below. */}
+              <span className="sr-only">
+                {journalName ? ` › ${journalName}` : ""}
+                {issueHref && journalCtx?.issue ? ` › ${issueLabel(journalCtx.issue, locale)}` : ""}
+              </span>
               <span className="sr-only" aria-current="page">
                 {" › "}
                 {pub.title}
@@ -515,7 +507,35 @@ export default async function PublicationDetailPage({ params }: PageProps) {
             )}
           </div>
 
-          <article aria-labelledby={ARTICLE_TITLE_ID}>
+          {/* ── One grid, top to bottom ──────────────────────────────────
+              The masthead used to span the full 1200 px while the body dropped
+              to a 760 px column whose rail began level with the abstract: the
+              page changed grid halfway down and the whole top-right of it was
+              empty. The article column and the tool rail now start together,
+              at the masthead.
+
+              The rail is first in the DOM so a keyboard reader reaches the
+              tools and the section list before the text, and is placed in the
+              right-hand column by grid position. Below `lg` it does not exist:
+              its tools are the row under the primary buttons, and its section
+              list is the inline "Jump to" above the abstract. */}
+          <div className="grid lg:grid-cols-[minmax(0,1fr)_248px] lg:gap-x-14 xl:grid-cols-[minmax(0,1fr)_268px] xl:gap-x-20">
+            <aside className="hidden lg:col-start-2 lg:row-start-1 lg:block">
+              <div className="sticky top-28 space-y-7">
+                <ArticleToolRail
+                  id={pub.id}
+                  title={pub.title}
+                  shareUrl={shareUrl}
+                  pdfHref={access.canDownload ? `${fileHref}?download=1` : null}
+                />
+                <ArticleSectionNav sections={sections} variant="rail" />
+              </div>
+            </aside>
+
+            <article
+              aria-labelledby={ARTICLE_TITLE_ID}
+              className="min-w-0 max-w-[820px] lg:col-start-1 lg:row-start-1"
+            >
             <ArticleHeader
               pub={pub}
               back={back}
@@ -540,28 +560,12 @@ export default async function PublicationDetailPage({ params }: PageProps) {
               locale={locale}
             />
 
-            {/* ── Body: the text column, and a quiet "On this page" rail ──
-                The rail comes first in the DOM so a keyboard user reaches
-                the section list before the text, but it is placed in the
-                right-hand column; on phones it is replaced by the inline
-                "Jump to" row at the top of the text. */}
-            <div className="mt-8 grid border-t border-divider pt-8 lg:grid-cols-[minmax(0,1fr)_220px] lg:gap-x-14 xl:grid-cols-[minmax(0,1fr)_240px] xl:gap-x-20">
-              <aside className="hidden lg:col-start-2 lg:row-start-1 lg:block">
-                <div className="sticky top-28">
-                  <ArticleSectionNav
-                    sections={sections}
-                    variant="rail"
-                    pdfHref={access.canDownload ? `${fileHref}?download=1` : null}
-                  />
-                </div>
-              </aside>
+            <div className="mt-7 border-t border-divider pt-7">
+              <div className="lg:hidden">
+                <ArticleSectionNav sections={sections} variant="inline" />
+              </div>
 
-              <div className="min-w-0 max-w-[760px] lg:col-start-1 lg:row-start-1">
-                <div className="lg:hidden">
-                  <ArticleSectionNav sections={sections} variant="inline" />
-                </div>
-
-                <div className="space-y-14">
+              <div className="space-y-14">
                   {/* Says plainly that the full text is not in the reader's
                       language, instead of leaving them to assume a broken page. */}
                   <ContentLanguageNotice contentLanguage={pub.language} locale={locale} />
@@ -655,7 +659,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
                   {has.authors && (
                     <section id="authors" className={sectionClass} aria-labelledby="authors-heading">
                       <ArticleSectionHeading id="authors-heading">{t("sectionAuthors")}</ArticleSectionHeading>
-                      <AuthorBiosSection authorships={authorships} affiliations={affiliations} />
+                      <AuthorBiosSection authorships={authorships} affiliations={affiliations} locale={locale} />
                     </section>
                   )}
 
@@ -700,8 +704,8 @@ export default async function PublicationDetailPage({ params }: PageProps) {
                   <ArticlePrevNext {...neighbours} locale={locale} variant="full" />
                 </div>
               </div>
-            </div>
-          </article>
+            </article>
+          </div>
         </div>
       </section>
 
