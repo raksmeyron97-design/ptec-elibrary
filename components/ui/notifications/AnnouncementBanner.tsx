@@ -4,9 +4,8 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { X, Megaphone, AlertTriangle } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+import { ANNOUNCEMENT_ID_ATTR, DISMISS_STORAGE_KEY as DISMISS_KEY } from "@/lib/announcements/dismiss";
 import type { PublicBannerAnnouncement } from "@/lib/announcements-public";
-
-const DISMISS_KEY = "ptec.dismissedAnnouncements";
 
 function readDismissed(): Set<string> {
   try {
@@ -47,20 +46,31 @@ export default function AnnouncementBanner({ announcements }: { announcements: P
     });
   }
 
-  // Render nothing until hydrated to avoid a flash of a banner the reader
-  // already dismissed on a previous visit.
-  if (!hydrated) return null;
-
-  const visible = announcements.filter((a) => a.dismissible === false || !dismissed.has(a.id));
-  if (visible.length === 0) return null;
+  // Every announcement is rendered, on the server and on the client alike, and
+  // a dismissed one is HIDDEN rather than absent. Returning null until hydrated
+  // is what used to cost a layout shift on every public page: the document grew
+  // by the banner's height about a second after load, and a control pressed in
+  // that window took its pointerdown and its mouseup on two different elements,
+  // so no click was produced at all.
+  //
+  // The flash that guarded against is handled earlier instead, by
+  // AnnouncementDismissScript — so the markup the server sends and the markup
+  // the client hydrates are identical, and nothing moves.
+  const isHidden = (a: PublicBannerAnnouncement) => a.dismissible !== false && dismissed.has(a.id);
+  // Only ever reached after hydration: before it, `dismissed` is empty. The
+  // rows are already display:none by then, so dropping the empty landmark
+  // moves nothing.
+  if (hydrated && announcements.every(isHidden)) return null;
 
   return (
     <div role="region" aria-label={t("regionLabel")} className="flex flex-col gap-px">
-      {visible.map((a) => {
+      {announcements.map((a) => {
         const isUrgent = a.priority === "urgent";
         return (
           <div
             key={a.id}
+            {...{ [ANNOUNCEMENT_ID_ATTR]: a.id }}
+            hidden={isHidden(a)}
             className={`flex items-center gap-3 px-4 py-2.5 text-sm ${isUrgent ? "bg-danger text-danger-contrast" : "bg-brand text-brand-contrast"}`}
           >
             {isUrgent ? <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" /> : <Megaphone className="h-4 w-4 shrink-0" aria-hidden="true" />}

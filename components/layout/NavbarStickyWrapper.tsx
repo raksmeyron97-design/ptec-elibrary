@@ -52,6 +52,8 @@ export default function NavbarStickyWrapper({ children }: { children: ReactNode 
   const ticking = useRef(false);
   const lastY = useRef(0);
   const anchorY = useRef(0);
+  /** False for the first mount, true for every later pathname change. */
+  const navigated = useRef(false);
   const pathname = usePathname() ?? "/";
   // `true` on the server and through hydration — what the old
   // useState(true) + effect gave — then the real answer, with no effect that
@@ -116,10 +118,24 @@ export default function NavbarStickyWrapper({ children }: { children: ReactNode 
   // A new page starts with the bar on screen. On the reading route it is not
   // sticky at all: the reader fills the viewport below the header and carries
   // its own top bar, which a header sliding back in would cover.
+  //
+  // "A new page" means a NAVIGATION, which scrolls to the top. The first mount
+  // is not one: a refresh partway down, a Back, or a link to a #fragment all
+  // restore a scroll position, and forcing "shown" there overrides the answer
+  // the scroll effect just computed — leaving the bar contradicting the page
+  // until the reader happens to scroll again, because nothing re-fires.
+  //
+  // This was invisible while the announcement banner mounted after hydration:
+  // the page grew by the banner's height, the browser's scroll anchoring
+  // nudged scrollY, and THAT spurious scroll event corrected the state. The
+  // bar's own correctness was resting on a layout shift.
   useEffect(() => {
     const root = document.documentElement;
-    root.dataset.topbar = "shown";
     anchorY.current = window.scrollY;
+    if (navigated.current || window.scrollY <= PHONE_HIDE_AFTER) {
+      root.dataset.topbar = "shown";
+    }
+    navigated.current = true;
     if (isImmersiveReaderRoute(pathname)) root.dataset.topbarMode = "static";
     else delete root.dataset.topbarMode;
     return () => {

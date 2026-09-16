@@ -354,11 +354,39 @@ reading as unrelated sentences rather than as one block of facts.
 * Every access state drawn: downloadable, read-online-only, third-party
   rights, and no-file (which correctly offers no PDF in the rail either).
 
-## 11. Open, not fixed
+## 11. `AnnouncementBanner`'s 44 px shift — fixed
 
-**`AnnouncementBanner`'s 44 px shift** (§10). The fix is the pattern
-`THEME_INIT_SCRIPT` already uses for the theme: render the banner server-side
-and hide dismissed ids with a pre-paint inline script, which removes the shift
-*and* the flash-of-dismissed-banner the current comment is defending against.
-It is shared chrome on every public page, so it is its own task rather than a
-rider on an article-page redesign.
+Recorded here as open, and closed separately because it is shared chrome on
+every public page rather than an article-page defect.
+
+The banner is now server-rendered in full, and an inline script above it
+(`components/ui/notifications/AnnouncementDismissScript.tsx`,
+`lib/announcements/dismiss.ts`) writes one stylesheet hiding the rows this
+browser has already dismissed, before the markup below it is parsed — the
+pattern `THEME_INIT_SCRIPT` uses for the theme. A dismissed row is `hidden`,
+never absent, so the server's markup and the hydrated markup are identical.
+Measured after: masthead constant from the first sample in both states,
+CLS 0.0005. `e2e/announcement-banner.spec.ts` guards it.
+
+### It was holding up a test that looked unrelated
+
+Removing the shift turned `e2e/mobile-shell.spec.ts` "the top bar is sticky,
+steps aside on scroll-down" red on both projects — because **that test had been
+passing because of the shift.** It scrolls to 900 before hydration; when
+`NavbarStickyWrapper` mounts, its scroll effect computes "hidden" and its
+pathname effect then overwrites that with "shown" and re-anchors, and nothing
+fires again. Previously the banner arriving grew the page 44 px, the browser's
+scroll anchoring nudged scrollY from 900 to **944**, and that spurious scroll
+event corrected the state.
+
+So the sticky bar's correctness was resting on a layout shift, and the real
+defect was its own: a refresh partway down a page, a Back, or a link to a
+`#fragment` all restore a scroll position, and each left the bar contradicting
+the page. "A new page starts with the bar on screen" is right for a NAVIGATION,
+which scrolls to the top; the first mount is not one, and the effect now says
+so.
+
+**The general lesson, worth more than the fix:** a passing test can be resting
+on a bug, and removing the bug is what reveals it. Nothing short of the full
+e2e suite caught this — the five specs picked as "the ones most likely
+affected" did not include `mobile-shell`.
