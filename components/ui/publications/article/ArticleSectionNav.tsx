@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { ArrowUp, Download, Quote } from "lucide-react";
-import { openCiteDialog } from "@/lib/publications/cite-bus";
+import { ArrowUp } from "lucide-react";
 import type { ArticleSectionLink } from "@/lib/publications/article-layout";
 import { EYEBROW } from "@/components/ui/publications/article/styles";
 
@@ -55,9 +54,8 @@ function useActiveSection(idList: string[]): string | null {
  * "On this page" for a journal article.
  *
  * `rail` is the desktop side rail: sticky, a vertical list with the current
- * section marked by a bar AND weight AND colour (never colour alone), plus the
- * two actions a reader wants deep in the references — cite, and the PDF when
- * the access decision allows it. `inline` is the phone's "Jump to" row: not
+ * section marked by a bar AND weight AND colour (never colour alone), sitting
+ * under the tool block the rail opens with. `inline` is the phone's "Jump to" row: not
  * sticky, wrapping rather than scrolling sideways, so no entry hides past the
  * edge of the screen.
  *
@@ -72,12 +70,9 @@ function useActiveSection(idList: string[]): string | null {
 export default function ArticleSectionNav({
   sections,
   variant,
-  pdfHref = null,
 }: {
   sections: ArticleSectionLink[];
   variant: "rail" | "inline";
-  /** Present only when the reader may download (resolveDownloadAccess). */
-  pdfHref?: string | null;
 }) {
   const t = useTranslations("publicationDetail");
   const ids = sections.map((s) => s.id);
@@ -133,17 +128,11 @@ export default function ArticleSectionNav({
         })}
       </ol>
 
-      <div className="mt-6 flex flex-col items-start gap-0.5 border-t border-divider pt-4">
-        <button type="button" onClick={() => openCiteDialog()} aria-haspopup="dialog" className={quiet}>
-          <Quote className="h-4 w-4" aria-hidden="true" />
-          {t("citeArticle")}
-        </button>
-        {pdfHref && (
-          <a href={pdfHref} className={quiet}>
-            <Download className="h-4 w-4" aria-hidden="true" />
-            {t("downloadPdf")}
-          </a>
-        )}
+      {/* Cite and the PDF used to hang off the bottom of this list. They are
+          now the tool block ABOVE it (ArticleToolRail) — where the rail meets
+          the masthead, rather than below ten section links. What is left is
+          the one control that belongs to navigation itself. */}
+      <div className="mt-5 border-t border-divider pt-3.5">
         <a href="#publication-masthead" className={quiet}>
           <ArrowUp className="h-4 w-4" aria-hidden="true" />
           {t("backToTop")}

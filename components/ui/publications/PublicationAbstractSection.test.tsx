@@ -100,6 +100,16 @@ function renderAbstract(locale: "en" | "km" = "en", options: RenderOptions = {})
   return render(abstractUi(locale, options));
 }
 
+/**
+ * The page's text-size controls are behind an "Aa" disclosure (the four-button
+ * strip used to sit beside the section heading and outweigh it). Opening it is
+ * the only thing these tests do differently; every assertion below is the one
+ * that was made before.
+ */
+function openTextSize(): void {
+  fireEvent.click(screen.getByRole("button", { name: "Text size" }));
+}
+
 function inlineEnglishCopy(): HTMLElement {
   const copy = document.querySelector<HTMLElement>(
     '.abstract-reader-copy[lang="en"]:not(.abstract-reader-copy--fullscreen)',
@@ -112,12 +122,17 @@ describe("PublicationAbstractSection reader controls", () => {
   it("renders localized, touch-sized controls and safely scales only the abstract", () => {
     renderAbstract();
 
+    const trigger = screen.getByRole("button", { name: "Text size" });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    openTextSize();
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+
     const decrease = screen.getByRole("button", { name: "Decrease text size" });
     const increase = screen.getByRole("button", { name: "Increase text size" });
     const reset = screen.getByRole("button", { name: /Current text size: 100%.*Reset text size/ });
     const open = screen.getByRole("button", { name: "Open abstract reader" });
 
-    for (const control of [decrease, increase, reset, open]) {
+    for (const control of [decrease, increase, reset, open, trigger]) {
       expect(control).toHaveClass("h-11");
       expect(control).toHaveAttribute("title");
     }
@@ -130,6 +145,7 @@ describe("PublicationAbstractSection reader controls", () => {
 
   it("increments by 10%, enforces the 80–160% limits, and resets to 100%", () => {
     renderAbstract();
+    openTextSize();
 
     const decrease = screen.getByRole("button", { name: "Decrease text size" });
     const increase = screen.getByRole("button", { name: "Increase text size" });
@@ -154,6 +170,7 @@ describe("PublicationAbstractSection reader controls", () => {
   it("loads and persists the reader preference", async () => {
     window.localStorage.setItem(READER_TEXT_SIZE_STORAGE_KEY, "130");
     const first = renderAbstract();
+    openTextSize();
 
     await screen.findByRole("button", { name: /Current text size: 130%/ });
     expect(inlineEnglishCopy().style.getPropertyValue("--reader-scale")).toBe("1.3");
@@ -165,6 +182,7 @@ describe("PublicationAbstractSection reader controls", () => {
 
     first.unmount();
     renderAbstract();
+    openTextSize();
     await screen.findByRole("button", { name: /Current text size: 140%/ });
   });
 
@@ -172,7 +190,10 @@ describe("PublicationAbstractSection reader controls", () => {
     window.localStorage.setItem(READER_TEXT_SIZE_STORAGE_KEY, "130");
     const ui = abstractUi("en");
     const markup = renderToString(ui);
-    expect(markup).toContain("Current text size: 100%");
+    // Server-rendered at the default, with the size controls folded away.
+    expect(markup).toContain("Text size");
+    expect(markup).toContain("Text size 100%");
+    expect(markup).not.toContain("Current text size: 130%");
 
     const host = document.createElement("div");
     host.innerHTML = markup;
@@ -181,8 +202,10 @@ describe("PublicationAbstractSection reader controls", () => {
     const root = hydrateRoot(host, ui);
 
     await waitFor(() => {
-      expect(within(host).getByRole("button", { name: /Current text size: 130%/ })).toBeInTheDocument();
+      expect(within(host).getByRole("status")).toHaveTextContent("Text size 130%");
     });
+    fireEvent.click(within(host).getByRole("button", { name: "Text size" }));
+    expect(within(host).getByRole("button", { name: /Current text size: 130%/ })).toBeInTheDocument();
     expect(consoleError.mock.calls.flat().join(" ")).not.toMatch(/hydration|did not match/i);
 
     await act(async () => root.unmount());
@@ -199,6 +222,7 @@ describe("PublicationAbstractSection reader controls", () => {
     });
 
     renderAbstract();
+    openTextSize();
     fireEvent.click(screen.getByRole("button", { name: /Current text size: .*Reset text size/ }));
     fireEvent.click(screen.getByRole("button", { name: "Increase text size" }));
     expect(await screen.findByRole("button", { name: /Current text size: 110%/ })).toBeInTheDocument();
@@ -218,6 +242,7 @@ describe("PublicationAbstractSection reader controls", () => {
     });
 
     renderAbstract();
+    openTextSize();
     fireEvent.click(screen.getByRole("button", { name: "Increase text size" }));
     expect(await screen.findByRole("button", { name: /Current text size: 110%/ })).toBeInTheDocument();
 
@@ -311,6 +336,7 @@ describe("Abstract fullscreen reader", () => {
 
   it("shares zoom state between page and dialog and resets from the percentage control", async () => {
     renderAbstract();
+    openTextSize();
     fireEvent.click(screen.getByRole("button", { name: "Increase text size" }));
     fireEvent.click(screen.getByRole("button", { name: "Open abstract reader" }));
     const dialog = await screen.findByRole("dialog");
@@ -356,5 +382,90 @@ describe("Abstract fullscreen reader", () => {
     dialog = await screen.findByRole("dialog");
     expect(dialog.querySelector("article > section")).not.toBeInTheDocument();
     expect(within(dialog).getAllByText("No abstract provided.")).toHaveLength(1);
+  });
+});
+
+describe("Abstract language switch", () => {
+  const enPanel = () => document.getElementById("abstract-panel-en")!;
+  const kmPanel = () => document.getElementById("abstract-panel-km")!;
+
+  it("shows one language, keeps the other in the DOM, and swaps on request", async () => {
+    renderAbstract("en");
+
+    // Offered only because both languages carry text.
+    const group = screen.getByRole("group", { name: "Abstract language" });
+    const english = within(group).getByRole("button", { name: "English abstract" });
+    const khmer = within(group).getByRole("button", { name: "Khmer abstract" });
+    expect(english).toHaveAttribute("aria-pressed", "true");
+    expect(khmer).toHaveAttribute("aria-pressed", "false");
+
+    // The folded language is hidden, NEVER unmounted: a crawler, the print
+    // stylesheet and the citation back-links all depend on it being there.
+    expect(enPanel().hidden).toBe(false);
+    expect(kmPanel().hidden).toBe(true);
+    expect(kmPanel().textContent).toContain("ទឹក");
+    expect(khmer).toHaveAttribute("aria-controls", "abstract-panel-km");
+
+    fireEvent.click(khmer);
+    expect(kmPanel().hidden).toBe(false);
+    expect(enPanel().hidden).toBe(true);
+    expect(khmer).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("announces the change politely, and only after the reader makes one", () => {
+    const { container } = renderAbstract("en");
+    const polite = () =>
+      [...container.querySelectorAll('[aria-live="polite"]')].find((el) => !el.hasAttribute("role"));
+
+    expect(polite()?.textContent).toBe("");
+    fireEvent.click(screen.getByRole("button", { name: "Khmer abstract" }));
+    expect(polite()?.textContent).toBe("Showing the Khmer abstract.");
+  });
+
+  it("opens in the reader's own language on /km", () => {
+    renderAbstract("km");
+    expect(kmPanel().hidden).toBe(false);
+    expect(enPanel().hidden).toBe(true);
+    expect(screen.getByRole("button", { name: "សេចក្តីសង្ខេបជាភាសាខ្មែរ" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("offers no switch when only one language exists — and never folds that one away", () => {
+    const englishOnly = renderAbstract("km", { abstractKm: null });
+    expect(screen.queryByRole("group", { name: /Abstract language|ភាសានៃសេចក្តីសង្ខេប/ })).not.toBeInTheDocument();
+    // A Khmer reader still gets the English abstract: a preference, not a filter.
+    expect(enPanel().hidden).toBe(false);
+    englishOnly.unmount();
+
+    renderAbstract("en", { abstract: "", abstractKm: khmerAbstract });
+    expect(screen.queryByRole("group", { name: "Abstract language" })).not.toBeInTheDocument();
+    expect(kmPanel().hidden).toBe(false);
+  });
+
+  it("brings the folded language forward when a citation back-link points into it", async () => {
+    renderAbstract("en", { includeReferences: true });
+    expect(kmPanel().hidden).toBe(true);
+
+    // The Khmer abstract's own inline-citation anchor, inside the folded panel.
+    const target = kmPanel().querySelector<HTMLElement>('[id^="citation-abstract-km-"]');
+    expect(target).not.toBeNull();
+
+    window.location.hash = `#${target!.id}`;
+    fireEvent(window, new HashChangeEvent("hashchange"));
+
+    await waitFor(() => expect(kmPanel().hidden).toBe(false));
+    expect(enPanel().hidden).toBe(true);
+  });
+
+  it("measures the text on show, and stays silent where a word count would be a fiction", () => {
+    renderAbstract("en");
+    expect(screen.getByText(/min read/)).toBeInTheDocument();
+
+    // Khmer is written without spaces and this repo has no segmenter, so the
+    // meter is withheld rather than reporting a two-paragraph abstract as one word.
+    fireEvent.click(screen.getByRole("button", { name: "Khmer abstract" }));
+    expect(screen.queryByText(/min read/)).not.toBeInTheDocument();
   });
 });

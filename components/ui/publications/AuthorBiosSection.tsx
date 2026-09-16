@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { ChevronRight } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { slugify } from "@/lib/book-utils";
@@ -27,13 +28,19 @@ function initials(name: string): string {
 /**
  * "About the authors": photo/initials, name, corresponding mark, position,
  * affiliations, ORCID, and biography when available — as a list.
+ *
+ * A biography recorded in both languages is disclosed, not duplicated: see the
+ * comment at the biography itself.
  */
 export default async function AuthorBiosSection({
   authorships,
   affiliations,
+  locale,
 }: {
   authorships: PublicationAuthorship[];
   affiliations: PublicationAffiliation[];
+  /** Decides which language of a bilingual biography leads. */
+  locale: string;
 }) {
   const t = await getTranslations("publicationDetail");
   const affiliationById = new Map(affiliations.map((a) => [a.id, a]));
@@ -50,6 +57,14 @@ export default async function AuthorBiosSection({
           .filter((a): a is PublicationAffiliation => !!a);
         const bio = author.bio?.trim() || null;
         const bioKm = author.bio_km?.trim() || null;
+        // Preference, not coercion — the same rule the abstract follows: the
+        // reader's language leads where it exists, and a one-language bio is
+        // shown whichever language that is, never withheld.
+        const khmerLeads = locale === "km" && !!bioKm;
+        const leadBio = khmerLeads ? bioKm : bio ?? bioKm;
+        const leadBioLang: "en" | "km" = khmerLeads || (!bio && !!bioKm) ? "km" : "en";
+        const altBio = bio && bioKm ? (khmerLeads ? bio : bioKm) : null;
+        const altBioLang: "en" | "km" = khmerLeads ? "en" : "km";
         const translatedName = secondaryValue(author.full_name, author.full_name_km);
 
         return (
@@ -133,11 +148,47 @@ export default async function AuthorBiosSection({
               )}
               {/* A personal email is NOT published without a recorded
                   public-corresponding-author consent. */}
-              {bio && <p className="mt-3 max-w-[72ch] text-[14.5px] leading-7 text-text-body">{bio}</p>}
-              {bioKm && (
-                <p lang="km" className="mt-2 max-w-[72ch] font-khmer-serif text-[14px] leading-8 text-text-muted">
-                  {bioKm}
+              {/* Biographies are supporting information, so a bilingual one is
+                  disclosed rather than printed twice: four authors with a bio
+                  in both languages used to add eight paragraphs below an
+                  article, half of them in a language the reader did not ask
+                  for. The reader's language leads and the other sits behind a
+                  <details> — plain HTML, so it needs no JavaScript, stays in
+                  the DOM for a crawler and a printer, and is keyboard-operable
+                  by default. The abstract gets a switch instead, because that
+                  one IS the content. */}
+              {leadBio && (
+                <p
+                  lang={leadBioLang}
+                  className={
+                    leadBioLang === "km"
+                      ? "mt-3 max-w-[72ch] font-khmer-serif text-[14px] leading-8 text-text-body"
+                      : "mt-3 max-w-[72ch] text-[14.5px] leading-7 text-text-body"
+                  }
+                >
+                  {leadBio}
                 </p>
+              )}
+              {altBio && (
+                <details className="group mt-2 max-w-[72ch]">
+                  <summary className="inline-flex min-h-9 cursor-pointer list-none items-center gap-1.5 rounded-lg text-[13px] font-semibold text-text-muted transition-colors hover:text-brand [&::-webkit-details-marker]:hidden">
+                    <ChevronRight
+                      aria-hidden="true"
+                      className="h-3.5 w-3.5 transition-transform group-open:rotate-90 motion-reduce:transition-none"
+                    />
+                    {altBioLang === "km" ? t("bioShowKhmer") : t("bioShowEnglish")}
+                  </summary>
+                  <p
+                    lang={altBioLang}
+                    className={
+                      altBioLang === "km"
+                        ? "mt-2 font-khmer-serif text-[14px] leading-8 text-text-muted"
+                        : "mt-2 text-[14.5px] leading-7 text-text-muted"
+                    }
+                  >
+                    {altBio}
+                  </p>
+                </details>
               )}
             </div>
           </li>

@@ -13,7 +13,20 @@ import { Check, Copy } from "lucide-react";
  * same validation Scholar tags and JSON-LD use, and `href` is its `doiUrl`. A
  * placeholder or malformed DOI never reaches this component.
  */
-export default function ArticleDoi({ doi, href }: { doi: string; href: string }) {
+export default function ArticleDoi({
+  doi,
+  href,
+  showLabel = true,
+}: {
+  doi: string;
+  href: string;
+  /**
+   * False inside the masthead's identity list, where the `<dt>` is already the
+   * label — it printed "DOI DOI 10.5281/…" otherwise. True everywhere the
+   * component stands on its own.
+   */
+  showLabel?: boolean;
+}) {
   const t = useTranslations("publicationDetail");
   const [copied, setCopied] = useState(false);
 
@@ -29,12 +42,19 @@ export default function ArticleDoi({ doi, href }: { doi: string; href: string })
 
   return (
     <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-      <span className="text-[12px] font-bold uppercase tracking-[0.12em] text-text-muted">DOI</span>
+      {showLabel && (
+        <span className="text-[12px] font-bold uppercase tracking-[0.12em] text-text-muted">DOI</span>
+      )}
       <a
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="break-all font-mono text-[14.5px] text-brand underline decoration-brand/30 underline-offset-[3px] transition-colors hover:decoration-brand"
+        // `py-1` is load-bearing, not cosmetic: a 14.5 px line is a 21.8 px
+        // pointer target, under WCAG 2.2 AA's 24 px minimum, and once the
+        // identity list took the "DOI" label into its own <dt> the link no
+        // longer sat inside a sentence, so the inline exception stopped
+        // applying. Measured 192 × 21.8 before, 192 × 30 after.
+        className="inline-block break-all py-1 font-mono text-[14.5px] text-brand underline decoration-brand/30 underline-offset-[3px] transition-colors hover:decoration-brand"
       >
         {doi}
         <span className="sr-only"> ({t("doiOpensNewTab")})</span>

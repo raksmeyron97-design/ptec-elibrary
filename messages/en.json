@@ -13,7 +13,8 @@
     "minRead": "{count} min read",
     "wordCount": "{count, plural, one {# word} other {# words}}",
     "none": "No abstract provided.",
-    "keywordsHeading": "Keywords"
+    "keywordsHeading": "Keywords",
+    "textSize": "Text size"
   },
   "reader": {
     "readOnline": "Read online",
@@ -1252,7 +1253,18 @@
     "addToList": "Add to list",
     "inLists": "{count, plural, one {In # list} other {In # lists}}",
     "removeFromSaved": "Remove from saved articles",
-    "opensNewTab": "opens in a new tab"
+    "opensNewTab": "opens in a new tab",
+    "abstractLanguageLabel": "Abstract language",
+    "abstractLanguageEnShort": "EN",
+    "abstractLanguageKmShort": "ខ្មែរ",
+    "abstractShowingEnglish": "Showing the English abstract.",
+    "abstractShowingKhmer": "Showing the Khmer abstract.",
+    "bioShowKhmer": "Read this biography in Khmer",
+    "bioShowEnglish": "Read this biography in English",
+    "toolsHeading": "Tools",
+    "fieldCiteThis": "Cite this",
+    "fieldIssueDate": "Issue date",
+    "fieldAccess": "Access"
   },
   "dashboard": {
     "admin": "Admin",
@@ -4327,7 +4339,7 @@
       "unverifiedLive": "Published without review"
     },
     "unverifiedLiveHint": "These records are already public but their metadata was never checked — readers see a “not yet verified by library staff” warning on the citation box, and repository feeds skip them. Verifying stamps the record without changing its published status.",
-    "unverifiedLiveCapped": "Only the 200 most recent are listed; verify these and reload for more.",
+    "unverifiedLiveCapped": "Only the 10,000 most recent are listed; verify these and reload for more.",
     "verifyBlocked": "Cannot verify until these are filled in: {fields}",
     "emptyUnverified": {
       "title": "Every published record has been verified",

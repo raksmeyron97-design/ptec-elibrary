@@ -224,3 +224,141 @@ Every item in the brief's preservation list exists today and is load-bearing:
 Retired (no other importer): `PublicationHero`, `PublicationSidebar`, `PublicationMetadataCard`, `AuthorAffiliationPanel`, `SectionQuickNav`, `MoreFromJournal`, `MoreFromAuthor`, `RelatedPublications`.
 
 Unchanged by design: `generateMetadata`, `toPublicationSeoInput`, the JSON-LD builders and the Scholar tags. Rendered head + JSON-LD were diffed old-vs-new on seven article URLs (both locales, every access state) and are identical.
+
+---
+
+## 9. Follow-up: the three requirements phases B–I did not reach
+
+The brief's §8 (bilingual UX), §13 (text-size control) and §18 (author
+biographies) were still unmet after the redesign above shipped. All three are
+the same defect wearing three hats: **a bilingual record printed both languages
+at once**, and the control that would have let a reader choose either did not
+exist or was too heavy to sit where it belonged.
+
+| Requirement | Was | Is |
+|---|---|---|
+| §8 abstract | English then Khmer, stacked under a divider — a reader of one paid the other's height, and on a phone that is a screenful before the rest of the article | `EN \| ខ្មែរ` switch leading the abstract; one language visible, the other `hidden` |
+| §13 text size | `A− 100% A+ ⤢` — a four-button strip beside the "Abstract" heading, outweighing it | one `Aa` disclosure; the strip opens under it, labelled "Text size" |
+| §18 biographies | `bio` and `bio_km` both printed — four authors with both languages added eight paragraphs, half unreadable to any one reader | the reader's language leads; the other sits behind a `<details>` |
+
+### The rules that bound it
+
+* **Folded is not gone.** The other language stays in the DOM (`hidden`, never
+  unmounted) because four things depend on it being there: a crawler, the print
+  stylesheet (`print:!block` restores both — paper has no switch), a reader
+  without JavaScript (a `<noscript>` rule reveals both and removes the switch),
+  and the reference back-links, which point *into* whichever abstract cited
+  them. That last one needed code: following a back-link into the folded
+  language now brings that language forward first, because `scrollIntoView` on
+  a hidden element is a no-op — the same defect the collapse had before it
+  learned to reveal its own hash target.
+* **One choice, two surfaces.** The fullscreen reader takes the language the
+  same way it takes the text size — from the section — so a reader who chose
+  ខ្មែរ is not shown both again on opening it.
+* **Preference, never coercion.** `resolveAbstractLanguage()`
+  (`lib/publications/abstract-language.ts`, pure) opens in the reader's locale
+  *only where that language has text*: an English-only article on `/km` still
+  renders its English abstract, and the switch is offered only when both sides
+  carry text — a control with one reachable side decides nothing.
+* **The meter describes the text on show.** It was computed from the English
+  abstract whichever language led, so a Khmer reader was told how long a
+  paragraph they were not looking at would take. It now follows the active
+  panel — and is **withheld for Khmer**, which is written without spaces and
+  has no segmenter here: `split(/\s+/)` reports a 200-word Khmer abstract as
+  one word. An absent estimate is honest; a wrong one is not.
+* **Compact is opt-in.** `ReaderToolbar` gained `variant`, defaulting to the
+  full strip. The thesis abstract renders the same inline toolbar and is
+  outside this work; the dialog IS the reading surface, so its controls stay
+  out where one press reaches them, which `e2e/abstract-reader.spec.ts`
+  asserts. Pinned by `components/ui/reader/ReaderToolbar.test.tsx`.
+* **A disclosure for a biography, a switch for an abstract.** The abstract is
+  the content, so it gets a control with both options on show; a biography is
+  supporting information, so it gets plain `<details>` — no JavaScript, in the
+  DOM for a crawler and a printer, keyboard-operable by default.
+
+### Verified
+
+* Rendered head + JSON-LD diffed old-vs-new over 6 URLs (both locales, four
+  access states): **identical**. No SEO surface is touched by any of this.
+* `e2e/journal-article.spec.ts` green on both projects, including its WCAG
+  A/AA scan. Axe (wcag2a/2aa/21a/21aa/22aa) additionally clean with the reader
+  dialog open in both locales, with the text-size disclosure open, after
+  switching language, and with a biography expanded.
+* `e2e/abstract-reader.spec.ts` **cannot run against this seed** — its fixture
+  slug `journal-of-chemical-education` is not a seeded article, so all 8 cases
+  skip (pre-existing). Its assertions about the dialog were therefore checked
+  directly against a seeded article over 2 locales × 5 viewports
+  (360/390/768/1440/1920): `article > section[lang]` preserved, one language
+  visible, every button ≥ 44 px and on-screen, no horizontal overflow.
+* The text-size panel is anchored to its trigger's **right** edge. Left-anchored
+  it opened past the right edge of a 390 px screen, leaving "A+" unreachable
+  while the document itself reported no overflow — the QA sweep now measures
+  the opened panel's box against the viewport at every width.
+
+---
+
+## 10. Second pass: one grid, and a tool rail
+
+The redesign in §8 left one structural defect that no individual component owned.
+
+**The page ran two grids stacked on each other.** The masthead — authors,
+affiliations, citation line, DOI, the whole action row — spanned the full
+1200 px container; a full-width hairline closed it; and only then did the body
+drop to a 760 px column with a 220 px rail. Three things followed. The grid
+visibly changed halfway down the page. The rail began level with the
+*abstract*, so the entire top-right of the first screen was empty. And the
+record's identity arrived as three loose lines — a citation line, a
+date-and-rights line, a DOI line — at three sizes with three alignments,
+reading as unrelated sentences rather than as one block of facts.
+
+| Was | Is |
+|---|---|
+| Masthead full-width, body in a column, rail starting at the abstract | One grid from the breadcrumb down: an 820 px article column and a 248 px rail that **starts at the masthead** (measured: rail top 218 px = masthead top 218 px at both 1280 and 1440) |
+| Rail held "On this page" plus Cite / PDF hanging off the bottom | Rail opens with **Tools** — Download PDF, Cite, Save, Add to list, Share — then "On this page", then Back to top |
+| Utilities also inline under the primary buttons at every width | Inline **below `lg` only**; each utility is drawn exactly once at every width, which is now a test |
+| "Cite this: …" / "Published … OPEN ACCESS" / "DOI … Copy" as three lines | One `<dl>`: **Cite this / Published / Issue date / DOI / Access**, label→value, each row drawn only when its value exists |
+| Journal + issue repeated as breadcrumbs AND in the masthead block | Visible trail stops at "Journals"; the masthead names both, as links, with the year. The full path stays in the accessible trail and in the BreadcrumbList |
+| Language switch: a filled brand chip, loudest thing above the abstract | A recessed track with the chosen side raised — colour is never the only channel |
+| Section headings 21/23 px against 17–18 px body | 22/26 px, so ten sections stop reading as one column |
+
+### Two defects found by measuring rather than looking
+
+* **The DOI link was a 21.8 px pointer target.** Moving "DOI" into its own
+  `<dt>` took the link out of a sentence, so WCAG 2.2's inline exception
+  stopped applying and axe's `target-size` failed on Mobile Chrome. `py-1` on
+  the anchor: 192 × 21.8 → 192 × 30. The rule it broke had been passing for a
+  reason that no longer held — worth knowing before moving any other inline
+  link into a definition list.
+* **A 44 px layout shift about a second after load, on every page of the
+  site.** `AnnouncementBanner` returns `null` until it has hydrated and read
+  its dismissal list, then appears; the document drops by its height. Measured
+  here: masthead top 174 px → 218 px between 600 ms and 1200 ms. A control
+  pressed inside that window takes its `pointerdown` and its `mouseup` on two
+  different elements, so **no click is produced at all** — which is why two
+  rail tests failed on interactions that work perfectly for a person. The
+  suite's `settle()` now waits out the shift (stillness alone is not enough:
+  the page is perfectly still *before* the banner mounts, so a short window
+  resolves on the wrong calm). **The shift itself is pre-existing, site-wide
+  and still open** — see §11.
+
+### Verified
+
+* Rendered head + JSON-LD over 6 URLs (both locales, four access states):
+  **identical** to the pre-redesign baseline. Trimming the visible breadcrumb
+  changed no BreadcrumbList node.
+* `e2e/journal-article.spec.ts` + `e2e/journals.spec.ts`: **74 passed, 0
+  failed** across chromium and Mobile Chrome.
+* Axe (wcag2a/2aa/21a/21aa/22aa) clean on the desktop layout in both locales,
+  with the reader dialog open in both, with the text-size disclosure open,
+  after switching abstract language, and with a biography expanded.
+* Every access state drawn: downloadable, read-online-only, third-party
+  rights, and no-file (which correctly offers no PDF in the rail either).
+
+## 11. Open, not fixed
+
+**`AnnouncementBanner`'s 44 px shift** (§10). The fix is the pattern
+`THEME_INIT_SCRIPT` already uses for the theme: render the banner server-side
+and hide dismissed ids with a pre-paint inline script, which removes the shift
+*and* the flash-of-dismissed-banner the current comment is defending against.
+It is shared chrome on every public page, so it is its own task rather than a
+rider on an article-page redesign.
