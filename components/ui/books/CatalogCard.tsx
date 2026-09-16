@@ -43,7 +43,7 @@ export default function CatalogCard({ book }: Props) {
     <Link
       href={`/catalogs/${book.slug}`}
       prefetch={false}
-      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md pointer-coarse:active:scale-[0.97]"
     >
       {/* Gold top-rule on hover (brand signature) */}
       <span
@@ -71,7 +71,7 @@ export default function CatalogCard({ book }: Props) {
             absolute right-2 top-2
             inline-flex max-w-[80%] items-center gap-1.5
             rounded-full border px-2 py-1
-            text-[10px] font-bold leading-none backdrop-blur-sm
+            text-[10px] font-bold leading-none backdrop-blur-sm max-lg:backdrop-blur-none
             bg-bg-surface/90
             ${textColor}
             border-current/20

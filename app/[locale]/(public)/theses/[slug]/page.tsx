@@ -29,7 +29,6 @@ import CiteThis from "@/components/ui/theses/CiteThis";
 import BackToTopButton from "@/components/ui/detail/BackToTopButton";
 import ThesisAbstractReader from "@/components/ui/theses/ThesisAbstractReader";
 import AuthorCard from "@/components/ui/theses/detail/AuthorCard";
-import ReadingProgress from "@/components/ui/detail/ReadingProgress";
 import { getTranslations } from "next-intl/server";
 import JsonLd from "@/components/seo/JsonLd";
 import ResourceConnections from "@/components/seo/ResourceConnections";
@@ -336,7 +335,6 @@ export default async function ThesisDetailPage({ params }: PageProps) {
       <JsonLd data={thesisArticleSchema} />
       <JsonLd data={thesisBreadcrumbSchema} />
       <ThesisViewPing id={id} />
-      <ReadingProgress />
 
       <div className="mx-auto w-full max-w-[1320px] px-4 sm:px-6 lg:px-8">
         {/* ── Breadcrumb ──

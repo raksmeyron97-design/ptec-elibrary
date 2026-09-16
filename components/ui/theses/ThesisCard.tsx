@@ -33,7 +33,7 @@ export default async function ThesisCard({
   const metaLine = [programLabel, department, year, language].filter(Boolean).join(" · ");
 
   return (
-    <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl bg-bg-surface border border-divider shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg hover:border-brand/30">
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl bg-bg-surface border border-divider shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg hover:border-brand/30 pointer-coarse:active:scale-[0.97]">
       {/* Gold top-rule accent on hover */}
       <span
         aria-hidden
@@ -54,7 +54,7 @@ export default async function ThesisCard({
       <BookmarkButton
         id={report.id}
         contentType="thesis"
-        className="absolute right-5 top-5 z-30 h-8 w-8 shadow-sm backdrop-blur-sm"
+        className="absolute right-5 top-5 z-30 h-8 w-8 shadow-sm backdrop-blur-sm max-lg:backdrop-blur-none"
       />
 
       {/* Visible content — pointer-events disabled by default so clicks fall
@@ -79,7 +79,7 @@ export default async function ThesisCard({
 
             {/* Academic Year badge — top right */}
             {report.academic_year && (
-              <span className="absolute right-2 top-2 z-[4] rounded-md bg-bg-surface/90 px-2 py-[3px] text-[9px] font-bold uppercase tracking-wider text-text-muted shadow-sm backdrop-blur-sm border border-divider/50">
+              <span className="absolute right-2 top-2 z-[4] rounded-md bg-bg-surface/90 px-2 py-[3px] text-[9px] font-bold uppercase tracking-wider text-text-muted shadow-sm backdrop-blur-sm max-lg:backdrop-blur-none border border-divider/50">
                 {report.academic_year}
               </span>
             )}
