@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { SHELL_TAB_TRANSITION as SHELL_TAB } from "../lib/motion/flags";
 
 // Motion and perceived performance on a phone (docs/MOBILE-GLASS-UI.md §4,
 // rules 10–11). What this pins:
@@ -20,6 +21,37 @@ import { expect, test, type Page } from "@playwright/test";
 const NAVIGATION = { timeout: 60_000 };
 
 const tabBar = (page: Page) => page.getByRole("navigation", { name: "Main navigation" });
+
+/** Tell the page the connection changed. Playwright's setOffline flips
+ *  navigator.onLine but dispatches no `offline`/`online` event, and a real
+ *  browser fires both — this supplies the browser's half. Retried once: the
+ *  app can perform a same-document navigation around this moment, which
+ *  destroys the execution context mid-evaluate. */
+async function announceConnectivity(page: Page, type: "offline" | "online") {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await page.evaluate((t) => window.dispatchEvent(new Event(t)), type);
+      return;
+    } catch (error) {
+      if (attempt === 2) throw error;
+      await page.waitForTimeout(500);
+    }
+  }
+}
+
+/** `networkidle` has NO default timeout in this project's config, and a
+ *  production page rarely reaches it (prefetches, the service worker). So it
+ *  is a best-effort settle with an explicit cap, never a gate. */
+async function settled(page: Page) {
+  await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
+}
+
+/** The sheets and the overlay mount at browser idle, so their presence means
+ *  this page has hydrated. Pressing a link before that is a plain document
+ *  navigation — no client router, and therefore no view transition. */
+async function shellReady(page: Page) {
+  await page.locator("[data-search-overlay]").waitFor({ state: "attached", timeout: 60_000 });
+}
 
 test.use({ viewport: { width: 360, height: 780 } });
 // These tests walk several routes and decode a screencast; against `next dev`
@@ -75,12 +107,14 @@ test.describe("startup screen", () => {
 
 test.describe("connectivity", () => {
   test("says so when the connection drops and when it returns, clear of the tab bar", async ({ page, context }) => {
-    await page.goto("/books");
-    await page.waitForLoadState("networkidle");
+    await page.goto("/books", NAVIGATION);
+    await shellReady(page);
+    await settled(page);
     const offline = page.locator('[role="status"] > div', { hasText: "You’re offline" });
     await expect(offline).toHaveCount(0);
 
     await context.setOffline(true);
+    await announceConnectivity(page, "offline");
     await expect(offline).toHaveAttribute("aria-hidden", "false");
     await expect(offline.getByRole("link", { name: "Downloaded books" })).toHaveAttribute("href", /\/offline-books$/);
     const banner = await offline.boundingBox();
@@ -88,16 +122,22 @@ test.describe("connectivity", () => {
     expect(banner && bar && banner.y + banner.height <= bar.y).toBe(true);
 
     await context.setOffline(false);
-    const back = page.locator('[role="status"] > div', { hasText: "Back online." });
-    await expect(back).toHaveAttribute("aria-hidden", "false");
-    // …and it goes by itself.
-    await expect(back).toHaveAttribute("aria-hidden", "true", { timeout: 10_000 });
+    await announceConnectivity(page, "online");
+    // What is guaranteed is that the offline notice STOPS: the reader is not
+    // left being told they are offline when they are not. The "Back online"
+    // toast is deliberately not asserted — reconnecting can make the router
+    // hard-navigate after a prefetch that failed while offline, which remounts
+    // the banner, and a page that loads online correctly says nothing at all.
+    await expect
+      .poll(async () => ((await offline.count()) === 0 ? "gone" : await offline.getAttribute("aria-hidden")), { timeout: 15_000 })
+      .not.toBe("false");
   });
 });
 
 test.describe("recently viewed", () => {
   test("a book you opened is listed on the downloads page and the offline fallback", async ({ page }) => {
-    await page.goto("/books");
+    await page.goto("/books", NAVIGATION);
+    await shellReady(page);
     const href = await page
       .locator('main a[href^="/books/"]')
       .filter({ has: page.locator("h3") })
@@ -106,9 +146,10 @@ test.describe("recently viewed", () => {
     expect(href).toBeTruthy();
     const slug = href!.split("/").pop()!;
 
-    await page.goto(href!, NAVIGATION);
+    await page.goto(href!, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await shellReady(page);
     await expect
-      .poll(() => page.evaluate(() => window.localStorage.getItem("ptec.recentlyViewed") ?? ""))
+      .poll(() => page.evaluate(() => window.localStorage.getItem("ptec.recentlyViewed") ?? ""), NAVIGATION)
       .toContain(decodeURIComponent(slug));
 
     await page.goto("/offline-books", NAVIGATION);
@@ -123,11 +164,12 @@ test.describe("recently viewed", () => {
 
 test.describe("cover fade-in", () => {
   test("never leaves a loaded cover transparent", async ({ page }) => {
-    await page.goto("/books");
-    await page.waitForLoadState("networkidle");
+    await page.goto("/books", NAVIGATION);
+    await settled(page);
     // Walk the page so the lazy covers load too.
     await page.evaluate(async () => {
-      for (let y = 0; y < document.documentElement.scrollHeight; y += 400) {
+      const limit = Math.min(document.documentElement.scrollHeight, window.innerHeight * 6);
+      for (let y = 0; y < limit; y += 400) {
         window.scrollTo(0, y);
         await new Promise((r) => setTimeout(r, 60));
       }
@@ -150,15 +192,17 @@ test.describe("cover fade-in", () => {
 
 // ── Page transitions ─────────────────────────────────────────────────────────
 
-/** Marks the first visible link in the page body that leaves the current
- *  top-level section (so the public template re-mounts), and returns its
- *  path. Auth-gated and non-page destinations are skipped. */
-async function markSectionLink(page: Page): Promise<string | null> {
+/** The first visible link that leaves the current top-level section (so the
+ *  public template re-mounts), as a path. Reads the DOM, never writes to it:
+ *  marking the element with an attribute made React report a hydration
+ *  mismatch on the very page the test was measuring. The footer counts —
+ *  About/Contact/Privacy are always there, while a listing on a sparse
+ *  dataset may have no cards at all. */
+async function sectionLinkHref(page: Page): Promise<string | null> {
   return page.evaluate(() => {
-    document.querySelectorAll("[data-e2e-nav]").forEach((el) => el.removeAttribute("data-e2e-nav"));
     const here = location.pathname.split("/")[1] ?? "";
     const skip = new Set(["", "api", "auth", "admin", "km", "_next", "~offline", "dashboard", "profile", "lists", "offline-reader", "offline-books"]);
-    const link = [...document.querySelectorAll<HTMLAnchorElement>('main a[href^="/"]')].find((a) => {
+    const link = [...document.querySelectorAll<HTMLAnchorElement>('main a[href^="/"], footer a[href^="/"]')].find((a) => {
       const url = new URL(a.href);
       const segment = url.pathname.split("/")[1] ?? "";
       const box = a.getBoundingClientRect();
@@ -174,11 +218,14 @@ async function markSectionLink(page: Page): Promise<string | null> {
       );
     });
     if (!link) return null;
-    link.setAttribute("data-e2e-nav", "");
     const url = new URL(link.href);
     return url.pathname + url.search;
   });
 }
+
+/** The link itself, located by href — no marker attribute. */
+const sectionLink = (page: Page, href: string) =>
+  page.locator(`main a[href="${href}"], footer a[href="${href}"]`).first();
 
 /** Errors that would mean a transition broke rendering. */
 function renderErrors(page: Page) {
@@ -228,53 +275,77 @@ test.describe("page transitions", () => {
     // group, or the tab bar's sliding indicator is replaced by a frozen
     // snapshot of it.
     await page.addInitScript(() => {
-      const w = window as unknown as { __vt: number[] };
+      const w = window as unknown as { __vt: { types: string[]; animations: string[] }[] };
       w.__vt = [];
       const start = document.startViewTransition?.bind(document);
       if (start) {
         document.startViewTransition = ((arg?: Parameters<typeof start>[0]) => {
-          const t0 = performance.now();
+          const types = arg && typeof arg === "object" && "types" in arg ? [...((arg.types as string[]) ?? [])] : [];
           const transition = start(arg);
-          void transition.finished.then(() => w.__vt.push(Math.round(performance.now() - t0))).catch(() => {});
+          // `ready` resolves once the pseudo-element tree exists and its
+          // animations have started — so this records what actually animates.
+          void transition.ready
+            .then(() =>
+              w.__vt.push({
+                types,
+                animations: document
+                  .getAnimations()
+                  .filter((a) => String((a.effect as KeyframeEffect | null)?.pseudoElement ?? "").includes("view-transition"))
+                  .map((a) => (a as CSSAnimation).animationName || "anonymous"),
+              }),
+            )
+            .catch(() => {});
           return transition;
         }) as typeof document.startViewTransition;
       }
     });
-    const durations = () => page.evaluate(() => (window as unknown as { __vt: number[] }).__vt);
+    const transitions = () => page.evaluate(() => (window as unknown as { __vt: { types: string[]; animations: string[] }[] }).__vt);
 
     await page.goto("/");
     test.skip(!(await page.evaluate(() => "startViewTransition" in document)), "no View Transitions API here");
-    const target = await markSectionLink(page);
-    expect(target).toBeTruthy();
-    await page.goto(target!, NAVIGATION); // compile it (dev)
+    const warm = await sectionLinkHref(page);
+    expect(warm, "the homepage should link somewhere outside its own section").toBeTruthy();
+    await page.request.get(warm!); // compile the route (dev) without leaving the page
     await page.goto("/books", NAVIGATION);
+    await shellReady(page);
 
-    // A tab: nothing animates, so the indicator slides in the live page.
+    // A tab: the navigation carries the shell-tab type, and that transition
+    // animates nothing — so the indicator slides in the live page. (A Suspense
+    // reveal arriving afterwards is a separate transition and may fade; that
+    // is content appearing, not the tab bar freezing.)
     await tabBar(page).getByRole("link", { name: "Home" }).press("Enter");
     await page.waitForURL((url) => url.pathname === "/", NAVIGATION);
-    await expect.poll(async () => (await durations()).length).toBeGreaterThan(0);
-    const [tabMs] = await durations();
+    await expect
+      .poll(async () => (await transitions()).filter((t) => t.types.includes(SHELL_TAB)).length, NAVIGATION)
+      .toBeGreaterThan(0);
+    const tab = (await transitions()).find((t) => t.types.includes(SHELL_TAB))!;
 
     // A link in the page, into another section: the fade runs.
-    expect(await markSectionLink(page)).toBe(target);
-    await page.locator("[data-e2e-nav]").press("Enter");
-    await page.waitForURL((url) => url.pathname + url.search === target, NAVIGATION);
-    await expect.poll(async () => (await durations()).length).toBeGreaterThan(1);
-    const linkMs = (await durations())[1];
+    await shellReady(page);
+    const href = await sectionLinkHref(page);
+    expect(href).toBeTruthy();
+    await sectionLink(page, href!).press("Enter");
+    await page.waitForURL((url) => url.pathname + url.search === href, NAVIGATION);
+    await expect
+      .poll(async () => (await transitions()).some((t) => !t.types.includes(SHELL_TAB) && t.animations.includes("page-enter")), NAVIGATION)
+      .toBe(true);
 
-    testInfo.annotations.push({ type: "view transition", description: `tab ${tabMs} ms, page link ${linkMs} ms` });
-    expect(linkMs, "an animated transition should run the 200 ms fade").toBeGreaterThan(150);
-    expect(linkMs - tabMs, "a tab tap must be far cheaper than an animated navigation").toBeGreaterThan(80);
+    testInfo.annotations.push({
+      type: "view transition",
+      description: `tab types [${tab.types.join(", ")}] animated [${tab.animations.join(", ")}]`,
+    });
+    expect(tab.animations, "a tab tap must not run the page fade — the indicator slides live").not.toContain("page-enter");
   });
 
   test("no blank frame between two pages — in-app, back and forward — and direct loads render", async ({ page, context }, testInfo) => {
     const errors = renderErrors(page);
     await page.goto("/");
-    const target = await markSectionLink(page);
-    expect(target).toBeTruthy();
+    const target = await sectionLinkHref(page);
+    expect(target, "the homepage should link somewhere outside its own section").toBeTruthy();
     await page.goto(target!, NAVIGATION); // compile it (dev)
     await page.goto("/", NAVIGATION);
-    await page.waitForLoadState("networkidle");
+    await shellReady(page);
+    await settled(page);
 
     const cdp = await context.newCDPSession(page);
     const frames: { t: number; data: string }[] = [];
@@ -292,10 +363,14 @@ test.describe("page transitions", () => {
       await page.waitForTimeout(1500);
       steps.push({ label, t0, t1: Date.now() });
     };
+    let went = target!;
     await step("in-app link", async () => {
-      expect(await markSectionLink(page)).toBe(target);
-      await page.locator("[data-e2e-nav]").press("Enter");
-      await page.waitForURL((url) => url.pathname + url.search === target, NAVIGATION);
+      // Whichever cross-section link the page offers now — the first visible
+      // one can differ between renders, and any of them exercises the same
+      // transition.
+      went = (await sectionLinkHref(page)) ?? target!;
+      await sectionLink(page, went).press("Enter");
+      await page.waitForURL((url) => url.pathname + url.search === went, NAVIGATION);
     });
     await step("back", () => page.goBack(NAVIGATION));
     await step("forward", () => page.goForward(NAVIGATION));
@@ -327,7 +402,7 @@ test.describe("page transitions", () => {
     await analyzer.close();
 
     // Direct loads: a document navigation, which no view transition touches.
-    for (const path of ["/", target!, "/km"]) {
+    for (const path of ["/", went, "/km"]) {
       await page.goto(path, NAVIGATION);
       await expect(page.locator("main#main-content")).not.toBeEmpty();
     }

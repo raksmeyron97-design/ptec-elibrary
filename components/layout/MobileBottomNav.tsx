@@ -39,6 +39,7 @@ import { Bookmark, Compass, House, Menu, Search, type LucideProps } from "lucide
 import { useSession } from "@/components/providers/SessionProvider";
 import { activeTab, SHELL_TABS, shellTabIndex, tabBarVisible, type ShellTab } from "@/lib/nav/shell-routes";
 import { SHELL_TAB_TRANSITION } from "@/lib/motion/flags";
+import ShellChunkBoundary from "./ShellChunkBoundary";
 import { openSearchOverlay } from "@/lib/search/open";
 import type { HoursClosure } from "@/lib/system-settings/types";
 import type { ShellContact, ShellSheet } from "./MobileNavSheets";
@@ -267,10 +268,15 @@ export default function MobileBottomNav({ hours, contact }: MobileBottomNavProps
         </div>
       </nav>
 
-      {(ready || sheet !== null) && (
-        <MobileNavSheets sheet={sheet} onClose={closeSheet} hours={hours} contact={contact} showAvatar={showAvatar} />
-      )}
-      {ready && <MobileSearchOverlay onOpenChange={setSearchOpen} />}
+      {/* Both are fetched at idle, so both can fail on a connection that
+          drops mid-flight. A failed chunk must cost the sheet, never the page
+          the reader is on (components/layout/ShellChunkBoundary.tsx). */}
+      <ShellChunkBoundary>
+        {(ready || sheet !== null) && (
+          <MobileNavSheets sheet={sheet} onClose={closeSheet} hours={hours} contact={contact} showAvatar={showAvatar} />
+        )}
+        {ready && <MobileSearchOverlay onOpenChange={setSearchOpen} />}
+      </ShellChunkBoundary>
     </>
   );
 }
