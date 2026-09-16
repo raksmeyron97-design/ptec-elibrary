@@ -2,6 +2,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import AskWidget from "@/components/ui/ask/AskWidget";
 import AnnouncementBanner from "@/components/ui/notifications/AnnouncementBanner";
+import AnnouncementDismissScript from "@/components/ui/notifications/AnnouncementDismissScript";
 import IntlProvider from "@/components/providers/IntlProvider";
 import SessionProvider from "@/components/providers/SessionProvider";
 import ReadingProgress from "@/components/ui/animations/ReadingProgress";
@@ -41,7 +42,16 @@ export default async function PublicLayout({
         <div className="flex min-h-screen flex-col overflow-x-clip">
           <ReadingProgress />
           <Navbar />
-          {banners.length > 0 && <AnnouncementBanner announcements={banners} />}
+          {banners.length > 0 && (
+            <>
+              {/* Runs while the parser is still above the banner, so a row this
+                  browser already dismissed is never painted. Must stay BEFORE
+                  the banner: after it, the hiding is a second paint, which is
+                  the layout shift this replaced. */}
+              <AnnouncementDismissScript />
+              <AnnouncementBanner announcements={banners} />
+            </>
+          )}
           <main id="main-content" tabIndex={-1} className="flex-grow outline-none">{children}</main>
           <Footer />
           <AskWidget />
