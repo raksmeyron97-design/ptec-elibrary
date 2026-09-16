@@ -26,6 +26,7 @@ type SP = {
   coverStatus?: string;
   quality?: string;
   verification?: string;
+  featured?: string;
   sort?: string;
   page?: string;
 };
@@ -71,6 +72,7 @@ export default async function BooksPage({
       coverStatus: sp.coverStatus,
       quality: sp.quality,
       verification: sp.verification,
+      featured: sp.featured,
       sort: sp.sort,
       page,
       pageSize: PAGE_SIZE,
@@ -81,7 +83,7 @@ export default async function BooksPage({
 
   const totalPages = Math.max(1, Math.ceil(ebooksResult.total / PAGE_SIZE));
   const hasActiveFilters = Boolean(
-    sp.q || sp.status || sp.dept || sp.category || sp.year || sp.language || sp.fileStatus || sp.coverStatus || sp.quality || sp.verification,
+    sp.q || sp.status || sp.dept || sp.category || sp.year || sp.language || sp.fileStatus || sp.coverStatus || sp.quality || sp.verification || sp.featured,
   );
 
   const filtersValue = {
@@ -94,6 +96,7 @@ export default async function BooksPage({
     coverStatus: sp.coverStatus ?? "",
     quality: sp.quality ?? "",
     verification: sp.verification ?? "",
+    featured: sp.featured ?? "",
     sort: sp.sort ?? "newest",
   };
 
@@ -109,7 +112,7 @@ export default async function BooksPage({
 
       {/* Zone 2 — the three workspaces, always in the same place on all three
           pages, so Upload and Duplicates are one click from the collection. */}
-      <BooksWorkspaceNav current="manage" />
+      <BooksWorkspaceNav current="manage" featuredCount={summary.featured} />
 
       {/* Zone 3 — the numbers. */}
       <EbookStats summary={summary} />
@@ -149,6 +152,11 @@ export default async function BooksPage({
           hasAnyEbooksAtAll={summary.total > 0}
           canUpload={canWrite}
           canWrite={canWrite}
+          /* The whole shelf, not the featured rows on this page: the
+             confirmation dialog tells the librarian which position the book
+             will take, and counting the current result set answered "1" for a
+             book that was about to land at 3. */
+          featuredCount={summary.featured}
         />
       )}
 

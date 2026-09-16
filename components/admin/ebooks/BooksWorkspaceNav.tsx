@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { BookCopy, Copy, Upload, type LucideIcon } from "lucide-react";
+import { BookCopy, Copy, Sparkles, Upload, type LucideIcon } from "lucide-react";
 import {
   EBOOKS_BASE_PATH,
   EBOOKS_DUPLICATES_PATH,
+  EBOOKS_FEATURED_PATH,
   EBOOKS_UPLOAD_PATH,
 } from "@/lib/admin/ebooks-url";
 import { canRoute } from "@/lib/admin/route-guard";
 
-export type BooksWorkspace = "manage" | "upload" | "duplicates";
+export type BooksWorkspace = "manage" | "upload" | "featured" | "duplicates";
 
 /**
  * The one element that makes Collection, Upload and Duplicate review read as a
@@ -36,13 +37,17 @@ export default async function BooksWorkspaceNav({
   current,
   /** Shown on the Duplicates entry when the queue has work in it. */
   duplicateCount,
+  /** Shown on the Featured entry — how many books the shelf currently holds. */
+  featuredCount,
 }: {
   current: BooksWorkspace;
   duplicateCount?: number;
+  featuredCount?: number;
 }) {
-  const [t, canUpload, canSweepDuplicates] = await Promise.all([
+  const [t, canUpload, canCurate, canSweepDuplicates] = await Promise.all([
     getTranslations("adminEbooks.workspace"),
     canRoute("books.upload"),
+    canRoute("books.featured"),
     canRoute("books.duplicates"),
   ]);
 
@@ -50,6 +55,21 @@ export default async function BooksWorkspaceNav({
     { key: "manage", href: EBOOKS_BASE_PATH, label: t("manage"), icon: BookCopy },
     ...(canUpload
       ? [{ key: "upload" as const, href: EBOOKS_UPLOAD_PATH, label: t("upload"), icon: Upload }]
+      : []),
+    /* Curation sits between the collection and the sweep because that is the
+       order of the librarian's day: add books, choose what to promote, then
+       check the collection's hygiene. It is read-level, so unlike its two
+       neighbours it appears for a `books: read` account. */
+    ...(canCurate
+      ? [
+          {
+            key: "featured" as const,
+            href: EBOOKS_FEATURED_PATH,
+            label: t("featured"),
+            icon: Sparkles,
+            count: featuredCount,
+          },
+        ]
       : []),
     ...(canSweepDuplicates
       ? [

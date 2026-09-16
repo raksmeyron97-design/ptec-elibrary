@@ -93,6 +93,11 @@ const GATED_SURFACES: { file: string; label: string; ids: string[] }[] = [
     file: `${ADMIN_ROOT}/review/page.tsx`,
     ids: ["books.review.approve", "research.review.approve"],
   },
+  {
+    label: "featured books",
+    file: `${ADMIN_ROOT}/books/featured/_components/FeaturedBooksClient.tsx`,
+    ids: ["books.feature"],
+  },
 ];
 
 describe("every mutation surface asks the registry", () => {

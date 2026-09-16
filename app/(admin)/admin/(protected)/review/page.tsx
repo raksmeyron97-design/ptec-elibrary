@@ -4,7 +4,16 @@ import { ADMIN_ROLES } from "@/lib/types/roles";
 import { PageHeader, StatusBadge } from "@/components/admin/kit";
 import Pagination from "@/components/ui/core/Pagination";
 import type { CanonicalStatus } from "@/lib/content-status";
-import ReviewQueueClient, { type QueueTab } from "./_components/ReviewQueueClient";
+import {
+  defaultQueueTab,
+  isActionable,
+  isPendingView,
+  parseQueueTab,
+  queueCounts,
+  selectPendingView,
+  type QueueTab,
+} from "@/lib/review/queues";
+import ReviewQueueClient from "./_components/ReviewQueueClient";
 import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export const dynamic = "force-dynamic";
@@ -15,12 +24,19 @@ const DEFAULT_PAGE_SIZE = 10;
 type SP = { tab?: string; status?: string; page?: string; size?: string };
 
 /**
+ * The verification workspace.
+ *
  * Queue state lives in the URL (tab / status / page / size) rather than in the
  * client, so a reviewer working a long backlog can bookmark, share and — the
  * one that actually bites — come back after editing a record without losing
  * their place. Slicing happens here; the client component receives one page
  * and is remounted per view (see the `key` below) so its optimistic removals
  * never outlive the list they were made against.
+ *
+ * Five of the six tabs are VIEWS over the two queues this page already
+ * fetches (lib/review/queues.ts) — "My queue" is a question asked of the same
+ * rows, never a second fetch, so a reviewer's personal backlog and the shared
+ * one cannot disagree about a record.
  */
 export default async function ReviewQueuePage({ searchParams }: { searchParams: Promise<SP> }) {
   /* READ, not write. The queue is where a reviewer *looks* at what is waiting:
@@ -44,38 +60,33 @@ export default async function ReviewQueuePage({ searchParams }: { searchParams: 
       : Promise.resolve([]),
   ]);
 
-  const actionable = queues.pending.filter(
-    (i) => i.status === "needs_review" || i.status === "in_review" || i.status === "imported",
-  ).length;
+  const actionable = queues.pending.filter(isActionable).length;
+  const counts = queueCounts(queues.pending, queues.unverifiedLive, userId);
 
-  // No ?tab= yet: open the queue that has work, preferring the one nobody
-  // knows about when the pending queue is clear.
-  const tab: QueueTab =
-    sp.tab === "unverified"
-      ? "unverifiedLive"
-      : sp.tab === "pending"
-        ? "pending"
-        : queues.pending.length === 0 && queues.unverifiedLive.length > 0
-          ? "unverifiedLive"
-          : "pending";
+  // No ?tab= yet: open the reviewer's own work when they have some, then
+  // whatever is waiting, then the queue nobody knows about.
+  const tab: QueueTab = parseQueueTab(sp.tab) ?? defaultQueueTab(counts);
 
-  // Status counts come from the whole pending queue, never from the page
-  // slice — a filter pill reading "(3)" while showing 10 rows is a bug.
+  const source: ReviewItem[] = isPendingView(tab)
+    ? selectPendingView(tab, queues.pending, userId)
+    : queues.unverifiedLive;
+
+  // Status counts come from the whole tab, never from the page slice — a
+  // filter pill reading "(3)" while showing 10 rows is a bug.
   const statusCounts = (() => {
     const present = new Map<CanonicalStatus, number>();
-    for (const item of queues.pending) present.set(item.status, (present.get(item.status) ?? 0) + 1);
+    for (const item of source) present.set(item.status, (present.get(item.status) ?? 0) + 1);
     return [
-      { value: "all" as const, count: queues.pending.length },
+      { value: "all" as const, count: source.length },
       ...[...present.entries()].map(([value, count]) => ({ value, count })),
     ];
   })();
 
   const statusFilter =
-    tab === "pending" && sp.status && statusCounts.some((s) => s.value === sp.status)
+    isPendingView(tab) && sp.status && statusCounts.some((s) => s.value === sp.status)
       ? sp.status
       : "all";
 
-  const source: ReviewItem[] = tab === "pending" ? queues.pending : queues.unverifiedLive;
   const filtered = statusFilter === "all" ? source : source.filter((i) => i.status === statusFilter);
 
   const requestedSize = Number(sp.size);
@@ -103,7 +114,7 @@ export default async function ReviewQueuePage({ searchParams }: { searchParams: 
         tab={tab}
         statusFilter={statusFilter}
         statusCounts={statusCounts}
-        tabCounts={{ pending: queues.pending.length, unverifiedLive: queues.unverifiedLive.length }}
+        tabCounts={counts}
         size={PAGE_SIZE_OPTIONS.includes(requestedSize) ? String(requestedSize) : undefined}
         unverifiedLiveCapped={queues.unverifiedLiveCapped}
         reviewers={reviewers}
@@ -114,6 +125,8 @@ export default async function ReviewQueuePage({ searchParams }: { searchParams: 
            the other gets action buttons on exactly the half they own. */
         canWriteBooks={can("books.review.approve")}
         canWriteResearch={can("research.review.approve")}
+        canAssignBooks={can("books.review.assign")}
+        canAssignResearch={can("research.review.assign")}
       />
       <Pagination
         currentPage={page}

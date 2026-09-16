@@ -12,6 +12,7 @@ import {
   Link2,
   Download,
   Star,
+  StarOff,
   CheckCircle2,
   XCircle,
   Archive,
@@ -23,6 +24,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { EbookListRow } from "@/lib/admin/ebooks-shared";
+import { assessFeatureEligibility } from "@/lib/books/featured";
 
 /**
  * Keyboard-accessible row action menu — same pattern as
@@ -39,6 +41,8 @@ export default function EbookActionsMenu({
   onSubmitForReview,
   onVerify,
   onUnverify,
+  onFeature,
+  onUnfeature,
   onDeleteRequest,
 }: {
   book: EbookListRow;
@@ -50,6 +54,8 @@ export default function EbookActionsMenu({
   onSubmitForReview: () => void;
   onVerify: () => void;
   onUnverify: () => void;
+  onFeature: () => void;
+  onUnfeature: () => void;
   onDeleteRequest: (id: string, title: string) => void;
 }) {
   const t = useTranslations("adminEbooks.actions");
@@ -118,6 +124,13 @@ export default function EbookActionsMenu({
   const hasPdf = Boolean(book.fileUrl);
   const isVerified = Boolean(book.verifiedAt);
   const inReviewQueue = book.status === "pending_review";
+  const isFeatured = Boolean(book.featuredAt);
+  // Eligibility from the same pure rule the Server Action re-runs against the
+  // live row, so the menu never offers a click the server will refuse.
+  const canFeature = assessFeatureEligibility({
+    status: book.status,
+    verifiedAt: book.verifiedAt,
+  }).eligible;
 
   return (
     <div className="relative inline-block text-left">
@@ -186,9 +199,27 @@ export default function EbookActionsMenu({
 
           <div className="my-1 h-px bg-divider" />
 
-          <span className={`${itemClass} cursor-not-allowed opacity-50`} aria-disabled="true" title={t("comingSoon")}>
-            <Star className="h-4 w-4 text-text-muted" /> {t("featureBook")}
-          </span>
+          {/* Curation — the public "Featured by PTEC Library" shelf (0149).
+              Unfeaturing is always offered; featuring is offered only when the
+              book is published AND verified, and the reason is stated rather
+              than left as a greyed-out row with no explanation. */}
+          {isFeatured ? (
+            <button type="button" role="menuitem" className={itemClass} onClick={() => run(onUnfeature)}>
+              <StarOff className="h-4 w-4 text-text-muted" /> {t("unfeatureBook")}
+            </button>
+          ) : canFeature ? (
+            <button type="button" role="menuitem" className={itemClass} onClick={() => run(onFeature)}>
+              <Star className="h-4 w-4 text-text-muted" /> {t("featureBook")}
+            </button>
+          ) : (
+            <span
+              className={`${itemClass} cursor-not-allowed opacity-50`}
+              aria-disabled="true"
+              title={t("featureNeedsVerified")}
+            >
+              <Star className="h-4 w-4 text-text-muted" /> {t("featureNeedsVerified")}
+            </span>
+          )}
 
           {/* Verification is a separate axis from publication: a book can be
               live-but-unverified (everything predating the review workflow) or

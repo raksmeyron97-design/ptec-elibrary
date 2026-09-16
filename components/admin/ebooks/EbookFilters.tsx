@@ -17,6 +17,8 @@ import {
   EBOOK_QUALITY_OPTIONS,
   EBOOK_VERIFICATION_OPTIONS,
   EBOOK_VERIFICATION_LABELS,
+  EBOOK_FEATURED_OPTIONS,
+  EBOOK_FEATURED_LABELS,
   type EbookOption,
 } from "@/lib/admin/ebooks-shared";
 import { METADATA_TIER_LABELS, type MetadataQualityTier } from "@/lib/admin/ebook-quality";
@@ -49,6 +51,7 @@ export type EbookFiltersValue = {
   coverStatus: string;
   quality: string;
   verification: string;
+  featured: string;
   sort: string;
 };
 
@@ -156,6 +159,7 @@ export function EbookFilterChips({ value, departments, categories }: Pick<Filter
   const tCover = useTranslations("adminEbooks.coverStatus");
   const tQuality = useTranslations("adminEbooks.quality");
   const tVerification = useTranslations("adminEbooks.verification");
+  const tFeatured = useTranslations("adminEbooks.featuredFilter");
 
   const optionLabel = (options: EbookOption[], v: string) => options.find((o) => o.value === v)?.label ?? v;
 
@@ -169,6 +173,7 @@ export function EbookFilterChips({ value, departments, categories }: Pick<Filter
   if (isSet(value.coverStatus)) chips.push({ key: "coverStatus", label: EBOOK_COVER_STATUS_LABELS[value.coverStatus as keyof typeof EBOOK_COVER_STATUS_LABELS] ? tCover(value.coverStatus) : value.coverStatus });
   if (isSet(value.quality)) chips.push({ key: "quality", label: t("metadataChip", { label: METADATA_TIER_LABELS[value.quality as MetadataQualityTier] ? tQuality(value.quality) : value.quality }) });
   if (isSet(value.verification)) chips.push({ key: "verification", label: t("verificationChip", { label: EBOOK_VERIFICATION_LABELS[value.verification as keyof typeof EBOOK_VERIFICATION_LABELS] ? tVerification(value.verification) : value.verification }) });
+  if (isSet(value.featured)) chips.push({ key: "featured", label: t("featuredChip", { label: EBOOK_FEATURED_LABELS[value.featured as keyof typeof EBOOK_FEATURED_LABELS] ? tFeatured(value.featured) : value.featured }) });
 
   if (chips.length === 0) return null;
 
@@ -213,6 +218,7 @@ function MoreFiltersButton({
   const tCover = useTranslations("adminEbooks.coverStatus");
   const tQuality = useTranslations("adminEbooks.quality");
   const tVerification = useTranslations("adminEbooks.verification");
+  const tFeatured = useTranslations("adminEbooks.featuredFilter");
   const headingId = "ebook-filters-heading";
   const triggerRef = useRef<HTMLButtonElement>(null);
   const firstFieldRef = useRef<HTMLButtonElement>(null);
@@ -224,6 +230,7 @@ function MoreFiltersButton({
   const [coverStatus, setCoverStatus] = useState(value.coverStatus);
   const [quality, setQuality] = useState(value.quality);
   const [verification, setVerification] = useState(value.verification);
+  const [featured, setFeatured] = useState(value.featured);
 
   useEffect(() => {
     if (!open) return;
@@ -234,6 +241,7 @@ function MoreFiltersButton({
     setCoverStatus(value.coverStatus);
     setQuality(value.quality);
     setVerification(value.verification);
+    setFeatured(value.featured);
     document.body.style.overflow = "hidden";
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -260,6 +268,7 @@ function MoreFiltersButton({
     value.coverStatus,
     value.quality,
     value.verification,
+    value.featured,
   ].some((v) => v && v !== "all");
 
   function submit(e: React.FormEvent) {
@@ -273,6 +282,7 @@ function MoreFiltersButton({
       coverStatus: coverStatus || null,
       quality: quality || null,
       verification: verification || null,
+      featured: featured || null,
     }));
   }
 
@@ -392,6 +402,20 @@ function MoreFiltersButton({
                 />
               </label>
 
+              {/* Curation sits beside verification, not beside status: they
+                  are the two independent axes a librarian reasons about once
+                  publication is settled. */}
+              <label className="block">
+                <span className={fieldLabel}>{t("featuredLabel")}</span>
+                <SearchableSelect
+                  name="featured-filter"
+                  ariaLabel={t("featuredLabel")}
+                  value={featured || "all"}
+                  onChange={setFeatured}
+                  options={[{ value: "all", label: t("anyFeatured") }, ...EBOOK_FEATURED_OPTIONS.map((f) => ({ value: f, label: tFeatured(f) }))]}
+                />
+              </label>
+
               <label className="block">
                 <span className={fieldLabel}>{t("metadataQuality")}</span>
                 <SearchableSelect
@@ -407,7 +431,7 @@ function MoreFiltersButton({
             <div className="mt-6 flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => { setCategory(""); setYear(""); setLanguage(""); setFileStatus(""); setCoverStatus(""); setQuality(""); setVerification(""); }}
+                onClick={() => { setCategory(""); setYear(""); setLanguage(""); setFileStatus(""); setCoverStatus(""); setQuality(""); setVerification(""); setFeatured(""); }}
                 className="text-[13px] font-semibold text-text-muted hover:text-brand"
               >
                 {t("clearThese")}

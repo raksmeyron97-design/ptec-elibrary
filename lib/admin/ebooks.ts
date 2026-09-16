@@ -20,15 +20,20 @@ export * from "@/lib/admin/ebooks-shared";
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
 
-// updated_at arrives with migration 0077. Until it's applied, the first
-// list query 42703s; we retry without the column and remember (per lambda
-// instance) so subsequent requests skip the failing attempt.
+// updated_at arrives with migration 0077, and the curation columns with 0149.
+// Until each is applied the first list query 42703s; we retry without the
+// column and remember (per lambda instance) so subsequent requests skip the
+// failing attempt. Two independent flags, because the two migrations are
+// independent — a stack that has one and not the other must degrade in
+// exactly one direction.
 let updatedAtMissing = false;
+let featuredMissing = false;
 
-function listColumns(withUpdatedAt: boolean): string {
+function listColumns(withUpdatedAt: boolean, withFeatured = !featuredMissing): string {
   return `
     id, title, slug, description, language, isbn, publisher, license, status, verified_at,
     cover_url, published_at, created_at${withUpdatedAt ? ", updated_at" : ""},
+    ${withFeatured ? "featured_at, featured_position," : ""}
     download_count, view_count, tags, department, department_id,
     authors ( name ),
     categories ( name ),
@@ -39,6 +44,10 @@ function listColumns(withUpdatedAt: boolean): string {
 
 function isMissingUpdatedAt(error: { code?: string; message?: string }): boolean {
   return error.code === "42703" && (error.message ?? "").includes("updated_at");
+}
+
+function isMissingFeatured(error: { code?: string; message?: string }): boolean {
+  return error.code === "42703" && /featured_(at|position)/.test(error.message ?? "");
 }
 
 // Strip PostgREST .or()/.ilike() metacharacters before building filter
@@ -72,6 +81,8 @@ function toRow(r: Record<string, unknown>, broken: BrokenMap): EbookListRow {
     year: r.published_at ? new Date(r.published_at as string).getFullYear() : null,
     status: normalizeEbookStatus(r.status as string),
     verifiedAt: (r.verified_at as string) ?? null,
+    featuredAt: (r.featured_at as string) ?? null,
+    featuredPosition: (r.featured_position as number) ?? null,
     coverUrl: (r.cover_url as string) || null,
     fileUrl: file?.file_url ?? null,
     fileFormat: file?.format ?? null,
@@ -208,6 +219,13 @@ async function applyFilters(
     query = query.not("verified_at", "is", null);
   } else if (params.verification === "unverified") {
     query = query.is("verified_at", null);
+  }
+
+  // Curation, the third axis. Only applied when 0149 is in the database —
+  // otherwise the filter would 42703 the whole list rather than being ignored.
+  if (!featuredMissing && params.featured && params.featured !== "all") {
+    if (params.featured === "featured") query = query.not("featured_at", "is", null);
+    if (params.featured === "not_featured") query = query.is("featured_at", null);
   }
 
   if (params.coverStatus && params.coverStatus !== "all") {
@@ -378,6 +396,10 @@ export async function getEbooks(
     };
 
     let result = await run(!updatedAtMissing);
+    if (result.error && isMissingFeatured(result.error)) {
+      featuredMissing = true;
+      result = await run(!updatedAtMissing);
+    }
     if (result.error && isMissingUpdatedAt(result.error)) {
       updatedAtMissing = true;
       result = await run(false);
@@ -395,13 +417,18 @@ export async function getEbooks(
 
   // Quality / fileStatus / size path: scan all matching rows, filter/sort in JS,
   // then paginate. applyFilters() still handles status, dept, category, language,
-  // year, verification, and coverStatus — reducing the scan set before the JS pass.
+  // year, verification, featured and coverStatus — reducing the scan set before
+  // the JS pass.
   const runScan = async (withUpdatedAt: boolean) => {
     let query = supabase.from("books").select(listColumns(withUpdatedAt)).limit(QUALITY_SCAN_CAP);
     ({ query } = await applyFilters(supabase, query, params, broken));
     return query;
   };
   let scan = await runScan(!updatedAtMissing);
+  if (scan.error && isMissingFeatured(scan.error)) {
+    featuredMissing = true;
+    scan = await runScan(!updatedAtMissing);
+  }
   if (scan.error && isMissingUpdatedAt(scan.error)) {
     updatedAtMissing = true;
     scan = await runScan(false);
@@ -463,6 +490,19 @@ export async function getEbooksSummary(): Promise<EbooksSummary> {
         .is("verified_at", null),
     ]);
 
+  // Counted separately rather than inside the Promise.all above so a
+  // pre-0149 database answers "0 featured" instead of failing the whole
+  // summary — the KPI row must never be the thing that takes the page down.
+  const featuredCount = await supabase
+    .from("books")
+    .select("id", { count: "exact", head: true })
+    .not("featured_at", "is", null)
+    .then(
+      (res: { count: number | null; error: { code?: string } | null }) =>
+        res.error ? 0 : (res.count ?? 0),
+      () => 0,
+    );
+
   // Hosted PostgREST has .sum() aggregates disabled, so each of these keeps a
   // JS-sum fallback that is the path actually taken today.
   async function sumColumn(table: string, column: string): Promise<number> {
@@ -503,6 +543,7 @@ export async function getEbooksSummary(): Promise<EbooksSummary> {
     storageKb,
     missingMetadata,
     unverifiedLive: unverifiedLive.count ?? 0,
+    featured: featuredCount,
   };
 }
 

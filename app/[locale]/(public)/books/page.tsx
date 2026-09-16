@@ -7,6 +7,7 @@ import SearchBar from "@/components/ui/search/SearchBar";
 import Icon from "@/components/ui/core/Icon";
 import {
   getBooksPage,
+  getFeaturedBooks,
   getDepartmentsCached,
   getLanguagesCached,
   getFormatsCached,
@@ -16,6 +17,7 @@ import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
 import { ClientNavWrapper, FilterLink, FilterSelect, SortSelect } from "@/components/ui/books/ClientNavWrapper";
 import { buttonClasses } from "@/components/ui/core/Button";
 import BookRequestForm from "@/components/ui/books/BookRequestForm";
+import FeaturedShelf from "@/components/ui/books/FeaturedShelf";
 import MobileFilterSheet from "@/components/ui/books/MobileFilterSheet";
 import { getTranslations } from 'next-intl/server';
 import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
@@ -111,12 +113,13 @@ export default async function BooksPage({
   const requestedPage = Math.max(1, Number(params.page) || 1);
   const pageSize = resolvePageSize(params.size);
 
-  const [{ books, total }, departments, languages, formats, stats] = await Promise.all([
+  const [{ books, total }, departments, languages, formats, stats, featured] = await Promise.all([
     getBooksPage(listParams, requestedPage, pageSize),
     getDepartmentsCached(),
     getLanguagesCached(),
     getFormatsCached(),
     getCollectionStats(),
+    getFeaturedBooks(),
   ]);
 
   const hasFilters = !!(
@@ -328,6 +331,12 @@ export default async function BooksPage({
             )}
           </div>
         )}
+
+        {/* Editorial curation, above the collection and only where it does not
+            talk over the reader: the clean first page, never a search result,
+            a filtered view or page 2. The section returns null when nothing is
+            featured, so an empty shelf costs no markup. */}
+        {isCleanListing && requestedPage === 1 && <FeaturedShelf books={featured} />}
 
         {books.length === 0 ? (
           <EmptyState hasFilters={hasFilters} query={params.q} t={t} basePath={basePath} />

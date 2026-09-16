@@ -109,6 +109,22 @@ export const EBOOK_VERIFICATION_LABELS: Record<EbookVerificationFilter, string> 
 };
 
 /**
+ * Curation is a THIRD axis (migration 0149), independent of both status and
+ * verification: "Featured by PTEC Library" is what the library chose to
+ * promote, not a claim that the record is published or checked — though the
+ * feature action requires both (lib/books/featured.ts). Filtering on it is how
+ * a librarian answers "what is on the shelf?" from inside the collection,
+ * without leaving for the Featured workspace.
+ */
+export const EBOOK_FEATURED_OPTIONS = ["featured", "not_featured"] as const;
+export type EbookFeaturedFilter = (typeof EBOOK_FEATURED_OPTIONS)[number];
+
+export const EBOOK_FEATURED_LABELS: Record<EbookFeaturedFilter, string> = {
+  featured: "Featured",
+  not_featured: "Not featured",
+};
+
+/**
  * A PDF at or above this size gets the amber "Large file" badge — a flag for
  * slow connections and mobile data, not a hard upload limit.
  */
@@ -134,6 +150,10 @@ export type EbookListRow = {
   status: EbookStatus;
   /** Trust stamp (migration 0062). null = no librarian has verified the metadata. */
   verifiedAt: string | null;
+  /** Curation stamp (migration 0149). null = not on the public Featured shelf. */
+  featuredAt: string | null;
+  /** 1-based public position on the shelf; null when not featured. */
+  featuredPosition: number | null;
   coverUrl: string | null;
   fileUrl: string | null;
   fileFormat: string | null;
@@ -169,6 +189,8 @@ export type EbooksSummary = {
   missingMetadata: number;
   /** Published but never verified — the citation warning is live on these. */
   unverifiedLive: number;
+  /** On the public "Featured by PTEC Library" shelf (0149). */
+  featured: number;
 };
 
 export type EbookOption = { value: string; label: string };
@@ -184,6 +206,7 @@ export type EbooksQueryParams = {
   coverStatus?: string;
   quality?: string;
   verification?: string;
+  featured?: string;
   sort?: string;
   page: number;
   pageSize: number;

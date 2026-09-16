@@ -99,3 +99,38 @@ describe("dashboard markup nesting", () => {
     expect(sourceFiles().length).toBeGreaterThan(15);
   });
 });
+
+// ── The shared kit's ReactNode slots ────────────────────────────────────────
+
+describe("a slot typed React.ReactNode is never rendered inside a <p>", () => {
+  /**
+   * The same failure one level up. The scan above catches a block tag written
+   * literally inside a `<p>`; it cannot catch `<p>{children}</p>` where
+   * `children` is a prop, and that is the version that actually shipped:
+   * ConfirmDialog rendered its `description` in a paragraph, so the first
+   * dialog to show a book cover beside a title produced a real hydration
+   * error in the browser (invisible to jsdom and to `next build`).
+   *
+   * The rule is stated as a property of the components, not of their callers:
+   * a slot that accepts arbitrary nodes has to be wrapped in something that
+   * can hold them.
+   */
+  const SLOT_COMPONENTS = [
+    "components/admin/kit/ConfirmDialog.tsx",
+    "components/admin/kit/EmptyState.tsx",
+    "components/admin/kit/PageHeader.tsx",
+  ];
+
+  it.each(SLOT_COMPONENTS)("%s wraps its node slots in a block container", (file) => {
+    const src = readFileSync(path.join(process.cwd(), file), "utf8");
+    const slots = [...src.matchAll(/^\s*(?:\/\*\*[\s\S]*?\*\/\s*)?(\w+)\??:\s*React\.ReactNode/gm)].map(
+      (m) => m[1],
+    );
+    expect(slots.length, `${file} declares no ReactNode slot`).toBeGreaterThan(0);
+    for (const slot of slots) {
+      // `<p ...>{slot}</p>` in any spelling.
+      const inParagraph = new RegExp(`<p(?:\\s[^>]*)?>\\s*\\{${slot}\\}\\s*</p>`);
+      expect(inParagraph.test(src), `${file}: {${slot}} is rendered inside a <p>`).toBe(false);
+    }
+  });
+});

@@ -8,6 +8,7 @@ import EbookActionsMenu from "@/components/admin/ebooks/EbookActionsMenu";
 import EbookQualityBadge from "@/components/admin/ebooks/EbookQualityBadge";
 import EbookFileHealthBadge from "@/components/admin/ebooks/EbookFileHealthBadge";
 import EbookVerificationBadge from "@/components/admin/ebooks/EbookVerificationBadge";
+import EbookFeaturedBadge from "@/components/admin/ebooks/EbookFeaturedBadge";
 import EbookCover from "@/components/admin/ebooks/EbookCover";
 import { EBOOK_STATUS_TONES, EBOOK_STATUS_LABELS, formatFileSize, type EbookListRow } from "@/lib/admin/ebooks-shared";
 
@@ -27,6 +28,8 @@ export default function EbookMobileCard({
   onSubmitForReview,
   onVerify,
   onUnverify,
+  onFeature,
+  onUnfeature,
   onDeleteRequest,
   canWrite,
 }: {
@@ -41,6 +44,8 @@ export default function EbookMobileCard({
   onSubmitForReview: (id: string) => void;
   onVerify: (id: string) => void;
   onUnverify: (id: string) => void;
+  onFeature: (id: string) => void;
+  onUnfeature: (id: string) => void;
   onDeleteRequest: (id: string, title: string) => void;
   /** `books: write` — same rule as the table: mutation controls are absent, not
    *  disabled, for a read-only viewer. */
@@ -96,6 +101,7 @@ export default function EbookMobileCard({
                     {EBOOK_STATUS_LABELS[book.status] ? tStatus(book.status) : book.status}
                   </Badge>
                   <EbookVerificationBadge book={book} />
+                  <EbookFeaturedBadge book={book} />
                   <EbookFileHealthBadge book={book} />
                   <EbookQualityBadge book={book} />
                 </div>
@@ -133,6 +139,8 @@ export default function EbookMobileCard({
                       onSubmitForReview={() => onSubmitForReview(book.id)}
                       onVerify={() => onVerify(book.id)}
                       onUnverify={() => onUnverify(book.id)}
+                      onFeature={() => onFeature(book.id)}
+                      onUnfeature={() => onUnfeature(book.id)}
                       onDeleteRequest={onDeleteRequest}
                     />
                     )}

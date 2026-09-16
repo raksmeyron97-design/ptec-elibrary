@@ -577,7 +577,11 @@
     "allOption": "All",
     "clearAll": "Clear all",
     "done": "Done",
-    "resourcesFiltered": "{count} of {total} e-books"
+    "resourcesFiltered": "{count} of {total} e-books",
+    "featured": {
+      "title": "Featured by PTEC Library",
+      "subtitle": "Chosen by our librarians"
+    }
   },
   "bookDetail": {
     "read": "Read",
@@ -3490,7 +3494,8 @@
       "badgeAttention": "{count} items awaiting action",
       "badgeCritical": "{count} items need attention",
       "homepagePhotos": "Homepage Photos",
-      "journals": "Journals"
+      "journals": "Journals",
+      "featuredBooks": "Featured Books"
     },
     "roles": {
       "superAdmin": "Super Admin",
@@ -4294,7 +4299,8 @@
       "publishNow": "Publish now",
       "cancelSchedule": "Cancel schedule",
       "verifyMetadata": "Verify metadata",
-      "unpublishRequestChanges": "Unpublish & request changes"
+      "unpublishRequestChanges": "Unpublish & request changes",
+      "takeOver": "Take over"
     },
     "noteBox": {
       "label": "What needs to change?",
@@ -4302,7 +4308,8 @@
       "placeholder": "e.g. Author name doesn't match the title page; publication year missing",
       "send": "Send back with note",
       "cancel": "Cancel",
-      "sendUnpublish": "Unpublish with note"
+      "sendUnpublish": "Unpublish with note",
+      "reasonsLabel": "What needs to change? (pick any that apply)"
     },
     "details": {
       "checklist": "Metadata checklist",
@@ -4311,7 +4318,12 @@
       "unverifiedNote": "Shown with an “unverified” notice on public pages and excluded from repository feeds until verified.",
       "reviewer": "Assigned reviewer",
       "unassigned": "Unassigned",
-      "history": "Change history"
+      "history": "Change history",
+      "file": "The file",
+      "openFile": "Open the file here",
+      "closeFile": "Close preview",
+      "openFileNewTab": "Open in a new tab",
+      "filePreviewTitle": "File preview: {title}"
     },
     "versions": {
       "load": "Load change history",
@@ -4326,27 +4338,65 @@
       "loadFailed": "Could not load history"
     },
     "empty": {
-      "title": "Nothing waiting for review",
-      "description": "Uploads submitted for review will appear here."
+      "pending": {
+        "title": "Nothing waiting for review",
+        "description": "Uploads submitted for review will appear here."
+      },
+      "mine": {
+        "title": "Nothing assigned to you",
+        "description": "Records assigned to you for review appear here. Check Unassigned for work nobody has claimed."
+      },
+      "unassigned": {
+        "title": "Everything is claimed",
+        "description": "Every record waiting for review already has a reviewer."
+      },
+      "changes": {
+        "title": "Nothing sent back",
+        "description": "Records you have returned to their editor appear here until they are resubmitted."
+      },
+      "unverifiedLive": {
+        "title": "Every published record has been verified",
+        "description": "Nothing public is carrying the “not yet verified” notice."
+      }
     },
     "toasts": {
       "updated": "Status updated.",
       "reviewerUpdated": "Reviewer updated.",
       "restored": "Version restored.",
       "failed": "Action failed — please try again.",
-      "verified": "Metadata verified."
+      "verified": "Metadata verified.",
+      "takenOver": "You are now the reviewer."
     },
     "tabs": {
       "label": "Review queues",
-      "pending": "Submitted for review",
-      "unverifiedLive": "Published without review"
+      "pending": "All submitted",
+      "unverifiedLive": "Published without review",
+      "mine": "My queue",
+      "unassigned": "Unassigned",
+      "changes": "Needs changes"
     },
     "unverifiedLiveHint": "These records are already public but their metadata was never checked — readers see a “not yet verified by library staff” warning on the citation box, and repository feeds skip them. Verifying stamps the record without changing its published status.",
     "unverifiedLiveCapped": "Only the 10,000 most recent are listed; verify these and reload for more.",
     "verifyBlocked": "Cannot verify until these are filled in: {fields}",
-    "emptyUnverified": {
-      "title": "Every published record has been verified",
-      "description": "Anything uploaded with “Publish immediately” shows up here until a librarian checks its metadata."
+    "assignedTo": "Reviewer: {name}",
+    "assignedToYou": "Yours to review",
+    "claimedBy": "{name} is reviewing this.",
+    "verifiedProvenance": "Verified by {name} on {date}",
+    "verifiedProvenanceUnknown": "Verified on {date}",
+    "announce": {
+      "queueClear": "Queue clear — nothing left in this view.",
+      "remaining": "{count, plural, =1 {# record left} other {# records left}} in this view."
+    },
+    "reasons": {
+      "title": "Incorrect title",
+      "author": "Incorrect author",
+      "isbn": "Missing or wrong ISBN",
+      "metadata": "Incorrect metadata",
+      "cover": "Cover problem",
+      "file": "File problem",
+      "rights": "Rights or licence",
+      "incomplete": "Missing information",
+      "other": "Other"
     }
   },
   "adminPaths": {
@@ -5651,7 +5701,8 @@
       "archivedLabel": "Archived",
       "breakdown": "E-book breakdown",
       "unverifiedLive": "Unverified live",
-      "unverifiedSub": "{count} not verified"
+      "unverifiedSub": "{count} not verified",
+      "featured": "Featured"
     },
     "toolbar": {
       "searchLabel": "Search e-books",
@@ -5732,7 +5783,10 @@
       "apply": "Apply",
       "verificationChip": "Verification: {label}",
       "verificationLabel": "Verification",
-      "anyVerification": "Any verification"
+      "anyVerification": "Any verification",
+      "featuredLabel": "Featured",
+      "anyFeatured": "Featured or not",
+      "featuredChip": "Curation: {label}"
     },
     "actions": {
       "menuFor": "Actions for {title}",
@@ -5754,7 +5808,9 @@
       "publish": "Publish",
       "restore": "Restore from archive",
       "archive": "Archive",
-      "delete": "Delete"
+      "delete": "Delete",
+      "unfeatureBook": "Remove from Featured",
+      "featureNeedsVerified": "Publish and verify to feature"
     },
     "bulk": {
       "toolbarLabel": "Bulk e-book actions",
@@ -5811,7 +5867,22 @@
       "archiveFailed": "Archive failed",
       "submittedForReview": "Sent to the review queue.",
       "verified": "Metadata verified.",
-      "unverified": "Verification removed."
+      "unverified": "Verification removed.",
+      "featured": "Added to Featured at position {position}.",
+      "unfeatured": "Removed from Featured. The book is still published.",
+      "featureErrors": {
+        "invalid_id": "That book could not be identified.",
+        "forbidden": "You do not have permission to change the Featured shelf.",
+        "rate_limited": "Too many changes — please wait a moment and try again.",
+        "not_found": "That book no longer exists.",
+        "not_published": "Only a published book can be featured.",
+        "not_verified": "Only a verified book can be featured. Verify its metadata first.",
+        "already_featured": "That book is already featured.",
+        "not_featured": "That book was not featured.",
+        "stale_order": "The Featured shelf changed while you were working. Reload and try again.",
+        "migration_missing": "The Featured shelf needs migration 0149 applied to the database first.",
+        "failed": "Could not update the Featured shelf — please try again."
+      }
     },
     "deleteDialog": {
       "title": "Delete e-book?",
@@ -5879,7 +5950,79 @@
       "label": "Book management",
       "manage": "Collection",
       "upload": "Upload",
-      "duplicates": "Duplicates"
+      "duplicates": "Duplicates",
+      "featured": "Featured"
+    },
+    "featuredFilter": {
+      "featured": "Featured",
+      "not_featured": "Not featured",
+      "badgeTitle": "Shown in “Featured by PTEC Library” on the public books page",
+      "badgeWithPosition": "Featured {position}"
+    },
+    "featureDialog": {
+      "title": "Add to Featured",
+      "noAuthor": "No author recorded",
+      "destination": "It will appear in Books → Featured by PTEC Library.",
+      "position": "Position: {position}",
+      "confirm": "Add to Featured",
+      "busy": "Adding…",
+      "blocked": {
+        "not_published": "This book is not published yet, so it cannot be featured. Publish it first.",
+        "not_verified": "This book has not been verified. A librarian must verify its metadata before it can be featured."
+      }
+    },
+    "featured": {
+      "title": "Featured Books",
+      "description": "The shelf readers see at the top of the public books page. Featuring never changes whether a book is published.",
+      "addFrom": "Choose from the collection",
+      "placement": "{count, plural, =1 {# book appears} other {# books appear}} in “Featured by PTEC Library” on the public books page, in this order.",
+      "viewPublic": "View the public page",
+      "badge": "Featured",
+      "verified": "Verified",
+      "noAuthor": "No author recorded",
+      "provenance": "Featured by {name} · {date}",
+      "provenanceUnknown": "Featured {date}",
+      "warning": {
+        "not_published": "No longer published",
+        "not_verified": "Verification removed"
+      },
+      "moveUpFor": "Move {title} up",
+      "moveDownFor": "Move {title} down",
+      "remove": "Remove",
+      "removeFor": "Remove {title} from Featured",
+      "unsaved": "The order has changed but is not live yet.",
+      "saveOrder": "Save order",
+      "saving": "Saving…",
+      "discard": "Discard changes",
+      "migrationMissing": "The Featured shelf needs migration 0149 applied to the database first.",
+      "announce": {
+        "moved": "{title} moved to position {position} of {total}."
+      },
+      "toasts": {
+        "orderSaved": "The Featured order is live.",
+        "removed": "{title} is no longer featured. It is still published."
+      },
+      "empty": {
+        "title": "No books are featured yet",
+        "description": "Featured books appear at the top of the public books page. Choose a published, verified book from the collection to start the shelf.",
+        "action": "Browse verified books"
+      },
+      "errors": {
+        "stale_order": "The Featured shelf changed while you were working. Reload and try again.",
+        "forbidden": "You do not have permission to change the Featured shelf.",
+        "rate_limited": "Too many changes — please wait a moment and try again.",
+        "not_featured": "That book was not featured.",
+        "migration_missing": "The Featured shelf needs migration 0149 applied to the database first.",
+        "failed": "Could not update the Featured shelf — please try again."
+      },
+      "overRenderLimit": "Only the first {shown} of these {total} books appear on the public page. The rest stay curated here but are not shown to readers — remove some, or move the ones that matter into the top {shown}.",
+      "removeDialog": {
+        "title": "Remove from Featured?",
+        "description": "“{title}” will remain published in the library. It will simply no longer appear in the Featured section on the public books page.",
+        "hint": "The books below it move up one position.",
+        "confirm": "Remove from Featured",
+        "busy": "Removing…"
+      }
     }
   },
   "adminTheses": {

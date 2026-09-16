@@ -23,6 +23,9 @@ export const EBOOKS_UPLOAD_PATH = "/admin/books/upload";
 /** The quality-control workflow. */
 export const EBOOKS_DUPLICATES_PATH = "/admin/books/duplicates";
 
+/** Editorial curation: the shelf readers see at the top of /books (0149). */
+export const EBOOKS_FEATURED_PATH = "/admin/books/featured";
+
 /** Where a pending-review upload lands — the queue, not the collection. */
 export const EBOOKS_REVIEW_PATH = "/admin/review";
 

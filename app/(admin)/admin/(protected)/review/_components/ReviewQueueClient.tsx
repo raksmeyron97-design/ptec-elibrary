@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
   AlertTriangle, BookOpen, Check, CheckCheck, ClipboardCheck, Clock,
-  ExternalLink, GraduationCap, History, Pencil, Quote, RotateCcw,
-  ShieldAlert, ShieldCheck, Undo2, X,
+  ExternalLink, Eye, GraduationCap, History, Pencil, Quote, RotateCcw,
+  ShieldAlert, ShieldCheck, Undo2, UserCheck, UserPlus, X,
 } from "lucide-react";
 import {
   assignReviewer,
+  claimReviewItem,
   transitionContent,
   verifyReviewItem,
   type ReviewItem,
@@ -21,6 +22,18 @@ import {
   type ContentVersion,
 } from "@/app/actions/content-versions";
 import { STATUS_META, type CanonicalStatus } from "@/lib/content-status";
+import {
+  REVIEW_QUEUE_TABS,
+  belongsToPendingView,
+  claimedByAnother,
+  queueTabParam,
+  type QueueTab,
+} from "@/lib/review/queues";
+import {
+  CHANGE_REASONS,
+  hasChangeRationale,
+  type ChangeReason,
+} from "@/lib/review/change-reasons";
 import { ConfirmDialog, EmptyState, useToast } from "@/components/admin/kit";
 
 const GRADE_STYLES: Record<string, string> = {
@@ -30,17 +43,15 @@ const GRADE_STYLES: Record<string, string> = {
   D: "bg-red-100 text-red-800",
 };
 
-export type QueueTab = "pending" | "unverifiedLive";
-
 type Props = {
   /** One page of the active queue — the server does the slicing. */
   items: ReviewItem[];
   tab: QueueTab;
-  /** Canonical status, or "all". Only meaningful on the pending tab. */
+  /** Canonical status, or "all". Meaningless on the unverified-live tab. */
   statusFilter: string;
-  /** Counts over the whole pending queue, not the current page. */
+  /** Counts over the whole tab, not the current page. */
   statusCounts: { value: CanonicalStatus | "all"; count: number }[];
-  tabCounts: { pending: number; unverifiedLive: number };
+  tabCounts: Record<QueueTab, number>;
   /** Current ?size=, carried across tab/filter links so it survives them. */
   size?: string;
   unverifiedLiveCapped: boolean;
@@ -60,6 +71,9 @@ type Props = {
    */
   canWriteBooks: boolean;
   canWriteResearch: boolean;
+  /** Assignment is its own policy (`*.review.assign`), so it is its own prop. */
+  canAssignBooks: boolean;
+  canAssignResearch: boolean;
 };
 
 /**
@@ -69,7 +83,8 @@ type Props = {
  */
 function queueHref(opts: { tab: QueueTab; status?: string; size?: string }): string {
   const params = new URLSearchParams();
-  if (opts.tab === "unverifiedLive") params.set("tab", "unverified");
+  const tabParam = queueTabParam(opts.tab);
+  if (tabParam) params.set("tab", tabParam);
   if (opts.status && opts.status !== "all") params.set("status", opts.status);
   if (opts.size) params.set("size", opts.size);
   const qs = params.toString();
@@ -98,6 +113,60 @@ function QualityChecklist({ item }: { item: ReviewItem }) {
           </span>
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * The document itself, one click away and inside the card.
+ *
+ * Mounted only when asked — the point of the reader budget work elsewhere in
+ * this app is that nobody pays for bytes they have not requested, and a queue
+ * of ten cards each streaming a PDF would be the opposite. It is the browser's
+ * own viewer over the authenticated proxy route, not a second pdf.js instance:
+ * the reviewer is checking that the file opens and matches the metadata, which
+ * is exactly what a plain viewer answers.
+ */
+function FilePreview({ item }: { item: ReviewItem }) {
+  const t = useTranslations("adminReview.details");
+  const [open, setOpen] = useState(false);
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="focus-field inline-flex items-center gap-1.5 rounded text-[12px] font-semibold text-brand hover:underline"
+      >
+        <Eye className="h-3.5 w-3.5" aria-hidden="true" /> {t("openFile")}
+      </button>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="focus-field inline-flex items-center gap-1.5 rounded text-[12px] font-semibold text-text-muted hover:text-brand"
+        >
+          <X className="h-3.5 w-3.5" aria-hidden="true" /> {t("closeFile")}
+        </button>
+        <a
+          href={item.fileHref}
+          target="_blank"
+          rel="noreferrer"
+          className="focus-field inline-flex items-center gap-1.5 rounded text-[12px] font-semibold text-brand hover:underline"
+        >
+          <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" /> {t("openFileNewTab")}
+        </a>
+      </div>
+      <iframe
+        src={item.fileHref}
+        title={t("filePreviewTitle", { title: item.title })}
+        className="h-[420px] w-full rounded-lg border border-divider bg-paper"
+      />
     </div>
   );
 }
@@ -199,6 +268,8 @@ function ItemCard({
   canRestore,
   canWriteBooks,
   canWriteResearch,
+  canAssignBooks,
+  canAssignResearch,
   onChanged,
 }: {
   item: ReviewItem;
@@ -208,24 +279,30 @@ function ItemCard({
   canRestore: boolean;
   canWriteBooks: boolean;
   canWriteResearch: boolean;
+  canAssignBooks: boolean;
+  canAssignResearch: boolean;
   onChanged: (id: string, type: string, status: CanonicalStatus | "removed") => void;
 }) {
   /** This row's collection decides, not the page's. */
   const canMutate = item.type === "book" ? canWriteBooks : canWriteResearch;
+  const canAssign = item.type === "book" ? canAssignBooks : canAssignResearch;
   const t = useTranslations("adminReview");
+  const tReason = useTranslations("adminReview.reasons");
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
   const [note, setNote] = useState("");
+  const [reasons, setReasons] = useState<ChangeReason[]>([]);
   const TypeIcon = item.type === "book" ? BookOpen : GraduationCap;
   const meta = STATUS_META[item.status];
   const missing = item.quality.missingRequired;
   const isOwn = item.createdBy?.id === viewerId;
+  const claimedBy = claimedByAnother(item, viewerId);
 
   const isLiveQueue = variant === "unverifiedLive";
 
-  async function move(to: CanonicalStatus, opts?: { note?: string }) {
+  async function move(to: CanonicalStatus, opts?: { note?: string; reasons?: string[] }) {
     setBusy(true);
     const res = await transitionContent(item.type, item.id, to, opts);
     setBusy(false);
@@ -235,10 +312,17 @@ function ItemCard({
     }
     setNoteOpen(false);
     setNote("");
+    setReasons([]);
     toast.success(t("toasts.updated"));
     // Queue 2 holds exactly "published AND unverified", so any transition at
-    // all takes the record out of it.
-    const removed = isLiveQueue || to === "published" || to === "archived";
+    // all takes the record out of it. Everywhere else the tab's own membership
+    // rule decides — the same selector that built this list.
+    const next: ReviewItem = { ...item, status: to };
+    const removed =
+      isLiveQueue ||
+      to === "published" ||
+      to === "archived" ||
+      !belongsToPendingView(variant, next, viewerId);
     onChanged(item.id, item.type, removed ? "removed" : to);
   }
 
@@ -260,6 +344,18 @@ function ItemCard({
     setBusy(false);
     if ("error" in res) toast.error(res.error || t("toasts.failed"));
     else toast.success(t("toasts.reviewerUpdated"));
+  }
+
+  async function takeOver() {
+    setBusy(true);
+    const res = await claimReviewItem(item.type, item.id);
+    setBusy(false);
+    if ("error" in res) toast.error(res.error || t("toasts.failed"));
+    else toast.success(t("toasts.takenOver"));
+  }
+
+  function toggleReason(reason: ChangeReason) {
+    setReasons((prev) => (prev.includes(reason) ? prev.filter((r) => r !== reason) : [...prev, reason]));
   }
 
   const btn = "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition disabled:opacity-60";
@@ -290,6 +386,17 @@ function ItemCard({
                 <ShieldCheck className="h-3 w-3" aria-hidden="true" /> {t("verifiedBadge")}
               </span>
             )}
+            {/* Ownership on the front of the card, not three clicks in: "who is
+                reviewing this?" is one of the questions the queue exists to
+                answer, and it was only visible inside Details. */}
+            <span className="inline-flex items-center gap-1 rounded-full border border-divider px-2 py-0.5 text-[11px] font-semibold text-text-muted">
+              <UserCheck className="h-3 w-3" aria-hidden="true" />
+              {item.assignedReviewer
+                ? item.assignedReviewer.id === viewerId
+                  ? t("assignedToYou")
+                  : t("assignedTo", { name: item.assignedReviewer.name })
+                : t("details.unassigned")}
+            </span>
             <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-text-muted">
               <TypeIcon className="h-3.5 w-3.5" aria-hidden="true" />
               {item.type === "book" ? t("typeBook") : t("typeThesis")}
@@ -297,11 +404,47 @@ function ItemCard({
             <span className="text-[11px] text-text-muted">{new Date(item.createdAt).toLocaleDateString()}</span>
           </div>
 
-          <h3 className="mt-1.5 text-[15px] font-bold leading-snug text-text-heading">{item.title}</h3>
+          {/* tabIndex -1 so the list can move focus here after a card leaves
+              the queue; it is never in the tab order itself. */}
+          <h3 tabIndex={-1} className="mt-1.5 text-[15px] font-bold leading-snug text-text-heading focus-field rounded">{item.title}</h3>
           <p className="text-[13px] text-text-muted">
             {t("by", { author: item.author })}
             {item.createdBy && <> · {t("addedBy", { name: item.createdBy.name })}{isOwn && ` ${t("you")}`}</>}
           </p>
+
+          {/* Verification provenance: the stamp is worth what the name on it is
+              worth, so the name travels with it. */}
+          {item.verifiedAt && (
+            <p className="mt-1 inline-flex items-center gap-1 text-[12px] text-success-text">
+              <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              {item.verifiedBy
+                ? t("verifiedProvenance", {
+                    name: item.verifiedBy.name,
+                    date: new Date(item.verifiedAt).toLocaleDateString(),
+                  })
+                : t("verifiedProvenanceUnknown", {
+                    date: new Date(item.verifiedAt).toLocaleDateString(),
+                  })}
+            </p>
+          )}
+
+          {/* Advisory, never a lock — see claimedByAnother(). */}
+          {claimedBy && (
+            <p className="mt-1.5 flex flex-wrap items-center gap-2 rounded-lg border border-info-line bg-info-soft px-2.5 py-1.5 text-[12px] text-info-text">
+              <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>{t("claimedBy", { name: claimedBy.name })}</span>
+              {canAssign && (
+                <button
+                  type="button"
+                  onClick={takeOver}
+                  disabled={busy}
+                  className="focus-field inline-flex items-center gap-1 rounded-md border border-info-line bg-bg-surface px-2 py-0.5 text-[11px] font-semibold text-info-text hover:bg-paper disabled:opacity-60"
+                >
+                  <UserPlus className="h-3 w-3" aria-hidden="true" /> {t("actions.takeOver")}
+                </button>
+              )}
+            </p>
+          )}
 
           {missing.length > 0 && (
             <p
@@ -417,7 +560,38 @@ function ItemCard({
 
       {noteOpen && (
         <div className="mt-3 rounded-xl border border-orange-200 bg-orange-50/60 p-3">
-          <label htmlFor={`review-note-${item.type}-${item.id}`} className="text-[12px] font-semibold text-orange-900">
+          {/* Structured reasons + the sentence. The categories make "what do we
+              send records back for?" answerable across a term; the sentence is
+              what the editor actually acts on. Either alone is enough to send
+              it back — requiring both makes "Other" unusable. */}
+          <fieldset>
+            <legend className="text-[12px] font-semibold text-orange-900">{t("noteBox.reasonsLabel")}</legend>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {CHANGE_REASONS.map((reason) => {
+                const checked = reasons.includes(reason);
+                return (
+                  <label
+                    key={reason}
+                    className={`focus-shell inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-medium transition ${
+                      checked
+                        ? "border-orange-400 bg-orange-100 text-orange-900"
+                        : "border-orange-200 bg-white text-orange-800 hover:border-orange-300"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleReason(reason)}
+                      className="h-3.5 w-3.5 rounded-sm border-orange-300 accent-[var(--ptec-brand)]"
+                    />
+                    {tReason(reason)}
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          <label htmlFor={`review-note-${item.type}-${item.id}`} className="mt-3 block text-[12px] font-semibold text-orange-900">
             {t("noteBox.label")} <span className="font-normal">{t("noteBox.recorded")}</span>
           </label>
           <textarea
@@ -431,8 +605,8 @@ function ItemCard({
           <div className="mt-2 flex gap-2">
             <button
               type="button"
-              onClick={() => move(isLiveQueue ? "draft" : "changes_requested", { note })}
-              disabled={busy || note.trim().length === 0}
+              onClick={() => move(isLiveQueue ? "draft" : "changes_requested", { note, reasons })}
+              disabled={busy || !hasChangeRationale(reasons, note)}
               className={`${btn} bg-orange-600 text-white hover:bg-orange-700`}
             >
               {isLiveQueue ? t("noteBox.sendUnpublish") : t("noteBox.send")}
@@ -446,9 +620,15 @@ function ItemCard({
 
       {expanded && (
         <div className="mt-3 grid gap-4 border-t border-divider pt-3 lg:grid-cols-2">
-          <div>
-            <h4 className="mb-2 text-[12px] font-bold uppercase tracking-wide text-text-muted">{t("details.checklist")}</h4>
-            <QualityChecklist item={item} />
+          <div className="space-y-4">
+            <div>
+              <h4 className="mb-2 text-[12px] font-bold uppercase tracking-wide text-text-muted">{t("details.checklist")}</h4>
+              <QualityChecklist item={item} />
+            </div>
+            <div>
+              <h4 className="mb-2 text-[12px] font-bold uppercase tracking-wide text-text-muted">{t("details.file")}</h4>
+              <FilePreview item={item} />
+            </div>
           </div>
           <div className="space-y-4">
             <div>
@@ -462,7 +642,7 @@ function ItemCard({
                 <p className="mt-1 text-[11px] text-text-muted">{t("details.unverifiedNote")}</p>
               )}
             </div>
-            {canMutate && (
+            {canAssign && (
             <div>
               <label
                 htmlFor={`reviewer-${item.type}-${item.id}`}
@@ -510,37 +690,67 @@ export default function ReviewQueueClient({
   canRestore,
   canWriteBooks,
   canWriteResearch,
+  canAssignBooks,
+  canAssignResearch,
 }: Props) {
   const t = useTranslations("adminReview");
   // Optimistic state over this page's slice only: the server remounts this
   // component on every navigation, so a removed card never reappears and a
   // stale slice never outlives its URL.
   const [items, setItems] = useState(initialItems);
+  const [announcement, setAnnouncement] = useState("");
+  const listRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * After a card leaves the queue, move to the next one.
+   *
+   * Deliberately NOT an auto-advance that acts on its own: the record is
+   * removed, focus lands on the next card's heading and the count is
+   * announced, so a reviewer working a backlog keeps their place without the
+   * page deciding anything for them. An action that scrolled and then
+   * pre-selected the next record is how a stray Enter verifies the wrong book.
+   */
   function handleChanged(id: string, type: string, status: CanonicalStatus | "removed") {
-    setItems((prev) =>
-      status === "removed"
-        ? prev.filter((i) => !(i.id === id && i.type === type))
-        : prev.map((i) => (i.id === id && i.type === type ? { ...i, status } : i)),
+    if (status !== "removed") {
+      setItems((prev) => prev.map((i) => (i.id === id && i.type === type ? { ...i, status } : i)));
+      return;
+    }
+
+    // Computed from the current list rather than inside the updater: a state
+    // updater has to be pure, and this one schedules focus and an announcement.
+    const index = items.findIndex((i) => i.id === id && i.type === type);
+    const next = items.filter((i) => !(i.id === id && i.type === type));
+    const following = next[Math.min(index, next.length - 1)];
+
+    setItems(next);
+    setAnnouncement(
+      next.length === 0 ? t("announce.queueClear") : t("announce.remaining", { count: next.length }),
     );
+    if (following) {
+      // After paint: the node does not exist until the list re-renders.
+      requestAnimationFrame(() => {
+        listRef.current
+          ?.querySelector<HTMLElement>(`[data-review-card="${following.type}-${following.id}"] h3`)
+          ?.focus();
+      });
+    }
   }
 
-  const tabs: { value: QueueTab; label: string; count: number; attention: boolean }[] = [
-    { value: "pending", label: t("tabs.pending"), count: tabCounts.pending, attention: false },
-    {
-      value: "unverifiedLive",
-      label: t("tabs.unverifiedLive"),
-      count: tabCounts.unverifiedLive,
-      attention: tabCounts.unverifiedLive > 0,
-    },
-  ];
+  const tabs: { value: QueueTab; attention: boolean }[] = REVIEW_QUEUE_TABS.map((value) => ({
+    value,
+    // A dot means "somebody is waiting on you", so it is drawn for the two
+    // queues that mean exactly that and not for the backlog as a whole.
+    attention:
+      (value === "mine" || value === "unassigned" || value === "unverifiedLive") &&
+      tabCounts[value] > 0,
+  }));
 
   return (
     <div>
-      {/* Queue switch. These are two different jobs — approving something not
-          yet public vs. checking something readers can already cite — so they
-          are tabs, not one list with a status filter. */}
-      <div className="mb-4 flex flex-wrap gap-2 border-b border-divider" aria-label={t("tabs.label")}>
+      {/* Queue switch. Five views over two fetches: four readings of the
+          submitted backlog — everything, mine, unclaimed, sent back — plus the
+          separate job of checking something readers can already cite. */}
+      <div className="mb-4 flex flex-wrap gap-1 border-b border-divider" aria-label={t("tabs.label")}>
         {tabs.map((tabDef) => {
           const active = tab === tabDef.value;
           return (
@@ -557,8 +767,8 @@ export default function ReviewQueueClient({
               {tabDef.attention && (
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-warning-line" aria-hidden="true" />
               )}
-              {tabDef.label}
-              <span className="tabular-nums text-[11px] opacity-70">({tabDef.count})</span>
+              {t(`tabs.${tabDef.value}`)}
+              <span className="tabular-nums text-[11px] opacity-70">({tabCounts[tabDef.value]})</span>
             </Link>
           );
         })}
@@ -579,7 +789,7 @@ export default function ReviewQueueClient({
             return (
               <Link
                 key={f.value}
-                href={queueHref({ tab: "pending", status: f.value, size })}
+                href={queueHref({ tab, status: f.value, size })}
                 aria-current={active ? "page" : undefined}
                 className={`rounded-full px-4 py-1.5 text-[12.5px] font-semibold transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
                   active
@@ -600,28 +810,33 @@ export default function ReviewQueueClient({
           icon={
             tab === "unverifiedLive" ? <ShieldCheck className="h-6 w-6" /> : <ClipboardCheck className="h-6 w-6" />
           }
-          title={tab === "unverifiedLive" ? t("emptyUnverified.title") : t("empty.title")}
-          description={
-            tab === "unverifiedLive" ? t("emptyUnverified.description") : t("empty.description")
-          }
+          title={t(`empty.${tab}.title`)}
+          description={t(`empty.${tab}.description`)}
         />
       ) : (
-        <div className="flex flex-col gap-3">
+        <div ref={listRef} className="flex flex-col gap-3">
           {items.map((item) => (
-            <ItemCard
-              key={`${item.type}-${item.id}`}
-              item={item}
-              variant={tab}
-              reviewers={reviewers}
-              viewerId={viewerId}
-              canRestore={canRestore}
-              canWriteBooks={canWriteBooks}
-              canWriteResearch={canWriteResearch}
-              onChanged={handleChanged}
-            />
+            <div key={`${item.type}-${item.id}`} data-review-card={`${item.type}-${item.id}`}>
+              <ItemCard
+                item={item}
+                variant={tab}
+                reviewers={reviewers}
+                viewerId={viewerId}
+                canRestore={canRestore}
+                canWriteBooks={canWriteBooks}
+                canWriteResearch={canWriteResearch}
+                canAssignBooks={canAssignBooks}
+                canAssignResearch={canAssignResearch}
+                onChanged={handleChanged}
+              />
+            </div>
           ))}
         </div>
       )}
+
+      <p aria-live="polite" className="sr-only">
+        {announcement}
+      </p>
     </div>
   );
 }

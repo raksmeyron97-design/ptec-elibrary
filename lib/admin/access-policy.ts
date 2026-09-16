@@ -153,6 +153,10 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   { id: "books.manage", route: "/admin/books", requires: perm("books", "read"), navKey: "manageEbooks" },
   { id: "books.upload", route: "/admin/books/upload", requires: perm("books", "write"), backTo: "/admin/books" },
   { id: "books.duplicates", route: "/admin/books/duplicates", requires: perm("books", "write"), backTo: "/admin/books" },
+  /* Curation is READ, like the collection: seeing what the library promotes on
+     /books is part of knowing the collection, and every control that changes
+     the shelf is gated separately on `books.feature`. */
+  { id: "books.featured", route: "/admin/books/featured", requires: perm("books", "read"), navKey: "featuredBooks", backTo: "/admin/books" },
   { id: "books.edit", route: "/admin/edit/[id]", requires: perm("books", "write"), backTo: "/admin/books" },
   /* The queue is READ. Everything you *do* to an item in it is WRITE, checked
      per action — protecting the whole page with `books: write` would hide the
@@ -311,6 +315,14 @@ export const ACTION_POLICIES: Readonly<Record<string, Requirement>> = {
   "books.bulk": perm("books", "write"),
   "books.replaceFile": perm("books", "write"),
   "books.retireDuplicate": perm("books", "write"),
+  /* Editorial curation — the "Featured by PTEC Library" shelf (0149).
+     One id for feature, unfeature and reorder: all three are the same
+     authority over the same public surface, and splitting them would create
+     ids that no configuration could ever hold apart. Reading the shelf is
+     separate, and is the only read-level action in this table besides the
+     review queue's. */
+  "books.featured.view": perm("books", "read"),
+  "books.feature": perm("books", "write"),
   // Review queue — read the queue, write to move anything in it
   "books.review.view": perm("books", "read"),
   "books.review.approve": perm("books", "write"),

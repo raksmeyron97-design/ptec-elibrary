@@ -22,7 +22,9 @@ export default function PageHeader({
       <div className="min-w-0">
         {breadcrumb && <div className="mb-3">{breadcrumb}</div>}
         <h1 className="mb-1 text-2xl font-semibold tracking-tight text-text-heading">{title}</h1>
-        {description && <p className="max-w-2xl text-sm text-text-muted">{description}</p>}
+        {/* `div`, not `p` — see EmptyState: a React.ReactNode slot cannot live
+            in a paragraph without risking a hydration mismatch. */}
+        {description && <div className="max-w-2xl text-sm text-text-muted">{description}</div>}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>

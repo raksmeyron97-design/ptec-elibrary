@@ -107,12 +107,21 @@ export default function ConfirmDialog({
             <h2 id={headingId} className="text-lg font-bold text-text-heading">
               {title}
             </h2>
+            {/* `div`, not `p`. Both slots are typed React.ReactNode, and a
+                paragraph auto-closes the moment a caller passes a block
+                element — the parser re-parents the rest, so the DOM stops
+                matching what React server-rendered and hydration fails. It is
+                invisible to jsdom and to a production build; it surfaced as a
+                real hydration error the first time a dialog showed a book
+                cover beside its title. Same failure `InfoTip` inside a `<p>`
+                caused on the dashboard (see
+                components/admin/dashboard/markup-nesting.test.ts). */}
             {description && (
-              <p id={descriptionId} className="mt-1.5 text-sm text-text-body">
+              <div id={descriptionId} className="mt-1.5 text-sm text-text-body">
                 {description}
-              </p>
+              </div>
             )}
-            {hint && <p className="mt-2 text-xs text-text-muted">{hint}</p>}
+            {hint && <div className="mt-2 text-xs text-text-muted">{hint}</div>}
           </div>
         </div>
 
