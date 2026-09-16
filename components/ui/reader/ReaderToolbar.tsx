@@ -1,6 +1,14 @@
 "use client";
 
-import { useId, type ButtonHTMLAttributes, type ReactNode, type Ref } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ButtonHTMLAttributes,
+  type ReactNode,
+  type Ref,
+} from "react";
 import { Maximize2, Minimize2, RotateCcw } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -16,6 +24,16 @@ type ReaderToolbarProps = {
   onClose?: () => void;
   announce?: boolean;
   actionButtonRef?: Ref<HTMLButtonElement>;
+  /**
+   * How much of the control is on show. "full" (the default) is the three-part
+   * A− / % / A+ strip; "compact" folds those behind one "Aa" disclosure and is
+   * honoured only for `mode="inline"` — a dialog IS the reading surface, so its
+   * controls stay out where a reader can reach them in one press.
+   *
+   * Opt-in on purpose: the thesis abstract reader renders this same inline
+   * toolbar and is outside the journal-article redesign.
+   */
+  variant?: "full" | "compact";
 };
 
 type ToolbarButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -92,10 +110,140 @@ export default function ReaderToolbar({
   onClose,
   announce = true,
   actionButtonRef,
+  variant = "full",
 }: ReaderToolbarProps) {
   const t = useTranslations("abstractReader");
   const currentSizeLabel = t("currentTextSize", { size: textSize });
   const resetLabel = t("resetTextSize");
+  const panelId = `reader-text-size-${useId().replace(/:/g, "")}`;
+  const [sizeOpen, setSizeOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const compact = variant === "compact" && mode === "inline";
+
+  // Light dismiss, the two ways a disclosure is expected to close: Escape
+  // (focus goes back to the control that opened it, so a keyboard reader is
+  // never dropped at the top of the document) and a press outside it.
+  useEffect(() => {
+    if (!sizeOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      setSizeOpen(false);
+      triggerRef.current?.focus();
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (popoverRef.current?.contains(target) || triggerRef.current?.contains(target)) return;
+      setSizeOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, true);
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [sizeOpen]);
+
+  const sizeControls = (
+    <>
+      <ToolbarButton
+        label={t("decreaseTextSize")}
+        onClick={onDecrease}
+        disabled={!canDecrease}
+        tooltipAlign="left"
+      >
+        <span aria-hidden="true" className="font-sans text-[15px] tracking-[-0.04em]">
+          A−
+        </span>
+      </ToolbarButton>
+
+      <ToolbarButton
+        label={`${currentSizeLabel}. ${resetLabel}`}
+        onClick={onReset}
+        compact={false}
+        tooltip={resetLabel}
+        className="min-w-[3.75rem] gap-1 px-2 tabular-nums sm:min-w-[5.25rem]"
+      >
+        <span aria-hidden="true">{textSize}%</span>
+        <RotateCcw aria-hidden="true" className="hidden h-3.5 w-3.5 sm:block" />
+      </ToolbarButton>
+
+      <ToolbarButton
+        label={t("increaseTextSize")}
+        onClick={onIncrease}
+        disabled={!canIncrease}
+      >
+        <span aria-hidden="true" className="font-sans text-[15px] tracking-[-0.04em]">
+          A+
+        </span>
+      </ToolbarButton>
+    </>
+  );
+
+  if (compact) {
+    return (
+      <div className="relative shrink-0 print:hidden">
+        <div
+          role="group"
+          aria-label={t("toolbarLabel")}
+          className="inline-flex max-w-full items-center gap-0.5 rounded-xl border border-[var(--ptec-reader-control-border)] bg-bg-surface p-0.5 shadow-sm"
+        >
+          {/* Trigger and its panel share a positioning context so the panel
+              follows the trigger in the tab order rather than after the
+              whole group. */}
+          <span className="relative inline-flex">
+            <ToolbarButton
+              label={t("textSize")}
+              onClick={() => setSizeOpen((open) => !open)}
+              aria-expanded={sizeOpen}
+              aria-controls={panelId}
+              buttonRef={triggerRef}
+              tooltipAlign="left"
+            >
+              <span aria-hidden="true" className="font-sans text-[15px] font-bold tracking-[-0.02em]">
+                Aa
+              </span>
+            </ToolbarButton>
+
+            {sizeOpen && (
+              <div
+                id={panelId}
+                ref={popoverRef}
+                // Anchored to the trigger's RIGHT edge so it opens inward.
+                // Left-anchored it ran off a 390 px screen — the toolbar sits
+                // at the right of the text column, so "A+" was past the edge
+                // and unreachable on exactly the devices most readers use.
+                className="absolute right-0 top-[calc(100%+0.4rem)] z-[1100] w-max rounded-xl border border-[var(--ptec-reader-control-border)] bg-bg-surface p-2 shadow-lg"
+              >
+                <p className="mb-1 px-1 text-[11.5px] font-bold uppercase tracking-[0.1em] text-text-muted [&:lang(km)]:font-khmer-serif [&:lang(km)]:normal-case [&:lang(km)]:tracking-normal">
+                  {t("textSize")}
+                </p>
+                <div className="flex items-center gap-0.5">{sizeControls}</div>
+              </div>
+            )}
+          </span>
+
+          <span aria-hidden="true" className="mx-0.5 h-6 w-px shrink-0 bg-[var(--ptec-reader-control-border)]" />
+
+          <ToolbarButton
+            label={t("open")}
+            onClick={onOpen}
+            tooltipAlign="right"
+            buttonRef={actionButtonRef}
+          >
+            <Maximize2 aria-hidden="true" className="h-[18px] w-[18px]" />
+          </ToolbarButton>
+        </div>
+
+        {announce && (
+          <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+            {t("textSizeAnnouncement", { size: textSize })}
+          </span>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="relative shrink-0 print:hidden">
@@ -104,37 +252,7 @@ export default function ReaderToolbar({
         aria-label={t("toolbarLabel")}
         className="inline-flex max-w-full items-center gap-0.5 rounded-xl border border-[var(--ptec-reader-control-border)] bg-bg-surface p-0.5 shadow-sm"
       >
-        <ToolbarButton
-          label={t("decreaseTextSize")}
-          onClick={onDecrease}
-          disabled={!canDecrease}
-          tooltipAlign="left"
-        >
-          <span aria-hidden="true" className="font-sans text-[15px] tracking-[-0.04em]">
-            A−
-          </span>
-        </ToolbarButton>
-
-        <ToolbarButton
-          label={`${currentSizeLabel}. ${resetLabel}`}
-          onClick={onReset}
-          compact={false}
-          tooltip={resetLabel}
-          className="min-w-[3.75rem] gap-1 px-2 tabular-nums sm:min-w-[5.25rem]"
-        >
-          <span aria-hidden="true">{textSize}%</span>
-          <RotateCcw aria-hidden="true" className="hidden h-3.5 w-3.5 sm:block" />
-        </ToolbarButton>
-
-        <ToolbarButton
-          label={t("increaseTextSize")}
-          onClick={onIncrease}
-          disabled={!canIncrease}
-        >
-          <span aria-hidden="true" className="font-sans text-[15px] tracking-[-0.04em]">
-            A+
-          </span>
-        </ToolbarButton>
+        {sizeControls}
 
         <span aria-hidden="true" className="mx-0.5 h-6 w-px shrink-0 bg-[var(--ptec-reader-control-border)]" />
 

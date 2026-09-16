@@ -94,7 +94,13 @@ function toRow(r: Record<string, unknown>, broken: BrokenMap): EbookListRow {
 // dedupe bug) — every "collect ids" helper sets an explicit generous limit.
 const ID_SCAN_LIMIT = 10_000;
 
-/** Distinct book ids that have at least one book_files row with a real file URL. */
+/**
+ * Distinct book ids that have at least one book_files row with a real file URL.
+ * Used only by getEbooksSummary() for the stat-bar "Missing PDFs" count — the
+ * result is a Set<string> consumed in JS, so no UUIDs are injected into a URL.
+ * Do NOT use this to build a NOT IN (…) PostgREST filter; that path causes
+ * HTTP 414 URI Too Long for any collection with more than ~200 books.
+ */
 async function getPdfBookIds(supabase: ServiceClient): Promise<Set<string>> {
   const { data } = await supabase
     .from("book_files")
@@ -156,10 +162,16 @@ function applyIdList(query: any, ids: string[]) { // eslint-disable-line @typesc
 }
 
 /**
- * Applies every filter except `quality` (which needs a JS scoring pass — see
- * getEbooks). Returns `{ query }` rather than the bare builder: Supabase
- * query builders are thenable, so `return query` from an async function gets
- * flattened into an executed result by the await machinery.
+ * Applies every filter except `quality` and `fileStatus` (which both need a JS
+ * pass — see getEbooks). `fileStatus` is excluded here because `has_pdf` /
+ * `missing_pdf` would require injecting thousands of UUIDs into a NOT IN (…)
+ * URL param, which exceeds the 8 KB URI limit enforced by PostgREST/Cloudflare
+ * when the collection has 1 000+ books (HTTP 414 / 400). `large_file` and
+ * `broken_file` are kept together in the JS pass for consistency.
+ *
+ * Returns `{ query }` rather than the bare builder: Supabase query builders are
+ * thenable, so `return query` from an async function gets flattened into an
+ * executed result by the await machinery.
  */
 async function applyFilters(
   supabase: ServiceClient,
@@ -187,27 +199,6 @@ async function applyFilters(
   const year = Number(params.year);
   if (params.year && Number.isInteger(year) && year > 0) {
     query = query.gte("published_at", `${year}-01-01`).lte("published_at", `${year}-12-31`);
-  }
-
-  if (params.fileStatus && params.fileStatus !== "all") {
-    if (params.fileStatus === "has_pdf" || params.fileStatus === "missing_pdf") {
-      const pdfIds = Array.from(await getPdfBookIds(supabase));
-      if (params.fileStatus === "has_pdf") {
-        query = applyIdList(query, pdfIds);
-      } else if (pdfIds.length) {
-        query = query.not("id", "in", `(${pdfIds.join(",")})`);
-      }
-    } else if (params.fileStatus === "large_file") {
-      const { data } = await supabase
-        .from("book_files")
-        .select("book_id")
-        .gte("file_size_kb", LARGE_FILE_KB)
-        .limit(ID_SCAN_LIMIT);
-      query = applyIdList(query, (data ?? []).map((r: { book_id: string }) => r.book_id));
-    } else if (params.fileStatus === "broken_file") {
-      const ids = Array.from(broken.entries()).filter(([, v]) => v.file).map(([id]) => id);
-      query = applyIdList(query, ids);
-    }
   }
 
   // Verification is orthogonal to status — combining the two (?status=published
@@ -351,10 +342,14 @@ function qualityOf(row: EbookListRow) {
 }
 
 // Caps the "fetch everything, score/sort in JS" path used for quality
-// filtering and file-size sorting (file size lives on the book_files
-// relation, so SQL can't order by it). The PTEC library is low hundreds of
-// e-books — far cheaper than maintaining stored, driftable scores.
-const QUALITY_SCAN_CAP = 2000;
+// filtering, file-status filtering, and file-size sorting. fileStatus (has_pdf,
+// missing_pdf, large_file, broken_file) joins against book_files and is resolved
+// by toRow() into fileUrl / fileSizeKb / fileBroken, so all filtering is done
+// here in JS rather than serialising thousands of UUIDs into a URL parameter
+// (which causes HTTP 414 URI Too Long on PostgREST/Cloudflare at scale).
+// Set to ID_SCAN_LIMIT so the cap never clips a collection smaller than the
+// other scan-wide helpers already query up to.
+const QUALITY_SCAN_CAP = 10_000;
 
 export async function getEbooks(
   params: EbooksQueryParams,
@@ -363,6 +358,8 @@ export async function getEbooks(
   const broken = await getBrokenMap(supabase);
   const needsJsPass =
     Boolean(params.quality && params.quality !== "all") ||
+    // fileStatus filtering is done in JS — see applyFilters() comment.
+    Boolean(params.fileStatus && params.fileStatus !== "all") ||
     params.sort === "metadata-quality" ||
     params.sort === "size-desc" ||
     params.sort === "size-asc";
@@ -396,7 +393,9 @@ export async function getEbooks(
     };
   }
 
-  // Quality/size path: filter/sort in JS, then paginate.
+  // Quality / fileStatus / size path: scan all matching rows, filter/sort in JS,
+  // then paginate. applyFilters() still handles status, dept, category, language,
+  // year, verification, and coverStatus — reducing the scan set before the JS pass.
   const runScan = async (withUpdatedAt: boolean) => {
     let query = supabase.from("books").select(listColumns(withUpdatedAt)).limit(QUALITY_SCAN_CAP);
     ({ query } = await applyFilters(supabase, query, params, broken));
@@ -413,6 +412,21 @@ export async function getEbooks(
   }
 
   let rows = ((scan.data ?? []) as unknown as Record<string, unknown>[]).map((r) => toRow(r, broken));
+
+  // fileStatus JS filter — toRow() resolves fileUrl / fileSizeKb / fileBroken
+  // from the joined book_files relation, so no extra query is needed here.
+  if (params.fileStatus && params.fileStatus !== "all") {
+    if (params.fileStatus === "has_pdf") {
+      rows = rows.filter((r) => Boolean(r.fileUrl));
+    } else if (params.fileStatus === "missing_pdf") {
+      rows = rows.filter((r) => !r.fileUrl);
+    } else if (params.fileStatus === "large_file") {
+      rows = rows.filter((r) => (r.fileSizeKb ?? 0) >= LARGE_FILE_KB);
+    } else if (params.fileStatus === "broken_file") {
+      rows = rows.filter((r) => r.fileBroken);
+    }
+  }
+
   if (params.quality && params.quality !== "all") {
     rows = rows.filter((r) => qualityOf(r).tier === params.quality);
   }

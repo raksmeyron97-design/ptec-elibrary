@@ -7,6 +7,14 @@
 // The full abstract always stays in the DOM (collapse is pure CSS clipping),
 // so SEO, printing (print: overrides), no-JS readers (noscript override), and
 // citation fragment anchors all see the complete text.
+//
+// The same rule governs the LANGUAGE switch. A bilingual record used to print
+// both abstracts one below the other, so a reader who could read one of them
+// still paid the other's height before reaching the rest of the article. Only
+// one is visible now, but the other is `hidden` — still in the DOM — because
+// everything above depends on it being there: a crawler, the print stylesheet,
+// a reader without JavaScript, and the reference back-links that point INTO
+// whichever abstract cited them.
 
 import {
   useEffect,
@@ -18,6 +26,7 @@ import {
 } from "react";
 import { useTranslations } from "next-intl";
 import { ChevronDown, Clock, FileText } from "lucide-react";
+import AbstractLanguageSwitch from "@/components/ui/publications/AbstractLanguageSwitch";
 import AbstractReaderDialog from "@/components/ui/publications/AbstractReaderDialog";
 import AcademicText from "@/components/ui/publications/AcademicText";
 import ArticleSectionHeading from "@/components/ui/publications/article/ArticleSectionHeading";
@@ -25,6 +34,11 @@ import ReaderToolbar from "@/components/ui/reader/ReaderToolbar";
 import { useReaderPreferences } from "@/components/ui/reader/useReaderPreferences";
 import type { PublicationReference } from "@/lib/publications";
 import { academicTextToPlainText } from "@/lib/publications/citations";
+import {
+  resolveAbstractLanguage,
+  wordCountIsMeaningful,
+  type AbstractLang,
+} from "@/lib/publications/abstract-language";
 
 const WORDS_PER_MINUTE = 200;
 // Only a genuinely long abstract is ever clipped, and the decision is made on
@@ -37,6 +51,11 @@ const WORDS_PER_MINUTE = 200;
 // or a long Khmer abstract) it is long enough that the rest of the article
 // deserves to be reachable, and the block folds to 28 lines.
 const LONG_ABSTRACT_CHARS = 2400;
+// Stable ids: the language switch names the panel it governs, the no-JS
+// stylesheet reveals both, and the reference back-links are resolved by
+// asking which panel CONTAINS the target. The section renders once per page.
+const PANEL_ID = { en: "abstract-panel-en", km: "abstract-panel-km" } as const;
+const LANGUAGE_SWITCH_ID = "abstract-language-switch";
 const COLLAPSED_MAX_HEIGHT = "49em";
 
 type ReaderScaleStyle = CSSProperties & { "--reader-scale": number };
@@ -196,7 +215,7 @@ export default function PublicationAbstractSection({
   references: PublicationReference[];
   heading: string;
   publicationTitle: string;
-  /** Page locale: on /km the Khmer abstract leads. Both stay in the DOM. */
+  /** Page locale: it decides which language OPENS. Both stay in the DOM. */
   locale?: string;
 }) {
   const t = useTranslations("publicationDetail");
@@ -210,10 +229,64 @@ export default function PublicationAbstractSection({
     canDecrease,
     canIncrease,
   } = useReaderPreferences();
-  const plain = academicTextToPlainText(abstract, references);
+
+  // Pure, and shared with nothing else on the page: which language opens, and
+  // whether the reader is offered a choice at all.
+  const choice = resolveAbstractLanguage(abstract, abstractKm, locale);
+  const [activeLang, setActiveLang] = useState<AbstractLang>(choice.active);
+  // The effects below read the current language without re-subscribing.
+  const activeLangRef = useRef(activeLang);
+  const [announceLang, setAnnounceLang] = useState(false);
+
+  const selectLang = (lang: AbstractLang) => {
+    activeLangRef.current = lang;
+    setActiveLang(lang);
+    setAnnounceLang(true);
+  };
+
+  // A reference back-link points INTO one of the two abstracts, and the one it
+  // points into may be the language currently folded away. Following it has to
+  // bring that language forward — otherwise the link silently does nothing,
+  // which is the same defect the collapse used to have before it learned to
+  // reveal its own hash target.
+  useEffect(() => {
+    const revealLanguageOfHashTarget = () => {
+      const hash = window.location.hash.slice(1);
+      if (!hash) return;
+      const target = document.getElementById(hash);
+      if (!target) return;
+      const holder = (["en", "km"] as const).find((lang) =>
+        document.getElementById(PANEL_ID[lang])?.contains(target),
+      );
+      if (!holder || holder === activeLangRef.current) return;
+      activeLangRef.current = holder;
+      setActiveLang(holder);
+      // Two frames: the first lets React commit the reveal, the second scrolls
+      // to an element that is now actually laid out. Scrolling to a `hidden`
+      // element is a no-op, which is why the block's own reveal is not enough.
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          target.scrollIntoView({
+            block: "center",
+            behavior: prefersReducedMotion() ? "auto" : "smooth",
+          });
+          target.focus?.({ preventScroll: true });
+        }),
+      );
+    };
+    revealLanguageOfHashTarget();
+    window.addEventListener("hashchange", revealLanguageOfHashTarget);
+    return () => window.removeEventListener("hashchange", revealLanguageOfHashTarget);
+  }, []);
+
+  // The meter describes the text on show. It used to be computed from the
+  // English abstract whichever language was leading, so a Khmer reader was told
+  // how long a paragraph they were not looking at would take.
+  const meterText = activeLang === "km" ? abstractKm ?? "" : abstract;
+  const plain = meterText ? academicTextToPlainText(meterText, references) : "";
   const words = plain ? plain.split(/\s+/).filter(Boolean).length : 0;
   const readingMinutes = words > 0 ? Math.max(1, Math.round(words / WORDS_PER_MINUTE)) : 0;
-  const khmerFirst = locale === "km" && !!abstractKm;
+  const showMeter = words > 0 && wordCountIsMeaningful(activeLang);
 
   const englishBlock = abstract ? (
     <ExpandableAcademicBlock
@@ -226,9 +299,7 @@ export default function PublicationAbstractSection({
       className="font-sans"
       collapsible={abstract.length > LONG_ABSTRACT_CHARS}
     />
-  ) : (
-    <p className="text-[15px] text-text-muted">{t("abstractNone")}</p>
-  );
+  ) : null;
 
   const khmerBlock = abstractKm ? (
     <ExpandableAcademicBlock
@@ -260,6 +331,10 @@ export default function PublicationAbstractSection({
             onIncrease={increaseTextSize}
             onReset={resetTextSize}
             mode="inline"
+            // One "Aa" beside the heading rather than a four-button strip: the
+            // heading of the section a reader came for should outweigh the
+            // control that resizes it.
+            variant="compact"
             onOpen={() => setReaderOpen(true)}
             announce={!readerOpen}
             actionButtonRef={openReaderButtonRef}
@@ -269,43 +344,101 @@ export default function PublicationAbstractSection({
         {heading}
       </ArticleSectionHeading>
 
-      {words > 0 && (
-        <p className="mb-4 flex flex-wrap items-center gap-3 text-[12px] text-text-muted">
-          <span className="inline-flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-            {t("abstractMinRead", { count: readingMinutes })}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-            {t("abstractWordCount", { count: words })}
-          </span>
-        </p>
+      {/* One meta line about the text you are about to read: which language it
+          is in, then how long it is. The switch is FIRST and stays put — right
+          -aligning it against the meter looked balanced until you pressed it,
+          because the meter is withheld for Khmer and the control then jumped
+          across the row. */}
+      {(choice.switchable || showMeter) && (
+        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+          {choice.switchable && (
+            <div id={LANGUAGE_SWITCH_ID}>
+              <AbstractLanguageSwitch
+                active={activeLang}
+                onChange={selectLang}
+                groupLabel={t("abstractLanguageLabel")}
+                options={[
+                  {
+                    lang: "en",
+                    label: t("abstractLanguageEnShort"),
+                    name: t("abstractEnglish"),
+                    controls: PANEL_ID.en,
+                  },
+                  {
+                    lang: "km",
+                    label: t("abstractLanguageKmShort"),
+                    name: t("abstractKhmer"),
+                    controls: PANEL_ID.km,
+                  },
+                ]}
+              />
+            </div>
+          )}
+          {showMeter && (
+            <p className="flex flex-wrap items-center gap-3 text-[12px] text-text-muted">
+              <span className="inline-flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                {t("abstractMinRead", { count: readingMinutes })}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                {t("abstractWordCount", { count: words })}
+              </span>
+            </p>
+          )}
+        </div>
       )}
 
       <div className="mt-3">
-        {khmerFirst ? (
-          <>
-            <h3 className="sr-only">{t("abstractKhmer")}</h3>
-            {khmerBlock}
-            {abstract && (
-              <div className="mt-5 border-t border-divider pt-4">
-                <h3 className="sr-only">{t("abstractEnglish")}</h3>
-                {englishBlock}
-              </div>
-            )}
-          </>
+        {choice.none ? (
+          <p className="text-[15px] text-text-muted">{t("abstractNone")}</p>
         ) : (
           <>
-            {englishBlock}
-            {khmerBlock && (
-              <div className="mt-5 border-t border-divider pt-4">
-                <h3 className="sr-only">{t("abstractKhmer")}</h3>
-                {khmerBlock}
-              </div>
-            )}
+            {/* DOM order is the reader's language first, so a screen reader
+                and a no-JS browser both meet the useful one first. */}
+            {(activeLang === "km" ? ["km", "en"] : ["en", "km"] as const).map((lang) => {
+              const block = lang === "km" ? khmerBlock : englishBlock;
+              if (!block) return null;
+              const hidden = choice.switchable && lang !== activeLang;
+              return (
+                <div
+                  key={lang}
+                  id={PANEL_ID[lang as AbstractLang]}
+                  hidden={hidden}
+                  // On paper there is no control to switch with, so both
+                  // languages print — the record is bilingual either way.
+                  className={hidden ? "print:!block" : undefined}
+                >
+                  <h3 className="sr-only">
+                    {lang === "km" ? t("abstractKhmer") : t("abstractEnglish")}
+                  </h3>
+                  {block}
+                </div>
+              );
+            })}
           </>
         )}
       </div>
+
+      {/* Without JavaScript the switch cannot switch, so it is removed and
+          both languages are shown — the pre-switch behaviour exactly. */}
+      <noscript>
+        <style>
+          {`#${PANEL_ID.en},#${PANEL_ID.km}{display:block!important}#${LANGUAGE_SWITCH_ID}{display:none!important}`}
+        </style>
+      </noscript>
+
+      {/* Polite live text, not a second role="status": the toolbar already owns
+          one on this section, and two status regions on one heading is two
+          things competing to be read. Announced only after a real choice — on
+          load it would describe a state the reader never asked for. */}
+      <span className="sr-only" aria-live="polite" aria-atomic="true">
+        {announceLang
+          ? activeLang === "km"
+            ? t("abstractShowingKhmer")
+            : t("abstractShowingEnglish")
+          : ""}
+      </span>
 
       <AbstractReaderDialog
         open={readerOpen}
@@ -316,6 +449,9 @@ export default function PublicationAbstractSection({
         abstractKm={abstractKm}
         references={references}
         locale={locale}
+        activeLang={activeLang}
+        onLangChange={selectLang}
+        switchable={choice.switchable}
         textSize={textSize}
         canDecrease={canDecrease}
         canIncrease={canIncrease}

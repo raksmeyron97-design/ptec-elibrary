@@ -19,9 +19,73 @@ const primaryOutline =
   "inline-flex min-h-12 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-brand bg-bg-surface px-3 text-[15px] font-bold text-brand transition-colors duration-150 hover:bg-brand/5 sm:flex-none sm:px-6";
 const secondary =
   "inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 text-[14px] font-semibold text-text-body transition-colors duration-150 hover:bg-paper hover:text-brand";
+// In the rail the same controls are a column of quiet entries, so they read as
+// a tool list beside the article rather than a second set of buttons competing
+// with the two that matter.
+const railItem =
+  "inline-flex min-h-10 w-full cursor-pointer items-center gap-2.5 rounded-md text-[13.5px] font-semibold text-text-muted transition-colors duration-150 hover:text-brand";
 
 /**
- * The article's action row.
+ * The article's utility actions — cite, save, collect, share.
+ *
+ * One component, two shapes. Below `lg` they sit under the primary buttons as
+ * a wrapping row; from `lg` they are the top of the right-hand tool rail, which
+ * is where a scholarly reader looks for them (and what lets the rail start at
+ * the masthead instead of at the abstract, leaving the top-right of the page
+ * empty). They are never drawn twice: the page hides the row at `lg`.
+ */
+export function ArticleUtilityActions({
+  id,
+  title,
+  shareUrl,
+  orientation,
+  className = "",
+}: {
+  id: string;
+  title: string;
+  shareUrl: string;
+  orientation: "row" | "column";
+  className?: string;
+}) {
+  const t = useTranslations("publicationDetail");
+  const item = orientation === "column" ? railItem : secondary;
+
+  return (
+    <div
+      className={
+        orientation === "column"
+          ? `flex flex-col items-start gap-0.5 ${className}`
+          : // 2 × 2 on a phone, so no action is left alone on a second row;
+            // one wrapping row from `sm`.
+            `grid grid-cols-2 gap-1 sm:-ml-3 sm:flex sm:flex-wrap sm:items-center ${className}`
+      }
+    >
+      <button type="button" onClick={() => openCiteDialog()} aria-haspopup="dialog" className={item}>
+        <Quote className="h-4 w-4 shrink-0" aria-hidden="true" />
+        {t("cite")}
+      </button>
+      {/* Save is this browser's shortcut list; Add to list is the account's
+          collections (0136). Both existed before and both are kept. */}
+      <BookmarkButton
+        id={id}
+        contentType="publication"
+        plain
+        label={{ saved: t("bookmarkSaved"), unsaved: t("save") }}
+        className={item}
+      />
+      <ReadingListButton
+        recordId={id}
+        recordType="publication"
+        className={item}
+        label={{ add: t("addToList"), inLists: (count) => t("inLists", { count }) }}
+      />
+      <ShareButton url={shareUrl} title={title} label={t("share")} className={item} />
+    </div>
+  );
+}
+
+/**
+ * The article's primary action row.
  *
  * `canRead` / `canDownload` are lib/publications/access.ts's answer — the SAME
  * resolution /api/publications/[slug]/file enforces — so this row can never
@@ -48,7 +112,7 @@ export default function ArticleActions({
   const t = useTranslations("publicationDetail");
 
   return (
-    <div id={ARTICLE_ACTIONS_ID} className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5">
+    <div id={ARTICLE_ACTIONS_ID} className="flex flex-col gap-3">
       {(canRead || canDownload) && (
         <div className="flex gap-2">
           {canRead && (
@@ -75,30 +139,14 @@ export default function ArticleActions({
         </div>
       )}
 
-      {/* 2 × 2 on a phone, so no action is left alone on a second row; one
-          wrapping row from `sm`. */}
-      <div className="grid grid-cols-2 gap-1 sm:-ml-3 sm:flex sm:flex-wrap sm:items-center">
-        <button type="button" onClick={() => openCiteDialog()} aria-haspopup="dialog" className={secondary}>
-          <Quote className="h-4 w-4" aria-hidden="true" />
-          {t("cite")}
-        </button>
-        {/* Save is this browser's shortcut list; Add to list is the account's
-            collections (0136). Both existed before and both are kept. */}
-        <BookmarkButton
-          id={id}
-          contentType="publication"
-          plain
-          label={{ saved: t("bookmarkSaved"), unsaved: t("save") }}
-          className={secondary}
-        />
-        <ReadingListButton
-          recordId={id}
-          recordType="publication"
-          className={secondary}
-          label={{ add: t("addToList"), inLists: (count) => t("inLists", { count }) }}
-        />
-        <ShareButton url={shareUrl} title={title} label={t("share")} className={secondary} />
-      </div>
+      {/* From `lg` these live at the top of the tool rail instead. */}
+      <ArticleUtilityActions
+        id={id}
+        title={title}
+        shareUrl={shareUrl}
+        orientation="row"
+        className="lg:hidden"
+      />
     </div>
   );
 }

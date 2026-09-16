@@ -162,20 +162,49 @@ export default async function ArticleHeader({
         fallbackNames={fallbackNames}
       />
 
-      {/* ── Where, when, and its identifier ── */}
-      <div className="mt-5 space-y-2.5 border-t border-divider pt-4">
+      {/* ── Where, when, and its identifier ──────────────────────────────
+          One identity block, not four sentences. These used to be three
+          stacked lines at three sizes with three alignments — a citation line,
+          a date-and-rights line, a DOI line — which read as unrelated facts
+          rather than as the record's identity. A label→value list is how a
+          scholarly index presents them, and it survives a long journal name,
+          a missing DOI and a record with no issue date, because each row is
+          drawn only when its value exists. */}
+      <dl className="mt-4 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-5 gap-y-2 border-t border-divider pt-3.5">
         {citationLine && (
-          <p className="text-[14.5px] leading-6 text-text-body">
-            <span className="font-semibold text-text-heading">{t("citeThis")}</span> <cite className="not-italic">{citationLine}</cite>
-          </p>
+          <>
+            <dt className={`text-text-muted ${EYEBROW}`}>{t("fieldCiteThis")}</dt>
+            <dd className="min-w-0 text-[14.5px] leading-6 text-text-body">
+              <cite className="not-italic">{citationLine}</cite>
+            </dd>
+          </>
+        )}
+        {dates.published && (
+          <>
+            <dt className={`text-text-muted ${EYEBROW}`}>{t("fieldPublished")}</dt>
+            <dd className="min-w-0 text-[14.5px] leading-6 text-text-body">{dates.published}</dd>
+          </>
+        )}
+        {/* Only when the issue carries a date of its own AND it is not the
+            same fact already stated above. */}
+        {dates.issue && dates.issue !== dates.published && (
+          <>
+            <dt className={`text-text-muted ${EYEBROW}`}>{t("fieldIssueDate")}</dt>
+            <dd className="min-w-0 text-[14.5px] leading-6 text-text-body">{dates.issue}</dd>
+          </>
+        )}
+        {doi && (
+          <>
+            <dt className={`text-text-muted ${EYEBROW}`}>DOI</dt>
+            <dd className="min-w-0">
+              <ArticleDoi doi={doi.value} href={doi.href} showLabel={false} />
+            </dd>
+          </>
         )}
         {/* Always present: the rights badge states "not stated" rather than
             leaving the question open. */}
-        <p className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13.5px] text-text-muted">
-          {dates.published && <span>{t("publishedOn", { date: dates.published })}</span>}
-          {dates.issue && <span>{t("issueDateOn", { date: dates.issue })}</span>}
-          {counts.views !== null && <span>{t("srViews", { count: counts.views })}</span>}
-          {counts.downloads !== null && <span>{t("srDownloads", { count: counts.downloads })}</span>}
+        <dt className={`text-text-muted ${EYEBROW}`}>{t("fieldAccess")}</dt>
+        <dd className="min-w-0">
           <AccessBadge
             license={pub.license}
             labels={{
@@ -184,9 +213,18 @@ export default async function ArticleHeader({
               rightsUnstated: t("accessRightsUnstated"),
             }}
           />
+        </dd>
+      </dl>
+
+      {/* Usage is not identity, so it sits under the block rather than in it —
+          and `publicationMetrics` returns null rather than zero, so a record
+          nobody has opened yet says nothing at all. */}
+      {(counts.views !== null || counts.downloads !== null) && (
+        <p className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-text-muted">
+          {counts.views !== null && <span>{t("srViews", { count: counts.views })}</span>}
+          {counts.downloads !== null && <span>{t("srDownloads", { count: counts.downloads })}</span>}
         </p>
-        {doi && <ArticleDoi doi={doi.value} href={doi.href} />}
-      </div>
+      )}
 
       {/* ── How do I read it ── */}
       <div className="mt-5">
@@ -198,8 +236,7 @@ export default async function ArticleHeader({
           canRead={access.canReadOnline}
           canDownload={access.canDownload}
         />
-        {/* Aligned to the text column rather than spanning the page. */}
-        <div className="max-w-[760px]">
+        <div>
           <PublicationAccessNotice
             access={access}
             labels={{

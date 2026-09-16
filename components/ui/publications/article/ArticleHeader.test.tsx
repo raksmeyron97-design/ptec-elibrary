@@ -9,6 +9,7 @@ import { affiliationMarkers } from "@/lib/publications/article-layout";
 import { openCiteDialog } from "@/lib/publications/cite-bus";
 import ArticleHeader from "./ArticleHeader";
 import ArticleSectionNav from "./ArticleSectionNav";
+import ArticleToolRail from "./ArticleToolRail";
 import CiteArticleDialog from "./CiteArticleDialog";
 import ArticleScholarship from "./ArticleScholarship";
 import { resolveServerTree } from "./test-utils";
@@ -309,17 +310,45 @@ describe("ArticleSectionNav", () => {
     expect(within(nav).queryByRole("link", { name: "Figures" })).toBeNull();
   });
 
-  it("offers the PDF in the rail only when a download href is passed", () => {
+  it("keeps only the control that belongs to navigation — the tools moved above it", () => {
     wrap(<ArticleSectionNav sections={sections} variant="rail" />);
+    expect(screen.getByRole("link", { name: "Back to top" })).toHaveAttribute("href", "#publication-masthead");
+    // Cite and the PDF are ArticleToolRail's, at the top of the rail.
     expect(screen.queryByRole("link", { name: "Download PDF" })).toBeNull();
-    cleanup();
-    wrap(<ArticleSectionNav sections={sections} variant="rail" pdfHref="/api/publications/x/file?download=1" />);
-    expect(screen.getByRole("link", { name: "Download PDF" })).toHaveAttribute("href", "/api/publications/x/file?download=1");
+    expect(screen.queryByRole("button", { name: "Cite this article" })).toBeNull();
   });
 
   it("renders nothing when there is no section", () => {
     const { container } = wrap(<ArticleSectionNav sections={[]} variant="inline" />);
     expect(container.querySelector("nav")).toBeNull();
+  });
+});
+
+describe("ArticleToolRail", () => {
+  const railProps = { id: "pub-1", title: "A study", shareUrl: "https://example.org/a" };
+  const mount = async (pdfHref: string | null) =>
+    render(
+      <NextIntlClientProvider locale="en" messages={enMessages}>
+        {await resolveServerTree(<ArticleToolRail {...railProps} pdfHref={pdfHref} />)}
+      </NextIntlClientProvider>,
+    );
+
+  it("offers the PDF only when the access decision passed one down", async () => {
+    await mount(null);
+    expect(screen.queryByRole("link", { name: "Download PDF" })).toBeNull();
+    cleanup();
+    await mount("/api/publications/x/file?download=1");
+    expect(screen.getByRole("link", { name: "Download PDF" })).toHaveAttribute(
+      "href",
+      "/api/publications/x/file?download=1",
+    );
+  });
+
+  it("carries the article's utilities, so the rail can start at the masthead", async () => {
+    await mount(null);
+    for (const name of ["Cite", "Save", "Add to list", "Share"]) {
+      expect(screen.getByRole("button", { name })).toBeInTheDocument();
+    }
   });
 });
 
