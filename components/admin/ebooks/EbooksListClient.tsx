@@ -8,6 +8,7 @@ import BulkEbookActionBar from "@/components/admin/ebooks/BulkEbookActionBar";
 import EbooksTable from "@/components/admin/ebooks/EbooksTable";
 import EbookMobileCard from "@/components/admin/ebooks/EbookMobileCard";
 import DeleteEbookDialog, { type DeleteTarget } from "@/components/admin/ebooks/DeleteEbookDialog";
+import FeatureBookDialog, { type FeatureTarget } from "@/components/admin/ebooks/FeatureBookDialog";
 import ArchiveEbookDialog, { type ArchiveTarget } from "@/components/admin/ebooks/ArchiveEbookDialog";
 import { EbookEmptyState, EbookNoResultsState } from "@/components/admin/ebooks/states/EbookEmptyState";
 import type { EbookListRow, EbookOption } from "@/lib/admin/ebooks-shared";
@@ -23,6 +24,7 @@ import {
   bulkUpdateEbooks,
   type BulkEbookAction,
 } from "@/app/actions/ebooks";
+import { featureBook, unfeatureBook } from "@/app/actions/featured-books";
 
 function toCsvValue(v: string | number | null | undefined): string {
   const s = String(v ?? "");
@@ -60,6 +62,7 @@ export default function EbooksListClient({
   hasAnyEbooksAtAll,
   canUpload = false,
   canWrite = false,
+  featuredCount = 0,
 }: {
   rows: EbookListRow[];
   departments: EbookOption[];
@@ -75,6 +78,8 @@ export default function EbooksListClient({
    * stops the page from advertising work the viewer cannot do.
    */
   canWrite?: boolean;
+  /** How many books are on the public Featured shelf in total (0149). */
+  featuredCount?: number;
 }) {
   const router = useRouter();
   const t = useTranslations("adminEbooks.toasts");
@@ -85,6 +90,7 @@ export default function EbooksListClient({
   const [bulkBusy, setBulkBusy] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<ArchiveTarget | null>(null);
+  const [featureTarget, setFeatureTarget] = useState<FeatureTarget | null>(null);
 
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
@@ -132,6 +138,31 @@ export default function EbooksListClient({
     } finally {
       setBulkBusy(false);
     }
+  }
+
+  /**
+   * Adding to the public shelf is confirmed, removing from it is not.
+   *
+   * They are not symmetrical: featuring puts a book on the front of /books
+   * where every reader sees it, and unfeaturing only takes it back off — the
+   * book stays published either way, and the toast says so. The management
+   * page, where a librarian is working through the shelf deliberately, does
+   * confirm the removal; here it is one item among twenty.
+   */
+  async function confirmFeature() {
+    if (!featureTarget) return;
+    const target = featureTarget;
+    setFeatureTarget(null);
+    await runRowAction(
+      target.id,
+      async () => {
+        const res = await featureBook(target.id);
+        return res.success
+          ? { success: true }
+          : { success: false, error: t(`featureErrors.${res.code}`) };
+      },
+      t("featured", { position: target.nextPosition }),
+    );
   }
 
   async function confirmDelete() {
@@ -194,6 +225,34 @@ export default function EbooksListClient({
       runRowAction(id, () => submitEbookForReview(id), t("submittedForReview")),
     onVerify: (id: string) => runRowAction(id, () => verifyEbook(id), t("verified")),
     onUnverify: (id: string) => runRowAction(id, () => unverifyEbook(id), t("unverified")),
+    onFeature: (id: string) => {
+      const book = rows.find((r) => r.id === id);
+      if (!book) return;
+      setFeatureTarget({
+        id,
+        title: book.title,
+        coverUrl: book.coverUrl,
+        author: book.author,
+        status: book.status,
+        verifiedAt: book.verifiedAt,
+        // The whole shelf, so the position the dialog promises is the
+        // position the server will actually assign — featuring appends, and
+        // counting only the rows on this page told a librarian "Position 1"
+        // for a book about to land at 3.
+        nextPosition: featuredCount + 1,
+      });
+    },
+    onUnfeature: (id: string) =>
+      runRowAction(
+        id,
+        async () => {
+          const res = await unfeatureBook(id);
+          return res.success
+            ? { success: true }
+            : { success: false, error: t(`featureErrors.${res.code}`) };
+        },
+        t("unfeatured"),
+      ),
     onDeleteRequest: (id: string, title: string) => setDeleteTarget({ kind: "single", id, title }),
   };
 
@@ -246,6 +305,13 @@ export default function EbooksListClient({
           onConfirm={confirmDelete}
         />
       )}
+
+      <FeatureBookDialog
+        target={featureTarget}
+        busy={busyId !== null}
+        onCancel={() => setFeatureTarget(null)}
+        onConfirm={confirmFeature}
+      />
 
       {archiveTarget && (
         <ArchiveEbookDialog

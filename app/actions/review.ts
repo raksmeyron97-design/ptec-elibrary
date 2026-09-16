@@ -33,6 +33,7 @@ import { evaluateQuality, type QualityReport } from "@/lib/metadata-quality";
 import { apa } from "@/lib/citations";
 import { SITE_URL } from "@/lib/seo/site";
 import { checkBookPublishReady, checkThesisPublishReady } from "@/lib/publish-readiness";
+import { composeChangeNote, hasChangeRationale, normalizeReasons } from "@/lib/review/change-reasons";
 import { verifyEbook } from "@/app/actions/ebooks";
 import { verifyThesis } from "@/app/actions/theses";
 
@@ -53,6 +54,8 @@ export type ReviewItem = {
   createdAt: string;
   submittedAt: string | null;
   verifiedAt: string | null;
+  /** WHO stamped it. Provenance is half the value of a verification. */
+  verifiedBy: ReviewPerson | null;
   reviewNote: string | null;
   createdBy: ReviewPerson | null;
   assignedReviewer: ReviewPerson | null;
@@ -64,6 +67,14 @@ export type ReviewItem = {
   editUrl: string;
   /** Public page (side-by-side preview target); null when not derivable */
   previewUrl: string | null;
+  /**
+   * The authenticated PROXY route for the record's file — never the storage
+   * URL, which `zimaFetch()` serves with no credentials and would therefore
+   * be a permanent, policy-free download link the moment it reached a client
+   * (lib/books/storage-url-exposure.test.ts guards the book half of this).
+   * The reviewer opens the actual document from inside the card through it.
+   */
+  fileHref: string;
 };
 
 const QUEUE_STATUSES = [
@@ -78,7 +89,7 @@ const QUEUE_STATUSES = [
 ] as const;
 
 const WORKFLOW_COLS =
-  "created_by, updated_by, review_note, assigned_reviewer, submitted_at, verified_at, license";
+  "created_by, updated_by, review_note, assigned_reviewer, submitted_at, verified_at, verified_by, license";
 
 const BOOK_BASE_COLS =
   "id, title, slug, cover_url, status, created_at, language, published_at, description, category_id, isbn, pages, tags, authors(name)";
@@ -174,6 +185,7 @@ function toItem(type: ReviewItemType, row: Row, people: Map<string, ReviewPerson
     createdAt: row.created_at,
     submittedAt: row.submitted_at ?? null,
     verifiedAt: row.verified_at ?? null,
+    verifiedBy: row.verified_by ? (people.get(row.verified_by) ?? null) : null,
     reviewNote: row.review_note ?? null,
     createdBy: row.created_by ? (people.get(row.created_by) ?? null) : null,
     assignedReviewer: row.assigned_reviewer ? (people.get(row.assigned_reviewer) ?? null) : null,
@@ -190,6 +202,7 @@ function toItem(type: ReviewItemType, row: Row, people: Map<string, ReviewPerson
     }),
     editUrl: isBook ? `/admin/edit/${row.id}` : `/admin/theses/edit/${row.id}`,
     previewUrl,
+    fileHref: isBook ? `/api/books/${row.id}/file` : `/api/theses/${row.id}/file`,
   };
 }
 
@@ -237,8 +250,12 @@ export async function getReviewQueues(): Promise<ReviewQueues> {
       : ([] as Row[]),
   ]);
 
+  // One profiles lookup for all three roles a queue card names — creator,
+  // assigned reviewer and verifier. Adding the verifier as a second query
+  // would be an N+1 in disguise on the "already published" queue, where nearly
+  // every row has one.
   const personIds = [...books.rows, ...research.rows, ...liveBooks, ...liveResearch].flatMap((r) =>
-    [r.created_by, r.assigned_reviewer].filter(Boolean),
+    [r.created_by, r.assigned_reviewer, r.verified_by].filter(Boolean),
   ) as string[];
   const people = await fetchPeople(supabase, personIds);
 
@@ -354,15 +371,22 @@ export async function transitionContent(
   type: ReviewItemType,
   id: string,
   to: CanonicalStatus,
-  opts?: { note?: string; scheduledAt?: string; emergency?: boolean },
+  opts?: { note?: string; reasons?: string[]; scheduledAt?: string; emergency?: boolean },
 ): Promise<ActionResult> {
   try {
     const resource = type === "book" ? "books" : "research";
     const { supabase, user, role } = await requirePermission(resource, "write");
     const table = type === "book" ? "books" : "research_reports";
-    const note = opts?.note?.trim() || null;
 
-    if (to === "changes_requested" && !note) {
+    /* Structured reasons + free text compose into ONE stored note (see
+       lib/review/change-reasons.ts). The ids travel separately into the audit
+       row so the categories stay queryable; `review_note` keeps being the one
+       column an editor reads. */
+    const reasons = normalizeReasons(opts?.reasons);
+    const rawNote = opts?.note ?? "";
+    const note = composeChangeNote(reasons, rawNote) || null;
+
+    if (to === "changes_requested" && !hasChangeRationale(opts?.reasons, rawNote)) {
       return { error: "A reason is required when requesting changes" };
     }
 
@@ -431,6 +455,7 @@ export async function transitionContent(
       title: row.title,
       from: canonicalize(current.status),
       ...(note ? { note } : {}),
+      ...(reasons.length > 0 ? { reasons } : {}),
       ...(override ? { override } : {}),
     });
 
@@ -478,6 +503,26 @@ export async function rejectContent(type: ReviewItemType, id: string, note?: str
   return transitionContent(type, id, "changes_requested", {
     note: note ?? "Rejected without a stated reason (legacy action)",
   });
+}
+
+/**
+ * Claim a record for yourself — the "Take over" button behind the
+ * "somebody else is reviewing this" banner.
+ *
+ * Deliberately not a new mutation: it is `assignReviewer(…, me)`, so it runs
+ * the same `books.review.assign` / `research.review.assign` policy and writes
+ * the same `content.assign_reviewer` audit row. A takeover that bypassed the
+ * assignment gate would be a second, weaker path to the same write.
+ */
+export async function claimReviewItem(type: ReviewItemType, id: string): Promise<ActionResult> {
+  try {
+    const { user } = await requireAction(
+      type === "book" ? "books.review.assign" : "research.review.assign",
+    );
+    return await assignReviewer(type, id, user.id);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Update failed" };
+  }
 }
 
 /**

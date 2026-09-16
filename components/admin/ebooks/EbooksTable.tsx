@@ -9,6 +9,7 @@ import EbookActionsMenu from "@/components/admin/ebooks/EbookActionsMenu";
 import EbookQualityBadge from "@/components/admin/ebooks/EbookQualityBadge";
 import EbookFileHealthBadge from "@/components/admin/ebooks/EbookFileHealthBadge";
 import EbookVerificationBadge from "@/components/admin/ebooks/EbookVerificationBadge";
+import EbookFeaturedBadge from "@/components/admin/ebooks/EbookFeaturedBadge";
 import EbookCover from "@/components/admin/ebooks/EbookCover";
 import { EBOOK_STATUS_TONES, EBOOK_STATUS_LABELS, formatFileSize, type EbookListRow } from "@/lib/admin/ebooks-shared";
 import { withUpdatedParams } from "@/lib/admin/ebooks-url";
@@ -83,6 +84,8 @@ type RowActions = {
   onSubmitForReview: (id: string) => void;
   onVerify: (id: string) => void;
   onUnverify: (id: string) => void;
+  onFeature: (id: string) => void;
+  onUnfeature: (id: string) => void;
   onDeleteRequest: (id: string, title: string) => void;
 };
 
@@ -239,15 +242,17 @@ export default function EbooksTable({
                   {book.year ?? "—"}
                 </td>
 
-                {/* Two stacked badges, not one: publication and verification
-                    are independent axes, and "Live + not verified" is the
-                    state a librarian has to act on. */}
+                {/* Three stacked badges, not one: publication, verification
+                    and curation are independent axes. "Live + not verified" is
+                    the state a librarian has to act on, and "Featured" is the
+                    one they must be able to see without opening the record. */}
                 <td className="px-4 py-3 align-top">
                   <div className="flex flex-col items-start gap-1">
                     <Badge tone={EBOOK_STATUS_TONES[book.status]}>
                       {EBOOK_STATUS_LABELS[book.status] ? tStatus(book.status) : book.status}
                     </Badge>
                     <EbookVerificationBadge book={book} />
+                    <EbookFeaturedBadge book={book} />
                   </div>
                 </td>
 
@@ -294,6 +299,8 @@ export default function EbooksTable({
                       onSubmitForReview={() => actions.onSubmitForReview(book.id)}
                       onVerify={() => actions.onVerify(book.id)}
                       onUnverify={() => actions.onUnverify(book.id)}
+                      onFeature={() => actions.onFeature(book.id)}
+                      onUnfeature={() => actions.onUnfeature(book.id)}
                       onDeleteRequest={actions.onDeleteRequest}
                     />
                     )}

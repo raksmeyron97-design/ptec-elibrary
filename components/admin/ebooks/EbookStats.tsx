@@ -175,6 +175,13 @@ export default function EbookStats({ summary }: { summary: EbooksSummary }) {
           href={ebooksFilterUrl({ quality: "incomplete" })}
           attention
         />
+        {/* Curation, not a queue: no attention dot, because a shelf with
+            books on it is the healthy state rather than work waiting. */}
+        <BreakdownPill
+          label={t("featured")}
+          count={summary.featured}
+          href={ebooksFilterUrl({ featured: "featured" })}
+        />
         <BreakdownPill label={t("archivedLabel")} count={summary.archived} href={ebooksFilterUrl({ status: "archived" })} />
       </div>
     </div>

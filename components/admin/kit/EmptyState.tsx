@@ -29,8 +29,12 @@ export default function EmptyState({
           {icon}
         </span>
       )}
-      <p className="text-base font-bold text-text-heading">{title}</p>
-      {description && <p className="mt-1.5 max-w-sm text-sm text-text-muted">{description}</p>}
+      {/* `div`, not `p`: both slots are typed React.ReactNode, and a paragraph
+          auto-closes around any block element a caller passes — the parser
+          re-parents the rest and hydration fails against the server render.
+          Pinned by components/admin/dashboard/markup-nesting.test.ts. */}
+      <div className="text-base font-bold text-text-heading">{title}</div>
+      {description && <div className="mt-1.5 max-w-sm text-sm text-text-muted">{description}</div>}
       {action && <div className="mt-5">{action}</div>}
     </div>
   );

@@ -12,6 +12,7 @@ import { createPublicClient } from "./supabase/public";
 import { mapRowToBook, type Book } from "./books";
 import { getDepartments } from "@/app/actions/departments";
 import { getLanguages, getFormats, getCategories } from "@/app/actions/filters";
+import { PUBLIC_FEATURED_RENDER_LIMIT } from "@/lib/books/featured";
 
 export const BOOKS_PAGE_SIZE = 18;
 
@@ -257,6 +258,48 @@ export async function getBooksAfter(
     nextCursor: buildCursor(rows, def.column, cursor.offset),
   };
 }
+
+/**
+ * The "Featured by PTEC Library" shelf, in the order a librarian set on
+ * /admin/books/featured (migration 0149).
+ *
+ * Three rules this query encodes, each of which was a way to get it wrong:
+ *
+ *  - Order comes from `featured_position` and nothing else. No client sort, no
+ *    recency fallback — a curated order that quietly re-sorts itself is not a
+ *    curated order.
+ *  - `is_published` is still required. Unfeaturing and unpublishing are
+ *    different acts, but a book that stops being public must leave the public
+ *    shelf immediately, without waiting for anyone to curate it off.
+ *  - A pre-0149 database answers with an empty shelf, not an error. The
+ *    section simply does not render, and the rest of /books is untouched.
+ *
+ * Cached under the same "books" tag the listing uses, which every curation
+ * mutation already busts through `revalidateBook()`.
+ */
+export const getFeaturedBooks = unstable_cache(
+  async (): Promise<(Book & { reviewCount: number })[]> => {
+    const supabase = createPublicClient();
+    const { data, error } = await supabase
+      .from("books_with_stats")
+      .select(listingSelect(false))
+      .eq("is_published", true)
+      .not("featured_at", "is", null)
+      .order("featured_position", { ascending: true })
+      .limit(PUBLIC_FEATURED_RENDER_LIMIT);
+
+    if (error) {
+      // 42703 = the curation columns are not in this database yet.
+      if ((error as any).code !== "42703") {
+        console.error("[books-data] featured shelf:", error.message);
+      }
+      return [];
+    }
+    return (data ?? []).map(mapRowToBook);
+  },
+  ["books-featured"],
+  { revalidate: 300, tags: ["books"] }
+);
 
 // ── Cached filter lists ───────────────────────────────────────────────────
 // These change only when an admin edits books, so cache them under the same

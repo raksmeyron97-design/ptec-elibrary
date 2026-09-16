@@ -180,6 +180,41 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 
+-- ── Featured shelf (0149) ───────────────────────────────────────────────────
+-- Two books on the public "Featured by PTEC Library" shelf, in a deliberate
+-- order that is NOT the listing's default (newest first) — so an e2e run can
+-- tell a curated order from an accidental one. Both are verified, because the
+-- feature action refuses anything that is not published AND verified.
+--
+-- Guarded on the columns existing so this file still seeds a database that
+-- predates the migration; everything else here is unconditional because the
+-- e2e job applies the whole chain first.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'books' AND column_name = 'featured_at'
+  ) THEN
+    UPDATE public.books SET
+      verified_at       = timezone('utc', now()),
+      verified_by       = '22222222-2222-2222-2222-222222222222'::uuid,
+      featured_at       = timezone('utc', now()),
+      featured_by       = '22222222-2222-2222-2222-222222222222'::uuid,
+      featured_position = 1
+     WHERE id = '33333333-3333-4333-8333-333333333303';
+
+    UPDATE public.books SET
+      verified_at       = timezone('utc', now()),
+      verified_by       = '22222222-2222-2222-2222-222222222222'::uuid,
+      featured_at       = timezone('utc', now()),
+      featured_by       = '22222222-2222-2222-2222-222222222222'::uuid,
+      featured_position = 2
+     WHERE id = '33333333-3333-4333-8333-333333333301';
+  END IF;
+END
+$$;
+
+
 -- ── Book files ──────────────────────────────────────────────────────────────
 -- One seeded PDF, so the reading and offline-download surfaces are reachable
 -- end to end: without a book_files row the detail page renders "PDF not
