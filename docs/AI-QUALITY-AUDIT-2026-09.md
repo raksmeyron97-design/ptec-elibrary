@@ -231,14 +231,45 @@ Not run here: it is a production write and a metered spend. **Recommended
 first action after this branch**, and it should be measured before and after
 with `npm run retrieval:benchmark`, which is where the effect will show.
 
-### 5.2 The second flavour of broken Khmer
+### 5.2 The second flavour of broken Khmer — now partly addressed
 
 5,671 pages (56% of the Khmer corpus) carry more runs beginning with a
-dependent vowel than 95% of the readable population does. Either a second
-extraction fault, or ordinary Khmer this heuristic cannot parse — the
-distributions overlap and no threshold separates them. **A Khmer reader needs
-to look at a sample.** The signal is computed and printed
-(`scripts/audit-khmer-page-text.ts`); nothing is filtered on it.
+dependent vowel than 95% of the readable population does. A dependent vowel
+cannot begin a Khmer syllable, so those are real orphans, and
+`lib/text/khmer-reassemble.ts` now repairs them deterministically at **$0** —
+it only ever REMOVES whitespace between code points the script says belong to
+one syllable, never invents, deletes or substitutes one.
+
+Measured over the 86 catalogued damaged books (`--dry-run`, read-only):
+
+```
+pages that would be rewritten   14,419
+gaps closed                    785,986
+impossible sequences       1,701,276 → 1,026,738   (40% removed)
+repairs refused by the gate          0
+books flipping damaged → healthy   2 of 73
+```
+
+**The last line is the finding, not a disappointment.** The re-assembler does
+exactly what it claims and the books are still not readable, because the
+surviving damage is CHARACTER SUBSTITUTION — `ង` emitted as `វ`, `ដ` as `ល`,
+and in places U+FFFD where the bytes decoded to nothing:
+
+```
+before  សម័យ(ចតុមុខ លង្វែក និវឧដុវគ) អ្ ន កនិពនធ៖ … គាំទ្ រថវិកាលលីការលរៀបលរៀង
+after   សម័យ(ចតុមុខ លង្វែក និវឧដុវគ) អ្ន កនិពនធ៖ … គាំទ្រថវិកាលលីការលរៀបលរៀង
+                        ↑ still wrong: the title says និងឧដុង្គ
+```
+
+The catalogue's own `reasons` under-counts this: only 8 of 86 books are flagged
+`khmer-legacy-font`, and the substitution above is in a book flagged for
+spacing alone. So `analyzeTextHealth`'s verdict must not be read as "readable"
+— it is satisfied by spacing, and spacing is what the repair fixes.
+
+`countOrthographicViolations` exists for exactly that reason: it measures
+legality, which a reckless repair would RAISE, and it is the number to quote.
+Still open: whether the repaired words are the RIGHT words, which only a Khmer
+reader can say; and the ~13 books needing OCR, which costs Gemini Vision quota.
 
 ### 5.3 Multi-document source spread
 
