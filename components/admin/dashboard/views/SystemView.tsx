@@ -9,6 +9,7 @@ import {
   adminActionLabelKey,
   groupConsecutiveActivity,
   isSensitiveAdminAction,
+  HEALTH_THRESHOLDS,
   type DashboardFilters,
 } from "@/lib/admin/dashboard-shared";
 import FreshnessLine from "../FreshnessLine";
@@ -83,11 +84,24 @@ export default async function SystemView({ filters }: { filters: DashboardFilter
   const data = await getSystemData(filters);
 
   // ── Derived health statuses ──
+  // Storage health is a RATE against the thresholds in docs/DASHBOARD-METRICS.md,
+  // never "were there any errors at all". A month of real traffic carries a tail
+  // of transient network timeouts — 139 of them among thousands of successful
+  // operations pinned this chip to Critical permanently, and a chip that is
+  // always red is a chip nobody reads. This is computeHealthPulse()'s own
+  // arithmetic, so the System tab and the Overview ribbon cannot disagree; below
+  // the minimum sample it reports "unknown" for the same reason that does.
+  const storageErrPct =
+    data.storage.zimaTotal > 0 ? (data.storage.zimaErrors / data.storage.zimaTotal) * 100 : null;
   const storageStatus: HealthStatus = data.storage.collecting
     ? "collecting"
-    : data.storage.zimaErrors > 0
-      ? "critical"
-      : "healthy";
+    : data.storage.zimaTotal < HEALTH_THRESHOLDS.storageMinSample
+      ? "unknown"
+      : storageErrPct !== null && storageErrPct >= HEALTH_THRESHOLDS.storageCriticalPct
+        ? "critical"
+        : storageErrPct !== null && storageErrPct >= HEALTH_THRESHOLDS.storageWarnPct
+          ? "warning"
+          : "healthy";
   const aiStatus: HealthStatus =
     data.ai.total === 0
       ? "collecting"
@@ -201,8 +215,23 @@ export default async function SystemView({ filters }: { filters: DashboardFilter
               <>
                 <div className="flex items-center justify-between gap-2 rounded-xl bg-paper px-3 py-2">
                   <dt className="text-xs text-text-body">{t("zimaErrors")}</dt>
-                  <dd className={`text-sm font-bold tabular-nums ${data.storage.zimaErrors > 0 ? "text-[var(--ptec-danger)]" : "text-text-heading"}`}>
+                  {/* The count alone reads as an alarm at any value; the share
+                      it represents is what the chip above actually judges. */}
+                  <dd
+                    className={`text-sm font-bold tabular-nums ${
+                      storageErrPct !== null && storageErrPct >= HEALTH_THRESHOLDS.storageCriticalPct
+                        ? "text-[var(--ptec-danger)]"
+                        : storageErrPct !== null && storageErrPct >= HEALTH_THRESHOLDS.storageWarnPct
+                          ? "text-[var(--ptec-warning)]"
+                          : "text-text-heading"
+                    }`}
+                  >
                     {nf.format(data.storage.zimaErrors)}
+                    {storageErrPct !== null && data.storage.zimaTotal >= HEALTH_THRESHOLDS.storageMinSample && (
+                      <span className="ms-1 text-xs font-normal text-text-muted">
+                        ({Math.round(storageErrPct * 10) / 10}%)
+                      </span>
+                    )}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between gap-2 rounded-xl bg-paper px-3 py-2">

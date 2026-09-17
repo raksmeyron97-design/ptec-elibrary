@@ -2,6 +2,7 @@ import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { scoreEbookQuality } from "@/lib/admin/ebook-quality";
+import { pagedScan, type PagedScanError } from "@/lib/admin/paged-scan";
 import {
   LARGE_FILE_KB,
   normalizeEbookStatus,
@@ -101,9 +102,18 @@ function toRow(r: Record<string, unknown>, broken: BrokenMap): EbookListRow {
   };
 }
 
-// PostgREST caps un-limited selects at 1000 rows (see the fulltext-search
-// dedupe bug) — every "collect ids" helper sets an explicit generous limit.
+// Ceiling on how far a scan will PAGE. It is NOT a limit that one request can
+// honour — PostgREST clips every response at 1000 rows whatever is asked for,
+// which is why every scan below goes through pagedScan(). See paged-scan.ts.
 const ID_SCAN_LIMIT = 10_000;
+
+/** Reads a whole result set, with this file's page ceiling applied. */
+function scanAllRows<T>(
+  page: (from: number, to: number) => PromiseLike<{ data: unknown; error: PagedScanError | null }>,
+  maxRows: number = ID_SCAN_LIMIT,
+) {
+  return pagedScan<T>(page, maxRows);
+}
 
 /**
  * Distinct book ids that have at least one book_files row with a real file URL.
@@ -111,14 +121,36 @@ const ID_SCAN_LIMIT = 10_000;
  * result is a Set<string> consumed in JS, so no UUIDs are injected into a URL.
  * Do NOT use this to build a NOT IN (…) PostgREST filter; that path causes
  * HTTP 414 URI Too Long for any collection with more than ~200 books.
+ *
+ * Paged, because one request cannot return more than 1000 rows whatever the
+ * `.limit()` says. A one-shot scan here returned 1,000 ids for a library of
+ * 1,734 books that all had files, and the summary published the difference as
+ * "Missing PDFs 734" — a badge whose own drill-down filter then matched nothing,
+ * because every one of those books did have a PDF.
+ *
+ * `.order("id")` is load-bearing, not tidiness: without a stable sort Postgres
+ * may hand the same row to two pages or to neither, and a row skipped between
+ * pages is indistinguishable from a book with no file — the phantom again.
+ *
+ * Returns null when a page failed, i.e. the set is INCOMPLETE. Subtracting a
+ * partial set from the total is exactly the bug above, so the caller must not.
  */
-async function getPdfBookIds(supabase: ServiceClient): Promise<Set<string>> {
-  const { data } = await supabase
-    .from("book_files")
-    .select("book_id")
-    .not("file_url", "is", null)
-    .limit(ID_SCAN_LIMIT);
-  return new Set((data ?? []).map((r: { book_id: string }) => r.book_id));
+async function getPdfBookIds(supabase: ServiceClient): Promise<Set<string> | null> {
+  const { data, error } = await scanAllRows<{ book_id: string | null }>((from, to) =>
+    supabase
+      .from("book_files")
+      .select("book_id")
+      .not("file_url", "is", null)
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+  if (error) {
+    console.error("[getPdfBookIds] paged scan failed:", error.message);
+    return null;
+  }
+  const ids = new Set<string>();
+  for (const r of data) if (r.book_id) ids.add(r.book_id);
+  return ids;
 }
 
 type BrokenMap = Map<string, { file: boolean; cover: boolean }>;
@@ -126,13 +158,16 @@ type BrokenMap = Map<string, { file: boolean; cover: boolean }>;
 /** Broken-URL results from the out-of-band checker (file_health, 0065). */
 async function getBrokenMap(supabase: ServiceClient): Promise<BrokenMap> {
   const map: BrokenMap = new Map();
-  const { data } = await supabase
-    .from("file_health")
-    .select("record_id, field")
-    .eq("record_type", "book")
-    .eq("status", "broken")
-    .limit(ID_SCAN_LIMIT);
-  for (const r of (data ?? []) as { record_id: string; field: string }[]) {
+  const { data } = await scanAllRows<{ record_id: string; field: string }>((from, to) =>
+    supabase
+      .from("file_health")
+      .select("record_id, field")
+      .eq("record_type", "book")
+      .eq("status", "broken")
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+  for (const r of data) {
     const entry = map.get(r.record_id) ?? { file: false, cover: false };
     if (r.field === "file_url") entry.file = true;
     if (r.field === "cover_url") entry.cover = true;
@@ -149,16 +184,14 @@ async function getBrokenMap(supabase: ServiceClient): Promise<BrokenMap> {
  * path below.
  */
 async function getTagMatchIds(supabase: ServiceClient, term: string): Promise<string[]> {
-  const { data } = await supabase.from("books").select("id, tags").limit(ID_SCAN_LIMIT);
+  const { data } = await scanAllRows<{ id: string; tags: string[] | null }>((from, to) =>
+    supabase.from("books").select("id, tags").order("id", { ascending: true }).range(from, to),
+  );
   const lower = term.toLowerCase();
-  return ((data ?? []) as { id: string; tags: string[] | null }[])
+  return data
     .filter((r) => Array.isArray(r.tags) && r.tags.some((t) => t.toLowerCase().includes(lower)))
     .map((r) => r.id);
 }
-
-// A uuid that can never exist — used to force an empty result when an
-// id-list filter matches nothing (PostgREST rejects `in.()`).
-const NO_MATCH_ID = "00000000-0000-0000-0000-000000000000";
 
 // Query params arrive straight from the URL — an eq() against a uuid column
 // with a malformed value is a Postgres error, so validate before filtering.
@@ -168,30 +201,59 @@ function isUuid(v: string | undefined): v is string {
   return Boolean(v && UUID_RE.test(v));
 }
 
-function applyIdList(query: any, ids: string[]) { // eslint-disable-line @typescript-eslint/no-explicit-any
-  return query.in("id", ids.length ? ids : [NO_MATCH_ID]);
+/**
+ * Character budget for id lists serialised into a filter.
+ *
+ * Every `in.(…)` below travels in the REQUEST URI, and nginx/Kong answer a
+ * request line over 8 KB with 414 — which takes the whole admin list down, not
+ * just the filter. A uuid costs 37 characters with its comma, so 8 KB minus the
+ * base URL, the (long) select list and the other clauses leaves roughly 6 KB;
+ * 5000 keeps a margin.
+ *
+ * This bound REPLACES an accidental one. Until now the only thing keeping these
+ * lists short was PostgREST clipping the scans that produced them at 1000 rows
+ * — a row cap standing in for a byte limit, and wrong in both directions at
+ * once: 1000 uuids is ~37 KB and 414s anyway, while a legitimate 1200-row match
+ * was silently cut. Now the scans are complete and the truncation happens where
+ * the real constraint is.
+ */
+const MAX_ID_FILTER_CHARS = 5_000;
+
+/**
+ * Appends `<column>.in.(…)` to an `or(...)` list, truncated to the URI budget
+ * left after the clauses already pushed. Callers push the small, high-signal
+ * lists first (author, department, category) so the big one — book ids matched
+ * by tag or file name — takes whatever remains rather than crowding them out.
+ */
+function pushIdClause(orParts: string[], column: string, ids: string[]): void {
+  if (ids.length === 0) return;
+  const used = orParts.reduce((n, part) => n + part.length + 1, 0) + column.length + 6;
+  const room = Math.max(0, Math.floor((MAX_ID_FILTER_CHARS - used) / 37));
+  if (room === 0) return;
+  orParts.push(`${column}.in.(${ids.slice(0, room).join(",")})`);
 }
 
 /**
- * Applies every filter except `quality` and `fileStatus` (which both need a JS
- * pass — see getEbooks). `fileStatus` is excluded here because `has_pdf` /
- * `missing_pdf` would require injecting thousands of UUIDs into a NOT IN (…)
- * URL param, which exceeds the 8 KB URI limit enforced by PostgREST/Cloudflare
- * when the collection has 1 000+ books (HTTP 414 / 400). `large_file` and
- * `broken_file` are kept together in the JS pass for consistency.
+ * Applies every filter except `quality`, `fileStatus` and `broken_cover`, which
+ * all need a JS pass (see getEbooks). Those three are excluded for one reason:
+ * each would require injecting a uuid per matching row into an `in.(…)` URL
+ * param, and a few hundred of those exceed the 8 KB URI limit enforced by
+ * nginx/Kong/Cloudflare (HTTP 414 / 400) — which fails the whole listing, not
+ * just the filter.
  *
- * Returns `{ query }` rather than the bare builder: Supabase query builders are
- * thenable, so `return query` from an async function gets flattened into an
- * executed result by the await machinery.
+ * SYNCHRONOUS, and it returns the builder rather than `{ query }`: the async
+ * lookups a search term needs now live in resolveSearchOr(), so this can be
+ * applied once per PAGE of a paged scan without re-running them. (The old
+ * `{ query }` wrapper existed only because Supabase builders are thenable, so
+ * `return query` from an async function got flattened into an executed result.)
  */
-async function applyFilters(
-  supabase: ServiceClient,
+function applyFilters(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   base: any,
   params: EbooksQueryParams,
-  broken: BrokenMap,
+  searchOr: string[] | null,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Promise<{ query: any }> {
+): any {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query: any = base;
 
@@ -228,50 +290,72 @@ async function applyFilters(
     if (params.featured === "not_featured") query = query.is("featured_at", null);
   }
 
-  if (params.coverStatus && params.coverStatus !== "all") {
-    if (params.coverStatus === "has_cover") query = query.not("cover_url", "is", null);
-    if (params.coverStatus === "missing_cover") query = query.is("cover_url", null);
-    if (params.coverStatus === "broken_cover") {
-      const ids = Array.from(broken.entries()).filter(([, v]) => v.cover).map(([id]) => id);
-      query = applyIdList(query, ids);
-    }
-  }
+  // has_cover / missing_cover are column predicates and stay in SQL.
+  // broken_cover is NOT here: it used to serialise one uuid per broken cover
+  // into the request URI — the 414 that `broken_file` had already been moved
+  // into the JS pass to avoid. It now takes the same route (toRow() resolves
+  // `coverBroken` from the same file_health map), so the filter is complete
+  // however many covers are broken, instead of stopping at whatever fitted in
+  // a URL.
+  if (params.coverStatus === "has_cover") query = query.not("cover_url", "is", null);
+  if (params.coverStatus === "missing_cover") query = query.is("cover_url", null);
 
+  if (searchOr && searchOr.length) query = query.or(searchOr.join(","));
+
+  return query;
+}
+
+/**
+ * The async half of the filter set: the id lookups a search term needs, and the
+ * `or(...)` clauses they produce. Null when there is no term.
+ *
+ * Split out of applyFilters() because the scan path below PAGES through the
+ * collection, and applying the filters per page would re-run these five queries
+ * — one of them itself a full paged scan of `books` for tag matches — once per
+ * page. Resolved once per request, they cost what they always did.
+ */
+async function resolveSearchOr(
+  supabase: ServiceClient,
+  params: EbooksQueryParams,
+): Promise<string[] | null> {
   const term = sanitizeSearchTerm(params.q ?? "");
-  if (term) {
-    const like = `%${term}%`;
-    const [{ data: authorMatches }, { data: deptMatches }, { data: catMatches }, tagIds, { data: fileMatches }] =
-      await Promise.all([
-        supabase.from("authors").select("id").ilike("name", like).limit(200),
-        supabase.from("departments").select("id").ilike("name", like).limit(200),
-        supabase.from("categories").select("id").ilike("name", like).limit(200),
-        getTagMatchIds(supabase, term),
-        supabase.from("book_files").select("book_id").ilike("file_url", like).limit(ID_SCAN_LIMIT),
-      ]);
+  if (!term) return null;
 
-    const orParts = [
-      `title.ilike.${like}`,
-      `isbn.ilike.${like}`,
-      `publisher.ilike.${like}`,
-      `department.ilike.${like}`,
-      `language.ilike.${like}`,
-    ];
-    const authorIds = (authorMatches ?? []).map((r: { id: string }) => r.id);
-    if (authorIds.length) orParts.push(`author_id.in.(${authorIds.join(",")})`);
-    const deptIds = (deptMatches ?? []).map((r: { id: string }) => r.id);
-    if (deptIds.length) orParts.push(`department_id.in.(${deptIds.join(",")})`);
-    const catIds = (catMatches ?? []).map((r: { id: string }) => r.id);
-    if (catIds.length) orParts.push(`category_id.in.(${catIds.join(",")})`);
-    const directIds = new Set<string>([
-      ...tagIds,
-      ...(fileMatches ?? []).map((r: { book_id: string }) => r.book_id),
+  const like = `%${term}%`;
+  const [{ data: authorMatches }, { data: deptMatches }, { data: catMatches }, tagIds, fileMatches] =
+    await Promise.all([
+      supabase.from("authors").select("id").ilike("name", like).limit(200),
+      supabase.from("departments").select("id").ilike("name", like).limit(200),
+      supabase.from("categories").select("id").ilike("name", like).limit(200),
+      getTagMatchIds(supabase, term),
+      scanAllRows<{ book_id: string | null }>((from, to) =>
+        supabase
+          .from("book_files")
+          .select("book_id")
+          .ilike("file_url", like)
+          .order("id", { ascending: true })
+          .range(from, to),
+      ),
     ]);
-    if (directIds.size) orParts.push(`id.in.(${Array.from(directIds).join(",")})`);
 
-    query = query.or(orParts.join(","));
-  }
+  const orParts = [
+    `title.ilike.${like}`,
+    `isbn.ilike.${like}`,
+    `publisher.ilike.${like}`,
+    `department.ilike.${like}`,
+    `language.ilike.${like}`,
+  ];
+  // Smallest and most specific first — see pushIdClause on why the order is
+  // what decides which list gets truncated when a term is very broad.
+  pushIdClause(orParts, "author_id", (authorMatches ?? []).map((r: { id: string }) => r.id));
+  pushIdClause(orParts, "department_id", (deptMatches ?? []).map((r: { id: string }) => r.id));
+  pushIdClause(orParts, "category_id", (catMatches ?? []).map((r: { id: string }) => r.id));
 
-  return { query };
+  const directIds = new Set<string>(tagIds);
+  for (const r of fileMatches.data) if (r.book_id) directIds.add(r.book_id);
+  pushIdClause(orParts, "id", Array.from(directIds));
+
+  return orParts;
 }
 
 function applySqlSort(
@@ -360,24 +444,29 @@ function qualityOf(row: EbookListRow) {
 }
 
 // Caps the "fetch everything, score/sort in JS" path used for quality
-// filtering, file-status filtering, and file-size sorting. fileStatus (has_pdf,
-// missing_pdf, large_file, broken_file) joins against book_files and is resolved
-// by toRow() into fileUrl / fileSizeKb / fileBroken, so all filtering is done
-// here in JS rather than serialising thousands of UUIDs into a URL parameter
-// (which causes HTTP 414 URI Too Long on PostgREST/Cloudflare at scale).
-// Set to ID_SCAN_LIMIT so the cap never clips a collection smaller than the
-// other scan-wide helpers already query up to.
+// filtering, file-status filtering, broken_cover and file-size sorting. Those
+// filters resolve through toRow() (fileUrl / fileSizeKb / fileBroken /
+// coverBroken) in JS rather than serialising thousands of UUIDs into a URL
+// parameter, which causes HTTP 414 URI Too Long at scale.
+//
+// Like ID_SCAN_LIMIT this bounds how far the scan PAGES, not what one request
+// returns — the server caps that at 1000 regardless. Same value, so the JS
+// path never sees less of the collection than the id helpers above do.
 const QUALITY_SCAN_CAP = 10_000;
 
 export async function getEbooks(
   params: EbooksQueryParams,
 ): Promise<{ rows: EbookListRow[]; total: number; error: boolean }> {
   const supabase = createServiceClient();
-  const broken = await getBrokenMap(supabase);
+  const [broken, searchOr] = await Promise.all([
+    getBrokenMap(supabase),
+    resolveSearchOr(supabase, params),
+  ]);
   const needsJsPass =
     Boolean(params.quality && params.quality !== "all") ||
     // fileStatus filtering is done in JS — see applyFilters() comment.
     Boolean(params.fileStatus && params.fileStatus !== "all") ||
+    params.coverStatus === "broken_cover" ||
     params.sort === "metadata-quality" ||
     params.sort === "size-desc" ||
     params.sort === "size-asc";
@@ -388,7 +477,7 @@ export async function getEbooks(
 
     const run = async (withUpdatedAt: boolean) => {
       let query = supabase.from("books").select(listColumns(withUpdatedAt), { count: "exact" });
-      ({ query } = await applyFilters(supabase, query, params, broken));
+      query = applyFilters(query, params, searchOr);
       query = applySqlSort(query, params.sort, withUpdatedAt);
       // Stable tie-breaker so rows don't shuffle/duplicate across pages.
       query = query.order("id", { ascending: true });
@@ -417,13 +506,21 @@ export async function getEbooks(
 
   // Quality / fileStatus / size path: scan all matching rows, filter/sort in JS,
   // then paginate. applyFilters() still handles status, dept, category, language,
-  // year, verification, featured and coverStatus — reducing the scan set before
-  // the JS pass.
-  const runScan = async (withUpdatedAt: boolean) => {
-    let query = supabase.from("books").select(listColumns(withUpdatedAt)).limit(QUALITY_SCAN_CAP);
-    ({ query } = await applyFilters(supabase, query, params, broken));
-    return query;
-  };
+  // year, verification, featured and the cover_url predicates — reducing the
+  // scan set before the JS pass.
+  //
+  // PAGED, because one request returns at most 1000 rows whatever the `.limit()`
+  // says: un-paged, this scan stopped at the thousandth book, so every quality
+  // tier, file-status and size view showed an arbitrary prefix of the collection
+  // and reported its length as the total.
+  const runScan = (withUpdatedAt: boolean) =>
+    scanAllRows<Record<string, unknown>>(
+      (from, to) =>
+        applyFilters(supabase.from("books").select(listColumns(withUpdatedAt)), params, searchOr)
+          .order("id", { ascending: true })
+          .range(from, to),
+      QUALITY_SCAN_CAP,
+    );
   let scan = await runScan(!updatedAtMissing);
   if (scan.error && isMissingFeatured(scan.error)) {
     featuredMissing = true;
@@ -438,7 +535,7 @@ export async function getEbooks(
     return { rows: [], total: 0, error: true };
   }
 
-  let rows = ((scan.data ?? []) as unknown as Record<string, unknown>[]).map((r) => toRow(r, broken));
+  let rows = scan.data.map((r) => toRow(r, broken));
 
   // fileStatus JS filter — toRow() resolves fileUrl / fileSizeKb / fileBroken
   // from the joined book_files relation, so no extra query is needed here.
@@ -452,6 +549,10 @@ export async function getEbooks(
     } else if (params.fileStatus === "broken_file") {
       rows = rows.filter((r) => r.fileBroken);
     }
+  }
+
+  if (params.coverStatus === "broken_cover") {
+    rows = rows.filter((r) => r.coverBroken);
   }
 
   if (params.quality && params.quality !== "all") {
@@ -504,23 +605,33 @@ export async function getEbooksSummary(): Promise<EbooksSummary> {
     );
 
   // Hosted PostgREST has .sum() aggregates disabled, so each of these keeps a
-  // JS-sum fallback that is the path actually taken today.
+  // JS-sum fallback that is the path actually taken today — and it therefore
+  // has to PAGE. A sum over a response the server clipped at 1000 rows is not a
+  // partial total, it is a wrong one: total views, total downloads and total
+  // storage were all being reported from the first thousand rows of a
+  // 1,734-book library.
   async function sumColumn(table: string, column: string): Promise<number> {
     const agg = await supabase.from(table).select(`total:${column}.sum()`).single();
     const aggTotal = (agg.data as { total: number | null } | null)?.total;
     if (!agg.error && typeof aggTotal === "number") return aggTotal;
-    const { data } = await supabase.from(table).select(column).limit(ID_SCAN_LIMIT);
-    return ((data ?? []) as unknown as Record<string, number | null>[]).reduce((sum, r) => sum + (r[column] ?? 0), 0);
+    const { data } = await scanAllRows<Record<string, number | null>>((from, to) =>
+      supabase.from(table).select(column).order("id", { ascending: true }).range(from, to),
+    );
+    return data.reduce((sum, r) => sum + (r[column] ?? 0), 0);
   }
 
   const [totalViews, totalDownloads, storageKb, scanResult] = await Promise.all([
     sumColumn("books", "view_count"),
     sumColumn("books", "download_count"),
     sumColumn("book_files", "file_size_kb"),
-    supabase.from("books").select(listColumns(false)).limit(QUALITY_SCAN_CAP),
+    scanAllRows<Record<string, unknown>>(
+      (from, to) =>
+        supabase.from("books").select(listColumns(false)).order("id", { ascending: true }).range(from, to),
+      QUALITY_SCAN_CAP,
+    ),
   ]);
 
-  const missingMetadata = ((scanResult.data ?? []) as unknown as Record<string, unknown>[])
+  const missingMetadata = scanResult.data
     .map((r) => toRow(r, broken))
     .filter((r) => {
       const { tier } = qualityOf(r);
@@ -536,7 +647,10 @@ export async function getEbooksSummary(): Promise<EbooksSummary> {
     pendingReview: pendingReview.count ?? 0,
     archived: archived.count ?? 0,
     missingCovers: missingCovers.count ?? 0,
-    missingPdfs: Math.max(0, totalCount - pdfIds.size),
+    // An INCOMPLETE id scan must never be published as missing books — that is
+    // the 734-phantom itself. Unknown reads as 0, failing soft the same way
+    // featuredCount above does, rather than inventing a repair queue.
+    missingPdfs: pdfIds ? Math.max(0, totalCount - pdfIds.size) : 0,
     brokenFiles: brokenFiles.count ?? 0,
     totalViews,
     totalDownloads,
@@ -555,10 +669,19 @@ export async function getEbookFilterOptions(): Promise<{
 }> {
   const supabase = createServiceClient();
 
+  // The books scan is paged: clipped at 1000 rows it offered the language and
+  // year filters of an arbitrary prefix of the collection, so a language used
+  // only by later books had no chip to filter by at all.
   const [{ data: departments }, { data: categories }, { data: bookMeta }] = await Promise.all([
     supabase.from("departments").select("id, name").order("name", { ascending: true }),
     supabase.from("categories").select("id, name").order("name", { ascending: true }),
-    supabase.from("books").select("language, published_at").limit(ID_SCAN_LIMIT),
+    scanAllRows<{ language: string | null; published_at: string | null }>((from, to) =>
+      supabase
+        .from("books")
+        .select("language, published_at")
+        .order("id", { ascending: true })
+        .range(from, to),
+    ),
   ]);
 
   const languageSet = new Set<string>();
