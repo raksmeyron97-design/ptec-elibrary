@@ -35,6 +35,12 @@ const retrieval = vi.hoisted(() => ({
   getRelatedBooks: vi.fn(),
   getLibraryFact: vi.fn(),
   getLibraryOverview: vi.fn(),
+  // The page-lookup path (lib/ai/page-target.ts) resolves a document before it
+  // asks for a page. Unstubbed these are `undefined`, and the router would
+  // fail with a TypeError that reads like a routing bug.
+  findRecordByTitle: vi.fn(),
+  resolveRecord: vi.fn(),
+  retrieveEvidence: vi.fn(),
 }));
 
 vi.mock("./retrieval", () => retrieval);
@@ -81,6 +87,16 @@ beforeEach(() => {
   retrieval.searchPassages.mockResolvedValue(outcome());
   retrieval.getBookDetail.mockResolvedValue(outcome());
   retrieval.getRelatedBooks.mockResolvedValue(outcome());
+  // Default: the catalogue holds nothing under the name asked for, which is
+  // what makes the page-lookup refusals the DEFAULT rather than a special case.
+  retrieval.findRecordByTitle.mockResolvedValue(null);
+  retrieval.resolveRecord.mockResolvedValue(null);
+  retrieval.retrieveEvidence.mockResolvedValue({
+    ...outcome(),
+    evidence: [],
+    candidateCount: 0,
+    semanticAvailable: false,
+  });
   retrieval.getLibraryFact.mockResolvedValue({
     text: "Monday to Friday, 07:00–17:00.",
     link: "/about/timings",
@@ -157,9 +173,36 @@ describe("zero-LLM paths", () => {
   });
 
   it("refuses to answer a document question with no retrieved evidence", async () => {
-    const { response } = await ask("what does the document say on page 42?");
+    const { response } = await ask("what does the book say about phonics instruction?");
     expect(generateText).not.toHaveBeenCalled();
     expect(response.answer).toMatch(/couldn’t find enough evidence/i);
+  });
+
+  // ── A page the reader NAMED (lib/ai/page-target.ts) ────────────────────────
+  // The three sentences below are the whole contract: a page reference
+  // designates a row, so the only honest answers are that row, or a statement
+  // of which part of the lookup failed. What it may never be is a passage from
+  // somewhere else that happens to discuss the same subject — that is the
+  // defect this path exists to remove, measured at `exact_page` retrieval 0%.
+  it("asks which document when a page is named without one", async () => {
+    const { response } = await ask("what does it say on page 42?");
+    expect(generateText).not.toHaveBeenCalled();
+    expect(retrieval.searchPassages).not.toHaveBeenCalled();
+    expect(response.answer).toMatch(/which document/i);
+    expect(response.answer).toContain("42");
+  });
+
+  it("never searches the corpus for the WORDS of a page reference", async () => {
+    // The old behaviour: "page 42" reached `searchPassages` as two lexical
+    // terms, and any page carrying a running header scored on them.
+    await ask("what is on page 87 of \"Practical Research Methods\"?");
+    expect(retrieval.searchPassages).not.toHaveBeenCalled();
+  });
+
+  it("classes a page it could not open as a refusal, not as an answer", async () => {
+    const { trace } = await ask("what does it say on page 42?");
+    expect(trace.outcome.answerClass).toBe("refusal");
+    expect(trace.retrieval.pageLookup).toMatchObject({ found: [], missing: [42] });
   });
 });
 
@@ -182,7 +225,7 @@ describe("model paths", () => {
         dbQueries: 1,
       }),
     );
-    await ask("what does it say on page 42?");
+    await ask("what does the book say about phonics?");
     const call = generateText.mock.calls[0][0];
     expect(call.system).not.toMatch(/Phonics is taught early/);
     const lastUser = call.messages.at(-1);
@@ -203,7 +246,7 @@ describe("model paths", () => {
       text: "It says so (Teaching Reading, p. 42) and also (Invented Book, p. 9).",
       usage: { inputTokens: 10, outputTokens: 10, totalTokens: 20 },
     });
-    const { response } = await ask("what does it say on page 42?");
+    const { response } = await ask("what does the book say about phonics?");
     expect(response.answer).toContain("p. 42");
     expect(response.answer).not.toContain("Invented Book");
     expect(response.sources).toHaveLength(1);

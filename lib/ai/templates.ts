@@ -296,3 +296,54 @@ export function degraded(locale: AILocale): string {
     ? "ជំនួយការ AI មិនអាចប្រើបានបណ្ដោះអាសន្នទេ ប៉ុន្តែនេះជាលទ្ធផលស្វែងរកពីបណ្ណាល័យ។"
     : "The AI assistant is temporarily unavailable, but here are the matching library results.";
 }
+
+// ── Page lookups ──────────────────────────────────────────────────────────────
+// A reader who names a page is owed one of three sentences, and which one is a
+// fact about the database, never a guess (lib/ai/page-target.ts):
+//
+//   the document could not be resolved  → say which title failed
+//   the page carries no extracted text  → say so, and say how far the text goes
+//   no document was named at all        → ask which one
+//
+// The one answer none of them may be is a passage from somewhere else that
+// happens to be about the same subject: "page 294 of X" designates a row, and
+// a similar page is the wrong answer rather than a weaker one.
+
+/** "I couldn't find a document titled X, so I can't open page N of it." */
+export function pageDocumentUnresolved(title: string, pages: string, locale: AILocale): string {
+  if (locale === "km") {
+    return `ខ្ញុំរកមិនឃើញឯកសារដែលមានចំណងជើង «${title}» នៅក្នុងបណ្ណាល័យទេ ដូច្នេះមិនអាចបើកទំព័រ ${pages} របស់វាបានឡើយ។ សូមពិនិត្យចំណងជើង ឬស្វែងរកនៅ /books។`;
+  }
+  return `I couldn’t find a document titled “${title}” in the PTEC Library, so I can’t open page ${pages} of it. Check the title, or search the collection at /books.`;
+}
+
+/** "Which document? Page N on its own doesn't identify one." */
+export function pageNeedsDocument(pages: string, locale: AILocale): string {
+  if (locale === "km") {
+    return `សូមប្រាប់ថាទំព័រ ${pages} នៃឯកសារណា។ ទំព័រតែមួយមិនអាចកំណត់សៀវភៅណាមួយបានទេ។ សូមបើកទំព័រសៀវភៅ រួចសួរម្ដងទៀត ឬសរសេរចំណងជើងឱ្យច្បាស់។`;
+  }
+  return `Which document? Page ${pages} on its own doesn’t identify one. Open the book’s page and ask again, or name the title in your question.`;
+}
+
+/**
+ * "Page N of X has no extracted text." Names the highest page that does, when
+ * the document has any — a reader asking for page 294 of a 208-page scan needs
+ * to know which of the two problems they have.
+ */
+export function pageNotIndexed(
+  title: string,
+  pages: string,
+  lastIndexedPage: number | null,
+  locale: AILocale,
+): string {
+  if (locale === "km") {
+    const extent = lastIndexedPage
+      ? ` អត្ថបទដែលអានបានមានដល់ទំព័រ ${n(lastIndexedPage, "km")} ប៉ុណ្ណោះ។`
+      : " ឯកសារនេះមិនទាន់មានអត្ថបទដែលអានបានទេ (ប្រហែលជាឯកសារស្កេន)។";
+    return `ទំព័រ ${pages} នៃ «${title}» គ្មានអត្ថបទដែលអានបានទេ។${extent} អ្នកអាចបើកអានឯកសារដោយផ្ទាល់។`;
+  }
+  const extent = lastIndexedPage
+    ? ` Readable text for this document runs to page ${lastIndexedPage}.`
+    : " This document has no readable text at all — it is most likely a scan.";
+  return `Page ${pages} of “${title}” has no extracted text.${extent} You can still open the document and read it directly.`;
+}

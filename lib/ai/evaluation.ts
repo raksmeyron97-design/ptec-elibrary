@@ -149,6 +149,12 @@ export interface ObservedPassage {
   lexical?: number;
   /** Cosine similarity, when the semantic leg found it. */
   semantic?: number;
+  /**
+   * The reader NAMED this page by number, so it was fetched rather than ranked
+   * (lib/ai/page-target.ts). It therefore carries no lexical or semantic score
+   * — there was no ranking for a score to come out of.
+   */
+  pageNamed?: boolean;
 }
 
 /** The observation side: what the run actually did. */
@@ -285,7 +291,27 @@ function passagePages(p: ObservedPassage): number[] {
   return Array.from({ length: end - p.page + 1 }, (_, i) => p.page + i);
 }
 
+/**
+ * Does this passage carry a real reason to be in the prompt?
+ *
+ * A DESIGNATED page counts, and it has to. `evidenceCoverage` and
+ * `irrelevantContextRatio` exist to detect a prompt padded with weak context
+ * (§9), and they answer that by asking whether a RANKER's signal fired. For a
+ * page the reader named by number there was no ranker: "What is on page 87 of
+ * X?" states no topic at all, so the page is fetched, and both scores are
+ * absent by construction rather than low. Scoring that as no-signal makes the
+ * metric say the exact opposite of the truth — it would report the tightest
+ * context the system can produce (exactly the pages asked for, nothing else)
+ * as 100% irrelevant, which is what the first measured run of the page path
+ * did: evidence coverage 100% → 69% and irrelevant context 0% → 31%, with no
+ * junk passage anywhere in the prompt.
+ *
+ * The reader's own designation is the signal, and it is a stronger one than
+ * either score: a cosine similarity is a guess about what they meant, and a
+ * page number is not a guess.
+ */
 function hasSignal(p: ObservedPassage): boolean {
+  if (p.pageNamed) return true;
   return (p.lexical ?? 0) >= SIGNAL_FLOOR.lexical || (p.semantic ?? 0) >= SIGNAL_FLOOR.semantic;
 }
 

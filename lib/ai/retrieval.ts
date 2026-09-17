@@ -54,6 +54,7 @@ import { assessPageText } from "./page-quality";
 import { corpusVocabulary } from "./corpus-vocabulary";
 import { correctQuery, queryReadings, type QueryCorrection } from "./spellcheck";
 import type { QueryFrame } from "./query";
+import { pagesOf, type PageTarget } from "./page-target";
 import { isbnMatchKeys, titleWithoutEdition } from "@/lib/books/duplicate-detection/normalize";
 import { getResourceReadiness } from "./readiness";
 import { makeSnippet } from "@/lib/search/snippet";
@@ -112,6 +113,19 @@ const CANDIDATE_FACTOR = 6;
 const KEYWORD_SUFFICIENT = 3;
 /** Raw chars kept per retrieved passage before context compression trims it. */
 const PASSAGE_CHARS = 600;
+/**
+ * Total chars offered across every page a reader NAMED, shared between them.
+ *
+ * The unit is different from `PASSAGE_CHARS`: a topic passage is a window
+ * around a matched term and a named page is the whole page. But a range of six
+ * pages at a full page each would blow `EVIDENCE_LIMITS.page_lookup` by 3×,
+ * and being trimmed by the context builder is worse than being trimmed here —
+ * it cuts whichever passages it reaches last, so the END of a range silently
+ * disappears while the answer still claims to cover it. Sharing one budget
+ * gives a single page ~1,800 characters (most of a textbook page) and a
+ * six-page range ~300 each, and every page in the run is represented.
+ */
+const PAGE_LOOKUP_CHARS = 1_800;
 
 // ── Shared row → UI mappers ───────────────────────────────────────────────────
 export function coverUrlOf(raw: string | null | undefined): string | null {
@@ -984,6 +998,15 @@ async function hydratePages(
   query: string,
   terms: readonly string[] = [],
   signals?: ReadonlyMap<string, EvidenceSignals>,
+  /**
+   * Chars of the page's OWN text to keep, instead of a window centred on a
+   * matched term. 0 keeps the window.
+   *
+   * A page LOOKUP has no term to centre on — "what is on page 87" names none —
+   * and a 150-character snippet of a page the reader asked for whole is not an
+   * answer to it.
+   */
+  wholePage = 0,
 ): Promise<RetrievedEvidence[]> {
   const idsByType = new Map<EvidenceRecordType, string[]>();
   for (const r of rows) {
@@ -1034,7 +1057,7 @@ async function hydratePages(
       author: info.author,
       url: urlFor(type, info.ref),
       page: Number(r.page_no) || 1,
-      text: makeSnippet(content, focus, PASSAGE_CHARS / 4),
+      text: wholePage ? content.slice(0, wholePage) : makeSnippet(content, focus, PASSAGE_CHARS / 4),
       similarity: 1,
       score: 0,
       signals: signals?.get(`${type}:${r.record_id}:${r.page_no}`),
@@ -1260,6 +1283,80 @@ async function lexicalPages(
   }
 }
 
+/** What a page lookup found, and what it could not. */
+export interface PageLookupOutcome {
+  target: PageTarget;
+  /** Pages the reader named that carry extracted text. */
+  found: number[];
+  /** Pages the reader named that do not. */
+  missing: number[];
+  /** Highest page number this document has extracted text for, or null. */
+  lastIndexedPage: number | null;
+}
+
+/**
+ * The pages the reader NAMED, fetched by number.
+ *
+ * A page reference is identity — "page 294 of X" designates one row, and a
+ * page that merely reads like it is the wrong answer, not a worse one. So this
+ * is the ISBN rule from the ingestion gate applied to retrieval: resolve it
+ * exactly, or report that it could not be resolved. Nothing here ranks,
+ * scores, embeds or filters; in particular the page-quality filter is NOT
+ * applied, because when a reader asks what is on page 5 and page 5 is a table
+ * of contents, the table of contents is the honest answer.
+ *
+ * `missing` is the part that makes the refusal truthful. A document can be
+ * indexed and still have no row for page 294 — the PDF is shorter than the
+ * printed book, or extraction skipped an image-only page — and the difference
+ * between "that page has no text we can read" and "we have never read this
+ * document" is the difference between two different things to tell a reader.
+ */
+async function fetchNamedPages(
+  db: Db,
+  scope: EvidenceScope,
+  target: PageTarget,
+): Promise<{ evidence: RetrievedEvidence[]; lookup: PageLookupOutcome; dbQueries: number }> {
+  const wanted = pagesOf(target);
+  const { data, error } = await db
+    .from("book_pages")
+    .select("record_type, record_id, page_no, content")
+    .eq("record_type", scope.recordType)
+    .eq("record_id", scope.recordId)
+    .in("page_no", wanted)
+    .order("page_no", { ascending: true });
+  let dbQueries = 1;
+  if (error) console.error("[ai/retrieval] page lookup:", error.message);
+
+  const rows = ((data ?? []) as unknown as PageRow[]).filter((r) => String(r.content ?? "").trim().length > 0);
+  const found = rows.map((r) => Number(r.page_no));
+  const foundSet = new Set(found);
+  const missing = wanted.filter((p) => !foundSet.has(p));
+
+  // Only asked when something is missing, and only to tell the reader WHICH
+  // kind of missing it is. A complete hit costs one query.
+  let lastIndexedPage: number | null = null;
+  if (missing.length) {
+    const { data: last } = await db
+      .from("book_pages")
+      .select("page_no")
+      .eq("record_type", scope.recordType)
+      .eq("record_id", scope.recordId)
+      .order("page_no", { ascending: false })
+      .limit(1);
+    dbQueries++;
+    const row = (last ?? [])[0] as { page_no: number } | undefined;
+    lastIndexedPage = row ? Number(row.page_no) : null;
+  }
+
+  const perPage = rows.length ? Math.max(400, Math.floor(PAGE_LOOKUP_CHARS / rows.length)) : 0;
+  const evidence = rows.length ? await hydratePages(db, rows, "", [], undefined, perPage) : [];
+  // Page order, always: the reader asked for a run of pages, and a run read
+  // out of order is not the passage they named.
+  evidence.sort((a, b) => a.page - b.page);
+  for (const e of evidence) e.signals = { ...e.signals, pageNamed: true };
+  return { evidence, lookup: { target, found, missing, lastIndexedPage }, dbQueries };
+}
+
 /**
  * Pages spread through one document, for a summary with nothing to search on.
  *
@@ -1368,6 +1465,12 @@ export interface RetrieveEvidenceInput {
    */
   frame?: QueryFrame;
   /**
+   * The page or page range the reader named (lib/ai/page-target.ts). Honoured
+   * only with a `scope`: "page 294" means nothing without a document, and
+   * fetching page 294 of an arbitrary book would be a confident wrong answer.
+   */
+  pageTarget?: PageTarget;
+  /**
    * Return each leg's candidate pool alongside the chosen evidence, and skip
    * the cache so the pools describe this call.
    *
@@ -1406,6 +1509,8 @@ export interface EvidenceOutcome extends RetrievalOutcome {
   semanticAvailable: boolean;
   /** Set only when `debug` was requested. */
   pools?: EvidencePools;
+  /** Present when the question named a page — which of them were found. */
+  pageLookup?: PageLookupOutcome;
 }
 
 function emptyEvidence(): EvidenceOutcome {
@@ -1463,6 +1568,29 @@ export async function retrieveEvidence(input: RetrieveEvidenceInput): Promise<Ev
   }
 
   const scope = input.scope;
+
+  // ── A named page is fetched, never searched ─────────────────────────────────
+  // Before every other leg, and bypassing all of them: the reader designated
+  // rows, so there is nothing to rank and nothing a similar page could add.
+  // Requires a scope — see `pageTarget` on the input type.
+  if (input.pageTarget && scope) {
+    const db = createServiceClient();
+    const { evidence, lookup, dbQueries } = await fetchNamedPages(db, scope, input.pageTarget);
+    // A long run is sampled across its span rather than truncated at its
+    // start, so a summary of pp. 175–185 sees the end of the section too.
+    const chosen = evidence.length > limit ? spreadPages(evidence, limit).sort((a, b) => a.page - b.page) : evidence;
+    out.evidence = chosen;
+    out.passages = chosen;
+    out.results = evidenceToResults(chosen);
+    out.candidateCount = evidence.length;
+    out.semanticAvailable = false;
+    out.pageLookup = lookup;
+    out.dbQueries = dbQueries;
+    out.fallback = "keyword";
+    out.retrievalMs = Date.now() - started;
+    return out;
+  }
+
   const readiness = scope ? await getResourceReadiness(scope.recordType, scope.recordId) : null;
   const semanticAllowed = readiness ? readiness.semanticReady : embeddingsConfigured();
 

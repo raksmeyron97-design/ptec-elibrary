@@ -59,6 +59,20 @@ export interface RetrievalOutcome {
   citation?: { title: string; reference: string; url: string; page?: number };
   /** Documents a comparison found no evidence in, by title. */
   missingDocuments?: string[];
+  /**
+   * Which of the pages the reader NAMED were found (lib/ai/page-target.ts).
+   *
+   * Present only on a page lookup, and it is what makes the refusal truthful:
+   * a document can be indexed and still have no row for page 294, and "that
+   * page has no text we can read" is a different thing to tell a reader from
+   * "we have never read this document".
+   */
+  pageLookup?: {
+    target: import("./page-target").PageTarget;
+    found: number[];
+    missing: number[];
+    lastIndexedPage: number | null;
+  };
   /** Rows the retrieval legs produced before fusion and diversity. */
   candidateCount?: number;
   /**
@@ -98,6 +112,23 @@ export const TYPES_FOR: Partial<Record<AIIntent, ResultKind[]>> = {
 };
 
 /**
+ * Did the question name a page?
+ *
+ * Only reached for the two intents that are already ABOUT a document's
+ * contents, so a page number here is always a page of something rather than an
+ * edition or a year. Whether that something can be RESOLVED is the router's
+ * question, not this one: "What is on page 42?" with no document in hand
+ * designates nothing — page 42 of 1,916 books is 1,916 different pages — and
+ * the honest answer is to ask which book, which is still a page lookup and
+ * still must not be answered by searching the corpus for the word "page".
+ * Keeping the predicate here identical to the router's branch is what stops
+ * the two from disagreeing about which mode a request took.
+ */
+function namesAPage(intent: IntentResult): boolean {
+  return Boolean(intent.pageTarget);
+}
+
+/**
  * How a question should be answered, decided before anything expensive runs.
  *
  * Pure and exported so the mode a request takes is a property of the QUESTION,
@@ -111,10 +142,14 @@ export function retrievalModeFor(intent: IntentResult): RetrievalMode {
     case "document_compare":
       return "multi_document";
     case "resource_summary":
-      return "summary";
+      // "Summarize pages 175 to 185 of X" names its evidence. Summarising the
+      // whole document instead answers a question nobody asked.
+      return namesAPage(intent) ? "page_lookup" : "summary";
     case "pdf_question":
-      // A question asked from a resource page — or one that names its source
-      // — is answered from THAT document.
+      // A page the reader named is fetched by number (lib/ai/page-target.ts);
+      // otherwise a question asked from a resource page — or one that names
+      // its source — is answered from THAT document.
+      if (namesAPage(intent)) return "page_lookup";
       return intent.slug || intent.parsed?.scopeTitle ? "scoped" : "hybrid";
     case "general_knowledge":
       // The catch-all retrieves across the collection before concluding the
@@ -169,6 +204,16 @@ export function deterministicAnswer(
 ): string | undefined {
   const locale = intent.locale;
   if (intent.smalltalk) return T.greeting(locale);
+
+  // A page the reader NAMED and we could not open is a complete answer, and it
+  // is answered HERE rather than by the model for the same reason a citation
+  // is: the three ways a page lookup can fail are facts about the database
+  // (lib/ai/templates.ts), and a model asked to phrase one can only make it
+  // vaguer. `facts[0]` is the sentence the router already resolved.
+  //
+  // The condition is "named a page and found none of it", not "found nothing":
+  // a lookup that found SOME of a range still has evidence to answer from.
+  if (intent.pageTarget && retrieval.passages.length === 0 && facts[0]) return facts[0];
 
   switch (intent.intent) {
     case "unsupported":

@@ -172,6 +172,8 @@ export interface EvidenceSignals {
   definition?: boolean;
   /** Reciprocal-rank fusion score. Comparable only within one retrieval. */
   rrf?: number;
+  /** The reader named this page by number — it was fetched, not ranked. */
+  pageNamed?: boolean;
 }
 
 /**
@@ -228,7 +230,12 @@ export type RetrievalMode =
   | "scoped"
   | "multi_document"
   | "summary"
-  | "citation";
+  | "citation"
+  /**
+   * The reader named a PAGE. The pages are fetched by number, not searched
+   * for by their words — see lib/ai/page-target.ts.
+   */
+  | "page_lookup";
 
 export interface EvidenceLimits {
   /** Rows to ask each retrieval leg for. */
@@ -272,6 +279,14 @@ export const EVIDENCE_LIMITS: Record<RetrievalMode, EvidenceLimits> = {
   scoped: { candidates: 16, evidence: 4, perResource: 4, budgetTokens: 1_200 },
   summary: { candidates: 20, evidence: 5, perResource: 5, budgetTokens: 1_400 },
   multi_document: { candidates: 10, evidence: 6, perResource: 3, budgetTokens: 1_800 },
+  // A page lookup retrieves the pages the reader NAMED, so `candidates` is the
+  // longest run `MAX_PAGE_SPAN` allows and `perResource` never binds — every
+  // page comes from the one document. The evidence cap is what keeps a
+  // forty-page range from becoming a forty-page prompt: the run is sampled
+  // across its span (`spreadPages`) rather than truncated at its start, so a
+  // summary of pp. 175–185 sees the end of the section as well as its
+  // beginning.
+  page_lookup: { candidates: 1 + 40, evidence: 6, perResource: 6, budgetTokens: 1_800 },
 };
 
 /** Hard ceiling for the whole prompt in a mode, evidence included. */

@@ -367,6 +367,7 @@ async function main(): Promise<number> {
       pageEnd: e.pageEnd,
       lexical: e.signals?.lexical,
       semantic: e.signals?.semantic,
+      pageNamed: e.signals?.pageNamed,
     }));
     const evaluation = evaluateAnswer(label, {
       intent: telemetry?.intent ?? "error",

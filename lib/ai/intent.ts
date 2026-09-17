@@ -14,6 +14,7 @@
 import type { AIIntent, AILocale, Verbosity } from "./response";
 import type { LibraryInfoTopic } from "@/lib/library-info";
 import { CONCEPT_FRAMES, detectFrame, parseQuery, type AiQuery } from "./query";
+import { parsePageTarget, stripPageTarget, type PageTarget } from "./page-target";
 
 export interface IntentResult {
   intent: AIIntent;
@@ -35,6 +36,15 @@ export interface IntentResult {
   compareTargets?: string[];
   /** Page number the user explicitly referenced ("p. 42", "ទំព័រ ៤២"). */
   page?: number;
+  /**
+   * The page or page RANGE the question named (lib/ai/page-target.ts).
+   *
+   * `page` above is the first page of it, kept because the citation intent
+   * already speaks that shape. This is the field retrieval reads: a page
+   * reference is identity, and a range is a different request from its first
+   * page.
+   */
+  pageTarget?: PageTarget;
   /** True for greetings / thanks — answered from a template, never a model. */
   smalltalk?: boolean;
   /**
@@ -636,10 +646,16 @@ export function classifyIntent(raw: string, ctx: ClassifyContext = {}): IntentRe
   const lower = normalizeQuery(text);
   const locale = detectLanguage(text);
   const verbosity = detectVerbosity(lower);
-  const page = extractPage(text);
-  const query = extractQuery(text);
+  // A page reference is read BEFORE the topic, and removed from it: "page 294"
+  // contributes two lexical terms that appear in every running header and none
+  // that carry the subject, so leaving it in the text being searched is how a
+  // question naming a page came to be answered by searching for the words
+  // "page" and "294" (lib/ai/page-target.ts).
+  const pageTarget = parsePageTarget(text);
+  const page = pageTarget?.from ?? extractPage(text);
+  const query = extractQuery(pageTarget ? stripPageTarget(text) : text);
   const parsed = parseQuery(text);
-  const base = { locale, verbosity, query, slug: ctx.slug, slugType: ctx.slugType, page, parsed };
+  const base = { locale, verbosity, query, slug: ctx.slug, slugType: ctx.slugType, page, pageTarget: pageTarget ?? undefined, parsed };
 
   // 1. Academic-integrity decline — checked first so it can't be smuggled in
   //    behind a book-search phrasing.
