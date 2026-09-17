@@ -130,7 +130,11 @@ interface FramePattern {
 }
 
 const TRAIL = String.raw`\s*[?？។៕.!]*\s*$`;
-const EN_LIBRARY_SOURCES = String.raw`(?:the\s+)?(?:library'?s?\s+|collection'?s?\s+|ptec'?s?\s+)?(?:literature|books?|sources?|authors?|studies|research|scholarship|texts?|materials?|collection)`;
+// `library` is a source noun in its own right, not only a possessive before
+// one: "what does the library say about X" asks what the collection contains,
+// exactly as "what do the library's books say about X" does, and without it
+// the frame reader left the whole sentence as the topic.
+const EN_LIBRARY_SOURCES = String.raw`(?:the\s+)?(?:library'?s?\s+|collection'?s?\s+|ptec'?s?\s+)?(?:literature|books?|sources?|authors?|studies|research|scholarship|texts?|materials?|collection|library)`;
 const EN_CONTENT_VERBS = String.raw`(?:say|says|show|shows|tell\s+us|suggest|suggests|describe|describes|discuss|discusses|explain|explains|define|defines|present|presents|cover|covers|teach|teaches|handle|handles|treat|treats|approach|approaches|address|addresses)`;
 
 const FRAMES: FramePattern[] = [
@@ -250,6 +254,26 @@ const FRAMES: FramePattern[] = [
   { frame: "definition", re: new RegExp(String.raw`^(?:define|definition\s+of|meaning\s+of|what\s+does)\s+(.+?)(?:\s+mean)?${TRAIL}`, "iu") },
   { frame: "definition", re: new RegExp(String.raw`^(?:តើ\s*)?(.+?)\s*(?:គឺជាអ្វី|ជាអ្វី|មានន័យថាម៉េច|មានន័យយ៉ាងណា|មានន័យដូចម្តេច|មានន័យថាអ្វី)${TRAIL}`, "u") },
   { frame: "definition", re: new RegExp(String.raw`^(?:តើ\s*)?អ្វី(?:ទៅ)?(?:ជា|គឺ)\s*(.+?)${TRAIL}`, "u") },
+  /**
+   * "តើ X មានប៉ុន្មានប្រភេទ?" — how many kinds of X are there. A CONCEPT
+   * question with its interrogative at the end, which is simply where Khmer
+   * puts it; the English "what kinds of X are there" is already a definition
+   * frame by its opening.
+   *
+   * Without it the sentence matched no frame, fell through to the keyword
+   * tables, and "ស្រាវជ្រាវ" sent it to `thesis_search` — a collection holding
+   * ONE published record against 1,916 books. That is the Khmer instance of
+   * exactly the defect CONCEPT_FRAMES was added for: "What is action
+   * research?" was a thesis search because "action research" is a collection
+   * keyword. Measured, --suite km, 2026-09-17.
+   */
+  {
+    frame: "definition",
+    re: new RegExp(
+      String.raw`^(?:តើ\s*)?(.+?)\s*(?:មាន)?\s*(?:ប៉ុន្មាន|អ្វីខ្លះ)\s*(?:ប្រភេទ|ប្រការ|យ៉ាង|មុខ|ចំណុច|កត្តា|ជំហាន)${TRAIL}`,
+      "u",
+    ),
+  },
 ];
 
 /**

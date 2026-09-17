@@ -1,0 +1,275 @@
+{
+  "generatedAt": "2026-09-17T09:30:00.000Z",
+  "corpusBooks": 1916,
+  "note": "Khmer is the reading language of this college, and until this suite the assistant's Khmer behaviour was measured by ten questions inside a general fixture — none of them mixed-script, none naming a Khmer page, none asking a goal-shaped question. Every label here was written by reading what the collection actually holds, never by recording what the system returned. Where the corpus genuinely holds nothing, the label says so and the refusal is the correct answer.",
+  "questions": [
+    {
+      "id": "km-def-001",
+      "category": "khmer",
+      "question": "តើការស្រាវជ្រាវសកម្មភាពជាអ្វី?",
+      "locale": "km",
+      "evidenceScope": "topic_unscoped",
+      "expectIntent": [
+        "pdf_question",
+        "thesis_search",
+        "general_knowledge"
+      ],
+      "expectGrounded": true,
+      "note": "\"What is action research?\" — the single most common Khmer question a student-teacher here asks. The collection holds many action-research titles."
+    },
+    {
+      "id": "km-def-002",
+      "category": "khmer",
+      "question": "តើវិធីសាស្ត្រស្រាវជ្រាវមានប៉ុន្មានប្រភេទ?",
+      "locale": "km",
+      "evidenceScope": "topic_unscoped",
+      "expectIntent": [
+        "pdf_question",
+        "general_knowledge",
+        "thesis_search",
+        "book_search"
+      ],
+      "note": "\"How many kinds of research method are there?\" — a Khmer question whose topic term is Khmer while the corpus that answers it is largely English."
+    },
+    {
+      "id": "km-explain-001",
+      "category": "khmer",
+      "question": "សូមពន្យល់អំពីការវាយតម្លៃសិស្ស",
+      "locale": "km",
+      "evidenceScope": "topic_unscoped",
+      "expectIntent": [
+        "pdf_question",
+        "general_knowledge",
+        "book_search"
+      ],
+      "note": "\"Please explain student assessment.\" Politeness (សូម) and the preposition (អំពី) are frame, not topic; ការវាយតម្លៃ is the topic."
+    },
+    {
+      "id": "km-search-001",
+      "category": "khmer",
+      "question": "រកសៀវភៅអំពីគណិតវិទ្យា",
+      "locale": "km",
+      "evidenceScope": "metadata",
+      "expectIntent": [
+        "book_search"
+      ],
+      "templateOk": true,
+      "note": "\"Find books about mathematics.\" A catalogue search: the cards are the answer. គណិតវិទ្យា is a real category in this collection."
+    },
+    {
+      "id": "km-search-002",
+      "category": "khmer",
+      "question": "តើបណ្ណាល័យមានសៀវភៅអំពីវិធីសាស្ត្រស្រាវជ្រាវទេ?",
+      "locale": "km",
+      "evidenceScope": "metadata",
+      "expectIntent": [
+        "book_search",
+        "general_library_question",
+        "thesis_search"
+      ],
+      "templateOk": true,
+      "note": "\"Does the library have books about research methods?\" — availability by TOPIC, not by title, so the honest answer is the shelf."
+    },
+    {
+      "id": "km-search-003",
+      "category": "khmer",
+      "question": "រកសៀវភៅអំពីគរុកោសល្យ",
+      "locale": "km",
+      "evidenceScope": "metadata",
+      "expectIntent": [
+        "book_search",
+        "subject_search"
+      ],
+      "templateOk": true,
+      "note": "\"Find books about pedagogy.\" គរុកោសល្យ is one of the strongest subject terms in this teacher-education collection."
+    },
+    {
+      "id": "km-faq-001",
+      "category": "khmer",
+      "question": "តើបណ្ណាល័យបើកម៉ោងប៉ុន្មាន?",
+      "locale": "km",
+      "evidenceScope": "metadata",
+      "expectIntent": [
+        "faq"
+      ],
+      "templateOk": true,
+      "note": "Opening hours — must come from published settings, never from a PDF page."
+    },
+    {
+      "id": "km-faq-002",
+      "category": "khmer",
+      "question": "តើខ្ញុំអាចខ្ចីសៀវភៅបានប៉ុន្មានក្បាល?",
+      "locale": "km",
+      "evidenceScope": "metadata",
+      "expectIntent": [
+        "faq"
+      ],
+      "templateOk": true,
+      "note": "\"How many books may I borrow?\" — an institutional fact with an authoritative source."
+    },
+    {
+      "id": "km-mix-001",
+      "category": "mixed_language",
+      "question": "រក books អំពី formative assessment",
+      "locale": "km",
+      "evidenceScope": "metadata",
+      "expectIntent": [
+        "book_search"
+      ],
+      "templateOk": true,
+      "note": "A Khmer frame around an English topic — how a student-teacher here actually types. The Khmer preposition អំពី must not become a term a page has to contain."
+    },
+    {
+      "id": "km-mix-002",
+      "category": "mixed_language",
+      "question": "ខ្ញុំចង់រៀន action research",
+      "locale": "km",
+      "evidenceScope": "topic_unscoped",
+      "expectIntent": [
+        "thesis_search",
+        "book_search",
+        "pdf_question",
+        "general_knowledge"
+      ],
+      "note": "\"I want to learn action research.\" A GOAL, not a lookup. ខ្ញុំចង់រៀន is frame; nothing on an English page can contain it."
+    },
+    {
+      "id": "km-mix-003",
+      "category": "mixed_language",
+      "question": "តើមាន book អំពី qualitative research ទេ?",
+      "locale": "km",
+      "evidenceScope": "metadata",
+      "expectIntent": [
+        "book_search"
+      ],
+      "templateOk": true,
+      "note": "Mixed availability question. Both អំពី and the trailing ទេ are frame."
+    },
+    {
+      "id": "km-mix-004",
+      "category": "mixed_language",
+      "question": "តើ validity និង reliability ខុសគ្នាយ៉ាងណា?",
+      "locale": "km",
+      "evidenceScope": "topic_unscoped",
+      "expectIntent": [
+        "document_compare",
+        "pdf_question",
+        "general_knowledge"
+      ],
+      "expectGrounded": true,
+      "note": "Khmer puts the comparison word at the END. This is the shape COMPARE_TRAIL was added for; it is here so a regression in it is visible."
+    },
+    {
+      "id": "km-scoped-001",
+      "category": "khmer",
+      "question": "តើសៀវភៅនេះនិយាយអ្វីអំពី sampling?",
+      "locale": "km",
+      "scope": {
+        "recordType": "book",
+        "slug": "practical-research-methods"
+      },
+      "evidenceScope": "single_document",
+      "sources": [
+        "practical-research-methods"
+      ],
+      "expectIntent": [
+        "pdf_question"
+      ],
+      "expectGrounded": true,
+      "note": "\"What does this book say about sampling?\" asked in Khmer from an English book's page. The Khmer deictic frame must be stripped or the lexical leg requires a Khmer phrase on an English page."
+    },
+    {
+      "id": "km-scoped-002",
+      "category": "khmer",
+      "question": "សៀវភៅនេះនិយាយអំពីអ្វី?",
+      "locale": "km",
+      "scope": {
+        "recordType": "book",
+        "slug": "practical-research-methods"
+      },
+      "evidenceScope": "metadata",
+      "sources": [
+        "practical-research-methods"
+      ],
+      "expectIntent": [
+        "book_detail",
+        "resource_summary",
+        "pdf_question"
+      ],
+      "templateOk": true,
+      "note": "\"What is this book about?\" names NO topic, so the document itself is the subject — the catalogue card or a sampled summary, never a word search for the question's own particles."
+    },
+    {
+      "id": "km-page-001",
+      "category": "khmer",
+      "question": "តើទំព័រ ៨៧ និយាយអំពីអ្វី?",
+      "locale": "km",
+      "scope": {
+        "recordType": "book",
+        "slug": "practical-research-methods"
+      },
+      "evidenceScope": "exact_page",
+      "sources": [
+        "practical-research-methods"
+      ],
+      "pages": {
+        "practical-research-methods": [
+          87
+        ]
+      },
+      "expectIntent": [
+        "pdf_question"
+      ],
+      "expectGrounded": true,
+      "requiredClaims": [
+        "87"
+      ],
+      "note": "Khmer page word and Khmer digits. The English form of this question is v21-page-002; the two must behave identically."
+    },
+    {
+      "id": "km-author-001",
+      "category": "khmer",
+      "question": "តើអ្នកណាសរសេរសៀវភៅ Practical Research Methods?",
+      "locale": "km",
+      "evidenceScope": "metadata",
+      "sources": [
+        "practical-research-methods"
+      ],
+      "expectIntent": [
+        "author_search",
+        "book_search"
+      ],
+      "templateOk": true,
+      "note": "\"Who wrote X?\" in Khmer about an English title — the byline is the answer and it is assembled from catalogue fields."
+    },
+    {
+      "id": "km-noans-001",
+      "category": "no_answer",
+      "question": "តើបណ្ណាល័យនិយាយអ្វីអំពីការវះកាត់បេះដូង?",
+      "locale": "km",
+      "evidenceScope": "no_evidence",
+      "expectIntent": [
+        "pdf_question",
+        "general_knowledge",
+        "book_search"
+      ],
+      "expectNoAnswer": true,
+      "note": "\"What does the library say about heart surgery?\" — a teacher-education collection holds nothing on cardiac surgery, and the refusal is the correct answer. The Khmer counterpart of v21-noans-001."
+    },
+    {
+      "id": "km-noans-002",
+      "category": "no_answer",
+      "question": "រកសៀវភៅអំពីការរុករករ៉ែក្នុងលំហ",
+      "locale": "km",
+      "evidenceScope": "no_evidence",
+      "expectIntent": [
+        "book_search",
+        "pdf_question",
+        "general_knowledge"
+      ],
+      "expectNoAnswer": true,
+      "templateOk": true,
+      "note": "\"Find books about space mining.\" Nothing in the collection; saying so is the answer."
+    }
+  ]
+}

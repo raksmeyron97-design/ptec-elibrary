@@ -688,3 +688,28 @@ describe("v2 edge cases", () => {
     expect(r.query).toBe("SPSS Explained");
   });
 });
+
+// ── Khmer puts its interrogative at the end ──────────────────────────────────
+describe("extractQuery — Khmer trailing interrogatives", () => {
+  it("strips a trailing count/kind question from the topic", () => {
+    expect(extractQuery("តើវិធីសាស្ត្រស្រាវជ្រាវមានប៉ុន្មានប្រភេទ?")).toBe("វិធីសាស្ត្រស្រាវជ្រាវ");
+    expect(extractQuery("តើការវាយតម្លៃមានអ្វីខ្លះ?")).toBe("ការវាយតម្លៃ");
+  });
+
+  it("keeps a topic that merely ENDS in a classifier", () => {
+    // The interrogative word is required before it, so "type" on its own is
+    // still part of the subject.
+    expect(extractQuery("ការវាយតម្លៃប្រភេទថ្មី")).toBe("ការវាយតម្លៃប្រភេទថ្មី");
+  });
+
+  it("strips a Khmer GOAL frame so the topic is what is searched for", () => {
+    // "I want to learn action research" searched titles for the whole
+    // sentence, including the Khmer clause no English title can contain.
+    expect(extractQuery("ខ្ញុំចង់រៀន action research")).toBe("action research");
+  });
+
+  it("strips an English collection noun carrying a Khmer preposition", () => {
+    expect(extractQuery("តើមាន book អំពី qualitative research ទេ?")).toBe("qualitative research");
+    expect(extractQuery("រក books អំពី formative assessment")).toBe("formative assessment");
+  });
+});

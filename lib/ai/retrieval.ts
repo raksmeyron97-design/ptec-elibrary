@@ -44,6 +44,7 @@ import {
   queryTerms,
   requiredTerms,
   spreadPages,
+  workSimilarityFloor,
   type EvidenceRecordType,
   type EvidenceSignals,
   type RetrievalMode,
@@ -75,8 +76,10 @@ const HUB_RESULT_LIMIT = 5;
 const SUBJECT_OVERVIEW_LIMIT = 10;
 
 /** Semantic thresholds. Chunks are held to a higher bar than work metadata
- *  because a weak page match produces a confident-sounding wrong citation. */
-const WORK_MIN_SIMILARITY = 0.25;
+ *  because a weak page match produces a confident-sounding wrong citation.
+ *  The work floor is per-script and lives with the other pure retrieval
+ *  policy in lib/ai/evidence.ts — see `WORK_SIMILARITY_FLOOR` for the
+ *  measurement that set it. */
 /**
  * The floor a chunk must clear to be evidence at all.
  *
@@ -287,17 +290,48 @@ function bookRow(b: any): { result: SearchResult; work: CompactWork; popularity:
 }
 
 /**
+ * A title pool and the claim it makes.
+ *
+ * `ordered` — every row's title contains the query's words, in order. These
+ *   are about the topic and belong in the result pool even when none of them
+ *   is the work the reader named: a Khmer topic word that sits in thirty
+ *   descriptions used to push the three books whose TITLE carries it out of
+ *   the popularity-capped pool entirely.
+ * `fuzzy`  — a trigram index thinks these titles LOOK like the query. That is
+ *   a claim about spelling, and it is the only thing this library has that
+ *   tolerates a typo in a title, so it must keep feeding `resolveTitle`. It
+ *   must NOT feed the result pool: `resolveTitle` admits a row only when every
+ *   word of the query sits within one edit of a title word, and when it admits
+ *   none, the honest reading is that no title resembles the query. Merging
+ *   them anyway is how "រកសៀវភៅអំពីការរុករករ៉ែក្នុងលំហ" — find books about
+ *   space mining — answered "found 5 books" over a collection holding none,
+ *   with the semantic floor correctly refusing all of them one line earlier.
+ */
+interface TitlePool {
+  rows: any[];
+  via: "ordered" | "fuzzy" | "none";
+}
+
+const EMPTY_TITLE_POOL: TitlePool = { rows: [], via: "none" };
+
+/**
  * Catalogue rows whose title could be the work `name` names: the words in
  * order, with and without an edition marker, ten rows by popularity. The
  * caller confirms with `resolveTitle` — this only builds the pool.
+ *
+ * `via` says which leg produced them, and the caller must honour it. The two
+ * legs make different claims: `ordered` rows carry the query's words in their
+ * title, so they are about the topic whether or not one of them IS the work;
+ * `fuzzy` rows merely LOOK like the query to a trigram index, which is a claim
+ * about spelling and about nothing else. See `TitlePool`.
  */
-async function namedBookRows(db: Db, name: string): Promise<any[]> {
+async function namedBookRows(db: Db, name: string): Promise<TitlePool> {
   const patterns = new Set<string>();
   const whole = orderedWordsPattern(name);
   if (whole) patterns.add(whole);
   const base = orderedWordsPattern(titleWithoutEdition(name));
   if (base) patterns.add(base);
-  if (!patterns.size) return [];
+  if (!patterns.size) return EMPTY_TITLE_POOL;
   const { data, error } = await db
     .from("books")
     .select(BOOK_CARD_SELECT)
@@ -307,9 +341,9 @@ async function namedBookRows(db: Db, name: string): Promise<any[]> {
     .limit(10);
   if (error) {
     console.error("[ai/retrieval] named book rows:", error.message);
-    return [];
+    return EMPTY_TITLE_POOL;
   }
-  if (data?.length) return data as any[];
+  if (data?.length) return { rows: data as any[], via: "ordered" };
 
   // Nothing carries the words in order — a typo, most likely. The trigram
   // RPC the search page uses returns look-alike titles; `resolveTitle` then
@@ -321,16 +355,16 @@ async function namedBookRows(db: Db, name: string): Promise<any[]> {
     const slugs = ((fuzzy ?? []) as { source: string; ref: string }[])
       .filter((r) => r.source === "book" && r.ref)
       .map((r) => r.ref);
-    if (!slugs.length) return [];
+    if (!slugs.length) return EMPTY_TITLE_POOL;
     const { data: rows } = await db
       .from("books")
       .select(BOOK_CARD_SELECT)
       .eq("is_published", true)
       .in("slug", slugs)
       .limit(8);
-    return (rows ?? []) as any[];
+    return { rows: (rows ?? []) as any[], via: "fuzzy" };
   } catch {
-    return [];
+    return EMPTY_TITLE_POOL;
   }
 }
 
@@ -401,12 +435,13 @@ async function semanticWorks(
   db: Db,
   vec: number[],
   limit: number,
-  types?: ReadonlySet<ResultKind>,
+  types: ReadonlySet<ResultKind> | undefined,
+  floor: number,
 ): Promise<Array<{ result: SearchResult; work: CompactWork }>> {
   const { data, error } = await db.rpc("match_library", {
     query_embedding: vec,
     match_count: Math.max(limit * 2, 8),
-    min_similarity: WORK_MIN_SIMILARITY,
+    min_similarity: floor,
   });
   if (error) {
     console.error("[ai/retrieval] match_library:", error.message);
@@ -508,7 +543,7 @@ export async function searchWorks(
     // The named-work resolution runs beside the token pool, not after it: the
     // pool is capped by popularity and the work the reader named is exactly
     // the row that cap used to drop (docs/AI_BRAIN_2_AUDIT.md §3).
-    const namedRows = types.has("book") ? namedBookRows(db, named) : Promise.resolve([]);
+    const namedRows = types.has("book") ? namedBookRows(db, named) : Promise.resolve(EMPTY_TITLE_POOL);
     if (types.has("book")) {
       dbQueries += 2;
       rows.push(...(await keywordBooks(db, query, limit)).map(bookRow));
@@ -522,20 +557,26 @@ export async function searchWorks(
       rows.push(...(await keywordPosts(db, query, limit)).map(postRow));
     }
     const titled = await namedRows;
-    // Title matches join the pool whether or not one of them IS the work: the
-    // token pool is capped by popularity, and a Khmer topic word that sits in
-    // thirty descriptions pushed the three titles that carry it out of the
-    // thirty rows entirely (measured: "រកសៀវភៅអំពីគណិតវិទ្យា" returned five
-    // books, none of the three whose title contains គណិតវិទ្យា).
-    const pooled = new Set(rows.map((r) => r.result.url));
-    for (const r of titled) {
-      const card = bookRow(r);
-      if (pooled.has(card.result.url)) continue;
-      pooled.add(card.result.url);
-      rows.push(card);
+    // ORDERED title matches join the pool whether or not one of them IS the
+    // work: the token pool is capped by popularity, and a Khmer topic word
+    // that sits in thirty descriptions pushed the three titles that carry it
+    // out of the thirty rows entirely (measured: "រកសៀវភៅអំពីគណិតវិទ្យា"
+    // returned five books, none of the three whose title contains គណិតវិទ្យា).
+    //
+    // FUZZY matches do not. They are look-alikes from a trigram index, and
+    // they reach `resolveTitle` below — which is the gate that decides whether
+    // any of them is actually the named work — but nothing else. See TitlePool.
+    if (titled.via === "ordered") {
+      const pooled = new Set(rows.map((r) => r.result.url));
+      for (const r of titled.rows) {
+        const card = bookRow(r);
+        if (pooled.has(card.result.url)) continue;
+        pooled.add(card.result.url);
+        rows.push(card);
+      }
     }
     const resolved = resolveTitle(
-      titled.map((r) => ({ row: r, title: String(r.title ?? ""), author: r.authors?.name ?? null, popularity: Number(r.download_count ?? 0) })),
+      titled.rows.map((r) => ({ row: r, title: String(r.title ?? ""), author: r.authors?.name ?? null, popularity: Number(r.download_count ?? 0) })),
       named,
     );
     const entityCard = resolved ? bookRow(resolved.item.row) : null;
@@ -550,7 +591,7 @@ export async function searchWorks(
       embeddingMs = emb.ms;
       if (emb.vector) {
         dbQueries++;
-        const semantic = await semanticWorks(db, emb.vector, limit, types);
+        const semantic = await semanticWorks(db, emb.vector, limit, types, workSimilarityFloor(query));
         const seen = new Set(rows.map((r) => r.result.url));
         for (const s of semantic) {
           if (seen.has(s.result.url)) continue;
@@ -1792,7 +1833,7 @@ async function findWorkByTitle(
   const clean = sanitizeFilterTerm(query);
   const books = await namedBookRows(db, clean);
   const book = resolveTitle(
-    books.map((b) => ({ row: b, title: String(b.title ?? ""), author: b.authors?.name ?? null, popularity: Number(b.download_count ?? 0) })),
+    books.rows.map((b) => ({ row: b, title: String(b.title ?? ""), author: b.authors?.name ?? null, popularity: Number(b.download_count ?? 0) })),
     clean,
   )?.item.row;
   if (book) return { ...bookRow(book), dbQueries: 1 };

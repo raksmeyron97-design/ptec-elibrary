@@ -94,7 +94,11 @@ const LIVE = has("--live") || Boolean(LIVE_SUITE);
 const VERBOSE = has("--verbose");
 const JSON_OUT = has("--json");
 const ONLY = valueOf("--category");
-/** Which fixture: `v1` (the original 123, the permanent baseline), `v2` (the edge-case suite), or `all`. */
+/**
+ * Which fixture: `v1` (the original 123, the permanent baseline), `v2` (the
+ * edge-case suite), `v2.1` (evidence scopes), `km` (Khmer and mixed-language),
+ * or `all`.
+ */
 const SUITE = valueOf("--suite") ?? "v1";
 /** Comma-separated question ids — a small, deliberate set for a --live run. */
 const EXPLICIT_IDS = valueOf("--ids")?.split(",").map((s) => s.trim()).filter(Boolean);
@@ -259,16 +263,19 @@ async function main(): Promise<number> {
       ? load("questions-v2.json")
       : SUITE === "v2.1"
         ? load("questions-v2-1.json")
-        : SUITE === "all"
-          ? {
-              ...v1,
-              questions: [
-                ...v1.questions,
-                ...load("questions-v2.json").questions,
-                ...load("questions-v2-1.json").questions,
-              ],
-            }
-          : v1;
+        : SUITE === "km"
+          ? load("questions-km.json")
+          : SUITE === "all"
+            ? {
+                ...v1,
+                questions: [
+                  ...v1.questions,
+                  ...load("questions-v2.json").questions,
+                  ...load("questions-v2-1.json").questions,
+                  ...load("questions-km.json").questions,
+                ],
+              }
+            : v1;
 
   const all = fixture.questions.filter(
     (q) => (!ONLY || q.category === ONLY) && (!IDS || IDS.includes(q.id)),

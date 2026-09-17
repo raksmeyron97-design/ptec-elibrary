@@ -221,7 +221,20 @@ const LITERATURE_WORDS = [
   "research describe", "research describes", "research explain",
   "according to the literature", "in the literature",
   "across the collection", "across the library", "across these books",
-  "អក្សរសិល្ប៍និយាយ", "ការស្រាវជ្រាវបង្ហាញ",
+  // "What does the LIBRARY say about X" — the most natural way to ask what
+  // the collection contains on a subject, and the one shape that was routed
+  // to the institutional path instead. Rule 11 below sends anything merely
+  // MENTIONING the library to `general_library_question`, which answers with
+  // opening hours and a phone number; measured against production
+  // (--suite km, 2026-09-17), "តើបណ្ណាល័យនិយាយអ្វីអំពីការវះកាត់បេះដូង?" —
+  // what does the library say about heart surgery — landed there. Pairing the
+  // institution noun with a CONTENT verb is what separates "what does the
+  // library say about X" from "where is the library".
+  "library say", "library says", "library describe", "library describes",
+  "library discuss", "library discusses", "library cover", "library covers",
+  "library explain", "library explains", "library tell",
+  "បណ្ណាល័យនិយាយ", "បណ្ណាល័យបង្ហាញ", "បណ្ណាល័យពន្យល់", "បណ្ណាល័យមានអ្វី",
+  "ឯកសារនិយាយ", "ការសិក្សាបង្ហាញ",
 ];
 // A grounded summary of a document — distinct from `book_detail`, which
 // describes a record from its catalogue metadata. "What is this book about"
@@ -427,9 +440,41 @@ const LEAD_STRIP = [
 ];
 const KHMER_LEAD_STRIP = [
   /^(សូម)?\s*(ជួយ)?\s*(រក|ស្វែងរក|ណែនាំ|បង្ហាញ)\s*/u,
-  /^(មាន|តើមាន)\s*/u,
+  // The institution may stand between the interrogative and the verb:
+  // "តើ[បណ្ណាល័យ]មានសៀវភៅអំពី X ទេ?" — does [the library] have books about X.
+  // `តើ` is already gone by this point, so an anchored `^(មាន)` could not
+  // reach the verb and the whole clause stayed in the topic (measured: the
+  // catalogue was asked for a title containing "បណ្ណាល័យមានសៀវភៅអំពី…").
+  /^(?:បណ្ណាល័យ|វ\.គ\.ភ)?\s*(មាន|តើមាន)\s*/u,
   /^(សៀវភៅ|ឯកសារ|សារណា|និក្ខេបបទ|ព័ត៌មាន|អត្ថបទ)\s*(អំពី|ស្តីពី|ស្ដីពី|ពី|ទាក់ទងនឹង)\s*/u,
   /^(អំពី|ស្តីពី|ស្ដីពី)\s*/u,
+  /**
+   * A GOAL, not a lookup: "ខ្ញុំចង់រៀន action research" — "I want to learn
+   * action research".
+   *
+   * Measured against production (scripts/ai-answer-benchmark.ts --suite km,
+   * 2026-09-17): the frame was never stripped, so the thesis search looked for
+   * a title or abstract containing the literal string "ខ្ញុំចង់រៀន action
+   * research" and answered "I couldn't find documents about «ខ្ញុំចង់រៀន
+   * action research»" over a collection holding many action-research titles.
+   * It is also the worst shape for the lexical leg: Khmer has no word
+   * boundaries, so `queryTerms` cannot split "ខ្ញុំចង់រៀន" and the whole
+   * clause enters as ONE term — and, being the longest, it lands first in
+   * `requiredTerms`, which is applied as a SQL conjunction. An English page
+   * then has to contain a Khmer sentence before it can be evidence.
+   */
+  /^(ខ្ញុំ|យើង)?\s*(ចង់|ត្រូវការ|ចាំបាច់)\s*(រៀន|អាន|សិក្សា|ស្វែងយល់|ដឹង)?\s*(អំពី|ស្តីពី|ស្ដីពី|ពី)?\s*/u,
+  /**
+   * An ENGLISH collection noun with a KHMER preposition: "book អំពី
+   * qualitative research", "រក books អំពី formative assessment".
+   *
+   * This is how a student-teacher here actually types, and neither list caught
+   * it: `LEAD_STRIP` wants an English preposition after the English noun, and
+   * the Khmer rule above wants a Khmer noun. Measured: the topic stayed "book
+   * អំពី qualitative research", which carries `អំពី` into `queryTerms` as a
+   * content term a page has to contain.
+   */
+  /^(e-?books?|books?|thesis|theses|dissertations?|documents?|articles?|papers?)\s*(អំពី|ស្តីពី|ស្ដីពី|ពី|ទាក់ទងនឹង)\s*/iu,
 ];
 
 /**
@@ -540,6 +585,18 @@ export function extractQuery(text: string): string {
   for (const re of [...LEAD_STRIP, ...KHMER_LEAD_STRIP]) out = out.replace(re, "").trim();
   // Trailing "ទេ?" / "please" are politeness, not topic.
   out = out.replace(/\s*(ទេ|ដែរ|បានទេ)\s*$/u, "").replace(/\s*please\s*$/i, "").trim();
+  // Khmer puts its interrogative at the END, and the yes/no strip above only
+  // covers one shape of it. "តើវិធីសាស្ត្រស្រាវជ្រាវមានប៉ុន្មានប្រភេទ?" — how
+  // many kinds of research method are there — kept "មានប៉ុន្មានប្រភេទ" in the
+  // topic, so the catalogue was asked for a title containing it and answered
+  // "I couldn't find documents about «វិធីសាស្ត្រស្រាវជ្រាវមានប៉ុន្មានប្រភេទ»"
+  // over a collection full of them (measured, --suite km, 2026-09-17).
+  //
+  // The interrogative word is REQUIRED before the optional classifier, so a
+  // topic that merely ends in "ប្រភេទ" ("type") keeps it.
+  out = out
+    .replace(/\s*(?:មាន)?\s*(?:ប៉ុន្មាន|អ្វីខ្លះ|យ៉ាងណា|ដូចម្តេច|ដូចម្ដេច)\s*(?:ប្រភេទ|ប្រការ|យ៉ាង|មុខ|ក្បាល|ចំណុច)?\s*$/u, "")
+    .trim();
   out = out.replace(DETERMINER_NOUN, "").trim();
   // Last, so it unwraps whatever the scaffolding strips left behind.
   out = unwrapQuoted(out);
