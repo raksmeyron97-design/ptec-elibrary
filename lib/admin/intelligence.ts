@@ -997,6 +997,67 @@ export type HealthPulseData = HealthPulse & {
 };
 
 /**
+ * app_events.kind is CHECK-constrained to these four (migration 0090). They are
+ * listed because the per-kind breakdown is now COUNTED rather than scanned, and
+ * a count has to be asked for by name. A kind added to that constraint must be
+ * added here too, or it silently vanishes from the System Events export.
+ */
+const APP_EVENT_KINDS = ["ai_request", "storage_operation", "notification", "export"] as const;
+
+type AppEventCounts = {
+  total: number;
+  ok: number;
+  /** status error | timeout — what every rate in DASHBOARD-METRICS.md counts. */
+  failures: number;
+  fallbacks: number;
+  quota: number;
+};
+
+/**
+ * Exact per-status totals for one app_events kind inside the window.
+ *
+ * Counted rather than scanned because PostgREST clips every response at
+ * db-max-rows (1000: `max_rows` in supabase/config.toml, PGRST_DB_MAX_ROWS in
+ * infra/supabase/docker-compose.yml) regardless of the `.limit()` asked for. A
+ * month of traffic is far more than that, so a row scan yields an arbitrary,
+ * unordered 1,000-row sample — shared across ALL kinds — and an error RATE
+ * computed from it is not a measurement of anything. A head+count request
+ * returns no rows, so the cap never applies and the number is the real one.
+ *
+ * Latency averages still come from the sampled rows: a mean over a sample is a
+ * fair estimate, where a rate over a truncated sample is not.
+ */
+async function countAppEvents(
+  supabase: ServiceClient,
+  kind: string,
+  win: Window,
+): Promise<AppEventCounts> {
+  const scope = () =>
+    supabase
+      .from("app_events")
+      .select("id", { count: "exact", head: true })
+      .eq("kind", kind)
+      .gte("created_at", win.start.toISOString())
+      .lte("created_at", win.end.toISOString());
+
+  const [total, ok, failures, fallbacks, quota] = await Promise.all([
+    scope(),
+    scope().eq("status", "ok"),
+    scope().in("status", ["error", "timeout"]),
+    scope().eq("status", "fallback"),
+    scope().eq("status", "quota"),
+  ]);
+
+  return {
+    total: total.count ?? 0,
+    ok: ok.count ?? 0,
+    failures: failures.count ?? 0,
+    fallbacks: fallbacks.count ?? 0,
+    quota: quota.count ?? 0,
+  };
+}
+
+/**
  * The "is the library operating normally?" answer, from measured signals only:
  * broken files (file_health), storage error rate and AI failure rate over the
  * selected window (app_events), and backup age (ops_events). Rates below their
@@ -1008,15 +1069,10 @@ export async function getHealthPulse(filters: DashboardFilters): Promise<HealthP
   const now = new Date();
   const win = buildWindow({ range: filters.range, from: filters.from, to: filters.to }, now);
 
-  const [brokenRes, eventsRes, backupRes] = await Promise.all([
+  const [brokenRes, storage, ai, backupRes] = await Promise.all([
     supabase.from("file_health").select("record_type, record_id", { count: "exact" }).eq("status", "broken").limit(2),
-    supabase
-      .from("app_events")
-      .select("kind, status")
-      .in("kind", ["storage_operation", "ai_request"])
-      .gte("created_at", win.start.toISOString())
-      .lte("created_at", win.end.toISOString())
-      .limit(10000),
+    countAppEvents(supabase, "storage_operation", win),
+    countAppEvents(supabase, "ai_request", win),
     supabase
       .from("ops_events")
       .select("created_at")
@@ -1025,11 +1081,6 @@ export async function getHealthPulse(filters: DashboardFilters): Promise<HealthP
       .order("created_at", { ascending: false })
       .limit(1),
   ]);
-
-  const events = (eventsRes.data ?? []) as { kind: string; status: string }[];
-  const isFailure = (s: string) => s === "error" || s === "timeout";
-  const storage = events.filter((e) => e.kind === "storage_operation");
-  const ai = events.filter((e) => e.kind === "ai_request");
 
   const lastBackupAt = ((backupRes.data ?? []) as { created_at: string }[])[0]?.created_at ?? null;
   const backupAgeHours = lastBackupAt
@@ -1043,10 +1094,10 @@ export async function getHealthPulse(filters: DashboardFilters): Promise<HealthP
       brokenFiles,
       (brokenRes.data ?? []) as { record_type: string; record_id: string }[],
     ),
-    storageOps: storage.length,
-    storageErrors: storage.filter((e) => isFailure(e.status)).length,
-    aiRequests: ai.length,
-    aiFailures: ai.filter((e) => isFailure(e.status)).length,
+    storageOps: storage.total,
+    storageErrors: storage.failures,
+    aiRequests: ai.total,
+    aiFailures: ai.failures,
     backupAgeHours,
     systemHref: "/admin?view=system",
   });
@@ -1055,10 +1106,10 @@ export async function getHealthPulse(filters: DashboardFilters): Promise<HealthP
     ...pulse,
     detail: {
       brokenFiles,
-      storageOps: storage.length,
-      storageErrors: storage.filter((e) => isFailure(e.status)).length,
-      aiRequests: ai.length,
-      aiFailures: ai.filter((e) => isFailure(e.status)).length,
+      storageOps: storage.total,
+      storageErrors: storage.failures,
+      aiRequests: ai.total,
+      aiFailures: ai.failures,
       backupAgeHours,
     },
     generatedAt: now.toISOString(),
@@ -2164,6 +2215,11 @@ export type SystemData = {
     zimaOk: number;
     zimaErrors: number;
     r2Fallbacks: number;
+    /** Every storage operation in the window — the DENOMINATOR of the error
+     *  rate the health chip reads. Without it the tab could only ask "were
+     *  there any errors at all?", and answered "critical" to a month with a
+     *  handful of transient timeouts among thousands of successes. */
+    zimaTotal: number;
     fallbackSharePct: number | null;
     collecting: boolean;
   };
@@ -2183,52 +2239,75 @@ export async function getSystemData(filters: DashboardFilters): Promise<SystemDa
   const now = new Date();
   const win = buildWindow({ range: filters.range, from: filters.from, to: filters.to }, now);
 
-  const [eventsRes, opsRes, backupRes, brokenRes, healthLatestRes, auditRes] = await Promise.all([
-    supabase
-      .from("app_events")
-      .select("kind, status, latency_ms")
-      .gte("created_at", win.start.toISOString())
-      .lte("created_at", win.end.toISOString())
-      .limit(10000),
-    supabase.from("ops_events").select("kind, status, detail, created_at").order("created_at", { ascending: false }).limit(10),
-    // Backup age needs its own filtered query. The list above is a 10-row
-    // window across ALL kinds, so the newest backup_db row drops out of it as
-    // soon as ten newer ops events exist — nightly backup_files alone does
-    // that in ten days — and the card would read "not configured" while
-    // backups were running fine. Same shape as getHealthPulse and /api/health.
-    supabase
-      .from("ops_events")
-      .select("created_at")
-      .eq("kind", "backup_db")
-      .eq("status", "ok")
-      .order("created_at", { ascending: false })
-      .limit(1),
-    supabase.from("file_health").select("record_type, record_id", { count: "exact" }).eq("status", "broken").limit(2),
-    supabase.from("file_health").select("checked_at").order("checked_at", { ascending: false }).limit(1),
-    supabase
-      .from("admin_audit_log")
-      .select("action, target_table, created_at, admin:profiles(full_name)")
-      .order("created_at", { ascending: false })
-      .limit(8),
-  ]);
+  const [
+    eventsRes,
+    storageCounts,
+    aiCounts,
+    notificationCounts,
+    exportCounts,
+    opsRes,
+    backupRes,
+    brokenRes,
+    healthLatestRes,
+    auditRes,
+  ] = await Promise.all([
+      // Row scan, for the per-kind latency averages ONLY: PostgREST clips it at
+      // 1000 rows across all kinds, so its counts are a sample and its RATES are
+      // not usable — those come from countAppEvents() below.
+      supabase
+        .from("app_events")
+        .select("kind, status, latency_ms")
+        .gte("created_at", win.start.toISOString())
+        .lte("created_at", win.end.toISOString())
+        .limit(10000),
+      countAppEvents(supabase, "storage_operation", win),
+      countAppEvents(supabase, "ai_request", win),
+      countAppEvents(supabase, "notification", win),
+      countAppEvents(supabase, "export", win),
+      supabase.from("ops_events").select("kind, status, detail, created_at").order("created_at", { ascending: false }).limit(10),
+      // Backup age needs its own filtered query. The list above is a 10-row
+      // window across ALL kinds, so the newest backup_db row drops out of it as
+      // soon as ten newer ops events exist — nightly backup_files alone does
+      // that in ten days — and the card would read "not configured" while
+      // backups were running fine. Same shape as getHealthPulse and /api/health.
+      supabase
+        .from("ops_events")
+        .select("created_at")
+        .eq("kind", "backup_db")
+        .eq("status", "ok")
+        .order("created_at", { ascending: false })
+        .limit(1),
+      supabase.from("file_health").select("record_type, record_id", { count: "exact" }).eq("status", "broken").limit(2),
+      supabase.from("file_health").select("checked_at").order("checked_at", { ascending: false }).limit(1),
+      supabase
+        .from("admin_audit_log")
+        .select("action, target_table, created_at, admin:profiles(full_name)")
+        .order("created_at", { ascending: false })
+        .limit(8),
+    ]);
 
   type EventRow2 = { kind: string; status: string; latency_ms: number | null };
   const events = (eventsRes.data ?? []) as EventRow2[];
 
-  const kinds = new Map<string, { total: number; ok: number; errors: number; fallbacks: number; latencies: number[] }>();
+  // The row scan contributes LATENCY SAMPLES and nothing else. It used to carry
+  // the per-kind counters too, and those were the clipped ones: a mean over a
+  // sample is a fair estimate of the mean, but a total or a rate over a sample
+  // the server truncated is not an estimate of anything.
+  const latencies = new Map<string, number[]>();
   for (const e of events) {
-    const v = kinds.get(e.kind) ?? { total: 0, ok: 0, errors: 0, fallbacks: 0, latencies: [] };
-    v.total++;
-    if (e.status === "ok") v.ok++;
-    if (e.status === "error" || e.status === "timeout") v.errors++;
-    if (e.status === "fallback") v.fallbacks++;
-    if (e.latency_ms !== null) v.latencies.push(e.latency_ms);
-    kinds.set(e.kind, v);
+    if (e.latency_ms === null) continue;
+    const seen = latencies.get(e.kind);
+    if (seen) seen.push(e.latency_ms);
+    else latencies.set(e.kind, [e.latency_ms]);
   }
   const avg = (nums: number[]) => (nums.length > 0 ? Math.round(nums.reduce((s, v) => s + v, 0) / nums.length) : null);
 
-  const storage = kinds.get("storage_operation");
-  const ai = kinds.get("ai_request");
+  const countsByKind: Record<(typeof APP_EVENT_KINDS)[number], AppEventCounts> = {
+    ai_request: aiCounts,
+    storage_operation: storageCounts,
+    notification: notificationCounts,
+    export: exportCounts,
+  };
 
   type OpsRow = { kind: string; status: string; detail: Record<string, unknown>; created_at: string };
   const ops = (opsRes.data ?? []) as OpsRow[];
@@ -2246,26 +2325,30 @@ export async function getSystemData(filters: DashboardFilters): Promise<SystemDa
 
   return {
     rangeLabel: win.label,
-    appEvents: [...kinds.entries()].map(([kind, v]) => ({
+    // Only kinds that actually occurred, as before — an all-zero row for a
+    // feature this library does not use is noise in the export, not a finding.
+    appEvents: APP_EVENT_KINDS.filter((kind) => countsByKind[kind].total > 0).map((kind) => ({
       kind,
-      total: v.total,
-      ok: v.ok,
-      errors: v.errors,
-      fallbacks: v.fallbacks,
-      avgLatencyMs: avg(v.latencies),
+      total: countsByKind[kind].total,
+      ok: countsByKind[kind].ok,
+      errors: countsByKind[kind].failures,
+      fallbacks: countsByKind[kind].fallbacks,
+      avgLatencyMs: avg(latencies.get(kind) ?? []),
     })),
     storage: {
-      zimaOk: storage?.ok ?? 0,
-      zimaErrors: storage?.errors ?? 0,
-      r2Fallbacks: storage?.fallbacks ?? 0,
-      fallbackSharePct: storage ? pct(storage.fallbacks, storage.total) : null,
-      collecting: !storage,
+      zimaOk: storageCounts.ok,
+      zimaErrors: storageCounts.failures,
+      r2Fallbacks: storageCounts.fallbacks,
+      zimaTotal: storageCounts.total,
+      fallbackSharePct: storageCounts.total > 0 ? pct(storageCounts.fallbacks, storageCounts.total) : null,
+      collecting: storageCounts.total === 0,
     },
     ai: {
-      total: ai?.total ?? 0,
-      okRate: ai ? pct(ai.ok, ai.total) : null,
-      avgLatencyMs: ai ? avg(ai.latencies) : null,
-      quotaHits: events.filter((e) => e.kind === "ai_request" && e.status === "quota").length,
+      total: aiCounts.total,
+      okRate: aiCounts.total > 0 ? pct(aiCounts.ok, aiCounts.total) : null,
+      // Sampled, unlike the counts beside it — see countAppEvents().
+      avgLatencyMs: avg(latencies.get("ai_request") ?? []),
+      quotaHits: aiCounts.quota,
     },
     opsEvents: ops.map((o) => ({ kind: o.kind, status: o.status, createdAt: o.created_at, detail: o.detail ?? {} })),
     backupAgeHours,
