@@ -183,6 +183,30 @@ const PDF_WORDS = ["according to", "on page", "which page", "what page", "inside
   "in the document", "does the book say", "does it say", "quote", "cite", "chapter",
   "ទំព័រ", "នៅក្នុងឯកសារ", "និយាយអំពី", "សរសេរថា", "ដកស្រង់"];
 const LIBRARY_WORDS = ["library", "ptec", "catalog", "catalogue", "បណ្ណាល័យ", "វ.គ.ភ"];
+/**
+ * A GOAL, not a lookup.
+ *
+ * "Find books about action research" wants the shelf; "where do I start with
+ * action research" wants the ORDER to read them in, which is exactly what the
+ * published curriculum is. Production holds nine published learning paths over
+ * 82 steps and the assistant could reach none of them — every one of these
+ * phrasings was answered with a row of book covers.
+ *
+ * Kept to phrasings that ask about a route THROUGH the collection. A bare
+ * topic is not one: "action research" stays a catalogue search, because
+ * turning every subject into a curriculum recommendation is the failure mode
+ * the other direction.
+ */
+const LEARNING_PATH_WORDS = [
+  "learning path", "learning paths", "study plan", "study path", "curriculum",
+  "where do i start", "where should i start", "how do i start",
+  "what should i read first", "what should i study first", "read first",
+  "how do i learn", "how can i learn", "i want to learn", "help me learn",
+  "what comes next", "what should i learn next", "next step", "step by step guide",
+  "guide me through", "path for", "roadmap",
+  "មាគ៌ាសិក្សា", "ផែនការសិក្សា", "កម្មវិធីសិក្សា", "ចាប់ផ្តើមពីណា",
+  "ចាប់ផ្ដើមពីណា", "គួរអានអ្វីមុន", "ចង់រៀន", "របៀបរៀន", "ជំហានបន្ទាប់",
+];
 // A question answered ACROSS the collection's documents rather than from one.
 //
 // "Do you have books about sampling" wants the shelf; "what does the
@@ -805,6 +829,21 @@ export function classifyIntent(raw: string, ctx: ClassifyContext = {}): IntentRe
   if (CONCEPT_FRAMES.has(parsed.frame)) {
     return { ...base, intent: "pdf_question", confidence: 0.75 };
   }
+  // 8c. A GOAL: the reader wants a route THROUGH the collection, not a shelf
+  //    from it. It has to sit above the collection searches, not below them —
+  //    placed after, "Where do I start with action research?" was a thesis
+  //    search and "What should I read first to learn how to teach reading?"
+  //    was a book search, because both carry a collection keyword. That is the
+  //    same trap CONCEPT_FRAMES (8a) was added for, and it is fixed the same
+  //    way: read what the question ASKS FOR before matching what it mentions.
+  //
+  //    It sits BELOW the content rules (8, 8a) on purpose. "What does the
+  //    literature say about X" and "What is X?" are questions about the
+  //    subject, and a curriculum is not an answer to either.
+  if (hits(lower, LEARNING_PATH_WORDS)) {
+    return { ...base, intent: "learning_path", confidence: 0.8 };
+  }
+
   // 8b. Directory hubs. Checked before the catalog searches because "books by
   //    Creswell" and "action research by Mills" name a person, not a
   //    collection, and "what subjects do you have" names the subject index.
@@ -871,6 +910,9 @@ export const ZERO_LLM_INTENTS: ReadonlySet<AIIntent> = new Set<AIIntent>([
   // A reference is assembled from catalogue metadata by lib/citations —
   // asking a model to format one is paying for a worse result.
   "citation",
+  // Nine published paths with their step counts and durations: the cards are
+  // the answer, and a generated sentence would add cost, not information.
+  "learning_path",
 ]);
 
 /** Intents that need document evidence before the model may answer. */

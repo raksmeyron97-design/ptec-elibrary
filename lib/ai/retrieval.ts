@@ -66,6 +66,7 @@ import { getSubjectDetail, getSubjectsWithResources, type SubjectItem } from "@/
 import { personNameKey } from "@/lib/books/duplicate-detection/normalize";
 import { normalizeSearchText } from "@/lib/search/normalize";
 import { rankWorks } from "./work-ranking";
+import { matchLearningPaths } from "./learning-path-match";
 import { articlePath, ARTICLES_BASE_PATH } from "@/lib/journals/urls";
 
 const COVERS_URL = process.env.NEXT_PUBLIC_R2_COVERS_URL ?? "";
@@ -1977,6 +1978,134 @@ export async function searchSubjects(rawQuery: string): Promise<RetrievalOutcome
   out.hub = { kind: "subject", name: detail.name, url: `/subjects/${detail.slug}`, count: detail.counts.total };
   out.results = cards.map((c) => c.result);
   out.works = cards.map((c) => c.work);
+  return out;
+}
+
+// ── Learning paths (zero-LLM path) ────────────────────────────────────────────
+/**
+ * The published curriculum a reader's GOAL points at.
+ *
+ * "Where do I start with action research", "what should I read first" — a
+ * question about how to LEARN something, not a request for a shelf. Production
+ * holds nine published paths over 82 steps and the assistant could reach none
+ * of them: `learning_path` appeared in this file only as a URL prefix and a
+ * result-kind label, so a reader asking exactly the question the curriculum
+ * was built to answer got a catalogue search instead.
+ *
+ * Deterministic and zero-LLM, like the author and subject hubs it is modelled
+ * on. It reads `getPublishedPaths()` — the same fetcher `/paths` uses — so the
+ * assistant can only name a path that has a public page, and can only count
+ * what that page counts.
+ *
+ * Matching is ordered by how much of a claim it makes, and stops at the first
+ * that holds: an exact title, a title/subject/tag containing the topic, then
+ * the topic contained in the description. No fuzzy leg, deliberately — there
+ * are nine paths, so a "near" match is a guess about a set small enough to
+ * list, and listing them is the better answer.
+ */
+export async function searchLearningPaths(
+  rawQuery: string,
+  locale: AILocale,
+): Promise<RetrievalOutcome> {
+  const started = Date.now();
+  const out = emptyOutcome();
+  const { getPublishedPaths } = await import("@/app/actions/learning-paths");
+  const paths = await getPublishedPaths();
+  out.dbQueries = 1;
+  out.retrievalMs = Date.now() - started;
+  if (!paths.length) return out;
+
+  const card = (p: (typeof paths)[number]): { result: SearchResult; work: CompactWork } => {
+    const title = locale === "km" && p.title_km ? p.title_km : p.title;
+    return {
+      result: {
+        slug: p.slug,
+        title,
+        author: p.audience ?? p.subject ?? "PTEC Library",
+        coverUrl: coverUrlOf(p.cover_url),
+        url: `/paths/${p.slug}`,
+        type: "path",
+      },
+      work: {
+        title,
+        author: p.audience ?? "PTEC Library",
+        kind: p.subject ?? undefined,
+        summary: (locale === "km" && p.description_km ? p.description_km : p.description) ?? undefined,
+      },
+    };
+  };
+
+  const q = normalizeSearchText(rawQuery);
+  // The topic's content words, Khmer runs included. Whole-string containment
+  // cannot work here: a goal is a SENTENCE ("what should I read first to learn
+  // how to teach reading") and no path title contains one, so every goal
+  // matched nothing and every reader was told the curriculum covers nothing
+  // exactly.
+  const tokens = queryTerms(rawQuery);
+  if (!q || q.length < 3) {
+    // No topic to match — the whole curriculum IS the answer, in its
+    // published order.
+    const cards = paths.slice(0, HUB_RESULT_LIMIT).map(card);
+    out.results = cards.map((c) => c.result);
+    out.works = cards.map((c) => c.work);
+    out.hub = { kind: "subject", name: "paths", url: "/paths", count: paths.length };
+    out.retrievalMs = Date.now() - started;
+    return out;
+  }
+
+  const haystacks = paths.map((p) => ({
+    path: p,
+    title: normalizeSearchText([p.title, p.title_km].filter(Boolean).join(" ")),
+    topic: normalizeSearchText([p.subject, p.audience, ...(p.tags ?? [])].filter(Boolean).join(" ")),
+    body: normalizeSearchText([p.description, p.description_km].filter(Boolean).join(" ")),
+  }));
+  // The ranking rule is pure and lives in lib/ai/learning-path-match.ts, where
+  // a test can put it against the real nine paths. A description mention may
+  // RANK a path and may never make it the answer — that distinction is what
+  // stopped "learning paths for underwater welding" leading with the MoEYS
+  // early-grade mathematics curriculum.
+  const { ranked, leading, namedSubject } = matchLearningPaths(
+    haystacks.map((h) => ({ ...h, slug: h.path.slug, position: h.path.position })),
+    tokens,
+    q,
+  );
+
+  // Nothing STRONG matched: say what the curriculum DOES cover rather than
+  // nothing at all, and do not dress a ranked-but-weak path as the route.
+  // Nine paths is a list a reader can read.
+  const pool = leading
+    ? ranked.map((m) => m.path.path)
+    : [];
+  const chosen = (pool.length ? pool : paths).slice(0, HUB_RESULT_LIMIT);
+  const cards = chosen.map(card);
+  out.results = cards.map((c) => c.result);
+  out.works = cards.map((c) => c.work);
+  // What taking the path COSTS — the title is already in the card and in the
+  // sentence, so repeating it here printed it twice.
+  out.facts = chosen.map((p) =>
+    [
+      p.stepCount ? `${p.stepCount} steps` : "",
+      p.moduleCount ? `${p.moduleCount} modules` : "",
+      p.difficulty ?? "",
+      p.durationMinutes ? `about ${Math.round(p.durationMinutes / 60)}h` : "",
+    ]
+      .filter(Boolean)
+      .join(" · "),
+  );
+  // `hub` present means "the set is the answer" — the signal both the template
+  // and the trace read, so neither has to recognise a sentence. `name` says
+  // WHY: a goal that named no subject ("what learning paths do you have") is
+  // asking for the list, and telling that reader "no path covers that exactly"
+  // answers a question they did not ask.
+  out.hub = leading
+    ? undefined
+    : { kind: "subject", name: namedSubject ? "paths" : "paths-all", url: "/paths", count: paths.length };
+  // `entity` is the path that LEADS, in the same sense a resolved book title
+  // is: the one thing the question asked for. Absent when nothing led.
+  if (leading) {
+    out.entity = { slug: leading.slug, title: out.results[0]?.title ?? leading.slug, band: "exact", via: "title" };
+  }
+  out.retrievalMs = Date.now() - started;
   return out;
 }
 

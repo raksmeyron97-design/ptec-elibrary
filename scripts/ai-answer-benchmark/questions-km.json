@@ -126,12 +126,14 @@
       "locale": "km",
       "evidenceScope": "topic_unscoped",
       "expectIntent": [
+        "learning_path",
         "thesis_search",
         "book_search",
         "pdf_question",
         "general_knowledge"
       ],
-      "note": "\"I want to learn action research.\" A GOAL, not a lookup. ខ្ញុំចង់រៀន is frame; nothing on an English page can contain it."
+      "note": "\"I want to learn action research.\" A GOAL, not a lookup — it now reaches the published curriculum, where a template IS the right outcome (the path's own step order is the answer). ខ្ញុំចង់រៀន is frame; nothing on an English page can contain it.",
+      "templateOk": true
     },
     {
       "id": "km-mix-003",

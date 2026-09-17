@@ -163,7 +163,15 @@ const REFUSAL = /couldn’t find|couldn't find|could not find|រកមិនឃ
  */
 function structurallyRefused(plan: Plan): boolean {
   const lookup = plan.retrieval.pageLookup;
-  return Boolean(lookup && lookup.found.length === 0);
+  if (lookup && lookup.found.length === 0) return true;
+  // A goal question for a subject NO published path covers: the curriculum
+  // declined it and named itself instead. `hub` is what retrieval reported, so
+  // the sentence is never consulted — but the two reasons a hub appears are
+  // not the same answer. `paths-all` means the reader asked WHICH paths exist
+  // and was given the list, which is an answer and not a refusal; calling it
+  // one reported a correctly answered question as a false refusal.
+  if (plan.intent.intent === "learning_path" && plan.retrieval.hub?.name === "paths") return true;
+  return false;
 }
 
 export function buildTrace(

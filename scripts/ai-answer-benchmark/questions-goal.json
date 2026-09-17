@@ -1,0 +1,166 @@
+{
+  "generatedAt": "2026-09-17T10:40:00.000Z",
+  "corpusBooks": 1916,
+  "note": "Goal-shaped questions — the ones a student-teacher asks when they want a ROUTE through the collection rather than a shelf from it. Production publishes nine learning paths over 82 steps and the assistant could reach none of them, so every question here was previously answered with a row of book covers. The labels were CORRECTED on 2026-09-17 after reading the curriculum: all nine paths are MoEYS early-grade READING and MATHEMATICS for Grades 1–3, so the library publishes no curriculum for research methods at all. Three questions written on the assumption that it did are now labelled `expectNoAnswer` — naming what the curriculum DOES cover is the correct answer to a goal it does not, and presenting an unrelated path as the route is the defect (a first draft answered 'where do I start with action research' with a Grade 3 maths package, and this fixture scored it a pass). The last three are controls: a bare topic must stay a catalogue search, or this capability has swallowed the one beside it.",
+  "questions": [
+    {
+      "id": "goal-001",
+      "category": "learning_path",
+      "question": "Where do I start with action research?",
+      "locale": "en",
+      "evidenceScope": "metadata",
+      "expectIntent": [
+        "learning_path"
+      ],
+      "templateOk": true,
+      "note": "The canonical goal question — and the curriculum does NOT cover action research. Naming the nine published paths is correct; leading with one of them is a confident wrong answer.",
+      "expectNoAnswer": true
+    },
+    {
+      "id": "goal-002",
+      "category": "learning_path",
+      "question": "What should I read first to learn how to teach reading?",
+      "locale": "en",
+      "evidenceScope": "metadata",
+      "expectIntent": [
+        "learning_path"
+      ],
+      "templateOk": true,
+      "note": "Reading instruction is one of the two published tracks. Any reading path (or the package covering both) is correct; a mathematics-only path is not.",
+      "sources": [
+        "early-grade-reading",
+        "early-grade-learning-package",
+        "early-grade-reading-grade-1"
+      ]
+    },
+    {
+      "id": "goal-003",
+      "category": "learning_path",
+      "question": "Is there a learning path for teaching mathematics?",
+      "locale": "en",
+      "evidenceScope": "metadata",
+      "expectIntent": [
+        "learning_path"
+      ],
+      "templateOk": true,
+      "note": "Names the artefact directly, for the other published track.",
+      "sources": [
+        "early-grade-math",
+        "early-grade-learning-package",
+        "early-grade-mathematics-grade-1-curriculum-manipulatives",
+        "early-grade-math-grade-2",
+        "early-grade-math-grade-3"
+      ]
+    },
+    {
+      "id": "goal-004",
+      "category": "learning_path",
+      "question": "I want to learn qualitative research methods — what comes next after the basics?",
+      "locale": "en",
+      "evidenceScope": "metadata",
+      "expectIntent": [
+        "learning_path"
+      ],
+      "templateOk": true,
+      "note": "A goal with a sequencing question attached, for a subject the curriculum does not cover.",
+      "expectNoAnswer": true
+    },
+    {
+      "id": "goal-005",
+      "category": "learning_path",
+      "question": "Show me the study plan for grade 1 literacy.",
+      "locale": "en",
+      "evidenceScope": "metadata",
+      "expectIntent": [
+        "learning_path"
+      ],
+      "templateOk": true,
+      "note": "The curriculum is scoped by track and grade band; a grade-named literacy goal must reach a reading path.",
+      "sources": [
+        "early-grade-reading",
+        "early-grade-reading-grade-1",
+        "early-grade-learning-package"
+      ]
+    },
+    {
+      "id": "goal-006",
+      "category": "learning_path",
+      "question": "ខ្ញុំចង់រៀនការស្រាវជ្រាវសកម្មភាព តើត្រូវចាប់ផ្តើមពីណា?",
+      "locale": "km",
+      "evidenceScope": "metadata",
+      "expectIntent": [
+        "learning_path"
+      ],
+      "templateOk": true,
+      "note": "\"I want to learn action research — where should I start?\" The Khmer form of goal-001, and the same correct answer.",
+      "expectNoAnswer": true
+    },
+    {
+      "id": "goal-007",
+      "category": "learning_path",
+      "question": "តើបណ្ណាល័យមានមាគ៌ាសិក្សាអ្វីខ្លះ?",
+      "locale": "km",
+      "evidenceScope": "metadata",
+      "expectIntent": [
+        "learning_path"
+      ],
+      "templateOk": true,
+      "note": "\"What learning paths does the library have?\" Names no topic, so the set itself is the answer — the same outcome as a goal the curriculum does not cover, reached for a different reason."
+    },
+    {
+      "id": "goal-008",
+      "category": "learning_path",
+      "question": "What learning paths do you have for underwater welding?",
+      "locale": "en",
+      "evidenceScope": "metadata",
+      "expectIntent": [
+        "learning_path"
+      ],
+      "templateOk": true,
+      "note": "A goal the curriculum does not cover. The honest answer names what it DOES cover — nine paths is a list a reader can read — and must not present an unrelated path as the route.",
+      "expectNoAnswer": true
+    },
+    {
+      "id": "goal-ctl-001",
+      "category": "control",
+      "question": "Find books about action research",
+      "locale": "en",
+      "evidenceScope": "metadata",
+      "expectIntent": [
+        "book_search",
+        "thesis_search"
+      ],
+      "templateOk": true,
+      "note": "CONTROL. A bare request for the shelf must stay a catalogue search. If this becomes a learning path, the goal capability has swallowed the one beside it."
+    },
+    {
+      "id": "goal-ctl-002",
+      "category": "control",
+      "question": "What is action research?",
+      "locale": "en",
+      "evidenceScope": "topic_unscoped",
+      "expectIntent": [
+        "pdf_question",
+        "general_knowledge",
+        "thesis_search"
+      ],
+      "expectGrounded": true,
+      "note": "CONTROL. A definition is answered from page evidence, not from a curriculum."
+    },
+    {
+      "id": "goal-ctl-003",
+      "category": "control",
+      "question": "Do you have the book Practical Research Methods?",
+      "locale": "en",
+      "evidenceScope": "metadata",
+      "sources": [
+        "practical-research-methods"
+      ],
+      "expectIntent": [
+        "book_search"
+      ],
+      "templateOk": true,
+      "note": "CONTROL. An availability question about a named work is unchanged."
+    }
+  ]
+}

@@ -17,6 +17,13 @@ export type AIIntent =
   | "related_books"
   | "author_search"
   | "subject_search"
+  /**
+   * A GOAL rather than a lookup: "where do I start with action research",
+   * "what should I read first". Answered from the published curriculum
+   * (`learning_paths`), which the assistant could not reach at all before —
+   * nine published paths over 82 steps, and no code path to any of them.
+   */
+  | "learning_path"
   | "pdf_question"
   | "resource_summary"
   | "document_compare"

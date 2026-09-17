@@ -37,6 +37,7 @@ import {
   retrieveEvidence,
   searchAuthors,
   searchPassages,
+  searchLearningPaths,
   searchSubjects,
   searchWorks,
   type ResolvedRecord,
@@ -176,6 +177,13 @@ async function retrieveFor(
 
     case "subject_search": {
       const retrieval = await searchSubjects(intent.query);
+      return { retrieval, facts: retrieval.facts };
+    }
+
+    case "learning_path": {
+      // A goal question, answered from the published curriculum. Zero-LLM: the
+      // path's own step order is the answer, and no model improves on it.
+      const retrieval = await searchLearningPaths(intent.query, intent.locale);
       return { retrieval, facts: retrieval.facts };
     }
 

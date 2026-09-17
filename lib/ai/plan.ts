@@ -263,6 +263,19 @@ export function deterministicAnswer(
         ? T.writtenBy(retrieval.results[0], locale)
         : T.noAuthor(intent.query, locale);
 
+    case "learning_path":
+      // The curriculum's own order is the answer, and the cards carry it.
+      if (!retrieval.results.length) return T.noLearningPaths(locale);
+      // A `hub` here means nothing matched, so the set itself is described
+      // rather than one path being presented as the answer. `paths-all` means
+      // the reader named no subject and was asking for the list.
+      if (retrieval.hub) {
+        return retrieval.hub.name === "paths-all"
+          ? T.learningPathList(retrieval.hub.count, locale)
+          : T.learningPathOverview(retrieval.hub.count, locale);
+      }
+      return T.learningPathLead(retrieval.results[0], retrieval.results.length, facts[0], locale);
+
     case "subject_search":
       if (retrieval.hub) return T.hubLead(retrieval.hub, retrieval.results.length, locale);
       if (facts[0]) return T.subjectOverview(facts[0], locale);

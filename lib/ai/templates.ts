@@ -347,3 +347,56 @@ export function pageNotIndexed(
     : " This document has no readable text at all — it is most likely a scan.";
   return `Page ${pages} of “${title}” has no extracted text.${extent} You can still open the document and read it directly.`;
 }
+
+// ── Learning paths ────────────────────────────────────────────────────────────
+/**
+ * "Start with X — 8 steps, about 6 hours."
+ *
+ * A GOAL question is answered with the curriculum's own ORDER, which is the
+ * thing a row of book covers cannot express. The cards carry the paths; this
+ * sentence says which one leads and what taking it costs.
+ */
+export function learningPathLead(
+  result: SearchResult,
+  total: number,
+  detail: string | undefined,
+  locale: AILocale,
+): string {
+  const others = Math.max(0, total - 1);
+  if (locale === "km") {
+    const more = others ? ` មាគ៌ាសិក្សាផ្សេងទៀត ${n(others, "km")} បង្ហាញខាងក្រោម។` : "";
+    const what = detail ? ` (${detail})` : "";
+    return `សូមចាប់ផ្ដើមពី «${result.title}»${what} — មើលជំហាននីមួយៗនៅ ${result.url}។${more}`;
+  }
+  const more = others ? ` ${others} other learning ${others === 1 ? "path is" : "paths are"} shown below.` : "";
+  const what = detail ? ` (${detail})` : "";
+  return `Start with “${result.title}”${what} — its steps are laid out in order at ${result.url}.${more}`;
+}
+
+/**
+ * No path covers what they asked, so the curriculum is described instead of
+ * nothing being said. Nine paths is a list a reader can read; refusing here
+ * would hide the very thing the question was reaching for.
+ */
+export function learningPathOverview(count: number, locale: AILocale): string {
+  if (locale === "km") {
+    return `ខ្ញុំរកមិនឃើញមាគ៌ាសិក្សាត្រូវនឹងប្រធានបទនេះទេ ប៉ុន្តែបណ្ណាល័យមានមាគ៌ាសិក្សា ${n(count, "km")} ដែលបានផ្សាយ។ មើលទាំងអស់នៅ /paths។`;
+  }
+  return `No learning path covers that exactly, but the library publishes ${count} of them — the full set is at /paths.`;
+}
+
+/** The reader asked WHICH paths exist. The list is the answer, not a refusal. */
+export function learningPathList(count: number, locale: AILocale): string {
+  if (locale === "km") {
+    return `បណ្ណាល័យ វ.គ.ភ មានមាគ៌ាសិក្សា ${n(count, "km")} ដែលបានផ្សាយ។ មើលទាំងអស់ព្រមទាំងជំហាននីមួយៗនៅ /paths។`;
+  }
+  return `The PTEC Library publishes ${count} learning paths. All of them, with their steps in order, are at /paths.`;
+}
+
+/** The curriculum has nothing published yet. */
+export function noLearningPaths(locale: AILocale): string {
+  if (locale === "km") {
+    return `បណ្ណាល័យ វ.គ.ភ មិនទាន់មានមាគ៌ាសិក្សាដែលបានផ្សាយនៅឡើយទេ។ សូមស្វែងរកសៀវភៅតាមប្រធានបទនៅ /subjects។`;
+  }
+  return `The PTEC Library has no published learning paths yet. You can browse the collection by subject at /subjects.`;
+}
