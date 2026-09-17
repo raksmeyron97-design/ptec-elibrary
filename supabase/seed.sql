@@ -372,27 +372,74 @@ INSERT INTO public.team_sections (id, name_en, name_km, description_en, descript
    'ក្រុមការងារចុះបញ្ជី ខ្ចី-សង និងសេវាកម្មអ្នកអាន។', 2)
 ON CONFLICT (id) DO NOTHING;
 
+-- `slug` is set explicitly. Migration 0115 backfills slugs for rows that
+-- already exist, and seeding runs AFTER the migration chain — so without this
+-- every seeded member has slug NULL, and /about/team/<slug> (plus every link
+-- that points at it, including the committee page's) is untestable on a
+-- freshly built stack.
 INSERT INTO public.team_members
-  (id, user_id, section_id, name_en, name_km, position_en, position_km, education,
+  (id, user_id, section_id, slug, name_en, name_km, position_en, position_km, education,
    years_experience, phone, bio_en, bio_km, display_order, is_published)
 VALUES
   ('88888888-8888-4888-8888-888888888801', '22222222-2222-2222-2222-222222222222',
-   '88888888-8888-4888-8888-88888888a001', 'Head Librarian', 'ប្រធានបណ្ណាល័យ',
+   '88888888-8888-4888-8888-88888888a001', 'head-librarian', 'Head Librarian', 'ប្រធានបណ្ណាល័យ',
    'Head Librarian', 'ប្រធានបណ្ណាល័យ', 'MA in Library and Information Science', '12 years', '+855 12 000 001',
    'Leads collection development and the digitisation programme, and has overseen the move of the PTEC catalogue to an open, searchable platform.',
    'ដឹកនាំការអភិវឌ្ឍបណ្តុំសៀវភៅ និងកម្មវិធីធ្វើឌីជីថល ព្រមទាំងបានដឹកនាំការផ្លាស់ប្តូរបញ្ជីសៀវភៅ PTEC ទៅជាប្រព័ន្ធបើកចំហ។', 1, true),
 
   ('88888888-8888-4888-8888-888888888802', '33333333-3333-3333-3333-333333333333',
-   '88888888-8888-4888-8888-88888888a002', 'Content Staff', 'បុគ្គលិកមាតិកា',
+   '88888888-8888-4888-8888-88888888a002', 'content-staff', 'Content Staff', 'បុគ្គលិកមាតិកា',
    'Cataloguing Officer', 'មន្ត្រីចុះបញ្ជី', 'BA in Education', '5 years', '+855 12 000 002',
    'Responsible for metadata quality across the digital collection and for the weekly new-arrivals list.',
    'ទទួលបន្ទុកគុណភាពទិន្នន័យមេតានៃបណ្តុំឌីជីថល និងបញ្ជីសៀវភៅថ្មីប្រចាំសប្តាហ៍។', 2, true),
 
   ('88888888-8888-4888-8888-888888888803', NULL,
-   '88888888-8888-4888-8888-88888888a002', 'Reader Services Assistant', 'ជំនួយការសេវាកម្មអ្នកអាន',
+   '88888888-8888-4888-8888-88888888a002', 'reader-services-assistant', 'Reader Services Assistant', 'ជំនួយការសេវាកម្មអ្នកអាន',
    'Reader Services Assistant', 'ជំនួយការសេវាកម្មអ្នកអាន', 'BA in Khmer Literature', '3 years', '+855 12 000 003',
    'Runs the reading-room desk, induction sessions for first-year trainees, and the inter-library request queue.',
    'ទទួលបន្ទុកតុបម្រើសេវានៅបន្ទប់អាន វគ្គណែនាំសម្រាប់និស្សិតឆ្នាំទី១ និងសំណើខ្ចីសៀវភៅរវាងបណ្ណាល័យ។', 3, true)
+ON CONFLICT (id) DO NOTHING;
+
+
+-- ============================================================================
+-- 10b. Library Committee (sections + 3 seats over the SAME people)
+--
+-- Deliberately no new people: every seat points at a team_members row seeded
+-- above. That is the whole architecture of migration 0150, and the e2e suite
+-- asserts it — removing a seat must leave the person in the team directory.
+--
+-- One seat is left unpublished so the public page has a draft to hide.
+-- ============================================================================
+
+INSERT INTO public.committee_sections
+  (id, name_en, name_km, description_en, description_km, display_order, layout_variant, is_active)
+VALUES
+  ('99999999-9999-4999-9999-99999999c001', 'Committee Leadership', 'ថ្នាក់ដឹកនាំគណៈកម្មការ',
+   'Office-holders responsible for library policy and development.',
+   'អ្នកកាន់តំណែងទទួលបន្ទុកគោលនយោបាយ និងការអភិវឌ្ឍបណ្ណាល័យ។', 1, 'leadership', true),
+  ('99999999-9999-4999-9999-99999999c002', 'Library Officers', 'មន្ត្រីបណ្ណាល័យ',
+   'Library staff serving on the committee.',
+   'បុគ្គលិកបណ្ណាល័យដែលបម្រើការក្នុងគណៈកម្មការ។', 2, 'grid', true)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.committee_members
+  (id, team_member_id, committee_section_id, role_en, role_km,
+   responsibility_en, responsibility_km, display_order, is_published)
+VALUES
+  ('99999999-9999-4999-9999-99999999d001', '88888888-8888-4888-8888-888888888801',
+   '99999999-9999-4999-9999-99999999c001', 'Chair', 'ប្រធាន',
+   'Chairs committee meetings and approves the annual library plan.',
+   'ដឹកនាំកិច្ចប្រជុំគណៈកម្មការ និងអនុម័តផែនការបណ្ណាល័យប្រចាំឆ្នាំ។', 1, true),
+
+  ('99999999-9999-4999-9999-99999999d002', '88888888-8888-4888-8888-888888888802',
+   '99999999-9999-4999-9999-99999999c002', 'Member', 'សមាជិក',
+   'Reports on metadata quality across the digital collection.',
+   'រាយការណ៍អំពីគុណភាពទិន្នន័យមេតានៃបណ្ដុំឌីជីថល។', 1, true),
+
+  -- Draft on purpose: the public page must not show this one.
+  ('99999999-9999-4999-9999-99999999d003', '88888888-8888-4888-8888-888888888803',
+   '99999999-9999-4999-9999-99999999c002', 'Member', 'សមាជិក',
+   NULL, NULL, 2, false)
 ON CONFLICT (id) DO NOTHING;
 
 

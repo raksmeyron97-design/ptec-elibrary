@@ -7967,6 +7967,47 @@
         "emailLabel": "Email",
         "hoursLabel": "Hours"
       }
+    },
+    "committee": {
+      "title": "Library Committee",
+      "metaTitle": "Library Committee",
+      "metaDescription": "The Library Committee of Phnom Penh Teacher Education College — its members, their committee roles and their areas of responsibility.",
+      "category": "Library governance",
+      "intro": "The committee that guides library policy and development, with the members who serve on it and what each of them is responsible for.",
+      "purpose": {
+        "heading": "About the committee",
+        "body": "The Library Committee brings together college leadership, teaching staff and library officers to guide the library's policy, services and development. Members are staff of the college; their full staff profiles are published in the Library Team directory."
+      },
+      "roster": {
+        "heading": "Committee members",
+        "unsectioned": "Other members",
+        "count": "{count, plural, one {# member} other {# members}}"
+      },
+      "member": {
+        "roleLabel": "Committee role",
+        "positionLabel": "Position",
+        "responsibilityLabel": "Responsibility",
+        "educationLabel": "Qualification",
+        "viewProfile": "View staff profile",
+        "viewProfileOf": "View the staff profile of {name}",
+        "noPhoto": "No portrait available"
+      },
+      "empty": {
+        "heading": "Committee information is being prepared",
+        "body": "The committee's members have not been published yet. For official information about library governance, contact the library desk."
+      },
+      "unavailable": {
+        "label": "Temporarily unavailable",
+        "body": "The committee list could not be loaded just now. Please try again shortly, or contact the library desk for official information."
+      },
+      "contact": {
+        "heading": "Questions about library governance?",
+        "body": "For official information about the Library Committee, its decisions or its policies, contact the library through the channels below.",
+        "officialOnly": "These are the library's official channels. Personal contact details of committee members are not published.",
+        "deskLabel": "Library desk",
+        "emailLabel": "Email",
+        "hoursLabel": "Hours"
+      }
     }
   },
   "adminHomepagePhotos": {

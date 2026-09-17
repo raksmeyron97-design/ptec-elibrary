@@ -79,6 +79,16 @@ const GATED_SURFACES: { file: string; label: string; ids: string[] }[] = [
     ids: ["team.manage"],
   },
   {
+    label: "committee roster",
+    file: `${ADMIN_ROOT}/team/committee/_components/CommitteeClient.tsx`,
+    ids: ["team.committee.manage"],
+  },
+  {
+    label: "committee sections",
+    file: `${ADMIN_ROOT}/team/committee/sections/_components/CommitteeSectionsClient.tsx`,
+    ids: ["team.committee.sections"],
+  },
+  {
     label: "journal editor",
     file: `${ADMIN_ROOT}/journals/_components/JournalForm.tsx`,
     ids: ["journals.create", "journals.edit", "journals.delete"],
