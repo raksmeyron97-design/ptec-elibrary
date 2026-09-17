@@ -6,8 +6,26 @@
 // tab's pill cross-fades between the two tabs by opacity, and a switch plays
 // the 200 ms `.tab-panel-in` entrance (opacity + transform) on the new panel.
 // Both are off under reduced motion.
+//
+// ── Accessibility contract (WAI-ARIA APG, Tabs pattern) ──────────────────────
+// Matches components/about/RulesAudienceTabs.tsx, which is this codebase's
+// reference implementation — read that file's header for the reasoning behind
+// roving tabIndex and automatic activation. Three things are specific here:
+//
+//   • ONE PANEL, not one per tab. The panel's content is a slice of book cards
+//     that BrowseBooksSection deliberately caps server-side ("only the shown
+//     slice is serialized to the client"); rendering every tab's panel and
+//     `hidden`-ing the inactive ones would double the cards in the document to
+//     satisfy a shape the pattern does not require. Both tabs therefore
+//     `aria-controls` the same panel, and the panel's `aria-labelledby` follows
+//     the selection.
+//   • THE DEPARTMENT CHIPS ARE NOT TABS. They filter the panel the tabs
+//     select, so they are toggle buttons in a labelled group and carry
+//     `aria-pressed` — previously the active chip was distinguishable by
+//     colour alone (WCAG 1.4.1).
+//   • EXACTLY ONE TAB IS ALWAYS SELECTED. See `select()` below.
 
-import { useState, type ComponentProps } from "react";
+import { useCallback, useId, useRef, useState, type ComponentProps } from "react";
 import { Link } from "@/i18n/navigation";
 import BookCard from "@/components/ui/books/BookCard";
 import BookCarousel from "./BookCarousel";
@@ -17,6 +35,8 @@ import { StaggerRevealContainer, StaggerRevealItem } from "@/components/ui/anima
 type BookCardData = ComponentProps<typeof BookCard>["book"];
 
 type TabKey = "trending" | "recent";
+
+const TABS: readonly TabKey[] = ["trending", "recent"] as const;
 
 type Props = {
   trending: BookCardData[];
@@ -44,16 +64,46 @@ export default function BookShowcaseTabs({
   maxItems,
 }: Props) {
   const t = useTranslations("home");
+  const baseId = useId();
+  const panelId = `${baseId}-panel`;
   const [tab, setTab] = useState<TabKey>("trending");
   const [activeDept, setActiveDept] = useState<string | null>(null);
   // The entrance plays on a SWITCH only — never on the first render, where it
   // would hold the homepage's shelf transparent while the page loads.
   const [switched, setSwitched] = useState(false);
-  const select = (nextTab: TabKey, dept: string | null) => {
-    setTab(nextTab);
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  // Picking a department forces the "trending" tab, and that is a correctness
+  // fix as much as an accessibility one. `getDeptBooksCached()` orders every
+  // department's books by `download_count` and never by recency, so the old
+  // behaviour — keep whichever tab was active — rendered download-ranked books
+  // under the "Recently Added" label. It also left `aria-selected="false"` on
+  // BOTH tabs, i.e. a tablist with no selected tab. One rule settles both: the
+  // selected tab always describes the order the panel is actually in.
+  const select = useCallback((nextTab: TabKey, dept: string | null) => {
+    setTab(dept ? "trending" : nextTab);
     setActiveDept(dept);
     setSwitched(true);
-  };
+  }, []);
+
+  // Automatic activation (selection follows focus) — switching panels here is
+  // instant and local, which is the case the APG recommends it for.
+  const onTabKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLButtonElement>) => {
+      const index = TABS.indexOf(tab);
+      let next: number | null = null;
+      if (event.key === "ArrowRight") next = (index + 1) % TABS.length;
+      else if (event.key === "ArrowLeft") next = (index - 1 + TABS.length) % TABS.length;
+      else if (event.key === "Home") next = 0;
+      else if (event.key === "End") next = TABS.length - 1;
+      if (next === null) return;
+      event.preventDefault();
+      const target = TABS[next];
+      select(target, null);
+      tabRefs.current[target]?.focus();
+    },
+    [tab, select],
+  );
 
   // When a dept chip is active, show its pre-fetched books (trending order).
   // Sort toggle only applies to the "All" view.
@@ -68,20 +118,43 @@ export default function BookShowcaseTabs({
     ? `/books?department=${encodeURIComponent(activeDept)}`
     : TAB_HREFS[tab];
 
+  const listLabel = activeDept
+    ? t("browseListDept", { department: activeDept })
+    : tab === "trending"
+      ? t("browseListTrending")
+      : t("browseListRecent");
+
+  const emptyLabel = activeDept
+    ? t("browseEmptyDept", { department: activeDept })
+    : tab === "trending"
+      ? t("browseEmptyTrending")
+      : t("browseEmptyRecent");
+
   return (
     <div>
       {/* ── Tab header + view-all link ── */}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
         <div
           role="tablist"
-          aria-label="Browse books"
+          aria-label={t("browseTabsLabel")}
           className="inline-flex rounded-full border border-divider bg-bg-surface p-1 shadow-sm shadow-inner"
         >
-          {(["trending", "recent"] as TabKey[]).map((key) => {
-            const active = key === tab && !activeDept;
+          {TABS.map((key) => {
+            const active = key === tab;
             return (
-              <button key={key} type="button" role="tab" aria-selected={active}
+              <button
+                key={key}
+                ref={(node) => {
+                  tabRefs.current[key] = node;
+                }}
+                type="button"
+                role="tab"
+                id={`${baseId}-tab-${key}`}
+                aria-selected={active}
+                aria-controls={panelId}
+                tabIndex={active ? 0 : -1}
                 onClick={() => select(key, null)}
+                onKeyDown={onTabKeyDown}
                 className={`relative rounded-full px-4 py-2 text-[13px] font-bold transition-colors sm:px-5 ${
                   active ? "text-white" : "text-text-muted hover:text-text-heading"
                 }`}
@@ -118,11 +191,25 @@ export default function BookShowcaseTabs({
         </Link>
       </div>
 
-      {/* ── Department filter chips ── */}
+      {/* ── Department filter chips ──
+          Toggle buttons, not tabs: they narrow the panel the tablist above
+          selects. `aria-pressed` is what carries the active state to a screen
+          reader — the border/background pair carries it to everyone else.
+
+          `role="group"` rather than <fieldset>, deliberately: react-doctor's
+          prefer-tag-over-role flags this, but <fieldset> groups FORM CONTROLS,
+          and these are buttons that filter a view. role="group" + aria-pressed
+          is the vocabulary every other toggle row here already speaks — see
+          AbstractLanguageSwitch, CitePublication, ResultToolbar. */}
       {depts.length > 0 && (
-        <div className="mb-6 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div
+          role="group"
+          aria-label={t("deptFilterLabel")}
+          className="mb-6 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        >
           {/* "All" chip */}
           <button type="button" onClick={() => select(tab, null)}
+            aria-pressed={activeDept === null}
             className={`shrink-0 rounded-full border px-4 py-1.5 text-[12px] font-bold transition-colors ${
               activeDept === null
                 ? "border-brand bg-brand text-brand-contrast"
@@ -134,6 +221,7 @@ export default function BookShowcaseTabs({
 
           {depts.map((dept) => (
             <button key={dept} type="button" onClick={() => select(tab, dept)}
+              aria-pressed={activeDept === dept}
               className={`shrink-0 rounded-full border px-4 py-1.5 text-[12px] font-bold transition-colors ${
                 activeDept === dept
                   ? "border-brand bg-brand text-brand-contrast"
@@ -146,40 +234,39 @@ export default function BookShowcaseTabs({
         </div>
       )}
 
-      {/* ── Content — keyed on the active selection, so each switch mounts a
-          fresh panel and plays its entrance (the first render does not). ── */}
-      <div key={activeDept ?? tab} className={switched ? "tab-panel-in" : undefined}>
-        {books.length === 0 ? (
-          <div className="flex min-h-48 items-center justify-center rounded-lg border border-dashed border-divider bg-paper text-sm text-text-muted">
-            {activeDept
-              ? `No books found in ${activeDept}.`
-              : tab === "trending"
-                ? "No resources published yet."
-                : "Nothing added recently."}
-          </div>
-        ) : layout === "grid" ? (
-          <StaggerRevealContainer className="grid grid-cols-2 gap-4 sm:gap-5 sm:grid-cols-3 lg:grid-cols-4">
-            {books.map((book) => (
-              <StaggerRevealItem key={book.slug} className="h-full">
-                <BookCard book={book} />
-              </StaggerRevealItem>
-            ))}
-          </StaggerRevealContainer>
-        ) : (
-          <BookCarousel
-            aria-label={
-              activeDept
-                ? `Books in ${activeDept}`
-                : tab === "trending"
-                  ? "Trending books"
-                  : "Recently added books"
-            }
-          >
-            {books.map((book) => (
-              <BookCard key={book.slug} book={book} />
-            ))}
-          </BookCarousel>
-        )}
+      {/* ── Panel ──
+          The tabpanel element itself is STABLE (`aria-controls` must not point
+          at a node that is replaced on every switch); the keyed child inside is
+          what remounts to play the entrance animation.
+          tabIndex 0 so a keyboard user can scroll the panel after tabbing out
+          of the tablist, per the APG. */}
+      <div
+        role="tabpanel"
+        id={panelId}
+        aria-labelledby={`${baseId}-tab-${tab}`}
+        tabIndex={0}
+      >
+        <div key={activeDept ?? tab} className={switched ? "tab-panel-in" : undefined}>
+          {books.length === 0 ? (
+            <div className="flex min-h-48 items-center justify-center rounded-lg border border-dashed border-divider bg-paper text-sm text-text-muted">
+              {emptyLabel}
+            </div>
+          ) : layout === "grid" ? (
+            <StaggerRevealContainer className="grid grid-cols-2 gap-4 sm:gap-5 sm:grid-cols-3 lg:grid-cols-4">
+              {books.map((book) => (
+                <StaggerRevealItem key={book.slug} className="h-full">
+                  <BookCard book={book} />
+                </StaggerRevealItem>
+              ))}
+            </StaggerRevealContainer>
+          ) : (
+            <BookCarousel aria-label={listLabel}>
+              {books.map((book) => (
+                <BookCard key={book.slug} book={book} />
+              ))}
+            </BookCarousel>
+          )}
+        </div>
       </div>
     </div>
   );
