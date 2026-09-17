@@ -202,6 +202,14 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
 const PERSON_ALLOWLIST = [
   "app/[locale]/(public)/about/team/page.tsx",
   "app/[locale]/(public)/about/team/[slug]/page.tsx",
+  // The committee page describes the SAME `team_members` rows — one
+  // individually catalogued member of staff per row, entered through the team
+  // form — so a Person there is the same true claim, published under `member`
+  // of the library rather than `employee` of it. Routing these through the
+  // byline classifier would be the wrong instrument: it exists to decide
+  // whether a free-text string off a title page is a human or a ministry, a
+  // question this data does not have.
+  "app/[locale]/(public)/about/committee/page.tsx",
   // The classifier itself is what emits the node everyone else asks for.
   "lib/seo/contributor.ts",
 ];

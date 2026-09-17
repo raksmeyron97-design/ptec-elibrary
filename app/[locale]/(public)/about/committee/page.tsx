@@ -1,7 +1,31 @@
 import type { Metadata } from "next";
-import { Users } from "lucide-react";
+import { getTranslations, setRequestLocale } from "next-intl/server";
+import { Clock, MessageCircle, Phone } from "lucide-react";
+
+import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { openGraphBase } from "@/lib/seo/open-graph";
+import JsonLd from "@/components/seo/JsonLd";
+import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
+import { getPublicCommitteeData } from "@/lib/committee/data";
+import { publishedCount, type PublicCommitteeMember } from "@/lib/committee/public";
+import { toAboutLocale, formatDate } from "@/lib/about/format";
+import { ABOUT_CONTENT_REVIEWED_AT } from "@/lib/about/content";
+import AboutPageShell from "@/components/about/AboutPageShell";
+import CommitteeRoster from "@/components/about/CommitteeRoster";
+import { OfficialContactCard, AboutExternalAction, AboutLinkAction } from "@/components/about/actions";
+import {
+  AboutSection,
+  ContentLastUpdated,
+  EmptyContentState,
+  InformationCard,
+  NoticePanel,
+} from "@/components/about/primitives";
+
+// The committee changes rarely and every admin mutation revalidates this path
+// (app/(admin)/admin/(protected)/team/committee/actions.ts), as does every edit
+// to a team member — the same people are rendered here.
+export const revalidate = 600;
 
 export async function generateMetadata({
   params,
@@ -9,215 +33,224 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "about.committee" });
+  const org = await getOrgIdentity();
   const alternates = localeAlternates("/about/committee", locale);
+  // The document <title> gets the brand from the site's titleTemplate, so
+  // `title` must not repeat it; an OG title travels alone into a social card.
+  const title = t("metaTitle");
+  const description = t("metaDescription");
+  const socialTitle = `${title} · ${org.siteName}`;
+
   return {
-    title: "គណៈកម្មការបណ្ណាល័យ — PTEC e-Library",
-    description:
-      "Library Committee at Phnom Penh Teacher Education College. Member profiles coming soon.",
+    title,
+    description,
     alternates,
     openGraph: {
       ...(await openGraphBase(locale)),
-      title: "Library Committee — PTEC Library",
+      title: socialTitle,
+      description,
       url: alternates.canonical,
       type: "website",
     },
+    twitter: { card: "summary_large_image", title: socialTitle, description },
   };
 }
 
-/**
- * Data shape for a committee member — fill this array once the
- * member list is confirmed and the page will render automatically.
- */
-type CommitteeMember = {
-  id: string;
-  name_km: string;
-  name_en: string;
-  role_km: string | null;     // committee role (chair, secretary, etc.)
-  role_en: string | null;
-  responsibility_km: string | null;
-  responsibility_en: string | null;
-  photo_url: string | null;
-};
+export default async function LibraryCommitteePage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale: rawLocale } = await params;
+  setRequestLocale(rawLocale);
+  const locale = toAboutLocale(rawLocale);
 
-// TODO: Replace with real data from Supabase or a static list when confirmed
-const MEMBERS: CommitteeMember[] = [];
+  const t = await getTranslations("about");
+  const tc = await getTranslations("about.committee");
+  const [{ groups, unavailable }, cfg, org] = await Promise.all([
+    getPublicCommitteeData(),
+    getSiteConfig(),
+    getOrgIdentity(),
+  ]);
 
-export default function LibraryCommitteePage() {
-  return (
-    <div className="min-h-screen bg-paper">
-      {/* ── Hero ─────────────────────────────────────────── */}
-      <section
-        className="relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg,#1E3A8A 0%,#2A47A6 100%)" }}
-      >
-        <div
-          className="absolute inset-0 opacity-[0.06]"
-          style={{
-            backgroundImage: "radial-gradient(circle,white 1px,transparent 1px)",
-            backgroundSize: "24px 24px",
-          }}
-          aria-hidden="true"
-        />
-        <div className="relative mx-auto max-w-3xl px-6 py-16 md:py-22 text-center">
-          <p
-            className="mb-3 text-sm font-semibold uppercase tracking-[0.2em]"
-            style={{ color: "#DDB022" }}
-          >
-            គណៈកម្មការ · Committee
-          </p>
-          <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">
-            Library Committee
-            <span className="font-kh ml-3 text-2xl md:text-3xl text-white/75" lang="km">
-              គណៈកម្មការបណ្ណាល័យ
-            </span>
-          </h1>
-          <p className="mt-4 text-sm text-white/65 max-w-sm mx-auto">
-            The oversight committee of the PTEC Library — members and responsibilities coming soon.
-          </p>
-        </div>
-      </section>
+  const members = groups.flatMap((group) => group.members);
+  const total = publishedCount(groups);
+  const reviewedDate = formatDate(ABOUT_CONTENT_REVIEWED_AT, locale);
 
-      <div className="mx-auto max-w-5xl px-4 md:px-8 pb-20 mt-12">
+  const pageUrl = `${SITE_URL}${locale === "km" ? "/km" : ""}/about/committee`;
+  const profileUrl = (slug: string) =>
+    `${SITE_URL}${locale === "km" ? "/km" : ""}/about/team/${slug}`;
 
-        {MEMBERS.length === 0 ? (
-          /* ── Coming-soon placeholder ─────────────────────── */
-          <div
-            role="status"
-            aria-live="polite"
-            className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-divider py-28 text-center px-6"
-          >
-            <div
-              className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-2xl"
-              style={{ background: "linear-gradient(135deg,#EEF2FB,#D9E2F7)" }}
-              aria-hidden="true"
-            >
-              <Users className="h-10 w-10" style={{ color: "#2A47A6" }} />
-            </div>
-            <p className="text-lg font-bold text-text-heading">
-              <span className="font-kh" lang="km">មកដល់ឆាប់ៗ</span>
-              {" "}· Coming Soon
-            </p>
-            <p className="mt-2 text-sm text-text-muted max-w-xs leading-relaxed">
-              Committee member profiles will be published here once confirmed.
-              Each entry will include name, role, and area of responsibility.
-            </p>
+  /* Structured data describes what is actually published and nothing else.
+     Committee members are `member` of the library Organization — not
+     `employee`, which is what /about/team asserts about staff and would be a
+     claim this page has no basis for: sitting on the committee is a role, and
+     some holders of it are college staff rather than library staff.
 
-            {/* Preview of what the cards will look like */}
-            <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-2xl opacity-30 pointer-events-none select-none" aria-hidden="true">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="rounded-2xl border border-divider bg-bg-surface overflow-hidden"
-                >
-                  <div
-                    className="h-16 w-full"
-                    style={{ background: "linear-gradient(135deg,#1E3A8A,#2A47A6)" }}
-                  />
-                  <div className="flex flex-col items-center -mt-8 pb-5 px-5 pt-0">
-                    <div className="h-16 w-16 rounded-full bg-divider border-4 border-bg-surface" />
-                    <div className="mt-3 h-3 w-24 rounded bg-divider" />
-                    <div className="mt-2 h-2.5 w-16 rounded bg-divider" />
-                    <div className="mt-3 h-2 w-20 rounded bg-divider" />
-                  </div>
-                </div>
-              ))}
-            </div>
+     Names are admin-authored, so this goes through <JsonLd> (which escapes a
+     "</script>" breakout), never a raw JSON.stringify. */
+  const jsonLd =
+    total > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "AboutPage",
+          name: tc("metaTitle"),
+          description: tc("metaDescription"),
+          url: pageUrl,
+          inLanguage: ["en", "km"],
+          about: {
+            "@type": "Organization",
+            name: org.siteName,
+            url: SITE_URL,
+            parentOrganization: {
+              "@type": "CollegeOrUniversity",
+              name: cfg.name.en,
+              sameAs: [...cfg.sameAs],
+            },
+            member: members.map((m) => ({
+              "@type": "Person",
+              name: m.name_en || m.name_km,
+              // The committee role, when one was entered — never the staff
+              // position dressed up as one.
+              ...(m.role_en ? { jobTitle: m.role_en } : {}),
+              ...(m.slug ? { "@id": profileUrl(m.slug), url: profileUrl(m.slug) } : {}),
+            })),
+          },
+        }
+      : null;
 
-            <p className="mt-6 text-xs text-text-muted">
-              Expected fields: <span className="font-mono">name_km, name_en, role_km, role_en, responsibility, photo</span>
-            </p>
-          </div>
-        ) : (
-          /* ── Member grid (populated once data is available) ── */
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {MEMBERS.map((member) => (
-              <CommitteeCard key={member.id} member={member} />
-            ))}
-          </div>
-        )}
-
-        {/* Decorative divider */}
-        <div className="flex items-center justify-center gap-3 mt-16" aria-hidden="true">
-          <div className="h-px w-16 bg-gradient-to-r from-transparent to-blue-700/40" />
-          <div className="h-2 w-2 rounded-full" style={{ backgroundColor: "#DDB022" }} />
-          <div className="h-px w-16 bg-gradient-to-l from-transparent to-blue-700/40" />
-        </div>
-
-      </div>
-    </div>
+  /* An ItemList surfaces the individual profiles as crawlable list items —
+     but only members who HAVE a profile page. A list item pointing at nothing
+     is worse than a shorter list, and the view already withholds the slug of
+     anyone who is not published on /about/team. */
+  const listed = members.filter(
+    (m): m is PublicCommitteeMember & { slug: string } => Boolean(m.slug),
   );
-}
-
-function CommitteeCard({ member }: { member: CommitteeMember }) {
-  const initials = member.name_en
-    .split(" ")
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  const itemListJsonLd =
+    listed.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: tc("roster.heading"),
+          url: pageUrl,
+          numberOfItems: listed.length,
+          itemListOrder: "https://schema.org/ItemListOrderAscending",
+          itemListElement: listed.map((m, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            url: profileUrl(m.slug),
+            item: {
+              "@type": "Person",
+              "@id": profileUrl(m.slug),
+              name: m.name_en || m.name_km,
+              ...(m.role_en ? { jobTitle: m.role_en } : {}),
+              ...(m.photo_url ? { image: m.photo_url } : {}),
+              url: profileUrl(m.slug),
+            },
+          })),
+        }
+      : null;
 
   return (
-    <article className="group flex flex-col rounded-2xl bg-bg-surface overflow-hidden border border-divider transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl">
-      {/* Gradient header */}
-      <div
-        className="relative h-[72px] shrink-0"
-        style={{ background: "linear-gradient(135deg,#1E3A8A 0%,#2A47A6 100%)" }}
-        aria-hidden="true"
-      >
-        <div
-          className="absolute inset-0 opacity-[0.08]"
-          style={{
-            backgroundImage: "radial-gradient(circle,white 1px,transparent 1px)",
-            backgroundSize: "16px 16px",
-          }}
-        />
-        {/* Avatar */}
-        <div className="absolute -bottom-9 left-1/2 -translate-x-1/2">
-          <div
-            className="relative h-[72px] w-[72px] rounded-full overflow-hidden"
-            style={{ boxShadow: "0 0 0 3px var(--ptec-bg-surface),0 0 0 5px #1E3A8A" }}
-          >
-            {member.photo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={member.photo_url}
-                alt={`Photo of ${member.name_en}`}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <div
-                className="flex h-full w-full items-center justify-center text-white font-bold text-lg"
-                style={{ background: "linear-gradient(135deg,#1E3A8A,#2A47A6)" }}
-              >
-                {initials}
-              </div>
-            )}
-          </div>
+    <AboutPageShell
+      page="committee"
+      locale={locale}
+      hero={{
+        category: tc("category"),
+        title: tc("title"),
+        secondaryTitle: locale === "km" ? "Library Committee" : "គណៈកម្មការបណ្ណាល័យ",
+        secondaryLang: locale === "km" ? "en" : "km",
+        intro: tc("intro"),
+        action: (
+          <AboutExternalAction href={cfg.phoneLibraryTel} icon={Phone} variant="onDark">
+            {t("actions.contactLibrary")}
+          </AboutExternalAction>
+        ),
+      }}
+      footer={
+        <div className="mt-14">
+          <OfficialContactCard
+            heading={tc("contact.heading")}
+            body={tc("contact.body")}
+            privacyNote={tc("contact.officialOnly")}
+            deskLabel={tc("contact.deskLabel")}
+            desk={cfg.phoneLibrary}
+            deskHref={cfg.phoneLibraryTel}
+            emailLabel={tc("contact.emailLabel")}
+            email={cfg.email}
+            hoursLabel={tc("contact.hoursLabel")}
+            hours={locale === "km" ? cfg.hours.km : cfg.hours.en}
+            actions={
+              <>
+                <AboutLinkAction href="/contact" icon={Phone} variant="primary">
+                  {t("actions.contactLibrary")}
+                </AboutLinkAction>
+                <AboutLinkAction href="/about/timings" icon={Clock}>
+                  {t("actions.viewTimings")}
+                </AboutLinkAction>
+                <AboutExternalAction
+                  href={cfg.links.telegram}
+                  icon={MessageCircle}
+                  newTab
+                  newTabLabel={t("meta.printHint")}
+                >
+                  {t("actions.askLibrarian")}
+                </AboutExternalAction>
+              </>
+            }
+          />
         </div>
-      </div>
+      }
+    >
+      {jsonLd && <JsonLd data={jsonLd} />}
+      {itemListJsonLd && <JsonLd data={itemListJsonLd} />}
 
-      {/* Card body */}
-      <div className="flex flex-col flex-1 pt-11 pb-5 px-5 text-center">
-        <h3 className="font-kh text-base font-bold text-text-heading leading-snug" lang="km">
-          {member.name_km}
-        </h3>
-        <p className="text-xs text-text-muted mt-0.5">{member.name_en}</p>
-
-        {(member.role_km || member.role_en) && (
-          <span
-            className="mx-auto mt-2 inline-block rounded-full px-3 py-0.5 text-[11px] font-semibold"
-            style={{ background: "#EEF2FB", color: "#1E3A8A" }}
-          >
-            {member.role_km || member.role_en}
-          </span>
-        )}
-
-        {(member.responsibility_km || member.responsibility_en) && (
-          <p className="font-kh mt-3 text-xs leading-relaxed text-text-muted line-clamp-2" lang="km">
-            {member.responsibility_km || member.responsibility_en}
+      {/* ── What the committee is ────────────────────────────────────── */}
+      <AboutSection id="purpose" title={tc("purpose.heading")}>
+        <InformationCard>
+          <p className="about-copy about-measure text-[15px] text-text-body">
+            {tc("purpose.body")}
           </p>
+        </InformationCard>
+      </AboutSection>
+
+      {/* ── The roster ───────────────────────────────────────────────────
+          There is deliberately no band of statistics here. The honest figure
+          — how many members are published — is stated once, in the section
+          header where a reader expects it; a card reading "1 Committee
+          members" says nothing except how small the list is. */}
+      <AboutSection
+        id="members"
+        title={tc("roster.heading")}
+        description={total > 0 ? tc("roster.count", { count: total }) : null}
+      >
+        {unavailable ? (
+          /* A failed read is NOT an empty committee. Saying "no members are
+             published" when the database did not answer is a false statement
+             about the institution, so the two are told apart. */
+          <NoticePanel tone="caution" label={tc("unavailable.label")} role="status">
+            {tc("unavailable.body")}
+          </NoticePanel>
+        ) : total === 0 ? (
+          <EmptyContentState
+            title={tc("empty.heading")}
+            body={tc("empty.body")}
+            action={
+              <AboutExternalAction href={cfg.phoneLibraryTel} icon={Phone} variant="primary">
+                {t("actions.callLibrary")}
+              </AboutExternalAction>
+            }
+          />
+        ) : (
+          <CommitteeRoster groups={groups} locale={locale} />
         )}
-      </div>
-    </article>
+      </AboutSection>
+
+      <ContentLastUpdated
+        reviewedLabel={reviewedDate ? t("meta.reviewed", { date: reviewedDate }) : null}
+        className="border-t border-divider pt-6"
+      />
+    </AboutPageShell>
   );
 }

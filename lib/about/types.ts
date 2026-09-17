@@ -1,7 +1,7 @@
 // lib/about/types.ts
 //
-// Shapes for the five public "About the Library" pages
-// (/about/our-journey, /rules, /timings, /collection, /team).
+// Shapes for the public "About the Library" pages
+// (/about/our-journey, /rules, /timings, /collection, /team, /committee).
 //
 // Everything institutional these pages display comes from ONE typed source
 // (lib/about/content.ts), transcribed from the library's own information form
@@ -21,13 +21,20 @@ export type LocalizedText = {
   en: string;
 };
 
-/** The five pages that make up the About system, in navigation order. */
+/** The pages that make up the About system, in navigation order.
+ *
+ *  `committee` joined them in the Library Committee build: it was already in
+ *  the site header's About menu and in sitemap.xml, but it was not part of this
+ *  list, so it alone had no sub-navigation, no breadcrumb trail, no pager and
+ *  no related-pages block. A public page advertised everywhere and belonging
+ *  to nothing is the shape this list exists to prevent. */
 export const ABOUT_PAGE_KEYS = [
   "ourJourney",
   "rules",
   "timings",
   "collection",
   "team",
+  "committee",
 ] as const;
 
 export type AboutPageKey = (typeof ABOUT_PAGE_KEYS)[number];

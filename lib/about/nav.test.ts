@@ -81,7 +81,13 @@ describe("aboutPager", () => {
     // first, which reads as being stuck in a loop.
     expect(aboutPager("ourJourney").previous).toBeNull();
     expect(aboutPager("ourJourney").next?.key).toBe("rules");
-    expect(aboutPager("team").next).toBeNull();
+    // The last page is whatever sits at the end of ABOUT_NAV — `committee`
+    // since the Library Committee joined the About system. Asserting on the
+    // LIST rather than on a hard-coded key is what keeps this test about the
+    // no-wrap rule instead of about the running order.
+    const last = ABOUT_NAV[ABOUT_NAV.length - 1].key;
+    expect(aboutPager(last).next).toBeNull();
+    expect(aboutPager("team").next?.key).toBe("committee");
     expect(aboutPager("team").previous?.key).toBe("collection");
   });
 

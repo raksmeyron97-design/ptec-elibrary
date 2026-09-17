@@ -21,7 +21,7 @@ export type AboutNavItem = {
    *  the related-pages cards. */
   descriptionKey: string;
   /** Icon key, resolved to a lucide component by the rendering component. */
-  icon: "milestone" | "scale" | "clock" | "library" | "users";
+  icon: "milestone" | "scale" | "clock" | "library" | "users" | "usersRound";
 };
 
 export const ABOUT_NAV: readonly AboutNavItem[] = [
@@ -59,6 +59,16 @@ export const ABOUT_NAV: readonly AboutNavItem[] = [
     labelKey: "libraryTeam",
     descriptionKey: "nav.team",
     icon: "users",
+  },
+  {
+    key: "committee",
+    href: "/about/committee",
+    labelKey: "libraryCommittee",
+    // Both message keys already existed: the site header's About menu has
+    // linked this page since it was built. Only the About section's own model
+    // was missing it.
+    descriptionKey: "nav.committee",
+    icon: "usersRound",
   },
 ] as const;
 

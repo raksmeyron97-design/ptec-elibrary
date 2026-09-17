@@ -3,21 +3,23 @@
 // The frame every About page renders inside. It owns the structure the brief
 // specifies — breadcrumbs → hero → sticky sub-navigation → content → related
 // pages → previous/next — so a page file contains only its own content and
-// the five pages cannot drift apart again.
+// the pages cannot drift apart again.
 //
 // This is a SERVER component. The sub-navigation is the only client island it
 // mounts, so a page with no interactive content (Our Journey) ships almost no
 // JavaScript.
 //
-// Deliberately NOT an app/about/layout.tsx: a layout would also wrap
-// /about and /about/committee, which are outside this redesign's scope. Making
-// it an explicit component keeps the blast radius at exactly five files.
+// Deliberately NOT an app/about/layout.tsx: a layout would also wrap /about,
+// the section's own index, which is not one of these pages. Making it an
+// explicit component keeps each page's opt-in visible in its own file.
+// (/about/committee was outside the original redesign's scope and has since
+// joined the section — see lib/about/nav.ts.)
 
 import type { ReactNode } from "react";
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
 import { ArrowLeft, ArrowRight, ChevronRight, type LucideIcon } from "lucide-react";
-import { Clock, Library, Milestone, Scale, Users } from "lucide-react";
+import { Clock, Library, Milestone, Scale, Users, UsersRound } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import JsonLd from "@/components/seo/JsonLd";
 import { breadcrumbSchema } from "@/lib/seo/schema";
@@ -32,6 +34,7 @@ const ICONS: Record<string, LucideIcon> = {
   clock: Clock,
   library: Library,
   users: Users,
+  usersRound: UsersRound,
 };
 
 /* ────────────────────────────────────────────────────────────────────────────

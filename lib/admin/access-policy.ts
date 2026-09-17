@@ -224,6 +224,13 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   { id: "team.create", route: "/admin/team/new", requires: perm("users", "write"), backTo: "/admin/team" },
   { id: "team.sections", route: "/admin/team/sections", requires: perm("users", "write"), backTo: "/admin/team" },
   { id: "team.edit", route: "/admin/team/[id]/edit", requires: perm("users", "write"), backTo: "/admin/team" },
+  /* The Library Committee is a relationship layer over the same people, so it
+     is governed by the same resource rather than a row of its own: an account
+     trusted to edit who appears on /about/team is the account that decides who
+     appears on /about/committee. READ opens the roster (and its health counts)
+     like the team directory does; every seat mutation is `users: write`. */
+  { id: "team.committee", route: "/admin/team/committee", requires: perm("users", "read"), backTo: "/admin/team" },
+  { id: "team.committee.sections", route: "/admin/team/committee/sections", requires: perm("users", "write"), backTo: "/admin/team/committee" },
   /* Role Management is delegable, through the same matrix it edits.
      `roles` defaults to `write` for super_admin and `none` for everyone else,
      so behaviour for all five shipped roles is exactly what the hardcoded
@@ -381,6 +388,13 @@ export const ACTION_POLICIES: Readonly<Record<string, Requirement>> = {
   "team.manage": perm("users", "write"),
   "team.create": perm("users", "write"),
   "team.sections": perm("users", "write"),
+  /* Committee seats and committee groupings. Two ids, not one, because the
+     two surfaces are separately reachable and a section rename changes every
+     reader's view of the governance structure, while a seat edit changes one
+     person's line. Both sit on `users: write` — the committee never becomes a
+     way to edit people from outside the team permission. */
+  "team.committee.manage": perm("users", "write"),
+  "team.committee.sections": perm("users", "write"),
   "settings.publish": perm("settings", "write"),
   /* Same requirement as the page that hosts it: an editor who can open the
      matrix can save it. The extra rules a save must satisfy are not expressible

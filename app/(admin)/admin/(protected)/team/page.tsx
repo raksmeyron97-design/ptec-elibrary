@@ -4,6 +4,7 @@ import {
   UserPlus, FolderOpen, Users, Eye, EyeOff, LayoutGrid, ImageOff, Languages, ExternalLink,
 } from "lucide-react";
 import TeamClient from "./_components/TeamClient";
+import TeamWorkspaceTabs from "./_components/TeamWorkspaceTabs";
 import type { TeamMemberRow, TeamSection } from "./actions";
 import { requireRouteAccess } from "@/lib/admin/route-guard";
 
@@ -104,6 +105,8 @@ export default async function TeamPage({
         </div>
       </div>
 
+      <TeamWorkspaceTabs current="members" />
+
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {stats.map(({ label, value, icon: Icon, tone }) => (
@@ -123,8 +126,19 @@ export default async function TeamPage({
       </div>
 
       {created && (
-        <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          <strong>{created}</strong> was added to the team.
+        <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <span>
+            <strong>{created}</strong> was added to the team.
+          </span>
+          {/* The person now exists once. If they were created in order to be
+              seated on the committee, this is the shortcut to the seat — not a
+              second place to type their name again. */}
+          <Link
+            href="/admin/team/committee"
+            className="font-semibold underline underline-offset-2"
+          >
+            Add them to the committee
+          </Link>
         </div>
       )}
 
