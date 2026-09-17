@@ -14,7 +14,11 @@ import Pagination from "@/components/ui/core/Pagination";
 import { ClientNavWrapper } from "@/components/ui/books/ClientNavWrapper";
 import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
 import { getTranslations } from 'next-intl/server';
-import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
+import {
+  buildListingMetadata,
+  isPageOutOfRange,
+  parsePageParam,
+} from "@/lib/seo/listing-metadata";
 import { getSiteConfig, getOrgIdentity } from "@/lib/system-settings/config";
 import { getCollectionStats } from "@/lib/collection-stats";
 import { chooseCountLabel } from "@/lib/listing-count";
@@ -38,16 +42,29 @@ export async function generateMetadata({
   searchParams: Promise<SearchParams>;
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
-  const params = await searchParams;
-  const { locale } = await routeParams;
+  // Independent reads start together — the shape /journals already uses.
+  // getCollectionStats() is cached under the "collection-stats" tag and is
+  // already read by this page's body, so it costs no extra query and no extra
+  // latency here.
+  const [params, { locale }, stats, org] = await Promise.all([
+    searchParams,
+    routeParams,
+    getCollectionStats(),
+    getOrgIdentity(),
+  ]);
+  const page = parsePageParam(params.page);
   return buildListingMetadata({
-    org: await getOrgIdentity(),
+    org,
     path: "/catalogs",
     locale,
     title: "Books In Library",
     description:
       "Browse physical books available in the PTEC library. Check availability, shelf location, and borrow status for each title.",
-    page: parsePageParam(params.page),
+    page,
+    // Unlike its siblings this listing does NOT clamp — it ranges past the
+    // end and renders an empty grid, which was indexable and self-canonical
+    // for every ?page=N (verified: /catalogs?page=50 listed 0 of 6 books).
+    outOfRange: isPageOutOfRange(page, stats?.physicalCatalogs, resolvePageSize(params.size)),
     hasFilters: !!(
       params.q ||
       params.category ||

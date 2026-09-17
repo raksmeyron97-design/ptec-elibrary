@@ -20,7 +20,11 @@ import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
 import Pagination from "@/components/ui/core/Pagination";
 import { getTranslations } from "next-intl/server";
 import { getKeywords } from "@/lib/theses/report-fields";
-import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
+import {
+  buildListingMetadata,
+  isPageOutOfRange,
+  parsePageParam,
+} from "@/lib/seo/listing-metadata";
 import JsonLd from "@/components/seo/JsonLd";
 import { thesesCollectionJsonLd } from "@/lib/seo/thesis-seo";
 import { getYear } from "@/lib/theses/report-fields";
@@ -53,17 +57,32 @@ export async function generateMetadata({
   searchParams: Promise<SP>;
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
-  const params = await searchParams;
-  const { locale } = await routeParams;
+  // Everything that does not need `locale` starts at once; only the
+  // translations wait on it — the shape /journals already uses. The page body
+  // CLAMPS ?page=N to the last page, so without `outOfRange` every N past the
+  // end serves page 1's rows under its own indexable, self-canonical URL. The
+  // count comes from getCollectionStats(), cached under the "collection-stats"
+  // tag and already read by this page's body, so it costs no extra query and —
+  // in this shape — no extra latency either. A null read is UNKNOWN, and
+  // isPageOutOfRange() treats it as in-range: a failed count must never
+  // noindex a real page.
+  const [params, { locale }, stats, org] = await Promise.all([
+    searchParams,
+    routeParams,
+    getCollectionStats(),
+    getOrgIdentity(),
+  ]);
   const t = await getTranslations({ locale, namespace: "theses" });
+  const page = parsePageParam(params.page);
   return buildListingMetadata({
-    org: await getOrgIdentity(),
+    org,
     path: "/theses",
     locale,
     title: t("seoTitle"),
     description: t("seoDescriptionEvergreen"),
     pageLabel: t("pageLabel"),
-    page: parsePageParam(params.page),
+    page,
+    outOfRange: isPageOutOfRange(page, stats?.theses, resolvePageSize(undefined)),
     hasFilters: !!(
       params.q ||
       params.cohort ||
