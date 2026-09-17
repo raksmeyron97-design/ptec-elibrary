@@ -51,7 +51,12 @@ export type PageKind =
   /** A back-of-book index or a page that is mostly locators. */
   | "index"
   /** Too little text to carry a claim. */
-  | "sparse";
+  | "sparse"
+  /**
+   * Khmer that extracted as correctly-encoded but WRONG code points — a PDF
+   * whose embedded font carries no usable ToUnicode map. See `assessKhmerText`.
+   */
+  | "unreadable";
 
 export interface PageQuality {
   kind: PageKind;
@@ -147,6 +152,117 @@ const NUMERIC_RATIO_FLOOR = 0.1;
 /** Below this many sentence ends per 100 words there is no prose to cite. */
 const SENTENCE_DENSITY_FLOOR = 1.5;
 
+// ── Khmer that extracted as nonsense ─────────────────────────────────────────
+/**
+ * A Khmer PDF whose embedded font has no usable ToUnicode map extracts as a
+ * stream of REAL Khmer characters in an order that spells nothing:
+ *
+ *   អ ក េ បើ ស់ ៩៧,២០៧ ក់ ៦៥៩ វ គ សិ ក ២៣៨ េសៀ វ េ ៤,៧៩០
+ *
+ * Nothing downstream can tell that from Khmer prose. It is correctly encoded,
+ * so it clears every character check; it carries the query's terms often
+ * enough to clear the lexical floor; and it reaches the model as evidence,
+ * where the only thing it can produce is a confident answer made of nonsense —
+ * in the reader's own language, which is where it is least likely to be
+ * spotted by whoever maintains the system.
+ *
+ * Measured against production on 2026-09-17 (`scripts/audit-khmer-page-text.ts`,
+ * 20,000 pages): 10,061 pages are Khmer, **941 of them (9.4%) are unreadable**,
+ * and they sit in **40 of the 127 records** that carry Khmer text.
+ *
+ * THE TEST IS STRUCTURAL, like the furniture test beside it, and it does not
+ * read a dictionary. There are two flavours of this corruption in the corpus
+ * and they look nothing alike, so there are two independent detectors:
+ *
+ *   FRAGMENTED — the mapping emits a space wherever the font had a ligature,
+ *     so the text shatters into one- and two-character pieces:
+ *       អ ក េ បើ ស់ ៩៧,២០៧ ក់ ៦៥៩ វ គ សិ ក ២៣៨ េសៀ វ េ
+ *     Khmer writes a syllable as a consonant plus its dependent marks with no
+ *     spaces, so real Khmer has LONG runs. Caught by run length.
+ *
+ *   ORPHANED MARKS — a second flavour, MEASURED BUT NOT ACTED ON. The runs
+ *     stay long and syllables are split mid-word, so the second half BEGINS
+ *     with a dependent vowel or sign:
+ *       ការស្រ ាវស្រ ាវ និងការវាយតម្ម្ ៃក្ នុ ងការអប់រំ
+ *     `ាវ` starts with U+17B6, which cannot begin a Khmer syllable — the
+ *     dependent vowel has no consonant to attach to. Run length alone scores
+ *     that page healthy, and it did reach the model as evidence in a measured
+ *     run, so the signal is real and `orphanShare` is reported for it.
+ *
+ *     It does NOT decide anything, and that is a deliberate refusal. Measured
+ *     over 10,091 Khmer pages of production, the two populations do not
+ *     separate on it: pages the fragmentation rule calls readable have an
+ *     orphan share with p50 0.078 and p95 0.120, and every threshold that
+ *     catches the split pages also condemns 64% of the Khmer corpus. Dropping
+ *     two thirds of a language's pages on a signal whose distributions overlap
+ *     is not a filter, it is removing Khmer from the library — and it is not a
+ *     judgement anyone should make without a Khmer reader confirming what the
+ *     pages actually say. The number is in the audit script so that reader has
+ *     something to adjudicate.
+ *
+ * The rule that DOES act requires two agreeing signals, for the reason the
+ * furniture rule needs two: dropping an unreadable page loses nothing, and
+ * dropping a readable one takes a Khmer reader's own language out of their
+ * answer.
+ */
+const KHMER_RUN = /[\u1780-\u17FF]+/gu;
+/** A page must be at least this much Khmer before this rule judges it at all. */
+const KHMER_SHARE_FLOOR = 0.3;
+/** Mean Khmer run length below which the text is fragmented rather than written. */
+const KHMER_MEAN_RUN_FLOOR = 3;
+/** Share of runs that are 1–2 characters, above which the page reads as broken. */
+const KHMER_SHORT_RUN_CEILING = 0.5;
+/** Runs needed before the two ratios mean anything. */
+const KHMER_MIN_RUNS = 10;
+/**
+ * Khmer marks that cannot begin a syllable: the dependent vowels (U+17B6–
+ * U+17C5) and the signs that attach to a consonant (U+17C6–U+17D3). A run
+ * starting with one of these is a syllable cut in half.
+ */
+const KHMER_ORPHAN_START = /^[\u17B6-\u17D3]/u;
+/**
+ * Reported only. See the note above: over production these two populations do
+ * not separate on this signal, so nothing is dropped for it.
+ */
+export const KHMER_ORPHAN_OBSERVED = { readableP95: 0.12, splitTypical: 0.2 } as const;
+
+export interface KhmerTextVerdict {
+  /** The page is mostly Khmer, so this rule applies to it. */
+  khmer: boolean;
+  /** Its Khmer spells nothing. Only the fragmentation rule sets this. */
+  unreadable: boolean;
+  fault: "none" | "fragmented";
+  meanRun: number;
+  shortRunShare: number;
+  /** Share of runs beginning with a mark that cannot start a syllable. */
+  orphanShare: number;
+}
+
+export function assessKhmerText(text: string): KhmerTextVerdict {
+  const raw = String(text ?? "");
+  const runs = raw.match(KHMER_RUN) ?? [];
+  const khmerChars = runs.reduce((n, r) => n + r.length, 0);
+  const letters = (raw.match(/[\p{L}\p{N}]/gu) ?? []).length;
+  const khmer = letters > 40 && khmerChars / Math.max(1, letters) >= KHMER_SHARE_FLOOR;
+  const meanRun = khmerChars / Math.max(1, runs.length);
+  if (!khmer || runs.length < KHMER_MIN_RUNS) {
+    return { khmer, unreadable: false, fault: "none", meanRun, shortRunShare: 0, orphanShare: 0 };
+  }
+  const shortRunShare = runs.filter((r) => r.length <= 2).length / runs.length;
+  const orphanShare = runs.filter((r) => KHMER_ORPHAN_START.test(r)).length / runs.length;
+
+  const fragmented = meanRun < KHMER_MEAN_RUN_FLOOR && shortRunShare > KHMER_SHORT_RUN_CEILING;
+  return {
+    khmer,
+    unreadable: fragmented,
+    fault: fragmented ? "fragmented" : "none",
+    meanRun,
+    shortRunShare,
+    // Carried, never acted on.
+    orphanShare,
+  };
+}
+
 /**
  * Judge one page of extracted text.
  *
@@ -178,6 +294,19 @@ export function assessPageText(text: string): PageQuality {
   });
 
   if (words < MIN_WORDS) return q("sparse", false, `${words} words — too little text to carry a claim`);
+
+  // Checked before the furniture rules, because a page that spells nothing
+  // cannot be judged on whether its sentences are thin — it has no sentences
+  // in the sense those rules mean, and it is not front matter either.
+  const km = assessKhmerText(raw);
+  if (km.unreadable) {
+    return q(
+      "unreadable",
+      false,
+      `Khmer spells nothing — ${Math.round(km.shortRunShare * 100)}% one- and two-character fragments ` +
+        `(mean run ${km.meanRun.toFixed(1)}); the font carries no usable character map`,
+    );
+  }
 
   const marker = FURNITURE_MARKERS.find((re) => re.test(raw));
   const thinProse = sentenceDensity < SENTENCE_DENSITY_FLOOR;

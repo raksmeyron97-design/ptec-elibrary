@@ -48,6 +48,23 @@
         "v2-cite-001",
         "v2-cite-002"
       ]
+    },
+    "capabilities": {
+      "description": "The capabilities added in AI Quality 3.0, put to the real model: a question that NAMES a page, a page RANGE, a GOAL the curriculum covers and one it does not, and the Khmer and mixed-language shapes the mock cannot judge. These exist because the smoke suite is drawn from v1 and v2 and so cannot reach any of them — a capability whose live behaviour is never measured is a capability nobody has checked. Budgeted: about 8 model calls and 15k tokens.",
+      "ids": [
+        "v21-page-001",
+        "v21-page-002",
+        "v21-range-001",
+        "v21-range-002",
+        "goal-001",
+        "goal-002",
+        "goal-006",
+        "km-def-001",
+        "km-explain-001",
+        "km-scoped-001",
+        "km-page-001",
+        "km-noans-001"
+      ]
     }
   }
 }
