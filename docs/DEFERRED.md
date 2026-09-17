@@ -75,3 +75,55 @@ itself has no native-binding dependency and works fine here). The new test,
 lint, typecheck, build, `npm test`, `npm run test:e2e` — must still run (in CI, or on the
 user's own machine) before this branch is mergeable. This is called out again in
 `docs/FINAL_REPORT.md` with the exact commands to run first.
+
+---
+
+# Deferred items — added after the 2026-07-26 run
+
+Same rule as above: anything shipped as a stopgap, with the work it defers and
+the condition that retires it.
+
+## Populate the physical catalogue (`catalog_books`)
+
+**Deferred by:** the `PHYSICAL_CATALOG_MIN_DISPLAY` floor in
+`components/ui/home/TrustBar.tsx` (2026-09-17).
+
+Production held **6** active `catalog_books` rows on 2026-09-17, against 1,732
+books and 1,734 digital resources. The homepage trust band therefore advertised
+"6 — Books in the physical library" directly under the hero, in a band whose
+entire purpose is to make the collection's size credible. The figure is true;
+it is also the smallest number on the page, and it reads as the size of the
+room rather than as the size of the catalogue *record set*, which is what it
+actually measures.
+
+The tile is now hidden while that count is under 25. **This is a display
+band-aid over a data gap, not a fix**, and it is deliberately reversible with
+no code change: catalogue the 25th book and the tile returns on the next
+`collection-stats` revalidation.
+
+**The real work**, in the order it unblocks things:
+
+1. Catalogue the physical holdings into `catalog_books` (`is_active = true`).
+   `/admin/catalogs` is the existing surface; no schema change is needed.
+2. Re-check the floor once the true shelf count is known. 25 was chosen as a
+   round number comfortably above 6, not measured against the real holdings —
+   if the library has 4,000 physical books, a floor of 25 is meaningless and
+   should simply be removed rather than tuned.
+3. Delete `PHYSICAL_CATALOG_MIN_DISPLAY` and its tests when the count can no
+   longer plausibly fall under it.
+
+**What this is NOT.** The floor lives in the display component, never in
+`getCollectionStats()`. Suppressing there would hide the figure from every
+consumer — including `/catalogs`, the physical catalogue's own page, which must
+always state its real size, and `/llms.txt`. `docs/RESOURCE-STATISTICS.md`'s
+rule that the service never invents or suppresses a count is unchanged, and the
+"homepage total == sum of its categories" invariant is untouched because
+`physicalCatalogs` was never part of that total.
+
+**Related:** this is the same product question as **#9** above ("Hide
+categories below a small threshold"), decided for this one tile only. #9's
+recommendation — put the rule in `getCollectionStats()` — was deliberately NOT
+followed, for the reason in the paragraph above; the single-source-of-truth
+concern it raises is met instead by the tile's floor and its rendered value
+being the same field of the same read, pinned by
+`components/ui/home/TrustBar.test.tsx`.
