@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { buildListingMetadata, LISTING_FALLBACK_OG_IMAGE, parsePageParam } from "@/lib/seo/listing-metadata";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { isPageOutOfRange, buildListingMetadata, LISTING_FALLBACK_OG_IMAGE, parsePageParam } from "@/lib/seo/listing-metadata";
 
 const base = {
   path: "/theses",
@@ -97,5 +99,80 @@ describe("buildListingMetadata — an empty collection is not an index entry", (
       en: "https://library.ptec.edu.kh/theses",
       km: "https://library.ptec.edu.kh/km/theses",
     });
+  });
+});
+
+describe("isPageOutOfRange", () => {
+  it("never calls page 1 out of range, whatever the collection holds", () => {
+    expect(isPageOutOfRange(1, 0, 18)).toBe(false);
+    expect(isPageOutOfRange(1, 1695, 18)).toBe(false);
+  });
+
+  it("marks a page past the last one", () => {
+    // 6 physical books at 18/page = 1 page; page 50 is past the end.
+    expect(isPageOutOfRange(50, 6, 18)).toBe(true);
+    expect(isPageOutOfRange(2, 6, 18)).toBe(true);
+  });
+
+  it("leaves a real page alone", () => {
+    // 1,695 books at 18/page = 95 pages.
+    expect(isPageOutOfRange(95, 1695, 18)).toBe(false);
+    expect(isPageOutOfRange(96, 1695, 18)).toBe(true);
+  });
+
+  it("treats an UNKNOWN count as in range — a failed read must not noindex", () => {
+    // getCollectionStats() answers null when the read failed. Same rule as
+    // the isEmpty gate: only a hard number withholds the index entry.
+    expect(isPageOutOfRange(50, null, 18)).toBe(false);
+    expect(isPageOutOfRange(50, undefined, 18)).toBe(false);
+    expect(isPageOutOfRange(50, Number.NaN, 18)).toBe(false);
+  });
+
+  it("does not divide by a nonsense page size", () => {
+    expect(isPageOutOfRange(50, 6, 0)).toBe(false);
+    expect(isPageOutOfRange(50, 6, Number.NaN)).toBe(false);
+  });
+
+  it("keeps an empty collection's page 2 out of range", () => {
+    // ceil(0/18) = 0 pages, floored to 1: page 2 of nothing is still past it.
+    expect(isPageOutOfRange(2, 0, 18)).toBe(true);
+  });
+});
+
+describe("every paginated listing declares where its collection ends", () => {
+  // A SOURCE SCAN. buildListingMetadata self-canonicalises `?page=N` so the
+  // whole collection can be indexed; the cost of that choice is that a page
+  // past the end is ALSO indexable and self-canonical, at any N, for ever.
+  // The helper has always accepted `outOfRange` — four of the six call sites
+  // simply never passed it, and production served
+  // `/catalogs?page=50` (0 results) and `/theses?page=50` (page 1's rows
+  // under its own URL) as indexable pages. The guard is only real if every
+  // call site supplies it, so that is what this asserts.
+  const ROOT = join(__dirname, "..", "..");
+  const PUBLIC_TREE = join(ROOT, "app", "[locale]", "(public)");
+
+  function walk(dir: string): string[] {
+    return readdirSync(dir).flatMap((name) => {
+      const full = join(dir, name);
+      return statSync(full).isDirectory() ? walk(full) : [full];
+    });
+  }
+
+  const callSites = walk(PUBLIC_TREE)
+    .filter((f) => f.endsWith(".tsx"))
+    .map((f) => ({ file: f.slice(ROOT.length + 1), src: readFileSync(f, "utf8") }))
+    .filter(({ src }) => src.includes("buildListingMetadata({"));
+
+  it("finds the listing pages at all", () => {
+    expect(callSites.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it.each(callSites.map((c) => c.file))("%s bounds its ?page= space", (file) => {
+    const { src } = callSites.find((c) => c.file === file)!;
+    // `outOfRange` bounds a collection that has pages; `isEmpty` covers the
+    // collection that has none. Either answers the question "does this URL
+    // show anything?" — passing neither leaves it unanswered.
+    const bounded = src.includes("outOfRange") || src.includes("isEmpty:");
+    expect(`${file}: ${bounded}`).toBe(`${file}: true`);
   });
 });

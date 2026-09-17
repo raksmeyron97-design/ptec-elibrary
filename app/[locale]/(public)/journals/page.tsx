@@ -21,7 +21,11 @@ import Pagination from "@/components/ui/core/Pagination";
 import { ClientNavWrapper } from "@/components/ui/books/ClientNavWrapper";
 import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
 import { getTranslations } from "next-intl/server";
-import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
+import {
+  buildListingMetadata,
+  isPageOutOfRange,
+  parsePageParam,
+} from "@/lib/seo/listing-metadata";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { getCollectionStats } from "@/lib/collection-stats";
 import { chooseCountLabel } from "@/lib/listing-count";
@@ -65,6 +69,7 @@ export async function generateMetadata({
     getOrgIdentity(),
   ]);
   const tSeo = await getTranslations({ locale, namespace: "publications" });
+  const page = parsePageParam(params.page);
   return buildListingMetadata({
     org,
     // An empty collection renders only "No publications are currently
@@ -77,7 +82,11 @@ export async function generateMetadata({
     title: tSeo("seoTitle"),
     description: tSeo("seoDescriptionEvergreen"),
     pageLabel: tSeo("pageLabel"),
-    page: parsePageParam(params.page),
+    page,
+    // The body clamps ?page=N to the last page, so every N past the end
+    // served page 1's articles under its own indexable, self-canonical URL.
+    // `stats` is already awaited above for isEmpty — this costs no extra read.
+    outOfRange: isPageOutOfRange(page, stats?.publications, resolvePageSize(undefined)),
     hasFilters: !!(
       params.q ||
       params.keyword ||

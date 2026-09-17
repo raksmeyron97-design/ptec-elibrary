@@ -213,18 +213,26 @@ export function buildIssuesListMetadata(
 ): Metadata {
   const org = resolveOrgIdentity(orgArg);
   const alternates = localeAlternates(journalIssuesPath(j.slug), locale);
+  // Same card as the journal itself: an issue list IS that journal, so its
+  // cover is the honest image. buildJournalMetadata has carried one since the
+  // 0148 rework; these two builders in the same file simply never did, so a
+  // share of /journals/<j>/issues or of an issue rendered as a bare link.
+  const image = j.coverUrl || FALLBACK_JOURNAL_OG_IMAGE;
+  const description = truncate(labels.description);
   return {
     title: labels.title,
-    description: truncate(labels.description),
+    description,
     alternates,
     robots: !j.isIndexable || issueCount === 0 ? { index: false, follow: true } : undefined,
     openGraph: {
       title: labels.title,
-      description: truncate(labels.description),
+      description,
       type: "website",
       url: alternates.canonical,
       siteName: org.siteName,
+      images: [{ url: image, alt: labels.title }],
     },
+    twitter: { card: "summary_large_image", title: labels.title, description, images: [image] },
   };
 }
 
@@ -275,12 +283,21 @@ export function buildIssueMetadata(
         ? `${issue.label} នៃ ${journalTitle}៖ បញ្ជីអត្ថបទ និងព័ត៌មានលេខផ្សាយ។`
         : `${issue.label} of ${journalTitle}: table of contents and issue details.`),
   );
+  const image = j.coverUrl || FALLBACK_JOURNAL_OG_IMAGE;
   return {
     title,
     description,
     alternates,
     robots: !j.isIndexable ? { index: false, follow: true } : undefined,
-    openGraph: { title, description, type: "website", url: alternates.canonical, siteName: org.siteName },
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      url: alternates.canonical,
+      siteName: org.siteName,
+      images: [{ url: image, alt: title }],
+    },
+    twitter: { card: "summary_large_image", title, description, images: [image] },
   };
 }
 

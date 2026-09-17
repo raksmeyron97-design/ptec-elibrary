@@ -58,6 +58,36 @@ function entry(
 // page size) so this stays correct even if that cap ever changes.
 const PAGE_SIZE = 1000;
 
+// ── Why every sweep below ends its ORDER BY on `id` ─────────────────────────
+//
+// A `.range()` sweep is a sequence of INDEPENDENT LIMIT/OFFSET queries.
+// Postgres promises nothing about how two of them break a TIE, so a sort key
+// that is not unique lets a row land on two pages (fetched twice, then dropped
+// by the `seen` guard below) or on none at all (never fetched). Nothing errors.
+// The sitemap just answers a different question each time it revalidates.
+//
+// `created_at` is not unique here: `now()` is transaction-scoped, so every row
+// of a bulk import shares one timestamp to the microsecond — and this library
+// is bulk-imported. The symptom only appears once a table crosses PAGE_SIZE,
+// which `books` did as the collection grew past 1,000.
+//
+// Measured on production 2026-09-16, two fetches of /sitemap.xml one
+// revalidation apart, against a collection that did not change:
+//
+//   fetch 1   2,045 URLs — 1,690 of 1,695 books
+//   fetch 2   2,048 URLs — 1,695 of 1,695 books
+//
+// The five books missing from fetch 1 (`/books/chicken-raising` among them)
+// each answered 200 with `index, follow` and a self-canonical, and each was
+// listed on /books. No rule in this file excludes them and no validation rule
+// below drops them, which leaves the sweep as the only remaining explanation.
+// Adding `id` — the primary
+// key, unique by definition — as the LAST ordering term makes the total order
+// deterministic, so the same collection always produces the same sitemap.
+//
+// lib/db/paginated-sweep.test.ts enforces this on every sweep in the repo.
+const TIEBREAK = 'id';
+
 async function fetchAllRows<T>(
   page: (from: number, to: number) => PromiseLike<{ data: T[] | null }>,
 ): Promise<T[]> {
@@ -92,6 +122,7 @@ async function fetchAuthorRows<T>(
         .from(table)
         .select(columns)
         .order(nameColumn, { ascending: true })
+        .order(TIEBREAK, { ascending: true })
         .range(from, to) as unknown as PromiseLike<{ data: T[] | null }>,
     );
 
@@ -129,6 +160,7 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
           .select('slug, published_at, created_at, updated_at')
           .eq('is_published', true)
           .order('created_at', { ascending: false })
+          .order(TIEBREAK, { ascending: true })
           .range(from, to),
     ),
     fetchAllRows<{ slug: string; created_at: string | null; updated_at: string | null }>(
@@ -143,6 +175,7 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
           // here — matching lib/posts-data.ts's listing filter.
           .eq('visibility', 'public')
           .order('created_at', { ascending: false })
+          .order(TIEBREAK, { ascending: true })
           .range(from, to),
     ),
     fetchAllRows<{ id: string; slug: string | null; published_at: string | null; created_at: string | null }>(
@@ -152,6 +185,7 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
           .select('id, slug, published_at, created_at')
           .eq('is_published', true)
           .order('created_at', { ascending: false })
+          .order(TIEBREAK, { ascending: true })
           .range(from, to),
     ),
     fetchAllRows<{ slug: string; updated_at: string | null; created_at: string | null }>(
@@ -161,6 +195,7 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
           .select('slug, updated_at, created_at')
           .eq('is_active', true)
           .order('created_at', { ascending: false })
+          .order(TIEBREAK, { ascending: true })
           .range(from, to),
     ),
     fetchAllRows<{ slug: string; updated_at: string | null; created_at: string | null; journal_id?: string | null }>(
@@ -170,6 +205,7 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
           .select('slug, updated_at, created_at, journal_id')
           .eq('is_published', true)
           .order('created_at', { ascending: false })
+          .order(TIEBREAK, { ascending: true })
           .range(from, to),
     ),
     fetchAllRows<{ slug: string; updated_at: string | null; created_at: string | null }>(
@@ -179,6 +215,7 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
           .select('slug, updated_at, created_at')
           .eq('is_published', true)
           .order('created_at', { ascending: false })
+          .order(TIEBREAK, { ascending: true })
           .range(from, to),
     ),
     // Subjects come from lib/subjects, NOT a raw `categories` scan. The raw
@@ -219,6 +256,7 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
           .from('team_members_public')
           .select('slug, updated_at, created_at')
           .order('created_at', { ascending: true })
+          .order(TIEBREAK, { ascending: true })
           .range(from, to),
     ),
   ]);

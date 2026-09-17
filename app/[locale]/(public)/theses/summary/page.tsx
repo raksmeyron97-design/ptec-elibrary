@@ -12,7 +12,12 @@ import { getDoi, getDepartment, getPublicationDate } from "@/lib/theses/report-f
 import { thesisHref } from "@/lib/theses";
 import { SITE_URL } from "@/lib/seo/site";
 import { breadcrumbSchema } from "@/lib/seo/schema";
-import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
+import {
+  buildListingMetadata,
+  isPageOutOfRange,
+  parsePageParam,
+} from "@/lib/seo/listing-metadata";
+import { getCollectionStats } from "@/lib/collection-stats";
 import JsonLd from "@/components/seo/JsonLd";
 import Pagination from "@/components/ui/core/Pagination";
 import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
@@ -57,16 +62,29 @@ export async function generateMetadata({
   searchParams: Promise<SP>;
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
-  const params = await searchParams;
-  const { locale } = await routeParams;
+  // Independent reads start together — the shape /journals already uses. This
+  // also stops `org` being awaited twice (once here, once inside the
+  // description template). One summary entry per published thesis
+  // (buildSummaryIndex flattens the year/cohort grouping), so the thesis count
+  // is this listing's row count; paginateSummary() clamps, so an unguarded
+  // ?page=N past the end would republish the last page under its own
+  // indexable URL.
+  const [params, { locale }, stats, org] = await Promise.all([
+    searchParams,
+    routeParams,
+    getCollectionStats(),
+    getOrgIdentity(),
+  ]);
+  const page = parsePageParam(params.page);
   return buildListingMetadata({
-    org: await getOrgIdentity(),
+    org,
     path: "/theses/summary",
     locale,
     title: "Student Theses Summary Index",
     description:
-      `Browse student theses from ${(await getOrgIdentity()).institutionName} by academic year, cohort, author, advisor, program, and research topic.`,
-    page: parsePageParam(params.page),
+      `Browse student theses from ${org.institutionName} by academic year, cohort, author, advisor, program, and research topic.`,
+    page,
+    outOfRange: isPageOutOfRange(page, stats?.theses, resolvePageSize(undefined)),
     hasFilters: !!(
       params.q ||
       params.year ||

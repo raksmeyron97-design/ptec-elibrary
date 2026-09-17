@@ -113,3 +113,40 @@ export function parsePageParam(value: string | undefined): number {
   const n = Number(value);
   return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
 }
+
+/**
+ * Is `page` past the last page of a collection of `total` rows?
+ *
+ * Every listing here answers 200 for any `?page=N`, however large N is, and
+ * `buildListingMetadata` self-canonicalises deeper pages — deliberately, so
+ * Google can index the whole collection rather than collapsing it onto page 1.
+ * Together those two facts make an UNBOUNDED family of indexable URLs unless
+ * the page tells this builder where its collection ends. Verified on
+ * production 2026-09-16:
+ *
+ *   /catalogs?page=50   0 results (the query ranges past the end), yet
+ *                       `index` with a self-canonical — an empty page
+ *                       advertised as its own search result
+ *   /theses?page=50     the page body CLAMPS to the last page, so it serves
+ *                       page 1's content under the title "… — Page 50",
+ *                       `index`, self-canonical — a duplicate, not an empty
+ *   /journals?page=50   same clamp, same duplicate
+ *
+ * Both shapes are the same defect seen from two sides, and both are what
+ * `outOfRange` exists to refuse. /books and /posts already passed it.
+ *
+ * `total` is nullable because the count comes from getCollectionStats(), which
+ * answers null when the read FAILED. Unknown is not "out of range": a failed
+ * count must never noindex a real listing page, the same rule the `isEmpty`
+ * gate follows ("only a hard 0 withholds the index entry").
+ */
+export function isPageOutOfRange(
+  page: number,
+  total: number | null | undefined,
+  pageSize: number,
+): boolean {
+  if (page <= 1) return false;
+  if (total == null || !Number.isFinite(total) || total < 0) return false;
+  if (!Number.isFinite(pageSize) || pageSize <= 0) return false;
+  return page > Math.max(1, Math.ceil(total / pageSize));
+}

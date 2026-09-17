@@ -133,7 +133,21 @@ async function fetchPage(url: string): Promise<{ status: number; html: string | 
   try {
     const res = await fetchWithRetry(abs, { allowStatuses: [301, 302, 307, 308, 404, 410] });
     if (!res.ok) return { status: res.status, html: null };
-    return { status: res.status, html: await res.text() };
+    let html: string;
+    try {
+      html = await res.text();
+    } catch {
+      // Headers arrived, then the connection died mid-body. undici surfaces
+      // that as a bare `TypeError: terminated` (cause ECONNRESET) — not an
+      // HttpStatusError and not a TransportError, so it used to fall through
+      // to the `throw` below and, with no .catch() on the pump, take the whole
+      // run down. It is a transport failure by this repo's own definition
+      // (lib/verify/http.ts: the page was NOT checked), which is what
+      // fetchText() already does one layer up. Measured 2026-09-16: a crawl of
+      // the 6,100-URL graph aborted this way after ~400 pages.
+      return null;
+    }
+    return { status: res.status, html };
   } catch (err) {
     if (err instanceof HttpStatusError) return { status: err.status, html: null };
     if (err instanceof TransportError) return null;
@@ -148,6 +162,8 @@ let inFlight = 0;
 let fetched = 0;
 /** Pages that needed a second round before they answered — the load the box shed. */
 let recoveredOnRetry = 0;
+/** Rejections nothing was expected to produce. Reported, never swallowed. */
+const unexpectedErrors: string[] = [];
 
 /** Run the pump until the queue is empty and nothing is in flight. */
 function drain(): Promise<void> {
@@ -185,6 +201,17 @@ function drain(): Promise<void> {
             }
           }
           if (fetched % 100 === 0) process.stdout.write(`\r  crawled ${fetched} pages, ${queue.length - cursor} queued…`);
+          if (inFlight === 0 && (cursor >= queue.length || fetched >= MAX_PAGES)) resolve();
+          else pump();
+        }).catch((err) => {
+          // Last resort. Nothing above should reject, but a crawl that dies
+          // on one page reports nothing about the other six thousand, and an
+          // audit that cannot finish is the one failure mode that makes the
+          // whole instrument unusable. Record the page as unchecked — the
+          // same `unknown` a refused connection produces — and keep going.
+          inFlight--;
+          node.unknown = true;
+          unexpectedErrors.push(`${url}: ${err instanceof Error ? err.message : String(err)}`);
           if (inFlight === 0 && (cursor >= queue.length || fetched >= MAX_PAGES)) resolve();
           else pump();
         });
@@ -348,6 +375,7 @@ async function main() {
 
   // ── 4. Broken links and dead ends ──────────────────────────────────────
   const deadEnds = checked.filter((n) => n.status === 200 && n.outAnchors === 0 && sitemapSet.has(n.url));
+  const hitCap = fetched >= MAX_PAGES && cursor < queue.length;
   console.log("\n═══ 4. Link health (by-product; linkinator is the weekly authority) ═══");
   console.log(`  pages checked                ${checked.length}`);
   console.log(`  answered only on retry       ${recoveredOnRetry}  (connections the origin shed under load)`);
@@ -359,6 +387,27 @@ async function main() {
   if (unknown.length) {
     console.log(`\n  INCOMPLETE: ${unknown.length} page(s) got no answer (transport) and were NOT checked:`);
     for (const u of unknown.slice(0, 8)) console.log(`      ${u.url}`);
+  }
+  if (unexpectedErrors.length) {
+    console.log(`\n  ${unexpectedErrors.length} page(s) failed in a way nothing expected (recorded as unchecked):`);
+    for (const e of unexpectedErrors.slice(0, 8)) console.log(`      ${e}`);
+  }
+
+  // A capped crawl has not seen the whole graph, so its ORPHAN count is an
+  // upper bound and nothing more: a page is only orphaned if every page that
+  // could link to it was visited. Saying so is the difference between a
+  // number someone acts on and one that sends someone hunting for books that
+  // are linked perfectly well. Measured 2026-09-16 against the same site, an
+  // hour apart: capped at 4,000 fetches it reported 198 orphans and a maximum
+  // book depth of 5; run to completion (7,780 fetches) it reported 0 orphans
+  // and a maximum depth of 48. Every headline number was wrong, and none of
+  // them looked wrong.
+  if (hitCap) {
+    console.log(
+      `\n  ⚠ INCOMPLETE RUN — stopped at the ${MAX_PAGES}-fetch cap with ` +
+        `${queue.length - cursor} URL(s) still queued. Orphan and reachability ` +
+        `figures above are UPPER BOUNDS, not findings. Re-run with a larger --max.`,
+    );
   }
 
   if (JSON_OUT) {

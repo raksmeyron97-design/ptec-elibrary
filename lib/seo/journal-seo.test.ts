@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { SITE_URL } from "@/lib/seo/site";
 import {
   buildIssueMetadata,
+  buildIssuesListMetadata,
   buildJournalMetadata,
   issueJsonLd,
   journalIssns,
@@ -158,5 +159,50 @@ describe("a scholarly citation carries journal, volume(issue), pages and DOI —
     expect(ref).toMatch(/7\s*\(2\)/);
     expect(ref).toMatch(/114.139/);
     expect(ref).toContain("10.5281/zenodo.9000001");
+  });
+});
+
+describe("every journal surface has a social card", () => {
+  // /journals and /journals/<slug> have carried an og:image since 0148; the
+  // issues list and the issue page, in this same file, never did — verified
+  // live on 2026-09-16, where /journals/journal-of-chemical-education/issues
+  // and .../issues/vol-91-issue-11 emitted no og:image at all. A share of
+  // either rendered as a bare link.
+  const journal = {
+    slug: "journal-of-chemical-education",
+    title: "Journal of Chemical Education",
+    coverUrl: null,
+    articleCount: 3,
+    isIndexable: true,
+  };
+
+  it("gives the issues list an image and a large card", () => {
+    const meta = buildIssuesListMetadata(
+      journal,
+      "en",
+      { title: "Issues", description: "All issues." },
+      2,
+    );
+    expect(meta.openGraph?.images).toBeTruthy();
+    expect(JSON.stringify(meta.twitter)).toContain("summary_large_image");
+  });
+
+  it("gives a single issue an image and a large card", () => {
+    const meta = buildIssueMetadata(
+      journal,
+      { slug: "vol-91-issue-11", label: "Vol. 91, No. 11" },
+      "en",
+    );
+    expect(meta.openGraph?.images).toBeTruthy();
+    expect(JSON.stringify(meta.twitter)).toContain("summary_large_image");
+  });
+
+  it("prefers the journal's own cover over the site fallback", () => {
+    const meta = buildIssueMetadata(
+      { ...journal, coverUrl: "https://cdn.example/jce.png" },
+      { slug: "vol-91-issue-11", label: "Vol. 91, No. 11" },
+      "en",
+    );
+    expect(JSON.stringify(meta.openGraph?.images)).toContain("https://cdn.example/jce.png");
   });
 });
