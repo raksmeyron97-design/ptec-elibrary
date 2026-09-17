@@ -94,7 +94,11 @@ const LIVE = has("--live") || Boolean(LIVE_SUITE);
 const VERBOSE = has("--verbose");
 const JSON_OUT = has("--json");
 const ONLY = valueOf("--category");
-/** Which fixture: `v1` (the original 123, the permanent baseline), `v2` (the edge-case suite), or `all`. */
+/**
+ * Which fixture: `v1` (the original 123, the permanent baseline), `v2` (the
+ * edge-case suite), `v2.1` (evidence scopes), `km` (Khmer and mixed-language),
+ * or `all`.
+ */
 const SUITE = valueOf("--suite") ?? "v1";
 /** Comma-separated question ids — a small, deliberate set for a --live run. */
 const EXPLICIT_IDS = valueOf("--ids")?.split(",").map((s) => s.trim()).filter(Boolean);
@@ -211,7 +215,24 @@ const REFUSAL = [
   "not enough indexed text", "i don't have", "i do not have", "no relevant passages",
   "រកមិនឃើញ", "មិនមានអត្ថបទ", "មិនគ្រប់គ្រាន់",
 ];
-const isRefusal = (a: string) => {
+
+/**
+ * Did this answer decline the question?
+ *
+ * The word list is the FALLBACK, and a weak one: it can only recognise
+ * refusals somebody remembered to phrase with the words in it. The trace's
+ * `answerClass` is the primary source, because the router decides it from what
+ * RETRIEVAL reported — a page lookup that opened no page, a goal no published
+ * curriculum covers — rather than from how the sentence came out.
+ *
+ * This is the same lesson `missingDocuments` records and the same one 2.1's
+ * live monitoring records: a gate that reads prose calls "No learning path
+ * covers that exactly, but the library publishes 9" an ANSWER, and then
+ * reports no-answer recall as 25% over four questions that were all answered
+ * correctly.
+ */
+const isRefusal = (a: string, trace?: AITrace | null) => {
+  if (trace?.outcome.answerClass === "refusal") return true;
   const t = a.toLowerCase();
   return REFUSAL.some((r) => t.includes(r));
 };
@@ -259,16 +280,22 @@ async function main(): Promise<number> {
       ? load("questions-v2.json")
       : SUITE === "v2.1"
         ? load("questions-v2-1.json")
-        : SUITE === "all"
-          ? {
-              ...v1,
-              questions: [
-                ...v1.questions,
-                ...load("questions-v2.json").questions,
-                ...load("questions-v2-1.json").questions,
-              ],
-            }
-          : v1;
+        : SUITE === "km"
+          ? load("questions-km.json")
+          : SUITE === "goal"
+            ? load("questions-goal.json")
+          : SUITE === "all"
+            ? {
+                ...v1,
+                questions: [
+                  ...v1.questions,
+                  ...load("questions-v2.json").questions,
+                  ...load("questions-v2-1.json").questions,
+                  ...load("questions-km.json").questions,
+                  ...load("questions-goal.json").questions,
+                ],
+              }
+            : v1;
 
   const all = fixture.questions.filter(
     (q) => (!ONLY || q.category === ONLY) && (!IDS || IDS.includes(q.id)),
@@ -326,14 +353,14 @@ async function main(): Promise<number> {
         : null;
 
     const grounded = q.expectGrounded ? sources.length > 0 : null;
-    const noAnswerOk = q.expectNoAnswer ? isRefusal(answer) && sources.length === 0 : null;
+    const noAnswerOk = q.expectNoAnswer ? isRefusal(answer, trace) && sources.length === 0 : null;
     const deterministic = telemetry?.deterministic ?? true;
     // A template is only wrong where the label says the reader needed a real
     // answer — a byline and an APA reference are templates on purpose.
     const unwantedTemplate = deterministic && !q.templateOk && !q.expectNoAnswer;
 
     const routingOk = q.expectIntent.includes(telemetry?.intent ?? "");
-    const refusal = isRefusal(answer);
+    const refusal = isRefusal(answer, trace);
     const answerClass: Row["answerClass"] = !answer.trim()
       ? "empty"
       : refusal
@@ -367,6 +394,7 @@ async function main(): Promise<number> {
       pageEnd: e.pageEnd,
       lexical: e.signals?.lexical,
       semantic: e.signals?.semantic,
+      pageNamed: e.signals?.pageNamed,
     }));
     const evaluation = evaluateAnswer(label, {
       intent: telemetry?.intent ?? "error",

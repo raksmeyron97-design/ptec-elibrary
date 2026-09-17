@@ -89,6 +89,11 @@ export interface AITrace {
      * data for this work, so its position is missing" as a silent one.
      */
     missingDocuments: string[];
+    /**
+     * Which of the pages the reader NAMED were found, when they named any
+     * (lib/ai/page-target.ts). `found: []` is the whole of a page refusal.
+     */
+    pageLookup: RetrievalOutcome["pageLookup"] | null;
     semanticAvailable: boolean | null;
     entity: RetrievalOutcome["entity"] | null;
     hub: RetrievalOutcome["hub"] | null;
@@ -146,6 +151,28 @@ function strategyOf(intent: IntentResult, plan: Plan): string {
 
 /** Deterministic refusal markers, so the outcome class is decided the same way everywhere. */
 const REFUSAL = /couldn’t find|couldn't find|could not find|រកមិនឃើញ|មិនគ្រប់គ្រាន់|not enough indexed text/i;
+
+/**
+ * A refusal RETRIEVAL can prove, so the class does not depend on wording.
+ *
+ * The prose scan above is a fallback and always was a weak one: "Page 294 of X
+ * has no extracted text" and "Which document? Page 42 on its own doesn't
+ * identify one" are both refusals and neither contains a word it looks for, so
+ * both would be filed as ordinary template answers. This is the same lesson
+ * `missingDocuments` records — a gate must read what retrieval REPORTED.
+ */
+function structurallyRefused(plan: Plan): boolean {
+  const lookup = plan.retrieval.pageLookup;
+  if (lookup && lookup.found.length === 0) return true;
+  // A goal question for a subject NO published path covers: the curriculum
+  // declined it and named itself instead. `hub` is what retrieval reported, so
+  // the sentence is never consulted — but the two reasons a hub appears are
+  // not the same answer. `paths-all` means the reader asked WHICH paths exist
+  // and was given the list, which is an answer and not a refusal; calling it
+  // one reported a correctly answered question as a false refusal.
+  if (plan.intent.intent === "learning_path" && plan.retrieval.hub?.name === "paths") return true;
+  return false;
+}
 
 export function buildTrace(
   plan: Plan,
@@ -205,6 +232,7 @@ export function buildTrace(
       candidateCount: retrieval.candidateCount ?? 0,
       furnitureDropped: retrieval.furnitureDropped ?? 0,
       missingDocuments: retrieval.missingDocuments ?? [],
+      pageLookup: retrieval.pageLookup ?? null,
       semanticAvailable: retrieval.semanticAvailable ?? null,
       entity: retrieval.entity ?? null,
       hub: retrieval.hub ?? null,
@@ -235,7 +263,12 @@ export function buildTrace(
       removed: extra.removed ?? [],
     },
     outcome: {
-      answerClass: REFUSAL.test(answer) ? "refusal" : telemetry.deterministic ? "template" : "generated",
+      answerClass:
+        structurallyRefused(plan) || REFUSAL.test(answer)
+          ? "refusal"
+          : telemetry.deterministic
+            ? "template"
+            : "generated",
       answerChars: answer.length,
       provider: telemetry.provider ?? null,
       model: telemetry.model ?? null,

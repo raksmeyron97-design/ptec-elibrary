@@ -9,11 +9,14 @@ import {
   definitionSignal,
   diversify,
   fuseEvidence,
+  isKhmerScaffolding,
   minLexicalScore,
   queryTerms,
   requiredTerms,
   sourceCount,
   spreadPages,
+  workSimilarityFloor,
+  WORK_SIMILARITY_FLOOR,
   type RetrievedEvidence,
 } from "./evidence";
 
@@ -307,5 +310,92 @@ describe("applyEvidenceBoosts — explainable, and small next to a rank step", (
   it("records the fusion score on the evidence so a trace can show it", () => {
     const fused = fuseEvidence([[ev({ recordId: "a", page: 1 })]]);
     expect(fused[0].signals?.rrf).toBeCloseTo(1 / 61, 10);
+  });
+});
+
+// ── Khmer is a language, not a blob ──────────────────────────────────────────
+describe("queryTerms — Khmer function runs", () => {
+  it("drops a Khmer particle that would otherwise be a required term", () => {
+    // `អំពី` is "about". It entered as a content term, and because runs sort
+    // longest-first a Khmer clause lands inside `requiredTerms` — which is
+    // applied as a SQL conjunction, so an English page had to contain a Khmer
+    // particle before it could be evidence.
+    expect(queryTerms("books អំពី formative assessment")).not.toContain("អំពី");
+    expect(queryTerms("books អំពី formative assessment")).toEqual(
+      expect.arrayContaining(["assessment", "formative"]),
+    );
+  });
+
+  it("keeps a Khmer TOPIC whole", () => {
+    expect(queryTerms("គណិតវិទ្យា")).toEqual(["គណិតវិទ្យា"]);
+    expect(queryTerms("ការស្រាវជ្រាវសកម្មភាព")).toEqual(["ការស្រាវជ្រាវសកម្មភាព"]);
+    expect(queryTerms("ការវាយតម្លៃសិស្ស")).toEqual(["ការវាយតម្លៃសិស្ស"]);
+  });
+
+  it("matches a whole run only — never a prefix, never a substring", () => {
+    // The reason the rule is whole-run. Khmer has no word boundaries, so
+    // stripping `ជា` from a suffix would cut `មុខវិជ្ជា` ("subject") down to
+    // `មុខវិជ្`, and `ការ` from a prefix would cut `ការស្រាវជ្រាវ` ("research")
+    // down to `ស្រាវជ្រាវ` — inside the one term carrying the question.
+    expect(queryTerms("មុខវិជ្ជា")).toEqual(["មុខវិជ្ជា"]);
+    expect(queryTerms("ការស្រាវជ្រាវ")).toEqual(["ការស្រាវជ្រាវ"]);
+    // …while the bare particles themselves carry nothing and are dropped.
+    expect(queryTerms("ជា")).toEqual([]);
+    expect(queryTerms("តើ អំពី នេះ")).toEqual([]);
+  });
+
+  it("leaves the Latin half of a mixed question intact", () => {
+    const terms = queryTerms("តើមាន book អំពី qualitative research ទេ");
+    expect(terms).toEqual(expect.arrayContaining(["qualitative", "research"]));
+    expect(terms.some((t) => /[ក-៿]/u.test(t))).toBe(false);
+  });
+});
+
+describe("isKhmerScaffolding", () => {
+  it("decomposes a compound of function words", () => {
+    // Neither of these is in the list as a whole; each is two or three
+    // entries run together, which is how Khmer is written.
+    expect(isKhmerScaffolding("តើមាន")).toBe(true);
+    expect(isKhmerScaffolding("ខ្ញុំចង់រៀន")).toBe(true);
+    expect(isKhmerScaffolding("សៀវភៅនេះនិយាយអំពីអ្វី")).toBe(true);
+  });
+
+  it("refuses the moment any part of the run is not scaffolding", () => {
+    // The safety property. `វិជ្ជា` ends in `ជា` and `មានន័យ` starts with
+    // `មាន`; both survive whole, because the rule is all-or-nothing.
+    expect(isKhmerScaffolding("មុខវិជ្ជា")).toBe(false);
+    expect(isKhmerScaffolding("មានន័យ")).toBe(false);
+    expect(isKhmerScaffolding("ការស្រាវជ្រាវ")).toBe(false);
+    expect(isKhmerScaffolding("គណិតវិទ្យា")).toBe(false);
+    expect(isKhmerScaffolding("គរុកោសល្យ")).toBe(false);
+  });
+});
+
+describe("workSimilarityFloor", () => {
+  it("holds Khmer to a higher floor than Latin", () => {
+    // Not a preference — a measurement. The embedder places a thinly
+    // represented script in a tighter region, so Khmer scores higher in BOTH
+    // directions and one floor applies two different policies.
+    expect(workSimilarityFloor("qualitative research methods")).toBe(WORK_SIMILARITY_FLOOR.latin);
+    expect(workSimilarityFloor("គរុកោសល្យ")).toBe(WORK_SIMILARITY_FLOOR.khmer);
+    expect(WORK_SIMILARITY_FLOOR.khmer).toBeGreaterThan(WORK_SIMILARITY_FLOOR.latin);
+  });
+
+  it("takes the stricter floor for a mixed query", () => {
+    // The Khmer run is what shifts the vector, and the safe error is the
+    // strict one: a dropped semantic hit is a result the keyword leg already
+    // failed to match by name, where a loose floor is a confident answer about
+    // a subject the library does not hold.
+    expect(workSimilarityFloor("រក books អំពី formative assessment")).toBe(WORK_SIMILARITY_FLOOR.khmer);
+  });
+
+  it("separates both measured distributions", () => {
+    // The observed bounds from scripts/calibrate-work-threshold.ts. If either
+    // floor drifts outside its band it has stopped filtering, or started
+    // refusing subjects the collection holds.
+    expect(WORK_SIMILARITY_FLOOR.latin).toBeGreaterThan(0.505); // latin off-topic max
+    expect(WORK_SIMILARITY_FLOOR.latin).toBeLessThan(0.589); // latin on-topic min
+    expect(WORK_SIMILARITY_FLOOR.khmer).toBeGreaterThan(0.611); // khmer off-topic max
+    expect(WORK_SIMILARITY_FLOOR.khmer).toBeLessThan(0.659); // khmer on-topic min
   });
 });

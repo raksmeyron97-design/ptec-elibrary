@@ -44,6 +44,7 @@ import {
   queryTerms,
   requiredTerms,
   spreadPages,
+  workSimilarityFloor,
   type EvidenceRecordType,
   type EvidenceSignals,
   type RetrievalMode,
@@ -54,6 +55,7 @@ import { assessPageText } from "./page-quality";
 import { corpusVocabulary } from "./corpus-vocabulary";
 import { correctQuery, queryReadings, type QueryCorrection } from "./spellcheck";
 import type { QueryFrame } from "./query";
+import { pagesOf, type PageTarget } from "./page-target";
 import { isbnMatchKeys, titleWithoutEdition } from "@/lib/books/duplicate-detection/normalize";
 import { getResourceReadiness } from "./readiness";
 import { makeSnippet } from "@/lib/search/snippet";
@@ -64,6 +66,7 @@ import { getSubjectDetail, getSubjectsWithResources, type SubjectItem } from "@/
 import { personNameKey } from "@/lib/books/duplicate-detection/normalize";
 import { normalizeSearchText } from "@/lib/search/normalize";
 import { rankWorks } from "./work-ranking";
+import { matchLearningPaths } from "./learning-path-match";
 import { articlePath, ARTICLES_BASE_PATH } from "@/lib/journals/urls";
 
 const COVERS_URL = process.env.NEXT_PUBLIC_R2_COVERS_URL ?? "";
@@ -74,8 +77,10 @@ const HUB_RESULT_LIMIT = 5;
 const SUBJECT_OVERVIEW_LIMIT = 10;
 
 /** Semantic thresholds. Chunks are held to a higher bar than work metadata
- *  because a weak page match produces a confident-sounding wrong citation. */
-const WORK_MIN_SIMILARITY = 0.25;
+ *  because a weak page match produces a confident-sounding wrong citation.
+ *  The work floor is per-script and lives with the other pure retrieval
+ *  policy in lib/ai/evidence.ts — see `WORK_SIMILARITY_FLOOR` for the
+ *  measurement that set it. */
 /**
  * The floor a chunk must clear to be evidence at all.
  *
@@ -112,6 +117,19 @@ const CANDIDATE_FACTOR = 6;
 const KEYWORD_SUFFICIENT = 3;
 /** Raw chars kept per retrieved passage before context compression trims it. */
 const PASSAGE_CHARS = 600;
+/**
+ * Total chars offered across every page a reader NAMED, shared between them.
+ *
+ * The unit is different from `PASSAGE_CHARS`: a topic passage is a window
+ * around a matched term and a named page is the whole page. But a range of six
+ * pages at a full page each would blow `EVIDENCE_LIMITS.page_lookup` by 3×,
+ * and being trimmed by the context builder is worse than being trimmed here —
+ * it cuts whichever passages it reaches last, so the END of a range silently
+ * disappears while the answer still claims to cover it. Sharing one budget
+ * gives a single page ~1,800 characters (most of a textbook page) and a
+ * six-page range ~300 each, and every page in the run is represented.
+ */
+const PAGE_LOOKUP_CHARS = 1_800;
 
 // ── Shared row → UI mappers ───────────────────────────────────────────────────
 export function coverUrlOf(raw: string | null | undefined): string | null {
@@ -273,17 +291,48 @@ function bookRow(b: any): { result: SearchResult; work: CompactWork; popularity:
 }
 
 /**
+ * A title pool and the claim it makes.
+ *
+ * `ordered` — every row's title contains the query's words, in order. These
+ *   are about the topic and belong in the result pool even when none of them
+ *   is the work the reader named: a Khmer topic word that sits in thirty
+ *   descriptions used to push the three books whose TITLE carries it out of
+ *   the popularity-capped pool entirely.
+ * `fuzzy`  — a trigram index thinks these titles LOOK like the query. That is
+ *   a claim about spelling, and it is the only thing this library has that
+ *   tolerates a typo in a title, so it must keep feeding `resolveTitle`. It
+ *   must NOT feed the result pool: `resolveTitle` admits a row only when every
+ *   word of the query sits within one edit of a title word, and when it admits
+ *   none, the honest reading is that no title resembles the query. Merging
+ *   them anyway is how "រកសៀវភៅអំពីការរុករករ៉ែក្នុងលំហ" — find books about
+ *   space mining — answered "found 5 books" over a collection holding none,
+ *   with the semantic floor correctly refusing all of them one line earlier.
+ */
+interface TitlePool {
+  rows: any[];
+  via: "ordered" | "fuzzy" | "none";
+}
+
+const EMPTY_TITLE_POOL: TitlePool = { rows: [], via: "none" };
+
+/**
  * Catalogue rows whose title could be the work `name` names: the words in
  * order, with and without an edition marker, ten rows by popularity. The
  * caller confirms with `resolveTitle` — this only builds the pool.
+ *
+ * `via` says which leg produced them, and the caller must honour it. The two
+ * legs make different claims: `ordered` rows carry the query's words in their
+ * title, so they are about the topic whether or not one of them IS the work;
+ * `fuzzy` rows merely LOOK like the query to a trigram index, which is a claim
+ * about spelling and about nothing else. See `TitlePool`.
  */
-async function namedBookRows(db: Db, name: string): Promise<any[]> {
+async function namedBookRows(db: Db, name: string): Promise<TitlePool> {
   const patterns = new Set<string>();
   const whole = orderedWordsPattern(name);
   if (whole) patterns.add(whole);
   const base = orderedWordsPattern(titleWithoutEdition(name));
   if (base) patterns.add(base);
-  if (!patterns.size) return [];
+  if (!patterns.size) return EMPTY_TITLE_POOL;
   const { data, error } = await db
     .from("books")
     .select(BOOK_CARD_SELECT)
@@ -293,9 +342,9 @@ async function namedBookRows(db: Db, name: string): Promise<any[]> {
     .limit(10);
   if (error) {
     console.error("[ai/retrieval] named book rows:", error.message);
-    return [];
+    return EMPTY_TITLE_POOL;
   }
-  if (data?.length) return data as any[];
+  if (data?.length) return { rows: data as any[], via: "ordered" };
 
   // Nothing carries the words in order — a typo, most likely. The trigram
   // RPC the search page uses returns look-alike titles; `resolveTitle` then
@@ -307,16 +356,16 @@ async function namedBookRows(db: Db, name: string): Promise<any[]> {
     const slugs = ((fuzzy ?? []) as { source: string; ref: string }[])
       .filter((r) => r.source === "book" && r.ref)
       .map((r) => r.ref);
-    if (!slugs.length) return [];
+    if (!slugs.length) return EMPTY_TITLE_POOL;
     const { data: rows } = await db
       .from("books")
       .select(BOOK_CARD_SELECT)
       .eq("is_published", true)
       .in("slug", slugs)
       .limit(8);
-    return (rows ?? []) as any[];
+    return { rows: (rows ?? []) as any[], via: "fuzzy" };
   } catch {
-    return [];
+    return EMPTY_TITLE_POOL;
   }
 }
 
@@ -387,12 +436,13 @@ async function semanticWorks(
   db: Db,
   vec: number[],
   limit: number,
-  types?: ReadonlySet<ResultKind>,
+  types: ReadonlySet<ResultKind> | undefined,
+  floor: number,
 ): Promise<Array<{ result: SearchResult; work: CompactWork }>> {
   const { data, error } = await db.rpc("match_library", {
     query_embedding: vec,
     match_count: Math.max(limit * 2, 8),
-    min_similarity: WORK_MIN_SIMILARITY,
+    min_similarity: floor,
   });
   if (error) {
     console.error("[ai/retrieval] match_library:", error.message);
@@ -494,7 +544,7 @@ export async function searchWorks(
     // The named-work resolution runs beside the token pool, not after it: the
     // pool is capped by popularity and the work the reader named is exactly
     // the row that cap used to drop (docs/AI_BRAIN_2_AUDIT.md §3).
-    const namedRows = types.has("book") ? namedBookRows(db, named) : Promise.resolve([]);
+    const namedRows = types.has("book") ? namedBookRows(db, named) : Promise.resolve(EMPTY_TITLE_POOL);
     if (types.has("book")) {
       dbQueries += 2;
       rows.push(...(await keywordBooks(db, query, limit)).map(bookRow));
@@ -508,20 +558,26 @@ export async function searchWorks(
       rows.push(...(await keywordPosts(db, query, limit)).map(postRow));
     }
     const titled = await namedRows;
-    // Title matches join the pool whether or not one of them IS the work: the
-    // token pool is capped by popularity, and a Khmer topic word that sits in
-    // thirty descriptions pushed the three titles that carry it out of the
-    // thirty rows entirely (measured: "រកសៀវភៅអំពីគណិតវិទ្យា" returned five
-    // books, none of the three whose title contains គណិតវិទ្យា).
-    const pooled = new Set(rows.map((r) => r.result.url));
-    for (const r of titled) {
-      const card = bookRow(r);
-      if (pooled.has(card.result.url)) continue;
-      pooled.add(card.result.url);
-      rows.push(card);
+    // ORDERED title matches join the pool whether or not one of them IS the
+    // work: the token pool is capped by popularity, and a Khmer topic word
+    // that sits in thirty descriptions pushed the three titles that carry it
+    // out of the thirty rows entirely (measured: "រកសៀវភៅអំពីគណិតវិទ្យា"
+    // returned five books, none of the three whose title contains គណិតវិទ្យា).
+    //
+    // FUZZY matches do not. They are look-alikes from a trigram index, and
+    // they reach `resolveTitle` below — which is the gate that decides whether
+    // any of them is actually the named work — but nothing else. See TitlePool.
+    if (titled.via === "ordered") {
+      const pooled = new Set(rows.map((r) => r.result.url));
+      for (const r of titled.rows) {
+        const card = bookRow(r);
+        if (pooled.has(card.result.url)) continue;
+        pooled.add(card.result.url);
+        rows.push(card);
+      }
     }
     const resolved = resolveTitle(
-      titled.map((r) => ({ row: r, title: String(r.title ?? ""), author: r.authors?.name ?? null, popularity: Number(r.download_count ?? 0) })),
+      titled.rows.map((r) => ({ row: r, title: String(r.title ?? ""), author: r.authors?.name ?? null, popularity: Number(r.download_count ?? 0) })),
       named,
     );
     const entityCard = resolved ? bookRow(resolved.item.row) : null;
@@ -536,7 +592,7 @@ export async function searchWorks(
       embeddingMs = emb.ms;
       if (emb.vector) {
         dbQueries++;
-        const semantic = await semanticWorks(db, emb.vector, limit, types);
+        const semantic = await semanticWorks(db, emb.vector, limit, types, workSimilarityFloor(query));
         const seen = new Set(rows.map((r) => r.result.url));
         for (const s of semantic) {
           if (seen.has(s.result.url)) continue;
@@ -984,6 +1040,15 @@ async function hydratePages(
   query: string,
   terms: readonly string[] = [],
   signals?: ReadonlyMap<string, EvidenceSignals>,
+  /**
+   * Chars of the page's OWN text to keep, instead of a window centred on a
+   * matched term. 0 keeps the window.
+   *
+   * A page LOOKUP has no term to centre on — "what is on page 87" names none —
+   * and a 150-character snippet of a page the reader asked for whole is not an
+   * answer to it.
+   */
+  wholePage = 0,
 ): Promise<RetrievedEvidence[]> {
   const idsByType = new Map<EvidenceRecordType, string[]>();
   for (const r of rows) {
@@ -1034,7 +1099,7 @@ async function hydratePages(
       author: info.author,
       url: urlFor(type, info.ref),
       page: Number(r.page_no) || 1,
-      text: makeSnippet(content, focus, PASSAGE_CHARS / 4),
+      text: wholePage ? content.slice(0, wholePage) : makeSnippet(content, focus, PASSAGE_CHARS / 4),
       similarity: 1,
       score: 0,
       signals: signals?.get(`${type}:${r.record_id}:${r.page_no}`),
@@ -1260,6 +1325,80 @@ async function lexicalPages(
   }
 }
 
+/** What a page lookup found, and what it could not. */
+export interface PageLookupOutcome {
+  target: PageTarget;
+  /** Pages the reader named that carry extracted text. */
+  found: number[];
+  /** Pages the reader named that do not. */
+  missing: number[];
+  /** Highest page number this document has extracted text for, or null. */
+  lastIndexedPage: number | null;
+}
+
+/**
+ * The pages the reader NAMED, fetched by number.
+ *
+ * A page reference is identity — "page 294 of X" designates one row, and a
+ * page that merely reads like it is the wrong answer, not a worse one. So this
+ * is the ISBN rule from the ingestion gate applied to retrieval: resolve it
+ * exactly, or report that it could not be resolved. Nothing here ranks,
+ * scores, embeds or filters; in particular the page-quality filter is NOT
+ * applied, because when a reader asks what is on page 5 and page 5 is a table
+ * of contents, the table of contents is the honest answer.
+ *
+ * `missing` is the part that makes the refusal truthful. A document can be
+ * indexed and still have no row for page 294 — the PDF is shorter than the
+ * printed book, or extraction skipped an image-only page — and the difference
+ * between "that page has no text we can read" and "we have never read this
+ * document" is the difference between two different things to tell a reader.
+ */
+async function fetchNamedPages(
+  db: Db,
+  scope: EvidenceScope,
+  target: PageTarget,
+): Promise<{ evidence: RetrievedEvidence[]; lookup: PageLookupOutcome; dbQueries: number }> {
+  const wanted = pagesOf(target);
+  const { data, error } = await db
+    .from("book_pages")
+    .select("record_type, record_id, page_no, content")
+    .eq("record_type", scope.recordType)
+    .eq("record_id", scope.recordId)
+    .in("page_no", wanted)
+    .order("page_no", { ascending: true });
+  let dbQueries = 1;
+  if (error) console.error("[ai/retrieval] page lookup:", error.message);
+
+  const rows = ((data ?? []) as unknown as PageRow[]).filter((r) => String(r.content ?? "").trim().length > 0);
+  const found = rows.map((r) => Number(r.page_no));
+  const foundSet = new Set(found);
+  const missing = wanted.filter((p) => !foundSet.has(p));
+
+  // Only asked when something is missing, and only to tell the reader WHICH
+  // kind of missing it is. A complete hit costs one query.
+  let lastIndexedPage: number | null = null;
+  if (missing.length) {
+    const { data: last } = await db
+      .from("book_pages")
+      .select("page_no")
+      .eq("record_type", scope.recordType)
+      .eq("record_id", scope.recordId)
+      .order("page_no", { ascending: false })
+      .limit(1);
+    dbQueries++;
+    const row = (last ?? [])[0] as { page_no: number } | undefined;
+    lastIndexedPage = row ? Number(row.page_no) : null;
+  }
+
+  const perPage = rows.length ? Math.max(400, Math.floor(PAGE_LOOKUP_CHARS / rows.length)) : 0;
+  const evidence = rows.length ? await hydratePages(db, rows, "", [], undefined, perPage) : [];
+  // Page order, always: the reader asked for a run of pages, and a run read
+  // out of order is not the passage they named.
+  evidence.sort((a, b) => a.page - b.page);
+  for (const e of evidence) e.signals = { ...e.signals, pageNamed: true };
+  return { evidence, lookup: { target, found, missing, lastIndexedPage }, dbQueries };
+}
+
 /**
  * Pages spread through one document, for a summary with nothing to search on.
  *
@@ -1368,6 +1507,12 @@ export interface RetrieveEvidenceInput {
    */
   frame?: QueryFrame;
   /**
+   * The page or page range the reader named (lib/ai/page-target.ts). Honoured
+   * only with a `scope`: "page 294" means nothing without a document, and
+   * fetching page 294 of an arbitrary book would be a confident wrong answer.
+   */
+  pageTarget?: PageTarget;
+  /**
    * Return each leg's candidate pool alongside the chosen evidence, and skip
    * the cache so the pools describe this call.
    *
@@ -1406,6 +1551,8 @@ export interface EvidenceOutcome extends RetrievalOutcome {
   semanticAvailable: boolean;
   /** Set only when `debug` was requested. */
   pools?: EvidencePools;
+  /** Present when the question named a page — which of them were found. */
+  pageLookup?: PageLookupOutcome;
 }
 
 function emptyEvidence(): EvidenceOutcome {
@@ -1463,6 +1610,29 @@ export async function retrieveEvidence(input: RetrieveEvidenceInput): Promise<Ev
   }
 
   const scope = input.scope;
+
+  // ── A named page is fetched, never searched ─────────────────────────────────
+  // Before every other leg, and bypassing all of them: the reader designated
+  // rows, so there is nothing to rank and nothing a similar page could add.
+  // Requires a scope — see `pageTarget` on the input type.
+  if (input.pageTarget && scope) {
+    const db = createServiceClient();
+    const { evidence, lookup, dbQueries } = await fetchNamedPages(db, scope, input.pageTarget);
+    // A long run is sampled across its span rather than truncated at its
+    // start, so a summary of pp. 175–185 sees the end of the section too.
+    const chosen = evidence.length > limit ? spreadPages(evidence, limit).sort((a, b) => a.page - b.page) : evidence;
+    out.evidence = chosen;
+    out.passages = chosen;
+    out.results = evidenceToResults(chosen);
+    out.candidateCount = evidence.length;
+    out.semanticAvailable = false;
+    out.pageLookup = lookup;
+    out.dbQueries = dbQueries;
+    out.fallback = "keyword";
+    out.retrievalMs = Date.now() - started;
+    return out;
+  }
+
   const readiness = scope ? await getResourceReadiness(scope.recordType, scope.recordId) : null;
   const semanticAllowed = readiness ? readiness.semanticReady : embeddingsConfigured();
 
@@ -1664,7 +1834,7 @@ async function findWorkByTitle(
   const clean = sanitizeFilterTerm(query);
   const books = await namedBookRows(db, clean);
   const book = resolveTitle(
-    books.map((b) => ({ row: b, title: String(b.title ?? ""), author: b.authors?.name ?? null, popularity: Number(b.download_count ?? 0) })),
+    books.rows.map((b) => ({ row: b, title: String(b.title ?? ""), author: b.authors?.name ?? null, popularity: Number(b.download_count ?? 0) })),
     clean,
   )?.item.row;
   if (book) return { ...bookRow(book), dbQueries: 1 };
@@ -1808,6 +1978,134 @@ export async function searchSubjects(rawQuery: string): Promise<RetrievalOutcome
   out.hub = { kind: "subject", name: detail.name, url: `/subjects/${detail.slug}`, count: detail.counts.total };
   out.results = cards.map((c) => c.result);
   out.works = cards.map((c) => c.work);
+  return out;
+}
+
+// ── Learning paths (zero-LLM path) ────────────────────────────────────────────
+/**
+ * The published curriculum a reader's GOAL points at.
+ *
+ * "Where do I start with action research", "what should I read first" — a
+ * question about how to LEARN something, not a request for a shelf. Production
+ * holds nine published paths over 82 steps and the assistant could reach none
+ * of them: `learning_path` appeared in this file only as a URL prefix and a
+ * result-kind label, so a reader asking exactly the question the curriculum
+ * was built to answer got a catalogue search instead.
+ *
+ * Deterministic and zero-LLM, like the author and subject hubs it is modelled
+ * on. It reads `getPublishedPaths()` — the same fetcher `/paths` uses — so the
+ * assistant can only name a path that has a public page, and can only count
+ * what that page counts.
+ *
+ * Matching is ordered by how much of a claim it makes, and stops at the first
+ * that holds: an exact title, a title/subject/tag containing the topic, then
+ * the topic contained in the description. No fuzzy leg, deliberately — there
+ * are nine paths, so a "near" match is a guess about a set small enough to
+ * list, and listing them is the better answer.
+ */
+export async function searchLearningPaths(
+  rawQuery: string,
+  locale: AILocale,
+): Promise<RetrievalOutcome> {
+  const started = Date.now();
+  const out = emptyOutcome();
+  const { getPublishedPaths } = await import("@/app/actions/learning-paths");
+  const paths = await getPublishedPaths();
+  out.dbQueries = 1;
+  out.retrievalMs = Date.now() - started;
+  if (!paths.length) return out;
+
+  const card = (p: (typeof paths)[number]): { result: SearchResult; work: CompactWork } => {
+    const title = locale === "km" && p.title_km ? p.title_km : p.title;
+    return {
+      result: {
+        slug: p.slug,
+        title,
+        author: p.audience ?? p.subject ?? "PTEC Library",
+        coverUrl: coverUrlOf(p.cover_url),
+        url: `/paths/${p.slug}`,
+        type: "path",
+      },
+      work: {
+        title,
+        author: p.audience ?? "PTEC Library",
+        kind: p.subject ?? undefined,
+        summary: (locale === "km" && p.description_km ? p.description_km : p.description) ?? undefined,
+      },
+    };
+  };
+
+  const q = normalizeSearchText(rawQuery);
+  // The topic's content words, Khmer runs included. Whole-string containment
+  // cannot work here: a goal is a SENTENCE ("what should I read first to learn
+  // how to teach reading") and no path title contains one, so every goal
+  // matched nothing and every reader was told the curriculum covers nothing
+  // exactly.
+  const tokens = queryTerms(rawQuery);
+  if (!q || q.length < 3) {
+    // No topic to match — the whole curriculum IS the answer, in its
+    // published order.
+    const cards = paths.slice(0, HUB_RESULT_LIMIT).map(card);
+    out.results = cards.map((c) => c.result);
+    out.works = cards.map((c) => c.work);
+    out.hub = { kind: "subject", name: "paths", url: "/paths", count: paths.length };
+    out.retrievalMs = Date.now() - started;
+    return out;
+  }
+
+  const haystacks = paths.map((p) => ({
+    path: p,
+    title: normalizeSearchText([p.title, p.title_km].filter(Boolean).join(" ")),
+    topic: normalizeSearchText([p.subject, p.audience, ...(p.tags ?? [])].filter(Boolean).join(" ")),
+    body: normalizeSearchText([p.description, p.description_km].filter(Boolean).join(" ")),
+  }));
+  // The ranking rule is pure and lives in lib/ai/learning-path-match.ts, where
+  // a test can put it against the real nine paths. A description mention may
+  // RANK a path and may never make it the answer — that distinction is what
+  // stopped "learning paths for underwater welding" leading with the MoEYS
+  // early-grade mathematics curriculum.
+  const { ranked, leading, namedSubject } = matchLearningPaths(
+    haystacks.map((h) => ({ ...h, slug: h.path.slug, position: h.path.position })),
+    tokens,
+    q,
+  );
+
+  // Nothing STRONG matched: say what the curriculum DOES cover rather than
+  // nothing at all, and do not dress a ranked-but-weak path as the route.
+  // Nine paths is a list a reader can read.
+  const pool = leading
+    ? ranked.map((m) => m.path.path)
+    : [];
+  const chosen = (pool.length ? pool : paths).slice(0, HUB_RESULT_LIMIT);
+  const cards = chosen.map(card);
+  out.results = cards.map((c) => c.result);
+  out.works = cards.map((c) => c.work);
+  // What taking the path COSTS — the title is already in the card and in the
+  // sentence, so repeating it here printed it twice.
+  out.facts = chosen.map((p) =>
+    [
+      p.stepCount ? `${p.stepCount} steps` : "",
+      p.moduleCount ? `${p.moduleCount} modules` : "",
+      p.difficulty ?? "",
+      p.durationMinutes ? `about ${Math.round(p.durationMinutes / 60)}h` : "",
+    ]
+      .filter(Boolean)
+      .join(" · "),
+  );
+  // `hub` present means "the set is the answer" — the signal both the template
+  // and the trace read, so neither has to recognise a sentence. `name` says
+  // WHY: a goal that named no subject ("what learning paths do you have") is
+  // asking for the list, and telling that reader "no path covers that exactly"
+  // answers a question they did not ask.
+  out.hub = leading
+    ? undefined
+    : { kind: "subject", name: namedSubject ? "paths" : "paths-all", url: "/paths", count: paths.length };
+  // `entity` is the path that LEADS, in the same sense a resolved book title
+  // is: the one thing the question asked for. Absent when nothing led.
+  if (leading) {
+    out.entity = { slug: leading.slug, title: out.results[0]?.title ?? leading.slug, band: "exact", via: "title" };
+  }
+  out.retrievalMs = Date.now() - started;
   return out;
 }
 

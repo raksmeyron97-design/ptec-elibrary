@@ -6,7 +6,7 @@
 // these are the exact strings the retrieval benchmark's misses returned.
 
 import { describe, expect, it } from "vitest";
-import { assessPageText, isSubstantivePage } from "./page-quality";
+import { assessKhmerText, assessPageText, isSubstantivePage } from "./page-quality";
 
 // Research Methods in Education (8th Edition) p.10 — retrieved instead of the
 // labelled sampling page. The letter-spaced running head is how pdf.js
@@ -196,5 +196,116 @@ describe("the helper agrees with the assessment", () => {
     expect(isSubstantivePage(RME_PROSE)).toBe(true);
     expect(isSubstantivePage(RME_CONTENTS)).toBe(false);
     expect(isSubstantivePage("")).toBe(false);
+  });
+});
+
+// ── Khmer that extracted as nonsense ─────────────────────────────────────────
+describe("assessKhmerText", () => {
+  // Verbatim from production `book_pages` (2026-09-17). Correctly encoded
+  // Khmer characters in an order that spells nothing — the extraction of a PDF
+  // whose embedded font carries no usable ToUnicode map.
+  const BROKEN = [
+    "អ ក េ បើ ស់ ៩៧,២០៧ ក់ ៦៥៩ វ គ សិ ក ២៣៨ េសៀ វ េ ៤,៧៩០ ក ល ៩៧៥ អ ត បទ III . ទិ ន ន័ យស រុ ប DDT : យក នប រ វ ត ក ម ឌី",
+    "NEXT SLIDE II . ល ក ណៈ សំ ន់ ៗ រ ចូ ល េ បើ ស់ េសៀ វ េ េម េរៀ ន សិ ក និ ង វ េដ អូ និ ងប េង ើ ត និ ម ិ ត រ េរៀ ន",
+    "s a l a . m o e y s . g o v . k h NEXT SLIDE 1. េរៀ ន និ មិ ត ែដ ល នប េង ើ ត រួ ច 480 DDT : យក នប រ វ ត ក ម ឌី",
+  ];
+
+  // Real Khmer prose, written the way Khmer is written: long runs, few spaces.
+  const READABLE = [
+    "ការវាយតម្លៃថ្នាក់រៀនគឺជាធាតុសំខាន់បំផុតក្នុងការវាយតម្លៃសិស្ស ដែលមានឥទ្ធិពលផ្ទាល់លើការសិក្សា និងការលើកទឹកចិត្តរបស់ពួកគេ។ គ្រូបង្រៀនត្រូវវាយតម្លៃការអនុវត្ត និងវឌ្ឍនភាពរបស់សិស្សជាទៀងទាត់។",
+    "បណ្ណាល័យ វ.គ.ភ ចំណុះឱ្យដេប៉ាតឺម៉ង់ស្រាវជ្រាវអប់រំ និងបណ្ណាល័យ ដែលជាដេប៉ាតឺម៉ង់មួយក្នុងចំណោមដេប៉ាតឺម៉ង់ទាំង៧ នៃវិទ្យាស្ថានគរុកោសល្យភ្នំពេញ។ វាជាសេនាធិការស្នូលគាំទ្រការស្រាវជ្រាវអប់រំ។",
+  ];
+
+  it.each(BROKEN)("calls fragmented Khmer unreadable", (text) => {
+    const v = assessKhmerText(text);
+    expect(v.khmer).toBe(true);
+    expect(v.unreadable).toBe(true);
+  });
+
+  it.each(READABLE)("leaves real Khmer prose alone", (text) => {
+    const v = assessKhmerText(text);
+    expect(v.khmer).toBe(true);
+    expect(v.unreadable).toBe(false);
+  });
+
+  it("judges nothing that is not mostly Khmer", () => {
+    // An English page with a Khmer title in it is not this rule's business,
+    // and neither is a page with a handful of Khmer characters.
+    const v = assessKhmerText(
+      "This chapter introduces classroom assessment for primary teachers in Cambodia, and refers throughout to the MoEYS framework ក្របខណ្ឌ published in 2015. The discussion covers formative and summative approaches.",
+    );
+    expect(v.khmer).toBe(false);
+    expect(v.unreadable).toBe(false);
+  });
+
+  it("needs enough runs to judge at all", () => {
+    expect(assessKhmerText("ក ខ គ").unreadable).toBe(false);
+    expect(assessKhmerText("").unreadable).toBe(false);
+  });
+});
+
+describe("assessPageText — unreadable Khmer is not evidence", () => {
+  it("refuses a page whose Khmer spells nothing", () => {
+    // A page's worth of it, not a fragment: a short one is refused as `sparse`
+    // before this rule is reached, which is the right outcome for a different
+    // reason and would prove nothing about this one.
+    const page = [
+      "អ ក េ បើ ស់ ៩៧,២០៧ ក់ ៦៥៩ វ គ សិ ក ២៣៨ េសៀ វ េ ៤,៧៩០ ក ល ៩៧៥ អ ត បទ III . ទិ ន ន័ យស រុ ប DDT : យក នប រ វ ត ក ម ឌី ជី ថ ល ក ម វិ ធី សិ ក ែផ ន ក រ",
+      "NEXT SLIDE II . ល ក ណៈ សំ ន់ ៗ រ ចូ ល េ បើ ស់ េសៀ វ េ េម េរៀ ន សិ ក និ ង វ េដ អូ និ ងប េង ើ ត និ ម ិ ត រ េរៀ ន",
+      "s a l a . m o e y s . g o v . k h NEXT SLIDE 1. េរៀ ន និ មិ ត ែដ ល នប េង ើ ត រួ ច 480 DDT : យក នប រ វ ត ក ម ឌី",
+      "អ ក េ បើ ស់ ៩៧,២០៧ ក់ ៦៥៩ វ គ សិ ក ២៣៨ េសៀ វ េ ៤,៧៩០ ក ល ៩៧៥ អ ត បទ ទិ ន ន័ យស រុ ប",
+    ].join(" ");
+    const q = assessPageText(page);
+    expect(q.kind).toBe("unreadable");
+    expect(q.substantive).toBe(false);
+    expect(q.reason).toMatch(/character map/);
+  });
+
+  it("still calls readable Khmer prose evidence", () => {
+    const page =
+      "ការវាយតម្លៃថ្នាក់រៀនគឺជាធាតុសំខាន់បំផុតក្នុងការវាយតម្លៃសិស្ស ដែលមានឥទ្ធិពលផ្ទាល់លើការសិក្សា និងការលើកទឹកចិត្តរបស់ពួកគេ។ គ្រូបង្រៀនត្រូវវាយតម្លៃការអនុវត្ត និងវឌ្ឍនភាពរបស់សិស្សជាទៀងទាត់ តាមរយៈវិធីសាស្ត្រជាច្រើន រួមមានការវាយតម្លៃសរុប និងការវាយតម្លៃតាមដំណាក់កាល។";
+    expect(assessPageText(page).substantive).toBe(true);
+  });
+});
+
+describe("assessKhmerText — syllables split mid-word (measured, not acted on)", () => {
+  // The SECOND flavour, verbatim from a passage the assistant actually cited
+  // in a measured run on 2026-09-17. The runs are long, so run length alone
+  // scores this page healthy; what gives it away is `ាវ` and `ៃក្` — runs that
+  // begin with a dependent vowel, which cannot start a Khmer syllable.
+  const SPLIT = [
+    "តាម្ ំណ្ត រ់ សម្ក្ សប រ ីម្ បីតាម្ ដ្ឋន្ វឌ្ ឍន្ ភាពរបស់សិសស។ ពួរោ ត់ ឹ ងពីបរច្ ច ររទសវាយ តនម្ លស្ ផអររលីសម្ តែភាព ឬវាយ តនម្លជ្ជរ់ស្សតង ប៉ោុស្ន្តខវោះ",
+    "ដននក្ទ្យី ៤៖ ការស្រ ាវស្រ ាវ និងការវាយតម្ម្ ៃក្ នុ ងការអប់រំ ICT និងវិទ្យ ាាស្ត្ រក្ុំព្ យូទ្យ័ រ 243 ការស្រាវស្រា វស្រ បតិបតរិក្ នុ ងការអប់រំ ICT គឺ",
+  ];
+
+  it.each(SPLIT)("reports the signal but does NOT drop the page", (text) => {
+    const v = assessKhmerText(text);
+    expect(v.khmer).toBe(true);
+    // The signal is real and is measured…
+    expect(v.orphanShare).toBeGreaterThan(0.1);
+    expect(v.meanRun).toBeGreaterThanOrEqual(3);
+    // …and it decides nothing, because over 10,091 production Khmer pages the
+    // readable population's own orphan share reaches p95 = 0.12. Every
+    // threshold that catches these also condemns 64% of the Khmer corpus, and
+    // removing two thirds of a language on an overlapping signal is not a
+    // filter. Adjudicating it needs a Khmer reader, not a regex.
+    expect(v.unreadable).toBe(false);
+    expect(v.fault).toBe("none");
+  });
+
+  it("does not fire on real Khmer prose, which has no orphaned marks", () => {
+    const v = assessKhmerText(
+      "ការវាយតម្លៃថ្នាក់រៀនគឺជាធាតុសំខាន់បំផុតក្នុងការវាយតម្លៃសិស្ស ដែលមានឥទ្ធិពលផ្ទាល់លើការសិក្សា និងការលើកទឹកចិត្តរបស់ពួកគេ។ គ្រូបង្រៀនត្រូវវាយតម្លៃការអនុវត្ត និងវឌ្ឍនភាពរបស់សិស្សជាទៀងទាត់ តាមរយៈវិធីសាស្ត្រជាច្រើន។",
+    );
+    expect(v.unreadable).toBe(false);
+    expect(v.fault).toBe("none");
+    expect(v.orphanShare).toBeLessThanOrEqual(0.12);
+  });
+
+  it("a mixed Khmer/English page of real prose is left alone", () => {
+    const v = assessKhmerText(
+      "បណ្ណាល័យ វ.គ.ភ ចំណុះឱ្យដេប៉ាតឺម៉ង់ស្រាវជ្រាវអប់រំ និងបណ្ណាល័យ។ The library supports educational research and library services for staff and student-teachers across the college, with a growing digital collection.",
+    );
+    expect(v.unreadable).toBe(false);
   });
 });

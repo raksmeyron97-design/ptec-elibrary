@@ -58,6 +58,72 @@ const QUESTION_WORDS = new Set([
 ]);
 
 /**
+ * Khmer runs that carry no topic — the language's own question scaffolding.
+ *
+ * Khmer has no word boundaries and there is no segmenter here, so a Khmer run
+ * enters `queryTerms` whole. That is right for a topic ("គណិតវិទ្យា") and
+ * badly wrong for a particle: `អំពី` is "about", and a page had to contain it
+ * before it could be evidence. Because runs are sorted LONGEST FIRST and a
+ * Khmer clause is long, such a run also lands inside `requiredTerms`, which is
+ * applied as a SQL conjunction — so one Khmer particle can empty the lexical
+ * leg of an English page entirely.
+ *
+ * A run is dropped only when it decomposes ENTIRELY into these, and never
+ * trimmed down to a remainder. That restriction is load-bearing rather than
+ * cautious. Without word boundaries, stripping `ជា` off the end of a run would
+ * turn `មុខវិជ្ជា` ("subject") into `មុខវិជ្`, and `ការ` off the front would
+ * turn `ការស្រាវជ្រាវ` ("research") into `ស្រាវជ្រាវ` — silently, inside the
+ * one term carrying the question. Requiring the WHOLE run to be scaffolding
+ * makes that impossible: the outcome is all of it or none of it, so a term
+ * this rule keeps is byte-for-byte the term the reader typed.
+ *
+ * The all-or-nothing rule is also what makes the list safe to extend. `ជា` is
+ * in it and `វិជ្ជា` survives, because `វិជ្` is not scaffolding; `មាន` is in
+ * it and `មានន័យ` ("meaning") survives, because `ន័យ` is not.
+ *
+ * The English equivalent is `QUESTION_WORDS` above; keeping the two lists
+ * separate is deliberate, since a candidate never crosses scripts.
+ */
+const KHMER_FUNCTION_RUNS = new Set([
+  // Prepositions and relators
+  "អំពី", "ស្តីពី", "ស្ដីពី", "ពី", "នៃ", "របស់", "ក្នុង", "នៅ", "លើ",
+  "ជាមួយ", "ដល់", "ទៅ", "សម្រាប់", "ទាក់ទងនឹង", "និង", "ឬ",
+  // Deictics and pronouns
+  "នេះ", "នោះ", "ខ្ញុំ", "អ្នក", "យើង", "វា",
+  // Interrogatives and particles
+  "តើ", "ទេ", "ដែរ", "ឬទេ", "ឬអត់", "អ្វី", "អី", "អ្វីខ្លះ", "យ៉ាងណា",
+  "ដូចម្តេច", "ដូចម្ដេច", "ប៉ុន្មាន", "ណា", "ជា", "គឺ", "ដែល",
+  // Politeness, wanting, and the verbs a request is built from
+  "សូម", "ជួយ", "មាន", "ចង់", "រៀន", "រក", "ស្វែងរក", "ណែនាំ", "បង្ហាញ",
+  "និយាយ", "ពន្យល់", "រៀបរាប់", "សរសេរ", "អាន",
+  // The documents themselves — the container, never the subject
+  "សៀវភៅ", "ឯកសារ", "អត្ថបទ", "ទំព័រ", "បណ្ណាល័យ",
+]);
+
+/** Set members, longest first, so decomposition is greedy and unambiguous. */
+const KHMER_RUNS_BY_LENGTH = [...KHMER_FUNCTION_RUNS].sort((a, b) => b.length - a.length);
+
+/**
+ * Is this Khmer run nothing but scaffolding?
+ *
+ * "តើមាន" is តើ + មាន, "ខ្ញុំចង់រៀន" is ខ្ញុំ + ចង់ + រៀន — compounds a flat
+ * list can never enumerate, and each one that slipped through became a term an
+ * English page had to contain. Greedy longest-first consumption answers the
+ * question the list is actually asking, and answers `false` the moment any
+ * part of the run is not in it.
+ */
+export function isKhmerScaffolding(run: string): boolean {
+  let rest = run;
+  // Bounded by construction: every iteration consumes at least one character.
+  while (rest.length > 0) {
+    const match = KHMER_RUNS_BY_LENGTH.find((w) => rest.startsWith(w));
+    if (!match) return false;
+    rest = rest.slice(match.length);
+  }
+  return true;
+}
+
+/**
  * The words in a question that could plausibly appear in the text being
  * searched, longest first.
  *
@@ -80,7 +146,7 @@ export function queryTerms(query: string, max = 6): string[] {
     // unsplittable blob, discarding the two English words that were the only
     // searchable thing in it.
     if (hasKhmer(word)) {
-      if (word.length < 2) continue;
+      if (word.length < 2 || isKhmerScaffolding(word)) continue;
       seen.add(word);
       terms.push(word);
       continue;
@@ -172,6 +238,8 @@ export interface EvidenceSignals {
   definition?: boolean;
   /** Reciprocal-rank fusion score. Comparable only within one retrieval. */
   rrf?: number;
+  /** The reader named this page by number — it was fetched, not ranked. */
+  pageNamed?: boolean;
 }
 
 /**
@@ -228,7 +296,12 @@ export type RetrievalMode =
   | "scoped"
   | "multi_document"
   | "summary"
-  | "citation";
+  | "citation"
+  /**
+   * The reader named a PAGE. The pages are fetched by number, not searched
+   * for by their words — see lib/ai/page-target.ts.
+   */
+  | "page_lookup";
 
 export interface EvidenceLimits {
   /** Rows to ask each retrieval leg for. */
@@ -272,7 +345,63 @@ export const EVIDENCE_LIMITS: Record<RetrievalMode, EvidenceLimits> = {
   scoped: { candidates: 16, evidence: 4, perResource: 4, budgetTokens: 1_200 },
   summary: { candidates: 20, evidence: 5, perResource: 5, budgetTokens: 1_400 },
   multi_document: { candidates: 10, evidence: 6, perResource: 3, budgetTokens: 1_800 },
+  // A page lookup retrieves the pages the reader NAMED, so `candidates` is the
+  // longest run `MAX_PAGE_SPAN` allows and `perResource` never binds — every
+  // page comes from the one document. The evidence cap is what keeps a
+  // forty-page range from becoming a forty-page prompt: the run is sampled
+  // across its span (`spreadPages`) rather than truncated at its start, so a
+  // summary of pp. 175–185 sees the end of the section as well as its
+  // beginning.
+  page_lookup: { candidates: 1 + 40, evidence: 6, perResource: 6, budgetTokens: 1_800 },
 };
+
+/**
+ * The floor a book's METADATA vector must clear to be offered as a result —
+ * per SCRIPT, because one number cannot serve both.
+ *
+ * Measured against production (296 books with a metadata embedding,
+ * `scripts/calibrate-work-threshold.ts`, 2026-09-17). Top-1 similarity over
+ * subjects this teacher-education collection is built around, and subjects it
+ * provably does not hold, asked in each script:
+ *
+ *                 min     p05     median   max
+ *   latin  on     0.589   0.589   0.642    0.734
+ *   latin  off    0.476   0.476   0.494    0.505
+ *   khmer  on     0.659   0.659   0.706    0.739
+ *   khmer  off    0.502   0.502   0.590    0.611
+ *
+ * Both distributions separate cleanly WITHIN their script and the separating
+ * bands do not overlap each other: Latin wants a floor in [0.51, 0.58], Khmer
+ * wants one in [0.62, 0.65]. At a single 0.55, Khmer admits 8 of 10 off-topic
+ * queries; at a single 0.62, Latin keeps only 4 of 8 on-topic ones. Each value
+ * is the midpoint of its own band, so it is as far from both observed bounds
+ * as the data allows.
+ *
+ * WHY THE SHIFT IS REAL and not a quirk of these twenty queries: the embedder
+ * is trained overwhelmingly on English, and a whole script that is thinly
+ * represented lands in a tighter region of the space — so Khmer scores higher
+ * in BOTH directions, on-topic and off. Choosing one floor on English alone
+ * therefore silently applies a different policy to Khmer readers, which is the
+ * measured symptom this replaces: "រកសៀវភៅអំពីការរុករករ៉ែក្នុងលំហ" — find
+ * books about space mining — answered "found 5 books" over a collection
+ * holding none.
+ *
+ * Re-measure with that script before moving either number, and re-measure both
+ * AT ALL if the embedding provider changes: like `CHUNK_MIN_SIMILARITY`, these
+ * are properties of the model, not of the library.
+ */
+export const WORK_SIMILARITY_FLOOR = { latin: 0.55, khmer: 0.635 } as const;
+
+/**
+ * Which floor this query is held to. A mixed query takes the KHMER floor: the
+ * Khmer run is what shifts the vector, and the stricter floor is the safe
+ * error — it costs a weak semantic hit that the keyword leg has already had
+ * its chance at, where the loose one costs a confident answer about a subject
+ * the library does not hold.
+ */
+export function workSimilarityFloor(query: string): number {
+  return hasKhmer(query) ? WORK_SIMILARITY_FLOOR.khmer : WORK_SIMILARITY_FLOOR.latin;
+}
 
 /** Hard ceiling for the whole prompt in a mode, evidence included. */
 export function contextCeilingFor(mode: RetrievalMode, base: number): number {

@@ -418,3 +418,62 @@ describe("scopeCensus — the derivation is auditable in the report", () => {
     expect(Object.values(census).reduce((a, b) => a + b, 0)).toBe(labels.length);
   });
 });
+
+// ── A page the reader NAMED is not unranked junk ──────────────────────────────
+describe("designated pages and the label-free context metrics", () => {
+  const pageLabel = {
+    id: "p1",
+    category: "exact_page",
+    question: 'What is on page 87 of "Practical Research Methods"?',
+    evidenceScope: "exact_page" as const,
+    sources: ["practical-research-methods"],
+    pages: { "practical-research-methods": [87] },
+  };
+
+  const observe = (passages: ObservedPassage[]): AnswerObservation => ({
+    intent: "pdf_question",
+    deterministic: false,
+    answeredAsRefusal: false,
+    answerNonEmpty: true,
+    answerText: "page 87 opens chapter 8 on focus groups",
+    passages,
+    resultSlugs: ["practical-research-methods"],
+    citedSlugs: ["practical-research-methods"],
+    groundedCitations: 1,
+    hallucinatedCitations: 0,
+    resolvedEntitySlug: null,
+    finishReason: "stop",
+  });
+
+  it("counts a designated page as carrying a signal", () => {
+    // It has no lexical or semantic score because nothing ranked it — the
+    // reader asked for page 87 by number. Reading that as "no signal" reports
+    // the tightest context the system can produce as wholly irrelevant.
+    const e = evaluateAnswer(
+      pageLabel,
+      observe([{ slug: "practical-research-methods", page: 87, pageNamed: true }]),
+    );
+    expect(e.evidenceCoverage).toBe(1);
+    expect(e.irrelevantContextRatio).toBe(0);
+  });
+
+  it("still counts an unranked, undesignated passage as no signal", () => {
+    // The guard: `pageNamed` is the only thing that excuses a missing score.
+    const e = evaluateAnswer(
+      pageLabel,
+      observe([{ slug: "practical-research-methods", page: 87 }]),
+    );
+    expect(e.evidenceCoverage).toBe(0);
+    expect(e.irrelevantContextRatio).toBe(1);
+  });
+
+  it("a designated page at the page the label names is not a wrong page", () => {
+    const e = evaluateAnswer(
+      pageLabel,
+      observe([{ slug: "practical-research-methods", page: 87, pageNamed: true }]),
+    );
+    expect(e.retrievalOk).toBe(true);
+    expect(e.wrongPage).toBe(false);
+    expect(e.wrongDocument).toBe(false);
+  });
+});

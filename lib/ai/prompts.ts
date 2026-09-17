@@ -75,6 +75,8 @@ const MODE_RIDER: Partial<Record<AIIntent, Rider>> = {
     "The result cards are rendered by the interface. Say in one sentence what this author's listed works cover; do not invent biography, roles or affiliations.",
   subject_search:
     "The result cards are rendered by the interface. Say in one sentence what this subject's resources cover.",
+  learning_path:
+    "The result cards are learning paths and the interface renders them. Say in one sentence what the leading path teaches and in what order; do not invent steps, durations or prerequisites that no FACTS line states.",
   book_detail:
     "Describe the item from its metadata only. Do not speculate about contents you were not given.",
   general_knowledge:

@@ -14,6 +14,7 @@
 import type { AIIntent, AILocale, Verbosity } from "./response";
 import type { LibraryInfoTopic } from "@/lib/library-info";
 import { CONCEPT_FRAMES, detectFrame, parseQuery, type AiQuery } from "./query";
+import { parsePageTarget, stripPageTarget, type PageTarget } from "./page-target";
 
 export interface IntentResult {
   intent: AIIntent;
@@ -35,6 +36,15 @@ export interface IntentResult {
   compareTargets?: string[];
   /** Page number the user explicitly referenced ("p. 42", "ទំព័រ ៤២"). */
   page?: number;
+  /**
+   * The page or page RANGE the question named (lib/ai/page-target.ts).
+   *
+   * `page` above is the first page of it, kept because the citation intent
+   * already speaks that shape. This is the field retrieval reads: a page
+   * reference is identity, and a range is a different request from its first
+   * page.
+   */
+  pageTarget?: PageTarget;
   /** True for greetings / thanks — answered from a template, never a model. */
   smalltalk?: boolean;
   /**
@@ -173,6 +183,30 @@ const PDF_WORDS = ["according to", "on page", "which page", "what page", "inside
   "in the document", "does the book say", "does it say", "quote", "cite", "chapter",
   "ទំព័រ", "នៅក្នុងឯកសារ", "និយាយអំពី", "សរសេរថា", "ដកស្រង់"];
 const LIBRARY_WORDS = ["library", "ptec", "catalog", "catalogue", "បណ្ណាល័យ", "វ.គ.ភ"];
+/**
+ * A GOAL, not a lookup.
+ *
+ * "Find books about action research" wants the shelf; "where do I start with
+ * action research" wants the ORDER to read them in, which is exactly what the
+ * published curriculum is. Production holds nine published learning paths over
+ * 82 steps and the assistant could reach none of them — every one of these
+ * phrasings was answered with a row of book covers.
+ *
+ * Kept to phrasings that ask about a route THROUGH the collection. A bare
+ * topic is not one: "action research" stays a catalogue search, because
+ * turning every subject into a curriculum recommendation is the failure mode
+ * the other direction.
+ */
+const LEARNING_PATH_WORDS = [
+  "learning path", "learning paths", "study plan", "study path", "curriculum",
+  "where do i start", "where should i start", "how do i start",
+  "what should i read first", "what should i study first", "read first",
+  "how do i learn", "how can i learn", "i want to learn", "help me learn",
+  "what comes next", "what should i learn next", "next step", "step by step guide",
+  "guide me through", "path for", "roadmap",
+  "មាគ៌ាសិក្សា", "ផែនការសិក្សា", "កម្មវិធីសិក្សា", "ចាប់ផ្តើមពីណា",
+  "ចាប់ផ្ដើមពីណា", "គួរអានអ្វីមុន", "ចង់រៀន", "របៀបរៀន", "ជំហានបន្ទាប់",
+];
 // A question answered ACROSS the collection's documents rather than from one.
 //
 // "Do you have books about sampling" wants the shelf; "what does the
@@ -211,7 +245,20 @@ const LITERATURE_WORDS = [
   "research describe", "research describes", "research explain",
   "according to the literature", "in the literature",
   "across the collection", "across the library", "across these books",
-  "អក្សរសិល្ប៍និយាយ", "ការស្រាវជ្រាវបង្ហាញ",
+  // "What does the LIBRARY say about X" — the most natural way to ask what
+  // the collection contains on a subject, and the one shape that was routed
+  // to the institutional path instead. Rule 11 below sends anything merely
+  // MENTIONING the library to `general_library_question`, which answers with
+  // opening hours and a phone number; measured against production
+  // (--suite km, 2026-09-17), "តើបណ្ណាល័យនិយាយអ្វីអំពីការវះកាត់បេះដូង?" —
+  // what does the library say about heart surgery — landed there. Pairing the
+  // institution noun with a CONTENT verb is what separates "what does the
+  // library say about X" from "where is the library".
+  "library say", "library says", "library describe", "library describes",
+  "library discuss", "library discusses", "library cover", "library covers",
+  "library explain", "library explains", "library tell",
+  "បណ្ណាល័យនិយាយ", "បណ្ណាល័យបង្ហាញ", "បណ្ណាល័យពន្យល់", "បណ្ណាល័យមានអ្វី",
+  "ឯកសារនិយាយ", "ការសិក្សាបង្ហាញ",
 ];
 // A grounded summary of a document — distinct from `book_detail`, which
 // describes a record from its catalogue metadata. "What is this book about"
@@ -417,9 +464,41 @@ const LEAD_STRIP = [
 ];
 const KHMER_LEAD_STRIP = [
   /^(សូម)?\s*(ជួយ)?\s*(រក|ស្វែងរក|ណែនាំ|បង្ហាញ)\s*/u,
-  /^(មាន|តើមាន)\s*/u,
+  // The institution may stand between the interrogative and the verb:
+  // "តើ[បណ្ណាល័យ]មានសៀវភៅអំពី X ទេ?" — does [the library] have books about X.
+  // `តើ` is already gone by this point, so an anchored `^(មាន)` could not
+  // reach the verb and the whole clause stayed in the topic (measured: the
+  // catalogue was asked for a title containing "បណ្ណាល័យមានសៀវភៅអំពី…").
+  /^(?:បណ្ណាល័យ|វ\.គ\.ភ)?\s*(មាន|តើមាន)\s*/u,
   /^(សៀវភៅ|ឯកសារ|សារណា|និក្ខេបបទ|ព័ត៌មាន|អត្ថបទ)\s*(អំពី|ស្តីពី|ស្ដីពី|ពី|ទាក់ទងនឹង)\s*/u,
   /^(អំពី|ស្តីពី|ស្ដីពី)\s*/u,
+  /**
+   * A GOAL, not a lookup: "ខ្ញុំចង់រៀន action research" — "I want to learn
+   * action research".
+   *
+   * Measured against production (scripts/ai-answer-benchmark.ts --suite km,
+   * 2026-09-17): the frame was never stripped, so the thesis search looked for
+   * a title or abstract containing the literal string "ខ្ញុំចង់រៀន action
+   * research" and answered "I couldn't find documents about «ខ្ញុំចង់រៀន
+   * action research»" over a collection holding many action-research titles.
+   * It is also the worst shape for the lexical leg: Khmer has no word
+   * boundaries, so `queryTerms` cannot split "ខ្ញុំចង់រៀន" and the whole
+   * clause enters as ONE term — and, being the longest, it lands first in
+   * `requiredTerms`, which is applied as a SQL conjunction. An English page
+   * then has to contain a Khmer sentence before it can be evidence.
+   */
+  /^(ខ្ញុំ|យើង)?\s*(ចង់|ត្រូវការ|ចាំបាច់)\s*(រៀន|អាន|សិក្សា|ស្វែងយល់|ដឹង)?\s*(អំពី|ស្តីពី|ស្ដីពី|ពី)?\s*/u,
+  /**
+   * An ENGLISH collection noun with a KHMER preposition: "book អំពី
+   * qualitative research", "រក books អំពី formative assessment".
+   *
+   * This is how a student-teacher here actually types, and neither list caught
+   * it: `LEAD_STRIP` wants an English preposition after the English noun, and
+   * the Khmer rule above wants a Khmer noun. Measured: the topic stayed "book
+   * អំពី qualitative research", which carries `អំពី` into `queryTerms` as a
+   * content term a page has to contain.
+   */
+  /^(e-?books?|books?|thesis|theses|dissertations?|documents?|articles?|papers?)\s*(អំពី|ស្តីពី|ស្ដីពី|ពី|ទាក់ទងនឹង)\s*/iu,
 ];
 
 /**
@@ -530,6 +609,18 @@ export function extractQuery(text: string): string {
   for (const re of [...LEAD_STRIP, ...KHMER_LEAD_STRIP]) out = out.replace(re, "").trim();
   // Trailing "ទេ?" / "please" are politeness, not topic.
   out = out.replace(/\s*(ទេ|ដែរ|បានទេ)\s*$/u, "").replace(/\s*please\s*$/i, "").trim();
+  // Khmer puts its interrogative at the END, and the yes/no strip above only
+  // covers one shape of it. "តើវិធីសាស្ត្រស្រាវជ្រាវមានប៉ុន្មានប្រភេទ?" — how
+  // many kinds of research method are there — kept "មានប៉ុន្មានប្រភេទ" in the
+  // topic, so the catalogue was asked for a title containing it and answered
+  // "I couldn't find documents about «វិធីសាស្ត្រស្រាវជ្រាវមានប៉ុន្មានប្រភេទ»"
+  // over a collection full of them (measured, --suite km, 2026-09-17).
+  //
+  // The interrogative word is REQUIRED before the optional classifier, so a
+  // topic that merely ends in "ប្រភេទ" ("type") keeps it.
+  out = out
+    .replace(/\s*(?:មាន)?\s*(?:ប៉ុន្មាន|អ្វីខ្លះ|យ៉ាងណា|ដូចម្តេច|ដូចម្ដេច)\s*(?:ប្រភេទ|ប្រការ|យ៉ាង|មុខ|ក្បាល|ចំណុច)?\s*$/u, "")
+    .trim();
   out = out.replace(DETERMINER_NOUN, "").trim();
   // Last, so it unwraps whatever the scaffolding strips left behind.
   out = unwrapQuoted(out);
@@ -636,10 +727,16 @@ export function classifyIntent(raw: string, ctx: ClassifyContext = {}): IntentRe
   const lower = normalizeQuery(text);
   const locale = detectLanguage(text);
   const verbosity = detectVerbosity(lower);
-  const page = extractPage(text);
-  const query = extractQuery(text);
+  // A page reference is read BEFORE the topic, and removed from it: "page 294"
+  // contributes two lexical terms that appear in every running header and none
+  // that carry the subject, so leaving it in the text being searched is how a
+  // question naming a page came to be answered by searching for the words
+  // "page" and "294" (lib/ai/page-target.ts).
+  const pageTarget = parsePageTarget(text);
+  const page = pageTarget?.from ?? extractPage(text);
+  const query = extractQuery(pageTarget ? stripPageTarget(text) : text);
   const parsed = parseQuery(text);
-  const base = { locale, verbosity, query, slug: ctx.slug, slugType: ctx.slugType, page, parsed };
+  const base = { locale, verbosity, query, slug: ctx.slug, slugType: ctx.slugType, page, pageTarget: pageTarget ?? undefined, parsed };
 
   // 1. Academic-integrity decline — checked first so it can't be smuggled in
   //    behind a book-search phrasing.
@@ -732,6 +829,21 @@ export function classifyIntent(raw: string, ctx: ClassifyContext = {}): IntentRe
   if (CONCEPT_FRAMES.has(parsed.frame)) {
     return { ...base, intent: "pdf_question", confidence: 0.75 };
   }
+  // 8c. A GOAL: the reader wants a route THROUGH the collection, not a shelf
+  //    from it. It has to sit above the collection searches, not below them —
+  //    placed after, "Where do I start with action research?" was a thesis
+  //    search and "What should I read first to learn how to teach reading?"
+  //    was a book search, because both carry a collection keyword. That is the
+  //    same trap CONCEPT_FRAMES (8a) was added for, and it is fixed the same
+  //    way: read what the question ASKS FOR before matching what it mentions.
+  //
+  //    It sits BELOW the content rules (8, 8a) on purpose. "What does the
+  //    literature say about X" and "What is X?" are questions about the
+  //    subject, and a curriculum is not an answer to either.
+  if (hits(lower, LEARNING_PATH_WORDS)) {
+    return { ...base, intent: "learning_path", confidence: 0.8 };
+  }
+
   // 8b. Directory hubs. Checked before the catalog searches because "books by
   //    Creswell" and "action research by Mills" name a person, not a
   //    collection, and "what subjects do you have" names the subject index.
@@ -798,6 +910,9 @@ export const ZERO_LLM_INTENTS: ReadonlySet<AIIntent> = new Set<AIIntent>([
   // A reference is assembled from catalogue metadata by lib/citations —
   // asking a model to format one is paying for a worse result.
   "citation",
+  // Nine published paths with their step counts and durations: the cards are
+  // the answer, and a generated sentence would add cost, not information.
+  "learning_path",
 ]);
 
 /** Intents that need document evidence before the model may answer. */

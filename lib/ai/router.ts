@@ -37,6 +37,7 @@ import {
   retrieveEvidence,
   searchAuthors,
   searchPassages,
+  searchLearningPaths,
   searchSubjects,
   searchWorks,
   type ResolvedRecord,
@@ -63,10 +64,12 @@ import {
   type AIResponse,
   type AITelemetry,
   type ResultKind,
+  type SearchResult,
 } from "./response";
 import * as T from "./templates";
 import { MAX_PASSAGES_DETAILED, estimateTokens } from "./token-budget";
 import { buildTrace, type AITrace } from "./trace";
+import { formatPageTarget, pagesOf } from "./page-target";
 
 export interface AssistantInput {
   messages: InboundMessage[];
@@ -177,6 +180,13 @@ async function retrieveFor(
       return { retrieval, facts: retrieval.facts };
     }
 
+    case "learning_path": {
+      // A goal question, answered from the published curriculum. Zero-LLM: the
+      // path's own step order is the answer, and no model improves on it.
+      const retrieval = await searchLearningPaths(intent.query, intent.locale);
+      return { retrieval, facts: retrieval.facts };
+    }
+
     case "citation": {
       // The record the reader is on, or the work their words name. Either
       // way the reference is assembled from catalogue fields, never written.
@@ -210,6 +220,7 @@ async function retrieveFor(
     }
 
     case "resource_summary": {
+      if (intent.pageTarget) return retrieveNamedPages(intent);
       const record = await resolveIntentRecord(intent);
       if (!record) return { retrieval: EMPTY_RETRIEVAL, facts: [] };
       const retrieval = await retrieveEvidence({
@@ -264,6 +275,11 @@ async function retrieveFor(
     }
 
     case "pdf_question": {
+      // A page the reader NAMED is fetched by number, not searched for by its
+      // words (lib/ai/page-target.ts). This runs before the scoping rules
+      // below because the page reference is the stronger identity: it names a
+      // row, where a topic names a ranking.
+      if (intent.pageTarget) return retrieveNamedPages(intent);
       // Asked from a resource page, the question is about THAT document.
       // Before this, the slug was used to classify the intent and then
       // thrown away, so "what does this book say about X" searched the whole
@@ -300,6 +316,93 @@ async function retrieveFor(
       };
     }
   }
+}
+
+/**
+ * A question that named a page: resolve the DOCUMENT, then hand the page
+ * numbers to retrieval.
+ *
+ * The document may be the record the reader is standing on, the work a frame
+ * named as the source, or a title the question quoted — in that order of
+ * confidence. Each is resolved through the shared resolvers, which return null
+ * rather than a best guess, so an unrecognised title produces a sentence
+ * saying so instead of page 294 of whichever book ranked first.
+ *
+ * `facts` carries the refusal when there is one. It travels as a FACT rather
+ * than as prose the model may paraphrase, for the same reason a comparison's
+ * missing document does: an honest "that page has no text" must survive
+ * generation intact (docs/AI-BRAIN-2-1-LIVE-MONITORING.md — a gate must read
+ * what retrieval reported, never the prose).
+ */
+async function retrieveNamedPages(
+  intent: IntentResult,
+): Promise<{ retrieval: RetrievalOutcome; facts: string[] }> {
+  const target = intent.pageTarget!;
+  const pages = formatPageTarget(target);
+  const namedTitle = intent.parsed?.scopeTitle ?? intent.parsed?.titleCandidates[0];
+
+  const record = intent.slug
+    ? await resolveRecord(intent.slugType ?? "book", intent.slug)
+    : namedTitle
+      ? await findRecordByTitle(namedTitle)
+      : null;
+
+  if (!record) {
+    // Two different failures, and telling them apart is the whole point: a
+    // title we could not resolve, or no document named at all.
+    const answer = namedTitle
+      ? T.pageDocumentUnresolved(namedTitle, pages, intent.locale)
+      : T.pageNeedsDocument(pages, intent.locale);
+    return {
+      retrieval: {
+        ...EMPTY_RETRIEVAL,
+        dbQueries: namedTitle ? 1 : 0,
+        // Reported even though no query ran: "the reader named a page and got
+        // no page" is the fact every downstream reader needs, and deciding it
+        // by looking for refusal words in the sentence is the mistake
+        // docs/AI-BRAIN-2-1-LIVE-MONITORING.md records.
+        pageLookup: { target, found: [], missing: pagesOf(target), lastIndexedPage: null },
+      },
+      facts: [answer],
+    };
+  }
+
+  const retrieval = await retrieveEvidence({
+    // The topic still travels: it is what the ANSWER is about, even though
+    // the page is what retrieval fetched.
+    query: intent.query || record.title,
+    mode: "page_lookup",
+    scope: { recordType: record.recordType, recordId: record.recordId },
+    pageTarget: target,
+    frame: intent.parsed?.frame,
+  });
+
+  const lookup = retrieval.pageLookup;
+  const facts: string[] = [];
+  if (lookup && lookup.found.length === 0) {
+    facts.push(T.pageNotIndexed(record.title, pages, lookup.lastIndexedPage, intent.locale));
+  }
+  return {
+    retrieval: {
+      ...retrieval,
+      // The record's card travels whatever happened, so a reader whose page
+      // has no text still gets a link to the document itself.
+      results: retrieval.results.length ? retrieval.results : [recordCard(record)],
+    },
+    facts,
+  };
+}
+
+/** One resolved record as a UI card. */
+function recordCard(record: ResolvedRecord): SearchResult {
+  return {
+    slug: record.slug,
+    title: record.title,
+    author: record.author,
+    coverUrl: null,
+    url: record.url,
+    type: RESULT_KIND[record.recordType],
+  };
 }
 
 const RESULT_KIND: Record<EvidenceRecordType, ResultKind> = {
