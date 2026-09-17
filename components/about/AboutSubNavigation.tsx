@@ -29,7 +29,7 @@
 
 import { useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { Clock, Library, Milestone, Scale, Users, type LucideIcon } from "lucide-react";
+import { Clock, Library, Milestone, Scale, Users, UsersRound, type LucideIcon } from "lucide-react";
 import { Link, usePathname } from "@/i18n/navigation";
 import { ABOUT_NAV, isAboutPathActive } from "@/lib/about/nav";
 
@@ -39,6 +39,7 @@ const ICONS: Record<string, LucideIcon> = {
   clock: Clock,
   library: Library,
   users: Users,
+  usersRound: UsersRound,
 };
 
 export default function AboutSubNavigation() {

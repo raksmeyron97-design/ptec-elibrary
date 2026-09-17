@@ -243,6 +243,13 @@ function revalidateTeam(slugs: (string | null | undefined)[] = []) {
   revalidatePath("/admin/team");
   revalidatePath("/admin/team/sections");
   revalidatePath("/about/team");
+  /* The committee page renders the same people — name, portrait, position and
+     the profile link all come from this row (migration 0150's view reads
+     team_members directly), so a staff edit that did not invalidate
+     /about/committee would leave a corrected name published on one page and
+     stale on the other. */
+  revalidatePath("/admin/team/committee");
+  revalidatePath("/about/committee");
   for (const slug of slugs) {
     if (slug) revalidatePath(`/about/team/${slug}`);
   }
