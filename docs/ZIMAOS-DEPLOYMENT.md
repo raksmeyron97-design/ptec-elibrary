@@ -234,6 +234,7 @@ served the domain before, keep it until stage 4 is verified, then remove it.
 | Pause automatic deploys | `sudo systemctl disable --now ptec-elibrary-deploy.timer` |
 | Resume them | `sudo systemctl enable --now ptec-elibrary-deploy.timer` |
 | Change a runtime secret | edit `.env`, then `docker compose up -d app` (seconds) |
+| Backfill AI embeddings | `infra/supabase/scripts/embed-backfill.sh --detach` — runs `scripts/embed-library.ts` in a one-off `node:22-alpine` joined to the Supabase network, so every insert is a private-network hop instead of a tunnel round-trip (measured: ~38 h from a laptop, because 40 rows × 768-dim vectors per batch cross the tunnel ~5,600 times). Stop any laptop-side run FIRST: `embedRecordChunks` deletes a record's chunks then re-inserts them, so two unsliced runs race each other on the same records. |
 
 Available tags: `main` (latest from main), `latest`, `sha-<40-char>` per commit,
 and `v1.2.3` / `v1.2` for git tags. Browse them at
