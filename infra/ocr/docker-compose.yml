@@ -1,0 +1,51 @@
+# PTEC e-Library — Khmer OCR worker (one-shot batch jobs).
+#
+# Deliberately NOT a long-running service. OCR here is a recovery pass over a
+# bounded queue of books, run by an operator who then reads the output; a
+# daemon would invite an unattended process that rewrites `book_pages` on a
+# timer, which is the one shape this pipeline must not have.
+#
+#   cd infra/ocr
+#
+#   # 0. prove the image can read Khmer (no database, no network)
+#   docker compose run --rm ocr npx tsx scripts/ocr-khmer-tesseract.ts --check-env
+#
+#   # 1. find candidates — READ-ONLY, writes only the queue file
+#   docker compose run --rm ocr npx tsx scripts/audit-scanned-books.ts
+#
+#   # 2. look at one book's first pages — NO DATABASE WRITES
+#   docker compose run --rm ocr npx tsx scripts/ocr-khmer-tesseract.ts \
+#       --slug "some-book-slug" --dry-run
+#
+#   # 3. commit one book, then three, then a batch
+#   docker compose run --rm ocr npx tsx scripts/ocr-khmer-tesseract.ts \
+#       --slug "some-book-slug" --apply
+#
+# Secrets come from an env file the operator provides and git never sees.
+# Copy .env.ocr.example, fill it in, and keep it out of the repository.
+
+services:
+  ocr:
+    build:
+      context: ../..
+      dockerfile: infra/ocr/Dockerfile
+    image: ptec-ocr:latest
+    working_dir: /app
+    # NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ZIMA_API_URL,
+    # ZIMA_API_KEY and (only for legacy bare-key rows) R2_*.
+    env_file:
+      - .env.ocr
+    environment:
+      # Rendered page images: one page at a time, deleted after it is read.
+      OCR_WORK_DIR: /work
+      # The queue lives on the host so an audit run and an apply run share it.
+      OCR_QUEUE_PATH: /data/scanned-books-queue.json
+    volumes:
+      - ocr-work:/work
+      - ./data:/data
+    # A container started with no command reports its environment and exits.
+    # It must never default to writing to a library.
+    command: ["npx", "tsx", "scripts/ocr-khmer-tesseract.ts", "--check-env"]
+
+volumes:
+  ocr-work:

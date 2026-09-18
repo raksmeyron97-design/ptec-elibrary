@@ -85,3 +85,9 @@ scripts/ai-answer-benchmark/results/20*.json
 # Reader performance measurements written by e2e/reader-*.spec.ts (evidence is copied into docs/)
 /reports/
 .playwright-mcp/
+
+# Khmer OCR worker (infra/ocr): the operator's filled env file and the queue /
+# artifacts a container run writes. The template and the .gitkeep are tracked.
+infra/ocr/data/*
+!infra/ocr/data/.gitkeep
+!infra/ocr/.env.ocr.example

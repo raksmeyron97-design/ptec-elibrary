@@ -1,0 +1,4239 @@
+{
+  "generatedAt": "2026-09-17T15:25:10.369Z",
+  "source": "audit-scanned-books",
+  "target": "REMOTE project supabase.storage-ptec.online",
+  "count": 232,
+  "books": [
+    {
+      "id": "00021c99-6bdb-4150-90b3-60bef41b2254",
+      "slug": "ឧបសម្ព័ន្ធស្តីពីសញ្ញាចរាចរណ៍ផ្លូវគោក-ភាគ១-ទូទៅ",
+      "title": "ឧបសម្ព័ន្ធស្តីពីសញ្ញាចរាចរណ៍ផ្លូវគោក ភាគ១៖ ទូទៅ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "008f5f74-3fe7-4343-a68a-a6cf0ef9d36d",
+      "slug": "សៀវភៅណែនាំអំពី-អក្ខរកម្មឌីជីថល-និងភាពជាពលរដ្ឋឌីជីថល",
+      "title": "សៀវភៅណែនាំអំពី អក្ខរកម្មឌីជីថល និងភាពជាពលរដ្ឋឌីជីថល",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "0402ddf9-7ca6-47c0-8695-9eb1235eaddd",
+      "slug": "សៀវភៅពិសោធគីមីវិទ្យា-ភាគ២",
+      "title": "សៀវភៅពិសោធគីមីវិទ្យា ភាគ២",
+      "language": "Khmer",
+      "candidateReasons": [
+        "khmer-legacy-font"
+      ],
+      "blockers": [],
+      "indexStatus": "indexed",
+      "failureKind": null,
+      "bookPageCount": 79,
+      "meanCharsPerPage": 923.3,
+      "medianCharsPerPage": 804,
+      "maxCharsPerPage": 2719,
+      "lowTextPageRatio": 0,
+      "damageReasons": [
+        "khmer-legacy-font",
+        "khmer-coeng-detached",
+        "khmer-vowels-orphaned"
+      ]
+    },
+    {
+      "id": "060d86c2-0ab6-4785-86d9-b827f88e9fc6",
+      "slug": "ថ្នាក់ទី១២-សីលធម៌-ពលរដ្ឋវិជ្ជា",
+      "title": "ថ្នាក់ទី១២៖ សីលធម៌ ពលរដ្ឋវិជ្ជា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "06b6c8d7-71cf-454c-baf6-d8be2737dace",
+      "slug": "សៀវភៅវិទ្យាសាស្ត្រ-ថ្នាក់ទី៩",
+      "title": "សៀវភៅវិទ្យាសាស្ត្រ ថ្នាក់ទី៩",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "0875760b-c2a3-4524-adeb-69549c47f143",
+      "slug": "ជីវិតម៉ែ",
+      "title": "ជីវិតម៉ែ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "08eb6116-6ae6-4e2e-9680-39f6961af4ae",
+      "slug": "សៀវភៅលំហាត់-គណិតវិទ្យា-ថ្នាក់ទី៣-ប១",
+      "title": "សៀវភៅលំហាត់ គណិតវិទ្យា ថ្នាក់ទី៣ ប១",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "0a5abb14-5bed-4f4f-beba-911649c195ae",
+      "slug": "រូបមន្ដគណិតវិទ្យាថ្នាក់ទី12",
+      "title": "រូបមន្ដគណិតវិទ្យាថ្នាក់ទី12",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "0af661b6-b4ed-4b45-94f4-7a6a7a11e2ec",
+      "slug": "ថ្នាក់ទី១១-ផែនដីនិងបរិស្ថានវិទ្យា",
+      "title": "ថ្នាក់ទី១១៖ ផែនដីនិងបរិស្ថានវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "0b9dc300-01c4-44ab-a5b2-5348274fc82f",
+      "slug": "ការដាំធុរេន",
+      "title": "ការដាំធុរេន",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "0c9efad1-3ba3-4bc6-a5b0-c013ce4dea42",
+      "slug": "biology-grade-7",
+      "title": "Biology Grade 7",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "104d5e24-a84e-4c3a-b00f-cb0f55107540",
+      "slug": "សៀវភៅគ្រូគណិតវិទ្យាថ្នាក់ទី១១-កម្រិតខ្ពស់",
+      "title": "សៀវភៅគ្រូគណិតវិទ្យាថ្នាក់ទី១១ កម្រិតខ្ពស់",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "11e949ad-a5cf-4fe5-ae45-201844de56d5",
+      "slug": "កំណែលំហាត់គីមីវិទ្យាថ្នាក់ទី១០-ឆ្នាំ១៩៩៧",
+      "title": "កំណែលំហាត់គីមីវិទ្យាថ្នាក់ទី១០ ឆ្នាំ១៩៩៧",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "13e4872c-db27-4e16-ac86-b35f77e0cb41",
+      "slug": "ថ្នាក់ទី១២-គណិតវិទ្យា-កម្រិតមូលដ្ឋាន",
+      "title": "ថ្នាក់ទី១២៖ គណិតវិទ្យា កម្រិតមូលដ្ឋាន",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "141edddc-c9b6-4bf9-9232-df2aad8ae773",
+      "slug": "ថ្នាក់ទី៦-វិទ្យាសាស្ត្រ",
+      "title": "ថ្នាក់ទី៦៖ វិទ្យាសាស្ត្រ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "14aee438-da52-4f7a-867c-bfd35c16595a",
+      "slug": "essential-english-for-foreign-students-book-4",
+      "title": "Essential English for Foreign Students: Book 4",
+      "language": "English",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "158191b3-8401-47b4-96d7-c32206bd3c83",
+      "slug": "កំណែលំហាត់គីមីវិទ្យាថ្នាក់ទី12-ឆ្នាំ-1998",
+      "title": "កំណែលំហាត់គីមីវិទ្យាថ្នាក់ទី12 ឆ្នាំ 1998",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "1664bef7-fb90-4bfe-a1bc-7c46ea678050",
+      "slug": "សៀវភៅគណិតវិទ្យាថ្នាក់ទី៧",
+      "title": "សៀវភៅគណិតវិទ្យាថ្នាក់ទី៧",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "172bb6f9-530f-49eb-83f7-fb914c1e5854",
+      "slug": "ក្របខ័ណ្ឌកម្មវិធីអប់រំគ្រូបង្រៀន-មត្តេយ្យសិក្សា-១២-២",
+      "title": "ក្របខ័ណ្ឌកម្មវិធីអប់រំគ្រូបង្រៀន មត្តេយ្យសិក្សា (១២+២)",
+      "language": "Khmer",
+      "candidateReasons": [
+        "khmer-legacy-font",
+        "khmer-coeng-missing"
+      ],
+      "blockers": [],
+      "indexStatus": "indexed",
+      "failureKind": null,
+      "bookPageCount": 32,
+      "meanCharsPerPage": 1779.1,
+      "medianCharsPerPage": 1724.5,
+      "maxCharsPerPage": 3933,
+      "lowTextPageRatio": 0,
+      "damageReasons": [
+        "khmer-legacy-font",
+        "khmer-coeng-missing",
+        "khmer-vowels-orphaned"
+      ]
+    },
+    {
+      "id": "19f25aa2-7daf-4002-821b-3378c3d79ed5",
+      "slug": "វិធីសាស្រ្តបង្រៀនតាមបែបសហការ",
+      "title": "វិធីសាស្រ្តបង្រៀនតាមបែបសហការ",
+      "language": "English",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "1a187efa-81ad-4911-aa9a-a3b6c76fc313",
+      "slug": "ប្រឡងជ្រើសរើសសិស្សពូកែទូទាំងប្រទេស-ផ្នែកគណិតវិទ្យា-ថ្នាក់ទី៩",
+      "title": "ប្រឡងជ្រើសរើសសិស្សពូកែទូទាំងប្រទេស ផ្នែកគណិតវិទ្យា ថ្នាក់ទី៩",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "1c0d498e-3b8b-4a44-99c7-e6ee53c5da24",
+      "slug": "អត្ថបទស្រាវជ្រាវស្តីអំពី-ការរកឃើញរូបមន្តស៊េរីនៃផាយដោយគណិតវិទូអាល",
+      "title": "អត្ថបទស្រាវជ្រាវស្តីអំពី៖ ការរកឃើញរូបមន្តស៊េរីនៃផាយដោយគណិតវិទូអាល",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "1d123796-1c59-4d94-b6f2-851fce4cd09a",
+      "slug": "វិធីវិទ្យាសាស្ត្រ",
+      "title": "វិធីវិទ្យាសាស្ត្រ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "1fdd3607-a8c1-4861-836c-35ac2e673e7f",
+      "slug": "curricula-upper-secondary-education-maths",
+      "title": "Curricula Upper Secondary Education - Maths",
+      "language": "English",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "21485263-e0e0-4f3c-bee0-08980c8d6a0f",
+      "slug": "វិធីសាស្ត្របង្រៀន-ការអប់រំសុខភាពសម្រាប់គ្រូឧទ្ទេស",
+      "title": "វិធីសាស្ត្របង្រៀន ការអប់រំសុខភាពសម្រាប់គ្រូឧទ្ទេស",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "23cdc506-74b7-41a2-adf5-f3a04c3c1fb5",
+      "slug": "រុក្ខវិទ្យា-1",
+      "title": "រុក្ខវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "khmer-legacy-font",
+        "khmer-coeng-missing"
+      ],
+      "blockers": [],
+      "indexStatus": "indexed",
+      "failureKind": null,
+      "bookPageCount": 99,
+      "meanCharsPerPage": 1306.8,
+      "medianCharsPerPage": 1169,
+      "maxCharsPerPage": 3103,
+      "lowTextPageRatio": 0,
+      "damageReasons": [
+        "khmer-legacy-font",
+        "khmer-coeng-missing",
+        "khmer-vowels-orphaned"
+      ]
+    },
+    {
+      "id": "255ad286-00e0-4829-b4e4-728db980960e",
+      "slug": "កំណែគណិតវិទ្យា-ថ្នាក់ទី៣",
+      "title": "កំណែគណិតវិទ្យា ថ្នាក់ទី៣",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "26562b26-f785-4eeb-a070-9ced46746a43",
+      "slug": "កំណែគណិតវិទ្យា-ថ្នាក់ទី៥",
+      "title": "កំណែគណិតវិទ្យា ថ្នាក់ទី៥",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "26d1ee66-3832-4802-bba8-3a11e42a33ad",
+      "slug": "ឯកសារណែនាំអភិវឌ្ឍន៍វិញ្ញាសាសម្រាប់-ការប្រឡងសញ្ញាបត្រមធ្យមសិក្សាបឋ",
+      "title": "ឯកសារណែនាំអភិវឌ្ឍន៍វិញ្ញាសាសម្រាប់ ការប្រឡងសញ្ញាបត្រមធ្យមសិក្សាបឋ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "26f7864c-a936-468e-912d-3cfad4786616",
+      "slug": "ប្រជុំវិញ្ញាសាគីមីវិទ្យាថ្នាក់ទី១២-ភាគ-iv-1997",
+      "title": "ប្រជុំវិញ្ញាសាគីមីវិទ្យាថ្នាក់ទី១២ (ភាគ IV) (1997)",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "27a3246e-8f39-4871-8e5c-8da55b10b4fb",
+      "slug": "ថ្នាក់ទី១១-ជីវវិទ្យា",
+      "title": "ថ្នាក់ទី១១៖ ជីវវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "282d5e37-7480-4da0-b857-b2c79ceb2f85",
+      "slug": "ការជ្រើសរើស-វិធីសាស្ត្របង្រៀន",
+      "title": "ការជ្រើសរើស វិធីសាស្ត្របង្រៀន",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "28d684fc-e509-42c7-87fa-af1a6176a4ca",
+      "slug": "ថ្នាក់ទី៩-សិក្សាសង្គម",
+      "title": "ថ្នាក់ទី៩៖ សិក្សាសង្គម",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "2aafff8b-9193-4506-866e-983147540d68",
+      "slug": "ថ្នាក់ទី១០-សិក្សាសង្គម",
+      "title": "ថ្នាក់ទី១០៖ សិក្សាសង្គម",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "2c45d5bb-eacc-4ae8-913c-4528023ba985",
+      "slug": "ថ្នាក់ទី៣-ភាសាខ្មែរ",
+      "title": "ថ្នាក់ទី៣៖ ភាសាខ្មែរ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "2c9fa1d0-c6f7-40de-b714-7f6e5c7efb4b",
+      "slug": "ការត្រួតពិនិត្យផលិតផលថ្នាំជក់",
+      "title": "ការត្រួតពិនិត្យផលិតផលថ្នាំជក់",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "2eae016d-9655-4fc6-a4c6-1eabdf0a6706",
+      "slug": "ថ្នាក់ទី១០-គីមីវិទ្យា",
+      "title": "ថ្នាក់ទី១០៖ គីមីវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "2edceef7-fe03-49ab-9f99-87fbe1fea9dc",
+      "slug": "បរិវត្តកម្មឌីជីថលក្នុងប្រព័ន្ធគាំពារសង្គម-ផែនការយុទ្ធសាស្ត្រ-២០២៤",
+      "title": "បរិវត្តកម្មឌីជីថលក្នុងប្រព័ន្ធគាំពារសង្គម៖ ផែនការយុទ្ធសាស្ត្រ ២០២៤",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "2f447906-4fc1-4233-9251-95847aaf0541",
+      "slug": "ថ្នាក់ទី៤-សិក្សាសង្គម",
+      "title": "ថ្នាក់ទី៤៖ សិក្សាសង្គម",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "2f6aab84-8441-48b6-8f8b-856b4f3637cd",
+      "slug": "ict",
+      "title": "ICT",
+      "language": "English",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "3050471e-44a0-4dac-ae6d-a811cc9636f3",
+      "slug": "សៀវភៅវិទ្យាសាស្ត្រ-ថ្នាក់ទី៨",
+      "title": "សៀវភៅវិទ្យាសាស្ត្រ ថ្នាក់ទី៨",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "3085c1f5-89cf-4d86-9cc1-fa677513d96c",
+      "slug": "ថ្នាក់ទី៨-គណិតវិទ្យា",
+      "title": "ថ្នាក់ទី៨៖ គណិតវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "31a69f8d-63a4-49f8-b668-6cafba648575",
+      "slug": "កំណែសិក្សាសង្គម-ថ្នាក់ទី៤",
+      "title": "កំណែសិក្សាសង្គម ថ្នាក់ទី៤",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "31e461a3-bcb0-4586-b873-5f987112769d",
+      "slug": "ថ្នាក់ទី១១-ប្រវត្តិវិទ្យា",
+      "title": "ថ្នាក់ទី១១៖ ប្រវត្តិវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "32332814-a7c4-4a2f-b42f-f60eaf993ad5",
+      "slug": "ថ្នាក់ទី៨-ភាសាខ្មែរ",
+      "title": "ថ្នាក់ទី៨៖ ភាសាខ្មែរ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "32e7bc14-5c09-4961-b5c1-6e28e82a01b6",
+      "slug": "កម្រងសំណួរ-ចម្លើយរូបវិទ្យា-ត្រៀមប្រឡងបាក់ឌុប",
+      "title": "កម្រងសំណួរ-ចម្លើយរូបវិទ្យា ត្រៀមប្រឡងបាក់ឌុប",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "338fcc7a-157c-4cf3-a5d2-bf3436f00919",
+      "slug": "សៀវភៅ-គណិតវិទ្យាថ្នាក់ទី១២",
+      "title": "សៀវភៅ គណិតវិទ្យាថ្នាក់ទី១២",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "33b8bd3a-c384-469e-8915-2b4047f5b53d",
+      "slug": "សៀវភៅលំហាត់-គណិតវិទ្យា-ថ្នាក់ទី៣-ប៣",
+      "title": "សៀវភៅលំហាត់ គណិតវិទ្យា ថ្នាក់ទី៣ ប៣",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "3410e823-06d8-421f-a57d-30c7f5df4fb6",
+      "slug": "ចន-ឡុក-john-locke",
+      "title": "ចន ឡុក (John Locke)",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "34eda763-97d6-41a9-bc4a-7f3a0fee2239",
+      "slug": "ថ្នាក់ទី៦-english",
+      "title": "ថ្នាក់ទី៦៖ English",
+      "language": "English",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "36180f13-8c17-4a5b-bcff-6d537ab81712",
+      "slug": "ការអនុវត្តកម្មវិធី-game-changers-coalition-2023",
+      "title": "ការអនុវត្តកម្មវិធី GAME CHANGERS COALITION 2023",
+      "language": "English",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "38414129-ccba-421c-a304-db2f9b8a6e6b",
+      "slug": "វិធីសាស្រ្តបង្រៀនបែប-5e",
+      "title": "វិធីសាស្រ្តបង្រៀនបែប 5E",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "3a4978ed-367c-4c48-af7f-8f4fc47b0ac4",
+      "slug": "សៀវភៅលំហាត់-គណិតវិទ្យា-ថ្នាក់ទី៣-ប៤",
+      "title": "សៀវភៅលំហាត់ គណិតវិទ្យា ថ្នាក់ទី៣ ប៤",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "3b219cab-ff7e-433e-b2d0-811f9656741d",
+      "slug": "essential-english-for-foreign-students-book-2",
+      "title": "Essential English for Foreign Students: Book 2",
+      "language": "English",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "3b3faa71-4084-42a8-9dba-bf04d74e1a39",
+      "slug": "rubber-as-an-ecomomic-commodity",
+      "title": "Rubber as an Ecomomic Commodity",
+      "language": "English",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "3cada816-45d0-4ca6-9330-4534f3f9634a",
+      "slug": "ថ្នាលអភិវឌ្ឍសមត្ថភាព-cdp",
+      "title": "ថ្នាលអភិវឌ្ឍសមត្ថភាព CDP",
+      "language": "Khmer",
+      "candidateReasons": [
+        "khmer-coeng-missing"
+      ],
+      "blockers": [],
+      "indexStatus": "indexed",
+      "failureKind": null,
+      "bookPageCount": 23,
+      "meanCharsPerPage": 1036,
+      "medianCharsPerPage": 1026,
+      "maxCharsPerPage": 2293,
+      "lowTextPageRatio": 0,
+      "damageReasons": [
+        "khmer-coeng-missing",
+        "khmer-vowels-orphaned",
+        "khmer-glyph-spacing"
+      ]
+    },
+    {
+      "id": "3cb780aa-1200-4fc7-ad7c-b966e7477f41",
+      "slug": "ប្រឡងជ្រើសរើសសិស្សពូកែទូទាំងប្រទេស-ផ្នែកគណិតវិទ្យា-ថ្នាក់ទី១២",
+      "title": "ប្រឡងជ្រើសរើសសិស្សពូកែទូទាំងប្រទេស ផ្នែកគណិតវិទ្យា ថ្នាក់ទី១២",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "3cc7d31c-8e4d-4666-96c0-f83cdad68bff",
+      "slug": "មេរៀនទី៧-អូតូអាំងឌុចស្យុង",
+      "title": "មេរៀនទី៧ អូតូអាំងឌុចស្យុង",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "3e4c5a81-869f-48ae-9d25-65f0a8dcb5ac",
+      "slug": "ស្រាវជ្រាវសកម្ម",
+      "title": "ស្រាវជ្រាវសកម្ម",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "3f700da4-796c-4b1b-bc45-efc39c4729ad",
+      "slug": "កម្រងវិញ្ញាសា-ប្រលងសិស្សពូកែគណិតវិទ្យាថ្នាក់ទី១២",
+      "title": "កម្រងវិញ្ញាសា ប្រលងសិស្សពូកែគណិតវិទ្យាថ្នាក់ទី១២",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "40911882-3e12-4914-8b2e-192463407acc",
+      "slug": "ថ្នាក់ទី២-ធ្មេញល្អ-សស្អាត",
+      "title": "ថ្នាក់ទី២៖ ធ្មេញល្អ សស្អាត",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "423dff5f-9fe1-4cb1-936f-b050875cc2e5",
+      "slug": "ស្តង់ដាវិជ្ជាជីវៈគ្រូបង្រៀន",
+      "title": "ស្តង់ដាវិជ្ជាជីវៈគ្រូបង្រៀន",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "433efdf5-5881-436a-9bb4-ed685a73a374",
+      "slug": "កិច្ចតែងការបង្រៀនគណិតវិទ្យា",
+      "title": "កិច្ចតែងការបង្រៀនគណិតវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "46ec280c-a397-4b4e-a675-7619732e9ae2",
+      "slug": "គីមីវិទ្យាថ្នាក់ទី៧-១៩៨៥",
+      "title": "គីមីវិទ្យាថ្នាក់ទី៧ (១៩៨៥)",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "47d2ac3e-8e26-4137-b89f-f04b9cdae8d8",
+      "slug": "ថ្នាក់ទី១១-សេដ្ឋកិច្ចវិទ្យា",
+      "title": "ថ្នាក់ទី១១៖ សេដ្ឋកិច្ចវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "481fb806-22c4-42ae-a500-c32722e0b655",
+      "slug": "introduction-to-research-methods-5th-edition",
+      "title": "Introduction to Research Methods (5th Edition)",
+      "language": "English",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "49af60d5-8019-4f3e-8a61-6d71772e0121",
+      "slug": "ថ្នាក់ទី១-វិទ្យាសាស្ត្រ-សិក្សាសង្គម",
+      "title": "ថ្នាក់ទី១៖ វិទ្យាសាស្ត្រ សិក្សាសង្គម",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "49c08820-62b2-49a7-a451-31f804d49edb",
+      "slug": "ថ្នាក់ទី១០-english",
+      "title": "ថ្នាក់ទី១០៖ English",
+      "language": "English",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "4abb5da1-f0c6-4bac-bb3d-3bb57918ce21",
+      "slug": "ថ្នាក់ទី៥-គណិតវិទ្យា",
+      "title": "ថ្នាក់ទី៥៖ គណិតវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "4b144ec9-a649-4274-9af7-8225d22e38c0",
+      "slug": "បច្ចេកទេស-ចិញ្ចឹម-ជ្រូក-ជា-លក្ខណៈ-គ្រួសារ",
+      "title": "បច្ចេកទេស​ចិញ្ចឹម​ជ្រូក​ជា​លក្ខណៈ​គ្រួសារ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "4c0e2258-b0d0-48eb-82c0-b64d06a71430",
+      "slug": "កិច្ចតែងការបង្រៀន-វិទ្យាសាស្ត្រអនុវត្ត-ថ្នាក់ទី៤",
+      "title": "កិច្ចតែងការបង្រៀន វិទ្យាសាស្ត្រអនុវត្ត ថ្នាក់ទី៤",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "4c14a9c2-bc2a-41ea-a0ec-06eef24d5330",
+      "slug": "សៀវភៅលំហាត់គណិតវិទ្យាសម្រាប់គ្រូ-និងសិស្សមធ្យមសិក្សាទុតិយភូមិ",
+      "title": "សៀវភៅលំហាត់គណិតវិទ្យាសម្រាប់គ្រូ​ និងសិស្សមធ្យមសិក្សាទុតិយភូមិ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "4d732979-ed74-4257-8383-fcbfc837a1c6",
+      "slug": "សៀវភៅគ្រូគណិតវិទ្យាថ្នាក់ទី១២-កម្រិតខ្ពស់",
+      "title": "សៀវភៅគ្រូគណិតវិទ្យាថ្នាក់ទី១២ កម្រិតខ្ពស់",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "4f24f201-57ce-4bff-92aa-f2f907071b7d",
+      "slug": "វិញ្ញាសារូបវិទ្យាថ្នាក់ទី៩",
+      "title": "វិញ្ញាសារូបវិទ្យាថ្នាក់ទី៩",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "4f7a785e-c879-42da-ad26-b653996a7a38",
+      "slug": "ថ្នាក់ទី៤-ភាសាខ្មែរ",
+      "title": "ថ្នាក់ទី៤៖ ភាសាខ្មែរ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "4fe50984-0eec-470d-89a2-5f16b8dac50e",
+      "slug": "សៀវភៅគណិតវិទ្យារថ្នាក់ទី១១-កម្រិតខ្ពស់",
+      "title": "សៀវភៅគណិតវិទ្យារថ្នាក់ទី១១_កម្រិតខ្ពស់",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "5202d9e2-f515-477f-a3c4-a04c05189163",
+      "slug": "research-methodology-a-step-by-step-guide-for-beginners-5th-edition",
+      "title": "Research Methodology: A Step-by-Step Guide for Beginners (5th Edition)",
+      "language": "English",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "521866a4-c613-479b-b24c-8e7bb7d1c428",
+      "slug": "ការអប់រំព័ត៌មានវិទ្យា",
+      "title": "ការអប់រំព័ត៌មានវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "khmer-legacy-font"
+      ],
+      "blockers": [],
+      "indexStatus": "indexed",
+      "failureKind": null,
+      "bookPageCount": 290,
+      "meanCharsPerPage": 1781,
+      "medianCharsPerPage": 1840.5,
+      "maxCharsPerPage": 4225,
+      "lowTextPageRatio": 0,
+      "damageReasons": [
+        "khmer-legacy-font",
+        "khmer-coeng-detached",
+        "khmer-vowels-orphaned"
+      ]
+    },
+    {
+      "id": "53be3d79-db63-40c5-a37d-c95974eb646b",
+      "slug": "ស្តង់ដារវិជ្ជាជីវៈគ្រូបង្រៀន-teacher-professional-standards",
+      "title": "ស្តង់ដារវិជ្ជាជីវៈគ្រូបង្រៀន (Teacher Professional Standards)",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "541b5f56-a274-490e-a293-5f81f373796c",
+      "slug": "សៀវភៅវិទ្យាសាស្ត្ត្រ-ថ្នាក់ទី៧",
+      "title": "សៀវភៅវិទ្យាសាស្ត្ត្រ ថ្នាក់ទី៧",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "55a15f99-c0fa-444e-8f30-d015f5e84035",
+      "slug": "មគ្គុទ្ទេសក៍ជីវិត",
+      "title": "មគ្គុទ្ទេសក៍ជីវិត",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "57f79735-a5cd-47e5-b2a0-9020dda37e91",
+      "slug": "ថ្នាក់ទី៤-គណិតវិទ្យា",
+      "title": "ថ្នាក់ទី៤៖ គណិតវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "597147e0-6547-4941-98bd-aee63ec5f99d",
+      "slug": "គណិតវិទ្យាថ្នាក់ទី១២-1",
+      "title": "គណិតវិទ្យាថ្នាក់ទី១២",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "5996ed17-0b8e-4aa0-9610-1d055f9a955f",
+      "slug": "តើអ្វីទៅជាបដិវត្តន៍ឧស្សហកម្ម",
+      "title": "តើអ្វីទៅជាបដិវត្តន៍ឧស្សហកម្ម?",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "5ac1a596-4991-4248-8b1e-6dcebe737929",
+      "slug": "មូលដ្ឋានគ្រឹះតក្កវិជ្ជា",
+      "title": "មូលដ្ឋានគ្រឹះតក្កវិជ្ជា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "5af4339e-ed12-48be-99e6-c246a4b554a1",
+      "slug": "ប្រលងជ្រើសរើសសិស្សពូកែទូទាំងប្រទេស-ផ្នែករូបវិទ្យា-ថ្នាក់ទី៩",
+      "title": "ប្រលងជ្រើសរើសសិស្សពូកែទូទាំងប្រទេស ផ្នែករូបវិទ្យា ថ្នាក់ទី៩",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "5d2d3b4e-7ea8-45d0-b97d-a558fc260fe2",
+      "slug": "ដោះស្រាយបញ្ហាក្នុងការបង្រៀន",
+      "title": "ដោះស្រាយបញ្ហាក្នុងការបង្រៀន",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "5d4b63bb-0a0e-4109-bfac-e47e986c4aff",
+      "slug": "កិច្ចតែងការភាសាខ្មែរ-ថ្នាក់ទី៩",
+      "title": "កិច្ចតែងការភាសាខ្មែរ ថ្នាក់ទី៩",
+      "language": "Khmer",
+      "candidateReasons": [
+        "khmer-coeng-missing"
+      ],
+      "blockers": [],
+      "indexStatus": "indexed",
+      "failureKind": null,
+      "bookPageCount": 418,
+      "meanCharsPerPage": 1185.2,
+      "medianCharsPerPage": 1204,
+      "maxCharsPerPage": 2882,
+      "lowTextPageRatio": 0,
+      "damageReasons": [
+        "khmer-coeng-missing",
+        "khmer-vowels-orphaned"
+      ]
+    },
+    {
+      "id": "5eea1c28-6bb6-474f-828a-d539f082dfa9",
+      "slug": "ថ្នាក់ទី៨-វិទ្យាសាស្ត្រ",
+      "title": "ថ្នាក់ទី៨៖ វិទ្យាសាស្ត្រ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "5fa77515-0ee6-4fb3-9e8c-2156b7c4c42c",
+      "slug": "វិធីសាស្ត្របង្រៀនតាមបែបដោះស្រាយបញ្ហា",
+      "title": "វិធីសាស្ត្របង្រៀនតាមបែបដោះស្រាយបញ្ហា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "616cb7fd-513d-44dd-bfd6-e4c625bd4cb6",
+      "slug": "កំណែភាសាខ្មែរ-ថ្នាក់ទី៣",
+      "title": "កំណែភាសាខ្មែរ ថ្នាក់ទី៣",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "645d92da-6ee4-4c84-a40a-fde41a8edfe5",
+      "slug": "ថ្នាក់ទី៩-ភាសាខ្មែរ",
+      "title": "ថ្នាក់ទី៩៖ ភាសាខ្មែរ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "671429b8-462b-48e7-9f9b-2418aca4f8a4",
+      "slug": "ថ្នាក់ទី៧-វិទ្យាសាស្ត្រ",
+      "title": "ថ្នាក់ទី៧៖ វិទ្យាសាស្ត្រ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "6a0c3539-4562-4dcf-b505-a7e6c2559226",
+      "slug": "កំណែសិក្សាសង្គម-វិទ្យាសាស្ត្រ-ថ្នាក់ទី៦",
+      "title": "កំណែសិក្សាសង្គម វិទ្យាសាស្ត្រ ថ្នាក់ទី៦",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "6b394839-9840-412d-93d3-4430182e523e",
+      "slug": "សៀវភៅជីវវិទ្យា-ថ្នាក់ទី១២",
+      "title": "សៀវភៅជីវវិទ្យា ថ្នាក់ទី១២",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "6bde5c72-551b-47c6-9b47-9f1b2891ac0a",
+      "slug": "វិធីសាស្ដ្របង្រៀនគណិតវិទ្យាផ្នែកចំនួនថ្នាក់ទី២-ផ្នែកចំនួន",
+      "title": "វិធីសាស្ដ្របង្រៀនគណិតវិទ្យាផ្នែកចំនួនថ្នាក់ទី២ ផ្នែកចំនួន",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "6bde74b4-b12d-496b-b2a9-82594dc8d5c0",
+      "slug": "វិញ្ញាសារូបវិទ្យា",
+      "title": "វិញ្ញាសារូបវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "6c6fca17-faeb-4482-8f7b-b48be5bcc065",
+      "slug": "មុខជំនាញផ្នែកសំណង់",
+      "title": "មុខជំនាញផ្នែកសំណង់​",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "6cce62f3-47f3-4c8b-ab0b-92c3df700cd4",
+      "slug": "ថ្នាក់ទី១-ភាសាខ្មែរ",
+      "title": "ថ្នាក់ទី១៖ ភាសាខ្មែរ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "6dd71020-6d14-48ae-bb35-15763a5112a2",
+      "slug": "ថ្នាក់ទី១-គណិតវិទ្យា",
+      "title": "ថ្នាក់ទី១៖ គណិតវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "6f87390c-4f3c-4cb5-bfd0-33f8c6d5bfa3",
+      "slug": "សៀវភៅជីវវិទ្យា-ថ្នាក់ទី១១",
+      "title": "សៀវភៅជីវវិទ្យា ថ្នាក់ទី១១",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "71b615d8-fff0-4a44-adf6-9d8a6a480d5d",
+      "slug": "សង្ខេបមូលដ្ឋានគ្រឹះគណិតវិទ្យាសម្រាប់រូបវិទ្យា-ភាសាអង់គ្លេស-01-ba",
+      "title": "សង្ខេបមូលដ្ឋានគ្រឹះគណិតវិទ្យាសម្រាប់រូបវិទ្យា(ភាសាអង់គ្លេស) 01-Ba",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "72635e4e-5306-4129-96d6-78419b95b345",
+      "slug": "កំណែភាសាខ្មែរ-ថ្នាក់ទី៤",
+      "title": "កំណែភាសាខ្មែរ ថ្នាក់ទី៤",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "732a7061-41f1-49e7-a5fe-b7ae9cf35a75",
+      "slug": "កំណែគណិតវិទ្យា-ថ្នាក់ទី៤",
+      "title": "កំណែគណិតវិទ្យា ថ្នាក់ទី៤",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "73482cf2-c309-4089-b92b-76f6ec92edca",
+      "slug": "សៀវភៅគណិតវិទ្យា-ថ្នាក់ទី៣-សម្រាប់គ្រូ",
+      "title": "សៀវភៅគណិតវិទ្យា ថ្នាក់ទី៣ សម្រាប់គ្រូ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "747922e3-72df-4379-80cb-02f9bb857351",
+      "slug": "ថ្នាក់ទី៩-គណិតវិទ្យា",
+      "title": "ថ្នាក់ទី៩៖ គណិតវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "777d3558-6d2c-4167-892f-89955a01e27e",
+      "slug": "អក្ខរកម្ម-បញ្ញាសិប្បនិម្មិត-ai-១០១",
+      "title": "អក្ខរកម្ម បញ្ញាសិប្បនិម្មិត (AI) ១០១",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "78a23a78-fb13-4c33-9e12-cb59a5ae2a27",
+      "slug": "សៀវភៅគណិតវិទ្យារថ្នាក់ទី១០-ភាគ២",
+      "title": "សៀវភៅគណិតវិទ្យារថ្នាក់ទី១០_ភាគ២",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "78c47893-f4e7-47b3-9fa2-0637d00ee1cb",
+      "slug": "កំណែវិទ្យាសាស្ត្រ-ថ្នាក់ទី៤",
+      "title": "កំណែវិទ្យាសាស្ត្រ ថ្នាក់ទី៤",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "7cec2e13-87e5-42da-8c74-e59b8388f33b",
+      "slug": "ការដាំដុះដំណាំ-អំពៅ",
+      "title": "ការដាំដុះដំណាំ​អំពៅ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "7d7c97ef-73c6-4cef-abef-72dd9eb23be4",
+      "slug": "សៀវភៅណែនាំ-សម្រាប់គ្រូបង្រៀនថ្នាក់ទី៣",
+      "title": "សៀវភៅណែនាំ សម្រាប់គ្រូបង្រៀនថ្នាក់ទី៣",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "7de48f8e-65b9-47a7-a44a-9fea90272320",
+      "slug": "គណិតវិទ្យា-ថ្នាក់ទី២-សៀវភៅគ្រូ",
+      "title": "គណិតវិទ្យា ថ្នាក់ទី២ (សៀវភៅគ្រូ)",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "7faf28f0-de1e-4c31-92d1-c56e402acce1",
+      "slug": "ថ្នាក់ទី៦-សិក្សាសង្គម",
+      "title": "ថ្នាក់ទី៦៖ សិក្សាសង្គម",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "8163df16-b66c-4fd6-aec5-8179c89e7464",
+      "slug": "ថ្នាក់ទី១១-គណិតវិទ្យា-កម្រិតមូលដ្ឋាន",
+      "title": "ថ្នាក់ទី១១៖ គណិតវិទ្យា កម្រិតមូលដ្ឋាន",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "82a9b28b-b12a-4bc1-8f02-21c89b4be9da",
+      "slug": "វិធីសាស្ត្របង្រៀនតាមបែបវិទ្យាសាស្ត្រ",
+      "title": "វិធីសាស្ត្របង្រៀនតាមបែបវិទ្យាសាស្ត្រ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "83275c22-df3f-4f98-aef3-48997070e9f1",
+      "slug": "សទ្ទានុក្រមពាក្យច្បាប់-និងរដ្ឋបាល",
+      "title": "សទ្ទានុក្រមពាក្យច្បាប់ និងរដ្ឋបាល",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "834e9b4f-d447-4b03-8a60-cb1af1a244ee",
+      "slug": "សៀវភោណែនាំបច្ចេកទេសស្ដីពី-ការចិញ្ចឹមកង្កែបក្នុងអាង",
+      "title": "សៀវភោណែនាំបច្ចេកទេសស្ដីពី៖ ការចិញ្ចឹមកង្កែបក្នុងអាង",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "83568069-a5e7-432d-b012-8a9f4e62578c",
+      "slug": "បញ្ហា-ថ្នាំ-កសិកម្ម-នៅ-ប្រទេស-កម្ពុជា",
+      "title": "បញ្ហា​ថ្នាំ​កសិកម្ម​នៅ​ប្រទេស​កម្ពុជា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "852bf5d3-bdc3-43d8-b044-702d48315453",
+      "slug": "កៅស៊ូក្នុងនាមទំនិញសេដ្ឋកិច្ច",
+      "title": "កៅស៊ូក្នុងនាមទំនិញសេដ្ឋកិច្ច",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "85d31356-c867-4873-ac41-0f00084988cf",
+      "slug": "សៀវភៅកំណាព្យសម្រាប់មត្តេយ្យសិក្សា",
+      "title": "សៀវភៅកំណាព្យសម្រាប់មត្តេយ្យសិក្សា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "87b2e507-978a-465a-be16-583f9867ffc4",
+      "slug": "ឯកសារបុរាណនាស-វ-ទី១១-ឬស-វ-ទី១២-របស់អាមេរិចបុរាណ-the-dresden-code",
+      "title": "ឯកសារបុរាណនាស.វ.ទី១១ ឬស.វ.ទី១២ របស់អាមេរិចបុរាណ៖ The Dresden Code",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "87b3c61f-c08c-4ea2-a12a-d3ff33f2fdec",
+      "slug": "កំណែសិក្សាសង្គម-វិទ្យាសាស្ត្រ-ថ្នាក់ទី៥",
+      "title": "កំណែសិក្សាសង្គម វិទ្យាសាស្ត្រ ថ្នាក់ទី៥",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "8a0c1efd-25b6-431d-95ad-be58aa7f7c80",
+      "slug": "រៀបសរសេរកិច្ចតែងការបង្រៀន",
+      "title": "រៀបសរសេរកិច្ចតែងការបង្រៀន",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "8a32e6cd-df06-426f-a1e4-ac2a33811eda",
+      "slug": "កម្រងវិញ្ញសាវិទ្យាសាស្រ្ដ",
+      "title": "កម្រងវិញ្ញសាវិទ្យាសាស្រ្ដ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "8a4fdc46-5f6b-4338-8c0a-e8c74ed3baa3",
+      "slug": "ថ្នាក់ទី១២-រូបវិទ្យា",
+      "title": "ថ្នាក់ទី១២៖ រូបវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "8a662a1d-887a-41a3-8004-667108719e0f",
+      "slug": "ថ្នាក់ទី១០-ផែនដីនិងបរិស្ថានវិទ្យា",
+      "title": "ថ្នាក់ទី១០៖ ផែនដីនិងបរិស្ថានវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "8beb3afd-0615-43da-97c8-a1789af85f87",
+      "slug": "ថ្នាក់ទី៦-គណិតវិទ្យា",
+      "title": "ថ្នាក់ទី៦៖ គណិតវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "8c763d09-4c57-473b-9127-20eaef015476",
+      "slug": "ថ្នាក់ទី២-ភាសាខ្មែរ",
+      "title": "ថ្នាក់ទី២៖ ភាសាខ្មែរ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "8e43e56b-aba5-4515-a454-577c83dd5110",
+      "slug": "សៀវភៅ-គណិតវិទ្យា-ថ្នាក់-ទី-៩",
+      "title": "សៀវភៅ​គណិតវិទ្យា​ថ្នាក់​ទី​៩",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "8f6cb18c-e07e-4382-8443-0052b049de06",
+      "slug": "ថ្នាក់ទី១១-រូបវិទ្យា",
+      "title": "ថ្នាក់ទី១១៖ រូបវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "93cbe9b5-59c2-47a9-a96d-eb1cf00d0327",
+      "slug": "បច្ចេកទេស-ចិញ្ចឹម-គោ-ជា-លក្ខណៈ-គ្រួសារ",
+      "title": "បច្ចេកទេស​ចិញ្ចឹម​គោ​ជា​លក្ខណៈ​គ្រួសារ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "940ef135-149e-461e-8d17-96a1a59e60a5",
+      "slug": "ថ្នាក់ទី១០-គណិតវិទ្យា-ភាគ១",
+      "title": "ថ្នាក់ទី១០៖ គណិតវិទ្យា ភាគ១",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "94a9d98d-27d5-4c52-8b17-ee21c143a341",
+      "slug": "ថ្នាក់ទី៧-ភាសាខ្មែរ",
+      "title": "ថ្នាក់ទី៧៖ ភាសាខ្មែរ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "95c8fa00-9769-4f2f-96e3-8a567c3b3381",
+      "slug": "គណិតវិទ្យា-ថ្នាក់ទី១១",
+      "title": "គណិតវិទ្យា ថ្នាក់ទី១១",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "9647a747-763b-4578-8889-35a08bc340bd",
+      "slug": "សៀវភៅគណិតវិទ្យារថ្នាក់ទី១០-ភាគ១",
+      "title": "សៀវភៅគណិតវិទ្យារថ្នាក់ទី១០_ភាគ១",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "96ab25ff-39ee-449e-893d-914bd9b0be86",
+      "slug": "សៀវភៅគ្រូគណិតវិទ្យាថ្នាក់ទី១២-កម្រិតមូលដ្ឋាន",
+      "title": "សៀវភៅគ្រូគណិតវិទ្យាថ្នាក់ទី១២ កម្រិតមូលដ្ឋាន",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "96c8f346-afe9-492d-8d29-7731b6571bff",
+      "slug": "សៀវភៅគ្រូគណិតវិទ្យាទី១១-កម្រិតមូលដ្ឋាន",
+      "title": "សៀវភៅគ្រូគណិតវិទ្យាទី១១_កម្រិតមូលដ្ឋាន",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "97648a74-32e0-4673-9e3e-660f3d5ceaaf",
+      "slug": "ថ្នាក់ទី១២-ផែនដីនិងបរិស្ថានវិទ្យា",
+      "title": "ថ្នាក់ទី១២៖ ផែនដីនិងបរិស្ថានវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "97e876c1-0e7e-409a-9eba-676274daa25b",
+      "slug": "essential-english-for-foreign-students-book-1",
+      "title": "Essential English for Foreign Students: Book 1",
+      "language": "English",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "99e33dd1-a281-40f2-8d47-ed734c5f2f74",
+      "slug": "សៀវភៅណែនាំពីជំងឺ-កូវីដ១៩-សម្រាប់កុមារ",
+      "title": "សៀវភៅណែនាំពីជំងឺ_កូវីដ១៩_សម្រាប់កុមារ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "9aedea69-15b0-4bcd-82d6-222a81313eaf",
+      "slug": "ថ្នាក់ទី១០-ភាសាខ្មែរ",
+      "title": "ថ្នាក់ទី១០៖ ភាសាខ្មែរ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "9b9724b2-af9a-47f4-952b-a7d8626178f8",
+      "slug": "ថ្នាក់ទី១១-អក្សរសាស្ត្រខ្មែរ",
+      "title": "ថ្នាក់ទី១១៖ អក្សរសាស្ត្រខ្មែរ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "9c76292a-9941-445c-94eb-976b4795118f",
+      "slug": "ថ្នាក់ទី៥-ភាសាខ្មែរ",
+      "title": "ថ្នាក់ទី៥៖ ភាសាខ្មែរ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "9c78b1d4-fd50-49a0-8b31-981911a475db",
+      "slug": "ថ្នាក់ទី១១-សីលធម៌-ពលរដ្ឋវិជ្ជា",
+      "title": "ថ្នាក់ទី១១៖ សីលធម៌ ពលរដ្ឋវិជ្ជា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "9cd42223-ba29-432e-9d48-0640b07df594",
+      "slug": "ប្រឡងជ្រើសរើសសិស្សពូកែទូទាំងប្រទេស-ផ្នែករូបវិទ្យា-ថ្នាក់ទី១២",
+      "title": "ប្រឡងជ្រើសរើសសិស្សពូកែទូទាំងប្រទេស ផ្នែករូបវិទ្យា ថ្នាក់ទី១២",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "9d201900-1c31-467d-be86-f1bf7fbe2fbe",
+      "slug": "របៀបប្រើបញ្ញាសិប្បនិម្មិត-ai-ជាជំនួយរៀបចំប្លង់មេរៀន",
+      "title": "របៀបប្រើបញ្ញាសិប្បនិម្មិត (AI) ជាជំនួយរៀបចំប្លង់មេរៀន",
+      "language": "Khmer",
+      "candidateReasons": [
+        "khmer-legacy-font"
+      ],
+      "blockers": [],
+      "indexStatus": "indexed",
+      "failureKind": null,
+      "bookPageCount": 52,
+      "meanCharsPerPage": 729.9,
+      "medianCharsPerPage": 730,
+      "maxCharsPerPage": 1633,
+      "lowTextPageRatio": 0,
+      "damageReasons": [
+        "khmer-legacy-font",
+        "khmer-coeng-detached",
+        "khmer-vowels-orphaned"
+      ]
+    },
+    {
+      "id": "9e4ce667-615a-42eb-8657-4c85960396e4",
+      "slug": "ការ-បណ្ដុះ-សណ្ដែកសៀង",
+      "title": "ការ​បណ្ដុះ​សណ្ដែកសៀង",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "9f1899d9-29d3-433b-b0db-180d7be31813",
+      "slug": "ល្បិចទូទៅនៃគំនិត",
+      "title": "ល្បិចទូទៅនៃគំនិត",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "a148f5c8-39d9-408d-bd83-aaeca2d1f9dc",
+      "slug": "អរិយធម៌ខ្មែរ-ថ្នាក់បញ្ចប់-កម្មវិធីថ្មី",
+      "title": "អរិយធម៌ខ្មែរ ថ្នាក់បញ្ចប់ (កម្មវិធីថ្មី)",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "a168f1b8-0efc-4e91-b411-0b4bdcb07f03",
+      "slug": "សៀវភៅជីវវិទ្យា-ថ្នាក់ទី១០",
+      "title": "សៀវភៅជីវវិទ្យា ថ្នាក់ទី១០",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "a3723094-115f-4b82-8081-f3788682f3ca",
+      "slug": "សៀវភៅរូបវិទ្យាថ្នាក់ទី១០",
+      "title": "សៀវភៅរូបវិទ្យាថ្នាក់ទី១០",
+      "language": "English",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "a3e1fdf1-abe8-4efd-8b7e-2ef2c7162fdc",
+      "slug": "បណ្ណអក្សររូបភាព-ព្យញ្ចនៈ",
+      "title": "បណ្ណអក្សររូបភាព ព្យញ្ចនៈ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "a493c562-7a53-41bb-a818-9029d087dbd7",
+      "slug": "ថ្នាក់ទី១១-គណិតវិទ្យា-កម្រិតខ្ពស់",
+      "title": "ថ្នាក់ទី១១៖ គណិតវិទ្យា កម្រិតខ្ពស់",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "a4a2372f-c778-49a2-9b54-c49853a69b15",
+      "slug": "សាំង-អូហ្គូស្ទីន-saint-augustine",
+      "title": "សាំង អូហ្គូស្ទីន (Saint Augustine)",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "a4cc564d-c5cb-4d64-a107-77cd6304a72e",
+      "slug": "ថ្នាក់ទី៦-ភាសាខ្មែរ",
+      "title": "ថ្នាក់ទី៦៖ ភាសាខ្មែរ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "a5117944-3299-42ed-8184-52ea9f06ccd0",
+      "slug": "អេពីគួរ-epicurus",
+      "title": "អេពីគួរ (Epicurus)",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "a6ad63c5-10dc-4b70-a3fb-31e21e41401e",
+      "slug": "សៀវភៅណែនាំគ្រូ-គណិតវិទ្យា-ថ្នាក់ទី១",
+      "title": "សៀវភៅណែនាំគ្រូ គណិតវិទ្យា ថ្នាក់ទី១",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "a7cc293a-66a4-4a5c-ab23-02f719c1b691",
+      "slug": "សៀវភៅភាសាខ្មែរ-ថ្នាក់ទី៦-សម្រាប់គ្រូ",
+      "title": "សៀវភៅភាសាខ្មែរ ថ្នាក់ទី៦ សម្រាប់គ្រូ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "a8c49798-d116-4870-adbb-574cd60486c0",
+      "slug": "ថ្នាក់ទី១២-ប្រវត្តិវិទ្យា",
+      "title": "ថ្នាក់ទី១២៖ ប្រវត្តិវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "a95553d0-47de-484f-ac23-4b56d3b04025",
+      "slug": "ព្រះពុទ្ធសាសនា-និង-បរិស្ថាន-1st-edition",
+      "title": "ព្រះពុទ្ធសាសនា និង បរិស្ថាន (1st Edition)",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "a9a680c7-7883-4283-88a3-60a09cb8a472",
+      "slug": "សៀវភៅគ្រូ-រូបវិទ្យាថ្នាក់ទី៩",
+      "title": "សៀវភៅគ្រូ រូបវិទ្យាថ្នាក់ទី៩",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "aa30ed39-7d4b-43f4-b505-8fbdf23cd139",
+      "slug": "ថ្នាក់ទី១១-english",
+      "title": "ថ្នាក់ទី១១៖ English",
+      "language": "English",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "ab64a1ee-3fb1-4133-bea0-9c53cbe89c3f",
+      "slug": "អត្រាកំណែក្រៅផ្លូវការនៃការប្រលងបញ្ចប់ឆមាសទី១លើមុខវិជ្ជា-ទ្រឹស្ដីប",
+      "title": "អត្រាកំណែក្រៅផ្លូវការនៃការប្រលងបញ្ចប់ឆមាសទី១លើមុខវិជ្ជា ទ្រឹស្ដីប",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "ac47937f-1843-4972-a4cd-b607412b1508",
+      "slug": "ថ្នាក់ទី៩-វិទ្យាសាស្ត្រ",
+      "title": "ថ្នាក់ទី៩៖ វិទ្យាសាស្ត្រ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "ae7cff59-e2af-4f82-b8bc-f1fd5c5024cf",
+      "slug": "ថ្នាក់ទី១០-ជីវវិទ្យា",
+      "title": "ថ្នាក់ទី១០៖ ជីវវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "af0b8e02-9f8d-4ca0-8050-29a0b3d3fafd",
+      "slug": "ថ្នាក់ទី១១-គីមីវិទ្យា",
+      "title": "ថ្នាក់ទី១១៖ គីមីវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "af1bf608-8818-4733-a725-57eba4c8c34e",
+      "slug": "ថ្នាក់ទី១២-ជីវវិទ្យា",
+      "title": "ថ្នាក់ទី១២៖ ជីវវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "b05c1aac-43cf-4b56-9d85-222583d25b31",
+      "slug": "ក្របខ័ណ្ឌកម្មវិធីអប់រំគ្រូបង្រៀនបឋមសិក្សា-១២-៤",
+      "title": "ក្របខ័ណ្ឌកម្មវិធីអប់រំគ្រូបង្រៀនបឋមសិក្សា (១២+៤)",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "b062902a-6d2b-4ca3-915f-8463968c9824",
+      "slug": "ហ្សង់-ហ្សាក់-រូសូ-jean-jacques-rousseau",
+      "title": "ហ្សង់-ហ្សាក់ រូសូ (Jean-Jacques Rousseau)",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "b0fc99b6-a833-4f2a-806b-008b30cdbdb0",
+      "slug": "ថ្នាក់ទី២-គណិតវិទ្យា",
+      "title": "ថ្នាក់ទី២៖ គណិតវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "b194b95d-4d53-45ec-bc16-026ab162f95c",
+      "slug": "ថ្នាក់ទី៣-វិទ្យាសាស្ត្រ-សិក្សាសង្គម",
+      "title": "ថ្នាក់ទី៣៖ វិទ្យាសាស្ត្រ សិក្សាសង្គម",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "b336cf44-c15e-4aef-9f0d-99e4a38928e9",
+      "slug": "មេរៀនpower-point-កម្រិតខ្ពស់",
+      "title": "មេរៀនPower Point កម្រិតខ្ពស់",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "b43c024a-ebc9-4a29-9019-e46c0ab26847",
+      "slug": "រូបវិទ្យា-ថ្នាក់ទី-១២",
+      "title": "រូបវិទ្យា ថ្នាក់ទី ១២",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "b51480c5-6e70-464b-afc4-f3cf6eb20fd2",
+      "slug": "វិធីសាស្រ្តបង្រៀនតាមបែបរិះរក",
+      "title": "វិធីសាស្រ្តបង្រៀនតាមបែបរិះរក",
+      "language": "English",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "b5760384-fb0c-40b4-897b-901840171c76",
+      "slug": "នីកូឡូ-ម៉ាគីអាវែល្លី-niccolò-machiavelli",
+      "title": "នីកូឡូ ម៉ាគីអាវែល្លី (Niccolò Machiavelli)",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "b5d36ab3-9a71-47b8-9d81-568ab371cf4c",
+      "slug": "វិធីសាស្រ្តបង្រៀនតាមបែប-5e",
+      "title": "វិធីសាស្រ្តបង្រៀនតាមបែប 5E",
+      "language": "English",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "b7d6bb89-1bfd-4257-9f34-0e1d542603b9",
+      "slug": "កំណែភាសាខ្មែរ-ថ្នាក់ទី៥",
+      "title": "កំណែភាសាខ្មែរ ថ្នាក់ទី៥",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "b7e35b24-1a52-4a14-8bb9-ebfca002187a",
+      "slug": "ថ្នាក់ទី៤-english",
+      "title": "ថ្នាក់ទី៤៖ English",
+      "language": "English",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "b812fb3d-c5c2-4384-bc5e-e4ab54fdf435",
+      "slug": "ថ្នាក់ទី១២-ភូមិវិទ្យា",
+      "title": "ថ្នាក់ទី១២៖ ភូមិវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "b8835ece-e9a7-4eac-aa4d-67f5ae6273a4",
+      "slug": "កំណែភាសាខ្មែរ-ថ្នាក់ទី៦",
+      "title": "កំណែភាសាខ្មែរ ថ្នាក់ទី៦",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "b8fbbbaf-d047-49ba-8da2-dcc20ce3e890",
+      "slug": "រូបមន្តសង្ខេបរូបវិទ្យាថ្នាក់ទី១២",
+      "title": "រូបមន្តសង្ខេបរូបវិទ្យាថ្នាក់ទី១២",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "bd09d094-d698-4143-af19-0fc7aedb630b",
+      "slug": "គន្លឹះធរណីមាត្រ-ថ្នាក់ទី-១១",
+      "title": "គន្លឹះធរណីមាត្រ ថ្នាក់ទី ១១",
+      "language": "Khmer",
+      "candidateReasons": [
+        "low-text-yield"
+      ],
+      "blockers": [],
+      "indexStatus": "indexed",
+      "failureKind": null,
+      "bookPageCount": 32,
+      "meanCharsPerPage": 21,
+      "medianCharsPerPage": 21,
+      "maxCharsPerPage": 21,
+      "lowTextPageRatio": 1,
+      "damageReasons": []
+    },
+    {
+      "id": "bf4a70a1-1599-4afc-8e7d-4cc4eb16f7fe",
+      "slug": "ថ្នាក់ទី៥-english",
+      "title": "ថ្នាក់ទី៥៖ English",
+      "language": "English",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "bfd97a06-4a49-4d44-bc5f-3dee963e845e",
+      "slug": "ថ្នាក់ទី៥-វិទ្យាសាស្ត្រ",
+      "title": "ថ្នាក់ទី៥៖ វិទ្យាសាស្ត្រ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "c0106103-cc2f-438e-9c31-f5d158a7491e",
+      "slug": "វិធីសាស្ត្រធ្វើបទបង្ហាញគម្រោងអាជីវកម្មបង្កើតថ្មី-startups-ទៅកាន",
+      "title": "វិធីសាស្ត្រធ្វើបទបង្ហាញគម្រោងអាជីវកម្មបង្កើតថ្មី (Startups) ទៅកាន",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "c077046a-1665-4386-a4f2-a9a25ccf5f0f",
+      "slug": "បច្ចេកទេស-ដាំ-កៅស៊ូ",
+      "title": "បច្ចេកទេស​ដាំ​កៅស៊ូ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "c09fa181-3c61-433f-86bf-5ea4d7309c4e",
+      "slug": "កិច្ចតែងការភាសាខ្មែរ-ថ្នាក់ទី១១",
+      "title": "កិច្ចតែងការភាសាខ្មែរ ថ្នាក់ទី១១",
+      "language": "Khmer",
+      "candidateReasons": [
+        "khmer-coeng-missing"
+      ],
+      "blockers": [],
+      "indexStatus": "indexed",
+      "failureKind": null,
+      "bookPageCount": 366,
+      "meanCharsPerPage": 982.6,
+      "medianCharsPerPage": 982,
+      "maxCharsPerPage": 2384,
+      "lowTextPageRatio": 0,
+      "damageReasons": [
+        "khmer-coeng-missing",
+        "khmer-vowels-orphaned"
+      ]
+    },
+    {
+      "id": "c0ed72a3-86d5-424c-b0b9-74f981099f34",
+      "slug": "ថូម៉ាស-ហបស៍-thomas-hobbes",
+      "title": "ថូម៉ាស ហបស៍ (Thomas Hobbes)",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "c21d95a7-c5e2-4e46-bc27-b6d579789e64",
+      "slug": "គេហសេដ្ឋកិច្ចវិទ្យា",
+      "title": "គេហសេដ្ឋកិច្ចវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "khmer-legacy-font",
+        "khmer-coeng-missing"
+      ],
+      "blockers": [],
+      "indexStatus": "indexed",
+      "failureKind": null,
+      "bookPageCount": 30,
+      "meanCharsPerPage": 1309.2,
+      "medianCharsPerPage": 1274,
+      "maxCharsPerPage": 2361,
+      "lowTextPageRatio": 0,
+      "damageReasons": [
+        "khmer-legacy-font",
+        "khmer-coeng-missing",
+        "khmer-vowels-orphaned"
+      ]
+    },
+    {
+      "id": "c3fc6607-2fa0-4528-8056-2bcfc15f4d27",
+      "slug": "គណិតវិទ្យា-បណ្តុំវិទ្យាសាស្រ្ត",
+      "title": "គណិតវិទ្យា បណ្តុំវិទ្យាសាស្រ្ត",
+      "language": "Khmer",
+      "candidateReasons": [
+        "khmer-legacy-font",
+        "khmer-coeng-missing"
+      ],
+      "blockers": [],
+      "indexStatus": "indexed",
+      "failureKind": null,
+      "bookPageCount": 42,
+      "meanCharsPerPage": 1363.1,
+      "medianCharsPerPage": 1365.5,
+      "maxCharsPerPage": 2362,
+      "lowTextPageRatio": 0,
+      "damageReasons": [
+        "khmer-legacy-font",
+        "khmer-coeng-missing",
+        "khmer-vowels-orphaned"
+      ]
+    },
+    {
+      "id": "c3ffc101-4c6d-4c2d-b37e-023bc41d7d43",
+      "slug": "កម្រងវិញ្ញាសារូបវិទ្យា",
+      "title": "កម្រងវិញ្ញាសារូបវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "c5a1ea1c-c12b-4ea3-901d-3ff14a532094",
+      "slug": "ច្បាប់ស្ដីពី-ការប្រឆាំងការឆបោកតាមប្រព័ន្ធបច្ចេកវិទ្យា",
+      "title": "ច្បាប់ស្ដីពី ការប្រឆាំងការឆបោកតាមប្រព័ន្ធបច្ចេកវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "c5f3c74a-44e9-43a2-beef-5b7043550fe2",
+      "slug": "សៀវភៅ-ត្រីវិស័យស្តី-ពី-ការ-ទប់ស្កាត់-និង-ការពារ-ជំងឺរលាកសួតបង្កដោ",
+      "title": "សៀវភៅ​ត្រីវិស័យស្តី​ពី​ការ​ទប់ស្កាត់ និង​ការពារ​ជំងឺរលាកសួតបង្កដោ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "ca193fb1-0d6c-4e5e-a648-232845a4819f",
+      "slug": "ថ្នាក់ទី៨-សិក្សាសង្គម",
+      "title": "ថ្នាក់ទី៨៖ សិក្សាសង្គម",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "cf3dc775-ce11-473c-b520-736627923cea",
+      "slug": "កំណែវិទ្យាសាស្ត្រ-សិក្សាសង្គម-ថ្នាក់ទី៣",
+      "title": "កំណែវិទ្យាសាស្ត្រ សិក្សាសង្គម ថ្នាក់ទី៣",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "cfc12f3b-aba6-4874-a44c-1c2862c35482",
+      "slug": "ជំនឿផ្សេងៗនៃជនជាតិខ្មែរ",
+      "title": "ជំនឿផ្សេងៗនៃជនជាតិខ្មែរ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "d2185570-12ec-445b-83e8-248672319362",
+      "slug": "ថ្នាក់ទី១២-អក្សរសាស្ត្រខ្មែរ",
+      "title": "ថ្នាក់ទី១២៖ អក្សរសាស្ត្រខ្មែរ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "d543ddbc-2494-441f-abd8-01cf657b6f73",
+      "slug": "កម្មវិធីសិក្សាលម្អិតភាសាអង់គ្លេសសម្រាប់ថ្នាក់បឋមសិក្សា",
+      "title": "កម្មវិធីសិក្សាលម្អិតភាសាអង់គ្លេសសម្រាប់ថ្នាក់បឋមសិក្សា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "d68c57c9-bfb6-4a8c-996e-4514f9c20e0c",
+      "slug": "វិធីសាស្ដ្របង្រៀនគណិតវិទ្យាផ្នែកចំនួនថ្នាក់ទី៤-ផ្នែកចំនួន",
+      "title": "វិធីសាស្ដ្របង្រៀនគណិតវិទ្យាផ្នែកចំនួនថ្នាក់ទី៤ ផ្នែកចំនួន",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "d7f5bfd6-791a-4af2-a07a-b90638fb00f4",
+      "slug": "ការផលិតប្រេងកូឡាបណ្តេញមូសតាមបែបធម្មជាតិ",
+      "title": "ការផលិតប្រេងកូឡាបណ្តេញមូសតាមបែបធម្មជាតិ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "d9bbb01c-9625-4eda-8209-0d95d0180b47",
+      "slug": "ថ្នាក់ទី១១-ភូមិវិទ្យា",
+      "title": "ថ្នាក់ទី១១៖ ភូមិវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "da0c6c4c-bd7d-4b2d-a1a6-a9d9ef3d5f9e",
+      "slug": "សទ្ទានុក្រមពាក្យផ្ទុយ",
+      "title": "សទ្ទានុក្រមពាក្យផ្ទុយ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "khmer-legacy-font",
+        "khmer-coeng-missing"
+      ],
+      "blockers": [],
+      "indexStatus": "indexed",
+      "failureKind": null,
+      "bookPageCount": 208,
+      "meanCharsPerPage": 613.6,
+      "medianCharsPerPage": 625,
+      "maxCharsPerPage": 982,
+      "lowTextPageRatio": 0,
+      "damageReasons": [
+        "khmer-legacy-font",
+        "khmer-coeng-missing",
+        "khmer-vowels-orphaned"
+      ]
+    },
+    {
+      "id": "da2c2450-7a9f-496c-b388-52447dbd57d9",
+      "slug": "ដំណើរឆ្ពោះទៅសម្រេចចក្ខុវិស័យកម្ពុជា-ឆ្នាំ២០៥០",
+      "title": "ដំណើរឆ្ពោះទៅសម្រេចចក្ខុវិស័យកម្ពុជា ឆ្នាំ២០៥០",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "da4d548c-d7ce-4ea1-bf0d-b86b505ed357",
+      "slug": "សញ្ញាណទស្សនវិជ្ជា",
+      "title": "សញ្ញាណទស្សនវិជ្ជា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "da5796e9-7085-4e05-8fd4-af02646e564e",
+      "slug": "ប្រវត្តិសាស្ត្រខ្មែរ-ពាក្យកាព្យរបស់-ឌឿ-វ៉ាន់",
+      "title": "ប្រវត្តិសាស្ត្រខ្មែរ ពាក្យកាព្យរបស់ ឌឿ វ៉ាន់",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "db910908-d5a0-40e9-8644-56f9338ad4fd",
+      "slug": "ថ្នាក់ទី៣-គណិតវិទ្យា",
+      "title": "ថ្នាក់ទី៣៖ គណិតវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "dc5c9525-5635-4c57-a14a-6bc377bc924b",
+      "slug": "ថ្នាក់ទី១២-គីមីវិទ្យា",
+      "title": "ថ្នាក់ទី១២៖ គីមីវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "dd788aa1-17eb-467e-991c-96c912dd144f",
+      "slug": "បរិវត្តកម្មការអប់រំស្ទែម",
+      "title": "បរិវត្តកម្មការអប់រំស្ទែម",
+      "language": "Khmer",
+      "candidateReasons": [
+        "khmer-coeng-missing"
+      ],
+      "blockers": [],
+      "indexStatus": "indexed",
+      "failureKind": null,
+      "bookPageCount": 178,
+      "meanCharsPerPage": 1044.7,
+      "medianCharsPerPage": 649.5,
+      "maxCharsPerPage": 3883,
+      "lowTextPageRatio": 0.017,
+      "damageReasons": [
+        "khmer-coeng-missing",
+        "khmer-coeng-detached",
+        "khmer-vowels-orphaned",
+        "khmer-glyph-spacing"
+      ]
+    },
+    {
+      "id": "df31fc2c-fdaf-437b-9769-e3baa7dfd525",
+      "slug": "ច្បាប់ស្ដីពីសហលក្ខន្ដិកៈមន្ត្រីរាជការស៊ីវិល",
+      "title": "ច្បាប់ស្ដីពីសហលក្ខន្ដិកៈមន្ត្រីរាជការស៊ីវិល",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "e028f7b3-1840-441d-96d5-0506a9c5cbaf",
+      "slug": "ថ្នាក់ទី១២-english",
+      "title": "ថ្នាក់ទី១២៖ English",
+      "language": "English",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "e05bc12d-369e-4acd-a518-7659982ffaa3",
+      "slug": "សៀវភៅគ្រូគណិតវិទ្យាថ្នាក់ទី១០",
+      "title": "សៀវភៅគ្រូគណិតវិទ្យាថ្នាក់ទី១០",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "e1151382-eb25-43d3-a53f-2273d9f68270",
+      "slug": "ថ្នាក់ទី២-វិទ្យាសាស្ត្រ-សិក្សាសង្គម",
+      "title": "ថ្នាក់ទី២៖ វិទ្យាសាស្ត្រ សិក្សាសង្គម",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "e4247f5c-bbe5-4f1e-8c53-a4ae10da4673",
+      "slug": "សៀវភៅលំហាត់-គណិតវិទ្យា-ថ្នាក់ទី៣-ប២",
+      "title": "សៀវភៅលំហាត់ គណិតវិទ្យា ថ្នាក់ទី៣ ប២",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "e7c07044-2423-403d-9fd2-c7ec8ddc7291",
+      "slug": "កិច្ចតែងការភាសាខ្មែរ-ថ្នាក់ទី១០",
+      "title": "កិច្ចតែងការភាសាខ្មែរ ថ្នាក់ទី១០",
+      "language": "Khmer",
+      "candidateReasons": [
+        "khmer-coeng-missing"
+      ],
+      "blockers": [],
+      "indexStatus": "indexed",
+      "failureKind": null,
+      "bookPageCount": 427,
+      "meanCharsPerPage": 853,
+      "medianCharsPerPage": 832,
+      "maxCharsPerPage": 2153,
+      "lowTextPageRatio": 0,
+      "damageReasons": [
+        "khmer-coeng-missing",
+        "khmer-vowels-orphaned"
+      ]
+    },
+    {
+      "id": "e837178a-9fb6-4c34-9e4d-6af3b6a0ecba",
+      "slug": "សន្ទានុក្រមពាក្យថ្មី",
+      "title": "សន្ទានុក្រមពាក្យថ្មី",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "e9bec8a1-8b8a-4bea-8685-aec5869a0d25",
+      "slug": "លំហាត់មេរៀនរូបវិទ្យាថ្នាក់ទី៨",
+      "title": "លំហាត់មេរៀនរូបវិទ្យាថ្នាក់ទី៨",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "ea3f0ed8-5193-4232-861b-7310cf93f06f",
+      "slug": "បរិវត្តកម្មឌីជីថលក្នុងប្រព័ន្ធគាំពារសង្គមផែនការយុទ្ធសាស្ត្រ-២០២៤",
+      "title": "បរិវត្តកម្មឌីជីថលក្នុងប្រព័ន្ធគាំពារសង្គមផែនការយុទ្ធសាស្ត្រ ២០២៤-",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "ed37d45e-48b0-4ad9-a77a-3e2d65e50183",
+      "slug": "ថូម៉ាស-ម័រ-thomas-more",
+      "title": "ថូម៉ាស ម័រ (Thomas More)",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "edfdfd31-0142-496b-9032-723f196b6707",
+      "slug": "essential-english-for-foreign-students-book-3",
+      "title": "Essential English for Foreign Students: Book 3",
+      "language": "English",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "ef375928-3504-4d6a-a0a1-6fe0c7e73591",
+      "slug": "ថ្នាក់ទី១០-គណិតវិទ្យា-ភាគ២",
+      "title": "ថ្នាក់ទី១០៖ គណិតវិទ្យា ភាគ២",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "f10f3b09-7114-4027-b190-88360a4339fa",
+      "slug": "កម្រងវិញ្ញាសាប្រឡងសញ្ញាបត្រមធ្យមសិក្សាទុតិយភូមិ-ថ្នាក់វិទ្យាសាស្ដ",
+      "title": "កម្រងវិញ្ញាសាប្រឡងសញ្ញាបត្រមធ្យមសិក្សាទុតិយភូមិ(ថ្នាក់វិទ្យាសាស្ដ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "f573d097-9ca7-4e59-919e-aaeaa6d1fb4f",
+      "slug": "ថ្នាក់ទី១២-គណិតវិទ្យា-កម្រិតខ្ពស់",
+      "title": "ថ្នាក់ទី១២៖ គណិតវិទ្យា កម្រិតខ្ពស់",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "f726ccfd-8903-42e9-9294-2660e886b805",
+      "slug": "ថ្នាក់ទី១២-សេដ្ឋកិច្ចវិទ្យា",
+      "title": "ថ្នាក់ទី១២៖ សេដ្ឋកិច្ចវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "f7b4d54d-2b6e-4c07-a04d-039ad44d0c39",
+      "slug": "ថ្នាក់ទី៥-សិក្សាសង្គម",
+      "title": "ថ្នាក់ទី៥៖ សិក្សាសង្គម",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "f8ccdfd1-abd9-48a2-badc-a7557de817e2",
+      "slug": "គណិតវិទ្យាថ្នាក់ទី៥",
+      "title": "គណិតវិទ្យាថ្នាក់ទី៥",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "fbbc34f0-ff76-4fab-9493-92dc0e662f57",
+      "slug": "ថ្នាក់ទី៧-គណិតវិទ្យា",
+      "title": "ថ្នាក់ទី៧៖ គណិតវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "fbe19892-4d9a-4ebd-965c-c7167c3d54aa",
+      "slug": "សំណួរចម្លើយជីវ",
+      "title": "សំណួរចម្លើយជីវ.",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "fbfa28ea-532e-4bd3-a873-641ec7d60333",
+      "slug": "ថ្នាក់ទី៧-សិក្សាសង្គម",
+      "title": "ថ្នាក់ទី៧៖ សិក្សាសង្គម",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "fd6e41ad-f28a-47ef-86ad-d10f0f8f162c",
+      "slug": "ថ្នាក់ទី៤-វិទ្យាសាស្ត្រ",
+      "title": "ថ្នាក់ទី៤៖ វិទ្យាសាស្ត្រ",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "fdc1bbbf-439f-4162-a0c0-0b26cf9e1695",
+      "slug": "គណិតវិទ្យា-ថ្នាក់ទី១-សៀវភៅហ្វឹកហាត់",
+      "title": "គណិតវិទ្យា ថ្នាក់ទី១ សៀវភៅហ្វឹកហាត់",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "fde13508-9cd0-42c1-8883-0809c4f88754",
+      "slug": "កំណែលំហាត់គិមីថ្នាក់ទី១០ឆ្នាំ១៩៩៧",
+      "title": "កំណែលំហាត់គិមីថ្នាក់ទី១០ឆ្នាំ១៩៩៧",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    },
+    {
+      "id": "ffab6940-0493-4618-b81e-e3bb144fd747",
+      "slug": "ថ្នាក់ទី១០-រូបវិទ្យា",
+      "title": "ថ្នាក់ទី១០៖ រូបវិទ្យា",
+      "language": "Khmer",
+      "candidateReasons": [
+        "no-text-layer"
+      ],
+      "blockers": [],
+      "indexStatus": "no_text_layer",
+      "failureKind": "permanent",
+      "bookPageCount": 0,
+      "meanCharsPerPage": null,
+      "medianCharsPerPage": null,
+      "maxCharsPerPage": null,
+      "lowTextPageRatio": 0,
+      "damageReasons": []
+    }
+  ]
+}
