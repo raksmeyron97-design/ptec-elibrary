@@ -149,6 +149,33 @@ export function sampleForHealth(
   );
 }
 
+/**
+ * Can this book be skipped WITHOUT recognising a single page?
+ *
+ * `decideRecordWrite` needs the OCR result to decide, so it necessarily runs
+ * after the work is done. This asks the one question that does not: a record
+ * whose existing pages already read as healthy is skipped no matter what OCR
+ * would have produced, so spending ten minutes of CPU to reach that conclusion
+ * is pure waste.
+ *
+ * It matters most on a RESUMED batch. A 218-book run over a laptop that sleeps
+ * will be interrupted, and without this an operator restarting it re-recognises
+ * every completed book — hours of work to re-derive a skip. With it, a resume
+ * costs one query per finished book.
+ *
+ * Deliberately narrower than `decideRecordWrite`: it answers only "definitely
+ * skip", never "definitely write", because every other outcome genuinely
+ * depends on what the recognizer produced.
+ */
+export function canSkipBeforeOcr(input: {
+  existing: { pages: number; health: TextHealth | null };
+  force: boolean;
+}): boolean {
+  if (input.force) return false;
+  if (input.existing.pages === 0) return false;
+  return input.existing.health?.verdict === "healthy";
+}
+
 export type WriteDecision =
   | { write: true; replaces: "nothing" | "damaged-text" | "unjudged-text" | "healthy-text" }
   | { write: false; code: "OCR_EMPTY" | "TEXT_HEALTH_FAILED" | "EXISTING_TEXT_HEALTHY" };

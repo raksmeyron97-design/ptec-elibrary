@@ -403,6 +403,7 @@ schedules no retry and sets no failure kind.
 | `--slug <slug>` | | OCR one book |
 | `--limit <n>` | | take the first *n* books from the queue |
 | `--queue <path>` | `scripts/scanned-books-queue.json` | queue file (`$OCR_QUEUE_PATH`) |
+| `--reason <r>` | all | only queue entries carrying this candidate reason |
 | `--dry-run` | **on** | read 3 pages, write nothing |
 | `--apply` | off | the only writing mode |
 | `--force` | off | permit replacing text judged *healthy*; never permits storing damaged OCR |
@@ -607,7 +608,100 @@ pipeline; every production interaction recorded here was a read.
 
 ---
 
-## 13. Cost
+## 13. Running the batch on the ZimaOS box
+
+A full pass over the scanned collection is a **multi-day** job. It belongs on
+the box, not on a laptop — not because the box is faster (it is a 4-core
+virtualised x86_64, fewer cores than a typical laptop) but because it can run
+unattended for days without sleeping, and without competing with whatever else
+is on the workstation. A run measured at 2.7–7.0 s/page on a quiet laptop was
+26.4 s/page on the same laptop at load average 136.
+
+### The batch is resumable, so an interrupted run costs almost nothing
+
+`canSkipBeforeOcr` asks whether a record already holds healthy text *before*
+recognising a page, so re-running the same command skips completed books at
+about a second each rather than re-recognising them for ten minutes each.
+Interrupting a batch is safe at any point: a book is written only after all its
+pages are read, so a killed run leaves the in-flight book with **zero** rows,
+never a partial index (verified — the book interrupted mid-run held 0 rows).
+
+### One-time setup on the box
+
+```bash
+ssh <box>
+cd /DATA/AppData/ptec-elibrary/app
+git pull                                    # must include the OCR commit
+
+cp infra/ocr/.env.ocr.example infra/ocr/.env.ocr
+$EDITOR infra/ocr/.env.ocr                  # Supabase + Zima, same deployment
+```
+
+The OCR image is **built on the box**, which is a deliberate exception to "the
+box does not build" in `docs/ZIMAOS-DEPLOYMENT.md`. That rule exists because
+cross-building the Next.js app under emulation took 40+ minutes; this image
+runs no webpack build at all — it is `apt-get install` plus `npm ci`. If you
+would rather keep the box build-free, publish it to GHCR the way
+`docker-publish.yml` publishes the app and pull it instead; nothing in the
+worker depends on which way the image arrived.
+
+```bash
+cd infra/ocr
+docker compose build                        # ~10 min; fails if khm is missing
+docker compose run --rm ocr npx tsx scripts/ocr-khmer-tesseract.ts --check-env
+```
+
+Expect `tesseract 5.3.0 · poppler 22.12.0`, `languages: eng, khm, osd`, and
+`Hosted OCR / inference API calls: 0`.
+
+### Run the scanned books
+
+```bash
+cd /DATA/AppData/ptec-elibrary/app/infra/ocr
+docker compose run --rm -d --name ptec-ocr-batch ocr \
+  npx tsx scripts/ocr-khmer-tesseract.ts \
+  --reason no-text-layer --limit 218 --apply --lang khm+eng
+```
+
+`--reason no-text-layer` selects the 218 books that hold **no text at all**, so
+OCR can only add and there is nothing to lose. It reads the committed
+`scripts/scanned-books-queue.json`, so no file needs to be copied to the box.
+The remaining 14 (`khmer-legacy-font`, `khmer-coeng-missing`, `low-text-yield`)
+are deliberately excluded: those hold text that OCR would REPLACE, and §12
+shows why that is a per-book judgement.
+
+Detached (`-d`) so it survives the SSH session. Follow it with:
+
+```bash
+docker logs -f ptec-ocr-batch
+docker logs ptec-ocr-batch | grep -c '→ '          # books finished
+docker logs ptec-ocr-batch | grep -E '→ (failed|skipped)'
+```
+
+To stop, `docker stop ptec-ocr-batch`; to resume, re-run the same command.
+
+### If the box is struggling
+
+Tesseract's OpenMP pool is most of its CPU appetite, and on a small box capping
+it often raises total throughput rather than lowering it:
+
+```bash
+docker compose run --rm -e OMP_THREAD_LIMIT=1 ocr npx tsx …
+```
+
+Measure before and after on the same book with `--page-start/--page-end`; do
+not assume it helps.
+
+### Disk
+
+The image is ~3.8 GB, because `npm ci` installs the whole dependency tree —
+`tsx` and `dotenv` are devDependencies and every script here runs through them.
+Rendered pages are written to the `ocr-work` volume one page at a time and
+deleted immediately, so the working set is one PNG, not a book.
+
+---
+
+## 14. Cost
 
 - **OCR engine**: Tesseract, open source, running on our own CPU.
 - **Google OCR API calls during OCR: 0.**

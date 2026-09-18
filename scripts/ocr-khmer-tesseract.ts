@@ -74,6 +74,7 @@ import {
   type PreprocessMode,
 } from "../lib/ocr/tesseract";
 import {
+  canSkipBeforeOcr,
   decideRecordWrite,
   isStorablePage,
   postProcessOcrPage,
@@ -114,6 +115,17 @@ const QUEUE_PATH = path.resolve(
   valueOf("--queue") ?? process.env.OCR_QUEUE_PATH ?? path.join(__dirname, "scanned-books-queue.json"),
 );
 const OUTPUT_DIR = valueOf("--output-dir") ?? process.env.OCR_WORK_DIR ?? null;
+/**
+ * Take only queue entries carrying this candidate reason.
+ *
+ * The queue mixes classes that behave nothing alike. A `no-text-layer` book
+ * holds no text, so OCR can only add; a `khmer-legacy-font` book holds text
+ * that OCR REPLACES, and replacing it is a judgement call per book — the
+ * chemistry lab manual whose formulas OCR degraded is why. Filtering by reason
+ * lets an operator run the safe class unattended and keep the rest for review,
+ * off the one committed queue file rather than a hand-made copy of it.
+ */
+const REASON = valueOf("--reason") ?? null;
 
 /**
  * Pages a dry run reads when no explicit range was given.
@@ -199,23 +211,40 @@ async function fetchBookBySlug(db: SupabaseClient, slug: string): Promise<Target
   };
 }
 
+/**
+ * Ids per `in(...)` lookup.
+ *
+ * PostgREST filters travel in the QUERY STRING, so `in.(id1,id2,…)` grows the
+ * URL by ~37 characters per uuid and the server answers `414 URI too long`
+ * well before a full queue fits. Measured: 218 ids is far over the line, 3 is
+ * fine — which is exactly the shape of bug that passes every small test and
+ * fails on the first real batch, so the batching is here rather than in the
+ * caller's head.
+ */
+const ID_LOOKUP_CHUNK = 50;
+
 async function fetchBooksById(db: SupabaseClient, ids: readonly string[]): Promise<TargetBook[]> {
   if (ids.length === 0) return [];
-  const { data, error } = await db
-    .from("books")
-    .select("id, slug, title, book_files(file_url)")
-    .in("id", [...ids]);
-  if (error) throw new OcrError("BOOK_NOT_FOUND", `books lookup failed: ${error.message}`);
+
   const byId = new Map<string, TargetBook>();
-  for (const row of data ?? []) {
-    const files = (row.book_files ?? []) as Array<{ file_url: string | null }>;
-    byId.set(row.id as string, {
-      id: row.id as string,
-      slug: (row.slug as string | null) ?? null,
-      title: (row.title as string) ?? "",
-      fileUrl: files.map((f) => f.file_url).find((u): u is string => !!u) ?? null,
-    });
+  for (let from = 0; from < ids.length; from += ID_LOOKUP_CHUNK) {
+    const slice = ids.slice(from, from + ID_LOOKUP_CHUNK);
+    const { data, error } = await db
+      .from("books")
+      .select("id, slug, title, book_files(file_url)")
+      .in("id", [...slice]);
+    if (error) throw new OcrError("BOOK_NOT_FOUND", `books lookup failed: ${error.message}`);
+    for (const row of data ?? []) {
+      const files = (row.book_files ?? []) as Array<{ file_url: string | null }>;
+      byId.set(row.id as string, {
+        id: row.id as string,
+        slug: (row.slug as string | null) ?? null,
+        title: (row.title as string) ?? "",
+        fileUrl: files.map((f) => f.file_url).find((u): u is string => !!u) ?? null,
+      });
+    }
   }
+
   // Queue order is the operator's order; a Postgres `in` result is not.
   return ids.map((id) => byId.get(id)).filter((b): b is TargetBook => !!b);
 }
@@ -329,6 +358,22 @@ async function ocrBook(db: SupabaseClient, book: TargetBook): Promise<BookOutcom
     const totalPages = await pdfPageCount(pdfPath);
     outcome.pdfPages = totalPages;
 
+    /* Ask the one question that does not need the recognizer, before paying
+       for it. A record whose pages already read as healthy is skipped whatever
+       OCR would have said, and on a resumed batch that is the difference
+       between one query and ten minutes of CPU per finished book. */
+    const existing = await fetchExistingPages(db, book.id);
+    const existingHealth = existing.count > 0 ? sampleForHealth(existing.sample) : null;
+    if (canSkipBeforeOcr({ existing: { pages: existing.count, health: existingHealth }, force: FORCE })) {
+      return {
+        ...outcome,
+        status: "skipped",
+        code: "EXISTING_TEXT_HEALTHY",
+        detail: `already holds ${existing.count} healthy page(s); pass --force to replace them`,
+        elapsedMs: Date.now() - started,
+      };
+    }
+
     const first = Math.max(1, Math.trunc(PAGE_START));
     const explicitEnd = PAGE_END > 0 ? Math.min(PAGE_END, totalPages) : 0;
     const last = explicitEnd > 0
@@ -389,9 +434,8 @@ async function ocrBook(db: SupabaseClient, book: TargetBook): Promise<BookOutcom
     const health = sampleForHealth(ocrPages);
     outcome.health = health;
 
-    const existing = await fetchExistingPages(db, book.id);
     const decision = decideRecordWrite({
-      existing: { pages: existing.count, health: existing.count > 0 ? sampleForHealth(existing.sample) : null },
+      existing: { pages: existing.count, health: existingHealth },
       ocr: { pages: ocrPages.length, health },
       force: FORCE,
     });
@@ -568,6 +612,10 @@ PTEC Khmer OCR (self-hosted Tesseract — no OCR API, no per-page cost)
   --limit <n>            Take the first n books from the queue.
   --queue <path>         Queue file (default scripts/scanned-books-queue.json,
                          or $OCR_QUEUE_PATH).
+  --reason <r>           Only queue entries carrying this candidate reason,
+                         e.g. no-text-layer (books that hold no text at all, so
+                         OCR can only add) vs khmer-legacy-font (OCR REPLACES
+                         text — review those individually).
 
   --dry-run              Default. Reads ${DRY_RUN_PAGES} pages and writes NOTHING.
   --apply                Write the result to book_pages. The only writing mode.
@@ -633,8 +681,22 @@ async function main() {
       );
       process.exit(1);
     }
-    books = await fetchBooksById(db, queue.books.slice(0, LIMIT).map((b) => b.id));
+    const all = queue.books;
+    const selected = REASON ? all.filter((b) => (b.candidateReasons ?? []).includes(REASON)) : all;
+    if (REASON && selected.length === 0) {
+      console.error(
+        `✖ No book in ${QUEUE_PATH} carries the reason "${REASON}". ` +
+          `Present: ${[...new Set(all.flatMap((b) => b.candidateReasons ?? []))].join(", ")}`,
+      );
+      process.exit(1);
+    }
+    books = await fetchBooksById(db, selected.slice(0, LIMIT).map((b) => b.id));
     log(`Queue: ${QUEUE_PATH} (built ${queue.generatedAt ?? "at an unrecorded time"} against ${queue.target ?? "an unrecorded target"})`);
+    log(
+      REASON
+        ? `Filter: --reason ${REASON} — ${selected.length} of ${all.length} entries, taking ${books.length}`
+        : `No reason filter — ${all.length} entries, taking ${books.length}`,
+    );
   } else {
     usage();
     egress.restore();

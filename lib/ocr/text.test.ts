@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  canSkipBeforeOcr,
   decideRecordWrite,
   isStorablePage,
   normalizeOcrText,
@@ -146,6 +147,52 @@ describe("sampleForHealth", () => {
       ...Array.from({ length: 30 }, (_, i) => ({ pageNo: i + 4, content: KHMER_PROSE })),
     ];
     expect(sampleForHealth(pages, 10).script).toBe("khmer");
+  });
+});
+
+describe("canSkipBeforeOcr — the question that does not need the recognizer", () => {
+  const healthy = analyzeTextHealth(KHMER_PROSE);
+  const damaged = analyzeTextHealth("ស ៀវសៅណែនាំប្រតិរតតិ តី ពី ប្ ពះរាជាណាចប្ ររម្ ពុ ជា ".repeat(8));
+
+  it("skips a record whose pages already read as healthy", () => {
+    expect(canSkipBeforeOcr({ existing: { pages: 120, health: healthy }, force: false })).toBe(true);
+  });
+
+  it("does not skip an empty record", () => {
+    expect(canSkipBeforeOcr({ existing: { pages: 0, health: null }, force: false })).toBe(false);
+  });
+
+  it("does not skip damaged or unjudged text — those need the OCR result to decide", () => {
+    expect(canSkipBeforeOcr({ existing: { pages: 80, health: damaged }, force: false })).toBe(false);
+    expect(
+      canSkipBeforeOcr({ existing: { pages: 80, health: analyzeTextHealth("12") }, force: false }),
+    ).toBe(false);
+  });
+
+  it("never skips under --force, which exists to replace healthy text", () => {
+    expect(canSkipBeforeOcr({ existing: { pages: 120, health: healthy }, force: true })).toBe(false);
+  });
+
+  /**
+   * The property that makes a resumed batch cheap: anything this skips early,
+   * `decideRecordWrite` would also have refused after doing the work. The early
+   * answer must never contradict the late one.
+   */
+  it("only ever pre-skips what decideRecordWrite would refuse anyway", () => {
+    for (const existingHealth of [healthy, damaged, analyzeTextHealth("12"), null]) {
+      for (const pages of [0, 120]) {
+        for (const force of [false, true]) {
+          const existing = { pages, health: existingHealth };
+          if (!canSkipBeforeOcr({ existing, force })) continue;
+          const late = decideRecordWrite({
+            existing,
+            ocr: { pages: 200, health: healthy },
+            force,
+          });
+          expect(late).toEqual({ write: false, code: "EXISTING_TEXT_HEALTHY" });
+        }
+      }
+    }
   });
 });
 
