@@ -21,6 +21,33 @@
  *   npx tsx scripts/embed-library.ts --chunks-only    # skip the metadata phase
  *   npx tsx scripts/embed-library.ts --metadata-only  # skip the chunk phase
  *   npx tsx scripts/embed-library.ts --limit 5        # cap chunk-phase records (verification runs)
+ *   npx tsx scripts/embed-library.ts --offset 400 --limit 400   # one disjoint slice (see below)
+ *
+ * PARALLELISING, AND WHY IT NEEDS BOTH FLAGS
+ *
+ * Measured 2026-09-17, this script runs at ~0.6 records/min against production
+ * from outside the network — ~38 hours for a full backfill. The bottleneck is
+ * NOT the model: at `EMBED_BATCH` 16 a call takes ~2.6 s against a 200 ms
+ * delay, and the remainder is the `INSERT_BATCH` of 40 rows × 768-dim vectors
+ * crossing the Cloudflare tunnel. It is latency-bound, so concurrent processes
+ * do scale it — but ONLY over disjoint slices.
+ *
+ * `embedRecordChunks` DELETES a record's chunks and then re-inserts them, and
+ * every process computes its target list once at startup from the same sorted
+ * scan. Two processes started without an offset therefore take the same head
+ * of the same queue and race delete-against-insert on identical records. That
+ * is why `--offset` exists and why it is useless alone: slices must be bounded
+ * at both ends, so each process carries `--offset N --limit M` with no overlap.
+ *
+ *   # 1,200 records over 4 processes, disjoint
+ *   for i in 0 1 2 3; do
+ *     npx tsx scripts/embed-library.ts --chunks-only \
+ *       --offset $((i * 300)) --limit 300 &
+ *   done
+ *
+ * Running it ON THE BOX instead removes the bottleneck rather than hiding it:
+ * the insert becomes a private Docker-network hop, and no concurrency is
+ * needed.
  *
  * Env (.env.local):
  *   NEXT_PUBLIC_SUPABASE_URL  (or SUPABASE_URL)
@@ -74,6 +101,14 @@ const CHUNKS_ONLY = process.argv.includes("--chunks-only");
 const METADATA_ONLY = process.argv.includes("--metadata-only");
 const limitArg = process.argv.indexOf("--limit");
 const CHUNK_RECORD_LIMIT = limitArg !== -1 ? Number(process.argv[limitArg + 1]) || 0 : 0;
+/**
+ * Skip this many chunk-phase records before starting. For running disjoint
+ * slices in parallel — see the header. Never use it without `--limit`: an
+ * unbounded slice overlaps every slice after it, and overlapping processes
+ * race `embedRecordChunks`'s delete-then-insert on the same record.
+ */
+const offsetArg = process.argv.indexOf("--offset");
+const CHUNK_RECORD_OFFSET = offsetArg !== -1 ? Math.max(0, Number(process.argv[offsetArg + 1]) || 0) : 0;
 
 const BATCH = 20; // texts per embedding call
 const PAGE = 200; // rows fetched per DB page
@@ -275,10 +310,27 @@ async function processChunks(): Promise<{ failed: number }> {
     REEMBED_ALL ? Promise.resolve(new Set<string>()) : fetchRecordKeys("book_chunks"),
   ]);
 
+  // Sorted, so an offset names the SAME record in every process. An unsorted
+  // scan would make the slices overlap silently.
   let targets = [...pageKeys].filter((k) => !chunkedKeys.has(k)).sort();
+  const available = targets.length;
+  if (CHUNK_RECORD_OFFSET > 0) targets = targets.slice(CHUNK_RECORD_OFFSET);
   if (CHUNK_RECORD_LIMIT > 0) targets = targets.slice(0, CHUNK_RECORD_LIMIT);
 
-  console.log(`\n▶ book_chunks: ${targets.length} records to embed (${chunkedKeys.size} already embedded, skipped)`);
+  if (CHUNK_RECORD_OFFSET > 0 && CHUNK_RECORD_LIMIT === 0) {
+    console.warn(
+      "  ! --offset without --limit: this slice runs to the end and will overlap any later slice.\n" +
+        "    Overlapping processes race delete-then-insert on the same record. Add --limit.",
+    );
+  }
+
+  const slice =
+    CHUNK_RECORD_OFFSET > 0 || CHUNK_RECORD_LIMIT > 0
+      ? ` [slice ${CHUNK_RECORD_OFFSET}–${CHUNK_RECORD_OFFSET + targets.length} of ${available}]`
+      : "";
+  console.log(
+    `\n▶ book_chunks: ${targets.length} records to embed (${chunkedKeys.size} already embedded, skipped)${slice}`,
+  );
 
   let done = 0, embeddedRecords = 0, totalChunks = 0, failed = 0;
   for (const key of targets) {
