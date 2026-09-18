@@ -33,7 +33,7 @@ const CORE_VALUES = [
   { km: "បរិយាបន្ន", en: "Inclusion" },
 ];
 
-function SectionHeading({ km, en }: { km: string; en: string }) {
+function SectionHeading({ id, km, en }: { id: string; km: string; en: string }) {
   return (
     <div className="flex items-center gap-3">
       <div
@@ -42,7 +42,14 @@ function SectionHeading({ km, en }: { km: string; en: string }) {
         aria-hidden="true"
       />
       <div>
+        {/* Required, not optional. Each <section> below names itself with
+            `aria-labelledby="<id>-heading"`, and this <h2> is the element that
+            id belongs to — it was never rendered, so all five sections were
+            landmarks with a dangling reference and therefore NO accessible
+            name at all. Typing it as required means a new section cannot
+            reintroduce that silently. */}
         <h2
+          id={id}
           className="font-kh text-xl font-bold text-text-heading leading-snug"
           lang="km"
         >
@@ -112,7 +119,7 @@ export default function AboutPage() {
 
         {/* Introduction */}
         <section aria-labelledby="intro-heading">
-          <SectionHeading km="ការណែនាំ" en="Introduction" />
+          <SectionHeading id="intro-heading" km="ការណែនាំ" en="Introduction" />
           <div className="mt-6 rounded-2xl border border-divider bg-bg-surface p-6 md:p-8">
             <p
               className="font-kh text-text-body leading-[1.9] text-[15px]"
@@ -134,7 +141,7 @@ export default function AboutPage() {
 
         {/* Mission */}
         <section aria-labelledby="mission-heading">
-          <SectionHeading km="បេសកកម្ម" en="Mission" />
+          <SectionHeading id="mission-heading" km="បេសកកម្ម" en="Mission" />
           <div className="mt-6 grid md:grid-cols-2 gap-6">
             <div className="rounded-2xl border border-divider bg-bg-surface p-6">
               <div className="flex items-center gap-2 mb-4">
@@ -175,7 +182,7 @@ export default function AboutPage() {
 
         {/* Vision */}
         <section aria-labelledby="vision-heading">
-          <SectionHeading km="វិស័យ" en="Vision" />
+          <SectionHeading id="vision-heading" km="វិស័យ" en="Vision" />
           <div className="mt-6 grid md:grid-cols-2 gap-6">
             <blockquote
               className="rounded-2xl border border-divider bg-bg-surface p-6 border-l-4"
@@ -202,7 +209,7 @@ export default function AboutPage() {
 
         {/* Core Values */}
         <section aria-labelledby="values-heading">
-          <SectionHeading km="គុណតម្លៃស្នូល" en="Core Values" />
+          <SectionHeading id="values-heading" km="គុណតម្លៃស្នូល" en="Core Values" />
           <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 gap-4">
             {CORE_VALUES.map((v, i) => (
               <div
@@ -232,7 +239,7 @@ export default function AboutPage() {
 
         {/* Services */}
         <section aria-labelledby="services-heading">
-          <SectionHeading km="សេវាកម្ម" en="Services" />
+          <SectionHeading id="services-heading" km="សេវាកម្ម" en="Services" />
           <div className="mt-6 rounded-2xl border border-divider bg-bg-surface p-6 md:p-8">
             <p
               className="font-kh text-text-body leading-[1.9] text-[15px]"

@@ -1,18 +1,26 @@
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { getMessages, getTranslations } from "next-intl/server";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { openGraphBase } from "@/lib/seo/open-graph";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import JsonLd from "@/components/seo/JsonLd";
-import { PRIVACY_SECTIONS } from "@/lib/privacy/policy";
+import {
+  chapterAnchor,
+  POLICY_VERSIONS,
+  PRIVACY_CHAPTERS,
+  PRIVACY_SECTIONS,
+} from "@/lib/privacy/policy";
+import { readingTime } from "@/lib/policy/reading-time";
+import PolicyLayout from "@/components/policy/PolicyLayout";
+import VersionTimeline from "@/components/policy/VersionTimeline";
+import type { TocChapter } from "@/components/policy/PolicyTOC";
 import PrivacyHero from "./PrivacyHero";
 import PrivacySummaryCards from "./PrivacySummaryCards";
-import PrivacyTableOfContents from "./PrivacyTableOfContents";
+import PrivacyChapter from "./PrivacyChapter";
 import PrivacySection from "./PrivacySection";
 import PrivacyDataTable from "./PrivacyDataTable";
 import PrivacyProcessorList from "./PrivacyProcessorList";
 import PrivacyRightsCard from "./PrivacyRightsCard";
-import PolicyVersionHistory from "./PolicyVersionHistory";
 
 export async function generateMetadata({
   params,
@@ -20,26 +28,30 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "privacy.meta" });
+  const tMeta = await getTranslations({ locale, namespace: "privacy.meta" });
   const alternates = localeAlternates("/privacy", locale);
   return {
-    title: t("title"),
-    description: t("description"),
+    title: tMeta("title"),
+    description: tMeta("description"),
     alternates,
     openGraph: {
       ...(await openGraphBase(locale)),
-      title: t("ogTitle"),
-      description: t("ogDescription"),
+      title: tMeta("ogTitle"),
+      description: tMeta("ogDescription"),
       url: alternates.canonical,
       type: "website",
     },
     twitter: {
       card: "summary",
-      title: t("ogTitle"),
-      description: t("ogDescription"),
+      title: tMeta("ogTitle"),
+      description: tMeta("ogDescription"),
     },
   };
 }
+
+// next-intl forbids "." in message keys, so a version summary is stored under a
+// dot-free key: "2.0" -> "v2_0".
+const summaryKey = (version: string) => `v${version.replace(/\./g, "_")}`;
 
 export default async function PrivacyPage({
   params,
@@ -48,53 +60,94 @@ export default async function PrivacyPage({
 }) {
   const { locale } = await params;
   const km = locale === "km";
+  // Bound with a plain `const`, not destructured from Promise.all: both
+  // resolve from the same request-scoped cache so there is nothing to
+  // parallelise, and lib/i18n-keys.test.ts can only attribute a key to a
+  // namespace it can see bound.
   const t = await getTranslations("privacy");
+  const messages = await getMessages();
 
-  // TOC items — labels from the section headings, ids stable across locales.
-  const tocItems = PRIVACY_SECTIONS.map((s) => ({
-    id: s.id,
-    label: t(`sections.${s.id}.title`),
+  // The chapters group the SAME sections in the SAME order — a section is
+  // rendered by the chapter that claims it, and PRIVACY_SECTIONS remains the
+  // ordering authority. `special` still decides which extra element a section
+  // carries, so adding one never means touching this file.
+  const specialOf = new Map(PRIVACY_SECTIONS.map((s) => [s.id, s.special]));
+
+  const tocChapters: TocChapter[] = PRIVACY_CHAPTERS.map((chapter, i) => ({
+    id: chapterAnchor(chapter.id),
+    number: i + 1,
+    label: t(`chapters.${chapter.id}.title`),
+    items: chapter.sections.map((id) => ({ id, label: t(`sections.${id}.title`) })),
   }));
 
-  const breadcrumb = breadcrumbSchema([
-    { name: t("breadcrumb.home"), path: "/" },
-    { name: t("breadcrumb.current") },
-  ], { locale });
+  // Measured from the catalogue the page actually renders, in the locale it is
+  // rendering — so the Khmer page reports the Khmer document's length, not the
+  // English one's. See lib/policy/reading-time.ts for why this is not a word
+  // count.
+  const { minutes } = readingTime(
+    (messages as { privacy?: { sections?: unknown; table?: unknown } }).privacy,
+  );
+
+  const breadcrumb = breadcrumbSchema(
+    [{ name: t("breadcrumb.home"), path: "/" }, { name: t("breadcrumb.current") }],
+    { locale },
+  );
 
   return (
-    <div className="bg-paper">
+    <>
       <JsonLd data={breadcrumb} />
-      <PrivacyHero km={km} />
+      <PrivacyHero km={km} readingTime={t("hero.readingTime", { minutes })} />
 
-      <div className="mx-auto max-w-[1200px] px-4 pb-16 sm:px-6 md:px-8">
-        <div className="lg:grid lg:grid-cols-[248px_minmax(0,1fr)] lg:gap-10">
-          {/* Table of contents (sticky on desktop, disclosure on mobile) */}
-          <div className="pt-8 lg:pt-10">
-            <PrivacyTableOfContents
-              items={tocItems}
-              title={t("toc.title")}
-              mobileLabel={t("toc.mobileLabel")}
+      <PolicyLayout
+        chapters={tocChapters}
+        km={km}
+        labels={{
+          tocTitle: t("toc.title"),
+          tocMobile: t("toc.mobileLabel"),
+          backToTop: t("toc.backToTop"),
+        }}
+      >
+        <PrivacySummaryCards km={km} />
+
+        <div className="mt-12 space-y-16">
+          {PRIVACY_CHAPTERS.map((chapter, i) => (
+            <PrivacyChapter
+              key={chapter.id}
+              id={chapterAnchor(chapter.id)}
+              number={i + 1}
+              title={t(`chapters.${chapter.id}.title`)}
+              summary={t(`chapters.${chapter.id}.summary`)}
               km={km}
-            />
-          </div>
-
-          {/* Main policy content */}
-          <div className="min-w-0 pt-2 lg:pt-10">
-            <PrivacySummaryCards km={km} />
-
-            <div className="mt-12 max-w-[820px] space-y-12">
-              {PRIVACY_SECTIONS.map((section) => (
-                <PrivacySection key={section.id} id={section.id} km={km}>
-                  {section.special === "table" && <PrivacyDataTable km={km} />}
-                  {section.special === "processors" && <PrivacyProcessorList km={km} />}
-                  {section.special === "rights" && <PrivacyRightsCard km={km} />}
-                  {section.special === "versions" && <PolicyVersionHistory km={km} />}
-                </PrivacySection>
-              ))}
-            </div>
-          </div>
+            >
+              {chapter.sections.map((id) => {
+                const special = specialOf.get(id);
+                return (
+                  <PrivacySection key={id} id={id} km={km}>
+                    {special === "table" && <PrivacyDataTable km={km} />}
+                    {special === "processors" && <PrivacyProcessorList km={km} />}
+                    {special === "rights" && <PrivacyRightsCard km={km} />}
+                    {special === "versions" && (
+                      <VersionTimeline
+                        km={km}
+                        entries={POLICY_VERSIONS.map((v) => ({
+                          version: v.version,
+                          date: v.date,
+                          summary: t(`versions.${summaryKey(v.version)}`),
+                        }))}
+                        labels={{
+                          version: t("versions.versionLabel"),
+                          effective: t("versions.effectiveLabel"),
+                          current: t("versions.current"),
+                        }}
+                      />
+                    )}
+                  </PrivacySection>
+                );
+              })}
+            </PrivacyChapter>
+          ))}
         </div>
-      </div>
-    </div>
+      </PolicyLayout>
+    </>
   );
 }

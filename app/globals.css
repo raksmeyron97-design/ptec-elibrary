@@ -1995,3 +1995,274 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 .reader-swatch--green { background: #86EFAC; }
 .reader-swatch--blue { background: #93C5FD; }
 .reader-swatch--pink { background: #F9A8D4; }
+
+/* ══════════════════════════════════════════════════════════════════
+   POLICY PAGES — /privacy and /policy
+   (components/policy/*, app/[locale]/(public)/{privacy,policy}/*)
+
+   Two long-form trust documents that share one reading shell. Everything
+   here is either a token (so a component never hand-writes a colour) or a
+   print rule (so the paper copy is the whole document).
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Retention tint scale ──────────────────────────────────────────
+   A four-step cool→warm wash behind the Retention cell, so a reader can
+   rank ten rows without reading ten sentences. Built from the two brand
+   hues the site already owns — blue for the short end, gold for the long
+   end — rather than a third palette.
+
+   It is a WASH, never a signal on its own: the cell still prints the
+   actual retention ("1 year, then anonymous counts"), and the tint is
+   light enough in both themes that body text on it keeps the contrast it
+   has on the surface underneath. Nothing is encoded by colour alone. */
+:root {
+  /* Monotonic: faint blue → blue → faint gold → gold. The ramp moves in
+     HUE first and INTENSITY second, so the four steps stay ordered even for
+     a reader who cannot separate the two hues. The first draft had tier 1
+     stronger than tier 2, which put the shortest retention ahead of a longer
+     one on the only axis the scale encodes. */
+  --ptec-retention-1-soft: #F5F7FC;   /* short-term      — faintest */
+  --ptec-retention-1-line: #D9E2F7;   /* blue-100 */
+  --ptec-retention-2-soft: #EEF2FB;   /* until you act */
+  --ptec-retention-2-line: #B3C5EF;   /* blue-200 */
+  --ptec-retention-3-soft: #FDF8E7;   /* up to a year */
+  --ptec-retention-3-line: #F4DE8A;   /* gold-200 */
+  --ptec-retention-4-soft: #FAEFC4;   /* the long end    — strongest */
+  --ptec-retention-4-line: #EDCB55;   /* gold-300 */
+}
+:root.dark {
+  /* Low-alpha overlays rather than flat fills, exactly as the status
+     surfaces do in dark mode — a flat tint at this lightness would sit in
+     front of the surface instead of tinting it. */
+  /* The border alphas are much higher than the fills. On a dark surface a
+     fill this light is barely a tint — the 3px edge is what actually
+     separates the four steps, and at the first draft's .20–.34 it did not
+     read at all: three different retentions looked like one. The fills stay
+     low so body text on them keeps the contrast it has on the surface. */
+  --ptec-retention-1-soft: rgba(138, 164, 228, .07);
+  --ptec-retention-1-line: rgba(138, 164, 228, .42);
+  --ptec-retention-2-soft: rgba(138, 164, 228, .13);
+  --ptec-retention-2-line: rgba(138, 164, 228, .58);
+  --ptec-retention-3-soft: rgba(244, 222, 138, .08);
+  --ptec-retention-3-line: rgba(244, 222, 138, .44);
+  --ptec-retention-4-soft: rgba(244, 222, 138, .15);
+  --ptec-retention-4-line: rgba(244, 222, 138, .62);
+}
+
+/* UNLAYERED, deliberately — the same reason the focus-shell state rules
+   above are. These cells also carry `border-b border-divider`, and the
+   Tailwind `border-*` utilities set border-COLOR on all four sides from
+   `@layer utilities`, which outranks `@layer components`. Written inside
+   that layer, the tint's left edge came out the divider grey on all four
+   tiers: the fill still varied, the second channel was simply dead, and
+   nothing in the markup showed it.
+
+   An unlayered rule beats every layered one for normal declarations, so
+   this needs no `!important` and no extra specificity. */
+.retention-tint {
+  /* `border-left` only — not the shorthand. The shorthand would reset the
+     bottom border the table row draws through this cell. */
+  border-left-width: 3px;
+  border-left-style: solid;
+  border-left-color: transparent;
+}
+.retention-tint[data-tier="short"] {
+  background-color: var(--ptec-retention-1-soft);
+  border-left-color: var(--ptec-retention-1-line);
+}
+.retention-tint[data-tier="untilYouAct"] {
+  background-color: var(--ptec-retention-2-soft);
+  border-left-color: var(--ptec-retention-2-line);
+}
+.retention-tint[data-tier="upToAYear"] {
+  background-color: var(--ptec-retention-3-soft);
+  border-left-color: var(--ptec-retention-3-line);
+}
+.retention-tint[data-tier="long"] {
+  background-color: var(--ptec-retention-4-soft);
+  border-left-color: var(--ptec-retention-4-line);
+}
+
+/* ── Reading measure and rhythm ────────────────────────────────────
+   ~46rem of running text, and the leading each script needs. Khmer
+   stacks diacritics above AND below the baseline, so the Latin value
+   makes consecutive Khmer lines collide — the same reason .about-copy
+   carries a :lang(km) override. */
+.policy-measure {
+  max-width: 46rem;
+}
+.policy-copy {
+  line-height: 1.75;
+  text-wrap: pretty;
+}
+.policy-copy:lang(km),
+.policy-copy [lang="km"],
+[lang="km"] .policy-copy {
+  line-height: 1.95;
+}
+
+/* Long Khmer compounds have few break opportunities, so one "word" can
+   overflow a narrow table cell, and Khmer has no hyphenation to fall back
+   on — hence `anywhere` for that script.
+
+   Latin gets `break-word`, which is NOT the same thing and the difference
+   is the whole rule: `anywhere` lets the browser break between any two
+   characters whenever that produces a narrower line, so in a squeezed
+   table column it rendered "Download access profile" as "Downlo / ad
+   access profile" while there was still room for the whole word on the
+   next line. `break-word` breaks a word only when the word ALONE cannot
+   fit, which is the actual failure it is there to prevent. */
+.policy-wrap {
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+.policy-wrap:lang(km),
+[lang="km"] .policy-wrap {
+  overflow-wrap: anywhere;
+}
+
+/* ── Table row filtering ───────────────────────────────────────────
+   Filtering hides rows; it never re-flows a grid, so there is no layout
+   animation to jank. The fade is on the row itself and the row is then
+   removed from layout, which keeps the table's column widths stable
+   because the widest cell in each column is measured from the full set
+   on first paint.
+
+   `[hidden]` is set by the client island. Tailwind preflight already
+   hides it; this rule only adds the fade for the rows still showing. */
+@media (prefers-reduced-motion: no-preference) {
+  .policy-filterable [data-filter-row] {
+    transition: opacity .15s ease-out;
+  }
+}
+
+/* ── Reduced motion: the final state, instantly ────────────────────
+   A blanket stop for both policy pages rather than a `motion-reduce:`
+   variant on each call site. These pages carry motion from three
+   different sources — this file's own rules, Tailwind utilities like
+   `transition-colors` that have no reduced-motion behaviour of their
+   own, and the shared `.tab-panel-in` entrance — and a per-call-site
+   opt-out has to be remembered on every one of them forever. It was
+   already missed on the table's row-hover tint and on the chapter
+   headings. Scoped to `.policy-page` so it changes nothing elsewhere. */
+@media (prefers-reduced-motion: reduce) {
+  .policy-page,
+  .policy-page *,
+  .policy-page *::before,
+  .policy-page *::after,
+  .policy-to-top {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Floating back-to-top ──────────────────────────────────────────
+   Bottom-LEFT, deliberately: the assistant FAB (components/ui/ask/
+   AskWidget.tsx) is fixed bottom-right at z-40 on every public page, and
+   on a phone it already sits above the tab bar. A second circular button
+   in that corner is either underneath it or on top of it.
+
+   Clears the mobile tab bar with the shared token — never a private copy
+   of its height (lib/glass-tokens.test.ts fails on that). */
+.policy-to-top {
+  position: fixed;
+  left: 1rem;
+  bottom: calc(var(--ptec-mobile-nav-clearance) + 0.75rem);
+  z-index: 40;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity .15s ease-out, transform .15s ease-out;
+}
+.policy-to-top[data-visible="true"] {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+@media (min-width: 64rem) {
+  .policy-to-top {
+    left: 1.25rem;
+    bottom: 1.25rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .policy-to-top {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* ── Print ─────────────────────────────────────────────────────────
+   A printed policy is the WHOLE policy: every accordion open, every
+   expanded detail row shown, every filtered row back, and none of the
+   navigation that means nothing on paper. */
+@media print {
+  [data-policy-print="hide"] {
+    display: none !important;
+  }
+
+  /* Chapters start a fresh page; a heading never prints alone at the
+     bottom of one. */
+  .policy-chapter {
+    break-before: page;
+  }
+  .policy-chapter:first-of-type {
+    break-before: auto;
+  }
+  .policy-chapter h2,
+  .policy-chapter h3 {
+    break-after: avoid-page;
+  }
+
+  /* Black on white, and the tint scale off — a wash that is invisible on
+     screen prints as grey banding. */
+  .policy-page,
+  .policy-page * {
+    color: #000 !important;
+  }
+  .retention-tint {
+    background: transparent !important;
+    border-left-color: #999 !important;
+  }
+  /* A chip is a coloured pill on screen and an outlined label on paper. */
+  .policy-chip {
+    background: transparent !important;
+    border-color: #666 !important;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Policy pages — printing rows and panels the reader had collapsed
+
+   This lives in `@layer base`, and that is load-bearing for exactly the
+   reason the About pages' tabpanel rule does. Tailwind's preflight
+   declares
+
+       [hidden]:where(:not([hidden="until-found"])) { display: none !important }
+
+   inside `@layer base`, and for **important** declarations the cascade
+   REVERSES layer order — a layered `!important` beats an unlayered one
+   however specific the unlayered selector is. Written in the plain
+   @media print block above, this rule loses to preflight and every row
+   the reader filtered out, plus every FAQ answer they had not opened,
+   silently vanishes from the printed policy.
+
+   Declaring it in the SAME layer puts the two back on equal footing,
+   where specificity decides — and (0,3,0) beats (0,1,0).
+   ────────────────────────────────────────────────────────────────── */
+@layer base {
+  @media print {
+    .policy-print-expand [data-filter-row][hidden],
+    .policy-print-expand [data-detail-for][hidden],
+    .policy-print-expand [data-policy-panel][hidden] {
+      /* `revert`, not `block`: these are a <tr>, a <td> and a <div>, and
+         forcing `block` on a table row takes it out of the table's layout —
+         the cells lose their column alignment on paper. `revert` restores
+         each element's own UA default. */
+      display: revert !important;
+    }
+  }
+}
