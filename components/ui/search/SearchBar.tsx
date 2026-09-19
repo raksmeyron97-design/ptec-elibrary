@@ -173,6 +173,16 @@ export default function SearchBar({
   const showNoResults      = query.length >= 2 && !loading && suggestions.length === 0;
   const showSuggestions    = suggestions.length > 0;
 
+  /**
+   * Whether the listbox is actually ON THE PAGE. The dropdown is rendered
+   * only when it has something to put in it, so `open` alone is not the same
+   * question — and both `aria-expanded` and `aria-controls` were answering
+   * with `open`. That claimed an expanded popup that did not exist and
+   * pointed at an id nothing rendered, on every page carrying this search
+   * bar, in its resting state.
+   */
+  const dropdownVisible = open && (showRecentTrending || showNoResults || showSuggestions);
+
   return (
     <div className="relative w-full">
       <form onSubmit={handleSubmit} className="flex w-full flex-row items-center gap-2.5">
@@ -214,9 +224,9 @@ export default function SearchBar({
             autoComplete="off"
             aria-label={placeholder}
             aria-autocomplete="list"
-            aria-expanded={open}
+            aria-expanded={dropdownVisible}
             aria-haspopup="listbox"
-            aria-controls="searchbar-listbox"
+            aria-controls={dropdownVisible ? "searchbar-listbox" : undefined}
           />
 
           {/* Search icon — desktop left side */}
@@ -288,7 +298,7 @@ export default function SearchBar({
       </form>
 
       {/* Dropdown */}
-      {open && (showRecentTrending || showNoResults || showSuggestions) && (
+      {dropdownVisible && (
         <div
           ref={dropdownRef}
           id="searchbar-listbox"

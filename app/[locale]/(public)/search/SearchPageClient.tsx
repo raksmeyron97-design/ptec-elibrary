@@ -643,6 +643,16 @@ export default function SearchPageClient({ departments, languages, categories }:
     }
   };
 
+  /**
+   * Whether the suggestions dropdown is actually ON THE PAGE. `suggestOpen`
+   * alone is not that question — the dropdown also needs something to show —
+   * so `aria-expanded` claimed an open popup that was not rendered and
+   * `aria-controls` pointed at an id nothing had created. One derived value
+   * for all three ARIA attributes and the render, so they cannot disagree.
+   */
+  const suggestVisible =
+    suggestOpen && (input.length >= 2 || recentSearches.length > 0 || trending.length > 0);
+
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!suggestOpen) return;
     if (e.key === "ArrowDown") {
@@ -801,10 +811,12 @@ export default function SearchPageClient({ departments, languages, categories }:
             autoComplete="off"
             role="combobox"
             aria-autocomplete="list"
-            aria-expanded={suggestOpen}
+            aria-expanded={suggestVisible}
             aria-haspopup="listbox"
-            aria-controls="search-page-listbox"
-            aria-activedescendant={suggestOpen && activeIdx >= 0 ? `search-suggestion-${activeIdx}` : undefined}
+            aria-controls={suggestVisible ? "search-page-listbox" : undefined}
+            aria-activedescendant={
+              suggestVisible && activeIdx >= 0 ? `search-suggestion-${activeIdx}` : undefined
+            }
             // 16px on phones: iOS Safari zooms the whole page into any field
             // under 16px on focus, and the reader then has to pinch back out.
             className="flex-1 min-w-0 h-full bg-transparent text-base font-medium outline-none placeholder:font-normal sm:text-[15px]"
@@ -846,7 +858,7 @@ export default function SearchPageClient({ departments, languages, categories }:
         </div>
 
         {/* ── Instant suggestions dropdown ──────────────────────────────── */}
-        {suggestOpen && (input.length >= 2 || recentSearches.length > 0 || trending.length > 0) && (
+        {suggestVisible && (
           <div
             ref={dropdownRef}
             id="search-page-listbox"

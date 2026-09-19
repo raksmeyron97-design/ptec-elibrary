@@ -39,9 +39,32 @@ function suggestionKey(s: Suggestion): string {
 }
 
 // ── Suggestion row ─────────────────────────────────────────────────────────────
+/**
+ * The combobox popup's id, and the id of each option inside it.
+ *
+ * These are module constants rather than string literals at the two ends
+ * because the two ends must agree: the input points at the popup with
+ * `aria-controls` and at the highlighted option with `aria-activedescendant`,
+ * and a reference that resolves to nothing is silent — no error, no warning,
+ * just a screen reader that is told about a listbox the page does not have.
+ */
+const SUGGESTIONS_ID = "global-search-suggestions";
+const optionId = (index: number) => `global-search-option-${index}`;
+
+/**
+ * How many suggestions are drawn. The KEYBOARD must use this same number:
+ * `handleInputKeyDown` counted `suggestions.length` while only this many rows
+ * were rendered, so with 10 results ArrowDown walked three steps past the last
+ * visible row — highlighting nothing — and Enter then navigated to a
+ * suggestion the reader had never seen.
+ */
+const MAX_VISIBLE_SUGGESTIONS = 7;
+
 function SuggestionRow({
-  s, isActive, onHover, onPick,
+  id, s, isActive, onHover, onPick,
 }: {
+  /** Referenced by the input's `aria-activedescendant` when this row is active. */
+  id: string;
   s: Suggestion;
   isActive: boolean;
   onHover: () => void;
@@ -49,6 +72,7 @@ function SuggestionRow({
 }) {
   return (
     <button
+      id={id}
       type="button"
       role="option"
       aria-selected={isActive}
@@ -226,24 +250,40 @@ export default function SearchModal({ defaultOpen = false }: { defaultOpen?: boo
     router.push(`/search?q=${encodeURIComponent(q.trim())}`);
   }, [router]);
 
+  // The rows that actually exist. Everything downstream — the keyboard, the
+  // active-option reference, Enter, and the render — reads THIS, so they
+  // cannot disagree about how many options there are.
+  const visibleSuggestions = suggestions.slice(0, MAX_VISIBLE_SUGGESTIONS);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (activeIdx >= 0 && suggestions[activeIdx]) pickSuggestion(suggestions[activeIdx]);
+    if (activeIdx >= 0 && visibleSuggestions[activeIdx]) pickSuggestion(visibleSuggestions[activeIdx]);
     else goSearch(query);
   };
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const total = suggestions.length;
+    const total = visibleSuggestions.length;
+    // With no options there is nothing to move through, and `(i + 1) % 0` is
+    // NaN — which lands in state and makes every later comparison false.
+    if (total === 0) return;
     if (e.key === "ArrowDown") { e.preventDefault(); setActiveIdx((i) => (i + 1) % total); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setActiveIdx((i) => (i <= 0 ? total - 1 : i - 1)); }
-    else if (e.key === "Enter" && activeIdx >= 0 && suggestions[activeIdx]) {
+    else if (e.key === "Enter" && activeIdx >= 0 && visibleSuggestions[activeIdx]) {
       e.preventDefault();
-      pickSuggestion(suggestions[activeIdx]);
+      pickSuggestion(visibleSuggestions[activeIdx]);
     }
   };
 
-  const showSuggestions = query.length >= 2 && (suggestions.length > 0 || suggestLoading);
+  const showSuggestions = query.length >= 2 && (visibleSuggestions.length > 0 || suggestLoading);
   const showIdle        = !showSuggestions;
+
+  // Only ever an id that is on the page: the popup is not rendered unless
+  // `showSuggestions`, and a failed fetch can clear the list without resetting
+  // the index, so the bound is checked rather than assumed.
+  const activeOptionId =
+    showSuggestions && activeIdx >= 0 && activeIdx < visibleSuggestions.length
+      ? optionId(activeIdx)
+      : undefined;
 
   return (
     <>
@@ -321,7 +361,18 @@ export default function SearchModal({ defaultOpen = false }: { defaultOpen?: boo
               aria-autocomplete="list"
               aria-expanded={showSuggestions}
               aria-haspopup="listbox"
-              aria-controls="global-search-suggestions"
+              // Both references are CONDITIONAL, and that is the whole fix.
+              // The popup renders only while `showSuggestions` is true, but
+              // this input is in the DOM on every page (the modal is always
+              // mounted, `inert` until opened) — so an unconditional
+              // `aria-controls` pointed at a missing element on every page of
+              // the site, in the default state, with nothing to show for it.
+              aria-controls={showSuggestions ? SUGGESTIONS_ID : undefined}
+              // Focus stays in this input while ArrowDown moves the highlight,
+              // so this is the ONLY thing that tells a screen reader which
+              // option is current. Without it the rows had `aria-selected` and
+              // no way to be announced.
+              aria-activedescendant={activeOptionId}
               autoComplete="off"
               spellCheck={false}
               className="flex-1 h-[46px] pl-9 pr-3 text-[15px] font-medium bg-transparent outline-none"
@@ -373,30 +424,35 @@ export default function SearchModal({ defaultOpen = false }: { defaultOpen?: boo
 
           {/* ── Suggestions ───────────────────────────────────────────── */}
           {showSuggestions && (
-            <div
-              id="global-search-suggestions"
-              role="listbox"
-              aria-label="Search suggestions"
-              className="max-h-[320px] overflow-y-auto overscroll-contain"
-            >
+            // The scroll container is a plain box. `role="listbox"` sits on
+            // the inner element that holds ONLY options: a listbox whose
+            // children include a heading, three loading skeletons and a
+            // "search the web" button fails ARIA's required-children rule, and
+            // an assistive technology may drop the options it cannot place.
+            // Splitting the two changes no pixels — the inner div is a block
+            // in normal flow, exactly where its children already were.
+            <div className="max-h-[320px] overflow-y-auto overscroll-contain">
               <SectionLabel>PTEC Library</SectionLabel>
 
-              {suggestLoading && suggestions.length === 0 ? (
-                <div className="flex items-center gap-3 px-4 py-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-8 rounded-lg flex-1 animate-pulse" style={{ background: "var(--ptec-border)" }} />
-                  ))}
-                </div>
-              ) : (
-                suggestions.slice(0, 7).map((s, i) => (
+              <div id={SUGGESTIONS_ID} role="listbox" aria-label="Search suggestions">
+                {visibleSuggestions.map((s, i) => (
                   <SuggestionRow
                     key={suggestionKey(s)}
+                    id={optionId(i)}
                     s={s}
                     isActive={i === activeIdx}
                     onHover={() => setActiveIdx(i)}
                     onPick={() => pickSuggestion(s)}
                   />
-                ))
+                ))}
+              </div>
+
+              {suggestLoading && visibleSuggestions.length === 0 && (
+                <div className="flex items-center gap-3 px-4 py-4" aria-hidden="true">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-8 rounded-lg flex-1 animate-pulse" style={{ background: "var(--ptec-border)" }} />
+                  ))}
+                </div>
               )}
 
               {/* Search Google option */}

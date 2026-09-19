@@ -122,7 +122,11 @@ export default function MobileFilterSheet({
           onClick={() => setOpen(true)}
           aria-haspopup="dialog"
           aria-expanded={open}
-          aria-controls={sheetId}
+          // The sheet is unmounted when closed, so this reference resolves to
+          // nothing in the resting state — which is the state every visitor
+          // loads the page in. `aria-expanded` still answers `open`: that is a
+          // question about the control, not about the DOM.
+          aria-controls={sheet.mounted ? sheetId : undefined}
           className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border border-divider bg-paper px-3.5 text-[13px] font-semibold text-text-body transition-colors hover:border-brand/30 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
         >
           <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />

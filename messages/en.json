@@ -1690,7 +1690,8 @@
       "description": "PTEC Library is a free digital library run by the Phnom Penh Teacher Education College. We collect only the data needed to run the library, we never sell it, and you can delete your account at any time.",
       "lastUpdatedLabel": "Last updated",
       "versionLabel": "Version",
-      "languageNote": "Available in English and Khmer."
+      "languageNote": "Available in English and Khmer.",
+      "readingTime": "{minutes} min read"
     },
     "actions": {
       "manage": "Manage my privacy",
@@ -1718,7 +1719,8 @@
     },
     "toc": {
       "title": "On this page",
-      "mobileLabel": "On this page"
+      "mobileLabel": "On this page",
+      "backToTop": "Back to top"
     },
     "sections": {
       "overview": {
@@ -1869,7 +1871,9 @@
         "source": "Source",
         "retention": "Retention",
         "access": "Who can access it",
-        "sharing": "Shared with"
+        "visibility": "Visibility",
+        "sharing": "Shared with",
+        "details": "Details"
       },
       "rows": {
         "account": {
@@ -1962,7 +1966,32 @@
           "access": "You (on your device)",
           "sharing": "Not shared"
         }
-      }
+      },
+      "legend": {
+        "title": "Who can see each category"
+      },
+      "visibility": {
+        "private": "You only",
+        "privateHint": "Nobody else can see it",
+        "shared": "You + library staff",
+        "sharedHint": "Librarians can see it",
+        "public": "Public",
+        "publicHint": "Anyone on the internet",
+        "steward": "Technical steward",
+        "stewardHint": "Infrastructure access only"
+      },
+      "filterLabel": "Filter categories",
+      "filters": {
+        "all": "All",
+        "private": "Private to you",
+        "shared": "Shared",
+        "public": "Public",
+        "automatic": "Automatic"
+      },
+      "filterStatus": "Showing {shown} of {total} categories",
+      "detailsLabel": "Details for {category}",
+      "detailsShort": "Details",
+      "noResults": "No categories match this filter."
     },
     "processorList": {
       "supabase": {
@@ -2020,7 +2049,176 @@
       "versionLabel": "Version",
       "effectiveLabel": "Effective",
       "v2_0": "Expanded and clarified: disclosed the optional download access profile, push notifications, IP and rate-limiting data, cookieless analytics, and AI processing of search terms. Separated data in transit, at rest, and access control. Added category-based retention, deletion exceptions, and a complaints channel.",
-      "v1_0": "First published privacy policy covering account data, library activity, storage, visibility, and retention."
+      "v1_0": "First published privacy policy covering account data, library activity, storage, visibility, and retention.",
+      "current": "Current"
+    },
+    "chapters": {
+      "collected": {
+        "title": "Who we are and what we collect",
+        "summary": "Who runs the library, and what information reaches us."
+      },
+      "used": {
+        "title": "How we use, share and protect it",
+        "summary": "What the data is for, what your browser stores, who else sees it, how it is kept safe, and for how long."
+      },
+      "rights": {
+        "title": "Your rights and choices",
+        "summary": "What you can see, change, export or delete — and how student information is protected."
+      },
+      "changes": {
+        "title": "Changes and contact",
+        "summary": "How updates to this policy are announced, and how to reach us."
+      }
+    }
+  },
+  "policy": {
+    "meta": {
+      "title": "Borrow & Return Policy",
+      "description": "PTEC Library borrowing rules: loan periods, renewals, return deadlines, damaged or lost materials, and digital resource access terms.",
+      "ogTitle": "Borrow & Return Policy | PTEC Library",
+      "ogDescription": "Loan periods, renewals, return deadlines, and what happens when an item is late, damaged or lost."
+    },
+    "breadcrumb": {
+      "home": "Home",
+      "current": "Borrow & Return Policy"
+    },
+    "hero": {
+      "eyebrow": "Library Services",
+      "title": "Borrow and return policy",
+      "description": "What you can borrow, how long you can keep it, how to renew, and what happens if something goes wrong.",
+      "lastUpdatedLabel": "Last updated",
+      "versionLabel": "Version",
+      "readingTime": "{minutes} min read",
+      "languageNote": "Available in English and Khmer."
+    },
+    "actions": {
+      "fullRules": "Full library rules",
+      "contact": "Ask the library",
+      "print": "Print this policy"
+    },
+    "toc": {
+      "title": "On this page",
+      "mobileLabel": "On this page",
+      "backToTop": "Back to top"
+    },
+    "keyNumbers": {
+      "caption": "Figures shown are for students. Staff allowances are noted where they differ.",
+      "loan": {
+        "label": "Loan period",
+        "unit": "days",
+        "detail": "For Khmer-language items. English-language items: {englishDays} days. Staff: {staffDays} days."
+      },
+      "items": {
+        "label": "Items at once",
+        "unit": "items",
+        "detail": "The same limit applies to students and to staff."
+      },
+      "renewals": {
+        "label": "Renewals",
+        "text": "Khmer: as needed",
+        "detail": "English-language items may be renewed once."
+      },
+      "fines": {
+        "label": "Late returns",
+        "text": "Rate set by the library",
+        "detail": "Ask at the library desk for the current rate."
+      }
+    },
+    "allowances": {
+      "caption": "Borrowing allowance by audience and material",
+      "who": "Who",
+      "material": "Material",
+      "period": "Loan period"
+    },
+    "lifecycle": {
+      "label": "How a loan works, in four steps",
+      "borrow": {
+        "title": "Borrow",
+        "body": "Present your membership card at the library desk. You may hold up to {maxItems} items at one time."
+      },
+      "due": {
+        "title": "Due date",
+        "body": "Your due date is shown on your account: {khmerDays} days for Khmer-language items, {englishDays} days for English-language items."
+      },
+      "renew": {
+        "title": "Renew",
+        "body": "Renew before the due date if you need the item longer. How many times you may renew depends on the item's language."
+      },
+      "return": {
+        "title": "Return",
+        "body": "Bring the item back to the desk by the due date. If it is late, damaged or lost, speak to a librarian — the questions below say what happens next."
+      }
+    },
+    "sections": {
+      "summary": {
+        "title": "At a glance",
+        "body": [
+          "Every figure on this page is taken from the library's own regulations. The complete text, including conduct rules and penalties, is on the library rules page."
+        ]
+      },
+      "lifecycle": {
+        "title": "How a loan works",
+        "body": [
+          "Every loan passes through the same four moments."
+        ]
+      },
+      "borrowing": {
+        "title": "What you can borrow",
+        "body": [
+          "How much you may borrow, and for how long, depends on whether you are a student or a member of staff, and on the language of the material."
+        ]
+      },
+      "returning": {
+        "title": "Returning materials",
+        "body": [
+          "Print materials should be returned by the due date shown on the student account.",
+          "Damaged or lost materials must be reported to the library desk."
+        ]
+      },
+      "digital": {
+        "title": "Digital resources",
+        "body": [
+          "Digital resources remain available through the catalogue according to licensing and classroom-use permissions."
+        ]
+      },
+      "faq": {
+        "title": "If something goes wrong",
+        "body": [
+          "The answers below are the library's regulations, quoted in full. Nothing here is a summary."
+        ]
+      },
+      "help": {
+        "title": "Questions",
+        "body": [
+          "If anything on this page is unclear, ask at the library desk or send us a message — we would rather answer a question than charge a fine."
+        ]
+      }
+    },
+    "faq": {
+      "conditionLabel": "When this applies",
+      "late_return": {
+        "q": "What happens if I return an item late?"
+      },
+      "damaged": {
+        "q": "What happens if an item is damaged?"
+      },
+      "lost": {
+        "q": "What happens if I lose an item?"
+      },
+      "card_misuse": {
+        "q": "Can someone else borrow with my membership card?"
+      },
+      "suspension": {
+        "q": "Can my borrowing rights be suspended?"
+      },
+      "theft": {
+        "q": "What happens if library books are taken or torn deliberately?"
+      }
+    },
+    "fullRules": {
+      "title": "The full regulations",
+      "body": "This page is the short version. The library's complete regulations — who may join, conduct in the reading room, penalties, and the rules for each group of users — are published in full.",
+      "cta": "Read the library rules"
     }
   },
   "theses": {
