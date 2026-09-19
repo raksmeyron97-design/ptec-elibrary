@@ -27,12 +27,19 @@ any unexpected sign-in is a Sev 1 (§4).
    ```
 
    The script creates the auth user (email pre-confirmed), promotes the
-   profile to `super_admin`, and prints the generated password **once**. It
+   profile to `super_admin`, and shows the generated password **once**. It
    refuses to touch an existing account — password resets belong to the
-   normal flow, not scripts — and it refuses to run `--create` at all unless
-   stdout is an interactive terminal, so the one-time print cannot be
-   redirected into a file, a pipe or a CI transcript. Run it by hand, not
-   under `tee`, `script` or a job runner.
+   normal flow, not scripts.
+
+   The credential block is written to `/dev/tty`, the terminal you are sitting
+   at, and never to stdout: a shell can redirect stdout into a file, a pipe,
+   `tee`, `script`, an asciinema recording or a CI log collector, and each of
+   those turns a sealed-envelope credential into a file nobody remembers to
+   shred. Nothing reaches `/dev/tty` but the terminal, so `> out.txt` captures
+   the progress lines and not the password. `--create` still refuses to run
+   unless stdout is an interactive terminal — the reveal happens once and
+   someone has to be there to transcribe it — so run it by hand, not under a
+   job runner.
 3. Immediately transcribe the URL + email + password onto paper, clear the
    terminal (`clear && history -d $((HISTCMD-1))` if the command line held
    anything sensitive), and proceed to §2.

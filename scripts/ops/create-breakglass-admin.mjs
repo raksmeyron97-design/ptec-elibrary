@@ -14,16 +14,24 @@
 // Safety: without --create this only READS (does the account exist, what
 // role, is it sealed-worthy) — safe to run any time, including in the
 // quarterly access review. --create refuses to touch an email that already
-// has an account. The generated password is printed ONCE, to stdout, for the
-// envelope; it is never written to disk and never logged anywhere else.
+// has an account.
 //
-// --create also refuses to run unless stdout is an interactive terminal. The
-// one-time print is the whole handoff, so a redirect (`> out.txt`, a pipe into
-// `tee`, a CI step, `script`/`asciinema`) would quietly turn a sealed-envelope
-// credential into a file nobody remembers to shred. Failing before the account
-// exists is the cheap side of that trade.
+// The generated password is shown ONCE, for the envelope, and it is shown on
+// the TERMINAL rather than on stdout: it is written to /dev/tty, the device
+// the operator is sitting at. Stdout is a stream anyone can point somewhere —
+// `> out.txt`, a pipe into `tee`, a CI step's log collector, `script`, an
+// asciinema recording — and each of those quietly turns a sealed-envelope
+// credential into a file nobody remembers to shred. /dev/tty cannot be
+// redirected by the shell that started us, so the credential goes to the
+// person and nowhere else; it is never written to disk, never logged, and
+// never passed to a logging stream.
+//
+// --create still refuses to run unless stdout is an interactive terminal:
+// the print is the whole handoff, so someone has to be there to transcribe
+// it. Failing before the account exists is the cheap side of that trade.
 
 import { randomBytes } from "node:crypto";
+import { closeSync, openSync, writeSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadEnv, requireEnv, restHeaders } from "../backup/lib.mjs";
@@ -38,6 +46,31 @@ function generatePassword() {
     pw += randomBytes(30).toString("base64url").replace(/[-_0OIl1]/g, "");
   }
   return pw.slice(0, 26);
+}
+
+/**
+ * Shows the one-time credential on the controlling terminal, bypassing stdout
+ * entirely. Nothing here goes through console/stdout/stderr: those are streams
+ * the caller's shell owns and can redirect, and a credential that reaches one
+ * is a credential in a log. /dev/tty is the terminal itself — no shell
+ * redirection reaches it, and it stores nothing. If there is no controlling
+ * terminal the open fails, which is the same answer as the isTTY refusal:
+ * this account cannot be provisioned unattended.
+ */
+function revealOnTerminal(lines) {
+  let fd;
+  try {
+    fd = openSync("/dev/tty", "w");
+  } catch {
+    console.error("\nNo controlling terminal (/dev/tty) — refusing to reveal the credential.");
+    console.error("The account now EXISTS. Reset its password through /admin/users, or delete it and re-run attached to a terminal.");
+    process.exit(2);
+  }
+  try {
+    writeSync(fd, `${lines.join("\n")}\n`);
+  } finally {
+    closeSync(fd);
+  }
 }
 
 async function adminApi(env, method, pathname, body) {
@@ -117,9 +150,9 @@ async function main() {
 
   // --create path
   if (!process.stdout.isTTY) {
-    console.error("\nRefusing to --create with stdout redirected.");
-    console.error("The generated password is shown exactly once and must not land in a log file,");
-    console.error("a CI transcript or a scrollback capture. Re-run attached to a terminal.");
+    console.error("\nRefusing to --create without an interactive terminal.");
+    console.error("The credential is shown exactly once, on /dev/tty, and is gone after that —");
+    console.error("someone has to be sitting there to transcribe it. Re-run attached to a terminal.");
     process.exit(2);
   }
   if (existing) {
@@ -153,11 +186,17 @@ async function main() {
 
   console.log(`  ✓ auth user ${user.id} created (email confirmed)`);
   console.log("  ✓ profile promoted to super_admin");
-  console.log("\n─── WRITE THIS INTO THE SEALED ENVELOPE, THEN CLEAR YOUR TERMINAL ───");
-  console.log(`  URL:      ${env.NEXT_PUBLIC_SITE_URL ?? "https://library.ptec.edu.kh"}/admin/login`);
-  console.log(`  Email:    ${email}`);
-  console.log(`  Password: ${password}`);
-  console.log("──────────────────────────────────────────────────────────────────────");
+  // The block below is the whole handoff and goes to the terminal device, not
+  // to stdout — see revealOnTerminal(). Do not "simplify" it back into a
+  // console.log: that is a logging stream, and this is a credential.
+  revealOnTerminal([
+    "",
+    "─── WRITE THIS INTO THE SEALED ENVELOPE, THEN CLEAR YOUR TERMINAL ───",
+    `  URL:      ${env.NEXT_PUBLIC_SITE_URL ?? "https://library.ptec.edu.kh"}/admin/login`,
+    `  Email:    ${email}`,
+    `  Password: ${password}`,
+    "──────────────────────────────────────────────────────────────────────",
+  ]);
   console.log("Next (docs/BREAK-GLASS-PROCEDURE.md): seal it, record the seal date in");
   console.log("the quarterly review sheet, and NEVER use this account for daily work.");
   console.log("MFA enrolls on first activation (/admin/mfa) — that is by design.");

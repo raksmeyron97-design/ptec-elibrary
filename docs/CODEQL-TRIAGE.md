@@ -21,9 +21,16 @@ The dismissals below were applied on 2026-09-11, which took the dashboard from
 |---|---|---|
 | Fixed in code (PR #174) | 2, 15, 33, 44, 112, 113, 118, 119, 120, 125, 127, 129 | the post-merge scan of `main` |
 | Scoped out (`paths-ignore`) | 10, 11 | the post-merge scan of `main` |
-| Left open deliberately | 78 | a human policy call on the break-glass procedure |
+| Left open deliberately | 78 | superseded — fixed in code 2026-09-19, see below |
 
 Nothing else is open. If a new alert appears outside that table, it is new.
+
+### 2026-09-19 — the five alerts open after that round
+
+`#12`, `#78`, `#143`, `#145`, `#146`: all five fixed in code, each verified
+against a CodeQL database built from the working tree before the branch was
+pushed (see "Verifying locally" at the end). The section is
+[Fixed in code — 2026-09-19](#fixed-in-code--2026-09-19-5).
 
 Note on verifying the fixes: a `pull_request` analysis reports only the DELTA
 against base, so an existing `main` alert's absence from a PR scan says nothing
@@ -81,6 +88,26 @@ before re-attempting any of it.
    `${` is a `js/template-syntax-in-string-literal`; a maintenance script that
    reads `.env` and then calls `fetch` is a `js/file-access-to-http`. Twenty-five
    of the 54 are that shape.
+4. **A sink set is a LIST, and reading it beats reasoning about it.** The
+   library ships with the queries — `qlpacks/codeql/javascript-all/*/semmle/`
+   in the CodeQL bundle — and a sink is usually an explicit enumeration, not a
+   judgement. `js/clear-text-logging` sinks are
+   `LoggerCall.getAMessageComponent()` and `LoggerCall` extends to exactly
+   console, loglevel, winston, log4js, npmlog, fancylog, debug and pino; that
+   is the whole list, which is what made "write to `/dev/tty` with
+   `fs.writeSync`" a real answer to #78 rather than a hope. Check the
+   neighbouring query before moving a value, though: it is only an improvement
+   if the destination is not a sink for something else (here,
+   `CleartextStorage` — cookies, web storage, AngularJS — so a file descriptor
+   is not one).
+5. **Taint follows `String(x)`; it does not follow `Math.trunc(x)`.**
+   `StringManipulationTaintStep` lists the `String` and `RegExp` constructors,
+   `encodeURI*`/`decodeURI*`, `String.fromCharCode`, `toString`/`valueOf`,
+   `join`, and the string methods — arithmetic and the `Math` builtins appear
+   nowhere in it. So coercing a value that must be a number THROUGH a numeric
+   builtin is both a real check and a barrier the analysis reads, while
+   `String(x)` alone is neither. That is what `countAttr()` in `lib/oai/xml.ts`
+   is doing.
 
 ## Fixed in code (12)
 
@@ -201,29 +228,101 @@ invariant tests. They hold `${…}` inside ordinary quoted strings because the
 string is a fragment of source code they are asserting about, not a template
 they forgot to make a template.
 
-## NOT dismissed — by design, left open (1)
+## Fixed in code — 2026-09-19 (5)
+
+The five alerts that survived the 2026-09-11 round. Each fix was checked
+against a CodeQL database built locally from the working tree (§ Verifying
+locally) rather than pushed and guessed at. Measured with CodeQL 2.27.0, the
+same five rules over the same repo:
+
+| Tree | Results |
+|---|---|
+| `main` @ 51251d5 (before) | **7** — #12, #76, #77, #78, #143, #145, #146 |
+| this branch (after) | **1** — #76 |
+
+The survivor is `backup-storage-files.mjs:87`, dismissed as a false positive in
+the round above; a local run reports raw results and knows nothing about
+dismissals. #77 (`NEXT_PUBLIC_SITE_URL`, also dismissed) went with #78, because
+the `console.log` that carried it is gone. The before-column is the negative
+control: a query that finds nothing because the database was built wrong looks
+exactly like a fix.
+
+### #12 `js/reflected-xss` — `app/api/oai/route.ts:359`
+
+The SARIF flow is the thing to read here, because the sanitizing this alert is
+about was never the missing part. The taint does **not** run through any of the
+escaped values: it is `resumptionToken` → `decodeResumptionToken` →
+`JSON.parse` → `parsed.offset` → `filters.offset` → the **`cursor` attribute**
+of `<resumptionToken>`, which is the one value in that envelope written raw —
+because a number has nothing to escape. `decodeResumptionToken` does check
+`typeof parsed.offset === "number"`, which is why this was never exploitable,
+but a `typeof` test on a property of a `JSON.parse` result is not a barrier the
+query follows, and "a number, one module away" is thin protection for a value
+sitting inside an attribute's quotes.
+
+Two changes, either of which closes the flow; both are worth keeping:
+
+- `handleList` now measures the cursor on the list it actually paginated —
+  `const rest = all.slice(filters.offset); const cursor = all.length - rest.length`.
+  The harvester's offset still decides WHERE to slice, but the number that goes
+  into the response is a length of our own array rather than a value echoed
+  back out of the token.
+- `buildResumptionTokenTag` formats both attributes through `countAttr()`
+  (`Math.trunc`, then a `Number.isSafeInteger` / non-negative check, else `0`)
+  instead of interpolating what it was handed. `lib/oai/xml.test.ts` pins it
+  with a hostile non-number cast into the parameter.
 
 ### #78 `js/clear-text-logging` — `scripts/ops/create-breakglass-admin.mjs:159`
 
-This line prints the generated break-glass super-admin password to the
-operator's terminal:
+Previously left open as "a policy call, not a defect": the line prints the
+generated break-glass password so an operator can transcribe it into the sealed
+envelope, and the alternative on the table was writing it to a 0600 file, which
+trades a scrollback risk for a disk risk.
 
-```
-─── WRITE THIS INTO THE SEALED ENVELOPE, THEN CLEAR YOUR TERMINAL ───
-```
+There is a third option, and it is strictly better than what was there: the
+credential block now goes to **`/dev/tty`** — the terminal device itself — via
+`fs.writeSync`, and no longer through `console.log`. The operator sees exactly
+what they saw before. What changes is that `> out.txt`, `| tee`, `script`,
+asciinema and a CI log collector capture the progress lines and **not** the
+credential, because none of them can redirect `/dev/tty`. The `isTTY` refusal
+stays, with its reason restated: the reveal happens once, so somebody has to be
+there to read it.
 
-There is no other channel. The credential is generated, shown once, never
-stored, and the surrounding output tells the operator to seal it and clear the
-scrollback. The procedure is `docs/BREAK-GLASS-PROCEDURE.md`; the account
-enrolls MFA on first activation and is reviewed quarterly. Removing the print
-would remove the script's only output.
+That also removes the sink, not just the risk: the query's sinks are
+`LoggerCall.getAMessageComponent()`, and `LoggerCall` is an explicit list
+(console, loglevel, winston, log4js, npmlog, fancylog, debug, pino). `writeSync`
+is not a logging call — and, checked in the other direction,
+`CleartextStorage`'s sinks are cookies / web storage / AngularJS only, so this
+does not simply move the alert to the storage query.
 
-**This one is deliberately still open.** Whether an operator's terminal is an
-acceptable place for a break-glass credential is a judgement about the
-procedure, not a verdict about the code, and it should be made by a person and
-be attributable. Dismiss it as "won't fix" if the procedure stands; the
-alternative is to have the script write to a file with 0600 permissions, which
-trades a scrollback risk for a disk risk and is not obviously better.
+`docs/BREAK-GLASS-PROCEDURE.md` §1 was updated in the same commit — the
+procedure text said "prints … to stdout".
+
+### #143 `js/regex/missing-regexp-anchor` — `e2e/seo.spec.ts:19`
+
+`PROD_RE` was the production origin with its dots escaped by hand, and it was
+used in two shapes: anchored in a self-test, and unanchored inside
+`<loc>(${PROD_RE}/subjects/[^<]+)</loc>` when pulling subject URLs out of
+`sitemap.xml`. The second is what the alert is about — an unanchored hostname
+pattern matches wherever it appears.
+
+Anchoring that one is not possible (it is a `matchAll` over a whole document),
+so the host left the pattern instead: the spec now matches `<loc>([^<]+)</loc>`,
+which knows nothing about hosts, and filters the results with
+`loc.startsWith(...)` against the origin. With the last regex use gone, `PROD_RE`
+and the "test constants" block that existed to keep it in step with `PROD` went
+with it. Seven lines fewer, one fewer hand-escaped constant to drift.
+
+### #145 `js/unused-local-variable` — `scripts/verify-curriculum-links.ts:58`
+
+`statusOf()` was dead — no caller anywhere. Removed, along with the
+`fetchWithRetry` import it was the only user of.
+
+### #146 `js/unused-local-variable` — `app/[locale]/(public)/subjects/[slug]/page.tsx:119`
+
+`const parts = subjectBreakdown(...)` in the page component, left over from the
+meta-description build that still uses it in `generateMetadata` (line 70).
+Removed the one line; the import is still needed.
 
 ## Re-triaging
 
@@ -243,3 +342,36 @@ admin-typed" — download the SARIF and walk `codeFlows`:
 gh api "repos/raksmeyron97-design/ptec-elibrary/code-scanning/analyses/<id>" \
   -H "Accept: application/sarif+json" > sarif.json
 ```
+
+`.threadFlows[0].locations[]` is the path; the last entry is the sink and the
+first is the source. For #12 that path was the whole answer — it showed the
+taint arriving through the `cursor` attribute rather than through any of the
+escaped text, which is a different fix from the one the alert title suggests.
+
+## Verifying locally
+
+A `pull_request` scan reports only the delta, so it cannot tell you that an
+existing alert is fixed; waiting for the post-merge scan of `main` means
+guessing for a whole cycle, and the guesses in §"What CodeQL does and does not
+recognise here" are all guesses that were wrong. Run the query yourself:
+
+```bash
+# ~1.3 GB, once. The bundle is the CLI plus the same query packs CI uses.
+curl -L -o codeql-bundle.tar.gz \
+  https://github.com/github/codeql-action/releases/latest/download/codeql-bundle-osx64.tar.gz
+tar xzf codeql-bundle.tar.gz          # → ./codeql
+
+# ~3 min for this repo. Exclude .next — it is build output, and CI has none.
+printf 'name: local\nqueries:\n  - uses: security-and-quality\npaths-ignore:\n  - "docs/mockups/**"\n  - ".next/**"\n' > local-config.yml
+./codeql/codeql database create db --language=javascript-typescript \
+  --source-root=<repo> --codescanning-config=local-config.yml --overwrite
+
+# Seconds to a few minutes per query, rather than the whole suite.
+./codeql/codeql database analyze db --format=sarif-latest --output=out.sarif \
+  ./codeql/qlpacks/codeql/javascript-queries/*/Security/CWE-079/ReflectedXss.ql
+```
+
+Negative-control it both ways before believing a green result: run the same
+query against a database built from the code BEFORE the fix and confirm the
+alert appears there. A query that finds nothing because the database was built
+wrong looks exactly like a fix.

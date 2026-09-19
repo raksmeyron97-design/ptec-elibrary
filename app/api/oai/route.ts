@@ -284,12 +284,18 @@ async function handleList(verb: "ListIdentifiers" | "ListRecords", args: Record<
     throw new OaiError("badResumptionToken", "The resumptionToken is invalid or has expired");
   }
 
-  const page = all.slice(filters.offset, filters.offset + OAI_PAGE_SIZE);
+  // The harvester's offset decides WHERE we slice; every number the response
+  // then publishes is measured on the list we actually sliced. `rest.length`
+  // is a property of our own array, so the cursor is our count of what we
+  // skipped rather than a value echoed back out of the token.
+  const rest = all.slice(filters.offset);
+  const cursor = all.length - rest.length;
+  const page = rest.slice(0, OAI_PAGE_SIZE);
   const items = page
     .map((record) => (verb === "ListRecords" ? buildRecordXml(record, publisherName) : buildHeader(record)))
     .join("");
 
-  const nextOffset = filters.offset + page.length;
+  const nextOffset = cursor + page.length;
   let tokenTag = "";
   if (nextOffset < all.length) {
     const state: ResumptionState = {
@@ -300,11 +306,11 @@ async function handleList(verb: "ListIdentifiers" | "ListRecords", args: Record<
       set: filters.set,
       offset: nextOffset,
     };
-    tokenTag = buildResumptionTokenTag(encodeResumptionToken(state), filters.offset, all.length);
-  } else if (filters.offset > 0) {
+    tokenTag = buildResumptionTokenTag(encodeResumptionToken(state), cursor, all.length);
+  } else if (cursor > 0) {
     // Per the spec, the response that completes a paginated list must carry
     // an empty resumptionToken element.
-    tokenTag = buildResumptionTokenTag("", filters.offset, all.length);
+    tokenTag = buildResumptionTokenTag("", cursor, all.length);
   }
 
   return `<${verb}>${items}${tokenTag}</${verb}>`;
