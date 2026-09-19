@@ -288,4 +288,23 @@ describe("envelope + errors", () => {
       '<resumptionToken cursor="100" completeListSize="123"></resumptionToken>',
     );
   });
+
+  it("writes cursor/completeListSize as integers rather than passing them through", () => {
+    // Neither attribute is escaped — a number has nothing to escape — so the
+    // tag must be the thing that guarantees one. The cursor traces back to a
+    // harvester's own resumptionToken, and the attribute is where an unchecked
+    // value would break out of its own quotes.
+    const hostile = '1" onload="alert(1)' as unknown as number;
+    const tag = buildResumptionTokenTag("abc", hostile, 123);
+    expect(tag).toBe('<resumptionToken cursor="0" completeListSize="123">abc</resumptionToken>');
+    expect(tag).not.toContain("onload");
+
+    // Out of contract in the quieter ways, too: fractional, negative, NaN.
+    expect(buildResumptionTokenTag("abc", 50.9, 123)).toContain('cursor="50"');
+    expect(buildResumptionTokenTag("abc", -1, 123)).toContain('cursor="0"');
+    expect(buildResumptionTokenTag("abc", Number.NaN, 123)).toContain('cursor="0"');
+    expect(buildResumptionTokenTag("abc", 0, Number.POSITIVE_INFINITY)).toContain(
+      'completeListSize="0"',
+    );
+  });
 });

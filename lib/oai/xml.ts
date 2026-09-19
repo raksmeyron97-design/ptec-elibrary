@@ -269,8 +269,23 @@ export function buildRequestTag(baseUrl: string, verb: string | null, params: Re
   return `<request${attrs}>${escapeXml(baseUrl)}</request>`;
 }
 
+/**
+ * A count on its way into an XML attribute. Both attributes of
+ * `<resumptionToken>` are integers by contract — and unlike the element's
+ * text, neither goes through `escapeXml`, because a number has nothing to
+ * escape. That holds only while the value really is one: `cursor` traces back
+ * to a harvester's own resumptionToken, whose offset is checked in
+ * `decodeResumptionToken` a module away. So the tag FORMATS the number rather
+ * than interpolating what it was handed, and an out-of-contract value becomes
+ * `0` instead of whatever it was.
+ */
+function countAttr(value: number): string {
+  const n = Math.trunc(value);
+  return Number.isSafeInteger(n) && n >= 0 ? String(n) : "0";
+}
+
 export function buildResumptionTokenTag(token: string, cursor: number, completeListSize: number): string {
-  return `<resumptionToken cursor="${cursor}" completeListSize="${completeListSize}">${escapeXml(token)}</resumptionToken>`;
+  return `<resumptionToken cursor="${countAttr(cursor)}" completeListSize="${countAttr(completeListSize)}">${escapeXml(token)}</resumptionToken>`;
 }
 
 export function buildOaiPmhXml(requestTag: string, body: string): string {
