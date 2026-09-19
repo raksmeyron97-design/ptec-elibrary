@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import NextLink from "next/link";
 import Image from "next/image";
 import {
   AlertCircle,
@@ -9,6 +10,7 @@ import {
   Briefcase,
   Camera,
   CheckCircle2,
+  ExternalLink,
   FileText,
   IdCard,
   Link as LinkIcon,
@@ -37,6 +39,7 @@ import {
   type FormTabState,
 } from "@/components/admin/kit/form";
 import useAutoSave from "./useAutoSave";
+import { describeSaveError } from "./save-error";
 
 const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp"];
 
@@ -166,6 +169,13 @@ export default function TeamForm({
   const [activeTab, setActiveTab] = useState<TabKey>("identity");
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
+  /* Set alongside `error` when the failure was the transport rather than the
+     data — the banner then offers the sign-in link instead of only a sentence. */
+  const [sessionExpired, setSessionExpired] = useState(false);
+  /* Whether the last SAVE attempt failed. Narrower than `error`, which the photo
+     picker also writes to: a rejected image file is not an unsaved record, and
+     the footer must not report one as the other. */
+  const [saveFailed, setSaveFailed] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [visitedTabs, setVisitedTabs] = useState<Set<TabKey>>(
@@ -261,11 +271,13 @@ export default function TeamForm({
   }, [isDirty]);
 
   // Auto-save draft every 30s on the edit flow (not new, to avoid orphan records).
-  useAutoSave({
+  const { paused: autoSavePaused } = useAutoSave({
     isDirty,
     isEdit,
     busy,
     saveFn: async () => {
+      /* `save` rejects when the save failed, which is what keeps the "Draft
+         saved automatically" toast below from firing over a red banner. */
       await save(form.is_published);
     },
     onSaved: () => {
@@ -273,6 +285,10 @@ export default function TeamForm({
       setLastSaved(new Date());
     },
     onError: (msg) => toast.error(`Auto-save failed: ${msg}`),
+    onPaused: () =>
+      toast.error(
+        "Auto-save has stopped after repeated failures. Fix the problem above, then save manually.",
+      ),
   });
 
   const linkedProfile = useMemo(
@@ -532,15 +548,21 @@ export default function TeamForm({
   // ── Submit ─────────────────────────────────────────────────────────
   async function save(publish: boolean) {
     setError(null);
+    setSessionExpired(false);
+    setSaveFailed(false);
     setSuccess(null);
 
     const errors = validate(publish);
     if (Object.values(errors).some(Boolean)) {
       setFieldErrors(errors);
-      setError("Please fix the highlighted fields before saving.");
+      const message = "Please fix the highlighted fields before saving.";
+      setError(message);
+      setSaveFailed(true);
       setSubmitAttempt((c) => c + 1);
       focusFirstError(errors);
-      return;
+      /* Rejecting, not returning: a caller that cannot see the form state —
+         auto-save — would otherwise read an unsaved record as saved. */
+      throw new Error(message);
     }
     setFieldErrors({});
 
@@ -616,8 +638,30 @@ export default function TeamForm({
       }
     } catch (err) {
       setPhase("idle");
-      setError(err instanceof Error ? err.message : "Save failed.");
+      const { message, sessionExpired: expired } = describeSaveError(err);
+      setError(message);
+      setSessionExpired(expired);
+      setSaveFailed(true);
+      /*
+        Re-thrown on purpose. `save` used to absorb every failure into `setError`
+        and resolve normally, so `useAutoSave` saw a settled promise, called
+        `onSaved` and toasted "Draft saved automatically" over a red banner
+        saying the opposite — and `savedSnapshot` was never advanced, so the
+        footer still read "Unsaved changes" beside it. The button call sites
+        below catch this, because the banner is already the report.
+      */
+      throw err;
     }
+  }
+
+  /*
+    The manual entry points. `save` rejects now, so that auto-save can tell a
+    failed save from a successful one; a click already has the banner and the
+    toast, so the rejection is reported and swallowed here rather than surfacing
+    as an unhandled promise rejection in the console.
+  */
+  function submit(publish: boolean) {
+    void save(publish).catch(() => {});
   }
 
   const [cancelConfirm, setCancelConfirm] = useState(false);
@@ -651,7 +695,7 @@ export default function TeamForm({
       contentKey={activeTab}
       onSubmit={(e) => {
         e.preventDefault();
-        void save(form.is_published);
+        submit(form.is_published);
       }}
       tabs={
         <FormTabs
@@ -678,14 +722,16 @@ export default function TeamForm({
           onNext={() => {
             if (activeTabIndex < TABS.length - 1) switchTab(TABS[activeTabIndex + 1].key);
           }}
-          onSaveDraft={() => void save(false)}
-          onSavePublish={() => void save(true)}
+          onSaveDraft={() => submit(false)}
+          onSavePublish={() => submit(true)}
           onCancel={handleCancel}
           isDirty={isDirty}
           busy={busy}
           phase={phase}
           isPublished={form.is_published}
           lastSaved={lastSaved}
+          saveFailed={saveFailed}
+          autoSavePaused={autoSavePaused}
         />
       }
       context={
@@ -768,6 +814,27 @@ export default function TeamForm({
                 className="rounded-lg border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger-text mb-6"
               >
                 {error}
+                {/*
+                  A session failure is the one save error the author can act on
+                  from here, so the banner carries the action. It opens in a new
+                  tab deliberately: navigating this one away would discard the
+                  edits the message just promised were still there.
+                */}
+                {sessionExpired && (
+                  <NextLink
+                    href="/admin/login"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    /* Nothing to prefetch: the point of this link is a fresh
+                       round trip that re-evaluates the session that just
+                       failed, and a prefetched copy would predate it. */
+                    prefetch={false}
+                    className="focus-field mt-2 inline-flex items-center gap-1.5 font-semibold underline underline-offset-2"
+                  >
+                    Sign in again in a new tab
+                    <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                  </NextLink>
+                )}
               </div>
             )}
             {success && (

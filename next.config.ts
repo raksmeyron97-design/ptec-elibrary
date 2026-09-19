@@ -361,6 +361,11 @@ const nextConfig: NextConfig = {
         hostname: "*.supabase.co",
         pathname: "/storage/v1/object/public/**",
       },
+      // PTEC WordPress
+      {
+        protocol: "https",
+        hostname: "www.ptec.edu.kh",
+      },
       // Google Drive direct image CDN (lh3.googleusercontent.com/d/{FILE_ID})
       {
         protocol: "https",
