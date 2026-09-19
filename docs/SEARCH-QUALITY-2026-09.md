@@ -212,7 +212,7 @@ every query has an answer cannot see a system that answers everything.**
 
 `[PRODUCTION]` `2026-09-19`, against the deployed code, under the new
 instrument. Committed as
-`scripts/search-benchmark/results/2026-09-19-production-before-precision-fix.json`.
+`scripts/search-benchmark/results/production-baseline-before-precision-fix-2026-09-19.json`.
 
 ```
 category  n    lab  R@1   R@5   R@10  MRR   topical  zero
@@ -254,7 +254,7 @@ query on this route has been observed before and its cause is still unknown.
 npx vitest run lib/search                                     # the rules, offline
 npx tsx scripts/search-benchmark.ts --base https://library.ptec.edu.kh
 npx tsx scripts/search-benchmark.ts --base https://library.ptec.edu.kh \
-  --compare scripts/search-benchmark/results/2026-09-19-production-before-precision-fix.json
+  --compare scripts/search-benchmark/results/production-baseline-before-precision-fix-2026-09-19.json
 ```
 
 The run takes about four minutes: the route is rate limited to 30 requests per
