@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { Clock, MessageCircle, Phone } from "lucide-react";
+import { Clock, Landmark, MessageCircle, Phone } from "lucide-react";
 
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
@@ -162,6 +162,18 @@ export default async function LibraryCommitteePage({
         secondaryTitle: locale === "km" ? "Library Committee" : "គណៈកម្មការបណ្ណាល័យ",
         secondaryLang: locale === "km" ? "en" : "km",
         intro: tc("intro"),
+        /* The committee is a body OF a named department, and the board on the
+           library wall says so before it says anything else. Stating it here
+           is what tells a reader which committee this is — the college has
+           more than one. */
+        badge: (
+          <span className="inline-flex items-center gap-2 rounded-full border border-gold-400/40 bg-gold-500/10 px-3 py-1.5 text-sm font-semibold text-gold-200">
+            <Landmark className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span lang={locale} className="about-wrap">
+              {tc("department")}
+            </span>
+          </span>
+        ),
         action: (
           <AboutExternalAction href={cfg.phoneLibraryTel} icon={Phone} variant="onDark">
             {t("actions.contactLibrary")}
@@ -181,6 +193,13 @@ export default async function LibraryCommitteePage({
             email={cfg.email}
             hoursLabel={tc("contact.hoursLabel")}
             hours={locale === "km" ? cfg.hours.km : cfg.hours.en}
+            /* The board on the library wall carries the department's street
+               address, and a reader who has just read a governance page is the
+               one most likely to want to visit in person. The card already
+               knows how to draw the row (MapPin); this page simply never
+               passed it. */
+            addressLabel={tc("contact.addressLabel")}
+            address={locale === "km" ? cfg.address.km : cfg.address.en}
             actions={
               <>
                 <AboutLinkAction href="/contact" icon={Phone} variant="primary">
@@ -223,7 +242,17 @@ export default async function LibraryCommitteePage({
       <AboutSection
         id="members"
         title={tc("roster.heading")}
-        description={total > 0 ? tc("roster.count", { count: total }) : null}
+        /* The standfirst says what the list IS; the count says how big it is.
+           They were one string before, which made the section's only
+           description read "12 members". */
+        description={total > 0 ? tc("roster.standfirst") : null}
+        action={
+          total > 0 ? (
+            <span className="inline-flex items-center rounded-full border border-divider bg-paper px-3 py-1 text-sm font-semibold text-text-body">
+              {tc("roster.count", { count: total })}
+            </span>
+          ) : null
+        }
       >
         {unavailable ? (
           /* A failed read is NOT an empty committee. Saying "no members are

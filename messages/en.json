@@ -8349,7 +8349,8 @@
       "roster": {
         "heading": "Committee members",
         "unsectioned": "Other members",
-        "count": "{count, plural, one {# member} other {# members}}"
+        "count": "{count, plural, one {# member} other {# members}}",
+        "standfirst": "The management team, lecturers and officers who serve on the committee, grouped as the college publishes them."
       },
       "member": {
         "roleLabel": "Committee role",
@@ -8357,7 +8358,7 @@
         "responsibilityLabel": "Responsibility",
         "educationLabel": "Qualification",
         "viewProfile": "View staff profile",
-        "viewProfileOf": "View the staff profile of {name}",
+        "viewProfileOf": "View staff profile: {name}",
         "noPhoto": "No portrait available"
       },
       "empty": {
@@ -8374,8 +8375,10 @@
         "officialOnly": "These are the library's official channels. Personal contact details of committee members are not published.",
         "deskLabel": "Library desk",
         "emailLabel": "Email",
-        "hoursLabel": "Hours"
-      }
+        "hoursLabel": "Hours",
+        "addressLabel": "Address"
+      },
+      "department": "Department of Educational Research and Library"
     }
   },
   "adminHomepagePhotos": {

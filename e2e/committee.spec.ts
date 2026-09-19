@@ -36,7 +36,7 @@ test.describe("Library Committee — public page", () => {
 
     // The accessible name carries the person: a screen-reader link list of
     // identical "View staff profile" links is a WCAG 2.4.4 failure.
-    const profileLink = page.getByRole("link", { name: /View the staff profile of/i }).first();
+    const profileLink = page.getByRole("link", { name: /View staff profile: /i }).first();
     await expect(profileLink).toBeVisible();
     await expect(profileLink).toHaveAttribute("href", /\/about\/team\/[a-z0-9-]+$/);
 
@@ -46,8 +46,10 @@ test.describe("Library Committee — public page", () => {
     // outlasts the 5s default and would fail as "the link did not navigate".
     await expect(page).toHaveURL(/\/about\/team\/[a-z0-9-]+$/, { timeout: 30_000 });
     // The person exists once: the committee page sent us to the canonical
-    // profile rather than to a committee-only copy of them.
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    // profile rather than to a committee-only copy of them. Assert the NAME,
+    // not merely that an h1 is visible — the 404 page has an h1 too, and this
+    // test passed for an afternoon while the profile route answered 404.
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("Head Librarian");
   });
 
   test("publishes no contact detail for a committee member", async ({ page }) => {
