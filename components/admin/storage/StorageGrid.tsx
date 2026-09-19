@@ -41,7 +41,7 @@ export default function StorageGrid({
                 checked={isSelected}
                 onChange={() => onToggleSelect(item.storageKey)}
                 aria-label={item.originalName}
-                className="absolute left-2 top-2 z-10 h-4 w-4 rounded border-divider text-brand focus-visible:ring-2 focus-visible:ring-focus-ring/40"
+                className="focus-field absolute left-2 top-2 z-10 h-4 w-4 rounded border-divider text-brand"
               />
             )}
             <button

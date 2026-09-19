@@ -33,7 +33,13 @@ export default async function AdminLogsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireRouteAccess("logs.activity");
+  /* `canRead("users")` decides whether an actor's name becomes a link to their
+     profile. The logs page admits admin and super_admin, both of which hold
+     `users: write` by default — but `users` is delegable on /admin/roles, so a
+     super admin can take it away, and a link that 403s is exactly the dead end
+     the registry exists to prevent. Asked, not assumed. */
+  const { canRead } = await requireRouteAccess("logs.activity");
+  const canOpenUserProfile = canRead("users");
 
   const identity = await getAdminIdentity();
   const canSeePersonal = identity.isSuperAdmin || identity.role === "super_admin";
@@ -71,5 +77,12 @@ export default async function AdminLogsPage({
     customEnd: filters.customEnd ?? null,
   };
 
-  return <SecurityLogsClient result={result} filters={clientFilters} canSeePersonal={canSeePersonal} />;
+  return (
+    <SecurityLogsClient
+      result={result}
+      filters={clientFilters}
+      canSeePersonal={canSeePersonal}
+      canOpenUserProfile={canOpenUserProfile}
+    />
+  );
 }

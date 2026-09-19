@@ -52,10 +52,14 @@ export default function SecurityLogsClient({
   result,
   filters,
   canSeePersonal,
+  canOpenUserProfile,
 }: {
   result: ActivityResult;
   filters: ClientFilters;
   canSeePersonal: boolean;
+  /** Whether this viewer may open /admin/users/[id] — resolved from the
+   *  registry by the page, never assumed from the role. */
+  canOpenUserProfile: boolean;
 }) {
   const t = useTranslations("adminLogs");
   const locale = useLocale();
@@ -195,7 +199,7 @@ export default function SecurityLogsClient({
   }, [setParams, filters.resourceType]);
 
   return (
-    <div style={{ fontFamily: FONT, color: INK, display: "flex", flexDirection: "column", gap: 18 }}>
+    <div className="logs-page" style={{ fontFamily: FONT, color: INK, display: "flex", flexDirection: "column", gap: 18 }}>
       <LogsHeader
         rangeLabel={rangeLabel}
         updatedAt={updatedAt}
@@ -294,6 +298,7 @@ export default function SecurityLogsClient({
         <ActivityDetailDrawer
           event={selected}
           canSeePersonal={canSeePersonal}
+          canOpenUserProfile={canOpenUserProfile}
           onClose={() => setSelected(null)}
           fmt={fmt}
         />

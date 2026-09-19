@@ -7,6 +7,11 @@ import type { TrendInfo } from "@/lib/admin/dashboard";
 /**
  * 6 KPI cards for the Users page. Role cards deep-link into the matching
  * filtered view. Free library → no membership/subscription cards.
+ *
+ * The Admins tile counts `admin + super_admin` and therefore links to
+ * `?role=admins`, the GROUP (see ROLE_GROUPS). It used to link to
+ * `?role=admin`, so the tile and the list it opened disagreed the moment the
+ * library had a super admin — which it always does.
  */
 export default function UserStats({ summary }: { summary: UsersSummary }) {
   const t = useTranslations("adminUsers.stats");
@@ -28,7 +33,7 @@ export default function UserStats({ summary }: { summary: UsersSummary }) {
       <StatCard title={t("readers")} value={byRole.reader} icon={BookOpen} href="/admin/users?role=reader" tone="gray" />
       <StatCard title={t("staff")} value={byRole.staff} icon={Users} href="/admin/users?role=staff" tone="cyan" />
       <StatCard title={t("librarians")} value={byRole.librarian} icon={GraduationCap} href="/admin/users?role=librarian" tone="green" />
-      <StatCard title={t("admins")} value={byRole.admin + byRole.super_admin} icon={Shield} href="/admin/users?role=admin" tone="gold" />
+      <StatCard title={t("admins")} value={byRole.admin + byRole.super_admin} icon={Shield} href="/admin/users?role=admins" tone="gold" />
       <StatCard title={t("newThisMonth")} value={summary.newThisMonth} icon={UserPlus} trend={trend} tone="purple" />
     </div>
   );

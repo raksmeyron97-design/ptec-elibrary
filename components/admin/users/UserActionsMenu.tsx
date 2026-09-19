@@ -149,11 +149,11 @@ export default function UserActionsMenu({
           </button>
           {suspended ? (
             <button type="button" role="menuitem" className={item} disabled={!canManage} onClick={() => run("activate")}>
-              <CircleCheck className="h-4 w-4 text-emerald-600" /> {t("reactivate")}
+              <CircleCheck className="h-4 w-4 text-success" aria-hidden="true" /> {t("reactivate")}
             </button>
           ) : (
             <button type="button" role="menuitem" className={item} disabled={!canManage} onClick={() => run("suspend")}>
-              <Ban className="h-4 w-4 text-amber-600" /> {t("suspend")}
+              <Ban className="h-4 w-4 text-warning" aria-hidden="true" /> {t("suspend")}
             </button>
           )}
 
@@ -162,7 +162,7 @@ export default function UserActionsMenu({
           <button
             type="button"
             role="menuitem"
-            className={`${item} text-red-600 hover:bg-red-50 disabled:text-red-300`}
+            className={`${item} text-danger-text hover:bg-danger-soft disabled:opacity-40`}
             disabled={!canManage}
             onClick={() => run("delete")}
           >

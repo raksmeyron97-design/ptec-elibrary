@@ -32,7 +32,7 @@ export default function PurgeConfirmDialog({
           type="button"
           onClick={onConfirm}
           disabled={busy || confirmText.trim().toUpperCase() !== "DELETE"}
-          className="rounded-lg bg-danger px-4 py-2 text-sm font-bold text-white hover:bg-danger/90 disabled:cursor-not-allowed disabled:opacity-60"
+          className="focus-field rounded-lg bg-danger px-4 py-2 text-sm font-bold text-danger-contrast transition hover:brightness-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {t("confirm")}
         </button>
@@ -47,7 +47,7 @@ export default function PurgeConfirmDialog({
         onChange={(e) => setConfirmText(e.target.value)}
         placeholder={t("confirmPlaceholder")}
         autoComplete="off"
-        className="mt-1.5 w-full rounded-lg border border-divider bg-bg-page px-3 py-2 text-sm text-text-body focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/40"
+        className="focus-field mt-1.5 w-full rounded-lg border border-divider bg-bg-page px-3 py-2 text-sm text-text-body"
       />
       <p className="mt-3 text-[12px] text-text-muted">{t("restrictedNotice")}</p>
     </StorageDialogShell>

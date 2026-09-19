@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import Avatar from "@/components/ui/Avatar";
+import { Badge } from "@/components/admin/kit";
 import { formatDate, formatRelative, type UserRow } from "@/lib/admin/users-shared";
 import { RoleBadge, StatusBadge } from "@/components/admin/users/badges";
 import UserActionsMenu, { type UserActionIntent } from "@/components/admin/users/UserActionsMenu";
@@ -50,7 +51,7 @@ export default function UserMobileCard({
                   checked={selected}
                   onChange={() => onToggleSelect(u.id)}
                   aria-label={t("selectUser", { name: u.fullName ?? u.email })}
-                  className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-brand focus-visible:ring-2 focus-visible:ring-focus-ring/40"
+                  className="focus-field mt-1 h-4 w-4 shrink-0 rounded border-divider text-brand"
                 />
               )}
               <button type="button" onClick={() => onOpen(u)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
@@ -58,7 +59,7 @@ export default function UserMobileCard({
                 <div className="min-w-0">
                   <p className="flex items-center gap-1.5 font-semibold leading-tight text-text-heading">
                     <span className="truncate">{u.fullName ?? <span className="italic text-text-muted">{t("noName")}</span>}</span>
-                    {isMe && <span className="rounded-full bg-cyan-50 px-1.5 py-0.5 text-[9px] font-bold text-cyan-700">{t("you")}</span>}
+                    {isMe && <Badge tone="brand">{t("you")}</Badge>}
                   </p>
                   <p className="truncate text-xs text-text-muted">{u.email || "—"}</p>
                 </div>

@@ -13,14 +13,22 @@ import type { AppRole } from "@/lib/types/roles";
 // ── Account status ───────────────────────────────────────────────────────────
 export type AccountStatus = "active" | "pending" | "disabled" | "blocked";
 
+/**
+ * Status appearance, on the `--ptec-{status}-{soft,line,text}` tokens rather
+ * than a raw palette triplet. Each token already resolves per theme, so no call
+ * site needs a `dark:` variant — the panel forces light today and the literals
+ * these replace were a trap for whoever changes that. `label` stays English on
+ * purpose: it is for non-UI consumers (the CSV export, keyword search), and the
+ * badge translates through `adminUsers.status.*`.
+ */
 export const STATUS_META: Record<
   AccountStatus,
   { label: string; dot: string; text: string; bg: string; ring: string }
 > = {
-  active:   { label: "Active",   dot: "bg-emerald-500", text: "text-emerald-700", bg: "bg-emerald-50", ring: "ring-emerald-200" },
-  pending:  { label: "Pending",  dot: "bg-amber-500",   text: "text-amber-700",   bg: "bg-amber-50",   ring: "ring-amber-200" },
-  disabled: { label: "Disabled", dot: "bg-slate-400",   text: "text-slate-600",   bg: "bg-slate-100",  ring: "ring-slate-200" },
-  blocked:  { label: "Blocked",  dot: "bg-rose-500",    text: "text-rose-700",    bg: "bg-rose-50",    ring: "ring-rose-200" },
+  active:   { label: "Active",   dot: "bg-success", text: "text-success-text", bg: "bg-success-soft", ring: "ring-success-line" },
+  pending:  { label: "Pending",  dot: "bg-warning", text: "text-warning-text", bg: "bg-warning-soft", ring: "ring-warning-line" },
+  disabled: { label: "Disabled", dot: "bg-text-muted", text: "text-text-muted", bg: "bg-paper",       ring: "ring-divider" },
+  blocked:  { label: "Blocked",  dot: "bg-danger",  text: "text-danger-text",  bg: "bg-danger-soft",  ring: "ring-danger-line" },
 };
 
 // ── Row shape ────────────────────────────────────────────────────────────────
@@ -44,6 +52,26 @@ export type UsersSummary = {
   newThisMonth: number;
   newLastMonth: number;
 };
+
+// ── Role filter groups ───────────────────────────────────────────────────────
+
+/**
+ * A filter value that selects several roles at once.
+ *
+ * It exists because the "Admins" KPI counts `admin + super_admin` and linked to
+ * `?role=admin`, so the tile and the list it opened disagreed about how many
+ * administrators the library has — a card that lies the moment you click it.
+ * One group, not a general grouping system: this is the only tier the panel
+ * talks about as a tier.
+ */
+export const ROLE_GROUPS: Readonly<Record<string, readonly AppRole[]>> = {
+  admins: ["admin", "super_admin"],
+};
+
+export function rolesForFilter(value: string | undefined): readonly AppRole[] | null {
+  if (!value) return null;
+  return ROLE_GROUPS[value] ?? null;
+}
 
 // ── Sort + filter option metadata ────────────────────────────────────────────
 export const USER_SORT_OPTIONS = [

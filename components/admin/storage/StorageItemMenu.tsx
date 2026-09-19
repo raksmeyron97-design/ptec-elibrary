@@ -76,8 +76,8 @@ export default function StorageItemMenu({
     onIntent(intent);
   }
 
-  const item = "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13.5px] font-medium text-text-body transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-40";
-  const dangerItem = "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13.5px] font-medium text-danger transition hover:bg-danger/10 disabled:cursor-not-allowed disabled:opacity-40";
+  const item = "focus-field flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13.5px] font-medium text-text-body transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-40";
+  const dangerItem = "focus-field flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13.5px] font-medium text-danger-text transition hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-40";
 
   return (
     <div className="relative inline-block text-left">

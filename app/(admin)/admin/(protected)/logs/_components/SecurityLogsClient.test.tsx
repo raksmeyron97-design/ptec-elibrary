@@ -99,6 +99,7 @@ function renderConsole(opts: {
   data?: ActivityResult;
   filters?: Partial<ClientFilters>;
   canSeePersonal?: boolean;
+  canOpenUserProfile?: boolean;
 } = {}) {
   const locale = opts.locale ?? "en";
   return render(
@@ -107,6 +108,7 @@ function renderConsole(opts: {
         result={opts.data ?? result()}
         filters={{ ...filters, ...opts.filters }}
         canSeePersonal={opts.canSeePersonal ?? false}
+        canOpenUserProfile={opts.canOpenUserProfile ?? false}
       />
     </NextIntlClientProvider>,
   );

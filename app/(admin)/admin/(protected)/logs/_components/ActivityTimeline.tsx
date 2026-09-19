@@ -24,7 +24,15 @@ import type { TimelineBucket } from "@/lib/admin/activity-log-shared";
 import { INK, INK2, INK3, SERIES, SERIES_INK, sectionTitle, srOnly, ActivityIcon } from "./logs-ui";
 
 const W = 760;
-const H = 240;
+const H = 260;
+
+/* Right padding clears the LAST x-axis label rather than the last data point.
+   At 14 the final label ("Sep 19") was centred on the plot's right edge and
+   half of it fell outside the viewBox — visibly clipped at every range. The
+   endpoints are also anchored to their own side (see `labelAnchor`), which is
+   what actually guarantees it; the padding just keeps the curve off the edge. */
+const PAD = { left: 46, right: 26, top: 18, bottom: 34 } as const;
+
 const SERIES_KEYS = ["views", "downloads", "security"] as const;
 type SeriesKey = (typeof SERIES_KEYS)[number];
 
@@ -35,6 +43,20 @@ const DASH: Record<SeriesKey, string | undefined> = {
   downloads: "8 3",
   security: "2 3",
 };
+
+/**
+ * Anchor the first and last x-axis labels to their own side of the plot.
+ *
+ * Centred, an endpoint label straddles the plot boundary and half of it lands
+ * outside the viewBox — which is why "Sep 19" was sliced down the middle on
+ * every 90-day view. Only the two endpoints are special; every label between
+ * them is centred on its tick as usual.
+ */
+function labelAnchor(index: number, count: number): "start" | "middle" | "end" {
+  if (index === 0) return "start";
+  if (index === count - 1) return "end";
+  return "middle";
+}
 
 export function bucketLabel(iso: string, bucket: TimelineBucket, locale: string): string {
   const d = new Date(iso);
@@ -56,6 +78,7 @@ export default function ActivityTimeline({
 }) {
   const t = useTranslations("adminLogs");
   const clipId = useId();
+  const areaId = useId();
   const [active, setActive] = useState<number | null>(null);
 
   const points = analytics.timeline;
@@ -73,7 +96,7 @@ export default function ActivityTimeline({
     () => Math.max(1, ...points.map((p) => Math.max(p.views, p.downloads, p.security))),
     [points],
   );
-  const geo = useMemo(() => createChartGeometry({ width: W, height: H, maximum, left: 46, right: 14, top: 16, bottom: 34 }), [maximum]);
+  const geo = useMemo(() => createChartGeometry({ width: W, height: H, maximum, ...PAD }), [maximum]);
 
   const coords = useMemo(() => {
     const out = {} as Record<SeriesKey, ChartCoordinate[]>;
@@ -163,12 +186,27 @@ export default function ActivityTimeline({
               <clipPath id={clipId}>
                 <rect x={geo.left} y={geo.top} width={geo.innerWidth} height={geo.innerHeight} />
               </clipPath>
+              {/* The area fades to nothing at the baseline instead of ending on
+                  a hard horizontal edge. A flat slab of tint reads as a second
+                  shape competing with the line; a fade reads as the line's own
+                  weight. The top stop is still the shared `areaOpacity` token,
+                  so the fill's strength stays governed in one place. */}
+              <linearGradient id={areaId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={SERIES.views} stopOpacity={CH.areaOpacity * 1.8} />
+                <stop offset="100%" stopColor={SERIES.views} stopOpacity={0} />
+              </linearGradient>
             </defs>
 
-            {geo.ticks.map((tick) => (
+            {/* Gridlines, minus the topmost: a rule along the top edge boxes the
+                plot in and adds no reference the axis label does not already
+                give. Solid, per the chart-token contract — a dashed rule in a
+                plot means "threshold". */}
+            {geo.ticks.map((tick, i) => (
               <g key={tick.value}>
-                <line x1={geo.left} x2={geo.left + geo.innerWidth} y1={tick.y} y2={tick.y} stroke={CH.grid} strokeWidth={1} />
-                <text x={geo.left - 8} y={tick.y + 4} textAnchor="end" fontSize={10.5} fill={CH.axis} fontFamily="inherit">
+                {i < geo.ticks.length - 1 && (
+                  <line x1={geo.left} x2={geo.left + geo.innerWidth} y1={tick.y} y2={tick.y} stroke={CH.grid} strokeWidth={1} />
+                )}
+                <text x={geo.left - 10} y={tick.y + 3.5} textAnchor="end" fontSize={10.5} fill={CH.axis} fontFamily="inherit">
                   {tick.value.toLocaleString(locale)}
                 </text>
               </g>
@@ -176,7 +214,15 @@ export default function ActivityTimeline({
             <line x1={geo.left} x2={geo.left + geo.innerWidth} y1={geo.y(0)} y2={geo.y(0)} stroke={CH.baseline} strokeWidth={1} />
 
             {labelIndexes.map((i) => (
-              <text key={i} x={geo.x(i, points.length)} y={H - 12} textAnchor="middle" fontSize={10.5} fill={CH.axis} fontFamily="inherit">
+              <text
+                key={i}
+                x={geo.x(i, points.length)}
+                y={H - 12}
+                textAnchor={labelAnchor(i, points.length)}
+                fontSize={10.5}
+                fill={CH.axis}
+                fontFamily="inherit"
+              >
                 {bucketLabel(points[i].start, analytics.bucket, locale)}
               </text>
             ))}
@@ -184,7 +230,7 @@ export default function ActivityTimeline({
             {active !== null && (
               <line
                 x1={geo.x(active, points.length)} x2={geo.x(active, points.length)}
-                y1={geo.top} y2={geo.top + geo.innerHeight}
+                y1={geo.top} y2={geo.y(0)}
                 stroke={CH.crosshair} strokeWidth={1} strokeDasharray="3 3"
               />
             )}
@@ -194,7 +240,7 @@ export default function ActivityTimeline({
                   other two are read against. Filling all three would stack
                   three translucent washes into an unreadable mud. */}
               {totals.views > 0 && points.length > 1 && (
-                <path d={monotoneAreaPath(coords.views, geo.y(0))} fill={SERIES.views} opacity={CH.areaOpacity} />
+                <path d={monotoneAreaPath(coords.views, geo.y(0))} fill={`url(#${areaId})`} />
               )}
               {SERIES_KEYS.map((key) =>
                 totals[key] === 0 ? null : points.length === 1 ? (
@@ -212,6 +258,23 @@ export default function ActivityTimeline({
                   />
                 ),
               )}
+
+              {/* At rest the readout above names the busiest bucket — so the
+                  plot marks it. Without this the sentence pointed at a place on
+                  the chart that carried no sign of being the one meant. It is a
+                  hollow ring, not a filled dot, so it reads as an annotation
+                  rather than as a data point the other series lack. */}
+              {active === null && peakIndex >= 0 && points.length > 1 && totals.views > 0 && (
+                <circle
+                  cx={coords.views[peakIndex].x}
+                  cy={coords.views[peakIndex].y}
+                  r={CH.markerRadius}
+                  fill={CH.markerRing}
+                  stroke={SERIES.views}
+                  strokeWidth={CH.markerRingWidth}
+                />
+              )}
+
               {active !== null &&
                 SERIES_KEYS.map((key) =>
                   totals[key] === 0 ? null : (
