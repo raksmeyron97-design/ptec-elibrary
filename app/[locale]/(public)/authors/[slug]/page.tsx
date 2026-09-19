@@ -66,6 +66,23 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     ...(normalizeByline(author.name).contributors.length > 1
       ? { robots: { index: false, follow: true } }
       : {}),
+    // A name that identifies NOBODY. `/authors/windows-user`,
+    // `/authors/user`, `/authors/pptxgenjs`, `/authors/ទំព័រ` ("page") and
+    // `/authors/channa-0977-33-61-62` — the last credited with 621 books —
+    // all answered 200 with `index, follow` in production on 2026-09-19, each
+    // publishing a `ProfilePage` whose `mainEntity` is a `Person` with a
+    // stable `@id`. Dropping them from the sitemap stops RECOMMENDING them;
+    // only `noindex` withdraws a page already in the index, which is the same
+    // pairing the zero-works rule below uses and for the same reason.
+    //
+    // The page still answers 200 and still lists whatever it is attached to:
+    // the string is a true fact about the file it was catalogued from, and a
+    // librarian repairing the record needs to be able to open it. What is
+    // withdrawn is the claim that it names a person
+    // (lib/resources/contributor-trust.ts).
+    ...(normalizeByline(author.name).unidentified
+      ? { robots: { index: false, follow: true } }
+      : {}),
     // An author with no public works is a soft-404 — a name, and nothing to
     // read. #196 stopped app/sitemap.ts advertising one, but removing a URL
     // from a sitemap only stops RECOMMENDING it: a page already in the index

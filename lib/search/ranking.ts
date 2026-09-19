@@ -16,7 +16,12 @@
 //     a heavily-viewed record with a weak match can reorder only within a
 //     narrow band of equally-weak matches and can never overtake a stronger
 //     field match. A record that matched nothing gets no boost at all.
-//  2. EVERY SORT IS A TOTAL ORDER. `compareBySort` ends in the record id, so
+//  2. A MATCH IS A MATCH IN THE READER'S SCRIPT. Latin terms must begin a
+//     word; Khmer terms match anywhere, because Khmer has none. The pool is
+//     still built with an unanchored `ilike`, so this is where an accidental
+//     infix — "mining" inside "Examining", "one" inside "Smartphone" — stops
+//     being scored as relevance. See termMatches() in ./normalize.
+//  3. EVERY SORT IS A TOTAL ORDER. `compareBySort` ends in the record id, so
 //     two requests for the same page return the same page — pagination and
 //     the benchmark both depend on that.
 //
@@ -28,6 +33,7 @@ import {
   isbnEquals,
   normalizeSearchText,
   queryIsbn,
+  termMatches,
   tokenizeSearchQuery,
   typoTolerance,
 } from "./normalize";
@@ -179,28 +185,28 @@ export function searchScore(row: Candidate, query: PreparedQuery, pageHitIds: Re
   if (q) {
     if (title === q) bump(RANKING_WEIGHTS.titleExact, "title");
     else if (title.startsWith(q)) bump(RANKING_WEIGHTS.titlePrefix, "title");
-    else if (title.includes(q)) bump(RANKING_WEIGHTS.titleContains, "title");
+    else if (termMatches(title, q)) bump(RANKING_WEIGHTS.titleContains, "title");
 
     if (query.isbn && isbnEquals(row.isbn, query.isbn)) bump(RANKING_WEIGHTS.isbnExact, "isbn");
 
     if (author === q) bump(RANKING_WEIGHTS.authorExact, "author");
-    else if (author.includes(q)) bump(RANKING_WEIGHTS.authorContains, "author");
+    else if (termMatches(author, q)) bump(RANKING_WEIGHTS.authorContains, "author");
 
     if (subject === q) bump(RANKING_WEIGHTS.subjectExact, "subject");
-    else if (subject.includes(q)) bump(RANKING_WEIGHTS.subjectContains, "subject");
+    else if (termMatches(subject, q)) bump(RANKING_WEIGHTS.subjectContains, "subject");
 
-    if (keywords.includes(q)) bump(RANKING_WEIGHTS.keywords, "keywords");
-    if (body.includes(q)) bump(RANKING_WEIGHTS.abstract, "abstract");
+    if (termMatches(keywords, q)) bump(RANKING_WEIGHTS.keywords, "keywords");
+    if (termMatches(body, q)) bump(RANKING_WEIGHTS.abstract, "abstract");
   }
 
   let titleWords: string[] | null = null;
   for (const term of query.terms) {
     let hit = false;
-    if (title.includes(term)) { bump(RANKING_WEIGHTS.termTitle, "title"); hit = true; }
-    if (author.includes(term)) { bump(RANKING_WEIGHTS.termAuthor, "author"); hit = true; }
-    if (subject.includes(term)) { bump(RANKING_WEIGHTS.termSubject, "subject"); hit = true; }
-    if (keywords.includes(term)) { bump(RANKING_WEIGHTS.termKeywords, "keywords"); hit = true; }
-    if (body.includes(term)) { bump(RANKING_WEIGHTS.termAbstract, "abstract"); hit = true; }
+    if (termMatches(title, term)) { bump(RANKING_WEIGHTS.termTitle, "title"); hit = true; }
+    if (termMatches(author, term)) { bump(RANKING_WEIGHTS.termAuthor, "author"); hit = true; }
+    if (termMatches(subject, term)) { bump(RANKING_WEIGHTS.termSubject, "subject"); hit = true; }
+    if (termMatches(keywords, term)) { bump(RANKING_WEIGHTS.termKeywords, "keywords"); hit = true; }
+    if (termMatches(body, term)) { bump(RANKING_WEIGHTS.termAbstract, "abstract"); hit = true; }
     if (hit) continue;
 
     // Typo tolerance, title words only, bounded: a term that matched nothing
@@ -214,7 +220,8 @@ export function searchScore(row: Candidate, query: PreparedQuery, pageHitIds: Re
   }
 
   if (pageHitIds.has(pageHitKey(row.type, row.id))) bump(RANKING_WEIGHTS.pdfPage, "pdf");
-  if (relevance === 0 && q && normalizeSearchText(row.searchableText).includes(q)) bump(RANKING_WEIGHTS.anyText, "text");
+  if (relevance === 0 && q && termMatches(normalizeSearchText(row.searchableText), q))
+    bump(RANKING_WEIGHTS.anyText, "text");
 
   const popularity =
     (Math.min(row.views ?? 0, 1200) / 1200) * 8 +

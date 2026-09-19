@@ -279,15 +279,59 @@ async function fetchPools(
   return { data: merged, count: broad.count, error: null };
 }
 
-/** Score, order and reconcile the count with what actually survived. */
-function rankCandidates(candidates: Candidate[], query: PreparedQuery, pageHitIds: Set<string>, sort: SearchSort, count: number | null): PerTypeSearch {
-  let ranked = candidates.map((row) => searchScore(row, query, pageHitIds));
-  // An ISBN query is answered by identity, not by text: rows the loose
-  // pattern swept in that carry a different ISBN scored nothing and are not
-  // results.
-  if (query.isbn) ranked = ranked.filter((r) => (r.score ?? 0) > 0);
+/**
+ * Score, order and reconcile the count with what actually survived.
+ *
+ * ── A row that scored nothing is not a result ────────────────────────────────
+ *
+ * This rule already existed for ISBN queries, with the right reasoning
+ * attached: the loose pattern sweeps in rows carrying a DIFFERENT ISBN, they
+ * score nothing, and they are not results. Everything in the pool arrives the
+ * same way. `orFilter()` builds `field.ilike.%token%` — unanchored, because
+ * Khmer needs it — so a Latin token routinely matches the middle of a word,
+ * and the scorer used to agree: "mining" scored `termTitle` against "Examining
+ * Lesson Quality". Measured against production on 2026-09-19, "blockchain
+ * cryptocurrency mining" returned four education titles and "formula one
+ * aerodynamics" returned twenty-six, in a library holding nothing on either.
+ *
+ * `termMatches()` (lib/search/normalize.ts) stopped SCORING those. This stops
+ * SHOWING them: with the infix credit gone they score zero, and a zero-score
+ * row is a row the relevance model has said nothing about.
+ *
+ * Two things are protected from the drop:
+ *
+ *   seedIds — rows the trigram RPC nominated. The index made a positive claim
+ *             about the row that the term scorer cannot see, which is the
+ *             whole point of having it: a misspelling far enough from the
+ *             title to score zero here is exactly the case the fuzzy pass
+ *             exists for, and dropping it would trade a precision win for a
+ *             typo-recovery loss.
+ *
+ *   count   — reduced by what was dropped rather than replaced by what
+ *             survived. `count` is the exact size of the whole `ilike` pool,
+ *             which is usually larger than the page of rows actually scored;
+ *             `ranked.length` would therefore UNDERSTATE a broad query's
+ *             total by the size of the fetch limit. Subtracting the drops is
+ *             a correction to the number, not a substitute for it.
+ */
+function rankCandidates(
+  candidates: Candidate[],
+  query: PreparedQuery,
+  pageHitIds: Set<string>,
+  sort: SearchSort,
+  count: number | null,
+  seedIds: readonly string[] = [],
+): PerTypeSearch {
+  const scored = candidates.map((row) => searchScore(row, query, pageHitIds));
+  const protectedIds = new Set(seedIds);
+  const ranked = query.normalized
+    ? scored.filter((r) => (r.score ?? 0) > 0 || protectedIds.has(r.id))
+    : scored;
+  const dropped = scored.length - ranked.length;
   ranked.sort((a, b) => compareBySort(a, b, sort));
-  const total = query.isbn ? ranked.length : Math.max(count ?? 0, ranked.length);
+  const total = query.isbn
+    ? ranked.length
+    : Math.max((count ?? 0) - dropped, ranked.length);
   return { data: ranked.slice(0, PAGE_SIZE_ALL), count: total, allCandidates: ranked };
 }
 
@@ -600,7 +644,7 @@ async function searchBooks(db: DB, rawQ: string, filters: Filters, limit: number
     };
   }).filter((row: Candidate) => filterCommon(row, filters));
 
-  return rankCandidates(candidates, prepared, pageHitIds, sort, count);
+  return rankCandidates(candidates, prepared, pageHitIds, sort, count, seedIds);
 }
 
 async function searchResearch(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort, seedIds: string[] = []): Promise<PerTypeSearch> {
@@ -686,7 +730,7 @@ async function searchResearch(db: DB, rawQ: string, filters: Filters, limit: num
     return filterCommon(row, filters);
   });
 
-  return rankCandidates(candidates, prepared, pageHitIds, sort, count);
+  return rankCandidates(candidates, prepared, pageHitIds, sort, count, seedIds);
 }
 
 async function searchPublications(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort, seedIds: string[] = []): Promise<PerTypeSearch> {
@@ -790,7 +834,7 @@ async function searchPublications(db: DB, rawQ: string, filters: Filters, limit:
     };
   }).filter((row: Candidate) => filterCommon(row, filters));
 
-  return rankCandidates(candidates, prepared, pageHitIds, sort, count);
+  return rankCandidates(candidates, prepared, pageHitIds, sort, count, seedIds);
 }
 
 async function searchCatalog(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort, seedIds: string[] = []): Promise<PerTypeSearch> {
@@ -866,7 +910,7 @@ async function searchCatalog(db: DB, rawQ: string, filters: Filters, limit: numb
     };
   }).filter((row: Candidate) => filterCommon(row, filters));
 
-  return rankCandidates(candidates, prepared, pageHitIds, sort, count);
+  return rankCandidates(candidates, prepared, pageHitIds, sort, count, seedIds);
 }
 
 async function searchPosts(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort, seedIds: string[] = []): Promise<PerTypeSearch> {
@@ -927,7 +971,7 @@ async function searchPosts(db: DB, rawQ: string, filters: Filters, limit: number
     };
   }).filter((row: Candidate) => filterCommon(row, filters));
 
-  return rankCandidates(candidates, prepared, pageHitIds, sort, count);
+  return rankCandidates(candidates, prepared, pageHitIds, sort, count, seedIds);
 }
 
 /** Path ids whose module/step text matches the query, so a path found only by
@@ -1034,7 +1078,7 @@ async function searchLearningPaths(db: DB, rawQ: string, filters: Filters, limit
     };
   }).filter((row: Candidate) => filterCommon(row, filters));
 
-  return rankCandidates(candidates, prepared, pageHitIds, sort, count);
+  return rankCandidates(candidates, prepared, pageHitIds, sort, count, seedIds);
 }
 
 const FUZZY_URL: Record<SearchResultType, (ref: string) => string> = {

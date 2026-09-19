@@ -107,3 +107,49 @@ export function typoTolerance(term: string): number {
   if (hasKhmer(term) || term.length < 4) return 0;
   return term.length >= 8 ? 2 : 1;
 }
+
+/**
+ * Does `haystack` contain `term` as something a reader would call a match?
+ *
+ * The candidate pool is built with `ilike '%term%'` — an unanchored substring
+ * — and that is deliberate, because Khmer has no word boundaries and a Khmer
+ * query must be able to match inside a run. The defect is that the SCORER
+ * then asked the same unanchored question of Latin text, where boundaries do
+ * exist and an infix match is an accident:
+ *
+ *   "mining"  matched  "Exa|mining| Lesson Quality"
+ *   "one"     matched  "Smartph|one|", "Ph|one|s", "Google classro|o|m"…
+ *
+ * Measured against production on 2026-09-19: "blockchain cryptocurrency
+ * mining" returned four education titles and "formula one aerodynamics"
+ * returned twenty-six, in a library holding nothing on either subject. Every
+ * one of those rows scored on `termTitle`, so they were not merely swept in by
+ * the SQL pool — the relevance model agreed with them.
+ *
+ * So the rule is per SCRIPT, the same asymmetry `typoTolerance()` above
+ * already applies for the same underlying reason:
+ *
+ *   Khmer term → substring, unchanged. There is no boundary to honour, and
+ *                this is what makes "ការចិញ្ចឹម" ("raising/farming") find
+ *                "ការចិញ្ចឹមមាន់" — a real partial match, not an accident.
+ *
+ *   Latin term → the term must BEGIN a word. Prefix, not whole word, because
+ *                truncation is how people search: "research" must still find
+ *                "Researching", and "statistic" must still find "Statistics".
+ *                What stops is matching the END or the MIDDLE of a word.
+ *
+ * Normalized text is space-separated (punctuation collapses to spaces in
+ * `normalizeSearchText`), so "begins a word" is exactly "is at position 0 or
+ * preceded by a space".
+ *
+ * Both arguments must already be normalized — this function does no folding of
+ * its own, so it cannot disagree with the pipeline that produced them.
+ */
+export function termMatches(haystack: string, term: string): boolean {
+  if (!term || !haystack) return false;
+  const at = haystack.indexOf(term);
+  if (at === -1) return false;
+  if (hasKhmer(term)) return true;
+  if (at === 0) return true;
+  return haystack.includes(` ${term}`);
+}

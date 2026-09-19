@@ -1,6 +1,6 @@
 {
-  "version": 2,
-  "collection": "PTEC e-Library public collection, subject labels refreshed 2026-09-08 (270 published books)",
+  "version": 3,
+  "collection": "PTEC e-Library public collection. Work/identifier/person labels were written against 270 published books (subject labels refreshed 2026-09-08); production held 1,916 on 2026-09-19, so a label naming 5 or more records is a SAMPLE and is scored label-free. The `negative` set names subjects the collection provably does not hold.",
   "notes": "Subject labels refreshed 2026-09-08 by scripts/refresh-subject-labels.ts: a book is a correct answer to a subject query when its own title carries the term or it is filed under that category. Tags are deliberately excluded — see that script's header.",
   "queries": [
     {
@@ -1905,6 +1905,76 @@
           "slug": "practical-research-methods"
         }
       ]
+    },
+    {
+      "id": "neg-001",
+      "category": "negative",
+      "q": "blockchain cryptocurrency mining",
+      "expect": [],
+      "note": "no blockchain or cryptocurrency holding; 'mining' used to match 'Examining'"
+    },
+    {
+      "id": "neg-002",
+      "category": "negative",
+      "q": "formula one aerodynamics",
+      "expect": [],
+      "note": "no motorsport or aerodynamics holding; 'one' used to match 'Smartphone', 'Phones'"
+    },
+    {
+      "id": "neg-003",
+      "category": "negative",
+      "q": "aortic valve replacement",
+      "expect": [],
+      "note": "no clinical medicine holding"
+    },
+    {
+      "id": "neg-004",
+      "category": "negative",
+      "q": "byzantine fault tolerance",
+      "expect": [],
+      "note": "no distributed-systems holding"
+    },
+    {
+      "id": "neg-005",
+      "category": "negative",
+      "q": "sourdough bread baking",
+      "expect": [],
+      "note": "no baking holding"
+    },
+    {
+      "id": "neg-006",
+      "category": "negative",
+      "q": "coral reef ecology",
+      "expect": [],
+      "note": "no marine biology holding"
+    },
+    {
+      "id": "neg-007",
+      "category": "negative",
+      "q": "veterinary surgery",
+      "expect": [],
+      "note": "no veterinary holding; a Khmer medical/agriculture glossary is a defensible near-match"
+    },
+    {
+      "id": "neg-008",
+      "category": "negative",
+      "q": "submarine navigation",
+      "expect": [],
+      "note": "no naval holding; a law-of-the-sea text is a defensible near-match"
+    },
+    {
+      "id": "neg-009",
+      "category": "negative",
+      "q": "ការរុករករ៉ែក្នុងលំហ",
+      "expect": [],
+      "note": "space mining — nothing held; Khmer partial matches on ក្នុងលំហ ('in space') are legitimate"
+    },
+    {
+      "id": "neg-010",
+      "category": "negative",
+      "q": "ការចិញ្ចឹមត្រីបាឡែន",
+      "expect": [],
+      "note": "whale farming — nothing held; Khmer partial matches on ការចិញ្ចឹម ('farming') are legitimate"
     }
   ]
 }

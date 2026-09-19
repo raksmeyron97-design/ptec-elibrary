@@ -74,10 +74,27 @@ header's About menu and in `sitemap.xml` but was not part of the About model, so
 it alone had no sub-navigation, no breadcrumb, no pager and no related-pages
 block.
 
-- **Sections decide their own composition** (`components/about/CommitteeRoster.tsx`).
-  `leadership` is prominent and centred; `grid` is the standard roster. Nothing
-  in the page knows the words "Head" or "Deputy Head" — which group leads, what
-  it is called in either language and who is in it are editorial data.
+- **One plain institutional layout, shared with `/about/team`**
+  (`components/about/CommitteeRoster.tsx`; `.roster-*` in `app/globals.css`).
+  Modelled on the college's own directory pages: a solid navy band names each
+  group (white text, a Lucide glyph, the count at the far end outside the
+  heading), a white panel sits beneath it, and the people are small portrait
+  cards in a grid — 4:5 portrait, bold navy name with the other script beneath,
+  the role in blue, a quiet detail line, and "View staff profile →". Flat on
+  purpose: no stage, no glass, no connectors, no motion — the ORDER of the
+  panels carries the hierarchy. A `leadership` section is first, its cards
+  centred and a little wider, and its band wears the gold rule the header and
+  footer already carry; a `grid` section is the standard roster, two across on
+  a phone and up to five on a wide screen. The band is literal navy
+  (`--color-blue-900`), not the brand token, which flips to a light blue in
+  dark mode where white text would fail. The card's profile link is stretched
+  over the card (its only interactive element) and its accessible name
+  contains the visible label ("View staff profile: <name>"). Measured on the
+  fourteen-person plaque data: 8,339 px → 5,188 px desktop, 14,772 px → 7,113 px
+  phone. Nothing in the page knows the words "Head" or "Deputy Head" — which
+  group leads, what it is called in either language and who is in it are
+  editorial data, and the treatment keys on `layout_variant`, never on the
+  text of a role.
 - **Three states, not two.** A failed read renders a "temporarily unavailable"
   notice; an empty committee renders the "being prepared" state with the official
   contact route. Saying "no members are published" when the database did not
@@ -88,6 +105,21 @@ block.
   Organization (not `employee` — sitting on the committee is a role, and some
   holders of it are college staff rather than library staff), plus an `ItemList`
   of only those members who *have* a profile page.
+
+## The roster system is shared with `/about/team`
+
+`components/about/TeamDirectory.tsx` draws the team directory in the same
+`.roster-*` layout: a tab bar of service areas (`aria-pressed` buttons with
+counts, an underline on the active one), a search field once the roster has
+eight or more people, and one navy-banded panel per service area holding the
+members as the same portrait cards — name, position in blue, one line of
+summary, a gold "Key contact" tag where set, and two links, "View profile →"
+and "Quick look". Two interactive elements means the team card is never a
+stretched link. Both visible labels are contained in their accessible names
+and the names say whose profile ("View profile Profile of <name>"). The
+quick-look drawer keeps its focus trap, Escape, scroll lock and focus return.
+Measured on the twelve-person plaque data: 8,533 px → 5,583 px desktop,
+15,942 px → 8,478 px phone.
 
 ## Admin
 

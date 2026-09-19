@@ -396,14 +396,27 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
   const composite = (name: string | null | undefined) =>
     normalizeByline(name).contributors.length > 1;
 
+  // A name that identifies NOBODY — an operating-system account, a program's
+  // own name, a placeholder, a telephone number — is excluded here as well as
+  // by the roster below, and the duplication is deliberate. The roster read
+  // can fail, and when it does this file deliberately emits UNFILTERED rather
+  // than drop every author URL (see the note on `degraded`). That fallback was
+  // sound for the works rule, which needs a database to answer. It is not
+  // sound for this one, which needs nothing: `/authors/windows-user` and
+  // `/authors/channa-0977-33-61-62` are not URLs to submit for indexing on a
+  // day the directory times out. `normalizeByline()` answers `unidentified`
+  // from the string alone (lib/resources/contributor-trust.ts).
+  const unidentified = (name: string | null | undefined) =>
+    normalizeByline(name).unidentified;
+
   const authorSlugSet = new Map<string, string | null>();
   for (const a of authors) {
-    if (composite(a.name)) continue;
+    if (composite(a.name) || unidentified(a.name)) continue;
     const slug = addressableAuthorSlug(a.slug, a.name);
     if (slug) authorSlugSet.set(slug, a.created_at ?? null);
   }
   for (const a of publicationAuthors) {
-    if (composite(a.full_name)) continue;
+    if (composite(a.full_name) || unidentified(a.full_name)) continue;
     const slug = addressableAuthorSlug(a.slug, a.full_name);
     if (slug && !authorSlugSet.has(slug)) authorSlugSet.set(slug, a.created_at ?? null);
   }

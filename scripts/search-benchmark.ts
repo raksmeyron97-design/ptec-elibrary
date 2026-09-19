@@ -30,6 +30,39 @@
 // A `pdf_text` query counts as found when its record appears either in
 // `results` or in `pageHits`: the route lists a page-text hit whose parent
 // matched no metadata under "found inside", not among the ranked results.
+//
+// A LABEL HAS A SCOPE, AND THE SCOPE DECIDES WHICH METRICS IT MAY ANSWER
+// ─────────────────────────────────────────────────────────────────────
+// The work, identifier and person labels here were written against 270
+// published books. Production held 1,916 on 2026-09-19, and the difference is
+// not evenly distributed: it lands almost entirely on the TOPICAL queries,
+// whose labels list a handful of correct records out of hundreds.
+//
+//   `គណិតវិទ្យា` scored MISS with 484 results. The top four books were
+//   "គណិតវិទ្យា ថ្នាក់ទី៧ មេរៀនទី៨", "គណិតវិទ្យា ថ្នាក់ទី៩",
+//   "គណិតវិទ្យាថ្នាក់ទី_១១" and "គណិតវិទ្យា_ថ្នាក់ទី៨" — four maths textbooks
+//   answering a query for maths, none of them on a list written when the
+//   library was a seventh of its present size.
+//
+// Reported as "subject R@5 = 42%", that sends somebody to fix a ranker that is
+// working. So a label now carries a SCOPE, derived from the fixture rather
+// than chosen per query — fewer than five expected records is an enumeration
+// a cataloguer could complete (`exhaustive`); five or more is a sample of a
+// set the collection has outgrown (`partial`) — and:
+//
+//   * a metric a label cannot bear is NULL and leaves the denominator, never
+//     a zero. Recall and MRR are reported over the exhaustive labels only,
+//     and the census is printed so the split can never be quietly moved.
+//   * a partial-label query is judged instead by a LABEL-FREE property of the
+//     results themselves — do the records returned actually carry the query's
+//     terms? — which needs no fixture and cannot go stale.
+//
+// The `negative` category reads the same measure the other way: those queries
+// name subjects the collection provably does not hold, so every returned row
+// that carries no query term is a row presented with nothing to justify it.
+// It is the only category here that measures PRECISION, and it exists because
+// a suite where every query has an answer cannot see a system that answers
+// everything.
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -37,6 +70,8 @@ import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
 
 type Expect = { type: string; slug: string };
+/** What a label can be held to. Derived — never written in the fixture. */
+type LabelScope = "exhaustive" | "partial" | "negative";
 type Query = {
   id: string;
   category: string;
@@ -46,7 +81,17 @@ type Query = {
 };
 type QuerySet = { version: number; collection: string; queries: Query[] };
 
-type ResultRow = { type: string; ref: string; url: string; title: string };
+type ResultRow = {
+  type: string;
+  ref: string;
+  url: string;
+  title: string;
+  author?: string | null;
+  subject?: string | null;
+  category?: string | null;
+  keywords?: string[];
+  excerpt?: string | null;
+};
 type ApiResponse = {
   results?: ResultRow[];
   pageHits?: { recordType: string; url: string; title: string }[];
@@ -68,15 +113,28 @@ type QueryOutcome = {
   rank: number | null;
   /** 1-based rank among `pageHits`, or null. */
   pageHitRank: number | null;
+  /** What this query's label may be held to. */
+  scope: LabelScope;
+  /**
+   * Share of the returned rows that carry at least one query term in their
+   * own text. LABEL-FREE — computed from the response, so it cannot go stale
+   * as the collection grows. `null` when nothing was returned.
+   */
+  topicalPrecision: number | null;
   top: string[];
 };
 
 type Metrics = {
   n: number;
-  recallAt1: number;
-  recallAt5: number;
-  recallAt10: number;
-  mrr: number;
+  /** Queries in `n` whose label is exhaustive — the recall denominator. */
+  labelled: number;
+  /** `null` when no query here carries a label recall can be measured against. */
+  recallAt1: number | null;
+  recallAt5: number | null;
+  recallAt10: number | null;
+  mrr: number | null;
+  /** Label-free; `null` when every query returned nothing. */
+  topicalPrecision: number | null;
   zeroResultRate: number;
   fuzzyRate: number;
   p50Ms: number;
@@ -121,6 +179,82 @@ function typeOfUrl(url: string): string {
 
 function matches(expect: Expect[], type: string, slug: string): boolean {
   return expect.some((e) => e.type === type && e.slug === slug);
+}
+
+/**
+ * How many labelled records make a label a SAMPLE rather than an enumeration.
+ *
+ * Derived from the fixture and applied uniformly, so a scope can never be
+ * picked per query to flatter a number — the same rule, and the same reason,
+ * as the evidence scopes in lib/ai/evaluation.ts. Four or fewer records is a
+ * list a cataloguer could have completed; five or more, against a collection
+ * that has grown sevenfold since the labels were written, is a handful of the
+ * correct answers rather than all of them.
+ */
+const EXHAUSTIVE_LABEL_MAX = 4;
+
+function scopeOf(query: Query): LabelScope {
+  if (query.category === "negative") return "negative";
+  return query.expect.length > EXHAUSTIVE_LABEL_MAX ? "partial" : "exhaustive";
+}
+
+/**
+ * Comparison form and word-boundary test, implemented HERE rather than
+ * imported from lib/search/normalize.
+ *
+ * This file is a black-box client on purpose. The rule it is measuring —
+ * "a Latin term must begin a word, a Khmer term may match anywhere" — is the
+ * change under test, so importing the implementation would make a bug in it
+ * invisible to the instrument watching for one.
+ */
+function foldText(value: string): string {
+  return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^\p{L}\p{N}\p{M}]+/gu, " ").trim();
+}
+
+function carriesTerm(haystack: string, term: string): boolean {
+  if (!term || !haystack) return false;
+  const at = haystack.indexOf(term);
+  if (at === -1) return false;
+  if (/[ក-៿]/.test(term)) return true;
+  return at === 0 || haystack.includes(` ${term}`);
+}
+
+/** Digits, an X check character and the separators people type. */
+const ISBN_SHAPE = /^[\d០-៩xX\s.-]+$/;
+
+/**
+ * Share of the returned rows that carry at least one of the query's terms in
+ * their own text.
+ *
+ * Measured over the WHOLE blended page, all types, not over books alone: the
+ * landing view returns four rows per type, and a row from a type that matched
+ * weakly is part of what the reader is shown. So a value below 100% on a
+ * specific-title query is not a defect — it is how much of that page is about
+ * the query.
+ *
+ * On a `partial` label this is the metric that replaces recall: it asks
+ * whether the results are ABOUT the query, which needs no fixture. On a
+ * `negative` query it is read the other way — every row that carries nothing
+ * is a row the system presented with no reason.
+ */
+function topicalPrecisionOf(query: Query, rows: ResultRow[]): number | null {
+  if (rows.length === 0) return null;
+  // An ISBN query is answered by IDENTITY, not by text: the digits are not in
+  // the title and a correct result carries none of them. Scoring it here
+  // would report the one category that is 100% correct as 0% relevant.
+  if (ISBN_SHAPE.test(query.q.trim())) return null;
+  const terms = Array.from(
+    new Set([foldText(query.q), ...foldText(query.q).split(" ")].filter((t) => t.length >= 2)),
+  );
+  const carrying = rows.filter((r) => {
+    const text = foldText(
+      [r.title, r.author, r.subject, r.category, (r.keywords ?? []).join(" "), r.excerpt]
+        .filter(Boolean)
+        .join(" "),
+    );
+    return terms.some((t) => carriesTerm(text, t));
+  });
+  return carrying.length / rows.length;
 }
 
 async function runQuery(query: Query): Promise<QueryOutcome> {
@@ -187,6 +321,8 @@ async function runQuery(query: Query): Promise<QueryOutcome> {
     fuzzy: Boolean(body.fuzzy),
     rank,
     pageHitRank,
+    scope: scopeOf(query),
+    topicalPrecision: topicalPrecisionOf(query, results),
     top: results.slice(0, 10).map((r) => `${r.type}:${r.ref ?? slugOfUrl(r.url)}`),
   };
 }
@@ -205,18 +341,41 @@ function effectiveRank(o: QueryOutcome): number | null {
   return ranks.length ? Math.min(...ranks) : null;
 }
 
+const EMPTY_METRICS: Metrics = {
+  n: 0, labelled: 0, recallAt1: null, recallAt5: null, recallAt10: null, mrr: null,
+  topicalPrecision: null, zeroResultRate: 0, fuzzyRate: 0, p50Ms: 0, p95Ms: 0,
+};
+
+function mean(values: number[]): number | null {
+  return values.length === 0 ? null : values.reduce((a, b) => a + b, 0) / values.length;
+}
+
 function metricsOf(rows: QueryOutcome[]): Metrics {
   const n = rows.length;
-  if (n === 0) return { n, recallAt1: 0, recallAt5: 0, recallAt10: 0, mrr: 0, zeroResultRate: 0, fuzzyRate: 0, p50Ms: 0, p95Ms: 0 };
-  const ranks = rows.map(effectiveRank);
-  const within = (k: number) => ranks.filter((r) => r !== null && r <= k).length / n;
+  if (n === 0) return { ...EMPTY_METRICS };
+
+  // Recall is answered ONLY by the labels that can bear it. A partial label
+  // lists a handful of the correct records out of hundreds, so a miss against
+  // it says nothing about the ranker; scoring it as 0 would put a number the
+  // fixture cannot support into the same column as one it can.
+  const scored = rows.filter((r) => r.scope === "exhaustive");
+  const ranks = scored.map(effectiveRank);
+  const within = (k: number) =>
+    scored.length === 0 ? null : ranks.filter((r) => r !== null && r <= k).length / scored.length;
   const latencies = rows.map((r) => r.latencyMs);
   return {
     n,
+    labelled: scored.length,
     recallAt1: within(1),
     recallAt5: within(5),
     recallAt10: within(10),
-    mrr: ranks.reduce<number>((sum, r) => sum + (r ? 1 / r : 0), 0) / n,
+    mrr:
+      scored.length === 0
+        ? null
+        : ranks.reduce<number>((sum, r) => sum + (r ? 1 / r : 0), 0) / scored.length,
+    topicalPrecision: mean(
+      rows.map((r) => r.topicalPrecision).filter((p): p is number => p !== null),
+    ),
     zeroResultRate: rows.filter((r) => r.total === 0 && r.pageHitRank === null).length / n,
     fuzzyRate: rows.filter((r) => r.fuzzy).length / n,
     p50Ms: percentile(latencies, 50),
@@ -224,13 +383,23 @@ function metricsOf(rows: QueryOutcome[]): Metrics {
   };
 }
 
-const pct = (v: number) => `${(v * 100).toFixed(0)}%`;
-const delta = (a: number, b: number | undefined, asPct = true) => {
-  if (b === undefined) return "";
+// A metric a label cannot bear prints as "—", never as 0%. The two mean
+// opposite things and a table that renders them identically is how "42% of
+// subject queries fail" got read three times as a ranking defect.
+const NA = "—";
+const pct = (v: number | null) => (v === null ? NA : `${(v * 100).toFixed(0)}%`);
+const delta = (a: number | null, b: number | null | undefined, asPct = true) => {
+  if (a === null || b === null || b === undefined) return "";
   const d = a - b;
   if (Math.abs(d) < 1e-9) return " (=)";
   const s = asPct ? `${d > 0 ? "+" : ""}${(d * 100).toFixed(0)}pp` : `${d > 0 ? "+" : ""}${d.toFixed(0)}`;
   return ` (${s})`;
+};
+const num = (v: number | null, b: number | null | undefined) => {
+  if (v === null) return NA;
+  const base = v.toFixed(2);
+  if (b === null || b === undefined) return base;
+  return `${base} (${v - b >= 0 ? "+" : ""}${(v - b).toFixed(2)})`;
 };
 
 function printTable(report: Report, baseline?: Report) {
@@ -238,14 +407,16 @@ function printTable(report: Report, baseline?: Report) {
     ...Object.entries(report.byCategory).map(([k, m]) => [k, m, baseline?.byCategory[k]] as [string, Metrics, Metrics | undefined]),
     ["ALL", report.overall, baseline?.overall],
   ];
-  const header = ["category", "n", "R@1", "R@5", "R@10", "MRR", "zero", "fuzzy", "p50", "p95"];
+  const header = ["category", "n", "lab", "R@1", "R@5", "R@10", "MRR", "topical", "zero", "fuzzy", "p50", "p95"];
   const lines = rows.map(([k, m, b]) => [
     k,
     String(m.n),
+    String(m.labelled),
     pct(m.recallAt1) + delta(m.recallAt1, b?.recallAt1),
     pct(m.recallAt5) + delta(m.recallAt5, b?.recallAt5),
     pct(m.recallAt10) + delta(m.recallAt10, b?.recallAt10),
-    m.mrr.toFixed(2) + (b ? ` (${(m.mrr - b.mrr) >= 0 ? "+" : ""}${(m.mrr - b.mrr).toFixed(2)})` : ""),
+    num(m.mrr, b?.mrr),
+    pct(m.topicalPrecision) + delta(m.topicalPrecision, b?.topicalPrecision),
     pct(m.zeroResultRate) + delta(m.zeroResultRate, b?.zeroResultRate),
     pct(m.fuzzyRate) + delta(m.fuzzyRate, b?.fuzzyRate),
     `${m.p50Ms}ms` + delta(m.p50Ms, b?.p50Ms, false),
@@ -262,6 +433,16 @@ function printTable(report: Report, baseline?: Report) {
   console.log(fmt(header));
   console.log(widths.map((w) => "-".repeat(w)).join("  "));
   for (const l of lines) console.log(fmt(l));
+  console.log(
+    `\n"lab" is how many of the n queries carry a label recall can be measured against ` +
+      `(fewer than ${EXHAUSTIVE_LABEL_MAX + 1} expected records). R@k and MRR are over those only; ` +
+      `${NA} means the labels here cannot answer that metric and it is NOT a zero.`,
+  );
+  console.log(
+    `"topical" is label-free: the share of returned rows carrying a query term in their own text. ` +
+      `On the negative set — subjects the collection does not hold — a row carrying nothing is a row ` +
+      `presented with no reason, so 1 - topical is the false-match rate.`,
+  );
   if (baseline) console.log(`\nDeltas are against ${flag("compare")} (${baseline.generatedAt}).`);
 }
 
@@ -284,7 +465,12 @@ async function main() {
     if (has("verbose")) {
       const o = outcomes[outcomes.length - 1];
       const r = effectiveRank(o);
-      console.log(`${(r ? `#${r}` : "miss").padStart(5)}  ${o.latencyMs.toString().padStart(5)}ms  ${o.total.toString().padStart(3)}${o.fuzzy ? " fuzzy" : ""}  [${o.category}] ${o.q}`);
+      const verdict = o.scope === "exhaustive" ? (r ? `#${r}` : "miss") : NA;
+      const topical = o.topicalPrecision === null ? NA : `${Math.round(o.topicalPrecision * 100)}%`;
+      console.log(
+        `${verdict.padStart(5)}  top:${topical.padStart(4)}  ${o.latencyMs.toString().padStart(5)}ms  ` +
+          `${o.total.toString().padStart(4)}${o.fuzzy ? " fuzzy" : ""}  [${o.category}] ${o.q}`,
+      );
     }
     await new Promise((r) => setTimeout(r, DELAY_MS));
   }

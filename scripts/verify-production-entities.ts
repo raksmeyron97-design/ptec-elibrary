@@ -126,6 +126,16 @@ const CHECKS: Check[] = [
   { shape: "author · organization", path: "/authors/ministry-of-education-youth-and-sport", node: "ProfilePage", property: "mainEntity", expect: expectTypes("Organization") },
   { shape: "author · THE INSTITUTION", path: "/authors/phnom-penh-teacher-education-college", node: "ProfilePage", property: "mainEntity", expect: expectInstitutionRef },
   { shape: "author · composite (several people, one URL)", path: "/authors/bert-p-m-creemers-leonidas-kyriakides-pam-sammons-editors", node: "ProfilePage", property: "mainEntity", expect: expectNoIdentity },
+
+  // A string that names NOBODY. `books.author` is whatever the PDF's `Author`
+  // metadata field held, so an operating-system account, a program's own name
+  // and a telephone number all became `authors` rows and then `Person`
+  // entities with stable @ids. Same assertion as the composite above and for
+  // the same reason — a URL that cannot say who it is says nothing — but a
+  // different defect, so it gets its own fixture. The second is the largest:
+  // "Channa 0977 33 61 62" was credited with 621 of 1,916 published books.
+  { shape: "author · an OS account, not a person", path: "/authors/windows-user", node: "ProfilePage", property: "mainEntity", expect: expectNoIdentity },
+  { shape: "author · a telephone number, not a person", path: "/authors/channa-0977-33-61-62", node: "ProfilePage", property: "mainEntity", expect: expectNoIdentity },
 ];
 
 // ── Outcomes: a wrong entity is not the same event as a moved record ─────────
