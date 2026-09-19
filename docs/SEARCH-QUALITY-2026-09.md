@@ -88,9 +88,42 @@ returned** for all 100 benchmark queries through both the old and the new rule
 | Rows the new rule drops | **35 (6.1%)** |
 | **Labelled records among them** | **0** |
 
-`[LOCAL]` Approximate in one direction only: the replay uses the API's
-truncated `excerpt` in place of the full description, so a match living in the
-truncated tail is invisible and 35 is an **upper bound** on the drops.
+`[LOCAL]` 35 is an **upper bound**, for two independent reasons, and the second
+was only discovered by running the change on a live route:
+
+1. the replay uses the API's truncated `excerpt` in place of the full
+   description, so a match living in the truncated tail is invisible to it;
+2. the replay models the SCORING change only. The route additionally **exempts
+   rows the trigram RPC nominated** from the drop, and the replay could not
+   know which rows those were.
+
+### What the trigram exemption does, measured on a live route
+
+`[LOCAL]` Against a local production build with the seeded fixtures, calling
+`/api/search/native` directly:
+
+| Query | Rows | Trigram seeds (`search_library_fuzzy`) |
+|---|---:|---|
+| `blockchain cryptocurrency mining` | **0** | none |
+| `blockchain andbook` | 4 | `Teacher Handbook…` at 0.32 |
+| `xqzptv andbook` | 4 | `Teacher Handbook…` at 0.40 |
+| `andbook` | 6 | `Teacher Handbook…` at 0.75 |
+| `eacher` | 13 | `Teacher…` at 0.86 |
+
+So the shape this change was written for — several real words, none of which
+the collection holds — goes to zero. A SHORT query that is an infix of a real
+word does not, because the trigram index independently nominates the row and
+the exemption honours that claim.
+
+That is the exemption working as designed rather than a hole in it: "andbook"
+almost certainly means "handbook", and a reader who typed it is better served
+by the row than by nothing. But it means the precision gain is concentrated in
+multi-word queries, and a single-word infix still answers. Stated here so the
+6.1% figure is not read as a promise about every query shape.
+
+`[DEFERRED]` Narrowing the exemption — for example, honouring seeds only when
+nothing scored at all — would change typo recovery, which is currently
+R@1 90% / R@5 100%, and has not been measured. Not attempted.
 
 Every dropped row reads as junk on inspection. All four `blockchain
 cryptocurrency mining` rows are dropped; that query now returns nothing, which
@@ -233,6 +266,7 @@ minute per IP and the client waits 2.1 s between queries.
 |---|---|
 | Implemented | `[LOCAL]` + `[CI]` |
 | Measured | `[LOCAL]` replay over production responses: 6.1% of displayed rows dropped, 0 labelled records lost |
+| Verified on a rendered route | `[LOCAL]` yes — `blockchain cryptocurrency mining` returns 0 rows against a local production build; a pre-existing contributor and book are unaffected |
 | Verified in production | **Not yet.** A black-box benchmark cannot measure undeployed code. |
 | How it will be verified | Re-run the command in §4 after deploy. The gate is `negative` topical precision moving toward 100% and `negative` zero-result rate toward 100%, with the exhaustive R@k unchanged. |
 | Deferred | A stopword list for very short Latin terms; alias-aware author search (the one genuine `author` miss, `សិត សេង`, is a book credited `Set Seng` whose Khmer name lives only on an academic profile row). |
