@@ -86,6 +86,9 @@ scripts/ai-answer-benchmark/results/20*.json
 /reports/
 .playwright-mcp/
 
+# Local pre-computed embedding JSON files (staged bulk imports)
+/data/embeddings/
+
 # Khmer OCR worker (infra/ocr): the operator's filled env file and the queue /
 # artifacts a container run writes. The template and the .gitkeep are tracked.
 infra/ocr/data/*

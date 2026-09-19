@@ -23,6 +23,10 @@ type StickyFormFooterProps = {
   phase: "idle" | "uploading" | "saving";
   isPublished: boolean;
   lastSaved: Date | null;
+  /** The last save attempt failed and its banner is up. */
+  saveFailed?: boolean;
+  /** Auto-save has given up after repeated failures; only a manual save will do. */
+  autoSavePaused?: boolean;
 };
 
 /**
@@ -53,6 +57,8 @@ export default function StickyFormFooter({
   phase,
   isPublished,
   lastSaved,
+  saveFailed = false,
+  autoSavePaused = false,
 }: StickyFormFooterProps) {
   return (
     <StickyActionBar
@@ -92,15 +98,32 @@ export default function StickyFormFooter({
             while a save was in flight — so an author who pressed Save watched
             nothing move. `busy` is now a first-class state, and it outranks
             dirty: what the form is doing beats what it holds.
+
+            A failure outranks dirty for the same reason, one step further on:
+            "Unsaved changes" is technically true after a save that failed, but
+            it reads as "you have not pressed Save yet" — which is exactly the
+            wrong thing to tell someone who just did, and did not get through.
           */}
           <SaveStatus
-            state={busy ? "saving" : isDirty ? "dirty" : lastSaved ? "saved" : "idle"}
+            state={
+              busy
+                ? "saving"
+                : saveFailed
+                  ? "error"
+                  : isDirty
+                    ? "dirty"
+                    : lastSaved
+                      ? "saved"
+                      : "idle"
+            }
             savedAt={lastSaved ? lastSaved.getTime() : null}
             labels={{
               idle: "No changes",
               dirty: "Unsaved changes",
               saving: phase === "uploading" ? "Uploading photo…" : "Saving…",
-              error: "Save failed",
+              error: autoSavePaused
+                ? "Auto-save stopped — save manually"
+                : "Not saved — see the message above",
               savedAgo: (seconds) =>
                 seconds < 60
                   ? "Saved just now"
