@@ -72,6 +72,14 @@ export type FetchOptions = {
   timeoutMs?: number;
   /** Statuses the caller will interpret itself instead of treating as an error. */
   allowStatuses?: readonly number[];
+  /**
+   * `"manual"` when the REDIRECT ITSELF is the thing being checked — a sitemap
+   * must advertise the canonical URL, not a hop to it, and following the hop
+   * would report the destination's 200 and hide the defect. Pair it with
+   * `allowStatuses` covering 301/302/307/308, or the redirect is thrown as an
+   * unwanted status rather than returned to be inspected.
+   */
+  redirect?: RequestRedirect;
 };
 
 /**
@@ -86,7 +94,12 @@ export async function fetchWithRetry(
   url: string,
   opts: FetchOptions = {},
 ): Promise<Response> {
-  const { method = "GET", timeoutMs = DEFAULT_TIMEOUT_MS, allowStatuses = [] } = opts;
+  const {
+    method = "GET",
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    allowStatuses = [],
+    redirect = "follow",
+  } = opts;
   const attempts = RETRY_DELAYS_MS.length + 1;
   let lastTransport = "";
 
@@ -98,7 +111,7 @@ export async function fetchWithRetry(
       // AbortSignal.timeout rather than a bare fetch: a hung socket that never
       // settles is the failure mode this whole module is about, and without a
       // deadline it stalls the run instead of being reported.
-      res = await fetch(url, { method, redirect: "follow", signal: AbortSignal.timeout(timeoutMs) });
+      res = await fetch(url, { method, redirect, signal: AbortSignal.timeout(timeoutMs) });
     } catch (err) {
       lastTransport = (err as Error).message || String(err);
       continue;

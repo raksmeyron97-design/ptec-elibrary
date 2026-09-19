@@ -143,8 +143,13 @@ describe("the summary never folds unknown into a pass", () => {
 // deciding for themselves what a dropped connection meant.
 describe("every production verifier speaks this vocabulary", () => {
   const dir = join(__dirname, "..", "..", "scripts");
-  // The crawl audit is an instrument too, and was written to this contract.
-  const verifiers = readdirSync(dir).filter((f) => /^(verify-.*|audit-crawl-depth)\.ts$/.test(f));
+  // The crawl and sitemap audits are instruments too. audit-sitemap-links was
+  // NOT in this pattern, drifted, and on 2026-09-19 reported 141 of 2,313
+  // production URLs as broken when every one of them answered 200 on a serial
+  // retry — its own parallel load, read as the library's defect.
+  const verifiers = readdirSync(dir).filter((f) =>
+    /^(verify-.*|audit-crawl-depth|audit-sitemap-links)\.ts$/.test(f),
+  );
 
   it("finds the verifiers", () => {
     expect(verifiers.length).toBeGreaterThanOrEqual(4);
