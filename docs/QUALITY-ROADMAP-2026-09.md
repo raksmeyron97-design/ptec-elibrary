@@ -112,7 +112,40 @@ embedding backfill is budget-constrained, so "AI answers may be limited for
 this title" would be true of four books in five and would say more about this
 project's billing than about the library. Revisit after the backfill.
 
-### 7. Production-scale SEO verification — **run; see §"Production checks"**
+### 7. Production-scale SEO verification — **run; one instrument defect found and fixed**
+
+`[PRODUCTION]` The entity graph passes 10 of 10 shape fixtures. The sitemap
+advertises 2,313 URLs, and `scripts/audit-sitemap-links.ts` reported **141 of
+them broken**.
+
+They are not broken. Every one spot-checked afterwards answered HTTP 200 on the
+first serial request. The auditor was crawling at concurrency 6 against an
+origin that resets connections under parallel load, and filing its own
+transport failures under "BROKEN sitemap URLs" — then exiting 1 on them.
+
+The file already carried a comment explaining exactly why that is wrong
+("reporting those as dead links is how a link auditor stops being read"), and
+the repository already has one fault vocabulary for precisely this
+(`lib/verify/http.ts`: a transport failure is `unknown`, never a pass and never
+a defect; an incomplete run exits 0 and says so). This script was simply not in
+`lib/verify/http.test.ts`'s scan pattern, so it drifted. It is now, and the
+script speaks the vocabulary.
+
+`[PRODUCTION]` The re-run under the corrected instrument, at concurrency 2:
+
+```
+sitemap: 2313 URLs from https://library.ptec.edu.kh (concurrency 2)
+2313 passed (2313 URLs)
+```
+
+**All 2,313 of them.** No 404, no 410, no 5xx, no redirect where the canonical
+URL belongs, and nothing the origin failed to answer. The sitemap is honest;
+the 141 were the auditor.
+
+That is also the strongest available evidence that the instrument change was
+the right one: the same crawl, of the same URLs, minutes apart, reported 141
+defects at concurrency 6 and none at concurrency 2. A number that moves with
+the observer was never measuring the library.
 
 ### 8. Khmer text quality — **not advanced this phase**
 
@@ -173,7 +206,7 @@ All read-only, all over public HTTP, all `$0`.
 | Entity graph, per shape | `scripts/verify-production-entities.ts` | `[PRODUCTION]` 10/10 passed before the new fixtures; 10/12 after, and the 2 failures are the defect this phase fixes |
 | Search retrieval, 100 queries | `scripts/search-benchmark.ts` | `[PRODUCTION]` R@1 97% / R@5 99% / MRR 0.98 over 69 labels; `negative` topical precision 3% |
 | Author roster | `/authors` + `sitemap.xml` | `[PRODUCTION]` 318 names listed, 279 author URLs advertised, 10 names identify nobody |
-| Sitemap honesty | `scripts/audit-sitemap-links.ts` | see `docs/SEARCH-QUALITY-2026-09.md` and the run log |
+| Sitemap honesty, all 2,313 URLs | `scripts/audit-sitemap-links.ts` | `[PRODUCTION]` **2313 passed (2313 URLs)** — no 404, no redirect, no 5xx. The first run's 141 "broken" URLs were the auditor's own load (see P1 §7) |
 
 ## What remains UNKNOWN
 

@@ -20,8 +20,11 @@
 // exit 1 on it, while carrying a comment explaining precisely why that is
 // wrong. On 2026-09-19 a full run at concurrency 6 reported **141 of 2,313
 // URLs broken**; every one spot-checked afterwards answered 200 on the first
-// serial request. The origin resets connections under parallel load, and the
-// auditor was reading its own load as the library's defect.
+// serial request, and the same crawl of the same URLs minutes later at
+// concurrency 2 reported **2313 passed (2313 URLs)** — no 404, no redirect,
+// no 5xx, nothing unanswered. The origin resets connections under parallel
+// load, and the auditor was reading its own load as the library's defect. A
+// number that moves with the observer was never measuring the library.
 //
 // So it now speaks the fault vocabulary every other instrument here speaks
 // (lib/verify/http.ts), and the three rules that vocabulary exists for apply
