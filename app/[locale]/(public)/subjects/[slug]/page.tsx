@@ -116,7 +116,6 @@ export default async function SubjectPage({ params }: PageProps) {
 
   const prefix = locale === "km" ? `${SITE_URL}/km` : SITE_URL;
   const subjectUrl = `${prefix}/subjects/${subject.slug}`;
-  const parts = subjectBreakdown(subject.counts, t);
 
   // Grouped by type, in a stable order, so the page reads as a small catalogue
   // rather than one undifferentiated grid of mixed things.

@@ -22,7 +22,6 @@ import {
   errorOutcome,
   exitCodeFor,
   fetchText,
-  fetchWithRetry,
   incompleteBanner,
   summaryLine,
   tally,
@@ -53,16 +52,6 @@ const record = (check: string, outcome: Outcome, detail: string | null = null) =
 
 async function text(path: string): Promise<string> {
   return fetchText(`${BASE}${encodeURI(path)}`);
-}
-
-async function statusOf(path: string): Promise<number> {
-  // Every status is "an answer" here — the caller is asking WHAT the status is,
-  // so none of them is an error to retry past.
-  const res = await fetchWithRetry(`${BASE}${encodeURI(path)}`, {
-    method: "HEAD",
-    allowStatuses: [200, 301, 302, 307, 308, 404, 410, 500, 503],
-  });
-  return res.status;
 }
 
 // ── Test Fixtures ────────────────────────────────────────────────────────────
