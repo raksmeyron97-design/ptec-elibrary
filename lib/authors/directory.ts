@@ -36,6 +36,7 @@ import { addressableAuthorSlug } from "@/lib/authors/slug";
 import { TAGS } from "@/lib/cache/revalidate";
 
 import { parseAuthorNames } from "@/lib/resources/author-names";
+import { assessContributorName } from "@/lib/resources/contributor-trust";
 
 export type AuthorDirectoryEntry = {
   slug: string;
@@ -47,6 +48,16 @@ export type AuthorDirectoryEntry = {
    *  interests may exist). Used only to order the roster — never displayed as
    *  a claim about the person. */
   hasProfile: boolean;
+  /**
+   * False when the row's name provably does not identify anybody — an
+   * operating-system account, a program's name, a placeholder, a telephone
+   * number (lib/resources/contributor-trust.ts).
+   *
+   * Carried rather than filtered here, because the WHOLE roster is what an
+   * audit and an admin repair queue need to see. `getListedAuthors()` is the
+   * public read, and that is where the rule is applied.
+   */
+  identified: boolean;
 };
 
 /** Does a free-text byline string name any of this author's aliases? */
@@ -184,6 +195,7 @@ async function loadAuthorDirectory(): Promise<AuthorDirectoryEntry[]> {
       nameKm: opts.nameKm ?? null,
       workCount: opts.count + nameMatched,
       hasProfile: opts.hasProfile,
+      identified: assessContributorName(cleanName).trust !== "invalid",
     });
   };
 
@@ -226,11 +238,22 @@ export const getAuthorDirectory = cache(async (): Promise<AuthorDirectoryEntry[]
 });
 
 /**
- * Authors who have at least one public work — the only ones worth linking.
+ * Authors who have at least one public work AND a name that identifies
+ * somebody — the only ones worth linking.
  *
- * An author page with an empty works list is a soft-404 in the same way an
- * empty subject page is, so the hub does not send crawlers to one.
+ * Two rules, one predicate, because they fail the same way. An author page
+ * with an empty works list is a soft-404 in the same way an empty subject page
+ * is. An author page whose name is an operating-system account is worse than a
+ * soft-404: it is a `Person` this library invented, and it was in production —
+ * `/authors/windows-user`, `/authors/user`, `/authors/pptxgenjs` and
+ * `/authors/channa-0977-33-61-62` all answered 200 with `index, follow`, the
+ * last of them credited with 621 books (docs/DATA-QUALITY-2026-09.md §2).
+ *
+ * The rows are NOT deleted and the books keep the byline they were catalogued
+ * with. What stops is the recommendation: this list backs /authors, the
+ * sitemap and the AI's author vocabulary, and none of those should carry a
+ * name the library cannot stand behind.
  */
 export async function getListedAuthors(): Promise<AuthorDirectoryEntry[]> {
-  return (await getAuthorDirectory()).filter((a) => a.workCount > 0);
+  return (await getAuthorDirectory()).filter((a) => a.workCount > 0 && a.identified);
 }
