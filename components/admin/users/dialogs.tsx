@@ -74,7 +74,7 @@ export function ConfirmDialog({
     <Modal labelledBy={headingId} onClose={onCancel}>
       <div className="flex items-start gap-3">
         {danger && (
-          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600" aria-hidden="true">
+          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-danger-soft text-danger-text" aria-hidden="true">
             <AlertTriangle className="h-5 w-5" />
           </span>
         )}
@@ -84,14 +84,14 @@ export function ConfirmDialog({
         </div>
       </div>
       <div className="mt-6 flex items-center justify-end gap-3">
-        <button type="button" onClick={onCancel} disabled={busy} className="rounded-xl px-4 py-2.5 text-sm font-semibold text-text-body hover:bg-paper disabled:opacity-50">
+        <button type="button" onClick={onCancel} disabled={busy} className="focus-field rounded-xl px-4 py-2.5 text-sm font-semibold text-text-body hover:bg-paper disabled:opacity-50">
           {t("cancel")}
         </button>
         <button
           type="button"
           onClick={onConfirm}
           disabled={busy}
-          className={`rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-sm transition disabled:opacity-60 ${danger ? "bg-red-600 hover:bg-red-700" : "bg-brand hover:bg-brand-hover"}`}
+          className={`rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-sm transition disabled:opacity-60 ${danger ? "bg-danger hover:brightness-90" : "bg-brand hover:bg-brand-hover"}`}
         >
           {busy ? t("working") : confirmLabel}
         </button>
@@ -140,11 +140,11 @@ export function RoleDialog({
               onClick={() => setRole(r)}
               className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-40 ${active ? "border-brand bg-brand/5 ring-1 ring-brand/30" : "border-divider hover:bg-paper"}`}
             >
-              <span className={`mt-1 h-4 w-4 shrink-0 rounded-full border-2 ${active ? "border-brand bg-brand" : "border-slate-300"}`} aria-hidden="true" />
+              <span className={`mt-1 h-4 w-4 shrink-0 rounded-full border-2 ${active ? "border-brand bg-brand" : "border-divider"}`} aria-hidden="true" />
               <span>
                 <span className="flex items-center gap-2 text-sm font-bold text-text-heading">
                   {tRoles(r)}
-                  {disabled && <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-text-muted">{t("superAdminOnly")}</span>}
+                  {disabled && <span className="rounded bg-paper px-1.5 py-0.5 text-[10px] font-semibold text-text-muted">{t("superAdminOnly")}</span>}
                 </span>
                 <span className="mt-0.5 block text-xs text-text-muted">{tRoleDesc(r)}</span>
               </span>
@@ -153,7 +153,7 @@ export function RoleDialog({
         })}
       </div>
       <div className="mt-6 flex items-center justify-end gap-3">
-        <button type="button" onClick={onCancel} disabled={busy} className="rounded-xl px-4 py-2.5 text-sm font-semibold text-text-body hover:bg-paper disabled:opacity-50">{t("cancel")}</button>
+        <button type="button" onClick={onCancel} disabled={busy} className="focus-field rounded-xl px-4 py-2.5 text-sm font-semibold text-text-body hover:bg-paper disabled:opacity-50">{t("cancel")}</button>
         <button
           type="button"
           disabled={busy || role === user.role}

@@ -54,7 +54,7 @@ export default function MoveDialog({
         id="move-destination"
         value={destination}
         onChange={(e) => setDestination(e.target.value)}
-        className="mt-1.5 w-full rounded-lg border border-divider bg-bg-page px-3 py-2 text-sm text-text-body focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/40"
+        className="focus-field mt-1.5 w-full rounded-lg border border-divider bg-bg-page px-3 py-2 text-sm text-text-body"
       >
         {STORAGE_CATEGORIES.map((c) => (
           <option key={c} value={c}>{tCat(c)}</option>

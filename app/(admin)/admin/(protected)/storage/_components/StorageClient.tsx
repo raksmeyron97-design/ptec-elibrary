@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { WifiOff, ShieldAlert, ServerCrash, SearchX, FolderOpen } from "lucide-react";
 import { PageHeader, EmptyState, ConfirmDialog, useToast } from "@/components/admin/kit";
@@ -21,6 +21,9 @@ import {
   listStorageTrashAction,
   restoreStorageFileAction,
   permanentlyDeleteStorageFileAction,
+  getStorageSummaryAction,
+  getStorageSignedUrlAction,
+  resolveStorageUploadersAction,
 } from "@/app/actions/storage";
 import StorageOverview from "@/components/admin/storage/StorageOverview";
 import StorageToolbar, { type StorageFilters } from "@/components/admin/storage/StorageToolbar";
@@ -35,6 +38,8 @@ import RenameDialog from "@/components/admin/storage/RenameDialog";
 import MoveDialog from "@/components/admin/storage/MoveDialog";
 import TrashView from "@/components/admin/storage/TrashView";
 import PurgeConfirmDialog from "@/components/admin/storage/PurgeConfirmDialog";
+import StorageBulkBar from "@/components/admin/storage/StorageBulkBar";
+import { adminStorageDownloadHref } from "@/lib/admin/storage-shared";
 import type { StorageItemIntent } from "@/components/admin/storage/StorageItemMenu";
 
 type FileItem = Extract<StorageListItem, { type: "file" }>;
@@ -67,13 +72,22 @@ export default function StorageClient({
     return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
   }, []);
 
-  const [summary] = useState(initialSummary);
+  /* The totals card sits above a file manager that changes the totals. It was
+     frozen at the server render, so after an upload or a trash the disk usage,
+     the file count and the trash count all disagreed with the list underneath
+     them. `refreshSummary` is fired by every mutation path. */
+  const [summary, setSummary] = useState(initialSummary);
+  const refreshSummary = useCallback(async () => {
+    const res = await getStorageSummaryAction();
+    if (res.ok) setSummary(res.data);
+  }, []);
   const [view, setView] = useState<"browse" | "trash">("browse");
   const [folder, setFolder] = useState("");
   const [items, setItems] = useState<StorageListItem[]>([]);
   const [pagination, setPagination] = useState<StoragePagination | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loadError, setLoadError] = useState<"forbidden" | "unauthorized" | "unavailable" | "generic" | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [filters, setFilters] = useState<StorageFilters>({ q: "", extension: "", status: "active", sortBy: "name", order: "asc" });
@@ -100,21 +114,45 @@ export default function StorageClient({
   const [trashLoadingMore, setTrashLoadingMore] = useState(false);
   const [purgeTarget, setPurgeTarget] = useState<StorageFile | null>(null);
   const [purgeBusy, setPurgeBusy] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkConfirm, setBulkConfirm] = useState(false);
 
+  /* Uploader ids → names. The table and the drawer both printed the first
+     eight characters of a UUID, which identifies nobody. Resolved once per
+     visible page and cached across pages, so scrolling a folder costs one
+     lookup for the ids it newly introduces. */
+  const [uploaderNames, setUploaderNames] = useState<Record<string, string>>({});
   const requestGen = useRef(0);
 
-  const loadFolder = useCallback(async (targetFolder: string, currentFilters: StorageFilters, opts: { silent?: boolean } = {}) => {
+  /**
+   * Load one page of a folder.
+   *
+   * `cursor`/`append` are the fix for the "Load more" button, which called this
+   * with no cursor at all: it re-fetched page ONE and re-set the same forty
+   * rows, so on a folder with 41+ files the button appeared, did a round trip,
+   * and changed nothing. Nothing in the UI could say the difference between
+   * that and an empty page 2.
+   */
+  const loadFolder = useCallback(async (
+    targetFolder: string,
+    currentFilters: StorageFilters,
+    opts: { silent?: boolean; cursor?: number; append?: boolean } = {},
+  ) => {
     const gen = ++requestGen.current;
-    if (opts.silent) setRefreshing(true); else setLoading(true);
+    if (opts.append) setLoadingMore(true);
+    else if (opts.silent) setRefreshing(true);
+    else setLoading(true);
     setLoadError(null);
 
+    const cursor = opts.cursor ?? 0;
     const result = currentFilters.q.trim()
-      ? await searchStorageFilesAction({ q: currentFilters.q.trim(), extension: currentFilters.extension || undefined, status: currentFilters.status, limit: PAGE_SIZE })
-      : await listStorageFilesAction(targetFolder, { sortBy: currentFilters.sortBy, order: currentFilters.order, limit: PAGE_SIZE });
+      ? await searchStorageFilesAction({ q: currentFilters.q.trim(), extension: currentFilters.extension || undefined, status: currentFilters.status, cursor, limit: PAGE_SIZE })
+      : await listStorageFilesAction(targetFolder, { sortBy: currentFilters.sortBy, order: currentFilters.order, cursor, limit: PAGE_SIZE });
 
     if (gen !== requestGen.current) return; // a newer request superseded this one
     setLoading(false);
     setRefreshing(false);
+    setLoadingMore(false);
 
     if (!result.ok) {
       if (result.error.code === "FORBIDDEN") setLoadError("forbidden");
@@ -125,19 +163,51 @@ export default function StorageClient({
     }
 
     let nextItems = result.data.items as StorageListItem[];
+    // The extension filter is applied to the PAGE the server returned, so it
+    // narrows what is on screen and never claims to have searched the folder.
+    // The toolbar says so in as many words (`filterScopeHint`).
     if (!currentFilters.q.trim() && currentFilters.extension) {
       nextItems = nextItems.filter((i) => i.type === "folder" || i.extension === currentFilters.extension);
     }
-    setItems(nextItems);
+    setItems((prev) => {
+      if (!opts.append) return nextItems;
+      // Appending must not duplicate: a page boundary can overlap after a
+      // concurrent upload, and the key is what selection is built on.
+      const seen = new Set(prev.map((i) => (i.type === "file" ? i.storageKey : i.path)));
+      return [...prev, ...nextItems.filter((i) => !seen.has(i.type === "file" ? i.storageKey : i.path))];
+    });
     setPagination(result.data.pagination);
   }, []);
 
-  // Debounced reload on filter/folder change; stale responses are dropped via requestGen.
+  // Debounced reload on filter/folder change; stale responses are dropped via
+  // requestGen. Selection is cleared because the rows it named are gone.
   useEffect(() => {
     if (view !== "browse") return;
     const handle = setTimeout(() => { loadFolder(folder, filters); }, filters.q ? 300 : 0);
     return () => clearTimeout(handle);
   }, [folder, filters, view, loadFolder]);
+
+  useEffect(() => {
+    const unresolved = Array.from(
+      new Set(
+        items
+          .filter((i): i is FileItem => i.type === "file" && !!i.uploadedBy)
+          .map((i) => i.uploadedBy as string)
+          .filter((id) => !(id in uploaderNames)),
+      ),
+    );
+    if (unresolved.length === 0) return;
+    let alive = true;
+    resolveStorageUploadersAction(unresolved).then((res) => {
+      if (!alive || !res.ok) return;
+      // Ids that resolved to nothing are recorded as an empty string, so a
+      // deleted account is asked about once rather than on every render.
+      const merged: Record<string, string> = {};
+      for (const id of unresolved) merged[id] = res.data[id] ?? "";
+      setUploaderNames((prev) => ({ ...prev, ...merged }));
+    });
+    return () => { alive = false; };
+  }, [items, uploaderNames]);
 
   const loadTrash = useCallback(async (cursor = 0, append = false) => {
     if (append) setTrashLoadingMore(true); else setTrashLoading(true);
@@ -162,21 +232,101 @@ export default function StorageClient({
   function toggleSelect(key: string) {
     setSelected((prev) => { const next = new Set(prev); if (next.has(key)) next.delete(key); else next.add(key); return next; });
   }
+  const selectableFiles = useMemo(
+    () => items.filter((i): i is FileItem => i.type === "file" && !!i.id),
+    [items],
+  );
+
   function toggleSelectAll() {
-    const fileItems = items.filter((i): i is FileItem => i.type === "file" && !!i.id);
-    setSelected((prev) => (prev.size === fileItems.length ? new Set() : new Set(fileItems.map((f) => f.storageKey))));
+    // Compared against what is SELECTED ON THIS PAGE, not against the whole
+    // set: after "Load more" the old `prev.size === fileItems.length` test
+    // could be true with a different set of rows ticked.
+    setSelected((prev) => {
+      const allOnPage = selectableFiles.length > 0 && selectableFiles.every((f) => prev.has(f.storageKey));
+      if (allOnPage) {
+        const next = new Set(prev);
+        for (const f of selectableFiles) next.delete(f.storageKey);
+        return next;
+      }
+      return new Set([...prev, ...selectableFiles.map((f) => f.storageKey)]);
+    });
   }
 
+  const selectedFiles = useMemo(
+    () => selectableFiles.filter((f) => selected.has(f.storageKey)),
+    [selectableFiles, selected],
+  );
+
+  /**
+   * Bulk trash. The selection bar used to carry one control — "Clear selection"
+   * — so ticking boxes accomplished nothing at all; the checkboxes were a
+   * feature with no verb attached.
+   *
+   * Files are trashed one at a time because the storage API takes one key per
+   * call. A partial failure reports how many did not move rather than claiming
+   * the whole batch worked, and the successful ones stay gone.
+   */
+  async function bulkTrash(files: FileItem[]) {
+    setBulkBusy(true);
+    let failed = 0;
+    const removed: string[] = [];
+    for (const file of files) {
+      const res = await trashStorageFileAction(file.storageKey);
+      if (res.ok) removed.push(file.storageKey);
+      else failed++;
+    }
+    setBulkBusy(false);
+    setBulkConfirm(false);
+    setSelected((prev) => { const next = new Set(prev); for (const k of removed) next.delete(k); return next; });
+    if (failed === 0) toast.success(t("toasts.bulkTrashed", { count: removed.length }));
+    else if (removed.length === 0) toast.error(t("toasts.bulkTrashFailed", { count: failed }));
+    else toast.warning(t("toasts.bulkTrashPartial", { done: removed.length, failed }));
+    loadFolder(folder, filters, { silent: true });
+    refreshSummary();
+  }
+
+  /**
+   * One row action → one thing happening.
+   *
+   * Three of these used to open the details drawer and nothing else: "Preview",
+   * "Download" and "Copy link" were the same control wearing three labels, so a
+   * menu item named after an action performed a navigation instead. Preview
+   * still opens the drawer — that IS the preview — while Download downloads and
+   * Copy link copies.
+   */
   function handleItemIntent(file: FileItem, intent: StorageItemIntent) {
-    if (intent === "preview" || intent === "download") { setDetailsTarget(file); return; }
-    if (intent === "copyLink") { setDetailsTarget(file); return; }
+    if (intent === "preview") { setDetailsTarget(file); return; }
+    if (intent === "download") {
+      // Straight at the app's own proxy route, which re-checks authorization;
+      // the storage service's URL and token never reach the browser.
+      window.location.href = adminStorageDownloadHref(file.storageKey, "download");
+      return;
+    }
+    if (intent === "copyLink") {
+      withBusy(file.storageKey, async () => {
+        const res = await getStorageSignedUrlAction(file.storageKey);
+        if (!res.ok) { toast.error(res.error.message); return; }
+        try {
+          await navigator.clipboard.writeText(res.data.url);
+          toast.success(t("actions.linkCopied"));
+        } catch {
+          // Clipboard refused (insecure context, or permission denied): say so
+          // rather than reporting a copy that did not happen.
+          toast.error(t("actions.linkCopyFailed"));
+        }
+      });
+      return;
+    }
     if (intent === "rename") { setRenameTarget(file); setRenameError(null); return; }
     if (intent === "move") { setMoveTarget(file); setMoveError(null); return; }
     if (intent === "copy") {
       withBusy(file.storageKey, async () => {
         const res = await copyStorageFileAction(file.storageKey, file.folder.split("/")[0] ?? file.folder);
-        if (res.ok) { toast.success(t("actions.copyLink")); loadFolder(folder, filters, { silent: true }); }
-        else toast.error(res.error.message);
+        if (res.ok) {
+          toast.success(t("toasts.copied", { name: file.originalName }));
+          loadFolder(folder, filters, { silent: true });
+          refreshSummary();
+        } else toast.error(res.error.message);
       });
       return;
     }
@@ -189,7 +339,7 @@ export default function StorageClient({
     setRenameBusy(true);
     const res = await renameStorageFileAction(renameTarget.storageKey, name);
     setRenameBusy(false);
-    if (res.ok) { setRenameTarget(null); toast.success(t("rename.title")); loadFolder(folder, filters, { silent: true }); }
+    if (res.ok) { setRenameTarget(null); toast.success(t("toasts.renamed", { name })); loadFolder(folder, filters, { silent: true }); }
     else setRenameError(res.error.message);
   }
 
@@ -198,7 +348,12 @@ export default function StorageClient({
     setMoveBusy(true);
     const res = await moveStorageFileAction(moveTarget.storageKey, destinationFolder);
     setMoveBusy(false);
-    if (res.ok) { setMoveTarget(null); toast.success(t("move.title")); loadFolder(folder, filters, { silent: true }); }
+    if (res.ok) {
+      setMoveTarget(null);
+      toast.success(t("toasts.moved", { name: moveTarget.originalName, folder: destinationFolder }));
+      loadFolder(folder, filters, { silent: true });
+      refreshSummary();
+    }
     else setMoveError(res.error.message);
   }
 
@@ -208,8 +363,12 @@ export default function StorageClient({
     const res = await trashStorageFileAction(trashConfirmTarget.storageKey);
     setTrashConfirmBusy(false);
     setTrashConfirmTarget(null);
-    if (res.ok) { toast.success(t("trashView.title")); loadFolder(folder, filters, { silent: true }); }
-    else toast.error(res.error.message);
+    if (res.ok) {
+      toast.success(t("toasts.trashed", { name: trashConfirmTarget.originalName }));
+      setSelected((prev) => { const next = new Set(prev); next.delete(trashConfirmTarget.storageKey); return next; });
+      loadFolder(folder, filters, { silent: true });
+      refreshSummary();
+    } else toast.error(res.error.message);
   }
 
   async function doRestore(id: string) {
@@ -219,6 +378,7 @@ export default function StorageClient({
     if (res.ok) {
       toast.success(t("trashView.restoredSuccess"));
       setTrashItems((prev) => prev.filter((f) => f.id !== id));
+      refreshSummary();
     } else {
       toast.error(t("trashView.restoreFailed"));
     }
@@ -231,8 +391,9 @@ export default function StorageClient({
     setPurgeBusy(false);
     setPurgeTarget(null);
     if (res.ok) {
-      toast.success(t("purgeDialog.confirm"));
+      toast.success(t("toasts.purged", { name: purgeTarget.originalName }));
       setTrashItems((prev) => prev.filter((f) => f.id !== purgeTarget.id));
+      refreshSummary();
     } else {
       toast.error(res.error.message);
     }
@@ -242,7 +403,12 @@ export default function StorageClient({
     setNewFolderBusy(true);
     const res = await createStorageFolderAction(folder, name);
     setNewFolderBusy(false);
-    if (res.ok) { setNewFolderOpen(false); setNewFolderError(null); loadFolder(folder, filters, { silent: true }); }
+    if (res.ok) {
+      setNewFolderOpen(false);
+      setNewFolderError(null);
+      toast.success(t("toasts.folderCreated", { name }));
+      loadFolder(folder, filters, { silent: true });
+    }
     else setNewFolderError(res.error.message);
   }
 
@@ -266,6 +432,7 @@ export default function StorageClient({
           inTrash={view === "trash"}
           onExitTrash={() => setView("browse")}
           refreshing={view === "trash" ? trashLoading : refreshing}
+          trashCount={summary?.trashItems ?? 0}
         />
 
         {view === "browse" && !filters.q && <StorageBreadcrumbs folder={folder} onNavigate={(f) => { setFolder(f); setSelected(new Set()); }} />}
@@ -319,12 +486,20 @@ export default function StorageClient({
           )
         ) : (
           <>
-            {selected.size > 0 && (
-              <div className="flex items-center justify-between rounded-xl border border-brand/30 bg-brand/5 px-4 py-2.5">
-                <span className="text-sm font-semibold text-text-heading">{t("bulk.selected", { count: selected.size })}</span>
-                <button type="button" onClick={() => setSelected(new Set())} className="text-sm font-semibold text-brand hover:underline">{t("bulk.clearSelection")}</button>
-              </div>
-            )}
+            <StorageBulkBar
+              count={selectedFiles.length}
+              busy={bulkBusy}
+              canWrite={canWrite}
+              onDownload={() => {
+                for (const file of selectedFiles) {
+                  // Separate tabs, not one navigation: the proxy serves one
+                  // object per request and the browser handles the rest.
+                  window.open(adminStorageDownloadHref(file.storageKey, "download"), "_blank", "noopener");
+                }
+              }}
+              onTrash={() => setBulkConfirm(true)}
+              onClear={() => setSelected(new Set())}
+            />
             {viewMode === "list" ? (
               <>
                 <StorageTable
@@ -337,6 +512,10 @@ export default function StorageClient({
                   onItemIntent={handleItemIntent}
                   canWrite={canWrite}
                   busyKeys={busyKeys}
+                  uploaderNames={uploaderNames}
+                  sortBy={filters.sortBy}
+                  order={filters.order}
+                  onSort={(sortBy, order) => setFilters((prev) => ({ ...prev, sortBy, order }))}
                 />
                 <StorageMobileList
                   items={items}
@@ -361,20 +540,23 @@ export default function StorageClient({
                 busyKeys={busyKeys}
               />
             )}
-            {pagination?.nextCursor !== null && pagination !== null && (
+            {pagination?.nextCursor != null && (
               <button
                 type="button"
-                onClick={() => loadFolder(folder, filters)}
-                className="w-full rounded-lg border border-divider py-2 text-sm font-semibold text-text-body hover:bg-paper"
+                disabled={loadingMore}
+                onClick={() => loadFolder(folder, filters, { cursor: pagination.nextCursor ?? 0, append: true })}
+                className="focus-field w-full rounded-lg border border-divider py-2 text-sm font-semibold text-text-body transition hover:bg-paper disabled:cursor-wait disabled:opacity-60"
               >
-                {tStates("loadMore")}
+                {loadingMore
+                  ? tStates("loadingMore")
+                  : tStates("loadMoreOf", { shown: items.length, total: pagination.total })}
               </button>
             )}
           </>
         )}
       </div>
 
-      <UploadDialog open={uploadOpen} defaultFolder={folder || "books"} onClose={() => setUploadOpen(false)} onUploaded={() => loadFolder(folder, filters, { silent: true })} />
+      <UploadDialog open={uploadOpen} defaultFolder={folder || "books"} onClose={() => setUploadOpen(false)} onUploaded={() => { loadFolder(folder, filters, { silent: true }); refreshSummary(); }} />
       <NewFolderDialog open={newFolderOpen} parentFolder={folder} busy={newFolderBusy} error={newFolderError} onClose={() => setNewFolderOpen(false)} onCreate={doCreateFolder} />
       <RenameDialog file={renameTarget} busy={renameBusy} error={renameError} onClose={() => setRenameTarget(null)} onRename={doRename} />
       <MoveDialog file={moveTarget} busy={moveBusy} error={moveError} onClose={() => setMoveTarget(null)} onMove={doMove} />
@@ -382,6 +564,7 @@ export default function StorageClient({
         <FileDetailsDrawer
           file={detailsTarget}
           canWrite={canWrite}
+          uploaderName={detailsTarget.uploadedBy ? uploaderNames[detailsTarget.uploadedBy] : undefined}
           onClose={() => setDetailsTarget(null)}
           onIntent={(intent) => { const target = detailsTarget; setDetailsTarget(null); handleItemIntent(target, intent); }}
         />
@@ -398,6 +581,17 @@ export default function StorageClient({
         onConfirm={doTrash}
       />
       <PurgeConfirmDialog file={purgeTarget} busy={purgeBusy} onClose={() => setPurgeTarget(null)} onConfirm={doPurge} />
+      <ConfirmDialog
+        open={bulkConfirm}
+        title={t("bulk.trashTitle", { count: selectedFiles.length })}
+        description={t("bulk.trashBody", { count: selectedFiles.length, days: summary?.trashRetentionDays ?? 30 })}
+        tone="danger"
+        confirmLabel={t("bulk.trashConfirm")}
+        cancelLabel={tTrashDialog("cancel")}
+        busy={bulkBusy}
+        onCancel={() => setBulkConfirm(false)}
+        onConfirm={() => bulkTrash(selectedFiles)}
+      />
     </div>
   );
 }

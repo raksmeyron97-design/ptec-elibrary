@@ -129,9 +129,9 @@ export default function AddUserDialog({
           </select>
         </label>
 
-        {error && <div role="alert" className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">{error}</div>}
+        {error && <div role="alert" className="mt-4 rounded-lg border border-danger-line bg-danger-soft px-3 py-2.5 text-sm text-danger-text">{error}</div>}
         {done && (
-          <div role="status" className="mt-4 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700">
+          <div role="status" className="mt-4 flex items-center gap-2 rounded-lg border border-success-line bg-success-soft px-3 py-2.5 text-sm text-success-text">
             <CheckCircle2 className="h-4 w-4" /> {done}
           </div>
         )}

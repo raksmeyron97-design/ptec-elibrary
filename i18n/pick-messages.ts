@@ -68,8 +68,14 @@ export const AUTH_NAMESPACES = ["auth"] as const;
 
 /** app/(admin)/admin/(protected): dashboard client components plus the
  *  shared Pagination used by the CRUD tables. Admin login/MFA pages use
- *  no client translations at all. */
-export const ADMIN_NAMESPACES = ["adminAnnouncements", "adminBookRequests", "adminCatalog", "adminCatalogCover", "adminDashboard", "adminDataQuality", "adminDuplicates", "adminErrors", "adminEbooks", "adminExport", "adminHomepagePhotos", "adminJournals", "adminLogs", "adminPaths", "adminPostForm", "adminPosts", "adminReview", "adminRoles", "adminSearchInsights", "adminShell", "adminStorage", "adminTheses", "adminThesisForm", "adminUpload", "adminUsers", "pagination"] as const;
+ *  no client translations at all.
+ *
+ *  `downloadProfile` is here because `/admin/users/[id]` renders the reader's
+ *  OWN Download Access Profile and must label each column with the same word
+ *  the reader saw when they filled it in — the alternative was a second copy
+ *  of thirty field and enum labels in `adminUsers`, in two languages, free to
+ *  drift from the form that writes them. */
+export const ADMIN_NAMESPACES = ["adminAnnouncements", "adminBookRequests", "adminCatalog", "adminCatalogCover", "adminDashboard", "adminDataQuality", "adminDuplicates", "adminErrors", "adminEbooks", "adminExport", "adminHomepagePhotos", "adminJournals", "adminLogs", "adminPaths", "adminPostForm", "adminPosts", "adminReview", "adminRoles", "adminSearchInsights", "adminShell", "adminStorage", "adminTheses", "adminThesisForm", "adminUpload", "adminUsers", "downloadProfile", "pagination"] as const;
 
 /** Narrow a full message catalogue to the given namespaces. */
 export function pickMessages(

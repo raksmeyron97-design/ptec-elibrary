@@ -110,7 +110,7 @@ export default function StoragePicker({
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                   placeholder={t("searchPlaceholder")}
-                  className="w-full rounded-lg border border-divider bg-bg-page py-2 pl-9 pr-3 text-sm text-text-body focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/40"
+                  className="focus-field w-full rounded-lg border border-divider bg-bg-page py-2 pl-9 pr-3 text-sm text-text-body"
                   autoFocus
                 />
               </div>

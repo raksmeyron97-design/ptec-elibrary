@@ -8,6 +8,7 @@ import {
   type AccountStatus,
   type UserSort,
   type JoinedRange,
+  rolesForFilter,
 } from "@/lib/admin/users-shared";
 
 /**
@@ -150,7 +151,12 @@ export async function getUsers(params: GetUsersParams): Promise<GetUsersResult> 
         (u.phone ?? "").toLowerCase().includes(q),
     );
   }
-  if (params.role && ALL_ROLES.includes(params.role as AppRole)) {
+  // A group value (`admins`) selects a tier; anything else must be one real
+  // role. An unrecognised value filters nothing rather than emptying the list.
+  const roleGroup = rolesForFilter(params.role);
+  if (roleGroup) {
+    rows = rows.filter((u) => roleGroup.includes(u.role));
+  } else if (params.role && ALL_ROLES.includes(params.role as AppRole)) {
     rows = rows.filter((u) => u.role === params.role);
   }
   if (params.status) {

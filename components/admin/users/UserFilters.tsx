@@ -9,6 +9,7 @@ import { ALL_ROLES } from "@/lib/types/roles";
 import {
   USER_SORT_OPTIONS,
   JOINED_RANGE_OPTIONS,
+  ROLE_GROUPS,
   type AccountStatus,
 } from "@/lib/admin/users-shared";
 
@@ -36,7 +37,9 @@ export default function UserFilters({
   const setParam = (key: string, v: string) =>
     router.push(withUpdatedParams(searchParams, { [key]: v === "all" || v === "" ? null : v }));
 
-  const roleLabel = (r: string) => t(`roles.${r}`);
+  // A group value is labelled from its own key, not from `roles.*` — `admins`
+  // is a tier, and there is no role by that name.
+  const roleLabel = (r: string) => (r in ROLE_GROUPS ? t(`filters.group_${r}`) : t(`roles.${r}`));
   const statusLabel = (s: string) => t(`status.${s}`);
   const joinedLabel = (j: string) => t(`joined.${j}`);
 
@@ -57,7 +60,11 @@ export default function UserFilters({
             ariaLabel={t("filters.byRole")}
             value={value.role || "all"}
             onChange={(v) => setParam("role", v)}
-            options={[{ value: "all", label: t("filters.allRoles") }, ...ALL_ROLES.map((r) => ({ value: r, label: roleLabel(r) }))]}
+            options={[
+              { value: "all", label: t("filters.allRoles") },
+              ...Object.keys(ROLE_GROUPS).map((g) => ({ value: g, label: roleLabel(g) })),
+              ...ALL_ROLES.map((r) => ({ value: r, label: roleLabel(r) })),
+            ]}
           />
         </div>
 

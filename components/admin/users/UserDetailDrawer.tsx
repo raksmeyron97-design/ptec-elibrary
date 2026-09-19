@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { X, Mail, Phone, Calendar, Clock, BookMarked, Star, UserCog, Ban, CircleCheck, Loader2 } from "lucide-react";
+import { X, Mail, Phone, Calendar, Clock, BookMarked, Star, UserCog, Ban, CircleCheck, ArrowUpRight } from "lucide-react";
 import Avatar from "@/components/ui/Avatar";
 import { fetchUserDetail } from "@/app/(admin)/admin/(protected)/users/actions";
 import type { UserDetail } from "@/lib/admin/users";
@@ -33,16 +34,34 @@ export default function UserDetailDrawer({
   const t = useTranslations("adminUsers.drawer");
   const tTable = useTranslations("adminUsers.table");
   const tTime = useTranslations("adminUsers.time");
+  const tProfile = useTranslations("adminUsers.profile");
   const [detail, setDetail] = useState<UserDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
     document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", onKey);
     panelRef.current?.focus();
-    return () => { document.body.style.overflow = ""; document.removeEventListener("keydown", onKey); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { onClose(); return; }
+      if (e.key !== "Tab") return;
+      // Keep Tab inside the dialog, and cycle at both ends.
+      const focusables = panelRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusables || focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = "";
+      document.removeEventListener("keydown", onKey);
+      previouslyFocused?.focus?.();
+    };
   }, [onClose]);
 
   // Remounted per user (key={user.id} at the call site), so `loading` starts
@@ -83,6 +102,20 @@ export default function UserDetailDrawer({
           </button>
         </div>
 
+        {/* The drawer answers "who is this?" in one glance. Everything it
+            cannot hold — the access profile, the activity totals, the
+            administrative history — is one link away rather than crammed into
+            a 420px column. */}
+        <div className="border-b border-divider px-5 py-3">
+          <Link
+            href={`/admin/users/${user.id}`}
+            className="focus-field inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-brand px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-brand-hover"
+          >
+            {tProfile("viewProfile")}
+            <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </div>
+
         {/* Quick actions */}
         <div className="grid grid-cols-2 gap-2 px-5 py-4">
           <button type="button" className={actionBtn} disabled={!canManage} onClick={() => onIntent("assignRole")}>
@@ -90,11 +123,11 @@ export default function UserDetailDrawer({
           </button>
           {suspended ? (
             <button type="button" className={actionBtn} disabled={!canManage} onClick={() => onIntent("activate")}>
-              <CircleCheck className="h-4 w-4 text-emerald-600" /> {t("reactivate")}
+              <CircleCheck className="h-4 w-4 text-success" aria-hidden="true" /> {t("reactivate")}
             </button>
           ) : (
             <button type="button" className={actionBtn} disabled={!canManage} onClick={() => onIntent("suspend")}>
-              <Ban className="h-4 w-4 text-amber-600" /> {t("suspend")}
+              <Ban className="h-4 w-4 text-warning" aria-hidden="true" /> {t("suspend")}
             </button>
           )}
         </div>
@@ -123,7 +156,7 @@ export default function UserDetailDrawer({
                 <ul className="space-y-2">
                   {detail.recentActivity.map((a, i) => (
                     <li key={i} className="flex items-start gap-2.5 text-sm">
-                      <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${a.kind === "download" ? "bg-blue-400" : "bg-amber-400"}`} aria-hidden="true" />
+                      <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${a.kind === "download" ? "bg-info" : "bg-warning"}`} aria-hidden="true" />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-text-body">{a.label}</span>
                         <span className="text-[11px] text-text-muted">{formatRelative(a.at, tTime)}</span>
@@ -144,7 +177,7 @@ export default function UserDetailDrawer({
             <button type="button" onClick={() => onIntent("resetPassword")} className={`${actionBtn} flex-1`}>
               {t("resetPassword")}
             </button>
-            <button type="button" onClick={() => onIntent("delete")} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] font-semibold text-red-600 transition hover:bg-red-100">
+            <button type="button" onClick={() => onIntent("delete")} className="focus-field inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-danger-line bg-danger-soft px-3 py-2 text-[13px] font-semibold text-danger-text transition hover:brightness-95">
               {t("deleteUser")}
             </button>
           </div>
@@ -164,13 +197,16 @@ function Row({ icon, label, children }: { icon: React.ReactNode; label: string; 
   );
 }
 
+/** Shaped like the content it stands in for. The previous version put a
+ *  spinner on every line, which reads as several requests in trouble rather
+ *  than one section arriving. */
 function SkeletonLines({ n }: { n: number }) {
   return (
-    <div className="space-y-2">
+    <div className="animate-pulse space-y-2" aria-hidden="true">
       {Array.from({ length: n }).map((_, i) => (
-        <div key={i} className="flex items-center gap-2 text-text-muted">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          <div className="h-3 flex-1 rounded bg-slate-100" />
+        <div key={i} className="flex items-center gap-2">
+          <div className="h-1.5 w-1.5 rounded-full bg-divider" />
+          <div className="h-3 rounded bg-paper" style={{ width: `${70 - i * 12}%` }} />
         </div>
       ))}
     </div>

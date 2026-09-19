@@ -10,7 +10,27 @@
 
 import type { ActivityEvent, EventStatus, ResourceType } from "@/lib/admin/activity-log-shared";
 
-export const FONT = "'Inter Tight', 'Inter', system-ui, sans-serif";
+/**
+ * The page's type face: whatever the document already decided.
+ *
+ * This was `'Inter Tight', 'Inter', system-ui, sans-serif`, and it was wrong in
+ * both languages. `Inter Tight` is not a family this app loads at all, and
+ * next/font emits a HASHED family name (`__Inter_abc123`) rather than the
+ * literal `Inter` — so neither name resolved and English fell through to
+ * `system-ui`, which is not the face the rest of the admin panel uses. Worse,
+ * the stack names no Khmer family, so `/km` rendered Khmer on whatever the
+ * operating system happened to pick instead of Hanuman.
+ *
+ * `globals.css` already answers this per locale — `html:lang("en") body` gets
+ * the Inter stack and `html:lang("km") body` gets the Hanuman one, and the
+ * admin shell sets `<html lang>` from the locale cookie. Inheriting is
+ * therefore not a fallback but the correct answer, and it is what every other
+ * admin page does by simply not overriding `font-family`.
+ *
+ * It stays a constant because form controls do NOT inherit `font-family` from
+ * their ancestors — the buttons and inputs on this page need it stated.
+ */
+export const FONT = "inherit";
 export const INK = "var(--dash-ink)";
 export const INK2 = "var(--dash-ink-2)";
 export const INK3 = "var(--dash-ink-3)";

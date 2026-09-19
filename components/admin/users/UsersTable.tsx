@@ -1,8 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { ExternalLink } from "lucide-react";
 import Avatar from "@/components/ui/Avatar";
 import { formatDate, formatRelative, type UserRow } from "@/lib/admin/users-shared";
+import { Badge } from "@/components/admin/kit";
 import { RoleBadge, StatusBadge } from "@/components/admin/users/badges";
 import UserActionsMenu, { type UserActionIntent } from "@/components/admin/users/UserActionsMenu";
 
@@ -50,7 +53,7 @@ export default function UsersTable({
                     checked={allSelected}
                     onChange={onToggleSelectAll}
                     aria-label={t("selectAll")}
-                    className="h-4 w-4 rounded border-slate-300 text-brand focus-visible:ring-2 focus-visible:ring-focus-ring/40"
+                    className="focus-field h-4 w-4 rounded border-divider text-brand"
                   />
                 </th>
               )}
@@ -62,7 +65,7 @@ export default function UsersTable({
               <th scope="col" className="px-4 py-3 text-right"><span className="sr-only">{t("actions")}</span></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-50">
+          <tbody className="divide-y divide-divider">
             {rows.map((u) => {
               const isMe = u.id === currentUserId;
               const targetIsSuperAdmin = u.isSuperAdmin || u.role === "super_admin";
@@ -83,7 +86,7 @@ export default function UsersTable({
                         checked={selected}
                         onChange={() => onToggleSelect(u.id)}
                         aria-label={t("selectUser", { name: u.fullName ?? u.email })}
-                        className="h-4 w-4 rounded border-slate-300 text-brand focus-visible:ring-2 focus-visible:ring-focus-ring/40"
+                        className="focus-field h-4 w-4 rounded border-divider text-brand"
                       />
                     </td>
                   )}
@@ -93,8 +96,24 @@ export default function UsersTable({
                       <Avatar url={u.avatarUrl ?? null} name={u.fullName} email={u.email} size={38} />
                       <div className="min-w-0">
                         <p className="flex items-center gap-1.5 font-semibold leading-tight text-text-heading">
-                          <span className="truncate">{u.fullName ?? <span className="italic text-text-muted">{t("noName")}</span>}</span>
-                          {isMe && <span className="rounded-full bg-cyan-50 px-1.5 py-0.5 text-[9px] font-bold text-cyan-700">{t("you")}</span>}
+                          {/* A real link, not just a clickable row: the row
+                              opens the quick drawer on click, but the PROFILE
+                              has to be reachable by keyboard, by middle click
+                              and by "open in new tab" — none of which a
+                              `<tr onClick>` offers. */}
+                          <Link
+                            href={`/admin/users/${u.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="focus-field group/name truncate rounded hover:text-brand hover:underline"
+                            title={t("openProfile", { name: u.fullName ?? u.email })}
+                          >
+                            {u.fullName ?? <span className="italic text-text-muted">{t("noName")}</span>}
+                            <ExternalLink
+                              className="ml-1 inline h-3 w-3 align-baseline opacity-0 transition-opacity group-hover/name:opacity-100"
+                              aria-hidden="true"
+                            />
+                          </Link>
+                          {isMe && <Badge tone="brand">{t("you")}</Badge>}
                         </p>
                         <p className="truncate text-xs text-text-muted">{u.email || "—"}</p>
                       </div>

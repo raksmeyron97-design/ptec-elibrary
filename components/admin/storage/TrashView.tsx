@@ -60,9 +60,9 @@ export default function TrashView({
                   type="button"
                   onClick={() => file.id && onRestore(file.id)}
                   disabled={busy}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-divider px-3 py-1.5 text-[12.5px] font-semibold text-text-body hover:bg-paper disabled:opacity-50"
+                  className="focus-field inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-divider px-3 py-1.5 text-[12.5px] font-semibold text-text-body hover:bg-paper disabled:opacity-50"
                 >
-                  <RotateCcw className="h-3.5 w-3.5" /> {t("restore")}
+                  <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> {t("restore")}
                 </button>
               )}
               {canPurge && (
@@ -70,9 +70,9 @@ export default function TrashView({
                   type="button"
                   onClick={() => onPurge(file)}
                   disabled={busy}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-danger/30 px-3 py-1.5 text-[12.5px] font-semibold text-danger hover:bg-danger/10 disabled:opacity-50"
+                  className="focus-field inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-danger-line px-3 py-1.5 text-[12.5px] font-semibold text-danger-text hover:bg-danger-soft disabled:opacity-50"
                 >
-                  <XCircle className="h-3.5 w-3.5" /> {t("deletePermanently")}
+                  <XCircle className="h-3.5 w-3.5" aria-hidden="true" /> {t("deletePermanently")}
                 </button>
               )}
             </li>
@@ -80,8 +80,8 @@ export default function TrashView({
         })}
       </ul>
       {hasMore && (
-        <button type="button" onClick={onLoadMore} disabled={loadingMore} className="w-full rounded-lg border border-divider py-2 text-sm font-semibold text-text-body hover:bg-paper disabled:opacity-50">
-          {loadingMore ? "…" : tStates("loadMore")}
+        <button type="button" onClick={onLoadMore} disabled={loadingMore} className="focus-field w-full rounded-lg border border-divider py-2 text-sm font-semibold text-text-body hover:bg-paper disabled:opacity-50">
+          {loadingMore ? tStates("loadingMore") : tStates("loadMore")}
         </button>
       )}
     </div>

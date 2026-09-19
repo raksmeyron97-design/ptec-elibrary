@@ -86,18 +86,13 @@ export default function LogsFilters({
           ]}
         />
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8, height: 36, padding: "0 12px", background: LINE_SUBTLE, border: `1px solid ${LINE}`, borderRadius: 10, flex: "1 1 220px", minWidth: 180 }}>
-          <span style={{ color: INK3, display: "flex" }}><SearchIcon /></span>
-          <input
-            type="search"
-            defaultValue={search}
-            onChange={(e) => onSearchInput(e.target.value)}
-            placeholder={t("filters.searchPlaceholder")}
-            aria-label={t("filters.search")}
-            aria-describedby="logs-search-hint"
-            style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontFamily: "inherit", fontSize: 13.5, color: INK, minWidth: 0 }}
-          />
-        </div>
+        <SearchField
+          value={search}
+          onInput={onSearchInput}
+          placeholder={t("filters.searchPlaceholder")}
+          label={t("filters.search")}
+          clearLabel={t("filters.clearSearch")}
+        />
         <p id="logs-search-hint" style={srOnly}>{t("filters.searchHint")}</p>
       </div>
 
@@ -126,6 +121,77 @@ export default function LogsFilters({
             {t("filters.clearAll")}
           </button>
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The search field.
+ *
+ * It was `defaultValue={search}` on an input that never remounts, which made
+ * the box a SECOND, divergent copy of a parameter the whole page insists lives
+ * in the URL. Removing the "Search: math" chip deleted `?q` and re-ran the
+ * query, and the box still said `math` — so the results and the control that
+ * produced them disagreed, with no way to tell which was true. The same
+ * happened on Back, on Clear all, and on any shared link.
+ *
+ * The fix keeps typing local (a controlled input driven by a 400 ms debounce
+ * would yank characters back out from under the typist on a slow navigation)
+ * but makes the URL the authority: whenever `value` changes to something the
+ * user did not just type, the box is re-synced.
+ */
+function SearchField({
+  value, onInput, placeholder, label, clearLabel,
+}: {
+  value: string;
+  onInput: (value: string) => void;
+  placeholder: string;
+  label: string;
+  clearLabel: string;
+}) {
+  const [text, setText] = useState(value);
+  const typed = useRef(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Only adopt the URL when it says something other than the last thing this
+    // field sent — otherwise the debounce's own navigation would re-set the
+    // text mid-keystroke.
+    if (value !== typed.current) {
+      typed.current = value;
+      setText(value);
+    }
+  }, [value]);
+
+  const push = (next: string) => {
+    typed.current = next;
+    setText(next);
+    onInput(next);
+  };
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, height: 36, padding: "0 8px 0 12px", background: LINE_SUBTLE, border: `1px solid ${LINE}`, borderRadius: 10, flex: "1 1 220px", minWidth: 180 }}>
+      <span style={{ color: INK3, display: "flex" }} aria-hidden><SearchIcon /></span>
+      <input
+        ref={inputRef}
+        type="search"
+        value={text}
+        onChange={(e) => push(e.target.value)}
+        placeholder={placeholder}
+        aria-label={label}
+        aria-describedby="logs-search-hint"
+        style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontFamily: "inherit", fontSize: 13.5, color: INK, minWidth: 0 }}
+      />
+      {text && (
+        <button
+          type="button"
+          onClick={() => { push(""); inputRef.current?.focus(); }}
+          aria-label={clearLabel}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 22, height: 22, borderRadius: 6, border: "none", background: "transparent", color: INK3, cursor: "pointer", flex: "none" }}
+        >
+          <CloseIcon size={13} />
+        </button>
       )}
     </div>
   );

@@ -1051,6 +1051,43 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   .logs-list-view { display: none; }
 }
 
+/* ── Khmer on /admin/logs ───────────────────────────────────────────────────
+   This page is built entirely from INLINE styles, and an inline style beats a
+   stylesheet — including `globals.css`'s own
+   `:lang(km) { text-transform: none; letter-spacing: normal; }`. So Khmer here
+   was being uppercased and letter-spaced by the eyebrow and table-header
+   styles, and the 28px `lineHeight: 1.2` heading squeezed its own stacked
+   subscripts (measured: a 37px text box inside a 34px line box on
+   "សកម្មភាព និងសុវត្ថិភាព"). Khmer stacks marks BELOW the baseline, so a line
+   box tuned for Latin puts them into the row beneath.
+
+   `!important` is the only declaration that outranks a style attribute, so it
+   is used deliberately rather than as a shortcut; the alternative is rewriting
+   every inline style on the page into a class. Scoped to `.logs-page` and to
+   `:lang(km)`, so English is untouched and no other page is affected.
+
+   The values follow the `.paths-page` precedent in globals.css: 1.4 for
+   headings, and the FACE is not set here — Khmer is Hanuman via the
+   `html:lang("km") body` rule, like everywhere else on the site. */
+.logs-page:lang(km) :is(h1, h2, h3) {
+  line-height: 1.4 !important;
+}
+
+/* Khmer has no letter case, and letter-spacing breaks its consonant clusters
+   apart — the micro-caps treatment is a Latin convention only. */
+.logs-page:lang(km) * {
+  text-transform: none !important;
+  letter-spacing: normal !important;
+}
+
+/* NOT sticky, deliberately. A `position: sticky` thead here pins to nothing:
+   `.logs-table-view` sets `overflow-x: auto`, which computes `overflow-y` to
+   `auto` and makes it a scroll container, and its `.dash-card` parent is
+   `overflow: hidden`. The header would stick to the top of a box that never
+   scrolls vertically — a rule that looks like a feature and does nothing.
+   Making it work means giving the wrapper a max-height and a second scrollbar
+   inside the page, for a table that is one page of twenty rows. */
+
 /* Event drawer. A 440px side panel is right on a laptop and wrong on a phone,
    where it leaves a 60px strip of unusable page beside a cramped column — so
    below 640px it becomes a bottom sheet the thumb can actually reach. */

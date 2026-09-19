@@ -220,6 +220,14 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
 
   // ── Administration ────────────────────────────────────────────────────────
   { id: "users.manage", route: "/admin/users", requires: perm("users", "read") },
+  /* One reader's profile. READ, at exactly the directory's level and not above
+     it: the row already discloses name, email, phone, role and status to a
+     `users: read` account, and the profile page adds the institutional record
+     the same reader supplied to unlock thesis downloads — which is the record
+     a librarian approving that access has to be able to read. Every control on
+     it (assign role, suspend, reset, delete) is `users.update`, checked per
+     mutation in ../users/actions.ts, which is the boundary. */
+  { id: "users.profile", route: "/admin/users/[id]", requires: perm("users", "read"), backTo: "/admin/users" },
   { id: "team.manage", route: "/admin/team", requires: perm("users", "read"), navKey: "libraryTeam" },
   { id: "team.create", route: "/admin/team/new", requires: perm("users", "write"), backTo: "/admin/team" },
   { id: "team.sections", route: "/admin/team/sections", requires: perm("users", "write"), backTo: "/admin/team" },

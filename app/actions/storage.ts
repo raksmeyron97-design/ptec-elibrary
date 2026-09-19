@@ -325,3 +325,40 @@ export async function resolveStorageFileUsageAction(storageKey: string): Promise
     return errorResult(e);
   }
 }
+
+/**
+ * Resolve uploader ids to display names.
+ *
+ * The file table and the details drawer both printed `uploadedBy.slice(0, 8)` —
+ * eight hex characters of a UUID, which identifies nobody and reads as a
+ * rendering fault. The ids are already in the payload, so the only thing
+ * missing was the lookup.
+ *
+ * READ-level, because the caller is already reading the file list these ids
+ * came from; it returns names and nothing else (no email, no role), since the
+ * question on screen is "who uploaded this?" and not "who is this person?".
+ * An id that resolves to no profile is simply absent from the map, and the
+ * caller falls back to "unknown" rather than to a truncated UUID.
+ */
+export async function resolveStorageUploadersAction(
+  userIds: string[],
+): Promise<StorageActionResult<Record<string, string>>> {
+  try {
+    await guard("storage", "read", "storageBrowse");
+    const unique = Array.from(new Set(userIds.filter(Boolean))).slice(0, 100);
+    if (unique.length === 0) return { ok: true, data: {} };
+
+    const db = createServiceClient();
+    const { data, error } = await db.from("profiles").select("id, full_name, email").in("id", unique);
+    if (error) throw error;
+
+    const map: Record<string, string> = {};
+    for (const row of (data ?? []) as { id: string; full_name: string | null; email: string | null }[]) {
+      const label = row.full_name?.trim() || row.email?.trim();
+      if (label) map[row.id] = label;
+    }
+    return { ok: true, data: map };
+  } catch (e) {
+    return errorResult(e);
+  }
+}

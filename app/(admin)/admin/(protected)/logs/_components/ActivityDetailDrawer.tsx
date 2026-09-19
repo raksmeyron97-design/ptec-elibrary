@@ -14,6 +14,7 @@
 // action and is only offered to callers the server said may use it.
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import Avatar from "@/components/ui/Avatar";
 import type { ActivityEvent } from "@/lib/admin/activity-log-shared";
@@ -24,16 +25,18 @@ import type { TimeParts } from "./time";
 type Revealed = Extract<Awaited<ReturnType<typeof revealReaderContact>>, { ok: true }>;
 
 export default function ActivityDetailDrawer({
-  event, canSeePersonal, onClose, fmt,
+  event, canSeePersonal, canOpenUserProfile, onClose, fmt,
 }: {
   event: ActivityEvent;
   canSeePersonal: boolean;
+  canOpenUserProfile: boolean;
   onClose: () => void;
   fmt: (iso: string) => TimeParts;
 }) {
   const t = useTranslations("adminLogs");
   const panelRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
+  const [resourceCopied, setResourceCopied] = useState(false);
   const [revealed, setRevealed] = useState<Revealed | null>(null);
   const [revealing, setRevealing] = useState(false);
   const time = fmt(event.occurredAt);
@@ -60,9 +63,10 @@ export default function ActivityDetailDrawer({
     return () => { document.removeEventListener("keydown", onKey); previouslyFocused?.focus?.(); };
   }, [onClose]);
 
-  const copyId = async () => {
-    try { await navigator.clipboard?.writeText(event.id); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* clipboard unavailable — the id is still selectable */ }
+  const copyValue = async (value: string, mark: (v: boolean) => void) => {
+    try { await navigator.clipboard?.writeText(value); mark(true); setTimeout(() => mark(false), 1600); } catch { /* clipboard unavailable — the id is still selectable */ }
   };
+  const copyId = () => copyValue(event.id, setCopied);
 
   const doReveal = async () => {
     if (!event.userId) return;
@@ -133,11 +137,25 @@ export default function ActivityDetailDrawer({
                     <Field label={t("drawer.country")} value={revealed.country} />
                   </div>
                 )}
-                {canSeePersonal && event.userId && !revealed && (
-                  <button type="button" onClick={doReveal} disabled={revealing} style={{ ...btnSecondary, height: 32, fontSize: 12.5, marginTop: 10 }}>
-                    {revealing ? t("drawer.revealing") : t("drawer.reveal")}
-                  </button>
-                )}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+                  {canSeePersonal && event.userId && !revealed && (
+                    <button type="button" onClick={doReveal} disabled={revealing} style={{ ...btnSecondary, height: 32, fontSize: 12.5 }}>
+                      {revealing ? t("drawer.revealing") : t("drawer.reveal")}
+                    </button>
+                  )}
+                  {/* The event says what happened; the profile says whether the
+                      person was entitled to it. A denied thesis download is
+                      only actionable next to the reader's access profile, and
+                      this is the edge that connects the two consoles. */}
+                  {canOpenUserProfile && event.userId && (
+                    <Link
+                      href={`/admin/users/${event.userId}`}
+                      style={{ ...btnSecondary, height: 32, fontSize: 12.5, textDecoration: "none" }}
+                    >
+                      {t("drawer.openProfile")}
+                    </Link>
+                  )}
+                </div>
                 {!canSeePersonal && <p style={{ fontSize: 11.5, color: INK3, marginTop: 8, lineHeight: 1.55 }}>{t("drawer.revealHint")}</p>}
               </>
             )}
@@ -149,7 +167,16 @@ export default function ActivityDetailDrawer({
               <p style={{ fontSize: 14, fontWeight: 600, color: INK, lineHeight: 1.45, wordBreak: "break-word" }}>
                 {event.resourceTitle ?? t("resource.unknown")}
               </p>
-              {event.resourceId && <p style={{ fontSize: 11.5, color: INK3, fontFamily: "ui-monospace, monospace", wordBreak: "break-all" }}>{event.resourceId}</p>}
+              {event.resourceId && (
+                <button
+                  type="button"
+                  onClick={() => copyValue(event.resourceId as string, setResourceCopied)}
+                  aria-label={t("drawer.copyResourceId")}
+                  style={{ alignSelf: "flex-start", maxWidth: "100%", fontSize: 11.5, color: INK3, fontFamily: "ui-monospace, monospace", wordBreak: "break-all", background: LINE_SUBTLE, border: `1px solid ${LINE}`, borderRadius: 7, padding: "3px 8px", cursor: "pointer", textAlign: "start" }}
+                >
+                  {resourceCopied ? t("drawer.copied") : event.resourceId}
+                </button>
+              )}
             </div>
           </Section>
 

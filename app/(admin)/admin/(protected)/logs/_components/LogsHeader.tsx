@@ -36,7 +36,14 @@ export default function LogsHeader({
       <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 240, flex: "1 1 320px" }}>
         <span style={eyebrow}>{t("eyebrow")}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 11, flexWrap: "wrap" }}>
-          <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-.025em", color: INK, lineHeight: 1.2 }}>{t("title")}</h1>
+          {/* 1.3, not 1.2: the admin shell renders in Hanuman (`font-body`), whose
+              ascender/descender metrics are taller than the Inter this value was
+              originally tuned for, so 1.2 left the glyphs overflowing their own
+              line box. Nothing was visually cut (the heading is one line and
+              `overflow` is visible) — it simply ran tighter than it was meant to.
+              Khmer needs more still and takes 1.4 from the `.logs-page:lang(km)`
+              rule, where the stacked subscripts genuinely do collide. */}
+          <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-.025em", color: INK, lineHeight: 1.3 }}>{t("title")}</h1>
           <span
             aria-live="polite"
             style={{

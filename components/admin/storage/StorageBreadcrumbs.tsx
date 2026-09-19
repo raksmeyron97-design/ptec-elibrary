@@ -8,7 +8,7 @@ export default function StorageBreadcrumbs({ folder, onNavigate }: { folder: str
   const tCat = useTranslations("adminStorage.categories");
   const segments = folder ? folder.split("/") : [];
 
-  const crumbBtn = "rounded px-1 py-0.5 text-sm font-medium text-text-muted transition hover:bg-paper hover:text-text-heading focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/40";
+  const crumbBtn = "focus-field rounded px-1 py-0.5 text-sm font-medium text-text-muted transition hover:bg-paper hover:text-text-heading";
   const crumbCurrent = "rounded px-1 py-0.5 text-sm font-bold text-text-heading";
 
   return (

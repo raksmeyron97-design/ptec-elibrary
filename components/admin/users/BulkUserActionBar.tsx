@@ -81,7 +81,7 @@ export default function BulkUserActionBar({
           type="button"
           disabled={busy}
           onClick={onDelete}
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="focus-field inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold text-danger-text transition hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Trash2 className="h-3.5 w-3.5" /> {t("delete")}
         </button>

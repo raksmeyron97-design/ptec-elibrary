@@ -31,29 +31,53 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 export default function FileDetailsDrawer({
   file,
   canWrite,
+  uploaderName,
   onClose,
   onIntent,
 }: {
   file: StorageFile | null;
   canWrite: boolean;
+  /** Resolved display name for `file.uploadedBy`; undefined until the lookup
+   *  lands, empty when the account no longer exists. Never a raw id. */
+  uploaderName?: string;
   onClose: () => void;
   onIntent: (intent: StorageItemIntent) => void;
 }) {
   const t = useTranslations("adminStorage.details");
   const tActions = useTranslations("adminStorage.actions");
   const tCat = useTranslations("adminStorage.categories");
+  const tVisibility = useTranslations("adminStorage.visibility");
   const locale = useLocale();
   const toast = useToast();
   const panelRef = useRef<HTMLDivElement>(null);
   const [usage, setUsage] = useState<{ refs: StorageUsageRef[]; checked: boolean } | null>(null);
   const [copying, setCopying] = useState(false);
+  const [checksumCopied, setChecksumCopied] = useState(false);
 
   useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
     document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", onKey);
     panelRef.current?.focus();
-    return () => { document.body.style.overflow = ""; document.removeEventListener("keydown", onKey); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { onClose(); return; }
+      if (e.key !== "Tab") return;
+      // A modal you can Tab out of leaves the operator driving a page they
+      // cannot see — the same trap the logs drawer already closes.
+      const focusables = panelRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusables || focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = "";
+      document.removeEventListener("keydown", onKey);
+      previouslyFocused?.focus?.();
+    };
   }, [onClose]);
 
   useEffect(() => {
@@ -84,15 +108,31 @@ export default function FileDetailsDrawer({
     }
   }
 
-  const actionBtn = "inline-flex items-center justify-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-3 py-2 text-[13px] font-semibold text-text-body shadow-sm transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-40";
+  async function copyChecksum(value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setChecksumCopied(true);
+      setTimeout(() => setChecksumCopied(false), 1600);
+    } catch { /* clipboard unavailable — the prefix is still selectable */ }
+  }
+
+  const actionBtn = "focus-field inline-flex items-center justify-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-3 py-2 text-[13px] font-semibold text-text-body shadow-sm transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-40";
 
   return (
     <div className="fixed inset-0 z-[100] flex justify-end" role="dialog" aria-modal="true" aria-label={t("title")}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div ref={panelRef} tabIndex={-1} className="relative flex h-full w-full max-w-md flex-col overflow-y-auto bg-bg-surface shadow-2xl outline-none sm:max-w-[440px]">
+        {/* The heading said "File details" while the file's own name sat in a
+            `title` attribute nobody sees. Two panels open from two rows looked
+            identical. */}
         <div className="sticky top-0 z-10 flex items-start gap-3 border-b border-divider bg-bg-surface px-5 py-4">
-          <h2 className="min-w-0 flex-1 truncate text-lg font-bold leading-tight text-text-heading" title={file.originalName}>{t("title")}</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-text-muted hover:bg-paper hover:text-text-heading">
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">{t("title")}</p>
+            <h2 className="truncate text-base font-bold leading-tight text-text-heading" title={file.originalName}>
+              {file.originalName}
+            </h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label={t("close")} className="focus-field flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-text-muted hover:bg-paper hover:text-text-heading">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -123,27 +163,48 @@ export default function FileDetailsDrawer({
               <button type="button" className={actionBtn} onClick={() => onIntent("move")}><FolderInput className="h-4 w-4" /> {tActions("move")}</button>
               <button type="button" className={actionBtn} onClick={() => onIntent("copy")}><Copy className="h-4 w-4" /> {tActions("copy")}</button>
               <button type="button" className={actionBtn} onClick={() => onIntent("replace")}><RefreshCw className="h-4 w-4" /> {tActions("replace")}</button>
-              <button type="button" className={`${actionBtn} col-span-2 text-danger`} onClick={() => onIntent("trash")}><Trash2 className="h-4 w-4" /> {tActions("trash")}</button>
+              <button type="button" className={`${actionBtn} col-span-2 border-danger-line bg-danger-soft text-danger-text`} onClick={() => onIntent("trash")}><Trash2 className="h-4 w-4" /> {tActions("trash")}</button>
             </>
           )}
         </div>
 
-        <Section title={t("title")}>
+        <Section title={t("metadata")}>
           <Field label={t("filename")} value={file.name} />
           <Field label={t("originalName")} value={file.originalName} />
           <Field label={t("fileType")} value={file.extension.toUpperCase()} />
           <Field label={t("fileSize")} value={formatBytes(file.size)} />
           <Field label={t("category")} value={tCat.has(file.folder.split("/")[0] ?? "") ? tCat(file.folder.split("/")[0] ?? "") : file.folder} />
-          <Field label={t("visibility")} value={file.visibility} />
+          {/* A stored enum is a key: "private" is not a label. */}
+          <Field label={t("visibility")} value={tVisibility(file.visibility)} />
           <Field label={t("uploaded")} value={formatDateTime(file.createdAt, locale)} />
           <Field label={t("modified")} value={formatDateTime(file.updatedAt, locale)} />
-          {file.uploadedBy && <Field label={t("uploadedBy")} value={file.uploadedBy.slice(0, 8)} />}
-          {file.checksum && <Field label={t("checksum")} value={<span className="font-mono text-[11px]">{file.checksum.slice(0, 16)}…</span>} />}
+          {file.uploadedBy && <Field label={t("uploadedBy")} value={uploaderName || t("unknownUploader")} />}
+          {file.checksum && (
+            <Field
+              label={t("checksum")}
+              value={
+                /* A truncated hash cannot be compared against anything, which
+                   is the only use a checksum has — so the control copies the
+                   whole value rather than displaying a prefix. */
+                <button
+                  type="button"
+                  onClick={() => copyChecksum(file.checksum as string)}
+                  className="focus-field rounded font-mono text-[11px] text-text-body hover:text-brand"
+                  aria-label={t("copyChecksum")}
+                >
+                  {checksumCopied ? t("copied") : `${file.checksum.slice(0, 16)}…`}
+                </button>
+              }
+            />
+          )}
         </Section>
 
         <Section title={t("usedBy")}>
           {usage === null ? (
-            <p className="text-[13px] text-text-muted">…</p>
+            <div className="animate-pulse space-y-1.5" aria-hidden="true">
+              <div className="h-3 w-4/5 rounded bg-paper" />
+              <div className="h-3 w-3/5 rounded bg-paper" />
+            </div>
           ) : usage.refs.length === 0 ? (
             <p className="text-[13px] text-text-muted">{usage.checked ? t("usedByNone") : t("usedByUnknown")}</p>
           ) : (

@@ -55,7 +55,7 @@ export default function NewFolderDialog({
         value={name}
         onChange={(e) => setName(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter" && name.trim()) onCreate(name.trim()); }}
-        className="mt-1.5 w-full rounded-lg border border-divider bg-bg-page px-3 py-2 text-sm text-text-body focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/40"
+        className="focus-field mt-1.5 w-full rounded-lg border border-divider bg-bg-page px-3 py-2 text-sm text-text-body"
         maxLength={80}
       />
       {error && <p className="mt-2 text-[13px] text-danger">{error}</p>}

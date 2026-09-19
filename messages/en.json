@@ -3266,7 +3266,8 @@
       "searchChip": "Search: {term}",
       "activeCount": "{count, plural, one {# filter active} other {# filters active}}",
       "remove": "Remove filter: {label}",
-      "clearAll": "Clear all"
+      "clearAll": "Clear all",
+      "clearSearch": "Clear search"
     },
     "overview": {
       "heading": "Overview"
@@ -3435,7 +3436,9 @@
       "reveal": "Reveal contact details",
       "revealing": "Revealing…",
       "revealHint": "Personal data is masked for your role. Revealing it requires elevated permission.",
-      "notAvailable": "—"
+      "notAvailable": "—",
+      "openProfile": "Open reader profile",
+      "copyResourceId": "Copy the resource id"
     },
     "empty": {
       "noneTitle": "No activity found",
@@ -3568,17 +3571,23 @@
     "title": "Storage",
     "description": "Browse, upload, and manage files stored on Zima Storage — without leaving the PTEC admin dashboard.",
     "overview": {
-      "totalCapacity": "Total capacity",
-      "used": "Used storage",
-      "available": "Available",
       "totalFiles": "Total files",
-      "totalFolders": "Total folders",
+      "totalFolders": "Folders",
       "uploadsThisMonth": "Uploads this month",
       "trashItems": "Items in Trash",
       "unavailable": "Not available",
       "categoriesTitle": "Storage by category",
       "noCategoryData": "No files indexed yet.",
-      "indexOnlyNotice": "Figures reflect files uploaded or adopted through this module. Older files keep working but won't appear here until adopted — ask an engineer to run the reconciliation script."
+      "indexOnlyNotice": "Figures reflect files uploaded or adopted through this module. Older files keep working but won't appear here until adopted — ask an engineer to run the reconciliation script.",
+      "capacity": "Disk capacity",
+      "capacityUnknown": "Capacity not reported",
+      "usedOf": "{used} of {total}",
+      "freeRemaining": "{free} free",
+      "trashRetention": "Purged after {days} days",
+      "categoryDetail": "{size} · {files} files",
+      "biggestFolders": "Largest folders",
+      "biggestFoldersHint": "Individual folders using the most space.",
+      "acrossGroups": "{count, plural, one {in # group} other {in # groups}}"
     },
     "toolbar": {
       "searchPlaceholder": "Search files by name…",
@@ -3601,7 +3610,18 @@
       "sortNewestFirst": "Newest first",
       "sortOldestFirst": "Oldest first",
       "trash": "Trash",
-      "backToStorage": "Back to Storage"
+      "backToStorage": "Back to Storage",
+      "sortOrder": "Sort direction",
+      "orderNameAsc": "A → Z",
+      "orderNameDesc": "Z → A",
+      "orderSizeAsc": "Smallest first",
+      "orderSizeDesc": "Largest first",
+      "fileType": "Type",
+      "clearType": "Clear type",
+      "filterScopeHint": "Filters the files already loaded below, not the whole folder. Load more to widen the search.",
+      "trashWithCount": "Trash — {count} items",
+      "trashEmpty": "Trash — empty",
+      "clearSearch": "Clear search"
     },
     "breadcrumb": {
       "root": "Storage"
@@ -3614,7 +3634,15 @@
       "uploadedBy": "Uploaded by",
       "modified": "Modified",
       "status": "Status",
-      "actions": "Actions"
+      "actions": "Actions",
+      "caption": "Files and folders in this location",
+      "folder": "Folder",
+      "selectAll": "Select every file on this page",
+      "selectAllPartial": "{count} selected on this page — select all",
+      "selectFile": "Select {name}",
+      "unknownUploader": "Unknown",
+      "sortAscBy": "Sort by {column}, ascending",
+      "sortDescBy": "Sort by {column}, descending"
     },
     "status": {
       "active": "Active",
@@ -3634,13 +3662,21 @@
       "restore": "Restore",
       "deletePermanently": "Delete permanently",
       "moreActions": "More actions",
-      "linkCopied": "Link copied to clipboard."
+      "linkCopied": "Link copied to clipboard.",
+      "linkCopyFailed": "Your browser blocked the clipboard. Open the file and copy the address instead."
     },
     "bulk": {
       "selected": "{count} selected",
       "moveSelected": "Move selected",
       "trashSelected": "Move to Trash",
-      "clearSelection": "Clear selection"
+      "clearSelection": "Clear selection",
+      "selectedRegion": "Selected files",
+      "download": "Download",
+      "trash": "Move to Trash",
+      "working": "Moving…",
+      "trashTitle": "Move {count} files to Trash?",
+      "trashBody": "{count} files will be moved to Trash and permanently deleted after {days} days. Anything on the site that links to them will stop working straight away.",
+      "trashConfirm": "Move to Trash"
     },
     "details": {
       "title": "File details",
@@ -3657,7 +3693,12 @@
       "usedBy": "Used by",
       "usedByNone": "No references found in the library database.",
       "usedByUnknown": "Usage could not be determined.",
-      "noPreview": "Preview isn't available for this file type."
+      "noPreview": "Preview isn't available for this file type.",
+      "metadata": "File information",
+      "close": "Close details",
+      "unknownUploader": "Unknown",
+      "copyChecksum": "Copy the full checksum",
+      "copied": "Copied"
     },
     "upload": {
       "title": "Upload files",
@@ -3738,7 +3779,9 @@
       "unavailable": "The storage service is temporarily unavailable. Existing files and downloads elsewhere on the site are unaffected.",
       "offline": "You appear to be offline. Reconnect and try again.",
       "partialFailure": "Some information couldn't be loaded. Showing what's available.",
-      "loadMore": "Load more"
+      "loadMore": "Load more",
+      "loadingMore": "Loading…",
+      "loadMoreOf": "Load more — showing {shown} of {total}"
     },
     "picker": {
       "title": "Choose from Storage",
@@ -3760,6 +3803,31 @@
       "avatars": "User avatars",
       "publications": "Journal articles",
       "announcements": "Announcements"
+    },
+    "visibility": {
+      "public": "Public",
+      "private": "Private"
+    },
+    "extensions": {
+      "pdf": "PDF",
+      "jpg": "JPEG",
+      "jpeg": "JPEG",
+      "png": "PNG",
+      "webp": "WebP",
+      "docx": "Word",
+      "xlsx": "Excel",
+      "csv": "CSV"
+    },
+    "toasts": {
+      "copied": "Copied {name}.",
+      "renamed": "Renamed to {name}.",
+      "moved": "Moved {name} to {folder}.",
+      "trashed": "{name} moved to Trash.",
+      "purged": "{name} permanently deleted.",
+      "folderCreated": "Folder {name} created.",
+      "bulkTrashed": "{count} files moved to Trash.",
+      "bulkTrashFailed": "Could not move {count} files to Trash.",
+      "bulkTrashPartial": "{done} files moved to Trash, {failed} could not be moved."
     }
   },
   "adminBookRequests": {
@@ -5320,7 +5388,8 @@
       "joinedChip": "Joined: {label}",
       "reset": "Reset filters",
       "active": "Active filters",
-      "remove": "Remove filter"
+      "remove": "Remove filter",
+      "group_admins": "Admins (all)"
     },
     "joined": {
       "all": "Any time",
@@ -5347,7 +5416,8 @@
       "actions": "Actions",
       "selectUser": "Select {name}",
       "noName": "No name",
-      "you": "YOU"
+      "you": "YOU",
+      "openProfile": "Open {name}’s profile"
     },
     "time": {
       "never": "Never",
@@ -5453,6 +5523,106 @@
       "sendEmail": "Send email",
       "suspend": "Suspend",
       "delete": "Delete"
+    },
+    "profile": {
+      "pageTitle": "{name}",
+      "pageDescription": "Identity, access credentials and library activity for this account.",
+      "breadcrumb": "Breadcrumb",
+      "backToDirectory": "Back to users",
+      "sections": "Profile sections",
+      "tabs": {
+        "overview": "Overview",
+        "access": "Access profile",
+        "activity": "Library activity",
+        "trail": "Admin trail"
+      },
+      "thisIsYou": "This is you",
+      "accountId": "Account ID",
+      "copied": "Copied",
+      "emailStatus": "Verification",
+      "emailConfirmed": "Verified",
+      "emailUnconfirmed": "Not verified",
+      "notProvided": "Not provided",
+      "sectionUnavailable": "This could not be loaded. It is not a statement about this reader — try again in a moment.",
+      "deletedResource": "a removed item",
+      "openResource": "Open {title}",
+      "atAGlance": "At a glance",
+      "atAGlanceHint": "Everything this reader has done in the library.",
+      "metrics": {
+        "downloads": "Downloads",
+        "reviews": "Reviews",
+        "booksStarted": "Books started",
+        "booksFinished": "Books finished",
+        "lists": "Collections",
+        "savedItems": "Saved items",
+        "bookmarks": "Bookmarks",
+        "notes": "Notes",
+        "annotations": "Highlights",
+        "requests": "Book requests"
+      },
+      "continueReading": "Currently reading",
+      "continueReadingHint": "The most recent books this reader has open.",
+      "noReadingProgress": "This reader has not opened a book yet.",
+      "progressOf": "{title} — {percent}% read",
+      "lastRead": "Last read {when}",
+      "recentActivity": "Recent activity",
+      "noActivity": "Nothing recorded yet.",
+      "activity": {
+        "downloaded": "Downloaded {title}",
+        "reviewed": "Reviewed {title} — {rating} of 5"
+      },
+      "accessProfile": "Download Access Profile",
+      "accessProfileHint": "The record this reader supplied to unlock restricted theses. They fill it in themselves; it is read-only here.",
+      "noAccessProfile": "This reader has not started their access profile.",
+      "completeness": "Completeness",
+      "missingPrefix": "Still needed:",
+      "profileUpdated": "Updated {date}",
+      "downloadReady": "Can download theses",
+      "downloadBlocked": "Cannot download theses",
+      "personalDetails": "Personal details",
+      "personalDetailsHint": "Identifying information. Handle it as the privacy notice requires and share it no further than the task in hand.",
+      "consents": "Consents",
+      "consentsHint": "Both are required before any restricted download is served.",
+      "acceptedOn": "Accepted {date}",
+      "notAccepted": "Not accepted",
+      "consentBlocksDownloads": "Restricted theses stay blocked until both boxes are ticked.",
+      "accessReadiness": "Thesis access",
+      "readyForRestricted": "This reader meets every requirement for restricted downloads.",
+      "notReadyForRestricted": "{count, plural, one {# requirement is} other {# requirements are}} still missing.",
+      "viewAccessProfile": "View access profile",
+      "libraryActivity": "Activity totals",
+      "libraryActivityHint": "Counts only — the contents of a reader's notes, highlights and collections stay private.",
+      "privateContentNotice": "Notes, highlights and saved collections belong to the reader. The admin panel counts them and never shows what they say.",
+      "bookRequests": "Book requests",
+      "bookRequestsHint": "Titles this reader has asked the library to acquire.",
+      "noRequests": "No requests from this reader.",
+      "requestStatus": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Declined",
+        "added": "Added"
+      },
+      "devices": "Notifications",
+      "devicesHint": "Browsers registered to receive push notifications.",
+      "pushDevices": "{count, plural, =0 {No registered devices} one {# registered device} other {# registered devices}}",
+      "adminTrail": "Administrative history",
+      "adminTrailHint": "Every action an administrator has taken on this account.",
+      "noAdminTrail": "No administrative action has been taken on this account.",
+      "trailBy": "by {actor} · {when}",
+      "trailAction": {
+        "change_user_role": "Role changed",
+        "suspend_user": "Account suspended",
+        "activate_user": "Account reactivated",
+        "delete_user": "Account deleted",
+        "send_password_reset": "Password reset sent",
+        "reveal_reader_contact": "Contact details revealed",
+        "invite_user": "Account invited"
+      },
+      "manageAccount": "Manage account",
+      "deleteWarning": "Deleting this account removes every note, highlight, bookmark, collection and reading position it owns. It cannot be undone.",
+      "notFoundTitle": "No such account",
+      "notFoundBody": "This user id does not match any account. It may have been deleted, or the link may be out of date.",
+      "viewProfile": "View full profile"
     }
   },
   "adminRoles": {
