@@ -206,7 +206,7 @@ All read-only, all over public HTTP, all `$0`.
 | Entity graph, per shape | `scripts/verify-production-entities.ts` | `[PRODUCTION]` 10/10 passed before the new fixtures; 10/12 after, and the 2 failures are the defect this phase fixes |
 | Search retrieval, 100 queries | `scripts/search-benchmark.ts` | `[PRODUCTION]` R@1 97% / R@5 99% / MRR 0.98 over 69 labels; `negative` topical precision 3% |
 | Author roster | `/authors` + `sitemap.xml` | `[PRODUCTION]` 318 names listed, 279 author URLs advertised, 10 names identify nobody |
-| Sitemap honesty, all 2,313 URLs | `scripts/audit-sitemap-links.ts` | `[PRODUCTION]` **2313 passed (2313 URLs)** — no 404, no redirect, no 5xx. The first run's 141 "broken" URLs were the auditor's own load (see P1 §7) |
+| Sitemap honesty, all 2,313 URLs | `scripts/audit-sitemap-links.ts` | `[PRODUCTION]` **2313 passed (2313 URLs)**, reproduced on two independent full crawls — no 404, no 410, no redirect, no 5xx, nothing unanswered. The first run's 141 "broken" URLs were the auditor's own load (see P1 §7) |
 
 ## What remains UNKNOWN
 
