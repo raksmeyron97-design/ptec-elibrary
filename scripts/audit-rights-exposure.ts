@@ -49,6 +49,7 @@ import {
   tally,
   type Outcome,
 } from "../lib/verify/http";
+import { escapeCsvCell } from "../lib/export/csv";
 import {
   classifyRights,
   isbnPrefix8,
@@ -216,10 +217,18 @@ async function pool<T>(items: readonly T[], worker: (item: T) => Promise<void>):
 
 // ── CSV ──────────────────────────────────────────────────────────────────────
 
-const cell = (v: string | boolean) => {
-  const s = String(v);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-};
+/**
+ * One cell, escaped the way the rest of this repo escapes CSV.
+ *
+ * `escapeCsvCell` does two things a hand-rolled quoter does not: it applies
+ * RFC 4180 quoting AND it neutralises a leading `=`, `+`, `-` or `@` with an
+ * apostrophe. That matters here more than almost anywhere else — every value
+ * in this file was READ OFF A WEB PAGE, and the file is opened in Excel by a
+ * librarian. A book whose title begins with `=` would otherwise be a formula
+ * executing on their machine. (CodeQL js/http-to-file-access flagged the
+ * untrusted-data-to-file flow; this is the substance behind it.)
+ */
+const cell = (v: string | boolean) => escapeCsvCell(String(v));
 
 function toCsv(sorted: readonly Row[], incomplete: string | null): string {
   const lines: string[] = [];

@@ -75,21 +75,46 @@ const record = (check: string, outcome: Outcome, detail: string | null = null) =
 
 // ── Reading what the page says ───────────────────────────────────────────────
 
-/** Decode the handful of entities Next escapes into a meta content attribute. */
+/**
+ * Decode the handful of entities Next escapes into a meta content attribute.
+ *
+ * ONE pass, not a chain of `.replace()` calls. A chain unescapes its own
+ * output: with `&amp;` handled before `&lt;`, the literal text `&amp;lt;`
+ * became `&lt;` and then `<` — a title that legitimately contains the
+ * characters "&lt;" would be reported as containing a tag (CodeQL
+ * js/double-escaping). Ordering `&amp;` last fixes that particular pair;
+ * a single pass makes the whole class impossible, because a character the
+ * replacer emits is never re-examined.
+ */
+const ENTITIES: Record<string, string> = {
+  "&#x27;": "'",
+  "&#39;": "'",
+  "&quot;": '"',
+  "&lt;": "<",
+  "&gt;": ">",
+  "&amp;": "&",
+};
+
 function decode(s: string): string {
-  return s
-    .replace(/&#x27;/g, "'")
-    .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">");
+  return s.replace(/&(?:#x27|#39|quot|lt|gt|amp);/g, (m) => ENTITIES[m] ?? m);
+}
+
+/**
+ * Escape a string for literal use inside a RegExp.
+ *
+ * The previous version escaped only `:` and `.` — enough for the og
+ * property names actually passed, and wrong as a rule, because it left the
+ * BACKSLASH unescaped (CodeQL js/incomplete-sanitization). A partial
+ * escaper is the kind that is correct until someone reuses it.
+ */
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /** Every value declared for `property` (og:locale:alternate can repeat). */
 function ogAll(html: string, property: string): string[] {
   const re = new RegExp(
-    `<meta[^>]+property="${property.replace(/[:.]/g, "\\$&")}"[^>]+content="([^"]*)"`,
+    `<meta[^>]+property="${escapeRegExp(property)}"[^>]+content="([^"]*)"`,
     "gi",
   );
   return [...html.matchAll(re)].map((m) => decode(m[1]));
@@ -98,7 +123,10 @@ function ogAll(html: string, property: string): string[] {
 const og = (html: string, property: string): string | null => ogAll(html, property)[0] ?? null;
 
 function meta(html: string, name: string): string | null {
-  const m = html.match(new RegExp(`<meta[^>]+name="${name}"[^>]+content="([^"]*)"`, "i"));
+  // Escaped for the same reason as ogAll() above: this one interpolated the
+  // argument raw. Every caller passes a literal today, which is exactly how
+  // an unescaped interpolation survives review.
+  const m = html.match(new RegExp(`<meta[^>]+name="${escapeRegExp(name)}"[^>]+content="([^"]*)"`, "i"));
   return m ? decode(m[1]) : null;
 }
 
