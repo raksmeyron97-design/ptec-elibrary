@@ -1,6 +1,7 @@
 // app/catalogs/[slug]/page.tsx
 import { Link } from "@/i18n/navigation";
 import { decodeSlugParam } from "@/lib/slug";
+import { catalogRobots } from "@/lib/catalogs/indexability";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
@@ -142,6 +143,14 @@ export async function generateMetadata({
     title,
     description: desc,
     alternates,
+    // A record carrying nothing but title, author and a call number is a
+    // shelf label, not a page worth ranking — and the PMB import produces
+    // those in bulk. `app/sitemap.ts` asks the SAME function, so the sitemap
+    // can never advertise a URL that then answers `noindex`.
+    //
+    // `follow` either way: the record's links to its subject and its copies
+    // are still worth crawling, and the page still answers 200 to a reader.
+    robots: catalogRobots({ description: book.description }),
     openGraph,
     twitter: buildTwitter({
       card: "summary_large_image",
