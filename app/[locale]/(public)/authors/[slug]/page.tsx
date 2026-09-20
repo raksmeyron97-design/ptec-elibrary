@@ -10,6 +10,7 @@ import { breadcrumbSchema } from "@/lib/seo/schema";
 import { SITE_URL } from "@/lib/seo/site";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 import {
   contributorNodes,
   correctedContributorNode,
@@ -51,6 +52,26 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const description =
     truncate(author.bio) || t("metaDescription", { name: author.name });
   const alternates = localeAlternates(`/authors/${author.slug}`, locale);
+
+  // Production, 2026-09-20: an author with no portrait published NO og:image
+  // at all — `...(author.photoUrl ? { images } : {})` omitted the key, and an
+  // omitted key on a page-level `openGraph` does not fall through to the root
+  // layout's, because Next replaces the object rather than merging it. Of the
+  // 158 author URLs in sitemap.xml almost none carry a portrait, so almost
+  // every author share rendered as a bare link. The portrait is still
+  // preferred; nothing here invents one.
+  //
+  // This block also never carried og:locale or og:locale:alternate at all.
+  const openGraph = buildOpenGraph({
+    locale,
+    org,
+    title,
+    description,
+    type: "profile" as const,
+    url: alternates.canonical,
+    image: author.photoUrl,
+    imageAlt: author.name,
+  });
 
   return {
     title,
@@ -97,22 +118,18 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     // attaches a work the directory's cache tag refreshes and the page returns
     // to the index with no deploy.
     ...(author.works.length === 0 ? { robots: { index: false, follow: true } } : {}),
-    openGraph: {
+    openGraph,
+    twitter: buildTwitter({
+      // A PORTRAIT is a square thumbnail, not a large_image hero — that part
+      // of the original rule stands. The other half of it ("a profile with no
+      // photo has nothing to enlarge") no longer holds now that the same page
+      // ships the 1200 x 630 branded card, which `summary` would crop to a
+      // square. So the card follows the image that is actually attached.
+      card: author.photoUrl ? "summary" : "summary_large_image",
       title,
       description,
-      type: "profile",
-      url: alternates.canonical,
-      siteName: org.siteName,
-      ...(author.photoUrl ? { images: [{ url: author.photoUrl, alt: author.name }] } : {}),
-    },
-    twitter: {
-      // "summary" either way: a portrait is a square thumbnail, not a
-      // large_image hero, and a profile with no photo has nothing to enlarge.
-      card: "summary",
-      title,
-      description,
-      ...(author.photoUrl ? { images: [author.photoUrl] } : {}),
-    },
+      images: openGraph.images,
+    }),
   };
 }
 

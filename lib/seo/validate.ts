@@ -11,7 +11,7 @@
 // shipped in the live sitemap for exactly this reason (docs/SEO-V2-AUDIT.md F-1).
 
 import { PRODUCTION_SITE_URL } from "@/lib/seo/production-origin";
-import { isPrivateSurfacePath, URL_LOCALE_PREFIXES } from "@/lib/seo/indexing";
+import { isIndexableEnvironment, isPrivateSurfacePath, URL_LOCALE_PREFIXES } from "@/lib/seo/indexing";
 
 export type SeoIssue = {
   /** Machine-readable rule name, e.g. "duplicate-url". */
@@ -219,12 +219,131 @@ export function validateSitemap(entries: SitemapLikeEntry[]): SeoIssue[] {
   return issues;
 }
 
+export type OpenGraphLike = {
+  title?: unknown;
+  description?: unknown;
+  type?: unknown;
+  url?: unknown;
+  siteName?: unknown;
+  locale?: unknown;
+  alternateLocale?: unknown;
+  images?: unknown;
+};
+
 export type MetadataLike = {
   title?: unknown;
   description?: unknown;
   alternates?: { canonical?: unknown; languages?: Record<string, string> };
-  openGraph?: { title?: unknown; description?: unknown; siteName?: unknown } | null;
+  openGraph?: OpenGraphLike | null;
 };
+
+/** The two og:locale values this site publishes. */
+const OG_LOCALE_VALUES = ["en_US", "km_KH"] as const;
+
+/**
+ * The Open Graph contract, checked as STRUCTURE rather than as truth.
+ *
+ * Every indexable public page emits og:title, og:type, og:url, og:image,
+ * og:image:alt, og:site_name, og:locale and og:locale:alternate, and og:url
+ * equals the canonical. Whether a value is factually correct is the builders'
+ * job (lib/seo/open-graph.ts and its callers, which omit what they do not
+ * know); this only refuses the shapes that are wrong however true the strings
+ * inside them are.
+ *
+ * `canonical` is passed separately so the og:url ↔ canonical agreement can be
+ * checked without this function reconstructing either — reconstruction is how
+ * the two come to disagree.
+ */
+export function validateOpenGraph(og: OpenGraphLike, canonical?: string): SeoIssue[] {
+  const issues: SeoIssue[] = [];
+  const text = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+  const push = (rule: string, value: string, message: string) =>
+    issues.push({ rule, value, message });
+
+  if (!text(og.title)) push("missing-og-title", "", "openGraph has no title.");
+  if (!text(og.type)) push("missing-og-type", "", "openGraph has no type.");
+
+  const url = text(og.url);
+  if (!url) {
+    push("missing-og-url", "", "openGraph has no url.");
+  } else if (canonical && url !== canonical) {
+    push(
+      "og-url-canonical-mismatch",
+      url,
+      `og:url must equal the canonical URL (${canonical}). Two URLs for one page split its social and search identity.`,
+    );
+  }
+
+  if (!text(og.siteName)) {
+    push(
+      "missing-og-site-name",
+      "",
+      "openGraph is declared without siteName — Next replaces the layout's object rather than merging it. Build it with buildOpenGraph().",
+    );
+  }
+
+  const locale = text(og.locale);
+  if (!locale) {
+    push("missing-og-locale", "", "openGraph has no locale.");
+  } else if (!OG_LOCALE_VALUES.includes(locale as (typeof OG_LOCALE_VALUES)[number])) {
+    push("invalid-og-locale", locale, `og:locale must be one of ${OG_LOCALE_VALUES.join(", ")}.`);
+  }
+
+  const alternates = Array.isArray(og.alternateLocale)
+    ? og.alternateLocale.map(text).filter(Boolean)
+    : text(og.alternateLocale)
+      ? [text(og.alternateLocale)]
+      : [];
+  if (alternates.length === 0) {
+    push(
+      "missing-og-alternate-locale",
+      "",
+      "openGraph has no alternateLocale. Every public page exists in both locales, so the other one is a fact about the route.",
+    );
+  } else if (locale && alternates.includes(locale)) {
+    push(
+      "og-alternate-locale-not-reciprocal",
+      alternates.join(","),
+      "og:locale:alternate repeats og:locale instead of naming the other published locale.",
+    );
+  }
+
+  // An image is the single most visible part of a share card, and an EMPTY
+  // array is how one goes missing: it replaces the layout's default rather
+  // than falling through to it (verified on /catalogs/<slug> and on every
+  // author with no portrait, production 2026-09-20).
+  const images = Array.isArray(og.images) ? og.images : og.images ? [og.images] : [];
+  if (images.length === 0) {
+    push("missing-og-image", "", "openGraph has no image.");
+  }
+  for (const raw of images) {
+    const img = typeof raw === "string" ? { url: raw } : (raw as Record<string, unknown> | null);
+    const imgUrl = text(img?.url);
+    if (!imgUrl) {
+      push("invalid-og-image", String(raw), "An openGraph image has no url.");
+      continue;
+    }
+    if (!text(img?.alt)) {
+      push("missing-og-image-alt", imgUrl, "An openGraph image has no alt text.");
+    }
+    // A relative path is legal in the source (Next resolves it against
+    // metadataBase) but a crawler must never be handed one, and a
+    // protocol-relative or non-http URL is not fetchable as an image.
+    if (/^https?:\/\//i.test(imgUrl)) {
+      if (/^http:\/\//i.test(imgUrl) && isIndexableEnvironment()) {
+        push("insecure-og-image", imgUrl, "og:image must use https in production.");
+      }
+    } else if (!imgUrl.startsWith("/")) {
+      push(
+        "invalid-og-image",
+        imgUrl,
+        "og:image must be absolute, or a rooted path Next can resolve against metadataBase.",
+      );
+    }
+  }
+
+  return issues;
+}
 
 /** Every indexable page needs a title, a description, a canonical, hreflang and
  *  Open Graph with site attribution (brief §10). */
@@ -249,12 +368,8 @@ export function validateSeoMetadata(meta: MetadataLike): SeoIssue[] {
 
   if (!meta.openGraph) {
     issues.push({ rule: "missing-open-graph", value: "", message: "Page declares no Open Graph tags." });
-  } else if (!text(meta.openGraph.siteName)) {
-    issues.push({
-      rule: "missing-og-site-name",
-      value: "",
-      message: "openGraph is declared without siteName — Next replaces the layout's object rather than merging it. Spread openGraphBase().",
-    });
+  } else {
+    issues.push(...validateOpenGraph(meta.openGraph, canonical || undefined));
   }
 
   return issues;

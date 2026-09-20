@@ -10,7 +10,7 @@ import SubjectDirectoryFilter from "@/components/ui/subjects/SubjectDirectoryFil
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
-import { openGraphBase } from "@/lib/seo/open-graph";
+import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 import { libraryNode } from "@/lib/seo/org-nodes";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import {
@@ -50,18 +50,27 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const description = t("hubSeoDescription");
   const alternates = localeAlternates("/subjects", locale);
 
+  const socialTitle = `${title} | ${org.libraryName}`;
+  const openGraph = buildOpenGraph({
+    locale,
+    org,
+    title: socialTitle,
+    description,
+    type: "website" as const,
+    url: alternates.canonical,
+  });
+
   return {
     title,
     description,
     alternates,
-    openGraph: {
-      ...(await openGraphBase(locale)),
-      title: `${title} | ${org.libraryName}`,
+    openGraph,
+    twitter: buildTwitter({
+      card: "summary_large_image",
+      title: socialTitle,
       description,
-      type: "website",
-      url: alternates.canonical,
-    },
-    twitter: { card: "summary_large_image", title, description },
+      images: openGraph.images,
+    }),
   };
 }
 

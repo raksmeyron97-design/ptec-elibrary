@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Clock, Languages, LayoutGrid, MessageCircle, Phone, Users } from "lucide-react";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 import JsonLd from "@/components/seo/JsonLd";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import { getPublicTeamData } from "@/lib/team/data";
@@ -46,20 +47,30 @@ export async function generateMetadata({
   const description = t("metaDescription");
   const socialTitle = `${title} · ${org.siteName}`;
 
+  // One builder, so this block cannot drift from its four identical siblings
+  // again: all five hand-wrote siteName + locale and none of them carried
+  // og:locale:alternate or an og:image:alt, verified absent on production
+  // 2026-09-20.
+  const openGraph = buildOpenGraph({
+    locale,
+    org,
+    title: socialTitle,
+    description,
+    type: "website" as const,
+    url: alternates.canonical,
+  });
+
   return {
     title,
     description,
     alternates,
-    openGraph: {
+    openGraph,
+    twitter: buildTwitter({
+      card: "summary_large_image",
       title: socialTitle,
       description,
-      url: alternates.canonical,
-      type: "website",
-      siteName: org.siteName,
-      locale: locale === "km" ? "km_KH" : "en_US",
-      images: [{ url: `${SITE_URL}/og-default.png` }],
-    },
-    twitter: { card: "summary_large_image", title: socialTitle, description },
+      images: openGraph.images,
+    }),
   };
 }
 

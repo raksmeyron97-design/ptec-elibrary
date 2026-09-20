@@ -116,7 +116,7 @@ describe("buildPublicationMetadata", () => {
     expect(md.description).toBe("Editor-tuned meta description.");
     expect(md.openGraph.title).toBe("Chemistry Education — A Custom Headline");
     expect(md.openGraph.images[0].url).toBe("https://cdn.example.com/pub-og.png");
-    expect(md.twitter.images[0]).toBe("https://cdn.example.com/pub-og.png");
+    expect(md.twitter.images[0].url).toBe("https://cdn.example.com/pub-og.png");
   });
 
   it("falls back to the auto title when the override is blank", () => {

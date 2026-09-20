@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import { localeAlternates } from "@/lib/seo/alternates";
-import { SITE_URL } from "@/lib/seo/site";
+import { buildOpenGraph, buildTwitter, OG_FALLBACK_IMAGE } from "@/lib/seo/open-graph";
 import {
   resolveOrgIdentity,
   type OrgIdentity,
 } from "@/lib/system-settings/org-identity";
 
-/** The shared social card, same asset every detail-page builder falls back to. */
-export const LISTING_FALLBACK_OG_IMAGE = `${SITE_URL}/og-default.png`;
+/** The shared social card, same asset every detail-page builder falls back to.
+ *  Re-exported so existing importers keep one constant, not a second copy. */
+export const LISTING_FALLBACK_OG_IMAGE = OG_FALLBACK_IMAGE;
 
 /**
  * Metadata for paginated listing pages (/books, /theses, /posts, …).
@@ -80,8 +81,21 @@ export function buildListingMetadata({
   const pathWithQuery = page > 1 ? `${path}?page=${page}` : path;
   const alternates = localeAlternates(pathWithQuery, locale);
   const pagedTitle = page > 1 ? `${title} — ${pageLabel} ${page}` : title;
-  const social = image ?? LISTING_FALLBACK_OG_IMAGE;
-  const images = [{ url: social, alt: imageAlt ?? org.siteName }];
+  const socialTitle = `${pagedTitle} | ${org.libraryName}`;
+  // `image` stays optional and its absence still means the shared card —
+  // buildOpenGraph now owns that fallback (with its width, height and alt)
+  // instead of this builder holding a second copy of the rule.
+  const openGraph = buildOpenGraph({
+    locale,
+    org,
+    title: socialTitle,
+    description,
+    type: ogType,
+    url: alternates.canonical,
+    image,
+    imageAlt,
+    fallbackImageAlt: imageAlt,
+  });
 
   return {
     title: pagedTitle,
@@ -89,22 +103,13 @@ export function buildListingMetadata({
     alternates,
     robots:
       hasFilters || outOfRange || isEmpty ? { index: false, follow: true } : undefined,
-    openGraph: {
-      title: `${pagedTitle} | ${org.libraryName}`,
-      description,
-      url: alternates.canonical,
-      type: ogType,
-      siteName: org.siteName,
-      locale: locale === "km" ? "km_KH" : "en_US",
-      alternateLocale: locale === "km" ? "en_US" : "km_KH",
-      images,
-    },
-    twitter: {
+    openGraph,
+    twitter: buildTwitter({
       card: "summary_large_image",
-      title: `${pagedTitle} | ${org.libraryName}`,
+      title: socialTitle,
       description,
-      images: [social],
-    },
+      images: openGraph.images,
+    }),
   };
 }
 

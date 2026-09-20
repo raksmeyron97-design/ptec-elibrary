@@ -21,11 +21,13 @@ import {
   type OrgIdentity,
 } from "@/lib/system-settings/org-identity";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { buildOpenGraph, buildTwitter, OG_FALLBACK_IMAGE } from "@/lib/seo/open-graph";
 import { normalizeDoi } from "@/lib/seo/identifiers";
 import { schemaCitations } from "@/lib/seo/references";
 import { languageCode } from "@/lib/seo/book-seo";
 
-export const FALLBACK_OG_IMAGE = `${SITE_URL}/og-default.png`;
+/** Re-exported so existing importers keep one constant, not a second copy. */
+export const FALLBACK_OG_IMAGE = OG_FALLBACK_IMAGE;
 
 // ── Generic-title detection ──────────────────────────────────────────────────
 
@@ -185,9 +187,30 @@ export function buildThesisMetadata(
   const authors = (thesis.authors ?? []).map(clean).filter(Boolean);
   const keywords = (thesis.keywords ?? []).filter(Boolean);
   const section = clean(thesis.department) || clean(thesis.program) || "Theses";
-  const image = clean(overrides?.ogImage) || thesis.coverUrl || FALLBACK_OG_IMAGE;
+  // No `|| FALLBACK_OG_IMAGE` here: buildOpenGraph owns the fallback, and
+  // folding it in early is what made the alt say "Thesis cover: <title>" over
+  // the shared site card — a label for an image that is not there.
+  const cover = clean(overrides?.ogImage) || clean(thesis.coverUrl);
   const imageAlt =
     locale === "km" ? `ក្របនិក្ខេបបទ៖ ${title}` : `Thesis cover: ${title}`;
+
+  const openGraph = {
+    ...buildOpenGraph({
+      locale,
+      org,
+      title,
+      description,
+      type: "article" as const,
+      url: canonicalUrl,
+      image: cover,
+      imageAlt,
+    }),
+    authors: authors.length > 0 ? authors : undefined,
+    publishedTime: thesis.datePublished ?? undefined,
+    modifiedTime: thesis.dateModified ?? undefined,
+    section,
+    tags: keywords.length > 0 ? keywords : undefined,
+  };
 
   return {
     title,
@@ -198,27 +221,8 @@ export function buildThesisMetadata(
     publisher: org.institutionName,
     category: section,
     alternates,
-    openGraph: {
-      title,
-      description,
-      type: "article",
-      url: canonicalUrl,
-      siteName: org.siteName,
-      locale: locale === "km" ? "km_KH" : "en_US",
-      alternateLocale: locale === "km" ? "en_US" : "km_KH",
-      authors: authors.length > 0 ? authors : undefined,
-      publishedTime: thesis.datePublished ?? undefined,
-      modifiedTime: thesis.dateModified ?? undefined,
-      section,
-      tags: keywords.length > 0 ? keywords : undefined,
-      images: [{ url: image, alt: imageAlt }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [image],
-    },
+    openGraph,
+    twitter: buildTwitter({ card: "summary_large_image", title, description, images: openGraph.images }),
   };
 }
 

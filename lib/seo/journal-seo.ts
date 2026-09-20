@@ -20,10 +20,12 @@ import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates, localeUrls } from "@/lib/seo/alternates";
 import { normalizeDoi, normalizeIssn } from "@/lib/seo/identifiers";
 import { libraryNode } from "@/lib/seo/org-nodes";
+import { buildOpenGraph, buildTwitter, OG_FALLBACK_IMAGE } from "@/lib/seo/open-graph";
 import { resolveOrgIdentity, type OrgIdentity } from "@/lib/system-settings/org-identity";
 import { issuePath, journalIssuesPath, journalPath, articlePath } from "@/lib/journals/urls";
 
-export const FALLBACK_JOURNAL_OG_IMAGE = `${SITE_URL}/og-default.png`;
+/** Re-exported so existing importers keep one constant, not a second copy. */
+export const FALLBACK_JOURNAL_OG_IMAGE = OG_FALLBACK_IMAGE;
 const MAX_META_DESCRIPTION = 157;
 
 // ── Inputs ───────────────────────────────────────────────────────────────────
@@ -168,7 +170,16 @@ export function buildJournalMetadata(j: JournalPageSeoInput, locale: string, org
   const alternates = localeAlternates(journalPath(j.slug), locale);
   const title = clean(locale === "km" && j.titleKm ? j.titleKm : j.title);
   const description = journalDescription(j, locale);
-  const image = j.coverUrl || FALLBACK_JOURNAL_OG_IMAGE;
+  const openGraph = buildOpenGraph({
+    locale,
+    org,
+    title,
+    description,
+    type: "website" as const,
+    url: alternates.canonical,
+    image: j.coverUrl,
+    imageAlt: title,
+  });
   return {
     title,
     description,
@@ -176,17 +187,8 @@ export function buildJournalMetadata(j: JournalPageSeoInput, locale: string, org
     // A journal page with no public article is an empty shell; one that asked
     // not to be indexed says so. Both still let crawlers follow the links.
     robots: !j.isIndexable || j.articleCount === 0 ? { index: false, follow: true } : undefined,
-    openGraph: {
-      title,
-      description,
-      type: "website",
-      url: alternates.canonical,
-      siteName: org.siteName,
-      locale: locale === "km" ? "km_KH" : "en_US",
-      alternateLocale: locale === "km" ? "en_US" : "km_KH",
-      images: [{ url: image, alt: title }],
-    },
-    twitter: { card: "summary_large_image", title, description, images: [image] },
+    openGraph,
+    twitter: buildTwitter({ card: "summary_large_image", title, description, images: openGraph.images }),
   };
 }
 
@@ -217,22 +219,34 @@ export function buildIssuesListMetadata(
   // cover is the honest image. buildJournalMetadata has carried one since the
   // 0148 rework; these two builders in the same file simply never did, so a
   // share of /journals/<j>/issues or of an issue rendered as a bare link.
-  const image = j.coverUrl || FALLBACK_JOURNAL_OG_IMAGE;
+  //
+  // They also never carried og:locale or og:locale:alternate — verified absent
+  // on production 2026-09-20 while the journal page one path segment up had
+  // both. buildOpenGraph owns all three now, so the three builders in this file
+  // cannot drift from each other again.
   const description = truncate(labels.description);
+  const openGraph = buildOpenGraph({
+    locale,
+    org,
+    title: labels.title,
+    description,
+    type: "website" as const,
+    url: alternates.canonical,
+    image: j.coverUrl,
+    imageAlt: labels.title,
+  });
   return {
     title: labels.title,
     description,
     alternates,
     robots: !j.isIndexable || issueCount === 0 ? { index: false, follow: true } : undefined,
-    openGraph: {
+    openGraph,
+    twitter: buildTwitter({
+      card: "summary_large_image",
       title: labels.title,
       description,
-      type: "website",
-      url: alternates.canonical,
-      siteName: org.siteName,
-      images: [{ url: image, alt: labels.title }],
-    },
-    twitter: { card: "summary_large_image", title: labels.title, description, images: [image] },
+      images: openGraph.images,
+    }),
   };
 }
 
@@ -283,21 +297,23 @@ export function buildIssueMetadata(
         ? `${issue.label} នៃ ${journalTitle}៖ បញ្ជីអត្ថបទ និងព័ត៌មានលេខផ្សាយ។`
         : `${issue.label} of ${journalTitle}: table of contents and issue details.`),
   );
-  const image = j.coverUrl || FALLBACK_JOURNAL_OG_IMAGE;
+  const openGraph = buildOpenGraph({
+    locale,
+    org,
+    title,
+    description,
+    type: "website" as const,
+    url: alternates.canonical,
+    image: j.coverUrl,
+    imageAlt: title,
+  });
   return {
     title,
     description,
     alternates,
     robots: !j.isIndexable ? { index: false, follow: true } : undefined,
-    openGraph: {
-      title,
-      description,
-      type: "website",
-      url: alternates.canonical,
-      siteName: org.siteName,
-      images: [{ url: image, alt: title }],
-    },
-    twitter: { card: "summary_large_image", title, description, images: [image] },
+    openGraph,
+    twitter: buildTwitter({ card: "summary_large_image", title, description, images: openGraph.images }),
   };
 }
 

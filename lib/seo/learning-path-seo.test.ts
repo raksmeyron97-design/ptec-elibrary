@@ -109,15 +109,17 @@ describe("buildPathsListingMetadata — the /paths collection listing", () => {
     // all — verified live 2026-09-09. A share of /paths rendered as a bare URL.
     const meta = buildPathsListingMetadata("en", copy);
     expect(meta.openGraph?.images).toEqual([
+      { url: FALLBACK_OG_IMAGE, alt: expect.any(String), width: 1200, height: 630, type: "image/png" },
+    ]);
+    expect(meta.twitter?.images).toEqual([
       { url: FALLBACK_OG_IMAGE, alt: expect.any(String) },
     ]);
-    expect(meta.twitter?.images).toEqual([FALLBACK_OG_IMAGE]);
   });
 
   it("carries the social image in Khmer too", () => {
     const meta = buildPathsListingMetadata("km", copy);
     expect(meta.openGraph?.images).toEqual([
-      { url: FALLBACK_OG_IMAGE, alt: expect.any(String) },
+      { url: FALLBACK_OG_IMAGE, alt: expect.any(String), width: 1200, height: 630, type: "image/png" },
     ]);
   });
 

@@ -28,13 +28,13 @@ import LatestPostsSection from "@/components/ui/home/LatestPostsSection";
 import LibraryNow from "@/components/ui/home/LibraryNow";
 import HeroPhotoGallery, { HERO_PHOTO_COUNT } from "@/components/ui/home/HeroPhotoGallery";
 import NarrativeCards, { NARRATIVE_PHOTO_COUNT } from "@/components/ui/home/NarrativeCards";
-import { getSiteConfig } from "@/lib/system-settings/config";
+import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import FaqSection from "@/components/ui/home/FaqSection";
 import SignupCta from "@/components/ui/home/SignupCta";
 import SignedOutOnly from "@/components/ui/home/SignedOutOnly";
 import ContinueReadingSwap from "@/components/ui/home/ContinueReadingSwap";
 import { localeAlternates } from "@/lib/seo/alternates";
-import { openGraphBase } from "@/lib/seo/open-graph";
+import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 
 import BrowseBooksSkeleton from "@/components/ui/home/skeletons/BrowseBooksSkeleton";
 import LatestPostsSkeleton from "@/components/ui/home/skeletons/LatestPostsSkeleton";
@@ -62,7 +62,10 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "home" });
+  const [t, org] = await Promise.all([
+    getTranslations({ locale, namespace: "home" }),
+    getOrgIdentity(),
+  ]);
   // A search result and a social card reward opposite things, so they get
   // different strings rather than one doing both jobs badly.
   //
@@ -76,33 +79,35 @@ export async function generateMetadata({
   // arrivals, so this is not the minor surface it looks like.
   //
   // twitter:* is set explicitly because Next falls back to the page <title>
-  // otherwise, which would silently undo the split on X/Twitter cards.
+  // otherwise, which would silently undo the split on X/Twitter cards. It goes
+  // through buildTwitter() for a second reason found on production
+  // 2026-09-20: this block declared `{ title, description }` with no `card`,
+  // and `twitter` is replaced wholesale exactly like `openGraph`, so it
+  // overwrote the root layout's `summary_large_image`. The site's most-shared
+  // URL was publishing its 1200 x 630 landscape card as `twitter:card =
+  // summary` — a small square crop — on / and /km alike.
   //
-  // One object, used for both `alternates.canonical` and `openGraph.url`. The
-  // homepage was the ONLY openGraphBase() caller that never set og:url — all
-  // ten others do — because openGraphBase cannot supply it: it does not know
-  // the page's path. Verified absent on / and /km live, 2026-09-09.
+  // One object, used for both `alternates.canonical` and `openGraph.url`.
   const alternates = localeAlternates("/", locale);
+  const openGraph = buildOpenGraph({
+    locale,
+    org,
+    title: t("ogTitle"),
+    description: t("ogDescription"),
+    type: "website" as const,
+    url: alternates.canonical,
+  });
   return {
     title: t("seoTitle"),
     description: t("seoDescription"),
     alternates,
-    // openGraphBase carries siteName, og:locale and the reciprocal
-    // og:locale:alternate. Next does NOT deep-merge `openGraph` — declaring one
-    // here replaces the layout's entirely — which is exactly how this page
-    // shipped with no og:site_name at all. Spread it FIRST so the ogTitle /
-    // ogDescription split below still wins.
-    openGraph: {
-      ...(await openGraphBase(locale)),
+    openGraph,
+    twitter: buildTwitter({
+      card: "summary_large_image",
       title: t("ogTitle"),
       description: t("ogDescription"),
-      type: "website",
-      url: alternates.canonical,
-    },
-    twitter: {
-      title: t("ogTitle"),
-      description: t("ogDescription"),
-    },
+      images: openGraph.images,
+    }),
   };
 }
 

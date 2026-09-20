@@ -12,7 +12,7 @@ import ResourceTypeBadge from "@/components/ui/collection/ResourceTypeBadge";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
-import { openGraphBase } from "@/lib/seo/open-graph";
+import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 import { libraryNode } from "@/lib/seo/org-nodes";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { decodeSlugParam } from "@/lib/slug";
@@ -74,6 +74,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       ? truncate(t("metaDescription", { subject: subject.name, breakdown: parts.join(", ") }))
       : truncate(t("metaDescriptionEmpty", { subject: subject.name }));
   const alternates = localeAlternates(`/subjects/${subject.slug}`, locale);
+  const socialTitle = `${title} | ${org.libraryName}`;
+  const openGraph = buildOpenGraph({
+    locale,
+    org,
+    title: socialTitle,
+    description,
+    type: "website" as const,
+    url: alternates.canonical,
+  });
 
   return {
     title,
@@ -92,14 +101,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     ...(subjectVisibility(subject.counts, subject.fullText) === "index"
       ? {}
       : { robots: { index: false, follow: true } }),
-    openGraph: {
-      ...(await openGraphBase(locale)),
-      title: `${title} | ${org.libraryName}`,
+    openGraph,
+    // `summary_large_image`, not `summary`: this page ships the shared
+    // 1200 x 630 card and `summary` crops a landscape image to a small square.
+    twitter: buildTwitter({
+      card: "summary_large_image",
+      title: socialTitle,
       description,
-      type: "website",
-      url: alternates.canonical,
-    },
-    twitter: { card: "summary", title, description },
+      images: openGraph.images,
+    }),
   };
 }
 

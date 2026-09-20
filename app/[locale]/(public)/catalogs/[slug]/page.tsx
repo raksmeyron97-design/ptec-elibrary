@@ -13,7 +13,7 @@ import { contributorNodes } from "@/lib/seo/contributor";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
-import { openGraphBase } from "@/lib/seo/open-graph";
+import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 import type { CatalogBook } from "@/lib/catalog";
 import {
   computeCopyStats,
@@ -101,7 +101,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug: rawSlug, locale } = await params;
   const slug = decodeSlugParam(rawSlug);
-  const record = await fetchCatalogRecord(slug);
+  const [record, org] = await Promise.all([fetchCatalogRecord(slug), getOrgIdentity()]);
   if (!record) return { title: "Book not found", robots: { index: false } };
   const { book } = record;
 
@@ -123,24 +123,32 @@ export async function generateMetadata({
   const alternates = localeAlternates(`/catalogs/${slug}`, locale);
   const canonicalUrl = alternates.canonical;
 
+  // `images: []` used to be the else-branch here, and an EMPTY array replaces
+  // the shared default rather than falling through to it — so a catalog record
+  // with no cover published no og:image at all. buildOpenGraph owns the
+  // fallback, so "no cover" now means the site card, as it does everywhere else.
+  const openGraph = buildOpenGraph({
+    locale,
+    org,
+    title,
+    description: desc,
+    type: "book" as const,
+    url: canonicalUrl,
+    image: ogImage,
+    imageAlt: book.title,
+  });
+
   return {
     title,
     description: desc,
     alternates,
-    openGraph: {
-      ...(await openGraphBase(locale)),
-      title,
-      description: desc,
-      type: "book",
-      url: canonicalUrl,
-      images: ogImage ? [{ url: ogImage, alt: book.title }] : [],
-    },
-    twitter: {
+    openGraph,
+    twitter: buildTwitter({
       card: "summary_large_image",
       title,
       description: desc,
-      images: ogImage ? [ogImage] : undefined,
-    },
+      images: openGraph.images,
+    }),
   };
 }
 

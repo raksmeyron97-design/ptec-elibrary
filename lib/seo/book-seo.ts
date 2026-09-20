@@ -18,13 +18,15 @@ import { resolveContributorNodes } from "@/lib/seo/contributor";
 import { bookLanguageCode } from "@/lib/books/language";
 import type { ResourceContributorView } from "@/lib/resources/contributor-view";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { buildOpenGraph, buildTwitter, OG_FALLBACK_IMAGE } from "@/lib/seo/open-graph";
 import { libraryNode } from "@/lib/seo/org-nodes";
 import {
   resolveOrgIdentity,
   type OrgIdentity,
 } from "@/lib/system-settings/org-identity";
 
-export const FALLBACK_OG_IMAGE = `${SITE_URL}/og-default.png`;
+/** Re-exported so existing importers keep one constant, not a second copy. */
+export const FALLBACK_OG_IMAGE = OG_FALLBACK_IMAGE;
 
 export type BookSeoInput = {
   slug: string;
@@ -142,11 +144,28 @@ export function buildBookMetadata(
   const tags = (book.tags ?? []).filter(Boolean);
   const section = clean(book.department) || clean(book.category) || "Books";
   const ogImage = clean(overrides?.ogImage) || book.coverUrl;
-  const image = ogImage || FALLBACK_OG_IMAGE;
-  const imageAlt =
-    ogImage
-      ? (locale === "km" ? `ក្របសៀវភៅ៖ ${title}` : `Book cover: ${title}`)
-      : org.siteName;
+  const imageAlt = locale === "km" ? `ក្របសៀវភៅ៖ ${title}` : `Book cover: ${title}`;
+
+  const openGraph = {
+    ...buildOpenGraph({
+      locale,
+      org,
+      title,
+      description,
+      type: "article" as const,
+      url: canonicalUrl,
+      // A record cover when there is one, the shared site card otherwise. The
+      // alt describes the image ACTUALLY used: buildOpenGraph ignores
+      // `imageAlt` on the fallback, so the site card is never labelled
+      // "Book cover: <title>".
+      image: ogImage,
+      imageAlt,
+    }),
+    authors: authors.length > 0 ? authors : undefined,
+    publishedTime: book.publishedAt ?? undefined,
+    section,
+    tags: tags.length > 0 ? tags : undefined,
+  };
 
   return {
     title,
@@ -158,30 +177,8 @@ export function buildBookMetadata(
     publisher: clean(book.publisher) || undefined,
     category: section,
     alternates,
-    openGraph: {
-      title,
-      description,
-      type: "article",
-      url: canonicalUrl,
-      siteName: org.siteName,
-      locale: locale === "km" ? "km_KH" : "en_US",
-      alternateLocale: locale === "km" ? "en_US" : "km_KH",
-      authors: authors.length > 0 ? authors : undefined,
-      publishedTime: book.publishedAt ?? undefined,
-      section,
-      tags: tags.length > 0 ? tags : undefined,
-      images: [
-        ogImage
-          ? { url: ogImage, width: 800, height: 1200, alt: imageAlt }
-          : { url: FALLBACK_OG_IMAGE, width: 1200, height: 630, alt: imageAlt },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [image],
-    },
+    openGraph,
+    twitter: buildTwitter({ card: "summary_large_image", title, description, images: openGraph.images }),
   };
 }
 

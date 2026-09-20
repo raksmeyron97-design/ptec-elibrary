@@ -180,7 +180,19 @@ describe("validateSeoMetadata", () => {
         "x-default": `${P}/subjects/pedagogy`,
       },
     },
-    openGraph: { title: "Pedagogy", description: "…", siteName: "PTEC Library" },
+    // The full contract: og:title, og:type, og:url (== canonical),
+    // og:site_name, og:locale, the reciprocal og:locale:alternate, and an
+    // image with alt text.
+    openGraph: {
+      title: "Pedagogy",
+      description: "…",
+      type: "website",
+      url: `${P}/subjects/pedagogy`,
+      siteName: "PTEC Library",
+      locale: "en_US",
+      alternateLocale: ["km_KH"],
+      images: [{ url: `${P}/og-default.png`, alt: "PTEC Library" }],
+    },
   };
 
   it("accepts complete metadata", () => {

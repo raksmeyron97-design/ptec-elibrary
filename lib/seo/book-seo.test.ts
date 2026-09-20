@@ -107,7 +107,8 @@ describe("buildBookMetadata", () => {
     expect(m.alternates.languages.km).toContain("/km/books/");
     expect(m.openGraph.images[0].url).toBe("https://cdn.example.com/cover.webp");
     expect(m.openGraph.url).toBe(m.alternates.canonical);
-    expect(m.twitter.images[0]).toBe("https://cdn.example.com/cover.webp");
+    expect(m.twitter.images[0].url).toBe("https://cdn.example.com/cover.webp");
+    expect(m.twitter.images[0].alt).toBeTruthy();
     expect(m.publisher).toBe("Jossey-Bass");
   });
 
@@ -115,7 +116,7 @@ describe("buildBookMetadata", () => {
     const m = buildBookMetadata(sparse, "en") as any;
     expect(m.description).toBeTruthy();
     expect(m.openGraph.images[0].url).toBe(FALLBACK_OG_IMAGE);
-    expect(m.twitter.images[0]).toBe(FALLBACK_OG_IMAGE);
+    expect(m.twitter.images[0].url).toBe(FALLBACK_OG_IMAGE);
     // No fabricated publisher/authors.
     expect(m.publisher).toBeUndefined();
     expect(m.authors).toBeUndefined();
@@ -137,7 +138,7 @@ describe("buildBookMetadata", () => {
     expect(m.description).toBe("Hand-written meta description.");
     expect(m.openGraph.title).toBe("Custom Title | PTEC");
     expect(m.openGraph.images[0].url).toBe("https://cdn.example.com/custom-og.png");
-    expect(m.twitter.images[0]).toBe("https://cdn.example.com/custom-og.png");
+    expect(m.twitter.images[0].url).toBe("https://cdn.example.com/custom-og.png");
   });
 
   it("falls back to auto-generated values when overrides are blank/whitespace", () => {

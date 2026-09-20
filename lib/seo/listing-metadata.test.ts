@@ -18,16 +18,28 @@ describe("buildListingMetadata — social image", () => {
     // shipped with no og:image (verified live 2026-09-07) because they simply
     // did not pass one. A shared listing link rendered as a bare URL.
     const meta = buildListingMetadata(base);
+    // The fallback is the ONE asset this repository controls, so its
+    // dimensions are declared — a crawler sizes the card from them.
     expect(meta.openGraph?.images).toEqual([
+      {
+        url: LISTING_FALLBACK_OG_IMAGE,
+        alt: expect.any(String),
+        width: 1200,
+        height: 630,
+        type: "image/png",
+      },
+    ]);
+    expect(meta.twitter?.images).toEqual([
       { url: LISTING_FALLBACK_OG_IMAGE, alt: expect.any(String) },
     ]);
-    expect(meta.twitter?.images).toEqual([LISTING_FALLBACK_OG_IMAGE]);
   });
 
   it("still prefers an image the page does supply", () => {
     const meta = buildListingMetadata({ ...base, image: "https://example.test/x.png", imageAlt: "X" });
+    // No width/height: nothing here knows the dimensions of an image the page
+    // supplied, and a wrong declaration is worse than an absent one.
     expect(meta.openGraph?.images).toEqual([{ url: "https://example.test/x.png", alt: "X" }]);
-    expect(meta.twitter?.images).toEqual(["https://example.test/x.png"]);
+    expect(meta.twitter?.images).toEqual([{ url: "https://example.test/x.png", alt: "X" }]);
   });
 });
 

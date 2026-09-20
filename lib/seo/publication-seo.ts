@@ -25,12 +25,14 @@ import {
   type OrgIdentity,
 } from "@/lib/system-settings/org-identity";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { buildOpenGraph, buildTwitter, OG_FALLBACK_IMAGE } from "@/lib/seo/open-graph";
 import { normalizeDoi, doiUrl, normalizeIssn, normalizeLicense } from "@/lib/seo/identifiers";
 import { languageCode } from "@/lib/seo/book-seo";
 import { articlePath, JOURNALS_PATH } from "@/lib/journals/urls";
 import { partOfChain, type IssueSeoRef, type JournalSeoRef } from "@/lib/seo/journal-seo";
 
-export const FALLBACK_OG_IMAGE = `${SITE_URL}/og-default.png`;
+/** Re-exported so existing importers keep one constant, not a second copy. */
+export const FALLBACK_OG_IMAGE = OG_FALLBACK_IMAGE;
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -173,8 +175,27 @@ export function buildPublicationMetadata(
   const description = clean(overrides?.seoDescription) || publicationMetaDescription(pub, locale);
   const authors = (pub.authors ?? []).map(clean).filter(Boolean);
   const keywords = [...new Set([...(pub.keywords ?? []), ...(pub.subjects ?? [])])].filter(Boolean);
-  const image = clean(overrides?.ogImage) || pub.coverUrl || FALLBACK_OG_IMAGE;
+  // No `|| FALLBACK_OG_IMAGE` here — buildOpenGraph owns the fallback, so the
+  // "Article cover" alt can never end up labelling the shared site card.
+  const cover = clean(overrides?.ogImage) || clean(pub.coverUrl);
   const imageAlt = locale === "km" ? `គម្របអត្ថបទ៖ ${title}` : `Article cover: ${title}`;
+
+  const openGraph = {
+    ...buildOpenGraph({
+      locale,
+      org,
+      title,
+      description,
+      type: "article" as const,
+      url: canonicalUrl,
+      image: cover,
+      imageAlt,
+    }),
+    authors: authors.length > 0 ? authors : undefined,
+    publishedTime: pub.publicationDate ?? undefined,
+    modifiedTime: pub.dateModified ?? undefined,
+    tags: keywords.length > 0 ? keywords : undefined,
+  };
 
   return {
     // The override is already the admin's final choice — only the auto title
@@ -187,26 +208,8 @@ export function buildPublicationMetadata(
     // journal article.
     publisher: clean(pub.publisher) || undefined,
     alternates,
-    openGraph: {
-      title,
-      description,
-      type: "article",
-      url: canonicalUrl,
-      siteName: org.siteName,
-      locale: locale === "km" ? "km_KH" : "en_US",
-      alternateLocale: locale === "km" ? "en_US" : "km_KH",
-      authors: authors.length > 0 ? authors : undefined,
-      publishedTime: pub.publicationDate ?? undefined,
-      modifiedTime: pub.dateModified ?? undefined,
-      tags: keywords.length > 0 ? keywords : undefined,
-      images: [{ url: image, alt: imageAlt }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [image],
-    },
+    openGraph,
+    twitter: buildTwitter({ card: "summary_large_image", title, description, images: openGraph.images }),
   };
 }
 
