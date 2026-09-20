@@ -90,8 +90,9 @@ const FURNITURE_MARKERS: readonly RegExp[] = [
   /មាតិកា/u,
 ];
 
-/** Dot leaders — "Sampling error .......... 188" — are a contents page and nothing else. */
-const DOT_LEADER = /\.{3,}\s*\d{1,4}/u;
+/** Dot leaders — "Sampling error .......... 188" — are a contents page and
+ *  nothing else. Khmer numerals for the same reason as BARE_NUMBER. */
+const DOT_LEADER = /\.{3,}\s*[\d០-៩]{1,4}/u;
 
 /**
  * A sentence ends and another begins: ". A", "។ ", "? T". Khmer uses the khan.
@@ -110,8 +111,32 @@ const DOT_LEADER = /\.{3,}\s*\d{1,4}/u;
  */
 const SENTENCE_END = /(?<![0-9])(?<!\b\p{Lu})[.!?](?=\s+["'“(\p{Lu}]|\s*$)|។/gu;
 
-/** A token that is only digits (possibly roman-numeral-ish page locators too). */
-const BARE_NUMBER = /^\d{1,4}(?:[–-]\d{1,4})?$/u;
+/**
+ * A token that is only digits — a page locator.
+ *
+ * KHMER NUMERALS ០-៩ COUNT. `\d` is ASCII-only in JavaScript even under the
+ * `u` flag, so a Khmer contents or index page — which prints its locators in
+ * Khmer digits — scored a numeric ratio of exactly 0% and the `locatorHeavy`
+ * signal could never fire for it.
+ *
+ * The heading marker `មាតិកា` hid this for the FIRST page of a contents
+ * listing, which is why it survived: that page is caught by `marker &&
+ * thinProse` before the locator route is reached. A CONTINUATION page has no
+ * heading, and measured on the real assessPageText(), one such page scored:
+ *
+ *   Khmer numerals  kind=prose  substantive=TRUE   "0% numbers"
+ *   same page, ASCII digits  kind=index  substantive=false  "37% ... bare page numbers"
+ *
+ * So the furniture filter — whose whole purpose is keeping a list of
+ * pointers out of the evidence set — was admitting Khmer furniture as prose.
+ * 1,521 of this library's 1,846 indexed books are Khmer.
+ *
+ * The two-signal rule still applies: a page is only dropped when it is BOTH
+ * locator-heavy and has no sentences. Khmer prose terminates with the khan
+ * (។), which SENTENCE_END already counts, so a real Khmer page keeps its
+ * sentence density and is not at risk.
+ */
+const BARE_NUMBER = /^[\d០-៩]{1,4}(?:[–-][\d០-៩]{1,4})?$/u;
 
 const KHMER = /[ក-៿]/u;
 
