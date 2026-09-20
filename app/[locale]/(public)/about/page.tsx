@@ -1,26 +1,37 @@
 import type { Metadata } from "next";
 import { localeAlternates } from "@/lib/seo/alternates";
-import { openGraphBase } from "@/lib/seo/open-graph";
+import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
+import { getOrgIdentity } from "@/lib/system-settings/config";
 
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
-  const { locale } = await params;
+  const [{ locale }, org] = await Promise.all([params, getOrgIdentity()]);
   const alternates = localeAlternates("/about", locale);
+  const socialTitle = "About — PTEC Library";
+  const socialDescription = "Mission, vision, and values of the PTEC Library.";
+  const openGraph = buildOpenGraph({
+    locale,
+    org,
+    title: socialTitle,
+    description: socialDescription,
+    type: "website" as const,
+    url: alternates.canonical,
+  });
   return {
     title: "អំពីបណ្ណាល័យ — PTEC e-Library",
     description:
       "The Library of Phnom Penh Teacher Education College — knowledge, research, and innovation for 21st-century teacher education.",
     alternates,
-    openGraph: {
-      ...(await openGraphBase(locale)),
-      title: "About — PTEC Library",
-      description: "Mission, vision, and values of the PTEC Library.",
-      url: alternates.canonical,
-      type: "website",
-    },
+    openGraph,
+    twitter: buildTwitter({
+      card: "summary_large_image",
+      title: socialTitle,
+      description: socialDescription,
+      images: openGraph.images,
+    }),
   };
 }
 

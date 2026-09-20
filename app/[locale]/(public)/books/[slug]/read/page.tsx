@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { decodeSlugParam } from "@/lib/slug";
 import { notFound, redirect } from "next/navigation";
+import { resolveBookDownloadAccess } from "@/lib/books/access";
 import { unstable_cache } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
@@ -52,11 +53,12 @@ const getReadableBook = unstable_cache(
         .eq("is_published", true)
         .maybeSingle();
 
-    // allow_download (0131) drives whether the viewer offers a Download action.
-    // Asked for defensively: on a database without the column the whole select
-    // fails, and losing the reader entirely would be a far worse outcome than
-    // falling back to the column's default (downloadable).
-    let { data } = await load(`${COLUMNS}, allow_download`);
+    // allow_download (0131) drives whether the viewer offers a Download
+    // action; file_access (0151) decides whether there is a viewer at all.
+    // Asked for defensively: on a database without the columns the whole
+    // select fails, and losing the reader entirely would be a far worse
+    // outcome than falling back to the columns' defaults.
+    let { data } = await load(`${COLUMNS}, allow_download, file_access`);
     if (!data) ({ data } = await load(COLUMNS));
     if (!data) return null;
     // The column list is built at runtime, so PostgREST's inferred row type is
@@ -98,6 +100,20 @@ export default async function BookReadPage({ params, searchParams }: ReadPagePro
   const book = await getReadableBook(slug);
   if (!book || !book.pdfUrl) notFound();
 
+  // Catalogue record only (0151): there is no reader for this book, and the
+  // file route would refuse the viewer's fetch anyway. Sent to the detail
+  // page rather than 404'd — that page carries the explanation and the
+  // things the reader CAN do (request it, find a physical copy), and a bare
+  // 404 on a bookmarked URL explains nothing.
+  const readAccess = resolveBookDownloadAccess({
+    file_access: book.fileAccess,
+    allow_download: book.allowDownload,
+    fileUrl: book.pdfUrl,
+  });
+  if (!readAccess.canReadOnline) {
+    redirect(`${locale === "km" ? "/km" : ""}/books/${slug}`);
+  }
+
   // Reading is gated: the file API now requires an authenticated reader, so send
   // anonymous visitors to sign in (and back here) instead of rendering a viewer
   // whose PDF fetch would 401.
@@ -137,7 +153,7 @@ export default async function BookReadPage({ params, searchParams }: ReadPagePro
         // matters is the server's — /api/books/[slug]/download re-decides on
         // every request — but offering an action that would 403 is a worse
         // experience than not offering it.
-        allowDownload={book.allowDownload !== false}
+        allowDownload={readAccess.canDownload}
         isLoggedIn={!!user}
         // Stamps this device's saved position with the account reading now, so
         // the next student to sign in on a shared machine is not resumed onto

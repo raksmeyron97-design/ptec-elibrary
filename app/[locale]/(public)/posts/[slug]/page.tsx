@@ -23,7 +23,7 @@ import PostEventPanel from "@/components/ui/posts/PostEventPanel";
 import { eventColumnsAvailable } from "@/lib/posts-data";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
-import { openGraphBase } from "@/lib/seo/open-graph";
+import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 import { postEventJsonLd, POSTS_FALLBACK_OG_IMAGE } from "@/lib/seo/posts-seo";
 import type { EventFields } from "@/lib/posts/event-status";
 import { formatPtecDate, formatDateParts } from "@/lib/posts/event-status";
@@ -140,33 +140,38 @@ export async function generateMetadata({
 
   const alternates = localeAlternates(`/posts/${slug}`, locale);
   const canonicalUrl = alternates.canonical;
-  const cover = post.cover_url ?? POSTS_FALLBACK_OG_IMAGE;
+  // No `?? POSTS_FALLBACK_OG_IMAGE`: buildOpenGraph owns the fallback, which
+  // is the same asset, and folding it in early is what let a post with no
+  // cover declare the site card `1200 x 630 alt="<post title>"`. Those
+  // dimensions were asserted of ANY cover_url a post carried, which is only
+  // true of the fallback.
+  const openGraph = {
+    ...buildOpenGraph({
+      locale,
+      org,
+      title: post.title,
+      description: desc,
+      type: "article" as const,
+      url: canonicalUrl,
+      image: post.cover_url,
+      imageAlt: post.title,
+    }),
+    publishedTime: post.created_at ?? undefined,
+    modifiedTime: post.updated_at ?? post.created_at ?? undefined,
+    authors: [authorName(post.author, org.libraryName)],
+  };
 
   return {
     title: post.title,
     description: desc,
     alternates,
-    openGraph: {
-      ...(await openGraphBase(locale)),
-      title: post.title,
-      description: desc,
-      type: "article",
-      url: canonicalUrl,
-      siteName: org.libraryName,
-      locale: locale === "km" ? "km_KH" : "en_US",
-      publishedTime: post.created_at ?? undefined,
-      modifiedTime: post.updated_at ?? post.created_at ?? undefined,
-      authors: [authorName(post.author, org.libraryName)],
-      // Facebook is how most of this audience shares links, and it needs an
-      // explicitly sized image or it picks whatever it finds on the page.
-      images: [{ url: cover, width: 1200, height: 630, alt: post.title }],
-    },
-    twitter: {
+    openGraph,
+    twitter: buildTwitter({
       card: "summary_large_image",
       title: post.title,
       description: desc,
-      images: [cover],
-    },
+      images: openGraph.images,
+    }),
   };
 }
 

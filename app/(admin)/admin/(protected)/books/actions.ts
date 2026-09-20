@@ -2,6 +2,7 @@
 
 // app/admin/books/actions.ts
 import { revalidateLocalizedPath as revalidatePath, revalidateBook } from "@/lib/cache/revalidate";
+import { toBookFileAccess, type BookFileAccess } from "@/lib/books/access";
 import { after } from "next/server";
 import { requirePermission } from "@/lib/auth/requireAdmin";
 import { slugify } from "@/lib/books";
@@ -96,6 +97,13 @@ export interface BookInput {
    * restrict a book by omission.
    */
   allowDownload?: boolean;
+  /**
+   * The authoritative file policy (migration 0151). When present it decides,
+   * and `allowDownload` is ignored — the database trigger derives the legacy
+   * column from this one, so writing both would be writing the same fact
+   * twice. Undefined takes the column default, `public`.
+   */
+  fileAccess?: BookFileAccess;
   /** Optional librarian wording shown in place of the download action. */
   downloadDisabledReason?: string | null;
   license?: string;
@@ -526,6 +534,17 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
     .filter(Boolean)
     .slice(0, 20);
 
+  // One reading of the client's intent. `fileAccess` wins; `allowDownload` is
+  // the legacy spelling of the same decision and is mapped rather than
+  // written, so a caller that predates 0151 keeps working unchanged.
+  const resolvedFileAccess: BookFileAccess | null =
+    input.fileAccess ??
+    (input.allowDownload === false
+      ? "read_online"
+      : input.allowDownload === true
+        ? "public"
+        : null);
+
   const { data: book, error: bookError } = await supabase
     .from("books")
     .insert({
@@ -549,18 +568,24 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
       cover_color:  coverColor,
       cover_url:    coverUrl,
       storage_folder: input.storageFolder?.trim() || null,
-      // Only written when the client actually decided (migration 0131). An
-      // absent key takes the column default — true — so the bulk importer and
-      // any older form build keep producing downloadable books, and the insert
-      // still works on a database the migration has not reached.
-      ...(input.allowDownload === false
-        ? {
-            allow_download: false,
-            download_disabled_reason: input.downloadDisabledReason?.trim() || null,
-          }
-        : input.allowDownload === true
-          ? { allow_download: true, download_disabled_reason: null }
-          : {}),
+      // Only written when the client actually decided (0131, widened by
+      // 0151). An absent key takes the column default — `public` — so the
+      // bulk importer and any older form build keep producing downloadable
+      // books, and the insert still works on a database neither migration
+      // has reached.
+      //
+      // `file_access` is written, never `allow_download`: the trigger derives
+      // the legacy column from this one, and writing both would be asserting
+      // the same fact twice in a payload where they could disagree.
+      ...(resolvedFileAccess === null
+        ? {}
+        : {
+            file_access: resolvedFileAccess,
+            download_disabled_reason:
+              resolvedFileAccess === "public"
+                ? null
+                : input.downloadDisabledReason?.trim() || null,
+          }),
       tags: tagsArr,
     })
     .select("id, slug")
@@ -588,7 +613,9 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
   await logAdminAction(user.id, "book.create", "books", book.id, {
     title,
     status: effectiveStatus,
-    ...(input.allowDownload === false ? { allowDownload: false } : {}),
+    ...(resolvedFileAccess && resolvedFileAccess !== "public"
+      ? { fileAccess: resolvedFileAccess }
+      : {}),
     ...(overrodeBookId ? { duplicateOf: overrodeBookId } : {}),
   });
   if (effectiveStatus === "pending_review") {
@@ -755,13 +782,23 @@ export async function updateBook(
     const year  = validatedYear(formData.get("year"));
     const pages = Number(formData.get("pages")) || 1;
 
-    // Download policy (migration 0131). The form posts `allowDownload` as "1"/"0"
-    // on every submit; a payload without the key at all (an older build, or a
-    // caller that only means to change metadata) leaves the librarian's setting
-    // exactly as it found it rather than resetting it to "allowed".
+    // File policy (0131, widened by 0151). The form posts `fileAccess` on
+    // every submit; a payload without the key at all (an older build, or a
+    // caller that only means to change metadata) leaves the librarian's
+    // setting exactly as it found it rather than resetting it to "public".
+    //
+    // `allowDownload` is still accepted as the legacy spelling and mapped to
+    // the new column — it cannot express `catalogue_only`, so it can only
+    // ever select between the two states it always could.
+    const fileAccessRaw = formData.get("fileAccess")?.toString().trim();
     const allowDownloadRaw = formData.get("allowDownload");
-    const allowDownload =
-      allowDownloadRaw === null ? null : allowDownloadRaw.toString() === "1";
+    const fileAccess: BookFileAccess | null = fileAccessRaw
+      ? toBookFileAccess(fileAccessRaw)
+      : allowDownloadRaw === null
+        ? null
+        : allowDownloadRaw.toString() === "1"
+          ? "public"
+          : "read_online";
     const downloadReason = formData.get("downloadDisabledReason")?.toString().trim() || null;
 
     // SEO overrides (migration 0112): blank → null so the builder auto-generates.
@@ -877,18 +914,18 @@ export async function updateBook(
       }
     }
 
-    // Previous value, for the audit trail below. `select("allow_download")` on a
+    // Previous value, for the audit trail below. `select("file_access")` on a
     // database without the column errors rather than returning undefined, so the
     // read is tolerated and degrades to "unknown" (null) — which only costs the
     // before/after detail in one audit row, never the update itself.
-    let previousAllowDownload: boolean | null = null;
-    if (allowDownload !== null) {
+    let previousFileAccess: BookFileAccess | null = null;
+    if (fileAccess !== null) {
       const { data: prev } = await supabase
         .from("books")
-        .select("allow_download")
+        .select("file_access")
         .eq("id", bookId)
         .maybeSingle();
-      previousAllowDownload = (prev?.allow_download as boolean | undefined) ?? null;
+      previousFileAccess = prev?.file_access ? toBookFileAccess(prev.file_access) : null;
     }
 
     const bookUpdate = {
@@ -908,12 +945,12 @@ export async function updateBook(
         seo_description: seoDescription,
         og_image: ogImage,
         ...(license ? { license } : {}),
-        ...(allowDownload === null
+        ...(fileAccess === null
           ? {}
           : {
-              allow_download: allowDownload,
+              file_access: fileAccess,
               // The restriction message only exists while the restriction does.
-              download_disabled_reason: allowDownload ? null : downloadReason,
+              download_disabled_reason: fileAccess === "public" ? null : downloadReason,
             }),
         ...coverUpdate, // only included if cover changed/removed
     };
@@ -929,13 +966,14 @@ export async function updateBook(
     // restrict the book, because silently discarding that decision would leave
     // them believing a download is blocked when it is not.
     if (bookError && (bookError.code === "42703" || bookError.code === "PGRST204")) {
-      if (allowDownload === false) {
+      if (fileAccess !== null && fileAccess !== "public") {
         throw new Error(
-          "Download permission could not be saved: this database has not had migration 0131 applied yet. " +
-            "Nothing was changed — apply the migration and try again.",
+          "File access could not be saved: this database has not had migrations 0131/0151 applied yet. " +
+            "Nothing was changed — apply the migrations and try again.",
         );
       }
       const withoutPolicy: Record<string, unknown> = { ...bookUpdate };
+      delete withoutPolicy.file_access;
       delete withoutPolicy.allow_download;
       delete withoutPolicy.download_disabled_reason;
       ({ data: book, error: bookError } = await runUpdate(withoutPolicy));
@@ -950,15 +988,11 @@ export async function updateBook(
     // Written only when the value actually moved. `previousAllowDownload` is null
     // only when the column could not be read at all (pre-0131), where there is no
     // transition to report.
-    if (
-      allowDownload !== null &&
-      previousAllowDownload !== null &&
-      allowDownload !== previousAllowDownload
-    ) {
-      await logAdminAction(user.id, "book.download_permission", "books", bookId, {
+    if (fileAccess !== null && previousFileAccess !== null && fileAccess !== previousFileAccess) {
+      await logAdminAction(user.id, "book.file_access", "books", bookId, {
         title,
-        from: previousAllowDownload,
-        to: allowDownload,
+        from: previousFileAccess,
+        to: fileAccess,
       });
     }
 

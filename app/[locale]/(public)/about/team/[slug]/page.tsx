@@ -17,6 +17,7 @@ import {
 import { Link } from "@/i18n/navigation";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import JsonLd from "@/components/seo/JsonLd";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
@@ -135,20 +136,32 @@ export async function generateMetadata({
   const title = name.primary;
   const socialTitle = `${title} · ${org.siteName}`;
 
+  // The portrait when there is one, the shared card otherwise — the same
+  // hierarchy every other surface uses, but now with og:image:alt (absent in
+  // production on 2026-09-20: a portrait was published with no description of
+  // who it shows) and with og:locale:alternate, which this page never carried.
+  const openGraph = buildOpenGraph({
+    locale,
+    org,
+    title: socialTitle,
+    description,
+    type: "profile" as const,
+    url: alternates.canonical,
+    image: member.photo_url,
+    imageAlt: name.primary,
+  });
+
   return {
     title,
     description,
     alternates,
-    openGraph: {
+    openGraph,
+    twitter: buildTwitter({
+      card: "summary_large_image",
       title: socialTitle,
       description,
-      url: alternates.canonical,
-      type: "profile",
-      siteName: org.siteName,
-      locale: locale === "km" ? "km_KH" : "en_US",
-      images: [{ url: member.photo_url || `${SITE_URL}/og-default.png` }],
-    },
-    twitter: { card: "summary_large_image", title: socialTitle, description },
+      images: openGraph.images,
+    }),
   };
 }
 

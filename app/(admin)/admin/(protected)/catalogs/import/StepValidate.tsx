@@ -53,7 +53,7 @@ export default function StepValidate({
       if (!q) return true;
       return (
         r.normalized.title.toLowerCase().includes(q) ||
-        r.normalized.author.toLowerCase().includes(q) ||
+        (r.normalized.author ?? "").toLowerCase().includes(q) ||
         (r.normalized.isbn ?? "").includes(q) ||
         (r.normalized.barcode ?? "").toLowerCase().includes(q) ||
         String(r.rowNumber) === q

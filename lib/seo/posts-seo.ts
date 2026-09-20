@@ -1,14 +1,15 @@
-import { SITE_URL } from "@/lib/seo/site";
 import { libraryNode, organizationNode } from "@/lib/seo/org-nodes";
 import {
   resolveOrgIdentity,
   type OrgIdentity,
 } from "@/lib/system-settings/org-identity";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { OG_FALLBACK_IMAGE } from "@/lib/seo/open-graph";
 import type { EventFields } from "@/lib/posts/event-status";
 
 /** OG fallback for the News & Events hub when no featured cover is available. */
-export const POSTS_FALLBACK_OG_IMAGE = `${SITE_URL}/og-default.png`;
+/** Re-exported so existing importers keep one constant, not a second copy. */
+export const POSTS_FALLBACK_OG_IMAGE = OG_FALLBACK_IMAGE;
 
 /** Canonical URL of the listing (locale-aware, page-aware). */
 export function postsListingUrl(locale: string, page = 1): string {

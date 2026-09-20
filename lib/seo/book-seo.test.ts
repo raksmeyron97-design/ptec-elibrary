@@ -107,7 +107,8 @@ describe("buildBookMetadata", () => {
     expect(m.alternates.languages.km).toContain("/km/books/");
     expect(m.openGraph.images[0].url).toBe("https://cdn.example.com/cover.webp");
     expect(m.openGraph.url).toBe(m.alternates.canonical);
-    expect(m.twitter.images[0]).toBe("https://cdn.example.com/cover.webp");
+    expect(m.twitter.images[0].url).toBe("https://cdn.example.com/cover.webp");
+    expect(m.twitter.images[0].alt).toBeTruthy();
     expect(m.publisher).toBe("Jossey-Bass");
   });
 
@@ -115,7 +116,7 @@ describe("buildBookMetadata", () => {
     const m = buildBookMetadata(sparse, "en") as any;
     expect(m.description).toBeTruthy();
     expect(m.openGraph.images[0].url).toBe(FALLBACK_OG_IMAGE);
-    expect(m.twitter.images[0]).toBe(FALLBACK_OG_IMAGE);
+    expect(m.twitter.images[0].url).toBe(FALLBACK_OG_IMAGE);
     // No fabricated publisher/authors.
     expect(m.publisher).toBeUndefined();
     expect(m.authors).toBeUndefined();
@@ -137,7 +138,7 @@ describe("buildBookMetadata", () => {
     expect(m.description).toBe("Hand-written meta description.");
     expect(m.openGraph.title).toBe("Custom Title | PTEC");
     expect(m.openGraph.images[0].url).toBe("https://cdn.example.com/custom-og.png");
-    expect(m.twitter.images[0]).toBe("https://cdn.example.com/custom-og.png");
+    expect(m.twitter.images[0].url).toBe("https://cdn.example.com/custom-og.png");
   });
 
   it("falls back to auto-generated values when overrides are blank/whitespace", () => {
@@ -249,5 +250,120 @@ describe("sitemapLastmod", () => {
   it("returns undefined when nothing is trustworthy (no fabricated deploy time)", () => {
     expect(sitemapLastmod(null, undefined, "")).toBeUndefined();
     expect(sitemapLastmod("not-a-date")).toBeUndefined();
+  });
+});
+
+// ── 0151: a catalogue-record-only book claims no online access ───────────────
+
+describe("bookJsonLd — file_access (0151)", () => {
+  const BASE = { slug: "b", title: "A Book", authors: ["A. Author"] };
+
+  it("keeps both access claims for a public book", () => {
+    const node = bookJsonLd(BASE, "en");
+    expect(node.isAccessibleForFree).toBe(true);
+    expect(node.potentialAction).toMatchObject({ "@type": "ReadAction" });
+  });
+
+  it("keeps them for a read-online-only book — it IS still readable here", () => {
+    const node = bookJsonLd({ ...BASE, fileAccess: "read_online" }, "en");
+    expect(node.isAccessibleForFree).toBe(true);
+    expect(node.potentialAction).toBeDefined();
+  });
+
+  it("DROPS both for a catalogue-only book, rather than negating either", () => {
+    const node = bookJsonLd({ ...BASE, fileAccess: "catalogue_only" }, "en");
+    // Absent, not false: `isAccessibleForFree: false` asserts a paywall, and
+    // a ReadAction pointing at a page with no reader is an entry point to
+    // nothing. Both are claims this library cannot support.
+    expect("isAccessibleForFree" in node).toBe(false);
+    expect("potentialAction" in node).toBe(false);
+  });
+
+  it("still publishes the whole bibliographic record", () => {
+    const node = bookJsonLd(
+      { ...BASE, isbn: "978-0-13-000000-0", publisher: "Some Press", pages: 300 },
+      "en",
+    );
+    const restricted = bookJsonLd(
+      {
+        ...BASE,
+        isbn: "978-0-13-000000-0",
+        publisher: "Some Press",
+        pages: 300,
+        fileAccess: "catalogue_only",
+      },
+      "en",
+    );
+    for (const field of ["@type", "name", "url", "isbn", "publisher", "numberOfPages", "author"]) {
+      expect(restricted[field]).toEqual(node[field]);
+    }
+  });
+
+  it("treats an absent or unknown value as public, so a partial select never withdraws a book", () => {
+    for (const value of [undefined, null, "", "nonsense"]) {
+      expect(bookJsonLd({ ...BASE, fileAccess: value }, "en").isAccessibleForFree).toBe(true);
+    }
+  });
+});
+
+// ── SEO5-03: the description may not promise what the server refuses ────────
+
+describe("bookFallbackDescription — download honesty", () => {
+  const BOOK = { slug: "b", title: "A Book", authors: ["A. Author"] };
+
+  it("keeps today's wording when the caller says nothing", () => {
+    // Every pre-5.0 caller passes no `downloadable`, and must be unchanged.
+    expect(bookFallbackDescription(BOOK, "en")).toContain("Read online or download the PDF");
+    expect(bookFallbackDescription(BOOK, "km")).toContain("ទាញយកជា PDF");
+  });
+
+  it("keeps it when the book IS downloadable", () => {
+    expect(bookFallbackDescription({ ...BOOK, downloadable: true }, "en")).toContain(
+      "download the PDF",
+    );
+  });
+
+  it("promises no download in English when the server would refuse", () => {
+    const d = bookFallbackDescription({ ...BOOK, downloadable: false }, "en");
+    expect(d.toLowerCase()).not.toContain("download");
+    expect(d).toContain("Read online");
+  });
+
+  it("promises no download in KHMER when the server would refuse", () => {
+    // The Khmer string is not a translation of the English one and had to be
+    // changed separately — a fix applied to one locale is half a fix.
+    const d = bookFallbackDescription({ ...BOOK, downloadable: false }, "km");
+    expect(d).not.toContain("ទាញយក");
+    expect(d).toContain("អានតាមអ៊ីនធឺណិត");
+  });
+
+  it("carries the honesty into the meta description AND the JSON-LD", () => {
+    const input = { ...BOOK, downloadable: false };
+    expect(bookMetaDescription(input, "en").toLowerCase()).not.toContain("download");
+    expect(bookMetaDescription(input, "km")).not.toContain("ទាញយក");
+    // The JSON-LD description is built from the same function, so it cannot
+    // say something the meta tag does not.
+    expect(String(bookJsonLd(input, "en").description).toLowerCase()).not.toContain("download");
+    expect(String(bookJsonLd(input, "km").description)).not.toContain("ទាញយក");
+  });
+
+  it("does not touch a book's OWN description", () => {
+    // Only the FALLBACK promised a download; a librarian's own text is
+    // theirs. Comfortably over the 70-character threshold below which
+    // bookMetaDescription ENRICHES a short description with the fallback —
+    // a 69-character fixture tested the wrong branch.
+    const own =
+      "A description written by a librarian, long enough that the builder uses it as it stands.";
+    expect(own.length).toBeGreaterThan(70);
+    expect(bookMetaDescription({ ...BOOK, description: own, downloadable: false }, "en")).toBe(own);
+  });
+
+  it("stays honest even where a SHORT description is enriched with the fallback", () => {
+    // Under 70 characters the builder appends the fallback, so the promise
+    // would come back in through the side door.
+    const short = "A short note.";
+    const out = bookMetaDescription({ ...BOOK, description: short, downloadable: false }, "en");
+    expect(out).toContain("A short note");
+    expect(out.toLowerCase()).not.toContain("download");
   });
 });

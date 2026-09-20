@@ -16,8 +16,10 @@ import {
   type OrgIdentity,
 } from "@/lib/system-settings/org-identity";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { buildOpenGraph, buildTwitter, OG_FALLBACK_IMAGE } from "@/lib/seo/open-graph";
 
-export const FALLBACK_OG_IMAGE = `${SITE_URL}/og-default.png`;
+/** Re-exported so existing importers keep one constant, not a second copy. */
+export const FALLBACK_OG_IMAGE = OG_FALLBACK_IMAGE;
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -92,30 +94,30 @@ export function buildPathMetadata(
   const canonicalUrl = alternates.canonical;
   const title = pathLocalizedTitle(path, locale);
   const description = pathLocalizedDescription(path, locale);
-  const image = path.coverUrl || FALLBACK_OG_IMAGE;
   const imageAlt = locale === "km" ? `ផ្លូវសិក្សា៖ ${title}` : `Learning path: ${title}`;
+
+  const openGraph = {
+    ...buildOpenGraph({
+      locale,
+      org,
+      title,
+      description,
+      type: "article" as const,
+      url: canonicalUrl,
+      // The path's own cover when it has one; buildOpenGraph supplies the
+      // shared card otherwise, with the site's alt rather than this one.
+      image: path.coverUrl,
+      imageAlt,
+    }),
+    modifiedTime: path.dateModified ?? undefined,
+  };
 
   return {
     title,
     description,
     alternates,
-    openGraph: {
-      title,
-      description,
-      type: "article",
-      url: canonicalUrl,
-      siteName: org.siteName,
-      locale: locale === "km" ? "km_KH" : "en_US",
-      alternateLocale: locale === "km" ? "en_US" : "km_KH",
-      modifiedTime: path.dateModified ?? undefined,
-      images: [{ url: image, alt: imageAlt }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [image],
-    },
+    openGraph,
+    twitter: buildTwitter({ card: "summary_large_image", title, description, images: openGraph.images }),
   };
 }
 
@@ -147,28 +149,27 @@ export function buildPathsListingMetadata(
 ): Metadata {
   const org = resolveOrgIdentity(orgArg);
   const alternates = localeAlternates("/paths", locale);
-  const images = [{ url: FALLBACK_OG_IMAGE, alt: org.siteName }];
+  const socialTitle = `${title} | ${org.libraryName}`;
+  const openGraph = buildOpenGraph({
+    locale,
+    org,
+    title: socialTitle,
+    description,
+    type: "website" as const,
+    url: alternates.canonical,
+  });
   return {
     title,
     description,
     alternates,
     ...(isEmpty ? { robots: { index: false, follow: true } } : {}),
-    openGraph: {
-      title: `${title} | ${org.libraryName}`,
-      description,
-      type: "website",
-      url: alternates.canonical,
-      siteName: org.siteName,
-      locale: locale === "km" ? "km_KH" : "en_US",
-      alternateLocale: locale === "km" ? "en_US" : "km_KH",
-      images,
-    },
-    twitter: {
+    openGraph,
+    twitter: buildTwitter({
       card: "summary_large_image",
-      title: `${title} | ${org.libraryName}`,
+      title: socialTitle,
       description,
-      images: [FALLBACK_OG_IMAGE],
-    },
+      images: openGraph.images,
+    }),
   };
 }
 

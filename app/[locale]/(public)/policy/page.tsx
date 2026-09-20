@@ -3,7 +3,8 @@ import { getMessages, getTranslations } from "next-intl/server";
 import { BookOpenCheck, Scale } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { localeAlternates } from "@/lib/seo/alternates";
-import { openGraphBase } from "@/lib/seo/open-graph";
+import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
+import { getOrgIdentity } from "@/lib/system-settings/config";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import JsonLd from "@/components/seo/JsonLd";
 import { ABOUT_CONTENT_REVIEWED_AT, RULES_POLICY_VERSION } from "@/lib/about/content";
@@ -38,24 +39,33 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const tMeta = await getTranslations({ locale, namespace: "policy.meta" });
+  const [tMeta, org] = await Promise.all([
+    getTranslations({ locale, namespace: "policy.meta" }),
+    getOrgIdentity(),
+  ]);
   const alternates = localeAlternates("/policy", locale);
+  const openGraph = buildOpenGraph({
+    locale,
+    org,
+    title: tMeta("ogTitle"),
+    description: tMeta("ogDescription"),
+    type: "website" as const,
+    url: alternates.canonical,
+  });
   return {
     title: tMeta("title"),
     description: tMeta("description"),
     alternates,
-    openGraph: {
-      ...(await openGraphBase(locale)),
+    openGraph,
+    // `summary_large_image`, matching the card this page actually ships: the
+    // shared fallback is 1200 x 630, and `summary` crops a landscape card to a
+    // small square thumbnail.
+    twitter: buildTwitter({
+      card: "summary_large_image",
       title: tMeta("ogTitle"),
       description: tMeta("ogDescription"),
-      url: alternates.canonical,
-      type: "website",
-    },
-    twitter: {
-      card: "summary",
-      title: tMeta("ogTitle"),
-      description: tMeta("ogDescription"),
-    },
+      images: openGraph.images,
+    }),
   };
 }
 

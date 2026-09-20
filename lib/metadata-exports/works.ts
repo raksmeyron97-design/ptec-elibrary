@@ -20,6 +20,7 @@ import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { SITE_URL } from "@/lib/seo/site";
+import { resolveBookDownloadAccess } from "@/lib/books/access";
 import {
   academicTextToPlainText,
   normalizePublicationReferences,
@@ -63,11 +64,21 @@ function strArray(v: unknown): string[] {
 
 const BOOK_SELECT_BASE = `id, slug, title, description, language, published_at, created_at, tags, license,
   isbn, pages, verified_at, authors(name), categories(name), departments(name)`;
-// allow_download (0131) suppresses the file pointer for a read-online-only
-// book. Kept out of the base list and requested as an optional extra, because
-// a database without the column would otherwise fail the whole export — and an
-// OAI-PMH feed that errors is worse than one whose file pointers are stale.
-const BOOK_SELECT = `${BOOK_SELECT_BASE}, allow_download`;
+// allow_download (0131) and file_access (0151) suppress the file pointer for
+// a read-online-only or catalogue-only book. Kept out of the base list and
+// requested as optional extras, because a database without the columns would
+// otherwise fail the whole export — and an OAI-PMH feed that errors is worse
+// than one whose file pointers are stale.
+const BOOK_SELECT = `${BOOK_SELECT_BASE}, allow_download, file_access`;
+
+/** One resolver for the file pointer, so the feed and the route agree. */
+function bookAccess(row: Row) {
+  return resolveBookDownloadAccess({
+    file_access: row.file_access as string | null | undefined,
+    allow_download: row.allow_download as boolean | null | undefined,
+    fileUrl: "present",
+  });
+}
 
 function mapBook(row: Row): ScholarlyWork {
   const author = (Array.isArray(row.authors) ? row.authors[0]?.name : row.authors?.name)?.trim();
@@ -87,13 +98,15 @@ function mapBook(row: Row): ScholarlyWork {
     keywords: [...new Set([row.categories?.name, ...strArray(row.tags)].filter(Boolean))] as string[],
     landingUrl: `${SITE_URL}/books/${row.slug}`,
     // A harvester takes fileUrl as "fetch and store the full text". Publishing
-    // one for a read-online-only book (0131) would hand the file to every
-    // aggregator that reads this feed, which is precisely what the setting
-    // withholds — and the gated route would refuse them anyway. The landing
-    // URL and all descriptive metadata are unaffected: the record stays
-    // harvestable, only the file pointer goes.
-    fileUrl: row.allow_download === false ? null : `${SITE_URL}/api/books/${row.slug}/download`,
-    format: row.allow_download === false ? null : "application/pdf",
+    // one for a read-online-only book (0131) or a catalogue-only one (0151)
+    // would hand the file to every aggregator that reads this feed, which is
+    // precisely what those settings withhold — and the gated route would
+    // refuse them anyway. The landing URL and all descriptive metadata are
+    // unaffected: the record stays harvestable, only the file pointer goes.
+    fileUrl: bookAccess(row).canAdvertiseFile
+      ? `${SITE_URL}/api/books/${row.slug}/download`
+      : null,
+    format: bookAccess(row).canAdvertiseFile ? "application/pdf" : null,
     doi: null,
     isbn: row.isbn ?? null,
     rights: row.license ?? null,

@@ -259,3 +259,142 @@ test.describe("subject and author hubs", () => {
     }
   });
 });
+
+// ── Open Graph contract ──────────────────────────────────────────────────────
+//
+// The tags are rendered SERVER-SIDE into <head>, and every defect this section
+// was written after was an ABSENCE — Next replaces `openGraph` rather than
+// deep-merging it, so a page that hand-wrote the object silently dropped
+// whatever it did not repeat and nothing errored anywhere. The unit tests in
+// lib/seo/open-graph.test.ts pin the builder; these assert that a page's real
+// rendered <head> carries what the builder returns.
+
+const OG_LOCALE = { en: "en_US", km: "km_KH" } as const;
+
+async function og(page: import("@playwright/test").Page, property: string): Promise<string[]> {
+  return page.locator(`meta[property="${property}"]`).evaluateAll((els) =>
+    els.map((el) => el.getAttribute("content") ?? ""),
+  );
+}
+
+async function expectOgContract(
+  page: import("@playwright/test").Page,
+  path: string,
+  locale: "en" | "km",
+) {
+  await page.goto(path);
+
+  const canonical = await page.locator('link[rel="canonical"]').getAttribute("href");
+  expect(canonical, `${path} has a canonical`).toBeTruthy();
+
+  for (const property of [
+    "og:title",
+    "og:type",
+    "og:url",
+    "og:image",
+    "og:image:alt",
+    "og:site_name",
+    "og:locale",
+    "og:locale:alternate",
+  ]) {
+    const values = await og(page, property);
+    expect(values.filter(Boolean), `${path} emits ${property}`).not.toHaveLength(0);
+  }
+
+  // og:url IS the canonical. Two URLs for one page split its social identity
+  // from its search identity.
+  expect((await og(page, "og:url"))[0], `${path} og:url === canonical`).toBe(canonical);
+
+  // Reciprocal, and drawn from the two locales this site publishes.
+  expect((await og(page, "og:locale"))[0]).toBe(OG_LOCALE[locale]);
+  expect(await og(page, "og:locale:alternate")).toContain(
+    locale === "km" ? OG_LOCALE.en : OG_LOCALE.km,
+  );
+
+  // Absolute, https, and on no preview or loopback host — a crawler resolves
+  // nothing and follows no session.
+  const image = (await og(page, "og:image"))[0];
+  const url = new URL(image);
+  expect(url.protocol, `${path} og:image scheme`).toBe("https:");
+  expect(/^(localhost|127\.|\[?::1)/.test(url.hostname), `${path} og:image is not loopback`).toBe(false);
+  expect(/\.vercel\.app$/.test(url.hostname), `${path} og:image is not a preview host`).toBe(false);
+  // Never the tunnel's FALLBACK hostname: middleware 308s it to the canonical
+  // host, and a crawler fetching an image is not obliged to follow a redirect.
+  expect(url.hostname, `${path} og:image is not the tunnel fallback host`).not.toBe(
+    "library.storage-ptec.online",
+  );
+}
+
+test.describe("Open Graph contract", () => {
+  // One page per builder family, in both locales where the locale half of the
+  // contract is what is being checked.
+  test("/ carries the full contract in English", async ({ page }) => {
+    await expectOgContract(page, "/", "en");
+  });
+
+  test("/km carries the full contract in Khmer", async ({ page }) => {
+    await expectOgContract(page, "/km", "km");
+  });
+
+  test("a listing page carries it", async ({ page }) => {
+    await expectOgContract(page, "/books", "en");
+  });
+
+  test("the authors hub and an author profile carry it", async ({ page }) => {
+    await expectOgContract(page, "/authors", "en");
+    // An author with no portrait was the worst case: production served NO
+    // og:image at all, because an omitted key on a page-level `openGraph` does
+    // not fall through to the root layout's.
+    const href = await page
+      .locator('a[href*="/authors/"]')
+      .first()
+      .getAttribute("href");
+    test.skip(!href, "no author is listed in this environment");
+    await expectOgContract(page, href!, "en");
+  });
+
+  // One test per path, not one loop: eight dev-mode page loads share a single
+  // 30 s budget and the failure then reads as a contract breach rather than as
+  // a slow compile.
+  for (const path of [
+    "/about",
+    "/about/team",
+    "/about/rules",
+    "/about/timings",
+    "/about/collection",
+    "/about/our-journey",
+    "/about/committee",
+    "/contact",
+  ]) {
+    test(`${path} carries it`, async ({ page }) => {
+      await expectOgContract(page, path, "en");
+    });
+  }
+
+  test("the shared card declares the size it really is", async ({ page, request }) => {
+    await page.goto("/about/rules");
+    const image = (await og(page, "og:image"))[0];
+    expect(image).toContain("/og-default.png");
+    expect((await og(page, "og:image:width"))[0]).toBe("1200");
+    expect((await og(page, "og:image:height"))[0]).toBe("630");
+    // And a crawler with no session gets image bytes from it.
+    const res = await request.get("/og-default.png");
+    expect(res.status()).toBe(200);
+    expect(res.headers()["content-type"]).toContain("image/");
+  });
+
+  test("a page serving the landscape card does not ask for a square crop", async ({ page }) => {
+    // The homepage declared `twitter: { title, description }` with no `card`,
+    // which replaced the root layout's `summary_large_image` wholesale — so the
+    // site's most-shared URL published its 1200 x 630 card as `summary`.
+    for (const path of ["/", "/km", "/subjects", "/policy", "/privacy"]) {
+      await page.goto(path);
+      const image = (await og(page, "og:image"))[0];
+      if (!image.includes("/og-default.")) continue;
+      await expect(
+        page.locator('meta[name="twitter:card"]'),
+        `${path} serves the landscape card`,
+      ).toHaveAttribute("content", "summary_large_image");
+    }
+  });
+});

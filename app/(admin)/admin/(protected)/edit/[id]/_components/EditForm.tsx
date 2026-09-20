@@ -15,6 +15,7 @@ import {
   LICENSE_OPTIONS,
 } from "@/lib/book-utils";
 import { formatFileSize } from "@/lib/admin/ebooks-shared";
+import type { BookFileAccess } from "@/lib/books/access";
 import { EBOOKS_BASE_PATH } from "@/lib/admin/ebooks-url";
 import TagInput from "@/components/ui/core/TagInput";
 import SearchableSelect from "@/components/ui/search/SearchableSelect";
@@ -76,11 +77,19 @@ type Initial = {
   seoTitle: string;
   seoDescription: string;
   ogImage: string;
-  fileUrl: string | null;
+  /**
+   * Whether a PDF is attached — NOT its URL.
+   *
+   * This form is a client component, so every field here is serialised into
+   * the page. `book_files.file_url` is a credential-free, permanent,
+   * unlogged link to the PDF (lib/books/storage-url-exposure.test.ts), and
+   * all three uses below only ever asked whether a file exists.
+   */
+  hasFile: boolean;
   fileSizeKb: number | null;
   fileFormat: string | null;
   /* Library policy (migration 0131). */
-  allowDownload: boolean;
+  fileAccess: BookFileAccess;
   downloadDisabledReason: string;
   /* Editorial state, for the Review & Verify tab. */
   status: string;
@@ -246,7 +255,7 @@ export default function EditForm({
   const [preview, setPreview]     = useState<string | null>(initial.coverUrl ?? null);
   // Library policy (migration 0131). Both values are posted on every save, so
   // the switch is authoritative — see updateBook()'s note on an absent key.
-  const [allowDownload, setAllowDownload] = useState(initial.allowDownload);
+  const [fileAccess, setFileAccess] = useState<BookFileAccess>(initial.fileAccess);
   const [downloadReason, setDownloadReason] = useState(initial.downloadDisabledReason);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const fileInputRef              = useRef<HTMLInputElement>(null);
@@ -435,8 +444,11 @@ export default function EditForm({
       setPhase("saving");
       setTransfer(null);
       setTransferName(null);
-      formData.set("allowDownload", allowDownload ? "1" : "0");
-      formData.set("downloadDisabledReason", allowDownload ? "" : downloadReason.trim());
+      formData.set("fileAccess", fileAccess);
+      formData.set(
+        "downloadDisabledReason",
+        fileAccess === "public" ? "" : downloadReason.trim(),
+      );
       const result = await updateBook(initial.id, formData);
       if ("error" in result && result.error) {
         setPhase("idle");
@@ -519,7 +531,7 @@ export default function EditForm({
         <ul className="space-y-1.5 text-[13px]">
           <FileStatusRow
             label="Book PDF"
-            present={Boolean(initial.fileUrl) || Boolean(pdfFile)}
+            present={initial.hasFile || Boolean(pdfFile)}
             required
             detail={
               pdfFile
@@ -659,12 +671,12 @@ export default function EditForm({
             {!pdfFile && (
               <span
                 className={
-                  initial.fileUrl
+                  initial.hasFile
                     ? "shrink-0 rounded-lg border px-2.5 py-1 text-xs font-semibold border-success-line bg-success-soft text-success-text"
                     : "shrink-0 rounded-lg border px-2.5 py-1 text-xs font-semibold border-danger-line bg-danger-soft text-danger-text"
                 }
               >
-                {initial.fileUrl ? "PDF ready" : "Missing PDF"}
+                {initial.hasFile ? "PDF ready" : "Missing PDF"}
               </span>
             )}
             {pdfFile && (
@@ -677,14 +689,19 @@ export default function EditForm({
           </div>
 
           <div className="p-6 space-y-3">
-            {initial.fileUrl && !pdfFile && (
+            {initial.hasFile && !pdfFile && (
               <div className="flex items-center justify-between gap-3 rounded-xl border border-divider bg-paper px-4 py-3">
                 <div className="flex min-w-0 items-center gap-2 text-sm text-text-body">
                   <FileText className="h-4 w-4 shrink-0 text-text-muted" />
                   <span className="truncate">Current file · {(initial.fileFormat ?? "pdf").toUpperCase()} · {formatFileSize(initial.fileSizeKb)}</span>
                 </div>
+                {/* The gated, audited staff route — not the raw storage
+                    URL, which is a permanent uncredentialed link to the PDF
+                    and would sit in this page's HTML for anyone who opened
+                    devtools. This path re-checks books:write on every
+                    request and writes an audit row. */}
                 <a
-                  href={initial.fileUrl}
+                  href={`/api/admin/books/${initial.id}/file`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-brand hover:underline"
@@ -697,14 +714,14 @@ export default function EditForm({
             <div
               role="button"
               tabIndex={saving ? -1 : 0}
-              aria-label={pdfFile ? "Replace PDF file" : initial.fileUrl ? "Replace PDF file" : "Upload PDF file"}
+              aria-label={pdfFile ? "Replace PDF file" : initial.hasFile ? "Replace PDF file" : "Upload PDF file"}
               className="relative flex h-24 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-divider bg-paper px-4 text-center transition-all hover:border-brand hover:bg-bg-surface cursor-pointer"
               onClick={() => !saving && pdfInputRef.current?.click()}
               onKeyDown={(e) => activatePickerFromKeyboard(e, () => !saving && pdfInputRef.current?.click())}
             >
               <UploadCloud className="h-5 w-5 text-text-muted" />
               <p className="text-xs text-text-muted leading-tight">
-                {pdfFile ? `Selected: ${pdfFile.name}` : initial.fileUrl ? "Click to replace PDF" : "Click to upload PDF"}
+                {pdfFile ? `Selected: ${pdfFile.name}` : initial.hasFile ? "Click to replace PDF" : "Click to upload PDF"}
               </p>
               <p className="max-w-sm text-[11px] leading-4 text-text-muted">
                 Compress scanned PDFs before uploading so the online reader stays fast.
@@ -746,42 +763,63 @@ export default function EditForm({
             <div className="flex-1 min-w-0">
               <h2 className="text-sm font-bold text-text-heading">Reader access</h2>
               <p className="text-xs text-text-muted">
-                Who may take the PDF away. Online reading is unaffected by this setting.
+                What the library hands out for this title. The catalogue record stays public either way.
               </p>
             </div>
-            {!allowDownload && (
+            {fileAccess !== "public" && (
               <span className="shrink-0 rounded-lg border border-warning-line bg-warning-soft px-2.5 py-1 text-xs font-semibold text-warning-text">
-                Read online only
+                {fileAccess === "catalogue_only" ? "Catalogue record only" : "Read online only"}
               </span>
             )}
           </div>
 
           <div className="space-y-4 p-6">
-            <Switch
-              tone="success"
-              checked={allowDownload}
-              onChange={setAllowDownload}
-              disabled={saving}
-              label="Download permission"
-              description="Allow readers to download this book."
-              onDescription={
-                <ul className="space-y-1">
-                  <li>&#10003; Read online</li>
-                  <li>&#10003; Download PDF</li>
-                </ul>
-              }
-              offDescription={
-                <ul className="space-y-1">
-                  <li>&#10003; Read online</li>
-                  <li>&#10007; Download PDF &mdash; the server refuses the file, not just the button</li>
-                </ul>
-              }
-            />
+            <div className="space-y-1.5">
+              <label htmlFor="file-access" className="block text-xs font-bold text-text-heading">
+                File access
+              </label>
+              <select
+                id="file-access"
+                value={fileAccess}
+                onChange={(e) => setFileAccess(e.target.value as BookFileAccess)}
+                disabled={saving}
+                className={INPUT_CLASS}
+              >
+                <option value="public">Public &mdash; read online and download</option>
+                <option value="read_online">Read online only &mdash; no download</option>
+                <option value="catalogue_only">Catalogue record only &mdash; no file at all</option>
+              </select>
+              <ul className="space-y-1 pt-1 text-[11px] leading-4 text-text-muted">
+                {fileAccess === "public" && (
+                  <>
+                    <li>&#10003; Read online</li>
+                    <li>&#10003; Download PDF, save offline, harvestable by Google Scholar</li>
+                  </>
+                )}
+                {fileAccess === "read_online" && (
+                  <>
+                    <li>&#10003; Read online</li>
+                    <li>&#10007; Download PDF &mdash; the server refuses the file, not just the button</li>
+                    <li>&#10007; Save offline, and no file pointer for Scholar or OAI-PMH</li>
+                  </>
+                )}
+                {fileAccess === "catalogue_only" && (
+                  <>
+                    <li>&#10003; The catalogue record stays public, indexed and searchable by title</li>
+                    <li>&#10007; No reader, no download, no offline save</li>
+                    <li>&#10007; The text is not quoted by search or used to answer AI questions</li>
+                    <li className="pt-1 text-warning-text">
+                      Copies readers already saved to their own devices cannot be revoked.
+                    </li>
+                  </>
+                )}
+              </ul>
+            </div>
 
-            {!allowDownload && (
+            {fileAccess !== "public" && (
               <div className="space-y-1.5">
                 <label htmlFor="download-reason" className="block text-xs font-bold text-text-heading">
-                  Restriction message
+                  Message to readers
                 </label>
                 <input
                   id="download-reason"

@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next';
 import { createServiceClient } from '@/lib/supabase/server';
+import { isCatalogRecordIndexable } from '@/lib/catalogs/indexability';
 import { sitemapLastmod } from '@/lib/seo/book-seo';
 import { localeUrls } from '@/lib/seo/alternates';
 import { isIndexableEnvironment } from '@/lib/seo/indexing';
@@ -188,11 +189,13 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
           .order(TIEBREAK, { ascending: true })
           .range(from, to),
     ),
-    fetchAllRows<{ slug: string; updated_at: string | null; created_at: string | null }>(
+    fetchAllRows<{ slug: string; updated_at: string | null; created_at: string | null; description: string | null }>(
       (from, to) =>
         supabase
           .from('catalog_books')
-          .select('slug, updated_at, created_at')
+          // `description` is selected only so the indexability gate can be
+          // asked. It is never emitted — see catalogUrls below.
+          .select('slug, updated_at, created_at, description')
           .eq('is_active', true)
           .order('created_at', { ascending: false })
           .order(TIEBREAK, { ascending: true })
@@ -287,13 +290,19 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
     }),
   );
 
-  const catalogUrls: MetadataRoute.Sitemap = catalogBooks.map((b) =>
-    entry(`/catalogs/${b.slug}`, {
-      lastModified: sitemapLastmod(b.updated_at, b.created_at),
-      changeFrequency: 'weekly',
-      priority: 0.6,
-    }),
-  );
+  // A record with nothing but title, author and a call number is a shelf
+  // label, not a page — and the PMB import will produce those in bulk. The
+  // page's `robots` meta asks the SAME function, so the sitemap cannot
+  // advertise a URL that then answers `noindex`.
+  const catalogUrls: MetadataRoute.Sitemap = catalogBooks
+    .filter((b) => isCatalogRecordIndexable({ description: b.description }))
+    .map((b) =>
+      entry(`/catalogs/${b.slug}`, {
+        lastModified: sitemapLastmod(b.updated_at, b.created_at),
+        changeFrequency: 'weekly',
+        priority: 0.6,
+      }),
+    );
 
   // Article URLs never depend on a journal row (/journals/articles/<slug>), so
   // a failed journal read below can drop journal URLs but never these.

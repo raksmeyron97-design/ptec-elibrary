@@ -28,6 +28,7 @@ import { logSecurityEvent } from "@/lib/security-log";
 import { zimaFetch } from "@/lib/zima";
 import { clientIp } from "@/lib/client-ip";
 import { isVerifiedGoogleCrawler } from "@/lib/security/crawler";
+import { resolveBookDownloadAccess } from "@/lib/books/access";
 import { placeholderPdfResponse } from "@/lib/dev/placeholder-pdf";
 import { lockdownResponse } from "@/lib/security/lockdown";
 
@@ -59,17 +60,32 @@ function r2ObjectKey(fileUrl: string): string {
 const getBookFileRecord = unstable_cache(
   async (bookId: string) => {
     const supabase = createServiceClient();
-    const { data, error } = await supabase
+    // file_access (0151) decides whether ANY route may serve these bytes, so
+    // it belongs in the same cached read as the location of the bytes — a
+    // second query would let the policy and the URL come from different
+    // moments. `fallbackSelect` keeps a pre-0151 database working.
+    const SELECT = `title, file_access, book_files ( file_url, format )`;
+    const FALLBACK_SELECT = `title, book_files ( file_url, format )`;
+    let { data, error } = await supabase
       .from("books")
-      .select(`title, book_files ( file_url, format )`)
+      .select(SELECT)
       .eq("id", bookId)
       .eq("is_published", true)
       .maybeSingle();
+    if (error) {
+      ({ data, error } = await supabase
+        .from("books")
+        .select(FALLBACK_SELECT)
+        .eq("id", bookId)
+        .eq("is_published", true)
+        .maybeSingle());
+    }
     if (error || !data) return null;
     const files = Array.isArray(data.book_files) ? data.book_files : [data.book_files];
     const pdfFile = files.find((f: any) => f?.format === "pdf") ?? files[0];
     return {
       title: data.title as string,
+      fileAccess: (data as { file_access?: string | null }).file_access ?? null,
       fileUrl: (pdfFile?.file_url as string | undefined) ?? null,
     };
   },
@@ -143,6 +159,40 @@ export async function GET(
     );
   }
 
+  const book = await getBookFileRecord(slug);
+  if (!book) {
+    return new NextResponse("Book not found", { status: 404 });
+  }
+  if (!book.fileUrl) {
+    return new NextResponse("File not found", { status: 404 });
+  }
+
+  // ── The file policy, decided FIRST and for everyone (0151) ────────────────
+  //
+  // A catalogue-record-only book is one the library has chosen not to
+  // distribute, usually because it cannot establish the right to. That is a
+  // property of the BOOK, not of who is asking, so this sits ABOVE the
+  // session check and above the verified-crawler exception: a signed-in
+  // reader, an anonymous visitor and Googlebot all get the same answer, and
+  // the answer does not depend on session state.
+  //
+  // It is also above every storage call, so a restricted book costs no
+  // request to Zima and its URL is never constructed on this path.
+  //
+  // 403 rather than 404: the landing page exists, answers 200 and is indexed,
+  // so a 404 from a sibling route about the same resource would be a lie.
+  // Enumeration is not a concern — the restriction is stated on that page.
+  const access = resolveBookDownloadAccess({
+    file_access: book.fileAccess,
+    fileUrl: book.fileUrl,
+  });
+  if (!access.canServeBytes) {
+    return new NextResponse("This book is available as a catalogue record only.", {
+      status: 403,
+      headers: { "Cache-Control": "private, no-cache, no-store" },
+    });
+  }
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -157,14 +207,6 @@ export async function GET(
     if (!verifiedCrawler) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
-  }
-
-  const book = await getBookFileRecord(slug);
-  if (!book) {
-    return new NextResponse("Book not found", { status: 404 });
-  }
-  if (!book.fileUrl) {
-    return new NextResponse("File not found", { status: 404 });
   }
 
   const fileUrl = book.fileUrl;

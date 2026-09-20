@@ -265,3 +265,92 @@ describe("GET /api/books/[slug]/file", () => {
     expect(source).not.toMatch(/attachment; filename/);
   });
 });
+
+// ── 0151: catalogue record only ─────────────────────────────────────────────
+//
+// Behavioural, because the source scans in
+// lib/books/file-access-boundary.test.ts can only see a gate that is missing
+// or misordered — not one that is present and neutered.
+//
+// This route is the one the VIEWER fetches, so a refusal here is what makes
+// "no reader" true rather than merely undrawn.
+
+describe("GET /api/books/[slug]/file — file_access = catalogue_only", () => {
+  const catalogueOnly = () =>
+    maybeSingle.mockResolvedValue({
+      data: {
+        title: "A Book",
+        file_access: "catalogue_only",
+        book_files: [{ file_url: "https://cdn.example/a.pdf", format: "pdf" }],
+      },
+      error: null,
+    });
+
+  it("refuses a SIGNED-IN reader with 403 and fetches no bytes", async () => {
+    catalogueOnly();
+    const res = await GET(req("/api/books/abc-123/file"), { params: params("abc-123") });
+
+    expect(res.status).toBe(403);
+    expect(zimaFetch).not.toHaveBeenCalled();
+  });
+
+  it("refuses the VERIFIED GOOGLE CRAWLER too", async () => {
+    // The crawler exception exists so Scholar can fetch citation_pdf_url. A
+    // catalogue-only book publishes no citation_pdf_url, and if the crawler
+    // could still fetch the file, Scholar would host a cached copy of the
+    // very thing the setting withholds.
+    catalogueOnly();
+    getUser.mockResolvedValue({ data: { user: null } });
+    isVerifiedGoogleCrawler.mockResolvedValue(true);
+
+    const res = await GET(req("/api/books/abc-123/file"), { params: params("abc-123") });
+
+    expect(res.status).toBe(403);
+    expect(zimaFetch).not.toHaveBeenCalled();
+  });
+
+  it("gives an ANONYMOUS visitor the same 403, not a 401", async () => {
+    // The policy is a property of the BOOK, not of who is asking, so the
+    // answer must not depend on session state. A 401 here would tell an
+    // anonymous caller that signing in might help. It would not.
+    catalogueOnly();
+    getUser.mockResolvedValue({ data: { user: null } });
+    isVerifiedGoogleCrawler.mockResolvedValue(false);
+
+    const res = await GET(req("/api/books/abc-123/file"), { params: params("abc-123") });
+
+    expect(res.status).toBe(403);
+    expect(zimaFetch).not.toHaveBeenCalled();
+  });
+
+  it("does not even open a session for a withdrawn book", async () => {
+    // The gate sits above the auth round-trip, so the refusal costs nothing.
+    catalogueOnly();
+    await GET(req("/api/books/abc-123/file"), { params: params("abc-123") });
+    expect(getUser).not.toHaveBeenCalled();
+  });
+
+  it("still serves a read-online-only book — the viewer must keep working", async () => {
+    // The distinction 0151 exists to make: read_online streams,
+    // catalogue_only does not.
+    maybeSingle.mockResolvedValue({
+      data: {
+        title: "A Book",
+        file_access: "read_online",
+        book_files: [{ file_url: "https://cdn.example/a.pdf", format: "pdf" }],
+      },
+      error: null,
+    });
+    const res = await GET(req("/api/books/abc-123/file"), { params: params("abc-123") });
+    expect(res.status).toBe(206);
+    expect(zimaFetch).toHaveBeenCalled();
+  });
+
+  it("still serves a book whose file_access is absent", async () => {
+    // Already the default fixture, asserted explicitly: a pre-0151 row, or a
+    // select that fell back, must never read as restricted.
+    const res = await GET(req("/api/books/abc-123/file"), { params: params("abc-123") });
+    expect(res.status).toBe(206);
+    expect(zimaFetch).toHaveBeenCalled();
+  });
+});

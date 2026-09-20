@@ -152,3 +152,30 @@ describe("only one module may declare the institution", () => {
     expect(src).not.toContain("${SITE_URL}/#website");
   });
 });
+
+// ── SEO5-04: a node's sameAs never lists its own url, or its parent's ───────
+
+describe("sameAs is other presences of THIS entity", () => {
+  const SRC = readFileSync(join(process.cwd(), "components/layout/RootShell.tsx"), "utf8");
+
+  it("neither node is handed the raw cfg.sameAs list", () => {
+    // `cfg.sameAs` is [website, facebook, youtube, telegram]. Assigning it
+    // directly is what published `https://www.ptec.edu.kh` as the LIBRARY's
+    // own profile (the institution/library conflation of skill rule 3) and
+    // as the institution's own profile (a self-reference).
+    expect(SRC).not.toMatch(/sameAs:\s*cfg\.sameAs\b/);
+    expect(SRC).toMatch(/sameAs:\s*profilesFor\(/);
+  });
+
+  it("the filter excludes the node's own url and its parent's", () => {
+    expect(SRC).toMatch(/sameAs:\s*profilesFor\(cfg,\s*cfg\.links\.website\)/);
+    expect(SRC).toMatch(/sameAs:\s*profilesFor\(cfg,\s*SITE_URL,\s*cfg\.links\.website\)/);
+  });
+
+  it("keeps the social profiles — a recorded owner decision, not an oversight", () => {
+    // The rule removes the WEBSITE, not the list. Dropping the social
+    // profiles would be reopening something already decided.
+    expect(SRC).toMatch(/facebook|Facebook/);
+    expect(SRC).not.toMatch(/sameAs:\s*\[\]/);
+  });
+});

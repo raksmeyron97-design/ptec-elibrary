@@ -29,6 +29,7 @@ import {
   yearMax,
 } from "@/lib/catalog";
 import { escapeCsvCell } from "@/lib/admin/csv";
+import { hasKhmer } from "@/lib/search/normalize";
 
 // ── Limits (server enforces the same values — keep in one place) ─────────────
 
@@ -294,6 +295,45 @@ export function normalizeLanguage(raw: string | undefined | null): { value: Cata
   return hit ? { value: hit, known: true } : { value: "other", known: false };
 }
 
+/** How a blank `language` cell was resolved, so the librarian can see it. */
+export type LanguageSource = "stated" | "detected" | "defaulted";
+
+/**
+ * Resolve the language of a row whose `language` cell may be empty.
+ *
+ * The PMB export carries No., Title, Author, DDC and Barcode — no language
+ * column at all — so every imported row would otherwise take the documented
+ * `km` default, including the English-language stock. The title's SCRIPT is
+ * the only signal the export actually provides, and it is a reliable one in
+ * a bilingual collection.
+ *
+ * Three rules:
+ *   - an explicit value ALWAYS wins, however the title is written;
+ *   - a title with any Khmer character is Khmer, and one with none is
+ *     English (this is a two-language collection);
+ *   - a title that is neither — digits, punctuation, a bare call number —
+ *     keeps the documented `km` default and says so, because guessing from
+ *     no evidence is worse than a default the librarian can see and correct.
+ *
+ * `hasKhmer()` is the repo's one script test (lib/search/normalize.ts); this
+ * deliberately does not add a second.
+ */
+export function resolveRowLanguage(
+  rawLanguage: string | undefined | null,
+  title: string | undefined | null,
+): { value: CatalogLanguage; known: boolean; source: LanguageSource } {
+  const stated = rawLanguage?.trim() ?? "";
+  if (stated) return { ...normalizeLanguage(stated), source: "stated" };
+
+  const t = title?.trim() ?? "";
+  if (hasKhmer(t)) return { value: "km", known: true, source: "detected" };
+  // A Latin LETTER, not merely a non-Khmer character: "978-9924-0-1234-5"
+  // and "372.7 BIL" are not English titles, they are identifiers.
+  if (/\p{Script=Latin}/u.test(t)) return { value: "en", known: true, source: "detected" };
+
+  return { value: "km", known: true, source: "defaulted" };
+}
+
 // ── Issues ────────────────────────────────────────────────────────────────────
 
 export type ImportSeverity = "warning" | "error";
@@ -301,6 +341,8 @@ export type ImportSeverity = "warning" | "error";
 export type ImportIssueCode =
   | "REQUIRED_TITLE"
   | "REQUIRED_AUTHOR"
+  | "MISSING_AUTHOR"
+  | "LANGUAGE_DEFAULTED"
   | "INVALID_ISBN"
   | "INVALID_YEAR"
   | "INVALID_COPIES_TOTAL"
@@ -331,7 +373,13 @@ export type ImportIssue = {
 
 export type NormalizedRow = {
   title: string;
-  author: string;
+  /**
+   * NULL when the row names no author (migration-free: the column is
+   * nullable). Never the placeholder string — "គ្មានអ្នកនិពន្ធ" is a label
+   * the UI renders, and storing it would put a non-person into the author
+   * index where every consumer would treat it as a name.
+   */
+  author: string | null;
   isbn: string | null;
   publisher: string | null;
   year: number | null;
@@ -439,9 +487,29 @@ export function validateRow(
   if (!title) err("REQUIRED_TITLE", "Title is required.", "title");
   else if (title.length > FIELD_MAX.title) err("FIELD_TOO_LONG", `Title must be at most ${FIELD_MAX.title} characters.`, "title");
 
+  // A blank author WARNS; it does not reject the row.
+  //
+  // The PMB export has an author column and real gaps in it, and refusing
+  // those rows would keep the physical catalogue out of the library over a
+  // field the library does not have. The `author` COLUMN stays required in
+  // the mapping (see REQUIRED_FIELDS) — that is a question about the file's
+  // shape, not about any one row.
+  //
+  // The row imports with NO author: null in the database, no author entity,
+  // and nothing in the metadata or the JSON-LD. The reader-facing
+  // "គ្មានអ្នកនិពន្ធ" / "No author listed" is a LABEL rendered at display
+  // time; storing it would put a placeholder into the author index, where
+  // every downstream consumer would treat it as a person's name.
   const author = tidy(original.author);
-  if (!author) err("REQUIRED_AUTHOR", "Author is required.", "author");
-  else if (author.length > FIELD_MAX.author) err("FIELD_TOO_LONG", `Author must be at most ${FIELD_MAX.author} characters.`, "author");
+  if (!author) {
+    warn(
+      "MISSING_AUTHOR",
+      "No author in this row — it will be imported with no author, and shown as \u201cNo author listed\u201d.",
+      "author",
+    );
+  } else if (author.length > FIELD_MAX.author) {
+    err("FIELD_TOO_LONG", `Author must be at most ${FIELD_MAX.author} characters.`, "author");
+  }
 
   const isbnRes = validateIsbn(original.isbn ?? null);
   if (!isbnRes.ok) err("INVALID_ISBN", isbnRes.error, "isbn");
@@ -449,9 +517,15 @@ export function validateRow(
   const yearRes = validatePublicationYear(original.year?.trim() || null);
   if (!yearRes.ok) err("INVALID_YEAR", yearRes.error, "year");
 
-  const lang = normalizeLanguage(original.language);
+  const lang = resolveRowLanguage(original.language, original.title);
   if (!lang.known) {
     warn("UNKNOWN_LANGUAGE", `Language "${tidy(original.language)}" is not recognized — it will be imported as "other".`, "language");
+  } else if (lang.source === "defaulted") {
+    warn(
+      "LANGUAGE_DEFAULTED",
+      `No language given and the title is in neither script — imported as "${lang.value}". Set the language column to correct it.`,
+      "language",
+    );
   }
 
   const simpleField = (
@@ -506,7 +580,7 @@ export function validateRow(
 
   const normalized: NormalizedRow = {
     title,
-    author,
+    author: author || null,
     isbn: isbnRes.ok ? isbnRes.normalized : null,
     publisher,
     year: yearRes.ok ? yearRes.year : null,
@@ -577,7 +651,10 @@ export function markInFileDuplicates(rows: ValidatedRow[]): ValidatedRow[] {
 // ── Grouping rows into books + copies ─────────────────────────────────────────
 
 export function groupKey(n: Pick<NormalizedRow, "title" | "author" | "isbn">): string {
-  return `${n.isbn ?? ""}|${n.title.toLowerCase()}|${n.author.toLowerCase()}`;
+  // A null author lowercases to the same empty string an author of "" would,
+  // which is fine here: both mean "this row names nobody", and two copies of
+  // one untitled-author work should still group into one book.
+  return `${n.isbn ?? ""}|${n.title.toLowerCase()}|${(n.author ?? "").toLowerCase()}`;
 }
 
 export type ImportCopyPlan = {

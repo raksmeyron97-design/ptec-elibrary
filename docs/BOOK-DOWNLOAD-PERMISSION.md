@@ -1,7 +1,24 @@
-# Per-book download permission
+# Per-book file access
 
-A librarian can publish a book as **read online only**: readers open it in the
-in-app viewer exactly as before, and the server refuses to hand over the file.
+A librarian chooses, per book, what the library actually hands out:
+
+| `books.file_access` | Reader | Download | Offline | Quoted by search / AI | Scholar + OAI |
+|---|---|---|---|---|---|
+| `public` (default) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `read_online` | ✅ | ❌ | ❌ | ✅ | metadata only |
+| `catalogue_only` | ❌ | ❌ | ❌ | ❌ | metadata only |
+
+**`file_access` is the only column any code may write.** `allow_download`
+(0131) still exists and every existing reader of it is still correct, but it
+is now MIRRORED from `file_access` by a database trigger — see §2a. Nothing in
+this document, and nothing in the codebase, should tell you to set
+`allow_download`.
+
+`read_online` is the original 0131 behaviour, unchanged: readers open the book
+in the in-app viewer exactly as before, and the server refuses to hand over
+the file. `catalogue_only` (0151) is the stronger statement — usually a rights
+position rather than a library preference — that PTEC distributes no file for
+this title at all, while the bibliographic record stays public and indexed.
 
 This is the book counterpart of the publication rule in
 [AUTHOR-PROFILES-AND-ACCESS.md](./AUTHOR-PROFILES-AND-ACCESS.md) §2 — same
@@ -32,7 +49,7 @@ recorded.
 
 ---
 
-## 2. Schema (`0131`)
+## 2. Schema (`0131`, widened by `0151`)
 
 ```sql
 alter table public.books
@@ -52,9 +69,44 @@ without a second query per book.
 No index: the flag is read alongside a book already located by primary key or
 slug, never as a search predicate.
 
+### 2a. `0151` — the third value, and the one-way mirror
+
+```sql
+alter table public.books
+  add column if not exists file_access text not null default 'public'
+    check (file_access in ('public', 'read_online', 'catalogue_only'));
+```
+
+Backfilled to today's behaviour row for row, so **applying it changes
+nothing**. This is the `learning_paths.status` / `is_published` pattern from
+`0111`: 34 files read `allow_download`, and all of them stay correct untouched.
+
+The trigger is deliberately **not symmetric**. A legacy write may tighten, and
+may restore what it itself tightened, but it may never loosen a restriction it
+cannot see:
+
+| write | effect |
+|---|---|
+| sets `file_access` | `allow_download := (file_access = 'public')` |
+| `allow_download = false` on a `public` row | → `read_online` |
+| `allow_download = true` on a `read_online` row | → `public` |
+| `allow_download = true` on a **`catalogue_only`** row | **raises**, naming `file_access` |
+| `allow_download = false` on an already-restricted row | no-op |
+
+That exception is the point: a rights withdrawal must not be undone by a code
+path that predates the concept.
+
+### 2b. What `catalogue_only` does NOT reach
+
+**A copy already saved to a reader's device cannot be revoked.** Offline
+copies live in that browser's Cache Storage, which belongs to the reader.
+Withdrawing a book stops new saves; it does not reach back into devices that
+already have one. The admin form says so, and nothing anywhere claims
+otherwise.
+
 ---
 
-## 3. One resolution, five readers
+## 3. One resolution, every reader
 
 `lib/books/access.ts` → `resolveBookDownloadAccess()` is pure and
 browser-safe. Everything asks it, so a drawn button and a served byte stream
@@ -70,6 +122,32 @@ cannot disagree:
    result never links straight at a 403.
 5. `lib/seo/citation.ts` and `lib/metadata-exports/works.ts` — whether a
    machine is told where the file is.
+6. `lib/seo/book-seo.ts` — whether the JSON-LD may claim online access.
+   `ReadAction` and `isAccessibleForFree` are DROPPED for a catalogue-only
+   book rather than negated: `isAccessibleForFree: false` asserts a paywall,
+   and a `ReadAction` pointing at a page with no reader is an entry point to
+   nothing.
+7. `lib/books/restricted.ts` — the set of books whose text may not be quoted,
+   cited by page, or used to ground an AI answer. The evidence tables are
+   polymorphic with no FK to `books`, so there is nothing to join on; one
+   cached set (tagged `books`, fired by `revalidateBook()`) is applied in
+   `resolveRecord()`, in `findRecordByTitle()`, on the `book_pages` locate
+   legs, in native search's "found inside", and as `p_exclude_ids` on
+   `match_book_chunks`. It **fails closed**: if the set cannot be read, book
+   evidence is suppressed rather than admitted.
+
+### 3a. Staff access to a catalogue-only file
+
+`read_online` keeps its librarian override on `/api/books/[slug]/download`.
+`catalogue_only` does **not**: the public route answers the same way for
+everyone — reader, librarian, super admin, verified Googlebot — so there is
+one rule there and no "unless" in the hot path.
+
+A librarian who needs the file for the rights review itself uses
+`/api/admin/books/[id]/file`, which demands `books:write` (carrying the admin
+panel's MFA requirement), streams inline rather than as an attachment, and
+writes a `book.rights_review_fetch` audit row every time. The book edit form's
+"Open" link points there, not at the storage URL.
 
 ### The bypass that had to be closed first
 

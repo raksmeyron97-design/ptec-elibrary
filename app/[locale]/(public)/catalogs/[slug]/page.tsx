@@ -1,6 +1,7 @@
 // app/catalogs/[slug]/page.tsx
 import { Link } from "@/i18n/navigation";
 import { decodeSlugParam } from "@/lib/slug";
+import { catalogRobots } from "@/lib/catalogs/indexability";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
@@ -13,7 +14,7 @@ import { contributorNodes } from "@/lib/seo/contributor";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
-import { openGraphBase } from "@/lib/seo/open-graph";
+import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 import type { CatalogBook } from "@/lib/catalog";
 import {
   computeCopyStats,
@@ -101,7 +102,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug: rawSlug, locale } = await params;
   const slug = decodeSlugParam(rawSlug);
-  const record = await fetchCatalogRecord(slug);
+  const [record, org] = await Promise.all([fetchCatalogRecord(slug), getOrgIdentity()]);
   if (!record) return { title: "Book not found", robots: { index: false } };
   const { book } = record;
 
@@ -123,24 +124,40 @@ export async function generateMetadata({
   const alternates = localeAlternates(`/catalogs/${slug}`, locale);
   const canonicalUrl = alternates.canonical;
 
+  // `images: []` used to be the else-branch here, and an EMPTY array replaces
+  // the shared default rather than falling through to it — so a catalog record
+  // with no cover published no og:image at all. buildOpenGraph owns the
+  // fallback, so "no cover" now means the site card, as it does everywhere else.
+  const openGraph = buildOpenGraph({
+    locale,
+    org,
+    title,
+    description: desc,
+    type: "book" as const,
+    url: canonicalUrl,
+    image: ogImage,
+    imageAlt: book.title,
+  });
+
   return {
     title,
     description: desc,
     alternates,
-    openGraph: {
-      ...(await openGraphBase(locale)),
-      title,
-      description: desc,
-      type: "book",
-      url: canonicalUrl,
-      images: ogImage ? [{ url: ogImage, alt: book.title }] : [],
-    },
-    twitter: {
+    // A record carrying nothing but title, author and a call number is a
+    // shelf label, not a page worth ranking — and the PMB import produces
+    // those in bulk. `app/sitemap.ts` asks the SAME function, so the sitemap
+    // can never advertise a URL that then answers `noindex`.
+    //
+    // `follow` either way: the record's links to its subject and its copies
+    // are still worth crawling, and the page still answers 200 to a reader.
+    robots: catalogRobots({ description: book.description }),
+    openGraph,
+    twitter: buildTwitter({
       card: "summary_large_image",
       title,
       description: desc,
-      images: ogImage ? [ogImage] : undefined,
-    },
+      images: openGraph.images,
+    }),
   };
 }
 
@@ -231,7 +248,11 @@ export default async function CatalogBookPage({
   Object.keys(bookSchema).forEach((k) => bookSchema[k] === undefined && delete bookSchema[k]);
 
   const metaFields = [
-    { label: t("detail.author"),      value: b.author },
+    // Always rendered, even with no author: a catalogue record that simply
+    // omits the row reads as "we forgot to fill this in". The placeholder is
+    // a LABEL — the database stores null, and the JSON-LD below emits no
+    // author node at all, so nothing machine-readable claims a person.
+    { label: t("detail.author"),      value: b.author || t("detail.noAuthorListed") },
     { label: t("detail.language"),    value: langLabel(b.language) },
     { label: t("detail.year"),        value: b.year },
     { label: t("detail.isbn"),        value: formatIsbn(b.isbn) },

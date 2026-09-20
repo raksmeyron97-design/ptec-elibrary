@@ -1,7 +1,7 @@
 import { useTranslations } from "next-intl";
 import { FileX2, FileWarning, ImageOff, Scale } from "lucide-react";
 import { Badge } from "@/components/admin/kit";
-import { LARGE_FILE_KB, type EbookListRow } from "@/lib/admin/ebooks-shared";
+import { LARGE_FILE_KB, type EbookListClientRow } from "@/lib/admin/ebooks-shared";
 
 /**
  * PDF + cover problems only.
@@ -16,9 +16,9 @@ import { LARGE_FILE_KB, type EbookListRow } from "@/lib/admin/ebooks-shared";
  * means "present", not "verified this second". Returns null when there is
  * nothing wrong, which is what lets the row's flag strip collapse entirely.
  */
-export default function EbookFileHealthBadge({ book }: { book: EbookListRow }) {
+export default function EbookFileHealthBadge({ book }: { book: EbookListClientRow }) {
   const t = useTranslations("adminEbooks.fileHealth");
-  const hasPdf = Boolean(book.fileUrl);
+  const hasPdf = book.hasFile;
   const hasCover = Boolean(book.coverUrl);
   const isLarge = (book.fileSizeKb ?? 0) >= LARGE_FILE_KB;
 

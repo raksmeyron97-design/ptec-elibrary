@@ -23,6 +23,7 @@ import {
   DEFAULT_IMPORT_OPTIONS,
   type ValidatedRow,
   type ImportRowResult,
+  resolveRowLanguage,
 } from "./catalog-import";
 
 // ── Header normalization & auto-mapping ──────────────────────────────────────
@@ -199,12 +200,29 @@ describe("validateRow", () => {
     expect(r.normalized.language).toBe("en");
     expect(r.normalized.barcode).toBe("33697");
   });
-  it("missing title/author are errors", () => {
-    const r = validateRow({ title: " ", author: "" }, 2);
+  it("a missing TITLE is still an error", () => {
+    const r = validateRow({ title: " ", author: "A. Author" }, 2);
     expect(r.status).toBe("error");
-    expect(r.issues.map((i) => i.code)).toEqual(
-      expect.arrayContaining(["REQUIRED_TITLE", "REQUIRED_AUTHOR"]),
-    );
+    expect(r.issues.map((i) => i.code)).toContain("REQUIRED_TITLE");
+  });
+
+  // Changed deliberately (SEO 5.0 / PMB import). The PMB export has real
+  // gaps in its author column, and rejecting those rows would keep the
+  // physical catalogue out of the library over a field the library does not
+  // have. The COLUMN stays required in the mapping; a blank CELL warns.
+  it("a missing AUTHOR warns and the row still imports", () => {
+    const r = validateRow({ title: "A Title", author: "" }, 2);
+    expect(r.status).not.toBe("error");
+    expect(r.issues.map((i) => i.code)).toContain("MISSING_AUTHOR");
+    expect(r.issues.find((i) => i.code === "MISSING_AUTHOR")?.severity).toBe("warning");
+  });
+
+  it("stores NULL for a missing author, never a placeholder", () => {
+    // "គ្មានអ្នកនិពន្ធ" is a label the UI renders. Storing it would put a
+    // non-person into the author index, where every consumer — search, the
+    // author directory, JSON-LD — would treat it as somebody's name.
+    const r = validateRow({ title: "A Title", author: "" }, 2);
+    expect(r.normalized.author).toBeNull();
   });
   it("bad ISBN checksum is an error", () => {
     const r = validateRow({ ...GOOD_ROW, isbn: "978-0-306-40615-8" }, 2);
@@ -339,7 +357,11 @@ describe("ddc: end-to-end through the wizard pipeline", () => {
   });
 
   it("the failed-rows CSV still lines up with IMPORT_FIELDS", () => {
-    const rows: ValidatedRow[] = [validateRow({ title: "T", author: "", ddc: "372.7" }, 2)];
+    // A blank author no longer fails a row, so the failure here is an
+    // invalid ISBN — the point of the test is the CSV shape, not the cause.
+    const rows: ValidatedRow[] = [
+      validateRow({ title: "T", author: "A", isbn: "978-0-306-40615-8", ddc: "372.7" }, 2),
+    ];
     const csv = buildFailedRowsCsv(rows, new Map());
     const [header, row] = csv.trim().split("\r\n");
     expect(header.split(",")).toHaveLength(IMPORT_FIELDS.length + 3);
@@ -503,7 +525,10 @@ describe("chunkGroups", () => {
 describe("reports", () => {
   it("failed-rows CSV keeps original columns and escapes formulas", () => {
     const rows: ValidatedRow[] = [
-      validateRow({ title: "=HYPERLINK(\"https://evil\")", author: "" }, 2),
+      validateRow(
+        { title: "=HYPERLINK(\"https://evil\")", author: "A", isbn: "978-0-306-40615-8" },
+        2,
+      ),
     ];
     const csv = buildFailedRowsCsv(rows, new Map());
     expect(csv.startsWith("﻿")).toBe(true);
@@ -512,7 +537,7 @@ describe("reports", () => {
     expect(lines[0]).toContain("import_status,error_codes,error_messages");
     // Formula neutralised with a leading apostrophe (repo-wide convention).
     expect(lines[1]).toContain("'=HYPERLINK");
-    expect(lines[1]).toContain("REQUIRED_AUTHOR");
+    expect(lines[1]).toContain("INVALID_ISBN");
   });
 
   it("import report includes server results", () => {
@@ -545,5 +570,87 @@ describe("groupKey / refreshRowStatus", () => {
 describe("DEFAULT_IMPORT_OPTIONS", () => {
   it("defaults to the safest strategy (skip duplicates)", () => {
     expect(DEFAULT_IMPORT_OPTIONS.duplicateStrategy).toBe("skip");
+  });
+});
+
+
+// ── PMB import: language detected from the title's script ──────────────────
+//
+// The PMB export (No., Title, Author, DDC, Barcode) carries no language
+// column at all, so every row would otherwise take the documented `km`
+// default — including the English-language stock.
+
+describe("resolveRowLanguage", () => {
+  it("detects km from a Khmer title when the cell is blank", () => {
+    const r = resolveRowLanguage("", "សៀវភៅណែនាំគ្រូបង្រៀន គណិតវិទ្យា");
+    expect(r.value).toBe("km");
+    expect(r.source).toBe("detected");
+  });
+
+  it("detects en from a Latin title when the cell is blank", () => {
+    const r = resolveRowLanguage(undefined, "Research Methods in Education");
+    expect(r.value).toBe("en");
+    expect(r.source).toBe("detected");
+  });
+
+  it("treats a MIXED title as Khmer — any Khmer character decides", () => {
+    // A bilingual title in a Khmer collection is a Khmer book with an
+    // English subtitle far more often than the reverse.
+    const r = resolveRowLanguage("", "គណិតវិទ្យា (Mathematics) Grade 7");
+    expect(r.value).toBe("km");
+    expect(r.source).toBe("detected");
+  });
+
+  it("falls back to the documented default, and SAYS SO, when a title has no letters at all", () => {
+    for (const title of ["978-9924-0-1234-5", "12345", "", "— —", "..."]) {
+      const r = resolveRowLanguage("", title);
+      expect(r.value).toBe("km");
+      expect(r.source).toBe("defaulted");
+    }
+  });
+
+  it("reads a call number with a letter mark as Latin, and that is correct", () => {
+    // "372.7 BIL" contains Latin letters, so `en` is a reading rather than a
+    // guess. Deciding it were "unknown" would mean teaching this function
+    // what a Dewey number looks like — inventing a rule to second-guess a
+    // signal that is actually present. A row whose TITLE is a call number is
+    // malformed upstream, and the importer's job is not to repair that.
+    expect(resolveRowLanguage("", "372.7 BIL").source).toBe("detected");
+    expect(resolveRowLanguage("", "372.7 BIL").value).toBe("en");
+  });
+
+  it("an explicit value always wins, whatever the title says", () => {
+    expect(resolveRowLanguage("en", "សៀវភៅណែនាំគ្រូបង្រៀន").value).toBe("en");
+    expect(resolveRowLanguage("Khmer", "Research Methods").value).toBe("km");
+    expect(resolveRowLanguage("en", "សៀវភៅ").source).toBe("stated");
+  });
+});
+
+describe("validateRow — language from the title (PMB)", () => {
+  it("blank language + Khmer title → km, with no warning", () => {
+    const r = validateRow({ title: "សៀវភៅគណិតវិទ្យា", author: "A" }, 2);
+    expect(r.normalized.language).toBe("km");
+    expect(r.issues.map((i) => i.code)).not.toContain("LANGUAGE_DEFAULTED");
+  });
+
+  it("blank language + Latin title → en, with no warning", () => {
+    const r = validateRow({ title: "Research Methods in Education", author: "A" }, 2);
+    expect(r.normalized.language).toBe("en");
+    expect(r.issues.map((i) => i.code)).not.toContain("LANGUAGE_DEFAULTED");
+  });
+
+  it("blank language + a title with no letters → km AND a visible warning", () => {
+    // The librarian is told, because this is the one case where the value is
+    // a guess rather than a reading.
+    const r = validateRow({ title: "978-9924-0-1234-5", author: "A" }, 2);
+    expect(r.normalized.language).toBe("km");
+    const issue = r.issues.find((i) => i.code === "LANGUAGE_DEFAULTED");
+    expect(issue?.severity).toBe("warning");
+    expect(r.status).not.toBe("error");
+  });
+
+  it("an explicit language column still wins end to end", () => {
+    const r = validateRow({ title: "សៀវភៅគណិតវិទ្យា", author: "A", language: "en" }, 2);
+    expect(r.normalized.language).toBe("en");
   });
 });

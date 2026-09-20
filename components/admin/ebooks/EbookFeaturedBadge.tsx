@@ -3,7 +3,7 @@
 import { Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/admin/kit";
-import type { EbookListRow } from "@/lib/admin/ebooks-shared";
+import type { EbookListClientRow } from "@/lib/admin/ebooks-shared";
 
 /**
  * The curation half of a row's state — "Featured by PTEC Library" (0149).
@@ -15,7 +15,7 @@ import type { EbookListRow } from "@/lib/admin/ebooks-shared";
  * "Featured" rather than a bare star so the state is never colour-or-icon
  * only.
  */
-export default function EbookFeaturedBadge({ book }: { book: EbookListRow }) {
+export default function EbookFeaturedBadge({ book }: { book: EbookListClientRow }) {
   const t = useTranslations("adminEbooks.featuredFilter");
   if (!book.featuredAt) return null;
 

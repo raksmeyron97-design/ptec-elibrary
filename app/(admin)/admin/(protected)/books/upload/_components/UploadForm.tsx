@@ -699,7 +699,13 @@ export default function UploadForm({
         // with the same book instead of inserting a second one.
         uploadId,
         status:     publishMode,
-        allowDownload,
+        // Written as file_access (0151), never as allow_download: the
+        // database derives the legacy column from this one. The upload form
+        // deliberately offers only the two states it can mean — a librarian
+        // uploading a file is not simultaneously saying the library holds
+        // no file for it. Catalogue-only is set on the edit form, which is
+        // where a rights decision is actually taken.
+        fileAccess: allowDownload ? ("public" as const) : ("read_online" as const),
         downloadDisabledReason: allowDownload ? null : downloadReason.trim() || null,
         license:    (formData.get("license")    as string) ?? "",
         // Carried only when it matches the blocking match the form showed;

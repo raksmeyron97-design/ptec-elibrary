@@ -86,6 +86,7 @@ function toRow(r: Record<string, unknown>, broken: BrokenMap): EbookListRow {
     featuredPosition: (r.featured_position as number) ?? null,
     coverUrl: (r.cover_url as string) || null,
     fileUrl: file?.file_url ?? null,
+    hasFile: Boolean(file?.file_url),
     fileFormat: file?.format ?? null,
     fileSizeKb: file?.file_size_kb ?? null,
     viewCount: (r.view_count as number) ?? 0,
@@ -437,7 +438,7 @@ function qualityOf(row: EbookListRow) {
     description: row.description,
     tags: row.tags,
     coverUrl: row.coverUrl,
-    fileUrl: row.fileUrl,
+    hasFile: row.hasFile,
     license: row.license,
     publisher: row.publisher,
   });

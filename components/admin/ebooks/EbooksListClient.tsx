@@ -11,7 +11,7 @@ import DeleteEbookDialog, { type DeleteTarget } from "@/components/admin/ebooks/
 import FeatureBookDialog, { type FeatureTarget } from "@/components/admin/ebooks/FeatureBookDialog";
 import ArchiveEbookDialog, { type ArchiveTarget } from "@/components/admin/ebooks/ArchiveEbookDialog";
 import { EbookEmptyState, EbookNoResultsState } from "@/components/admin/ebooks/states/EbookEmptyState";
-import type { EbookListRow, EbookOption } from "@/lib/admin/ebooks-shared";
+import type { EbookListClientRow, EbookOption } from "@/lib/admin/ebooks-shared";
 import {
   publishEbook,
   unpublishEbook,
@@ -31,7 +31,7 @@ function toCsvValue(v: string | number | null | undefined): string {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-function exportCsv(rows: EbookListRow[]) {
+function exportCsv(rows: EbookListClientRow[]) {
   const header = ["Title", "Author", "Department", "Category", "Year", "Language", "Status", "File Size (KB)", "Views", "Downloads", "Created At"];
   const lines = rows.map((r) => [
     r.title,
@@ -64,7 +64,7 @@ export default function EbooksListClient({
   canWrite = false,
   featuredCount = 0,
 }: {
-  rows: EbookListRow[];
+  rows: EbookListClientRow[];
   departments: EbookOption[];
   /** Distinguishes "zero e-books ever uploaded" from "zero e-books match the current filters". */
   hasAnyEbooksAtAll: boolean;

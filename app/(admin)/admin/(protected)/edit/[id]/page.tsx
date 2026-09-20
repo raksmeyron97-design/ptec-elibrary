@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // app/admin/edit/[id]/page.tsx
 import { createServiceClient } from "@/lib/supabase/server";
+import { toBookFileAccess } from "@/lib/books/access";
 import { notFound } from "next/navigation";
 import EditForm from "./_components/EditForm";
 import { requireRouteAccess } from "@/lib/admin/route-guard";
@@ -34,7 +35,7 @@ export default async function EditBookPage({
 
   let { data: book } = await supabase
     .from("books")
-    .select(`${BOOK_COLUMNS}, allow_download, download_disabled_reason`)
+    .select(`${BOOK_COLUMNS}, allow_download, download_disabled_reason, file_access`)
     .eq("id", id)
     .maybeSingle();
 
@@ -102,12 +103,18 @@ export default async function EditBookPage({
     seoTitle:       (book.seo_title as string | null) ?? "",
     seoDescription: (book.seo_description as string | null) ?? "",
     ogImage:        (book.og_image as string | null) ?? "",
-    fileUrl:     (primaryFile?.file_url as string | null) ?? null,
+    // Presence, never the address: the form is a client component and the
+    // raw storage URL is a permanent uncredentialed link to the PDF.
+    hasFile:     Boolean(primaryFile?.file_url),
     fileSizeKb:  (primaryFile?.file_size_kb as number | null) ?? null,
     fileFormat:  (primaryFile?.format as string | null) ?? null,
     // Only an explicit false restricts — an absent column (pre-0131) is the
     // column's default, which is "downloadable".
-    allowDownload: (book as any).allow_download !== false,
+    // file_access (0151) is authoritative. An absent column (pre-migration,
+    // or a select that fell back) is read through the shared resolver rather
+    // than defaulted here, so the form and the routes agree on what a row
+    // with no policy means.
+    fileAccess: toBookFileAccess((book as any).file_access),
     downloadDisabledReason: ((book as any).download_disabled_reason as string | null) ?? "",
     status:            (book.status as string | null) ?? "draft",
     verifiedAt:        (book.verified_at as string | null) ?? null,

@@ -4,7 +4,7 @@ import { Clock, Landmark, MessageCircle, Phone } from "lucide-react";
 
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
-import { openGraphBase } from "@/lib/seo/open-graph";
+import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 import JsonLd from "@/components/seo/JsonLd";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import { getPublicCommitteeData } from "@/lib/committee/data";
@@ -42,18 +42,26 @@ export async function generateMetadata({
   const description = t("metaDescription");
   const socialTitle = `${title} · ${org.siteName}`;
 
+  const openGraph = buildOpenGraph({
+    locale,
+    org,
+    title: socialTitle,
+    description,
+    type: "website" as const,
+    url: alternates.canonical,
+  });
+
   return {
     title,
     description,
     alternates,
-    openGraph: {
-      ...(await openGraphBase(locale)),
+    openGraph,
+    twitter: buildTwitter({
+      card: "summary_large_image",
       title: socialTitle,
       description,
-      url: alternates.canonical,
-      type: "website",
-    },
-    twitter: { card: "summary_large_image", title: socialTitle, description },
+      images: openGraph.images,
+    }),
   };
 }
 

@@ -236,3 +236,17 @@ describe("normalizeByline asserts nothing about an unidentified string", () => {
     expect(result.unidentified).toBe(false);
   });
 });
+
+describe("\"no author\" in Khmer names nobody", () => {
+  it("refuses the compound placeholder", () => {
+    // The PMB import stores NULL rather than this string, but a legacy row
+    // may carry it, and it is the natural thing for a cataloguer to type.
+    expect(assessContributorName("គ្មានអ្នកនិពន្ធ").trust).toBe("invalid");
+  });
+
+  it("still accepts a real Khmer name that merely starts the same way", () => {
+    // The set is matched WHOLE, not as a substring — Khmer has no word
+    // boundaries, so a substring rule here would swallow real names.
+    expect(assessContributorName("គ្មានីតា សុខា").trust).not.toBe("invalid");
+  });
+});

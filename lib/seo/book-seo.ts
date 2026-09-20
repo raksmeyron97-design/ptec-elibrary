@@ -16,15 +16,18 @@ import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/seo/site";
 import { resolveContributorNodes } from "@/lib/seo/contributor";
 import { bookLanguageCode } from "@/lib/books/language";
+import { resolveBookDownloadAccess } from "@/lib/books/access";
 import type { ResourceContributorView } from "@/lib/resources/contributor-view";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { buildOpenGraph, buildTwitter, OG_FALLBACK_IMAGE } from "@/lib/seo/open-graph";
 import { libraryNode } from "@/lib/seo/org-nodes";
 import {
   resolveOrgIdentity,
   type OrgIdentity,
 } from "@/lib/system-settings/org-identity";
 
-export const FALLBACK_OG_IMAGE = `${SITE_URL}/og-default.png`;
+/** Re-exported so existing importers keep one constant, not a second copy. */
+export const FALLBACK_OG_IMAGE = OG_FALLBACK_IMAGE;
 
 export type BookSeoInput = {
   slug: string;
@@ -38,6 +41,21 @@ export type BookSeoInput = {
   isbn?: string | null;
   /** Real publication date (books.published_at). Null = unknown. */
   publishedAt?: string | null;
+  /**
+   * The book's file policy (books.file_access, 0151). Absent reads as
+   * "public", the column default — so a caller that does not select the
+   * column keeps today's markup exactly.
+   */
+  fileAccess?: string | null;
+  /**
+   * Whether the reader may actually be handed the PDF.
+   *
+   * Separate from `fileAccess` on purpose: this is what the DESCRIPTION
+   * promises, and the caller resolves it through the one access rule
+   * (`bookDownloadAllowed`) rather than this module re-deriving it. Absent
+   * keeps the pre-5.0 wording, which is what every existing test asserts.
+   */
+  downloadable?: boolean;
   pages?: number | null;
   /** Verified author names only — pass [] when the author is unknown. */
   authors?: string[];
@@ -101,14 +119,25 @@ function truncate(text: string): string {
 export function bookFallbackDescription(book: BookSeoInput, locale: string): string {
   const authors = (book.authors ?? []).map(clean).filter(Boolean);
   const subject = clean(book.category) || clean(book.department);
+  // The description promised a download on EVERY book, including the ones
+  // the library has switched downloads off for — a sentence a reader sees in
+  // the search result, believes, clicks, and finds is not true. `undefined`
+  // keeps the original wording, so a caller that does not know about the
+  // policy is unchanged.
+  const downloadable = book.downloadable !== false;
+
   if (locale === "km") {
     const byline = authors.length > 0 ? ` ដោយ ${authors.join(", ")}` : "";
-    return `${clean(book.title)}${byline} — សៀវភៅឌីជីថលឥតគិតថ្លៃក្នុងបណ្ណាល័យ វ.គ.ភ។ អានតាមអ៊ីនធឺណិត ឬទាញយកជា PDF ដោយឥតគិតថ្លៃ។`;
+    const access = downloadable
+      ? "អានតាមអ៊ីនធឺណិត ឬទាញយកជា PDF ដោយឥតគិតថ្លៃ។"
+      : "អានតាមអ៊ីនធឺណិតដោយឥតគិតថ្លៃ។";
+    return `${clean(book.title)}${byline} — សៀវភៅឌីជីថលឥតគិតថ្លៃក្នុងបណ្ណាល័យ វ.គ.ភ។ ${access}`;
   }
   const byline = authors.length > 0 ? ` by ${authors.join(", ")}` : "";
   const subjectPart = subject && subject !== "General" ? ` ${subject}` : "";
   const languagePart = book.language ? ` (${clean(book.language)})` : "";
-  return `${clean(book.title)}${byline} — a free${subjectPart} e-book in the PTEC Library. Read online or download the PDF${languagePart}.`;
+  const access = downloadable ? "Read online or download the PDF" : "Read online";
+  return `${clean(book.title)}${byline} — a free${subjectPart} e-book in the PTEC Library. ${access}${languagePart}.`;
 }
 
 /** Meta description: the record's own description when present (enriched with
@@ -142,11 +171,28 @@ export function buildBookMetadata(
   const tags = (book.tags ?? []).filter(Boolean);
   const section = clean(book.department) || clean(book.category) || "Books";
   const ogImage = clean(overrides?.ogImage) || book.coverUrl;
-  const image = ogImage || FALLBACK_OG_IMAGE;
-  const imageAlt =
-    ogImage
-      ? (locale === "km" ? `ក្របសៀវភៅ៖ ${title}` : `Book cover: ${title}`)
-      : org.siteName;
+  const imageAlt = locale === "km" ? `ក្របសៀវភៅ៖ ${title}` : `Book cover: ${title}`;
+
+  const openGraph = {
+    ...buildOpenGraph({
+      locale,
+      org,
+      title,
+      description,
+      type: "article" as const,
+      url: canonicalUrl,
+      // A record cover when there is one, the shared site card otherwise. The
+      // alt describes the image ACTUALLY used: buildOpenGraph ignores
+      // `imageAlt` on the fallback, so the site card is never labelled
+      // "Book cover: <title>".
+      image: ogImage,
+      imageAlt,
+    }),
+    authors: authors.length > 0 ? authors : undefined,
+    publishedTime: book.publishedAt ?? undefined,
+    section,
+    tags: tags.length > 0 ? tags : undefined,
+  };
 
   return {
     title,
@@ -158,30 +204,8 @@ export function buildBookMetadata(
     publisher: clean(book.publisher) || undefined,
     category: section,
     alternates,
-    openGraph: {
-      title,
-      description,
-      type: "article",
-      url: canonicalUrl,
-      siteName: org.siteName,
-      locale: locale === "km" ? "km_KH" : "en_US",
-      alternateLocale: locale === "km" ? "en_US" : "km_KH",
-      authors: authors.length > 0 ? authors : undefined,
-      publishedTime: book.publishedAt ?? undefined,
-      section,
-      tags: tags.length > 0 ? tags : undefined,
-      images: [
-        ogImage
-          ? { url: ogImage, width: 800, height: 1200, alt: imageAlt }
-          : { url: FALLBACK_OG_IMAGE, width: 1200, height: 630, alt: imageAlt },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [image],
-    },
+    openGraph,
+    twitter: buildTwitter({ card: "summary_large_image", title, description, images: openGraph.images }),
   };
 }
 
@@ -219,6 +243,13 @@ export function bookJsonLd(
     (s) => s && s !== "General",
   );
   const pages = book.pages ?? 0;
+  // `fileUrl: "present"` because this builder is asked about a book whose
+  // page is being rendered; whether a FILE row exists is the page's question,
+  // not the markup's. What is being decided here is the POLICY.
+  const readableOnline = resolveBookDownloadAccess({
+    file_access: book.fileAccess,
+    fileUrl: "present",
+  }).canReadOnline;
 
   return compact({
     "@context": "https://schema.org",
@@ -243,11 +274,25 @@ export function bookJsonLd(
     about: subjects.length > 0 ? subjects : undefined,
     keywords: tags.length > 0 ? tags.join(", ") : undefined,
     bookFormat: "https://schema.org/EBook",
-    isAccessibleForFree: true,
-    potentialAction: {
-      "@type": "ReadAction",
-      target: { "@type": "EntryPoint", urlTemplate: url },
-    },
+    // A catalogue-record-only book (0151) is one the library holds a record
+    // for and distributes no file for, so BOTH of these claims would be
+    // false: it cannot be read here, free or otherwise.
+    //
+    // They are DROPPED rather than negated. `isAccessibleForFree: false` says
+    // "there is a paywall", and a ReadAction pointing at a page with no
+    // reader is an entry point to nothing — both are assertions this library
+    // cannot support, and omitting an unknown beats defaulting it (skill
+    // rule 5). Every descriptive field stays, so the record is still fully
+    // indexed as metadata.
+    ...(readableOnline
+      ? {
+          isAccessibleForFree: true,
+          potentialAction: {
+            "@type": "ReadAction",
+            target: { "@type": "EntryPoint", urlTemplate: url },
+          },
+        }
+      : {}),
     aggregateRating:
       aggregateRating && aggregateRating.reviewCount > 0
         ? {

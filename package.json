@@ -15,6 +15,7 @@
     "test:e2e": "playwright test",
     "optimize:hero": "node scripts/optimize-hero.mjs",
     "check:hero": "node scripts/optimize-hero.mjs --check",
+    "seo:og": "tsx scripts/verify-open-graph.ts",
     "prebuild": "node scripts/copy-pdf-assets.mjs && node scripts/optimize-hero.mjs --check && node scripts/generate-pwa-assets.mjs --check",
     "pwa:assets": "node scripts/generate-pwa-assets.mjs",
     "og:assets": "node scripts/generate-og-image.mjs",

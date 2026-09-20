@@ -9,6 +9,7 @@ import EbookErrorState from "@/components/admin/ebooks/states/EbookErrorState";
 import BooksBreadcrumb from "@/components/admin/ebooks/BooksBreadcrumb";
 import BooksWorkspaceNav from "@/components/admin/ebooks/BooksWorkspaceNav";
 import { getEbooks, getEbooksSummary, getEbookFilterOptions } from "@/lib/admin/ebooks";
+import { toEbookListClientRow } from "@/lib/admin/ebooks-shared";
 import { EBOOKS_BASE_PATH } from "@/lib/admin/ebooks-url";
 
 import { requireRouteAccess } from "@/lib/admin/route-guard";
@@ -147,7 +148,13 @@ export default async function BooksPage({
         <EbookErrorState />
       ) : (
         <EbooksListClient
-          rows={ebooksResult.rows}
+          // `fileUrl` is the raw book_files.file_url — a credential-free,
+          // permanent, unlogged link to the PDF (see
+          // lib/books/storage-url-exposure.test.ts). The list needs it
+          // server-side for the file-status filters, and the client needs it
+          // for nothing at all, so it is stripped at the boundary rather
+          // than serialised into the page for every row.
+          rows={ebooksResult.rows.map(toEbookListClientRow)}
           departments={filterOptions.departments}
           hasAnyEbooksAtAll={summary.total > 0}
           canUpload={canWrite}
