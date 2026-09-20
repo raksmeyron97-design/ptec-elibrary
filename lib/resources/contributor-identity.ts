@@ -42,6 +42,7 @@
 // string in `books.author`.
 
 import { parseAuthorNames } from "@/lib/resources/author-names";
+import { isUnidentifiedContributorName } from "@/lib/resources/contributor-trust";
 import type { ContributorRole } from "@/lib/resources/types";
 import type { OrgIdentity } from "@/lib/system-settings/org-identity";
 
@@ -77,6 +78,19 @@ export type NormalizedByline = {
   contributors: NormalizedContributor[];
   /** False when the byline names several entities that could not be split. */
   resolved: boolean;
+  /**
+   * True when the string does not name anybody at all — an operating-system
+   * account, a program's own name, a placeholder, a telephone number.
+   *
+   * `contributors` is empty for this and for an unsplittable multi-person
+   * byline alike, because both mean "assert nothing". They are distinguished
+   * here because the two need different handling upstream: a composite author
+   * URL is a disambiguation page that should keep LINKING to the people it
+   * names, while an unidentified one should not be advertised at all.
+   *
+   * See lib/resources/contributor-trust.ts.
+   */
+  unidentified: boolean;
 };
 
 // ── Vocabulary ───────────────────────────────────────────────────────────────
@@ -301,31 +315,72 @@ export function normalizeByline(
   const sourceText = collapse(raw);
   const { name: cleaned, role } = extractRole(raw);
 
-  const empty: NormalizedByline = { sourceText, role, contributors: [], resolved: false };
-  if (!cleaned) return empty;
+  const empty: NormalizedByline = {
+    sourceText,
+    role,
+    contributors: [],
+    resolved: false,
+    unidentified: false,
+  };
+  if (!cleaned) return { ...empty, unidentified: true };
+
+  // ── Does this string name ANYBODY? ───────────────────────────────────────
+  //
+  // Asked before every other question, and asked of the WHOLE string, because
+  // the answer invalidates them all. "Channa 0977 33 61 62" reads as one
+  // person to every test below it — one name, no delimiter, no organisational
+  // vocabulary — and was published as a `Person` credited with 621 books.
+  // A string carrying a telephone number is not a byline whatever else can be
+  // said about its shape (lib/resources/contributor-trust.ts).
+  if (isUnidentifiedContributorName(cleaned)) return { ...empty, unidentified: true };
 
   // Whole-string identity first — see the header note on ordering.
   const whole = classifyName(cleaned, org);
   if (whole === "institution" || whole === "organization") {
-    return { sourceText, role, contributors: [{ kind: whole, displayName: cleaned }], resolved: true };
+    return {
+      sourceText,
+      role,
+      contributors: [{ kind: whole, displayName: cleaned }],
+      resolved: true,
+      unidentified: false,
+    };
   }
 
   const parts = splitByline(cleaned);
   if (parts.length > 1) {
+    // Per PART as well as per string: "Sok Dara and Windows User" credits one
+    // real person and one operating system. Dropping the second is not the
+    // same as refusing the byline — the named human keeps their credit.
     const contributors = parts
       .map((part) => {
+        if (isUnidentifiedContributorName(part)) return null;
         const kind = classifyName(part, org);
         return kind ? { kind, displayName: stripRoleSuffix(part) } : null;
       })
       .filter((c): c is NormalizedContributor => c !== null);
-    return { sourceText, role, contributors, resolved: contributors.length > 0 };
+    return {
+      sourceText,
+      role,
+      contributors,
+      resolved: contributors.length > 0,
+      // Every part was junk, so the byline as a whole names nobody. A byline
+      // that lost SOME parts is not unidentified — it still credits whoever
+      // survived.
+      unidentified: contributors.length === 0,
+    };
   }
 
   // More than one name, but not separable safely: resolve to nothing rather
   // than assert that several people are one.
   if (parseAuthorNames(cleaned).length > 1) return empty;
 
-  return { sourceText, role, contributors: [{ kind: "person", displayName: cleaned }], resolved: true };
+  return {
+    sourceText,
+    role,
+    contributors: [{ kind: "person", displayName: cleaned }],
+    resolved: true,
+    unidentified: false,
+  };
 }
 
 /** normalizeByline over a list of bylines, flattened in order. */

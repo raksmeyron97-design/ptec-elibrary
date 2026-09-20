@@ -5167,6 +5167,37 @@
         "post": "Post"
       }
     },
+    "contributors": {
+      "title": "Contributor names",
+      "subtitle": "Checked {checked} names in the author directory.",
+      "suppressed": "{count} withdrawn",
+      "flagged": "{count} to review",
+      "healthyTitle": "Every contributor name identifies somebody",
+      "healthyBody": "No operating-system accounts, software names, placeholders or telephone numbers in the author directory.",
+      "worksAffected": "{count} published works currently credit a name the library cannot stand behind. Their catalogue records are unchanged — only the public author page, the directory listing and the sitemap entry are withdrawn.",
+      "showing": "Showing {shown} of {total} names",
+      "works": "{count} works",
+      "open": "Open",
+      "openAria": "Open the author page for {name}",
+      "state": {
+        "invalid": "Withdrawn from the public directory",
+        "suspicious": "Listed as usual — flagged for review"
+      },
+      "reason": {
+        "software_default": "An operating-system or office-suite default document author",
+        "software_or_device": "The name of a program or device, not of an author",
+        "placeholder": "A form placeholder, or a filled-in “unknown”",
+        "document_furniture": "A word that labels part of a document",
+        "contains_number": "Carries a telephone number or another long run of digits",
+        "contains_contact": "Carries an email address or a web address",
+        "filename": "Reads as a file name",
+        "opaque_token": "An opaque token — a hash or an internal id",
+        "no_letters": "Contains no letters",
+        "single_token_handle": "A single lowercase word — possibly a username",
+        "role_not_name": "A job title standing where a name belongs"
+      },
+      "note": "Nothing here is deleted or edited automatically. Retiring or merging a contributor is a cataloguing decision with URL consequences, so this panel ranks the work and leaves it to you."
+    },
     "zones": {
       "stateLabel": "State of the collection",
       "stateHint": "What the published records look like right now",
@@ -8349,7 +8380,8 @@
       "roster": {
         "heading": "Committee members",
         "unsectioned": "Other members",
-        "count": "{count, plural, one {# member} other {# members}}"
+        "count": "{count, plural, one {# member} other {# members}}",
+        "standfirst": "The management team, lecturers and officers who serve on the committee, grouped as the college publishes them."
       },
       "member": {
         "roleLabel": "Committee role",
@@ -8357,7 +8389,7 @@
         "responsibilityLabel": "Responsibility",
         "educationLabel": "Qualification",
         "viewProfile": "View staff profile",
-        "viewProfileOf": "View the staff profile of {name}",
+        "viewProfileOf": "View staff profile: {name}",
         "noPhoto": "No portrait available"
       },
       "empty": {
@@ -8374,8 +8406,10 @@
         "officialOnly": "These are the library's official channels. Personal contact details of committee members are not published.",
         "deskLabel": "Library desk",
         "emailLabel": "Email",
-        "hoursLabel": "Hours"
-      }
+        "hoursLabel": "Hours",
+        "addressLabel": "Address"
+      },
+      "department": "Department of Educational Research and Library"
     }
   },
   "adminHomepagePhotos": {

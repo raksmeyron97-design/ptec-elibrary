@@ -217,3 +217,146 @@ export function profilePath(member: PublicCommitteeMember): string | null {
 export function publishedCount(groups: CommitteeGroup[]): number {
   return groups.reduce((total, group) => total + group.members.length, 0);
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Monogram
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Honorifics, longest first within each script.
+ *
+ * Every name this committee publishes carries one — "Mrs. THOLTHOEUN
+ * CHANRAEKSMEY", "Dr. NHOR SANHUI", "លោកស្រី សេក សំសុខនាង" — so the first
+ * character of the stored name is the honorific's, not the person's: it
+ * renders "M" for every Mr/Mrs/Ms and "D" for every Dr. A monogram that is the
+ * same letter for most of the board identifies nobody.
+ *
+ * Khmer entries MUST precede their own prefixes (លោកស្រី before លោក), because
+ * the first match wins and Khmer writes the honorific with no separator in
+ * much of the collection.
+ */
+const KHMER_HONORIFICS = [
+  "ឯកឧត្តម",
+  "លោកជំទាវ",
+  "លោកស្រី",
+  "លោកគ្រូ",
+  "អ្នកគ្រូ",
+  "អ្នកនាង",
+  "បណ្ឌិត",
+  "លោក",
+] as const;
+
+/** Latin honorifics, compared case-insensitively with punctuation removed. */
+const LATIN_HONORIFICS = new Set([
+  "mr",
+  "mrs",
+  "ms",
+  "miss",
+  "mdm",
+  "madam",
+  "dr",
+  "prof",
+  "professor",
+  "assoc",
+  "he",
+]);
+
+/**
+ * The first LETTER of a word — never a combining mark.
+ *
+ * Khmer stacks dependent vowels and signs after the base consonant, and both
+ * are ordinary characters in the string, so `charAt(0)` on a word that begins
+ * mid-cluster yields a mark that renders as a dotted circle on its own.
+ * `\p{L}` selects the base letter in either script.
+ */
+function firstLetter(word: string): string {
+  const match = word.match(/\p{L}/u);
+  return match ? match[0] : "";
+}
+
+/** Strips leading honorifics from a display name, in either script. */
+function withoutHonorifics(raw: string): string {
+  let name = raw.trim();
+
+  // Khmer first: it may be written with no separator, so a token split cannot
+  // see it.
+  let stripped = true;
+  while (stripped) {
+    stripped = false;
+    for (const honorific of KHMER_HONORIFICS) {
+      if (name.startsWith(honorific)) {
+        name = name.slice(honorific.length).replace(/^[\s​·.,]+/u, "");
+        stripped = true;
+        break;
+      }
+    }
+  }
+
+  // Latin: whole tokens only, so a surname is never eaten by a prefix match.
+  const tokens = name.split(/\s+/u).filter(Boolean);
+  while (tokens.length > 1) {
+    const bare = tokens[0].replace(/[.,]/gu, "").toLowerCase();
+    if (!LATIN_HONORIFICS.has(bare)) break;
+    tokens.shift();
+  }
+
+  return tokens.join(" ");
+}
+
+/**
+ * The initials drawn when the library has no portrait — up to two letters of
+ * the person's actual name.
+ *
+ * The Latin name leads because it is the one that reliably separates into
+ * words: Khmer is written without spaces in much of the collection, so a
+ * second initial there would be the second consonant of a single given name
+ * rather than a family name. Khmer answers only when there is no Latin name.
+ *
+ * Returns "" when neither name yields a letter — the caller draws the neutral
+ * placeholder rather than a "?" that reads as missing data.
+ */
+export function committeeInitials(
+  member: Pick<PublicCommitteeMember, "name_en" | "name_km">,
+): string {
+  for (const raw of [member.name_en, member.name_km]) {
+    const name = (raw ?? "").trim();
+    if (!name) continue;
+
+    const words = withoutHonorifics(name).split(/\s+/u).filter(Boolean);
+    // An entry that was ONLY an honorific keeps its own first letter rather
+    // than falling through to the other script.
+    const source = words.length > 0 ? words : [name];
+
+    const initials = (source[0] ? firstLetter(source[0]) : "") +
+      (source[1] ? firstLetter(source[1]) : "");
+    if (initials) return initials.toUpperCase();
+  }
+  return "";
+}
+
+/**
+ * Alt text for a committee portrait.
+ *
+ * Separate from `photoAltText()` in lib/team/public.ts on purpose, and only
+ * in its FALLBACK: a stored alt still wins, so a librarian who has described a
+ * photograph is never overridden. What differs is what the generated string
+ * names. The team directory describes a person by their library POSITION,
+ * which is right on that page; here the badge beside the portrait shows the
+ * COMMITTEE role, and announcing "Head Librarian" where the page displays
+ * "Chair" describes a different fact than the one on screen.
+ *
+ * English is used for the generated string regardless of the reader's locale,
+ * matching the team directory — the alternative is a Khmer sentence wrapped
+ * around whatever script the name happens to be stored in.
+ */
+export function committeePhotoAlt(
+  member: Pick<
+    PublicCommitteeMember,
+    "photo_alt" | "name_en" | "name_km" | "role_en" | "position_en"
+  >,
+): string {
+  if (member.photo_alt) return member.photo_alt;
+  const name = member.name_en || member.name_km;
+  const role = member.role_en || member.position_en;
+  return `Portrait of ${name}${role ? `, ${role}` : ""}`;
+}

@@ -12,6 +12,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  committeeInitials,
   committeeName,
   committeeResponsibility,
   committeeRole,
@@ -280,5 +281,90 @@ describe("the public shape carries no contact detail", () => {
     for (const forbidden of ["phone", "email", "user_id", "bio_km", "bio_en", "is_published"]) {
       expect(keys, `PublicCommitteeMember must not expose ${forbidden}`).not.toContain(forbidden);
     }
+  });
+});
+
+// ── The monogram ────────────────────────────────────────────────────────────
+
+describe("committeeInitials", () => {
+  // The defect this function exists to remove: every name the committee
+  // publishes opens with an honorific, so the first character of the stored
+  // string is "M" for every Mr/Mrs/Ms and "D" for every Dr. Production drew
+  // exactly that — "Dr. NHOR SANHUI" as "D", "Mrs. SEK SOMSOKNEANG" as "M".
+  it("takes the person's initials, never the honorific's", () => {
+    expect(committeeInitials(member({ name_en: "Dr. NHOR SANHUI" }))).toBe("NS");
+    expect(committeeInitials(member({ name_en: "Mrs. SEK SOMSOKNEANG" }))).toBe("SS");
+    expect(committeeInitials(member({ name_en: "Mrs. THOLTHOEUN CHANRAEKSMEY" }))).toBe("TC");
+    expect(committeeInitials(member({ name_en: "Mr. MOM CHANNA" }))).toBe("MC");
+  });
+
+  it("separates the whole published board rather than repeating one letter", () => {
+    const board = [
+      "Mrs. THOLTHOEUN CHANRAEKSMEY", "Dr. LEK CHUMNOR", "Mr. VONG SAVOEUN",
+      "Mr. LENG SOCHEAT", "Mr. SET SEKKHAPIRATH", "Dr. NHOR SANHUI",
+      "Mr. SOK THOEURN", "Mrs. PHENG AMPOR", "Mrs. LAM SOKLANG",
+      "Mrs. SEK SOMSOKNEANG", "Mrs. NOUM VIRADETTE", "Mr. MOM CHANNA",
+    ];
+    const drawn = board.map((name_en) => committeeInitials(member({ name_en })));
+    expect(drawn.every((d) => d.length === 2)).toBe(true);
+
+    // The measure that matters is the contrast with what the page drew before:
+    // the honorific reading produced three distinct monograms across twelve
+    // people (M, D, M, M, M, D, M, M, M, M, M, M).
+    const honorificReading = new Set(board.map((n) => n.trim().charAt(0).toUpperCase()));
+    expect(honorificReading.size).toBe(2);
+    expect(new Set(drawn).size).toBeGreaterThanOrEqual(10);
+
+    // Two pairs genuinely share their initials on this board — LENG SOCHEAT
+    // with LAM SOKLANG, and SET SEKKHAPIRATH with SEK SOMSOKNEANG. A monogram
+    // is a placeholder for a missing portrait, not an identifier, so that is
+    // accepted rather than disambiguated with a third letter.
+    expect(new Set(drawn).size).toBe(10);
+  });
+
+  it("handles a full stop, a missing full stop and extra spacing alike", () => {
+    expect(committeeInitials(member({ name_en: "Dr NHOR SANHUI" }))).toBe("NS");
+    expect(committeeInitials(member({ name_en: "  Prof.   SOK  THOEURN " }))).toBe("ST");
+  });
+
+  it("strips a Khmer honorific written with no separator", () => {
+    // Khmer is written without spaces in much of this collection, so a token
+    // split cannot see the honorific at all.
+    expect(committeeInitials(member({ name_en: "", name_km: "លោកស្រីសេក សំសុខនាង" }))).toBe("សស");
+  });
+
+  it("prefers លោកស្រី over លោក — the first match wins, so order is load-bearing", () => {
+    // Stripping "លោក" off "លោកស្រី" would leave "ស្រី" and monogram the word
+    // for "Mrs." instead of the person.
+    const km = committeeInitials(member({ name_en: "", name_km: "លោកស្រី សេក សំសុខនាង" }));
+    expect(km.startsWith("ស្រ")).toBe(false);
+  });
+
+  it("never returns a combining mark on its own", () => {
+    // A Khmer dependent vowel rendered alone shows as a dotted circle.
+    const km = committeeInitials(member({ name_en: "", name_km: "លោក ធឿន" }));
+    expect(/^\p{M}/u.test(km)).toBe(false);
+    expect(km.length).toBeGreaterThan(0);
+  });
+
+  it("uses the Latin name first, because Khmer here has no word boundaries", () => {
+    const both = member({ name_en: "Mr. MOM CHANNA", name_km: "លោក មុំ ចាន់ណា" });
+    expect(committeeInitials(both)).toBe("MC");
+  });
+
+  it("falls back to Khmer when there is no Latin name", () => {
+    expect(committeeInitials(member({ name_en: "", name_km: "លោក មុំ ចាន់ណា" }))).not.toBe("");
+  });
+
+  it("returns an empty string rather than a '?' when neither name has a letter", () => {
+    // The caller draws a neutral placeholder; "?" reads as a data error to a
+    // person looking at their own institution's page.
+    expect(committeeInitials(member({ name_en: "", name_km: "" }))).toBe("");
+    expect(committeeInitials(member({ name_en: "—", name_km: "" }))).toBe("");
+  });
+
+  it("keeps its own letter when the name is only an honorific", () => {
+    // Nothing is left to initial, but the card must still draw something.
+    expect(committeeInitials(member({ name_en: "Dr.", name_km: "" }))).toBe("D");
   });
 });

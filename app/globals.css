@@ -1366,6 +1366,409 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   word-break: normal;
 }
 
+/* The About section's DISPLAY face — the library's serif, per script.
+   Crimson Pro has no Khmer coverage, so a single font-family would silently
+   drop Khmer onto the generic serif fallback; the :lang() rules hand each
+   script the face that actually draws it. Applied to committee display type
+   (the page's proper names and tier headings), never to running text —
+   Crimson Pro is a reading face at 16px+ and a poster face below it. */
+.about-display {
+  font-family: var(--font-serif);
+  letter-spacing: -0.005em;
+}
+
+/* A Khmer run takes the Khmer serif, whether the class sits on the Khmer
+   element itself or the language is inherited from an ancestor.
+   Khmer is drawn at its designed fit; negative tracking collides the stacked
+   diacritics with the consonants beside them. */
+.about-display:lang(km),
+.about-display [lang="km"] {
+  font-family: var(--font-khmer-serif);
+  letter-spacing: normal;
+}
+
+/* ...and a Latin run nested inside it takes the Latin serif BACK. This rule
+   is what makes the pair work on /km: every element there inherits
+   `lang="km"` from <html>, so `:lang(km)` matches the heading that CONTAINS
+   the English name, and without this the Latin line stacked under the Khmer
+   one rendered on Hanuman — a different face from the one the same name gets
+   on the English page. It must stay last: it ties on specificity with the
+   rule above and wins on order. */
+.about-display [lang="en"] {
+  font-family: var(--font-serif);
+  letter-spacing: -0.005em;
+}
+
+/* Entrance for a long roster, driven by SCROLL POSITION rather than by a
+   timer or an IntersectionObserver — so the page stays a pure server
+   component with no client island, which is the whole reason it ships almost
+   no JavaScript.
+
+   Cards in one row share a scroll position and therefore reveal together,
+   while each row arrives as it is reached: the stagger is a property of the
+   layout, not a hand-tuned delay per card.
+
+   Three fallbacks, all of which end in "visible":
+     • no `animation-timeline` support  → the @supports block never applies;
+     • reduced motion                   → the rule below and the guard further
+                                          down both switch it off;
+     • already on screen at load        → the timeline is past `entry`, and
+                                          `both` fills to the end state.
+   Only opacity and transform animate, so this stays off the main thread. */
+.about-reveal {
+  opacity: 1;
+}
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .about-reveal {
+      animation: about-reveal-in linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 60%;
+    }
+  }
+}
+
+@keyframes about-reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── Roster system: the About section's people directories ────────────────
+   /about/committee (components/about/CommitteeRoster.tsx) and /about/team
+   (components/about/TeamDirectory.tsx) share one plain institutional layout:
+   a solid navy band names each group, a white panel sits beneath it, and the
+   people are small portrait cards in a grid — a bold navy name, a blue role
+   line, a quiet detail line and a "View profile" link. Flat on purpose: no
+   stage, no glass, no connectors, no motion. The order of the panels and the
+   band carry the structure; the cards carry the people.
+
+   The band is literal navy (`--color-blue-900`) rather than the brand token:
+   the brand token flips to a light blue in dark mode, where white text on it
+   would fail, and the band — like the hero and the footer — stays navy in
+   both themes. */
+.roster-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.roster-panel {
+  overflow: hidden;
+  border: 1px solid var(--ptec-divider);
+  border-radius: 0.5rem;
+  background: var(--ptec-bg-surface);
+  box-shadow:
+    0 1px 2px rgb(11 21 48 / 0.06),
+    0 6px 16px -12px rgb(11 21 48 / 0.25);
+}
+.roster-band {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.25rem;
+  padding: 0.625rem 1rem;
+  background: var(--color-blue-900);
+  color: #fff;
+}
+/* The leadership band carries the gold rule the header and footer already
+   wear — the one mark of rank on the page. */
+.roster-panel--leadership .roster-band {
+  box-shadow: inset 0 -3px 0 var(--color-gold-500);
+}
+.roster-band__title {
+  margin: 0;
+  color: #fff;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.roster-band__count {
+  margin-left: auto;
+  color: rgb(255 255 255 / 0.85);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.roster-panel__body {
+  padding: 1rem;
+}
+.roster-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.875rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.roster-grid--centered {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.roster-grid__lead {
+  width: calc(50% - 0.4375rem);
+  max-width: 15rem;
+}
+.roster-card {
+  position: relative;
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  padding: 0.75rem;
+  border: 1px solid var(--ptec-divider);
+  border-radius: 0.5rem;
+  background: var(--ptec-bg-surface);
+  box-shadow: 0 1px 3px rgb(11 21 48 / 0.08);
+  transition: box-shadow 200ms ease-out, border-color 200ms ease-out;
+}
+.roster-card:hover,
+.roster-card:focus-within {
+  border-color: color-mix(in oklab, var(--ptec-brand) 45%, var(--ptec-divider));
+  box-shadow: 0 10px 24px -14px rgb(11 21 48 / 0.35);
+}
+.roster-card__photo {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border-radius: 0.375rem;
+  background: var(--ptec-surface-brand-soft);
+}
+.roster-monogram {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  background: var(--ptec-surface-brand-soft);
+}
+.roster-monogram__mark {
+  display: flex;
+  width: 3.5rem;
+  height: 3.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--ptec-bg-surface);
+  color: var(--ptec-brand);
+  font-size: 1.125rem;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgb(11 21 48 / 0.12);
+}
+.roster-card__name {
+  margin: 0.75rem 0 0;
+  color: var(--ptec-text-heading);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.roster-card__alt {
+  margin-top: 0.125rem;
+  color: var(--ptec-text-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+.roster-card__role {
+  margin: 0.375rem 0 0;
+  color: var(--ptec-brand);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.roster-card__line {
+  margin: 0.25rem 0 0;
+  color: var(--ptec-text-body);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+.roster-card__featured {
+  display: inline-block;
+  margin: 0.5rem 0 0;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  background: var(--color-gold-500);
+  color: #0b1530;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.roster-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.875rem;
+  margin-top: auto;
+  padding-top: 0.5rem;
+}
+.roster-card__link {
+  display: inline-flex;
+  min-height: 2.25rem;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: auto;
+  padding-top: 0.5rem;
+  color: var(--ptec-brand);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 200ms ease-out;
+}
+.roster-card__actions .roster-card__link {
+  margin-top: 0;
+  padding-top: 0;
+}
+.roster-card__link:hover {
+  color: var(--ptec-brand-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.roster-card__link--quiet {
+  color: var(--ptec-text-muted);
+}
+/* The stretched link: the whole card is the target where the link is the
+   card's ONLY interactive element (the committee). */
+.roster-card__link--stretch::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+/* Team directory furniture: the tab bar and the search field. */
+.team-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+.team-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0 1.5rem;
+  padding: 0 1rem;
+  border: 1px solid var(--ptec-divider);
+  border-bottom-width: 2px;
+  border-radius: 0.5rem 0.5rem 0 0;
+  background: var(--ptec-bg-surface);
+}
+.team-tab {
+  position: relative;
+  display: inline-flex;
+  min-height: 3rem;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  color: var(--ptec-text-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 200ms ease-out;
+}
+.team-tab:hover {
+  color: var(--ptec-brand);
+}
+.team-tab--active {
+  color: var(--ptec-brand);
+}
+.team-tab--active::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -2px 0;
+  height: 3px;
+  background: var(--ptec-brand);
+}
+.team-tab__count {
+  color: var(--ptec-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.team-toolbar__status {
+  color: var(--ptec-text-muted);
+  font-size: 0.75rem;
+}
+.team-panel__heading {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  color: var(--ptec-text-heading);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.team-panel__heading::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--ptec-divider);
+}
+
+@media (min-width: 640px) {
+  .roster-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  .roster-grid--centered {
+    gap: 1.25rem;
+  }
+  .roster-grid__lead {
+    width: 15rem;
+  }
+  .roster-panel__body {
+    padding: 1.25rem;
+  }
+}
+@media (min-width: 768px) {
+  .roster-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .team-toolbar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+  .team-toolbar > .team-tabs {
+    flex: 1 1 24rem;
+  }
+  .team-toolbar__status {
+    flex-basis: 100%;
+  }
+}
+@media (min-width: 1024px) {
+  .roster-grid--five {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .roster-card,
+  .roster-card__link,
+  .team-tab {
+    transition: none !important;
+  }
+}
+@media print {
+  .roster-panel,
+  .roster-card {
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+  .roster-band {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .about-reveal {
     transition: none !important;
@@ -1377,6 +1780,17 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   /* Navigation and page-level actions are meaningless on paper. */
   [data-about-print="hide"] {
     display: none !important;
+  }
+
+  /* A scroll-driven entrance has no scrollport on paper, so the revealed
+     state cannot be reached by scrolling and every card below the first
+     screen would print as a blank rectangle. A committee roster is exactly
+     the kind of page an institution prints, so the animation is dropped
+     outright here rather than left to resolve. */
+  .about-reveal {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
 
   /* Print the policy in full: a collapsed <details> would otherwise drop the

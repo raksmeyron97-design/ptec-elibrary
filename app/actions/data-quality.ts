@@ -30,6 +30,11 @@ import {
   type QualityReport,
   type ScoredRecord,
 } from "@/lib/admin/metadata-quality-report";
+import { getAuthorDirectory } from "@/lib/authors/directory";
+import {
+  buildContributorTrustReport,
+  type ContributorTrustReport,
+} from "@/lib/admin/contributor-trust-report";
 
 export type ContentType = "book" | "research";
 
@@ -404,4 +409,25 @@ export async function getSeoHealth(): Promise<SeoHealthResult> {
 
   const result = buildSeoHealth(resources);
   return { ...result, findings: result.findings.slice(0, SEO_HEALTH_DISPLAY_CAP) };
+}
+
+/**
+ * Contributor names that do not identify anybody, and the ones a librarian
+ * should look at.
+ *
+ * Reads the author directory the public hub already builds, so the panel and
+ * /authors can never disagree about who is listed: `identified` is computed
+ * there, and this report re-asks the same pure function only to recover the
+ * REASON, which the directory has no use for.
+ *
+ * READ-ONLY, deliberately and permanently. Retiring or merging a contributor
+ * row is a cataloguing decision with URL consequences; this surface ranks the
+ * work and hands it to a person (lib/admin/contributor-trust-report.ts).
+ */
+export async function getContributorTrustReport(): Promise<ContributorTrustReport> {
+  await requirePermission("books", "read");
+  const roster = await getAuthorDirectory();
+  return buildContributorTrustReport(
+    roster.map((a) => ({ slug: a.slug, name: a.name, workCount: a.workCount })),
+  );
 }

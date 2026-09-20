@@ -20,6 +20,7 @@ import {
   getResourceStatsReconciliation,
   getCanonicalBackfillReconciliation,
   getSeoHealth,
+  getContributorTrustReport,
 } from "@/app/actions/data-quality";
 import {
   filterGaps,
@@ -30,6 +31,7 @@ import type { MetadataQualityTier } from "@/lib/admin/thesis-metadata-quality";
 import ResourceCountAudit from "@/components/admin/ResourceCountAudit";
 import CanonicalBackfillAudit from "@/components/admin/CanonicalBackfillAudit";
 import SeoHealthAudit from "@/components/admin/SeoHealthAudit";
+import ContributorTrustAudit from "@/components/admin/ContributorTrustAudit";
 import MetadataAnalysis from "@/components/admin/data-quality/MetadataAnalysis";
 import RepairQueue from "@/components/admin/data-quality/RepairQueue";
 import { PageHeader } from "@/components/admin/kit";
@@ -112,15 +114,17 @@ export default async function DataQualityPage({ searchParams }: { searchParams: 
   await requireRouteAccess("insights.dataQuality");
 
   const sp = await searchParams;
-  const [t, metadata, fileHealth, brokenFiles, resourceStats, backfill, seoHealth] = await Promise.all([
-    getTranslations("adminDataQuality"),
-    getMetadataQualityReport(),
-    getFileHealthSummary(),
-    getBrokenFiles(),
-    getResourceStatsReconciliation(),
-    getCanonicalBackfillReconciliation(),
-    getSeoHealth(),
-  ]);
+  const [t, metadata, fileHealth, brokenFiles, resourceStats, backfill, seoHealth, contributors] =
+    await Promise.all([
+      getTranslations("adminDataQuality"),
+      getMetadataQualityReport(),
+      getFileHealthSummary(),
+      getBrokenFiles(),
+      getResourceStatsReconciliation(),
+      getCanonicalBackfillReconciliation(),
+      getSeoHealth(),
+      getContributorTrustReport(),
+    ]);
 
   const report = metadata.report;
 
@@ -392,6 +396,7 @@ export default async function DataQualityPage({ searchParams }: { searchParams: 
         <ResourceCountAudit key={resourceStats.reconciliation.checkedAt} initial={resourceStats} />
         <CanonicalBackfillAudit data={backfill} />
         <SeoHealthAudit data={seoHealth} />
+        <ContributorTrustAudit data={contributors} />
       </div>
     </div>
   );
