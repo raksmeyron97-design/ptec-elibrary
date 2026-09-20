@@ -60,6 +60,32 @@ import type { SiteConfig } from "@/lib/system-settings/types";
 //
 // Values come from the PUBLISHED system settings (cached under "site-config"
 // — no cookies/headers, so the public tree keeps prerendering).
+/**
+ * `sameAs` is "other web presences of THIS entity". A node may therefore
+ * never list its own `url`, nor its parent's.
+ *
+ * `cfg.sameAs` is built from the published settings as
+ * `[website, facebook, youtube, telegram]`, so before this rule BOTH nodes
+ * carried `https://www.ptec.edu.kh`:
+ *
+ *   EducationalOrganization  url = www.ptec.edu.kh   sameAs included itself
+ *   Library                  url = library.ptec…     sameAs claimed the
+ *                                                    institution's site as
+ *                                                    its own profile
+ *
+ * The second is the library/institution conflation the SEO skill's rule 3
+ * exists for, and a shipped defect once already. The first is a self-
+ * reference that asserts nothing.
+ *
+ * The social profiles STAY on both, which is a recorded owner decision: PTEC
+ * runs one Facebook page, one YouTube channel and one Telegram channel, and
+ * the footer links them from the library brand block.
+ */
+function profilesFor(cfg: SiteConfig, selfUrl: string, parentUrl?: string): string[] {
+  const excluded = new Set([selfUrl, parentUrl].filter(Boolean).map((u) => u!.replace(/\/$/, "")));
+  return cfg.sameAs.filter((u) => !excluded.has(u.replace(/\/$/, "")));
+}
+
 function buildSiteGraph(cfg: SiteConfig) {
   const address = {
     "@type": "PostalAddress",
@@ -80,7 +106,8 @@ function buildSiteGraph(cfg: SiteConfig) {
         logo: `${SITE_URL}/logo.png`,
         telephone: cfg.phone,
         email: cfg.email,
-        sameAs: cfg.sameAs,
+        // Its own site is `url` above; repeating it here says nothing.
+        sameAs: profilesFor(cfg, cfg.links.website),
         description: `${cfg.name.en} (${cfg.name.short}) is a public teacher training institution in Cambodia providing free digital teaching resources and research materials.`,
         address,
       },
@@ -104,8 +131,9 @@ function buildSiteGraph(cfg: SiteConfig) {
         openingHoursSpecification: cfg.hours.openingHoursSpecification,
         // The library's own profiles are the institution's: PTEC runs one
         // Facebook page and one YouTube channel, and the footer links them
-        // from the library brand block.
-        sameAs: cfg.sameAs,
+        // from the library brand block. The institution's WEBSITE is not one
+        // of them — that is the parent entity, referenced by @id below.
+        sameAs: profilesFor(cfg, SITE_URL, cfg.links.website),
         address,
         parentOrganization: ref(ORGANIZATION_ID),
       },
