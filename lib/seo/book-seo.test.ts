@@ -305,3 +305,65 @@ describe("bookJsonLd — file_access (0151)", () => {
     }
   });
 });
+
+// ── SEO5-03: the description may not promise what the server refuses ────────
+
+describe("bookFallbackDescription — download honesty", () => {
+  const BOOK = { slug: "b", title: "A Book", authors: ["A. Author"] };
+
+  it("keeps today's wording when the caller says nothing", () => {
+    // Every pre-5.0 caller passes no `downloadable`, and must be unchanged.
+    expect(bookFallbackDescription(BOOK, "en")).toContain("Read online or download the PDF");
+    expect(bookFallbackDescription(BOOK, "km")).toContain("ទាញយកជា PDF");
+  });
+
+  it("keeps it when the book IS downloadable", () => {
+    expect(bookFallbackDescription({ ...BOOK, downloadable: true }, "en")).toContain(
+      "download the PDF",
+    );
+  });
+
+  it("promises no download in English when the server would refuse", () => {
+    const d = bookFallbackDescription({ ...BOOK, downloadable: false }, "en");
+    expect(d.toLowerCase()).not.toContain("download");
+    expect(d).toContain("Read online");
+  });
+
+  it("promises no download in KHMER when the server would refuse", () => {
+    // The Khmer string is not a translation of the English one and had to be
+    // changed separately — a fix applied to one locale is half a fix.
+    const d = bookFallbackDescription({ ...BOOK, downloadable: false }, "km");
+    expect(d).not.toContain("ទាញយក");
+    expect(d).toContain("អានតាមអ៊ីនធឺណិត");
+  });
+
+  it("carries the honesty into the meta description AND the JSON-LD", () => {
+    const input = { ...BOOK, downloadable: false };
+    expect(bookMetaDescription(input, "en").toLowerCase()).not.toContain("download");
+    expect(bookMetaDescription(input, "km")).not.toContain("ទាញយក");
+    // The JSON-LD description is built from the same function, so it cannot
+    // say something the meta tag does not.
+    expect(String(bookJsonLd(input, "en").description).toLowerCase()).not.toContain("download");
+    expect(String(bookJsonLd(input, "km").description)).not.toContain("ទាញយក");
+  });
+
+  it("does not touch a book's OWN description", () => {
+    // Only the FALLBACK promised a download; a librarian's own text is
+    // theirs. Comfortably over the 70-character threshold below which
+    // bookMetaDescription ENRICHES a short description with the fallback —
+    // a 69-character fixture tested the wrong branch.
+    const own =
+      "A description written by a librarian, long enough that the builder uses it as it stands.";
+    expect(own.length).toBeGreaterThan(70);
+    expect(bookMetaDescription({ ...BOOK, description: own, downloadable: false }, "en")).toBe(own);
+  });
+
+  it("stays honest even where a SHORT description is enriched with the fallback", () => {
+    // Under 70 characters the builder appends the fallback, so the promise
+    // would come back in through the side door.
+    const short = "A short note.";
+    const out = bookMetaDescription({ ...BOOK, description: short, downloadable: false }, "en");
+    expect(out).toContain("A short note");
+    expect(out.toLowerCase()).not.toContain("download");
+  });
+});

@@ -47,6 +47,15 @@ export type BookSeoInput = {
    * column keeps today's markup exactly.
    */
   fileAccess?: string | null;
+  /**
+   * Whether the reader may actually be handed the PDF.
+   *
+   * Separate from `fileAccess` on purpose: this is what the DESCRIPTION
+   * promises, and the caller resolves it through the one access rule
+   * (`bookDownloadAllowed`) rather than this module re-deriving it. Absent
+   * keeps the pre-5.0 wording, which is what every existing test asserts.
+   */
+  downloadable?: boolean;
   pages?: number | null;
   /** Verified author names only — pass [] when the author is unknown. */
   authors?: string[];
@@ -110,14 +119,25 @@ function truncate(text: string): string {
 export function bookFallbackDescription(book: BookSeoInput, locale: string): string {
   const authors = (book.authors ?? []).map(clean).filter(Boolean);
   const subject = clean(book.category) || clean(book.department);
+  // The description promised a download on EVERY book, including the ones
+  // the library has switched downloads off for — a sentence a reader sees in
+  // the search result, believes, clicks, and finds is not true. `undefined`
+  // keeps the original wording, so a caller that does not know about the
+  // policy is unchanged.
+  const downloadable = book.downloadable !== false;
+
   if (locale === "km") {
     const byline = authors.length > 0 ? ` ដោយ ${authors.join(", ")}` : "";
-    return `${clean(book.title)}${byline} — សៀវភៅឌីជីថលឥតគិតថ្លៃក្នុងបណ្ណាល័យ វ.គ.ភ។ អានតាមអ៊ីនធឺណិត ឬទាញយកជា PDF ដោយឥតគិតថ្លៃ។`;
+    const access = downloadable
+      ? "អានតាមអ៊ីនធឺណិត ឬទាញយកជា PDF ដោយឥតគិតថ្លៃ។"
+      : "អានតាមអ៊ីនធឺណិតដោយឥតគិតថ្លៃ។";
+    return `${clean(book.title)}${byline} — សៀវភៅឌីជីថលឥតគិតថ្លៃក្នុងបណ្ណាល័យ វ.គ.ភ។ ${access}`;
   }
   const byline = authors.length > 0 ? ` by ${authors.join(", ")}` : "";
   const subjectPart = subject && subject !== "General" ? ` ${subject}` : "";
   const languagePart = book.language ? ` (${clean(book.language)})` : "";
-  return `${clean(book.title)}${byline} — a free${subjectPart} e-book in the PTEC Library. Read online or download the PDF${languagePart}.`;
+  const access = downloadable ? "Read online or download the PDF" : "Read online";
+  return `${clean(book.title)}${byline} — a free${subjectPart} e-book in the PTEC Library. ${access}${languagePart}.`;
 }
 
 /** Meta description: the record's own description when present (enriched with

@@ -137,6 +137,15 @@ export async function generateMetadata({
     tags: Array.isArray(book.tags) ? book.tags : [],
     // 0151. generateMetadata reads the RAW row here, not the mapped Book.
     fileAccess: (book as { file_access?: string | null }).file_access,
+    // SEO5-03: the fallback description promised "download the PDF" on every
+    // book, including ones the library refuses to hand over. Resolved
+    // through the one access rule rather than re-derived in the SEO module —
+    // the same rule bookScholarMeta() uses to decide citation_pdf_url.
+    downloadable: resolveBookDownloadAccess({
+      file_access: (book as { file_access?: string | null }).file_access,
+      allow_download: (book as { allow_download?: boolean | null }).allow_download,
+      fileUrl: "present",
+    }).canDownload,
   };
 
   return {
