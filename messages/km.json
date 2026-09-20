@@ -1652,6 +1652,7 @@
     "previousPage": "ទំព័រមុន",
     "nextPage": "ទំព័របន្ទាប់",
     "goToPage": "ទៅទំព័រ {page}",
+    "jumpToPage": "លោតទៅទំព័រ",
     "currentPage": "ទំព័រ {page} ជាទំព័របច្ចុប្បន្ន",
     "rowsPerPage": "ចំនួនក្នុងមួយទំព័រ",
     "paginationLabel": "ការបែងចែកទំព័រ"

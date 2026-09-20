@@ -1647,6 +1647,7 @@
     "previousPage": "Previous page",
     "nextPage": "Next page",
     "goToPage": "Go to page {page}",
+    "jumpToPage": "Jump to page",
     "currentPage": "Page {page}, current page",
     "rowsPerPage": "Rows per page",
     "paginationLabel": "Pagination"

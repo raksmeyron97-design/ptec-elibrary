@@ -82,6 +82,35 @@ function pageRange(current: number, total: number): (number | "ellipsis")[] {
   return pages;
 }
 
+/**
+ * Every Nth page, for the "Jump to page" strip.
+ *
+ * WHY this exists. `pageRange()` is a barbell: first, last, and ±1 around the
+ * current page. That is the right shape for a human clicking through a
+ * listing, and it is a dead end for a crawler. Measured on production
+ * 2026-09-20, `/books` is 109 pages and page 1 links exactly two of them (2
+ * and 109), so reaching page 55 costs ~55 clicks — SEO 4.0 measured the
+ * deepest books at 48 clicks when the collection was smaller, and the tail
+ * grows with the catalogue.
+ *
+ * A stride of 10 turns that into two hops plus a short walk: any page is
+ * within ~5 clicks of a jump target, so the deepest book lands around 8
+ * clicks from the homepage instead of 55.
+ *
+ * The LAST page is deliberately not repeated here — `pageRange()` always
+ * renders it, and a duplicate link to the same URL in two navs on one page is
+ * noise for a crawler and a repeated tab stop for a keyboard user.
+ */
+export function jumpPages(total: number, stride = 10): number[] {
+  if (!Number.isFinite(total) || total < 1 || stride < 1) return [];
+  const out: number[] = [];
+  for (let p = stride; p < total; p += stride) out.push(p);
+  return out;
+}
+
+/** Below this the barbell already reaches everything; the strip would be noise. */
+const JUMP_STRIP_MIN_PAGES = 20;
+
 const ChevronLeftIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -239,6 +268,30 @@ export default function Pagination({
           </span>
         )}
       </div>
+      )}
+
+      {/* A crawlable index over the whole range. Its own <nav> with its own
+          label: it is a different affordance from the page stepper above,
+          and a screen-reader user tabbing past "Pagination" should be told
+          what this second group of links is. */}
+      {totalPages > JUMP_STRIP_MIN_PAGES && (
+        <nav
+          aria-label={t("jumpToPage")}
+          className="mt-3 flex w-full flex-wrap items-center justify-center gap-1.5 border-t border-divider pt-3"
+        >
+          <span className="mr-1 text-[12px] font-semibold text-text-muted">{t("jumpToPage")}</span>
+          {jumpPages(totalPages).map((p) => (
+            <FilterLink
+              key={`jump-${p}`}
+              href={pageHref(searchParams, p, basePath, pageParam)}
+              aria-label={t("goToPage", { page: p })}
+              aria-current={p === page ? "page" : undefined}
+              className={`inline-flex h-8 min-w-8 items-center justify-center rounded-[8px] px-2 text-[12.5px] font-medium tabular-nums ${interactive}`}
+            >
+              {p}
+            </FilterLink>
+          ))}
+        </nav>
       )}
     </nav>
   );
