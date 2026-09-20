@@ -5291,7 +5291,7 @@
       "search": {
         "title": "Search index",
         "unavailable": "Search-health view unavailable (migration 0103 not applied yet).",
-        "hint": "Published records carrying a semantic-search embedding. Records without one are still reachable through keyword search; run {command} to close the gap.",
+        "hint": "Published records carrying a semantic-search embedding. Records without one are still reachable through keyword search; run <command>npx tsx scripts/embed-library.ts</command> to close the gap.",
         "chip": "{type}: {embedded} / {published} indexed",
         "chipMissing": "{count} missing",
         "searchable": "Searchable digital resources: {searchable} of {total}. This is reported separately and is never shown publicly as the resource total."
@@ -5299,7 +5299,7 @@
       "fullText": {
         "title": "Full-text index",
         "unavailable": "Index-health view unavailable (migration 0133 not applied yet).",
-        "hint": "Pages extracted from each PDF. This is what “found inside” search matches and what an AI answer cites by page — a record can carry a semantic embedding and still hold no extracted text. Run {command} to close the gap.",
+        "hint": "Pages extracted from each PDF. This is what “found inside” search matches and what an AI answer cites by page — a record can carry a semantic embedding and still hold no extracted text. Run <command>npx tsx scripts/extract-pdf-text.ts</command> to close the gap.",
         "chip": "{type}: {indexed} / {published} indexed",
         "chipPages": "{pages} pages · {chunks} passages",
         "chipNever": "{count} never attempted",
@@ -5324,7 +5324,7 @@
       "semantic": {
         "title": "Semantic coverage",
         "unavailable": "Unavailable — migration 0137 has not been applied to this database yet.",
-        "hint": "Which published resources proved at least one catalogue topic from their own body text. Rebuild with {command}.",
+        "hint": "Which published resources proved at least one catalogue topic from their own body text. Rebuild with <command>npx tsx scripts/build-semantic-insights.ts</command>.",
         "chip": "{type}: {withTopics}/{published} with topics",
         "chipTopics": "{count} topics",
         "chipDamaged": "{count} damaged text",
@@ -7852,7 +7852,7 @@
       "folderTruncated": "{count, plural, one {# long title will be shortened in its storage folder name. The book title itself is unchanged.} other {# long titles will be shortened in their storage folder names. The book titles themselves are unchanged.}}",
       "folderIs": "Folder: {folder}",
       "completedSkipped": ", {skipped} already in library",
-      "folderFallback": "{count, plural, one {# title has no Latin characters, so its storage folder is named book-<id>. This is normal and the book is unaffected.} other {# titles have no Latin characters, so their storage folders are named book-<id>. This is normal and the books are unaffected.}}",
+      "folderFallback": "{count, plural, one {# title has no Latin characters, so its storage folder is named book-[id]. This is normal and the book is unaffected.} other {# titles have no Latin characters, so their storage folders are named book-[id]. This is normal and the books are unaffected.}}",
       "rateLimited": "Storage rate limit reached — resuming in {clock}",
       "rateLimitedHint": "Zima allows 60 uploads per hour. Finished rows are saved; you can leave this page and come back.",
       "stop": "Stop",
@@ -8734,7 +8734,7 @@
     "fieldTitleKm": "Title (Khmer)",
     "fieldShortTitle": "Short title",
     "fieldSlug": "URL slug",
-    "fieldSlugHint": "One URL segment: /journals/<slug>. Changing it breaks existing links.",
+    "fieldSlugHint": "One URL segment: /journals/[slug]. Changing it breaks existing links.",
     "fieldCode": "Code",
     "fieldAliases": "Other names",
     "fieldAliasesHint": "Other spellings articles use for this journal, one per line. Articles naming any of them are linked to this journal. Matching ignores case and extra spaces only.",
@@ -8755,7 +8755,7 @@
     "fieldEmail": "Contact email",
     "fieldCover": "Cover image URL",
     "fieldPublished": "Published",
-    "fieldPublishedHint": "Published journals get a public page at /journals/<slug>.",
+    "fieldPublishedHint": "Published journals get a public page at /journals/[slug].",
     "fieldIndexable": "Allow search engines to index the journal page",
     "save": "Save journal",
     "saving": "Saving…",

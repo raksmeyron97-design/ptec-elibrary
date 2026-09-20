@@ -63,17 +63,27 @@ export default function SectionsClient({
   }
 
   function handleReorder(id: string, direction: "up" | "down") {
-    // Optimistic swap
+    setError(null);
+    // Optimistic swap, remembered so a refused write can be put back. Showing
+    // the move and keeping it after the server declined is what made a
+    // silently failed reorder look like a saved one.
+    let rollback: TeamSection[] | null = null;
     setList((prev) => {
       const arr = [...prev];
       const idx = arr.findIndex((s) => s.id === id);
       const swapIdx = direction === "up" ? idx - 1 : idx + 1;
       if (idx === -1 || swapIdx < 0 || swapIdx >= arr.length) return arr;
+      rollback = prev;
       [arr[idx], arr[swapIdx]] = [arr[swapIdx], arr[idx]];
       return arr;
     });
     startTransition(async () => {
-      await reorderTeamSection(id, direction);
+      const result = await reorderTeamSection(id, direction);
+      if ("error" in result) {
+        if (rollback) setList(rollback);
+        setError(result.error);
+        return;
+      }
       router.refresh();
     });
   }

@@ -43,7 +43,8 @@ export default async function TeamPage({
     supabase
       .from("team_sections")
       .select("*")
-      .order("display_order", { ascending: true }),
+      .order("display_order", { ascending: true })
+      .order("id", { ascending: true }),
   ]);
 
   const members  = (membersRaw  ?? []) as TeamMemberRow[];

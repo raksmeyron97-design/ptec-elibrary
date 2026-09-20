@@ -33,7 +33,8 @@ export default async function AdminProfilePage() {
       supabaseService
         .from("team_sections")
         .select("id, name_km, name_en")
-        .order("display_order", { ascending: true }),
+        .order("display_order", { ascending: true })
+        .order("id", { ascending: true }),
     ]);
 
   const teamMember: TeamMemberData | null = teamMemberRaw
