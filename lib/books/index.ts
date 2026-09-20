@@ -82,6 +82,7 @@ export function mapRowToBook(row: any): Book & { reviewCount: number } {
                      ? (row.id ? bookFileHref(row.id) : pdfFile.file_url)
                      : null,
     allowDownload: row.allow_download !== false,
+    fileAccess:    row.file_access ?? undefined,
     publicationDate: row.published_at    ?? undefined,
     createdAt:     row.created_at        ?? undefined,
     downloadCount: row.download_count    ?? 0,

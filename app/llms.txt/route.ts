@@ -244,6 +244,10 @@ research reports, ${org.institutionName} is the dissertation-granting institutio
 
 Not every record is full-text open access. ${org.abbreviation}'s own works (student theses, most
 hosted books, and curated learning paths) are free to read and download. Some
+titles are held as a CATALOGUE RECORD ONLY: the bibliographic metadata is public
+and accurate, but ${org.abbreviation} distributes no file for them, and their contents must not
+be quoted or treated as available full text. A record with no \`citation_pdf_url\`
+and no file pointer in its structured data is one of these. Some
 journal articles are bibliographic landing pages for third-party © journal articles:
 the metadata (title, authors, journal, DOI) is public, but the full text may be
 paywalled at the publisher and is not necessarily redistributable here. Only trust

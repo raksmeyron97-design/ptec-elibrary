@@ -155,7 +155,10 @@ export type EbookListRow = {
   /** 1-based public position on the shelf; null when not featured. */
   featuredPosition: number | null;
   coverUrl: string | null;
+  /** Server-only: the raw storage URL, for the file-status filters. */
   fileUrl: string | null;
+  /** The client-safe half of `fileUrl` — presence, without the address. */
+  hasFile: boolean;
   fileFormat: string | null;
   fileSizeKb: number | null;
   viewCount: number;
@@ -211,3 +214,31 @@ export type EbooksQueryParams = {
   page: number;
   pageSize: number;
 };
+
+/**
+ * What the admin list UI may see.
+ *
+ * `fileUrl` is the raw `book_files.file_url`: a credential-free, permanent,
+ * unlogged link to the PDF (lib/books/storage-url-exposure.test.ts). Nothing
+ * in the list UI uses it — it was being serialised into the page payload for
+ * every row and read by nobody — and a per-book file policy (0151) is worth
+ * little if the file's real address ships to the browser beside it.
+ *
+ * Omitting it from the PROP TYPE rather than only from the call site is what
+ * makes it stay gone: passing it back is a type error, not a review note.
+ * The server keeps the column for its own file-status filters.
+ */
+export type EbookListClientRow = Omit<EbookListRow, "fileUrl">;
+
+/**
+ * Strip the storage URL before a row crosses to the client.
+ *
+ * `delete`, not a rest-destructure: `{ fileUrl, ...rest }` leaves an unused
+ * binding, and `{ ...row, fileUrl: undefined }` keeps the KEY in the
+ * serialised payload while only looking like it removed it.
+ */
+export function toEbookListClientRow(row: EbookListRow): EbookListClientRow {
+  const clone: Partial<EbookListRow> = { ...row };
+  delete clone.fileUrl;
+  return clone as EbookListClientRow;
+}

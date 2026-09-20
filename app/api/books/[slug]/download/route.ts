@@ -73,7 +73,7 @@ export async function GET(
   const idColumn = UUID_RE.test(slug) ? "id" : "slug";
 
   const BASE_COLUMNS = "id, slug, title, book_files(id, file_url, format)";
-  const POLICY_COLUMNS = `${BASE_COLUMNS}, allow_download, download_disabled_reason`;
+  const POLICY_COLUMNS = `${BASE_COLUMNS}, file_access, allow_download, download_disabled_reason`;
 
   async function loadBook(columns: string) {
     return supabase
@@ -114,6 +114,7 @@ export async function GET(
   // streams a restricted book to the in-app viewer, which is the entire point
   // of the distinction.
   const access = resolveBookDownloadAccess({
+    file_access: row.file_access,
     allow_download: row.allow_download,
     download_disabled_reason: row.download_disabled_reason,
     fileUrl: pdfFile?.file_url ?? null,
@@ -121,6 +122,46 @@ export async function GET(
 
   if (access.reason === "no-file") {
     return new NextResponse("File not found", { status: 404 });
+  }
+
+  // ── Catalogue record only (0151): no override on this route ──────────────
+  //
+  // Read-online-only is a LIBRARY choice about a file PTEC holds and may
+  // distribute, so a librarian looking past it is reasonable. Catalogue-only
+  // is usually a RIGHTS position, and the public route answers it the same
+  // way for everyone — reader, librarian, super admin, Googlebot — so there
+  // is one rule here and no "unless" in the hot path.
+  //
+  // A librarian who needs the file for the rights review itself gets it from
+  // /api/admin/books/[id]/file, which is behind the admin guard, is audited,
+  // and is not reachable without books:write.
+  //
+  // Refused BEFORE any storage call: no Zima request, no presigned URL.
+  if (!access.canServeBytes) {
+    logSecurityEvent({
+      type: "download_blocked",
+      where: "/api/books/[slug]/download",
+      userId: user.id,
+    });
+    await logDownloadAttempt({
+      status: "denied",
+      resourceType: "book",
+      resourceId: row.id as string,
+      userId: user.id,
+      reason: "DOWNLOAD_DISABLED",
+      permissionSource: "library-policy",
+      idempotencyKey: `dl-deny:${user.id}:${row.id}:catalogue:${Math.floor(Date.now() / 60_000)}`,
+    });
+    return NextResponse.json(
+      {
+        error:
+          access.message ??
+          "This title is held as a catalogue record. The library does not distribute a file for it.",
+        reason: "catalogue-only",
+        canReadOnline: false,
+      },
+      { status: 403, headers: { "Cache-Control": NO_STORE } },
+    );
   }
 
   if (!access.canDownload) {

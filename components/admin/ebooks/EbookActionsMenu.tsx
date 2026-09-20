@@ -23,7 +23,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { EbookListRow } from "@/lib/admin/ebooks-shared";
+import type { EbookListClientRow } from "@/lib/admin/ebooks-shared";
 import { assessFeatureEligibility } from "@/lib/books/featured";
 
 /**
@@ -45,7 +45,7 @@ export default function EbookActionsMenu({
   onUnfeature,
   onDeleteRequest,
 }: {
-  book: EbookListRow;
+  book: EbookListClientRow;
   busy: boolean;
   onPublish: () => void;
   onUnpublish: () => void;
@@ -121,7 +121,7 @@ export default function EbookActionsMenu({
   const publicPath = `/books/${book.slug}`;
   const isPublished = book.status === "published";
   const isArchived = book.status === "archived";
-  const hasPdf = Boolean(book.fileUrl);
+  const hasPdf = book.hasFile;
   const isVerified = Boolean(book.verifiedAt);
   const inReviewQueue = book.status === "pending_review";
   const isFeatured = Boolean(book.featuredAt);

@@ -16,6 +16,7 @@ import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/seo/site";
 import { resolveContributorNodes } from "@/lib/seo/contributor";
 import { bookLanguageCode } from "@/lib/books/language";
+import { resolveBookDownloadAccess } from "@/lib/books/access";
 import type { ResourceContributorView } from "@/lib/resources/contributor-view";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { buildOpenGraph, buildTwitter, OG_FALLBACK_IMAGE } from "@/lib/seo/open-graph";
@@ -40,6 +41,12 @@ export type BookSeoInput = {
   isbn?: string | null;
   /** Real publication date (books.published_at). Null = unknown. */
   publishedAt?: string | null;
+  /**
+   * The book's file policy (books.file_access, 0151). Absent reads as
+   * "public", the column default — so a caller that does not select the
+   * column keeps today's markup exactly.
+   */
+  fileAccess?: string | null;
   pages?: number | null;
   /** Verified author names only — pass [] when the author is unknown. */
   authors?: string[];
@@ -216,6 +223,13 @@ export function bookJsonLd(
     (s) => s && s !== "General",
   );
   const pages = book.pages ?? 0;
+  // `fileUrl: "present"` because this builder is asked about a book whose
+  // page is being rendered; whether a FILE row exists is the page's question,
+  // not the markup's. What is being decided here is the POLICY.
+  const readableOnline = resolveBookDownloadAccess({
+    file_access: book.fileAccess,
+    fileUrl: "present",
+  }).canReadOnline;
 
   return compact({
     "@context": "https://schema.org",
@@ -240,11 +254,25 @@ export function bookJsonLd(
     about: subjects.length > 0 ? subjects : undefined,
     keywords: tags.length > 0 ? tags.join(", ") : undefined,
     bookFormat: "https://schema.org/EBook",
-    isAccessibleForFree: true,
-    potentialAction: {
-      "@type": "ReadAction",
-      target: { "@type": "EntryPoint", urlTemplate: url },
-    },
+    // A catalogue-record-only book (0151) is one the library holds a record
+    // for and distributes no file for, so BOTH of these claims would be
+    // false: it cannot be read here, free or otherwise.
+    //
+    // They are DROPPED rather than negated. `isAccessibleForFree: false` says
+    // "there is a paywall", and a ReadAction pointing at a page with no
+    // reader is an entry point to nothing — both are assertions this library
+    // cannot support, and omitting an unknown beats defaulting it (skill
+    // rule 5). Every descriptive field stays, so the record is still fully
+    // indexed as metadata.
+    ...(readableOnline
+      ? {
+          isAccessibleForFree: true,
+          potentialAction: {
+            "@type": "ReadAction",
+            target: { "@type": "EntryPoint", urlTemplate: url },
+          },
+        }
+      : {}),
     aggregateRating:
       aggregateRating && aggregateRating.reviewCount > 0
         ? {

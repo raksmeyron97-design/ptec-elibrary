@@ -5,6 +5,7 @@
 // a database. Browser-safe — no server-only imports.
 
 import { SITE_URL } from "@/lib/seo/site";
+import { resolveBookDownloadAccess } from "@/lib/books/access";
 import {
   resolveOrgIdentity,
   type OrgIdentity,
@@ -77,6 +78,9 @@ export interface BookCitationRow {
   /** Library download policy (books.allow_download, migration 0131). Absent
    *  reads as "allowed", the column's default. */
   allow_download?: boolean | null;
+  /** Authoritative file policy (books.file_access, migration 0151). Absent
+   *  reads as "public". A catalogue-only record advertises no file at all. */
+  file_access?: string | null;
 }
 
 /** citation_pdf_url points at /api/books/[id]/file, which serves
@@ -84,11 +88,12 @@ export interface BookCitationRow {
  * readable by a DNS-verified Google crawler without a session so Scholar can
  * index the full text.
  *
- * It is OMITTED for a read-online-only book (0131). The tag exists to tell a
- * crawler "here is the file, take it", and Scholar then hosts a cached copy of
- * what it fetches — which is the one thing the setting says not to do. The
- * landing page, and every other citation_* tag, stay exactly as they were, so
- * the record remains fully indexed as metadata.
+ * It is OMITTED for a read-online-only book (0131) and for a catalogue-only
+ * one (0151). The tag exists to tell a crawler "here is the file, take it",
+ * and Scholar then hosts a cached copy of what it fetches — which is the one
+ * thing both settings say not to do. The landing page, and every other
+ * citation_* tag, stay exactly as they were, so the record remains fully
+ * indexed as metadata.
  *
  * citation_publisher is emitted ONLY when the record names a real publisher.
  * PTEC is the providing library, not the publisher of these third-party
@@ -96,7 +101,14 @@ export interface BookCitationRow {
  * factual misattribution. */
 export function bookScholarMeta(book: BookCitationRow, authors: string[]): ScholarMeta {
   const tags: ScholarMeta = { citation_title: book.title };
-  if (book.allow_download !== false) {
+  // One resolver decides, so a drawn button, a served stream and a crawler
+  // hint cannot disagree about the same book.
+  const access = resolveBookDownloadAccess({
+    file_access: book.file_access,
+    allow_download: book.allow_download,
+    fileUrl: "present",
+  });
+  if (access.canAdvertiseFile) {
     tags.citation_pdf_url = `${SITE_URL}/api/books/${book.id}/file`;
   }
   const publisher = book.publisher?.trim();

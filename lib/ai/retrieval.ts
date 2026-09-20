@@ -19,6 +19,11 @@
 import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/server";
+import {
+  dropRestrictedRows,
+  getRestrictedBookIds,
+  restrictedIdList,
+} from "@/lib/books/restricted";
 import { getSiteConfig } from "@/lib/system-settings/config";
 import { LIBRARY_INFO, type LibraryInfoTopic } from "@/lib/library-info";
 import { EMBEDDING_DIM, EMBEDDING_MODEL } from "./models";
@@ -887,6 +892,13 @@ export async function resolveRecord(
       .maybeSingle();
     const row = data as BookRecordRow | null;
     if (!row) return null;
+    // A catalogue-only book (0151) resolves to NOTHING, exactly as an
+    // unpublished slug does. "Ask this book" about a book whose contents the
+    // library does not republish must retrieve nothing — not fall back to a
+    // corpus-wide search that would surface something adjacent and answer as
+    // if it had read the book (§35, visibility decided BEFORE retrieval).
+    const restricted = await getRestrictedBookIds();
+    if (!restricted.ok || restricted.ids.has(row.id)) return null;
     return {
       recordType,
       recordId: row.id,
@@ -969,8 +981,22 @@ export async function findRecordByTitle(rawTitle: string): Promise<ResolvedRecor
     .or(titleFilter)
     .order("download_count", { ascending: false })
     .limit(10);
-  const bookPick = resolveTitle(
+  // 0151, and this is the SECOND door: resolveRecord() refuses a restricted
+  // book by slug, but the router falls back to this when a slug does not
+  // resolve — so without the same rule here, naming a withdrawn book by its
+  // TITLE would still scope a "summarise this" or a page lookup onto it.
+  // Same fail-closed reading: an unknown set admits no book.
+  const restrictedTitles = await getRestrictedBookIds();
+  const candidateBooks = dropRestrictedRows(
     ((books ?? []) as unknown as (BookRecordRow & { download_count?: number })[]).map((b) => ({
+      ...b,
+      record_type: "book",
+      record_id: b.id,
+    })),
+    restrictedTitles,
+  );
+  const bookPick = resolveTitle(
+    candidateBooks.map((b) => ({
       row: b, title: b.title, author: b.authors?.name ?? null, popularity: Number(b.download_count ?? 0),
     })),
     clean,
@@ -1217,16 +1243,29 @@ async function lexicalPages(
     if (byPhrase.error) console.error("[ai/retrieval] lexical locate:", byPhrase.error.message);
     if (byTerms.error) console.error("[ai/retrieval] lexical locate (terms):", byTerms.error.message);
 
+    // ── 0151: catalogue-only books contribute no evidence ────────────────
+    //
+    // Applied HERE, on the located page ids, rather than on the passages at
+    // the end: this is before the text of those pages is fetched and before
+    // the density map is built, so a restricted book neither reaches the
+    // model nor influences which other records rank above it.
+    //
+    // Fail-closed — an unknown set drops every book row (theses and
+    // publications are untouched; 0151 is a policy on `books`).
+    const restricted = await getRestrictedBookIds();
+    const locatedByPhrase = dropRestrictedRows((byPhrase.data ?? []) as LocateRow[], restricted);
+    const locatedByTerms = dropRestrictedRows((byTerms.data ?? []) as LocateRow[], restricted);
+
     const recordOf = (r: LocateRow) => `${r.record_type}:${r.record_id}`;
     const pageOf = (r: LocateRow) => `${recordOf(r)}:${r.page_no}`;
     const density = new Map<string, number>();
     const pages = new Map<string, { row: LocateRow; phrase: boolean }>();
-    for (const r of (byPhrase.data ?? []) as LocateRow[]) {
+    for (const r of locatedByPhrase) {
       if (pages.has(pageOf(r))) continue;
       pages.set(pageOf(r), { row: r, phrase: true });
       density.set(recordOf(r), (density.get(recordOf(r)) ?? 0) + 1);
     }
-    for (const r of (byTerms.data ?? []) as LocateRow[]) {
+    for (const r of locatedByTerms) {
       if (pages.has(pageOf(r))) continue;
       pages.set(pageOf(r), { row: r, phrase: false });
       density.set(recordOf(r), (density.get(recordOf(r)) ?? 0) + 0.5);
@@ -1452,6 +1491,15 @@ async function semanticChunks(
   scope: EvidenceScope | undefined,
   limit: number,
 ): Promise<RetrievedEvidence[]> {
+  // 0151. Two uses, and they are not the same thing: the RPC parameter keeps
+  // withdrawn books out of the ANN CANDIDATE set (so they cannot crowd out
+  // passages the reader may see — they are exactly the well-written
+  // textbooks that match a query best), while the filter below is what makes
+  // the boundary CORRECT, including when the set could not be read at all.
+  //
+  // A scoped search needs no parameter: resolveRecord() has already refused
+  // to resolve a restricted book, so `scope` can never name one.
+  const restricted = await getRestrictedBookIds();
   const rpc = scope
     ? db.rpc("match_record_chunks", {
         query_embedding: vec,
@@ -1464,6 +1512,7 @@ async function semanticChunks(
         query_embedding: vec,
         match_count: limit,
         min_similarity: CHUNK_MIN_SIMILARITY,
+        p_exclude_ids: restrictedIdList(restricted),
       });
 
   const { data, error } = await rpc;
@@ -1474,7 +1523,13 @@ async function semanticChunks(
     return [];
   }
   const out: RetrievedEvidence[] = [];
-  for (const r of (data ?? []) as ChunkRow[]) {
+  // ChunkRow names the record type `source`, so it is re-shaped for the one
+  // predicate rather than a second copy of the rule being written here.
+  const allowed = dropRestrictedRows(
+    ((data ?? []) as ChunkRow[]).map((r) => ({ ...r, record_type: r.source })),
+    restricted,
+  );
+  for (const r of allowed) {
     const type = r.source as EvidenceRecordType;
     if (!RECORD_TABLE[type]) continue;
     out.push({

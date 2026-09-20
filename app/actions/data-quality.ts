@@ -66,7 +66,7 @@ function scoreBook(row: Record<string, unknown>) {
     description: (row.description as string) ?? null,
     tags: Array.isArray(row.tags) ? row.tags as string[] : [],
     coverUrl: (row.cover_url as string) ?? null,
-    fileUrl: files.find((file) => file.file_url)?.file_url ?? null,
+    hasFile: files.some((file) => Boolean(file.file_url)),
     license: (row.license as string) ?? null,
     publisher: (row.publisher as string) ?? null,
   });

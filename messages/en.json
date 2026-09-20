@@ -613,6 +613,7 @@
     "readOnline": "Read online",
     "pdfNotAvailable": "PDF not available",
     "readOnlineOnly": "Online reading only — this book cannot be downloaded.",
+    "catalogueRecordOnly": "Catalogue record only — the library does not provide a file for this title.",
     "readerReviews": "Reader Reviews",
     "average": "average",
     "leaveAReview": "Leave a review",

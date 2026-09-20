@@ -5,6 +5,7 @@ import NextLink from "next/link";
 import { notFound } from "next/navigation";
 import Icon from "@/components/ui/core/Icon";
 import PDFReaderLauncher from "@/components/ui/reader/PDFReaderLauncher";
+import { resolveBookDownloadAccess } from "@/lib/books/access";
 import BookViewPing from "@/components/ui/books/BookViewPing";
 import PDFCover from "@/components/ui/reader/PDFCover";
 import BookCover from "@/components/ui/books/BookCover";
@@ -88,9 +89,11 @@ const getBookMeta = unstable_cache(
         .eq("is_published", true)
         .maybeSingle();
 
-    // allow_download (0131) decides whether citation_pdf_url is emitted. Read
-    // with a fallback so a database without the column still gets metadata.
-    const first = await load(`${COLUMNS}, allow_download`);
+    // allow_download (0131) and file_access (0151) decide whether
+    // citation_pdf_url is emitted and whether the markup may claim online
+    // access. Read with a fallback so a database without the columns still
+    // gets metadata.
+    const first = await load(`${COLUMNS}, allow_download, file_access`);
     let data = first.data;
     if (first.error && (first.error.code === "42703" || first.error.code === "PGRST204")) {
       data = (await load(COLUMNS)).data;
@@ -132,6 +135,8 @@ export async function generateMetadata({
     department: (book.departments as any)?.name || book.department,
     category: (book.categories as any)?.name,
     tags: Array.isArray(book.tags) ? book.tags : [],
+    // 0151. generateMetadata reads the RAW row here, not the mapped Book.
+    fileAccess: (book as { file_access?: string | null }).file_access,
   };
 
   return {
@@ -184,12 +189,14 @@ const getBook = unstable_cache(
         .eq("is_published", true)
         .maybeSingle();
 
-    // allow_download / download_disabled_reason (0131) decide whether this page
-    // offers a download at all. Asked for defensively — a database without the
-    // columns answers the whole select with 42703, and a 404 on every book
-    // detail page is a far worse failure than falling back to the column's own
-    // default of "downloadable".
-    let { data, error } = await load(`${COLUMNS}, allow_download, download_disabled_reason`);
+    // allow_download / download_disabled_reason (0131) and file_access
+    // (0151) decide what this page offers. Asked for defensively — a
+    // database without the columns answers the whole select with 42703, and
+    // a 404 on every book detail page is a far worse failure than falling
+    // back to the columns' own defaults.
+    let { data, error } = await load(
+      `${COLUMNS}, allow_download, download_disabled_reason, file_access`,
+    );
     if (error && (error.code === "42703" || error.code === "PGRST204")) {
       ({ data, error } = await load(COLUMNS));
     }
@@ -304,6 +311,8 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
       department: book.department,
       category: book.category,
       tags: book.tags,
+      // 0151: a catalogue-only book claims no online access in its markup.
+      fileAccess: book.fileAccess,
     },
     locale,
     avgRating > 0 ? { ratingValue: avgRating.toFixed(1), reviewCount } : null,
@@ -654,9 +663,18 @@ async function ActionButtons({
   ]);
   const resuming = !!(savedProgress && savedProgress.progressPct > 0);
 
+  // One resolution for every control on this page, so a drawn button and a
+  // served byte stream cannot disagree (0131 + 0151).
+  const access = resolveBookDownloadAccess({
+    file_access: book.fileAccess,
+    allow_download: book.allowDownload,
+    download_disabled_reason: book.downloadDisabledReason,
+    fileUrl: book.pdfUrl,
+  });
+
   return (
     <>
-      {book.pdfUrl ? (
+      {book.pdfUrl && access.canReadOnline ? (
         <>
           <Link
             href={`/books/${slug}/read`}
@@ -683,8 +701,14 @@ async function ActionButtons({
       )}
       {/* Saving for offline writes the whole PDF into the device's Cache
           Storage — that is keeping a copy of the file, which is the thing a
-          read-online-only book withholds. Offered only when downloads are. */}
-      {book.pdfUrl && book.allowDownload !== false && (
+          read-online-only book withholds. Offered only when downloads are.
+
+          A copy already on a device CANNOT be revoked: Cache Storage belongs
+          to the reader's browser, not to us. Withdrawing a book stops new
+          saves; it does not reach back into devices that already have one.
+          Documented in docs/BOOK-DOWNLOAD-PERMISSION.md rather than claimed
+          otherwise anywhere. */}
+      {book.pdfUrl && access.canSaveOffline && (
         <OfflineSaveButton
           bookId={book.dbId || book.slug}
           bookSlug={book.slug}
@@ -716,10 +740,21 @@ async function ActionButtons({
       {/* Says what the reader CAN do, in place of an action they cannot. No
           status code, no storage vocabulary — the reader is not being told
           about an error, they are being told what this book is. */}
-      {book.pdfUrl && book.allowDownload === false && (
+      {book.pdfUrl && access.reason === "policy" && (
         <p className="basis-full text-[12.5px] font-semibold text-text-muted">
           <Icon name="eye" className="mr-1.5 align-[-2px] text-[15px]" aria-hidden="true" />
           {book.downloadDisabledReason?.trim() || t("readOnlineOnly")}
+        </p>
+      )}
+      {/* Catalogue record only (0151). A different sentence from the one
+          above, because it is a different fact: not "read it here but do not
+          keep it", but "the library holds the record, not the file". The
+          reader is pointed at what they CAN do — request it, or find a
+          physical copy — which is why those sections stay on the page. */}
+      {access.reason === "catalogue-only" && (
+        <p className="basis-full text-[12.5px] font-semibold text-text-muted">
+          <Icon name="library" className="mr-1.5 align-[-2px] text-[15px]" aria-hidden="true" />
+          {book.downloadDisabledReason?.trim() || t("catalogueRecordOnly")}
         </p>
       )}
     </>

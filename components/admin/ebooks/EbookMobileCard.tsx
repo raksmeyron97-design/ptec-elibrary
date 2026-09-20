@@ -10,7 +10,7 @@ import EbookFileHealthBadge from "@/components/admin/ebooks/EbookFileHealthBadge
 import EbookVerificationBadge from "@/components/admin/ebooks/EbookVerificationBadge";
 import EbookFeaturedBadge from "@/components/admin/ebooks/EbookFeaturedBadge";
 import EbookCover from "@/components/admin/ebooks/EbookCover";
-import { EBOOK_STATUS_TONES, EBOOK_STATUS_LABELS, formatFileSize, type EbookListRow } from "@/lib/admin/ebooks-shared";
+import { EBOOK_STATUS_TONES, EBOOK_STATUS_LABELS, formatFileSize, type EbookListClientRow } from "@/lib/admin/ebooks-shared";
 
 /**
  * The table's under-`md` form: the same eight columns as a stacked card, with
@@ -33,7 +33,7 @@ export default function EbookMobileCard({
   onDeleteRequest,
   canWrite,
 }: {
-  rows: EbookListRow[];
+  rows: EbookListClientRow[];
   selectedIds: Set<string>;
   busyId: string | null;
   onToggleSelect: (id: string) => void;

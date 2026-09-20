@@ -252,3 +252,56 @@ describe("sitemapLastmod", () => {
     expect(sitemapLastmod("not-a-date")).toBeUndefined();
   });
 });
+
+// ── 0151: a catalogue-record-only book claims no online access ───────────────
+
+describe("bookJsonLd — file_access (0151)", () => {
+  const BASE = { slug: "b", title: "A Book", authors: ["A. Author"] };
+
+  it("keeps both access claims for a public book", () => {
+    const node = bookJsonLd(BASE, "en");
+    expect(node.isAccessibleForFree).toBe(true);
+    expect(node.potentialAction).toMatchObject({ "@type": "ReadAction" });
+  });
+
+  it("keeps them for a read-online-only book — it IS still readable here", () => {
+    const node = bookJsonLd({ ...BASE, fileAccess: "read_online" }, "en");
+    expect(node.isAccessibleForFree).toBe(true);
+    expect(node.potentialAction).toBeDefined();
+  });
+
+  it("DROPS both for a catalogue-only book, rather than negating either", () => {
+    const node = bookJsonLd({ ...BASE, fileAccess: "catalogue_only" }, "en");
+    // Absent, not false: `isAccessibleForFree: false` asserts a paywall, and
+    // a ReadAction pointing at a page with no reader is an entry point to
+    // nothing. Both are claims this library cannot support.
+    expect("isAccessibleForFree" in node).toBe(false);
+    expect("potentialAction" in node).toBe(false);
+  });
+
+  it("still publishes the whole bibliographic record", () => {
+    const node = bookJsonLd(
+      { ...BASE, isbn: "978-0-13-000000-0", publisher: "Some Press", pages: 300 },
+      "en",
+    );
+    const restricted = bookJsonLd(
+      {
+        ...BASE,
+        isbn: "978-0-13-000000-0",
+        publisher: "Some Press",
+        pages: 300,
+        fileAccess: "catalogue_only",
+      },
+      "en",
+    );
+    for (const field of ["@type", "name", "url", "isbn", "publisher", "numberOfPages", "author"]) {
+      expect(restricted[field]).toEqual(node[field]);
+    }
+  });
+
+  it("treats an absent or unknown value as public, so a partial select never withdraws a book", () => {
+    for (const value of [undefined, null, "", "nonsense"]) {
+      expect(bookJsonLd({ ...BASE, fileAccess: value }, "en").isAccessibleForFree).toBe(true);
+    }
+  });
+});

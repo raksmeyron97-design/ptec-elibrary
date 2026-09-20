@@ -26,7 +26,17 @@ export type EbookQualityInput = {
   description: string | null;
   tags: string[] | null;
   coverUrl: string | null;
-  fileUrl: string | null;
+  /**
+   * Whether a PDF is attached — NOT its URL.
+   *
+   * This scorer runs in the browser (EbookQualityBadge is a client
+   * component), so anything in its input is serialised into the page. The
+   * check only ever asked "is there a file", and the raw
+   * `book_files.file_url` is a credential-free permanent link to the PDF
+   * (lib/books/storage-url-exposure.test.ts), so passing the URL shipped a
+   * download link for every row to satisfy a boolean.
+   */
+  hasFile: boolean;
   license: string | null;
   publisher: string | null;
 };
@@ -48,7 +58,7 @@ function buildChecks(b: EbookQualityInput): Check[] {
     { key: "description", label: "Description", weight: 14, ok: hasText(b.description) },
     { key: "tags", label: "Keywords/tags", weight: 8, ok: Boolean(b.tags && b.tags.length > 0) },
     { key: "cover", label: "Cover image", weight: 9, ok: hasText(b.coverUrl) },
-    { key: "pdf", label: "PDF file", weight: 12, ok: hasText(b.fileUrl) },
+    { key: "pdf", label: "PDF file", weight: 12, ok: b.hasFile },
     // Both default-prone fields: license defaults to 'unknown' (0062).
     { key: "license", label: "License", weight: 4, ok: hasText(b.license) && b.license !== "unknown" },
     { key: "publisher", label: "Publisher", weight: 3, ok: hasText(b.publisher) },
@@ -57,7 +67,7 @@ function buildChecks(b: EbookQualityInput): Check[] {
 
 const EMPTY_EBOOK: EbookQualityInput = {
   title: null, author: null, department: null, category: null, year: null,
-  language: null, description: null, tags: null, coverUrl: null, fileUrl: null,
+  language: null, description: null, tags: null, coverUrl: null, hasFile: false,
   license: null, publisher: null,
 };
 

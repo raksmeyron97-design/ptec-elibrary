@@ -51,6 +51,13 @@ export type Book = {
    * that would be refused.
    */
   allowDownload?: boolean;
+  /**
+   * The authoritative file policy (books.file_access, migration 0151).
+   * Absent reads as "public" — a partial select must never silently withdraw
+   * a book. Presentation only, on the same terms as `allowDownload`: every
+   * route re-decides through resolveBookDownloadAccess().
+   */
+  fileAccess?: string;
 };
 
 

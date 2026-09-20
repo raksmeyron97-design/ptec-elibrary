@@ -10,7 +10,8 @@ import { ratePolicy, isExpensiveSearchDisabled } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 import { scrubLogValue } from "@/lib/log-safe";
 import { classifySignatures } from "@/lib/security/model";
-import { bookDownloadAllowed } from "@/lib/books/access";
+import { resolveBookDownloadAccess } from "@/lib/books/access";
+import { dropRestrictedRows, getRestrictedBookIds } from "@/lib/books/restricted";
 import { resolveDownloadAccess } from "@/lib/publications/access";
 import {
   academicTextToPlainText,
@@ -576,11 +577,12 @@ async function searchBooks(db: DB, rawQ: string, filters: Filters, limit: number
   const phraseOr = [phraseFilter(["title"], prepared, filters, true, seedIds), ...relational].filter(Boolean).join(",");
   const runPools = (columns: string) => fetchPools((or, rowLimit) => buildQuery(columns, or, rowLimit), broadOr, phraseOr, limit);
 
-  // allow_download (0131) decides whether a result offers a download link.
-  // Asked for with a fallback: on a database without the column PostgREST
-  // fails the whole select, and an empty book section is a far worse outcome
-  // than a link that the gated route would refuse anyway.
-  let { data, count, error } = await runPools(`${BOOK_COLUMNS}, allow_download`);
+  // allow_download (0131) and file_access (0151) decide whether a result
+  // offers a download link. Asked for with a fallback: on a database without
+  // the columns PostgREST fails the whole select, and an empty book section
+  // is a far worse outcome than a link that the gated route would refuse
+  // anyway.
+  let { data, count, error } = await runPools(`${BOOK_COLUMNS}, allow_download, file_access`);
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     ({ data, count, error } = await runPools(BOOK_COLUMNS));
   }
@@ -603,7 +605,12 @@ async function searchBooks(db: DB, rawQ: string, filters: Filters, limit: number
     // the same resolution the detail page and the download route use
     // decides it here too. `allow_download` is absent from the select on a
     // pre-0131 database, which reads as "allowed" — the column's default.
-    const canDownload = Boolean(pdf?.file_url) && bookDownloadAllowed(r.allow_download);
+    const access = resolveBookDownloadAccess({
+      file_access: r.file_access,
+      allow_download: r.allow_download,
+      fileUrl: pdf?.file_url ?? null,
+    });
+    const canDownload = access.canDownload;
     return {
       id: r.id,
       ref: r.slug,
@@ -1148,8 +1155,16 @@ async function searchPageContent(
       .limit(30);
     if (error || !data?.length) return [];
 
+    // 0151: a catalogue-only book contributes no "found inside" hit. The
+    // record still appears in results — it is in the library and findable by
+    // title — but a page hit quotes the text, prints a page number and links
+    // into a reader that will refuse. Same fail-closed rule the assistant
+    // uses, and the same shared predicate, so the two cannot drift.
+    const allowed = dropRestrictedRows(data, await getRestrictedBookIds());
+    if (!allowed.length) return [];
+
     const byRecord = new Map<string, (typeof data)[number]>();
-    for (const row of data) {
+    for (const row of allowed) {
       const key = `${row.record_type}:${row.record_id}`;
       if (!byRecord.has(key)) byRecord.set(key, row);
     }

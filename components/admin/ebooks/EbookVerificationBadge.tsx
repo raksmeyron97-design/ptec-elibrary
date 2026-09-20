@@ -3,7 +3,7 @@
 import { ShieldAlert, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/admin/kit";
-import type { EbookListRow } from "@/lib/admin/ebooks-shared";
+import type { EbookListClientRow } from "@/lib/admin/ebooks-shared";
 
 /**
  * The verification half of a row's status.
@@ -14,7 +14,7 @@ import type { EbookListRow } from "@/lib/admin/ebooks-shared";
  * excluded from OAI-PMH. On a draft the same distinction is noise in a dense
  * table — the record isn't asserting anything to anyone yet.
  */
-export default function EbookVerificationBadge({ book }: { book: EbookListRow }) {
+export default function EbookVerificationBadge({ book }: { book: EbookListClientRow }) {
   const t = useTranslations("adminEbooks.verification");
   if (book.status !== "published") return null;
 

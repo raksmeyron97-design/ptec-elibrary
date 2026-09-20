@@ -11,7 +11,7 @@ import EbookFileHealthBadge from "@/components/admin/ebooks/EbookFileHealthBadge
 import EbookVerificationBadge from "@/components/admin/ebooks/EbookVerificationBadge";
 import EbookFeaturedBadge from "@/components/admin/ebooks/EbookFeaturedBadge";
 import EbookCover from "@/components/admin/ebooks/EbookCover";
-import { EBOOK_STATUS_TONES, EBOOK_STATUS_LABELS, formatFileSize, type EbookListRow } from "@/lib/admin/ebooks-shared";
+import { EBOOK_STATUS_TONES, EBOOK_STATUS_LABELS, formatFileSize, type EbookListClientRow } from "@/lib/admin/ebooks-shared";
 import { withUpdatedParams } from "@/lib/admin/ebooks-url";
 
 function intlLocale(locale: string): string {
@@ -119,7 +119,7 @@ export default function EbooksTable({
   canWrite,
   ...actions
 }: RowActions & {
-  rows: EbookListRow[];
+  rows: EbookListClientRow[];
   selectedIds: Set<string>;
   allSelected: boolean;
   busyId: string | null;
