@@ -222,7 +222,28 @@ const MIN_BODY_CHARS = 200;
 /** Letters ÷ characters. Below this the page is a table, an index or a plate. */
 const MIN_LETTER_RATIO = 0.45;
 
-const CONTENTS_HEADING = /\b(contents|table of contents)\b/i;
+/**
+ * A contents heading, in either language.
+ *
+ * `\b` is defined over ASCII, so it can never sit beside a Khmer word — the
+ * same trap `\bទំព័រ` hit in lib/ai/page-target.ts, where every Khmer page
+ * reference was silently unparseable. The Khmer alternatives therefore carry
+ * no boundary assertion at all, which is correct: Khmer has no word
+ * boundaries, and `មាតិកា` is long enough (5 code points) not to occur
+ * inside an unrelated word by accident.
+ *
+ * `មាតិកា` is "contents"; `តារាងមាតិកា` contains it as a substring and so
+ * is covered too.
+ *
+ * MEASURED, because a negative control said so: reverting this alternative
+ * alone broke no test, while reverting the Khmer NUMERALS below broke
+ * three. The numerals are what actually recovers Khmer contents pages —
+ * they clear the `numeric > 0.25` route unaided. This heading only opens
+ * the lower-density route (`> 0.12`) that English contents pages rely on,
+ * so it is a belt rather than the braces. Kept because it is correct and
+ * costs nothing; do not assume it is carrying the behaviour.
+ */
+const CONTENTS_HEADING = /\b(contents|table of contents)\b|មាតិកា/i;
 const REFERENCES_HEADING = /\b(references|bibliography|works cited)\b/i;
 const INDEX_HEADING = /\b(index|glossary|appendix)\b/i;
 
@@ -231,11 +252,20 @@ function letterRatio(text: string): number {
   return (text.match(/[\p{L}\p{M}]/gu) ?? []).length / text.length;
 }
 
-/** Share of tokens that are bare numbers — a contents page is mostly locators. */
+/**
+ * Share of tokens that are bare numbers — a contents page is mostly locators.
+ *
+ * Khmer numerals ០-៩ (U+17E0-17E9) count. `\d` is ASCII-only in JavaScript
+ * even under the `u` flag, so a Khmer contents page — whose page numbers are
+ * printed in Khmer digits — scored a numeric ratio of ZERO and could never
+ * be recognised, whatever its heading said.
+ */
+const NUMERIC_TOKEN = /^[\d០-៩]+[.,)។]?$/u;
+
 function numericTokenRatio(text: string): number {
   const tokens = tokenize(text);
   if (tokens.length === 0) return 0;
-  return tokens.filter((t) => /^\d+[.,)]?$/.test(t)).length / tokens.length;
+  return tokens.filter((t) => NUMERIC_TOKEN.test(t)).length / tokens.length;
 }
 
 /** Citation years: "(2007)", "1998;" — dense in a bibliography, rare in prose. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyPages, detectFurniture, stripFurniture, type PageInput } from "./passages";
+import { classifyPage, classifyPages, detectFurniture, stripFurniture, type PageInput } from "./passages";
 
 /**
  * Modelled on the real shape of `book_pages.content`: one whitespace-collapsed
@@ -129,5 +129,103 @@ describe("classifyPages", () => {
 
   it("is safe on an empty document", () => {
     expect(classifyPages([])).toEqual([]);
+  });
+});
+
+// ── SEO5-08: a Khmer contents page is a contents page ───────────────────────
+//
+// Both halves were broken, and either alone was enough to make Khmer
+// contents pages invisible:
+//   - the heading regex was English-only, and `\b` is ASCII-defined so it
+//     could not have sat beside a Khmer word even if one were added;
+//   - `\d` is ASCII-only in JavaScript, so a page numbered in Khmer digits
+//     scored a numeric-token ratio of exactly zero.
+
+describe("classifyPage — Khmer contents", () => {
+  // Shaped like a real Khmer contents page: a heading, then chapter titles
+  // each followed by a page number in KHMER digits.
+  // Over MIN_BODY_CHARS (200) on purpose: a shorter sample is classified
+  // `sparse` before the contents logic is ever reached, which made the first
+  // draft of these tests fail for a reason that had nothing to do with Khmer.
+  const khmerContents = [
+    "មាតិកា",
+    "ជំពូកទី១ សេចក្ដីផ្ដើម ១",
+    "ជំពូកទី២ ការត្រួតពិនិត្យអក្សរសិល្ប៍ ១២",
+    "ជំពូកទី៣ វិធីសាស្ត្រស្រាវជ្រាវ ២៧",
+    "ជំពូកទី៤ ការប្រមូលទិន្នន័យ ៣៨",
+    "ជំពូកទី៥ លទ្ធផលនៃការសិក្សា ៤៥",
+    "ជំពូកទី៦ ការវិភាគទិន្នន័យ ៥២",
+    "ជំពូកទី៧ ការពិភាក្សា ៦៨",
+    "ជំពូកទី៨ សេចក្ដីសន្និដ្ឋាន ៧៤",
+    "ជំពូកទី៩ អនុសាសន៍ ៧៨",
+    "ឯកសារយោង ៨២",
+    "ឧបសម្ព័ន្ធ ៨៩",
+  ].join("\n");
+
+  it("recognises មាតិកា at the front of a Khmer book", () => {
+    expect(classifyPage({ pageNo: 3, content: khmerContents }, 120, khmerContents)).toBe("contents");
+  });
+
+  it("counts Khmer numerals as locators", () => {
+    // The heading alone is not enough — the classifier needs the locator
+    // density too, and that is the half `\d` silently failed.
+    const noHeading = khmerContents.split("\n").slice(1).join("\n");
+    expect(classifyPage({ pageNo: 4, content: noHeading }, 120, noHeading)).toBe("contents");
+  });
+
+  it("files a BACK-of-book Khmer contents page as back-matter, not contents", () => {
+    // Khmer books often print មាតិកា at the END. classifyPage() decides
+    // "contents" by POSITION, so the same page at the back is back-matter.
+    // Both are furniture and both are excluded from evidence — but a dry run
+    // that counts only "contents" would under-report Khmer books by however
+    // many put it at the back, which is why SEO5-08 measures front and back
+    // separately.
+    expect(classifyPage({ pageNo: 118, content: khmerContents }, 120, khmerContents)).toBe(
+      "back-matter",
+    );
+  });
+
+  it("adding the Khmer heading introduces no false positive", () => {
+    // The risk of a broader heading regex is the opposite error: dropping a
+    // real page. `មាតិកា` is 5 code points and Khmer has no word
+    // boundaries, so a page that merely MENTIONS the contents must stay body.
+    const mentions =
+      "សៀវភៅនេះមានមាតិកាសម្បូរបែប ដែលរៀបរាប់អំពីវិធីសាស្ត្របង្រៀនផ្សេងៗ " +
+      "ព្រមទាំងឧទាហរណ៍ជាក់ស្ដែងសម្រាប់គ្រូបង្រៀននៅតាមសាលារៀនបឋមសិក្សា " +
+      "ក្នុងប្រទេសកម្ពុជា ដោយផ្ដោតលើការអភិវឌ្ឍសមត្ថភាពរបស់សិស្សានុសិស្ស " +
+      "និងការលើកកម្ពស់គុណភាពនៃការបង្រៀនតាមរយៈការអនុវត្តជាក់ស្ដែងក្នុងថ្នាក់រៀន " +
+      "ដែលអាចជួយឱ្យគ្រូបង្រៀនយល់ដឹងកាន់តែច្បាស់អំពីតម្រូវការរបស់សិស្សម្នាក់ៗ។";
+    expect(classifyPage({ pageNo: 40, content: mentions }, 120, mentions)).toBe("body");
+  });
+
+  it("does not turn Khmer PROSE into contents", () => {
+    // The guard that matters: dropping a real page makes a book unanswerable
+    // on its own subject.
+    const prose =
+      "ការស្រាវជ្រាវប្រតិបត្តិគឺជាដំណើរការមួយ ដែលគ្រូបង្រៀនពិនិត្យមើលការអនុវត្តរបស់ខ្លួន " +
+      "ដើម្បីកែលម្អគុណភាពនៃការបង្រៀន និងការរៀនសូត្ររបស់សិស្ស។ វិធីសាស្ត្រនេះត្រូវបានប្រើប្រាស់ " +
+      "យ៉ាងទូលំទូលាយនៅក្នុងវិស័យអប់រំសម័យទំនើប ដោយសារវាអនុញ្ញាតឱ្យគ្រូបង្រៀនស្វែងយល់ពីបញ្ហា " +
+      "ជាក់ស្ដែងក្នុងថ្នាក់រៀន និងស្វែងរកដំណោះស្រាយដែលសមស្របនឹងបរិបទរបស់ខ្លួន។";
+    expect(classifyPage({ pageNo: 40, content: prose }, 120, prose)).toBe("body");
+  });
+
+  it("leaves English classification exactly as it was", () => {
+    const en = [
+      "Contents",
+      "Chapter 1 Introduction 1",
+      "Chapter 2 Literature Review 12",
+      "Chapter 3 Research Method 27",
+      "Chapter 4 Data Collection 38",
+      "Chapter 5 Results 45",
+      "Chapter 6 Analysis 52",
+      "Chapter 7 Discussion 68",
+      "Chapter 8 Conclusion 74",
+      "References 82",
+      "Appendix 89",
+    ].join("\n");
+    expect(classifyPage({ pageNo: 3, content: en }, 120, en)).toBe("contents");
+    const enProse =
+      "Action research is a process in which teachers examine their own practice in order to improve the quality of teaching and of student learning in their classrooms. It is widely used in contemporary education because it lets a teacher study a real problem and test a response to it.";
+    expect(classifyPage({ pageNo: 40, content: enProse }, 120, enProse)).toBe("body");
   });
 });
