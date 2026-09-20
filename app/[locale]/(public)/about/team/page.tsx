@@ -1,24 +1,30 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { Clock, Languages, LayoutGrid, MessageCircle, Phone, Users } from "lucide-react";
+import { ArrowDown, Clock, MessageCircle, Phone } from "lucide-react";
 import { SITE_URL } from "@/lib/seo/site";
+import { LIBRARY_ID, ORGANIZATION_ID, ref } from "@/lib/seo/entity-ids";
 import { localeAlternates } from "@/lib/seo/alternates";
 import JsonLd from "@/components/seo/JsonLd";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import { getPublicTeamData } from "@/lib/team/data";
-import type { PublicTeamMember } from "@/lib/team/public";
+import { photoAltText, type PublicTeamMember } from "@/lib/team/public";
+import { heroPortrait, memberNames, memberSummary } from "@/lib/team/directory";
 import { groupWeeklySpec } from "@/lib/about/schedule";
 import { toAboutLocale, formatDate, formatNumber } from "@/lib/about/format";
 import { ABOUT_CONTENT_REVIEWED_AT } from "@/lib/about/content";
 import AboutPageShell from "@/components/about/AboutPageShell";
 import TeamDirectory from "@/components/about/TeamDirectory";
-import { OfficialContactCard, AboutExternalAction, AboutLinkAction } from "@/components/about/actions";
+import {
+  OfficialContactCard,
+  AboutAnchorAction,
+  AboutExternalAction,
+  AboutLinkAction,
+} from "@/components/about/actions";
 import {
   AboutSection,
   ContentLastUpdated,
   EmptyContentState,
   InformationCard,
-  StatCard,
 } from "@/components/about/primitives";
 
 // Published team data is public and changes rarely; the admin actions call
@@ -99,6 +105,7 @@ export default async function TeamPage({
     0,
   );
   const reviewedDate = formatDate(ABOUT_CONTENT_REVIEWED_AT, locale);
+  const portrait = heroPortrait(members);
 
   // Structured data — public, non-contact fields only. Admin-authored names
   // flow in here, so it must go through <JsonLd> (which escapes "<" and
@@ -106,6 +113,37 @@ export default async function TeamPage({
   const pageUrl = `${SITE_URL}${locale === "km" ? "/km" : ""}/about/team`;
   const profileUrl = (slug: string) =>
     `${SITE_URL}${locale === "km" ? "/km" : ""}/about/team/${slug}`;
+
+  // One Person node per published member, emitted on THIS page — which is
+  // what lets the bio live behind the panel without disappearing from the
+  // markup. Both name scripts travel: whichever leads in the active locale is
+  // `name`, the other is `alternateName`, so the two spellings resolve to one
+  // person rather than to two.
+  //
+  // `worksFor` is a bare @id reference to the Library node RootShell already
+  // declares. It used to be an anonymous `{ "@type": "Organization", name }`
+  // repeated once per member — one unlinked copy of the institution per
+  // person, on a page that also declares it properly, which is exactly the
+  // shape SEO V3 removed from the resource pages (docs/SEO-V3-AUDIT.md D-2).
+  const personNode = (m: PublicTeamMember) => {
+    const name = memberNames(m, locale);
+    const summary = memberSummary(m, locale, 220);
+    return {
+      "@type": "Person",
+      name: name.primary,
+      ...(name.secondary ? { alternateName: name.secondary } : {}),
+      ...(m.position_en || m.position_km
+        ? { jobTitle: (locale === "km" ? m.position_km : m.position_en) || m.position_en || m.position_km }
+        : {}),
+      ...(m.photo_url ? { image: m.photo_url } : {}),
+      ...(summary ? { description: summary.text } : {}),
+      // The employee nodes used to carry no URL at all, so nothing in the
+      // markup connected this page to the profile pages it links to. Giving
+      // each an @id/url lets a crawler resolve the two as one entity.
+      ...(m.slug ? { "@id": profileUrl(m.slug), url: profileUrl(m.slug) } : {}),
+      worksFor: ref(LIBRARY_ID),
+    };
+  };
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -115,24 +153,17 @@ export default async function TeamPage({
     url: pageUrl,
     inLanguage: ["en", "km"],
     about: {
+      // The @id RootShell's Library node already carries, so a consumer that
+      // merges blocks sees ONE library rather than a second anonymous one —
+      // and `parentOrganization` is now the bare reference `libraryNode()`
+      // itself emits, instead of a third description of the college with its
+      // own type and its own sameAs list.
       "@type": "Organization",
+      "@id": LIBRARY_ID,
       name: org.siteName,
       url: SITE_URL,
-      parentOrganization: {
-        "@type": "CollegeOrUniversity",
-        name: cfg.name.en,
-        sameAs: [...cfg.sameAs],
-      },
-      employee: members.map((m) => ({
-        "@type": "Person",
-        name: m.name_en || m.name_km,
-        ...(m.position_en ? { jobTitle: m.position_en } : {}),
-        // The employee nodes used to carry no URL at all, so nothing in the
-        // markup connected this page to the profile pages it links to. Giving
-        // each an @id/url lets a crawler resolve the two as one entity.
-        ...(m.slug ? { "@id": profileUrl(m.slug), url: profileUrl(m.slug) } : {}),
-        worksFor: { "@type": "Organization", name: org.siteName },
-      })),
+      parentOrganization: ref(ORGANIZATION_ID),
+      employee: members.map(personNode),
     },
   };
 
@@ -157,14 +188,7 @@ export default async function TeamPage({
             "@type": "ListItem",
             position: i + 1,
             url: profileUrl(m.slug),
-            item: {
-              "@type": "Person",
-              "@id": profileUrl(m.slug),
-              name: m.name_en || m.name_km,
-              ...(m.position_en ? { jobTitle: m.position_en } : {}),
-              ...(m.photo_url ? { image: m.photo_url } : {}),
-              url: profileUrl(m.slug),
-            },
+            item: personNode(m),
           })),
         }
       : null;
@@ -180,10 +204,33 @@ export default async function TeamPage({
         secondaryLang: locale === "km" ? "en" : "km",
         intro: tt("intro"),
         action: (
-          <AboutExternalAction href={cfg.phoneLibraryTel} icon={Phone} variant="onDark">
-            {t("actions.contactLibrary")}
-          </AboutExternalAction>
+          <>
+            {/* Scrolls to the directory rather than navigating: the people
+                are on this page, and a reader who has just read one sentence
+                about the team should not have to find them by eye. */}
+            <AboutAnchorAction targetId="directory" icon={ArrowDown} variant="onDark">
+              {tt("hero.meetTheTeam")}
+            </AboutAnchorAction>
+            <AboutExternalAction href={cfg.phoneLibraryTel} icon={Phone} variant="onDark">
+              {t("actions.contactLibrary")}
+            </AboutExternalAction>
+          </>
         ),
+        // A real colleague, not a stock photograph — and only when somebody
+        // published a portrait. With none, the hero falls back to the About
+        // section's text-only layout with its watermark, exactly as the other
+        // four pages render.
+        ...(portrait?.photo_url
+          ? {
+              image: {
+                src: portrait.photo_url,
+                alt: photoAltText(portrait),
+                priority: true,
+                shape: "portrait" as const,
+                kenBurns: true,
+              },
+            }
+          : {}),
       }}
       footer={
         <div className="mt-14">
@@ -243,29 +290,26 @@ export default async function TeamPage({
           states the roster size honestly, where a reader expects it. */}
       {members.length >= METRICS_MIN_MEMBERS && (
         <AboutSection id="metrics" title={tt("metrics.heading")}>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              icon={Users}
-              emphasis
-              value={formatNumber(members.length, locale)}
-              label={tt("metrics.members")}
-            />
-            <StatCard
-              icon={LayoutGrid}
-              value={formatNumber(sectionsWithMembers.length, locale)}
-              label={tt("metrics.serviceAreas")}
-            />
-            <StatCard
-              icon={Languages}
-              value={formatNumber(languageCount, locale)}
-              label={tt("metrics.languages")}
-            />
-            <StatCard
-              icon={Clock}
-              value={formatNumber(daysOpen, locale)}
-              label={tt("metrics.daysOpen")}
-            />
-          </div>
+          {/* One quiet band, not four cards. The figures are context for the
+              directory below, and four cards gave each of them the weight of
+              a claim. Same four numbers, same sources — no page-local count
+              query is introduced here (lib/resource-stats-consistency). */}
+          <ul className="team-glance scroll-row">
+            {[
+              { value: formatNumber(members.length, locale), label: tt("metrics.members") },
+              {
+                value: formatNumber(sectionsWithMembers.length, locale),
+                label: tt("metrics.serviceAreas"),
+              },
+              { value: formatNumber(languageCount, locale), label: tt("metrics.languages") },
+              { value: formatNumber(daysOpen, locale), label: tt("metrics.daysOpen") },
+            ].map((stat) => (
+              <li key={stat.label} className="team-glance__item">
+                <span className="team-glance__value">{stat.value ?? "—"}</span>
+                <span className="team-glance__label about-wrap">{stat.label}</span>
+              </li>
+            ))}
+          </ul>
         </AboutSection>
       )}
 

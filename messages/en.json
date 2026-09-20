@@ -8292,6 +8292,9 @@
       "category": "The people behind the library",
       "intro": "Supporting teaching, research, the physical collection and digital access for the PTEC community.",
       "heroHeading": "Meet the people behind PTEC Library",
+      "hero": {
+        "meetTheTeam": "Meet the team"
+      },
       "mission": {
         "heading": "What the team does",
         "body": "The library team manages the collection, keeps the e-Library running, supports research, and helps students and teachers find what they need."
@@ -8328,7 +8331,10 @@
         "showingSearch": "Showing {count} of {total, plural, one {# member} other {# members}} for “{query}”",
         "askMeAbout": "Ask me about",
         "viewProfile": "View profile",
-        "availability": "Availability"
+        "availability": "Availability",
+        "viewLabel": "Directory layout",
+        "viewGrid": "Grid view",
+        "viewList": "List view"
       },
       "profile": {
         "position": "Position",
