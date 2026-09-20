@@ -275,6 +275,13 @@ const PLACEHOLDERS = new Set([
 const KHMER_FURNITURE = new Set([
   "ទំព័រ", // page
   "គ្មាន", // none
+  // "no author". Matched WHOLE, so neither "គ្មាន" nor "អ្នកនិពន្ធ" above
+  // catches the compound — and a substring rule is out of the question here
+  // (Khmer has no word boundaries). A guard for legacy rows: the PMB import
+  // stores NULL for a missing author rather than this placeholder, but the
+  // string is the natural thing for a cataloguer to have typed, and it names
+  // nobody wherever it came from.
+  "គ្មានអ្នកនិពន្ធ",
   "គ្មានឈ្មោះ", // no name
   "មិនស្គាល់", // unknown
   "អ្នកប្រើប្រាស់", // user

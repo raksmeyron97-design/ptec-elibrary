@@ -239,7 +239,11 @@ export default async function CatalogBookPage({
   Object.keys(bookSchema).forEach((k) => bookSchema[k] === undefined && delete bookSchema[k]);
 
   const metaFields = [
-    { label: t("detail.author"),      value: b.author },
+    // Always rendered, even with no author: a catalogue record that simply
+    // omits the row reads as "we forgot to fill this in". The placeholder is
+    // a LABEL — the database stores null, and the JSON-LD below emits no
+    // author node at all, so nothing machine-readable claims a person.
+    { label: t("detail.author"),      value: b.author || t("detail.noAuthorListed") },
     { label: t("detail.language"),    value: langLabel(b.language) },
     { label: t("detail.year"),        value: b.year },
     { label: t("detail.isbn"),        value: formatIsbn(b.isbn) },

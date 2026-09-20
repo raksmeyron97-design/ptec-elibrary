@@ -88,7 +88,10 @@ export default function CatalogCard({ book }: Props) {
           {book.title}
         </p>
         <p className="truncate text-xs text-text-muted">
-          {book.author}
+          {/* A null author used to render as nothing, leaving the year behind
+              a dangling " · ". The label also keeps the line from collapsing,
+              which would make the card a different height from its row. */}
+          {book.author || t("detail.noAuthorListed")}
           {book.year ? ` · ${book.year}` : ""}
         </p>
 

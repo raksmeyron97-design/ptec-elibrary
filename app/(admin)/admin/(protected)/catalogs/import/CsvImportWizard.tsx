@@ -160,7 +160,7 @@ export default function CsvImportWizard() {
       // One bulk duplicate check against the live catalog.
       const dupes = await checkCatalogDuplicates({
         isbns: [...new Set(marked.map((r) => r.normalized.isbn).filter(Boolean) as string[])],
-        titleAuthors: [...new Set(marked.map((r) => `${r.normalized.title.toLowerCase()}|${r.normalized.author.toLowerCase()}`))],
+        titleAuthors: [...new Set(marked.map((r) => `${r.normalized.title.toLowerCase()}|${(r.normalized.author ?? "").toLowerCase()}`))],
         barcodes: [...new Set(marked.map((r) => r.normalized.barcode).filter(Boolean) as string[])],
         accessions: [...new Set(marked.map((r) => r.normalized.accession_number).filter(Boolean) as string[])],
       });
@@ -182,7 +182,7 @@ export default function CsvImportWizard() {
           });
         }
         const isbnHit = r.normalized.isbn ? dupes.byIsbn[r.normalized.isbn] : undefined;
-        const taHit = dupes.byTitleAuthor[`${r.normalized.title.toLowerCase()}|${r.normalized.author.toLowerCase()}`];
+        const taHit = dupes.byTitleAuthor[`${r.normalized.title.toLowerCase()}|${(r.normalized.author ?? "").toLowerCase()}`];
         const duplicateMatch = isbnHit ?? taHit;
         if (duplicateMatch) {
           issues.push({

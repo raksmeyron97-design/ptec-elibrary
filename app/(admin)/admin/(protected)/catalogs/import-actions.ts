@@ -410,7 +410,7 @@ export async function runCatalogImportBatch(req: ImportBatchRequest): Promise<Im
   // 2. Fresh duplicate lookup for exactly this batch (client claims ignored).
   const dupes = await lookupDuplicates(supabase, {
     isbns: [...new Set(finalRows.map((r) => r.normalized.isbn).filter(Boolean) as string[])],
-    titleAuthors: [...new Set(finalRows.map((r) => `${r.normalized.title.toLowerCase()}|${r.normalized.author.toLowerCase()}`))],
+    titleAuthors: [...new Set(finalRows.map((r) => `${r.normalized.title.toLowerCase()}|${(r.normalized.author ?? "").toLowerCase()}`))],
     barcodes: [...new Set(finalRows.map((r) => r.normalized.barcode).filter(Boolean) as string[])],
     accessions: [...new Set(finalRows.map((r) => r.normalized.accession_number).filter(Boolean) as string[])],
   });
@@ -419,7 +419,7 @@ export async function runCatalogImportBatch(req: ImportBatchRequest): Promise<Im
 
   const withDupes = finalRows.map((r) => {
     const isbnHit = r.normalized.isbn ? dupes.byIsbn[r.normalized.isbn] : undefined;
-    const taHit = dupes.byTitleAuthor[`${r.normalized.title.toLowerCase()}|${r.normalized.author.toLowerCase()}`];
+    const taHit = dupes.byTitleAuthor[`${r.normalized.title.toLowerCase()}|${(r.normalized.author ?? "").toLowerCase()}`];
     return refreshRowStatus({ ...r, duplicateMatch: isbnHit ?? taHit });
   });
 
@@ -480,7 +480,10 @@ async function importGroup(
 
   // Insert the new bibliographic record; slug collisions get numeric suffixes.
   const baseSlug = catalogRecordSlug(n.title) || `book-${Date.now().toString(36)}`;
-  const suffix = n.isbn ? catalogSlugify(n.isbn) : catalogSlugify(n.author);
+  // With no ISBN and no author there is nothing distinguishing to add, so
+  // the slug falls back to the title alone and the numeric suffix below
+  // resolves any collision.
+  const suffix = n.isbn ? catalogSlugify(n.isbn) : catalogSlugify(n.author ?? "");
   // The 120-cap can now land inside a Khmer cluster, so trim the same way
   // catalogRecordSlug() does rather than leaving a dangling mark or hyphen.
   const preferredSlug = suffix
