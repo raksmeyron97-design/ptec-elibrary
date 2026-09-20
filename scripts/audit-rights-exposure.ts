@@ -51,7 +51,9 @@ import {
 } from "../lib/verify/http";
 import {
   classifyRights,
-  RIGHTS_CLASS_ORDER,
+  isbnPrefix8,
+  reviewPriority,
+  type ReviewPriority,
   type RightsClass,
 } from "../lib/rights/publisher-signals";
 
@@ -84,6 +86,8 @@ type Row = {
   language: string;
   downloadable: boolean;
   rightsClass: RightsClass;
+  priority: ReviewPriority;
+  isbnPrefix: string;
   reason: string;
 };
 
@@ -188,6 +192,8 @@ async function auditBook(slug: string): Promise<void> {
     language,
     downloadable,
     rightsClass: verdict.rightsClass,
+    priority: reviewPriority({ rightsClass: verdict.rightsClass, title, isbn }),
+    isbnPrefix: isbnPrefix8(isbn),
     reason: verdict.reason,
   });
 }
@@ -231,8 +237,13 @@ function toCsv(sorted: readonly Row[], incomplete: string | null): string {
       "authors",
       "publisher",
       "isbn",
+      // First 8 digits of the canonical ISBN-13 — a block to look up in the
+      // ISBN Agency range table. Not the registrant element: its length is
+      // 2-7 digits and is only knowable from the published ranges.
+      "isbn_prefix8",
       "language",
       "downloadable",
+      "review_priority",
       "class",
       "reason",
     ].join(","),
@@ -246,8 +257,10 @@ function toCsv(sorted: readonly Row[], incomplete: string | null): string {
         r.authors,
         r.publisher,
         r.isbn,
+        r.isbnPrefix,
         r.language,
         r.downloadable,
+        r.priority,
         r.rightsClass,
         r.reason,
       ]
@@ -278,9 +291,11 @@ async function run(): Promise<void> {
   const t = tally(outcomes);
   const incomplete = incompleteBanner(t);
 
+  // Priority is the review order the librarian asked for; it already encodes
+  // the class, so sorting on both would only let them disagree.
   const sorted = [...rows].sort(
     (a, b) =>
-      RIGHTS_CLASS_ORDER[a.rightsClass] - RIGHTS_CLASS_ORDER[b.rightsClass] ||
+      a.priority.localeCompare(b.priority) ||
       Number(b.downloadable) - Number(a.downloadable) ||
       a.slug.localeCompare(b.slug),
   );
@@ -296,6 +311,19 @@ async function run(): Promise<void> {
     console.log(`  ${c.padEnd(18)} ${String(count(c)).padStart(5)}   of which downloadable: ${dl(c)}`);
   }
   console.log(`  ${"pages read".padEnd(18)} ${String(rows.length).padStart(5)}`);
+
+  console.log(`\n── Review priority ─────────────────────────────────────`);
+  const PRIORITY_LABEL: Record<ReviewPriority, string> = {
+    P1: "commercial-likely",
+    P2: "Latin, unmeasured, checkable",
+    P3: "Latin, unmeasured",
+    P4: "Khmer script",
+    P5: "Latin, openly published",
+  };
+  for (const p of ["P1", "P2", "P3", "P4", "P5"] as const) {
+    const n = rows.filter((r) => r.priority === p).length;
+    console.log(`  ${p}  ${PRIORITY_LABEL[p].padEnd(30)} ${String(n).padStart(5)}`);
+  }
   console.log(`\n${summaryLine(t)}`);
   if (failures.length > 0) {
     console.log(`\nPages that could not be read (${failures.length}):`);

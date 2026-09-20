@@ -277,3 +277,70 @@ export const RIGHTS_CLASS_ORDER: Record<RightsClass, number> = {
   unknown: 1,
   "open-likely": 2,
 };
+
+// ── Review priority ──────────────────────────────────────────────────────────
+
+/**
+ * Words that mark a title as a numbered edition of a trade textbook. Applied
+ * to the TITLE, and only ever to RANK a row a human will read — never to
+ * classify one (rule 2). "6th Edition" is strong evidence that a work is
+ * commercially published and weak evidence about who published it.
+ */
+const EDITION_OR_PUBLISHER_WORDS =
+  /\b(\d{1,2}(st|nd|rd|th)\s+ed(ition)?|edition|pearson|wiley|sage|routledge|springer|cengage|mcgraw|elsevier|palgrave|oxford|cambridge)\b/i;
+
+const KHMER_CHAR = /[ក-៿]/;
+
+/** Which script the title is written in. Khmer wins if any Khmer is present. */
+export function titleScript(title: string | null | undefined): "khmer" | "latin" {
+  return KHMER_CHAR.test(title ?? "") ? "khmer" : "latin";
+}
+
+export type ReviewPriority = "P1" | "P2" | "P3" | "P4" | "P5";
+
+/**
+ * The order a librarian should read the queue in. FIRST MATCH WINS, so a
+ * commercial verdict outranks the script rule rather than being hidden by it.
+ *
+ *   P1  commercial-likely — an identifier or a publisher named it
+ *   P2  unmeasured, Latin title, and carrying something checkable by hand
+ *       (an ISBN, or an edition/publisher word in the title)
+ *   P3  other Latin-title unknowns
+ *   P4  Khmer-script titles — overwhelmingly local and ministry material
+ *   P5  Latin-title works already identified as openly published
+ *
+ * P5 exists because P1–P4 as stated leave a gap: a Latin-titled UNESCO or
+ * OECD report is neither commercial, nor unknown, nor Khmer. Folding it into
+ * P4 would file it under a rule about SCRIPT that it does not satisfy, so it
+ * gets its own bucket rather than a quiet home in someone else's.
+ */
+export function reviewPriority(input: {
+  rightsClass: RightsClass;
+  title?: string | null;
+  isbn?: string | null;
+}): ReviewPriority {
+  if (input.rightsClass === "commercial-likely") return "P1";
+  const script = titleScript(input.title);
+  if (input.rightsClass === "unknown" && script === "latin") {
+    const checkable =
+      (normalizeIsbn(input.isbn) ?? "").length === 13 ||
+      EDITION_OR_PUBLISHER_WORDS.test(input.title ?? "");
+    return checkable ? "P2" : "P3";
+  }
+  if (script === "khmer") return "P4";
+  return "P5";
+}
+
+/**
+ * The first 8 digits of the canonical ISBN-13 — enough to look a block up in
+ * the ISBN Agency's range table.
+ *
+ * Deliberately NOT called a registrant prefix: the registrant element is
+ * 2–7 digits and its length is only knowable from the published ranges, which
+ * this repo does not carry. Emitting a fixed 8 and saying so is honest;
+ * emitting a guess and calling it the registrant would not be.
+ */
+export function isbnPrefix8(isbn: string | null | undefined): string {
+  const canonical = normalizeIsbn(isbn);
+  return canonical ? canonical.slice(0, 8) : "";
+}

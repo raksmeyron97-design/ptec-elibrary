@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { classifyRights, RIGHTS_CLASS_ORDER, type RightsSignalInput } from "./publisher-signals";
+import {
+  classifyRights,
+  isbnPrefix8,
+  reviewPriority,
+  RIGHTS_CLASS_ORDER,
+  titleScript,
+  type RightsSignalInput,
+} from "./publisher-signals";
 
 const cls = (i: RightsSignalInput) => classifyRights(i).rightsClass;
 
@@ -145,5 +152,50 @@ describe("review-queue ordering", () => {
       .slice()
       .sort((a, b) => RIGHTS_CLASS_ORDER[a] - RIGHTS_CLASS_ORDER[b]);
     expect(order).toEqual(["commercial-likely", "unknown", "open-likely"]);
+  });
+});
+
+describe("review priority", () => {
+  it("puts a commercial verdict first, whatever the script", () => {
+    expect(reviewPriority({ rightsClass: "commercial-likely", title: "Anything" })).toBe("P1");
+    // First match wins, so the script rule cannot hide a commercial verdict.
+    expect(reviewPriority({ rightsClass: "commercial-likely", title: "សៀវភៅ" })).toBe("P1");
+  });
+
+  it("separates the Latin unknowns a human can actually check", () => {
+    // Carries an ISBN → checkable by hand.
+    expect(
+      reviewPriority({ rightsClass: "unknown", title: "Some Manual", isbn: "978-9924-00-123-4" }),
+    ).toBe("P2");
+    // Carries an edition word → checkable by hand.
+    expect(reviewPriority({ rightsClass: "unknown", title: "Statistics, 3rd Edition" })).toBe("P2");
+    // Neither → still Latin and still unmeasured, but nothing to go on.
+    expect(reviewPriority({ rightsClass: "unknown", title: "Some Manual" })).toBe("P3");
+  });
+
+  it("files Khmer-script titles last among the unmeasured", () => {
+    expect(reviewPriority({ rightsClass: "unknown", title: "សៀវភៅណែនាំគ្រូបង្រៀន" })).toBe("P4");
+    expect(reviewPriority({ rightsClass: "open-likely", title: "សៀវភៅ" })).toBe("P4");
+  });
+
+  it("gives the Latin open-likely gap its own bucket rather than someone else's", () => {
+    // P1-P4 as stated do not cover this row: not commercial, not unknown,
+    // not Khmer. Filing it under P4 would assert a script rule it fails.
+    expect(reviewPriority({ rightsClass: "open-likely", title: "PISA in Focus" })).toBe("P5");
+  });
+
+  it("reads the script from any Khmer character present", () => {
+    expect(titleScript("PISA ២០២២")).toBe("khmer");
+    expect(titleScript("PISA 2022")).toBe("latin");
+    expect(titleScript(null)).toBe("latin");
+  });
+});
+
+describe("isbnPrefix8", () => {
+  it("gives a lookup block, and nothing when there is no usable ISBN", () => {
+    expect(isbnPrefix8("978-0-13-000000-0")).toBe("97801300");
+    expect(isbnPrefix8("0-13-000000-9")).toBe("97801300");
+    expect(isbnPrefix8("")).toBe("");
+    expect(isbnPrefix8("N/A")).toBe("");
   });
 });
