@@ -72,16 +72,26 @@ const URL_FIELD_ASSIGNMENT =
  *                           which omits it; the type is the guard there.
  *   app/api/ .../route.ts   a route handler fetching the bytes IS the job.
  */
+/**
+ * Each exemption was traced to its consumers and classified PUBLIC or
+ * ADMIN-ONLY on 2026-09-20, rather than dissolved into a looser regex —
+ * because the next thing a looser regex hides is a real book leak.
+ *
+ * | module | surface | why it is exempt |
+ * |---|---|---|
+ * | `lib/admin/ebooks.ts` | admin-only (`/admin/books`) | the server needs the URL for its file-status filters; what crosses to the browser is `EbookListClientRow`, which omits it |
+ * | `app/actions/data-quality.ts` | admin-only | a thesis quality input; the value never leaves the function, which returns only `{ completeness, missing }` |
+ * | `lib/publish-readiness.ts` | admin-only | `validateThesisPublish()`, server-side validation only |
+ * | `lib/indexing/reconcile.ts` | cron, server-to-server | the indexer must hold real URLs — that IS the job |
+ * | `lib/metadata-exports/works.ts` | **PUBLIC** (`/api/export/*`, OAI-PMH) | a false positive of the span regex: the VALUE is a proxy URL (`/api/theses/<id>/download`), and `file_url` appears only in the condition. Verified live — the production OAI feed contains zero `storage-ptec.online` strings. |
+ *
+ * Four of the five are theses or publications, which hold `file_url` on their
+ * own tables behind their own routes. Giving those the book treatment
+ * (`hasFile` at the client boundary) is a worthwhile follow-up and is NOT
+ * part of the 0151 pass.
+ */
 const SERVER_ONLY_HOLDERS = [
-  // EbookListRow.fileUrl — see above.
   "lib/admin/ebooks.ts",
-  // Server-side, and about OTHER resource types. Each was read and named
-  // rather than dissolved into a looser regex, because the next thing a
-  // looser regex hides is a real book leak:
-  //   data-quality.ts      thesis quality input (program/cohort/academicYear)
-  //   publish-readiness.ts validateThesisPublish()
-  //   indexing/reconcile.ts the indexer must hold real URLs — that IS the job
-  //   metadata-exports      the value is an /api/theses proxy URL, not the column
   "app/actions/data-quality.ts",
   "lib/publish-readiness.ts",
   "lib/indexing/reconcile.ts",

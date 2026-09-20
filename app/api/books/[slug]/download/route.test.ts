@@ -185,3 +185,66 @@ describe("GET /api/books/[slug]/download", () => {
     expect(res.status).toBe(404);
   });
 });
+
+// ── 0151: catalogue record only ─────────────────────────────────────────────
+//
+// Behavioural, not a source scan. The boundary scans in
+// lib/books/file-access-boundary.test.ts catch a gate that is MISSING or
+// MISORDERED; they cannot catch one that is present and neutered
+// (`if (false && !access.canServeBytes)` keeps every string they look for).
+// These call the route and assert on what it does.
+
+describe("GET /api/books/[slug]/download — file_access = catalogue_only", () => {
+  const catalogueOnly = () =>
+    maybeSingle.mockResolvedValue(
+      bookRow({ file_access: "catalogue_only", allow_download: false }),
+    );
+
+  it("refuses a signed-in reader with 403 and fetches no bytes", async () => {
+    catalogueOnly();
+    const res = await GET(req(), { params: params("a-book") });
+
+    expect(res.status).toBe(403);
+    expect(zimaFetch).not.toHaveBeenCalled();
+    const body = await res.json();
+    expect(body.reason).toBe("catalogue-only");
+    // Not "read it online instead" — there is no reader for this book.
+    expect(body.canReadOnline).toBe(false);
+  });
+
+  it("refuses a LIBRARIAN too — there is no override on the public route", async () => {
+    // read_online keeps its override (the test above this block proves it).
+    // catalogue_only is usually a rights position, so the public route
+    // answers the same way for everyone and staff use the admin path.
+    catalogueOnly();
+    canOverrideBookDownloadPolicy.mockResolvedValue({ allowed: true, role: "librarian" });
+
+    const res = await GET(req(), { params: params("a-book") });
+
+    expect(res.status).toBe(403);
+    expect(zimaFetch).not.toHaveBeenCalled();
+    // The override was never even consulted.
+    expect(canOverrideBookDownloadPolicy).not.toHaveBeenCalled();
+  });
+
+  it("records the refusal rather than letting it pass silently", async () => {
+    catalogueOnly();
+    await GET(req(), { params: params("a-book") });
+
+    expect(logSecurityEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "download_blocked" }),
+    );
+    expect(logDownloadAttempt).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "denied", reason: "DOWNLOAD_DISABLED" }),
+    );
+  });
+
+  it("still serves a book whose file_access is absent — a partial select never restricts", async () => {
+    // The 0131 rule carried onto the new column: a row read before 0151, or
+    // a select that did not ask for it, stays downloadable.
+    maybeSingle.mockResolvedValue(bookRow({ file_access: undefined }));
+    const res = await GET(req(), { params: params("a-book") });
+    expect(res.status).toBe(200);
+    expect(zimaFetch).toHaveBeenCalled();
+  });
+});
