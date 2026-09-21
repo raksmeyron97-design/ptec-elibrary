@@ -1152,32 +1152,40 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 }
 .tab-panel-in { animation: tab-panel-in .2s cubic-bezier(.22,1,.36,1) both; }
 
-/* ── Scroll reveal (CSS-only; toggled by ScrollRevealWrapper's observer) ─
-   Default state is fully visible — the hidden start state only applies once
-   JS sets data-revealed="false", so no-JS visitors never lose content. */
-.scroll-reveal,
-.scroll-reveal-stagger .scroll-reveal-item {
-  opacity: 1;
-  transform: none;
-  /* 250 ms, 12 px, 40 ms apart. Long enough to read as "arriving", short
-     enough that someone scrolling at reading speed never lands on a block
-     that is still invisible — at the old 0.7 s plus 0.75 s of stagger, the
-     sixth tile of a grid stayed blank for most of a second and a half after
-     it was on screen. */
-  transition: opacity .25s ease-out, transform .25s ease-out;
+/* ── Scroll reveal (components/ui/animations/ScrollRevealWrapper.tsx,
+   StaggerGrid.tsx — or add `reveal` to any element) ────────────────────
+   Each element fades up as IT enters the viewport: a scroll-driven
+   animation, so no observer, no client JS, and it works in server
+   components. The fade is over the first 140 px of the element's entry,
+   whatever its height, and the view is inset by the phone tab bar's
+   clearance so nothing finishes revealing behind the bar. A row of cards
+   shares a scroll position and so arrives together — the stagger is the
+   layout. Where scroll-driven animations are unsupported, or motion is
+   reduced, nothing is hidden and nothing moves. Opacity and transform only.
+   Keep `.reveal` for blocks about a screen tall or less (cards, heading
+   rows): a very tall block would fade as one.
+   Layered, like `.reader-btn` (docs/ACCESSIBILITY-FOCUS.md on why an
+   unlayered rule is a trap): `.reveal` sits on elements that also carry
+   utilities (`h-full`, grid placement, an `animate-*`), and an unlayered
+   rule would beat every one of them. Pinned by
+   components/ui/animations/reveal-css.test.ts, which also pins that the
+   hidden start state exists ONLY behind the @supports and motion guards. */
+@layer components {
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .reveal {
+        animation: reveal-in linear both;
+        animation-timeline: view(block auto var(--ptec-mobile-nav-clearance));
+        animation-range: entry 0% entry 140px;
+      }
+    }
+  }
 }
-.scroll-reveal[data-revealed="false"],
-.scroll-reveal-stagger[data-revealed="false"] .scroll-reveal-item {
-  opacity: 0;
-  transform: translateY(12px);
-}
-.scroll-reveal-stagger .scroll-reveal-item:nth-child(2) { transition-delay: .04s; }
-.scroll-reveal-stagger .scroll-reveal-item:nth-child(3) { transition-delay: .08s; }
-.scroll-reveal-stagger .scroll-reveal-item:nth-child(4) { transition-delay: .12s; }
-.scroll-reveal-stagger .scroll-reveal-item:nth-child(5) { transition-delay: .16s; }
-.scroll-reveal-stagger .scroll-reveal-item:nth-child(n+6) { transition-delay: .2s; }
-@media (prefers-reduced-motion: reduce) {
-  .scroll-reveal, .scroll-reveal-item { transition: none !important; }
+@keyframes reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
 }
 
 /* ── Below-the-fold render skipping ─────────────────────────────────

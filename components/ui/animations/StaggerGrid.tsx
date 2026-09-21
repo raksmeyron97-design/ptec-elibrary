@@ -1,19 +1,14 @@
-"use client";
-
 // components/ui/animations/StaggerGrid.tsx
-// A grid whose items rise in, one after another, as it scrolls into view.
-// CSS now: the same IntersectionObserver reveal as ScrollRevealWrapper sets
-// `data-revealed`, and `.scroll-reveal-stagger` (app/globals.css) does the
-// motion — opacity + transform, staggered by nth-child. It used to be
-// framer-motion variants, which put the whole animation library on the
-// homepage's critical path for eight subject tiles.
+// A grid whose items rise in as each one scrolls into view — CSS only, the
+// same `.reveal` scroll-driven animation as ScrollRevealWrapper (see the
+// note there for why it is per item rather than per container). It used to
+// be framer-motion variants, then an IntersectionObserver; now it ships no
+// JavaScript at all.
 //
 // Same API as before (`as="ul"` / `as="li"`), so call sites did not change.
-// No-JS and reduced motion: items are simply visible (the hidden start state
-// is only ever armed by the observer).
+// Unsupported browsers and reduced motion: items are simply visible.
 
-import type { ReactNode, RefObject } from "react";
-import { useReveal } from "./ScrollRevealWrapper";
+import type { ReactNode } from "react";
 
 type ContainerTag = "div" | "ul";
 type ItemTag = "div" | "li";
@@ -27,17 +22,7 @@ export function StaggerGrid({
   className?: string;
   as?: ContainerTag;
 }) {
-  const ref = useReveal<HTMLElement>();
-  const cls = `scroll-reveal-stagger ${className ?? ""}`;
-  return as === "ul" ? (
-    <ul ref={ref as RefObject<HTMLUListElement>} className={cls}>
-      {children}
-    </ul>
-  ) : (
-    <div ref={ref as RefObject<HTMLDivElement>} className={cls}>
-      {children}
-    </div>
-  );
+  return as === "ul" ? <ul className={className}>{children}</ul> : <div className={className}>{children}</div>;
 }
 
 export function StaggerItem({
@@ -49,6 +34,6 @@ export function StaggerItem({
   className?: string;
   as?: ItemTag;
 }) {
-  const cls = `scroll-reveal-item ${className ?? ""}`;
+  const cls = `reveal ${className ?? ""}`;
   return as === "li" ? <li className={cls}>{children}</li> : <div className={cls}>{children}</div>;
 }

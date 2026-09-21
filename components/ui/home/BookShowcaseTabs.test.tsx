@@ -21,30 +21,6 @@ vi.mock("@/components/ui/books/BookCard", () => ({
     createElement("article", null, book.title),
 }));
 
-// jsdom has no IntersectionObserver, and the panel renders its cards inside
-// <StaggerRevealContainer>. Stub it as "already on screen" so the reveal
-// wrapper settles into its visible state — the subject here is the tab
-// semantics, not the scroll animation. Local to this file rather than added to
-// vitest.setup.ts: a global shim would silently change what every other
-// suite's observers do.
-class ImmediateIntersectionObserver {
-  constructor(private cb: IntersectionObserverCallback) {}
-  observe(target: Element) {
-    this.cb(
-      [{ isIntersecting: true, target } as IntersectionObserverEntry],
-      this as unknown as IntersectionObserver,
-    );
-  }
-  unobserve() {}
-  disconnect() {}
-  takeRecords() {
-    return [];
-  }
-  root = null;
-  rootMargin = "";
-  thresholds = [];
-}
-vi.stubGlobal("IntersectionObserver", ImmediateIntersectionObserver);
 
 function book(slug: string, title: string) {
   return { slug, title } as never;

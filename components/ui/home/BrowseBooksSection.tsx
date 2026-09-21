@@ -29,7 +29,12 @@ export default async function BrowseBooksSection({ trendingBooks }: { trendingBo
   );
 
   return (
-    <section className="border-y border-divider/70 bg-gradient-to-b from-paper via-bg-surface to-paper overflow-hidden">
+    // overflow-CLIP, not overflow-hidden: both clip, but `hidden` makes the
+    // section a scroll container, and a scroll-driven reveal (`.reveal`,
+    // animation-timeline: view()) follows its NEAREST scroll container — a
+    // section that never scrolls, so every card in it silently never
+    // revealed. `clip` scrolls nothing and is not a container.
+    <section className="border-y border-divider/70 bg-gradient-to-b from-paper via-bg-surface to-paper overflow-clip">
       <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-16 md:px-12 md:py-20">
         <ScrollRevealWrapper className="mb-6 sm:mb-9">
           <div className="mb-2 flex items-center gap-3">
@@ -38,7 +43,9 @@ export default async function BrowseBooksSection({ trendingBooks }: { trendingBo
           </div>
           <SectionTitle as="h2" className="!mb-0 mt-1">{t("browseSectionTitle")}</SectionTitle>
         </ScrollRevealWrapper>
-        <ScrollRevealWrapper>
+        {/* Not a reveal: the block is ~1,500 px tall, and its cards reveal
+            one by one inside it (StaggerRevealItem). */}
+        <div>
           <BookShowcaseTabs
             trending={trendingPreview}
             recent={recentPreview}
@@ -47,7 +54,7 @@ export default async function BrowseBooksSection({ trendingBooks }: { trendingBo
             layout="grid"
             maxItems={PREVIEW}
           />
-        </ScrollRevealWrapper>
+        </div>
       </div>
     </section>
   );

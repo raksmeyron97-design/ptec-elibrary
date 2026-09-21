@@ -266,6 +266,91 @@ async function inkOf(analyzer: Page, frames: string[]): Promise<number[]> {
   }, frames);
 }
 
+// Scroll reveal (MUX-09): each card fades up as IT enters the view — a CSS
+// scroll-driven animation, no observer. Measured on the homepage, whose card
+// grids sit well below the fold. The entry line is the viewport's bottom edge
+// less the phone tab bar's clearance (0 from lg up); the fade completes 140 px
+// past it.
+test.describe("scroll reveal", () => {
+  async function setup(page: Page) {
+    await page.goto("/");
+    const supported = await page.evaluate(() => CSS.supports("animation-timeline: view()"));
+    test.skip(!supported, "no scroll-driven animations here — the reveal is simply not drawn");
+    return page.evaluate(() => {
+      const probe = document.createElement("div");
+      probe.style.height = "var(--ptec-mobile-nav-clearance)";
+      document.body.append(probe);
+      const clearance = probe.offsetHeight;
+      probe.remove();
+      const card = [...document.querySelectorAll<HTMLElement>("main .reveal")].find(
+        (el) => el.getBoundingClientRect().top > window.innerHeight + 300 && el.offsetHeight < window.innerHeight,
+      );
+      if (card) card.setAttribute("data-reveal-probe", "");
+      return { clearance, found: !!card };
+    });
+  }
+  /** Put the probe's top edge `px` ABOVE the entry line (negative: below it). */
+  async function placePastEntry(page: Page, px: number) {
+    await page.evaluate((offset) => {
+      const el = document.querySelector<HTMLElement>("[data-reveal-probe]")!;
+      const probe = document.createElement("div");
+      probe.style.height = "var(--ptec-mobile-nav-clearance)";
+      document.body.append(probe);
+      const entryLine = window.innerHeight - probe.offsetHeight;
+      probe.remove();
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({ top: top - entryLine + offset, behavior: "instant" });
+    }, px);
+    // Two frames: the scroll timeline samples on the next animation frame.
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  }
+  const opacity = (page: Page) =>
+    page.evaluate(() => Number(getComputedStyle(document.querySelector("[data-reveal-probe]")!).opacity));
+
+  test("a card below the fold is transparent until it arrives, and opaque 140 px in", async ({ page }) => {
+    const { found } = await setup(page);
+    expect(found, "the homepage should have a .reveal card well below the fold").toBe(true);
+    await placePastEntry(page, -40); // still below the entry line (behind the tab bar on a phone)
+    expect(await opacity(page)).toBe(0);
+    await placePastEntry(page, 70); // half way through its 140 px
+    const half = await opacity(page);
+    expect(half).toBeGreaterThan(0.2);
+    expect(half).toBeLessThan(0.8);
+    await placePastEntry(page, 160); // past the end of the fade
+    expect(await opacity(page)).toBe(1);
+  });
+
+  test("every .reveal on the homepage is driven by the page's scroll, not a box that never scrolls", async ({ page }) => {
+    // A view() timeline follows the NEAREST scroll container, and
+    // `overflow: hidden|auto|scroll` makes one. Inside a section that never
+    // scrolls, the timeline is inactive and the reveal silently never plays —
+    // how 7 of the homepage's 11 reveals were dead on arrival.
+    await setup(page);
+    const trapped = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>("main .reveal")].flatMap((el) => {
+        for (let a = el.parentElement; a && a !== document.documentElement; a = a.parentElement) {
+          const cs = getComputedStyle(a);
+          if ([cs.overflowX, cs.overflowY].some((o) => o === "hidden" || o === "auto" || o === "scroll")) {
+            return [`${a.tagName.toLowerCase()}.${[...a.classList].slice(0, 4).join(".")}`];
+          }
+        }
+        return [];
+      }),
+    );
+    expect(await page.locator("main .reveal").count()).toBeGreaterThan(0);
+    expect(trapped).toEqual([]);
+  });
+
+  test("under reduced motion nothing is hidden and nothing moves", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    const { found } = await setup(page);
+    expect(found).toBe(true);
+    await placePastEntry(page, -40);
+    expect(await opacity(page)).toBe(1);
+    expect(await page.evaluate(() => getComputedStyle(document.querySelector("[data-reveal-probe]")!).animationName)).toBe("none");
+  });
+});
+
 test.describe("page transitions", () => {
   test("a tab-bar navigation animates nothing; a link in the page fades", async ({ page }, testInfo) => {
     // React starts a view transition for any navigation under the boundary,
