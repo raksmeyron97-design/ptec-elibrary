@@ -3,23 +3,33 @@
 
 import { Link } from "@/i18n/navigation";
 import { useState, useEffect } from "react";
-import type { Book } from "@/lib/books";
+import type { BookCardData } from "@/lib/books/card-data";
 import SmartBookCover from "@/components/ui/books/SmartBookCover";
 import RatingStars from "@/components/ui/reviews/RatingStars";
 import ResourceMetrics from "@/components/ui/core/ResourceMetrics";
 import { useTranslations } from "next-intl";
 
 type BookCardProps = {
-  book: Book & {
-    coverUrl?: string | null;
-    reviewCount?: number;
-    progressPct?: number;
-    downloadCount?: number;
-    viewCount?: number;
-    dbId?: string | null;
-    lastReadAt?: string | null;
-    createdAt?: string;
-  };
+  /**
+   * EXACTLY the fields this card renders — see lib/books/card-data.ts.
+   *
+   * It used to take a whole `Book`, and this component is a client
+   * component, so every field it never reads was serialised into the
+   * document's flight payload once per card — 49.3 KB across 836 key/value
+   * pairs on the production homepage, 31 KB of it `summary` alone.
+   *
+   * Narrowing this type was NOT by itself enough, and the reason is worth
+   * keeping: TypeScript's excess-property check fires only on object
+   * literals, and every call site passes a variable, so a `Book` variable
+   * stayed assignable to a narrower field list and nothing changed. What
+   * makes passing a `Book` an error is the phantom brand on `BookCardData`,
+   * which only `toBookCardData()` can mint.
+   *
+   * `pdfUrl` is deliberately absent and must stay absent — a storage URL in
+   * a client payload is a permanent, credential-free download link (0131),
+   * and a card has never needed a file address.
+   */
+  book: BookCardData;
   /** "browse" (default) = standard card; "continue" = in-progress reading card */
   variant?: "browse" | "continue";
   /** Eagerly load the cover (use for above-the-fold cards only). */
@@ -205,7 +215,7 @@ export default function BookCard({ book, variant = "browse", priority = false }:
 
                 {reviews > 0 && (
                   <div className="flex items-center gap-1.5">
-                    <RatingStars rating={book.rating} compact />
+                    <RatingStars rating={book.rating ?? 0} compact />
                     <span className="text-[10px] text-text-muted tabular-nums" title={tm("reviews", { count: reviews })}>
                       <span aria-hidden="true">· {formatCount(reviews)}</span>
                       <span className="sr-only">{tm("reviews", { count: reviews })}</span>

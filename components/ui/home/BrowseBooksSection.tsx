@@ -1,12 +1,9 @@
 import { getRecentlyAddedCached, getDeptBooksCached } from "@/lib/home-data";
 import BookShowcaseTabs from "./BookShowcaseTabs";
-import type { ComponentProps } from "react";
-import BookCard from "@/components/ui/books/BookCard";
+import { toBookCardList, type BookCardData } from "@/lib/books/card-data";
 import { SectionTitle } from "@/components/ui/core/SectionTitle";
 import { getTranslations, getLocale } from "next-intl/server";
 import { ScrollRevealWrapper } from "@/components/ui/animations/ScrollRevealWrapper";
-
-type BookCardData = ComponentProps<typeof BookCard>["book"];
 
 export default async function BrowseBooksSection({ trendingBooks }: { trendingBooks: BookCardData[] }) {
   const [recentlyAdded, { depts, deptBooks }, t, locale] = await Promise.all([
@@ -21,10 +18,14 @@ export default async function BrowseBooksSection({ trendingBooks }: { trendingBo
   // (brief), rendered 4-per-row on desktop. Only the shown slice is serialized
   // to the client, so we cap here rather than hide with CSS.
   const PREVIEW = 8;
-  const trendingPreview = trendingBooks.slice(0, PREVIEW);
-  const recentPreview = recentlyAdded.slice(0, PREVIEW);
+  // Narrowed as well as sliced. The cap decided HOW MANY book objects cross
+  // into the client; toBookCardList decides HOW BIG each one is, which is the
+  // half that was missing — `summary` alone was 31 KB of the production
+  // homepage's payload, once per card, rendered nowhere.
+  const trendingPreview = toBookCardList(trendingBooks.slice(0, PREVIEW));
+  const recentPreview = toBookCardList(recentlyAdded.slice(0, PREVIEW));
   const deptBooksPreview = Object.fromEntries(
-    Object.entries(deptBooks).map(([k, v]) => [k, v.slice(0, PREVIEW)]),
+    Object.entries(deptBooks).map(([k, v]) => [k, toBookCardList(v.slice(0, PREVIEW))]),
   );
 
   return (

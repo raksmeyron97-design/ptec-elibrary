@@ -26,6 +26,7 @@ import RecommendedBooks from "@/components/ui/dashboard/RecommendedBooks";
 import ExportMyLibrary from "@/components/ui/dashboard/ExportMyLibrary";
 import NewForYou from "@/components/ui/dashboard/NewForYou";
 import { mapRowToBook } from "@/lib/books";
+import { toBookCardData, toBookCardList } from "@/lib/books/card-data";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import NextLink from "next/link";
@@ -137,36 +138,51 @@ export default async function DashboardPage() {
   const inProgress = progress.filter((p) => p.progress_pct < 100);
   const completed  = progress.filter((p) => p.progress_pct >= 100);
 
-  const inProgressBooks: any[] = inProgress.slice(0, 8).flatMap((p) => {
+  // `mapRowToBook` returns a whole `Book`; DashboardTabs is a client
+  // component, so anything left on these objects is serialised into the
+  // dashboard document once per book. `toBookCardData` keeps the 13 fields
+  // a card renders. `lastPage` is dropped here and read from `heroBook`
+  // below, which is the only thing that uses it.
+  const inProgressBooks = inProgress.slice(0, 8).flatMap((p) => {
     if (!p.books) return [];
-    return [{
-      ...mapRowToBook(p.books as any),
-      progressPct: p.progress_pct,
-      lastReadAt: p.last_read_at,
-      lastPage: p.last_page ?? null,
-    }];
+    return [
+      toBookCardData({
+        ...mapRowToBook(p.books as any),
+        progressPct: p.progress_pct,
+        lastReadAt: p.last_read_at,
+      }),
+    ];
   });
 
-  const completedBooks: any[] = completed.slice(0, 6).flatMap((p) => {
+  const completedBooks = completed.slice(0, 6).flatMap((p) => {
     if (!p.books) return [];
-    return [{ ...mapRowToBook(p.books as any), progressPct: 100 }];
+    return [toBookCardData({ ...mapRowToBook(p.books as any), progressPct: 100 })];
   });
+
+  const savedCards = toBookCardList(savedBooks as any[]);
 
   // Continue Reading hero: the single most-recently-opened in-progress book.
   // `progress` is already ordered by last_read_at desc, so [0] is correct —
   // and this is the ONLY place real progress_pct/last_read_at feed the UI;
   // nothing here is fabricated.
-  const heroBook = inProgressBooks[0]
-    ? {
-        slug: inProgressBooks[0].slug,
-        title: inProgressBooks[0].title,
-        author: inProgressBooks[0].author,
-        category: inProgressBooks[0].category ?? null,
-        coverUrl: inProgressBooks[0].coverUrl ?? null,
-        progressPct: inProgressBooks[0].progressPct,
-        lastReadAt: inProgressBooks[0].lastReadAt ?? null,
-        lastPage: inProgressBooks[0].lastPage ?? null,
-      }
+  // Built from the PROGRESS ROW, not from the card list: `lastPage` lives on
+  // reading_progress and is not a card field, so narrowing the shelves must
+  // not silently drop the hero's resume page.
+  const heroRow = inProgress[0]?.books ? inProgress[0] : null;
+  const heroBook = heroRow
+    ? (() => {
+        const b = mapRowToBook(heroRow.books as any);
+        return {
+          slug: b.slug,
+          title: b.title,
+          author: b.author,
+          category: b.category ?? null,
+          coverUrl: b.coverUrl ?? null,
+          progressPct: heroRow.progress_pct,
+          lastReadAt: heroRow.last_read_at ?? null,
+          lastPage: heroRow.last_page ?? null,
+        };
+      })()
     : null;
 
   const recentActivity = buildRecentActivity({
@@ -228,7 +244,7 @@ export default async function DashboardPage() {
         {/* ── Secondary / tertiary content — reached by scrolling ── */}
         <div className="mt-10 flex gap-8 lg:items-start">
           <div className="min-w-0 flex-1 space-y-10">
-            <SavedResourcesShelf savedBooks={savedBooks as any} />
+            <SavedResourcesShelf savedBooks={savedCards} />
             <RecommendedBooks viewAllHref="/books" />
             <LearningIntent />
             <RecentActivity items={recentActivity} />
@@ -239,7 +255,7 @@ export default async function DashboardPage() {
               <DashboardTabs
                 inProgressBooks={inProgressBooks}
                 completedBooks={completedBooks}
-                savedBooks={savedBooks as any}
+                savedBooks={savedCards}
                 readingLists={readingLists}
                 totalInProgress={inProgress.length}
                 totalCompleted={completed.length}

@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { Sparkles } from "lucide-react";
 
 import BookCard from "@/components/ui/books/BookCard";
+import { toBookCardList } from "@/lib/books/card-data";
 import type { Book } from "@/lib/books";
 
 /**
@@ -42,7 +43,7 @@ export default async function FeaturedShelf({ books }: { books: (Book & { review
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-        {books.map((book, i) => (
+        {toBookCardList(books).map((book, i) => (
           <BookCard key={book.slug} book={book} priority={i < 6} />
         ))}
       </div>
