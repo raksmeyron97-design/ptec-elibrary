@@ -5,6 +5,7 @@ import ThemeToggle from "@/components/ui/core/ThemeToggle";
 import { Seal } from "@/components/ui/core/Seal";
 import Icon from "@/components/ui/core/Icon";
 import NavbarStickyWrapper from "./NavbarStickyWrapper";
+import TopBarBack from "./TopBarBack";
 import LanguageSwitcher from "@/components/ui/core/LanguageSwitcher";
 import { getTranslations, getLocale } from "next-intl/server";
 import PriorityNav, { type PriorityNavEntry } from "./PriorityNav";
@@ -146,21 +147,29 @@ export default async function Navbar() {
               already standing on. Either way it speculatively pulls the
               largest RSC payload on the site — 73.6 KB compressed — on every
               single page load, header included. */}
-          <Link
-            href="/"
-            prefetch={false}
-            className="group flex min-w-0 items-center gap-2 sm:gap-3"
-          >
-            <div className="shrink-0 scale-90 sm:scale-100 origin-left">
-              {/* The one seal above the fold on every page. Lazy here meant
-                  the header brand mark was requested only after layout. */}
-              <Seal size={48} priority />
-            </div>
-            <div className="max-[360px]:hidden flex min-w-0 flex-col whitespace-nowrap text-[#1000C0] transition-opacity group-hover:opacity-90 dark:text-brand">
-              <span lang="km" className="font-khmer-serif font-bold text-[13px] sm:text-[15px] leading-tight truncate">បណ្ណាល័យ វ.គ.ភ</span>
-              <span className="font-khmer-serif font-bold text-[11px] sm:text-sm tracking-wide mt-0.5 truncate">PTEC Library</span>
-            </div>
-          </Link>
+          {/* Phones: on a pushed screen (a book, a path, an article …)
+              TopBarBack puts Back before the brand, and the page's title in
+              place of the brand once the <h1> has scrolled under the bar.
+              The zone spans the empty nav column below lg, so that title has
+              the width of the bar. */}
+          <div className="relative flex min-w-0 items-center max-lg:col-span-2">
+            <TopBarBack />
+            <Link
+              href="/"
+              prefetch={false}
+              className="topbar-brand group flex min-w-0 items-center gap-2 sm:gap-3"
+            >
+              <div className="shrink-0 scale-90 sm:scale-100 origin-left">
+                {/* The one seal above the fold on every page. Lazy here meant
+                    the header brand mark was requested only after layout. */}
+                <Seal size={48} priority />
+              </div>
+              <div className="max-[360px]:hidden flex min-w-0 flex-col whitespace-nowrap text-[#1000C0] transition-opacity group-hover:opacity-90 dark:text-brand">
+                <span lang="km" className="font-khmer-serif font-bold text-[13px] sm:text-[15px] leading-tight truncate">បណ្ណាល័យ វ.គ.ភ</span>
+                <span className="font-khmer-serif font-bold text-[11px] sm:text-sm tracking-wide mt-0.5 truncate">PTEC Library</span>
+              </div>
+            </Link>
+          </div>
 
           {/* Zone 2: primary nav (lg+) with priority overflow */}
           <PriorityNav entries={navEntries} />

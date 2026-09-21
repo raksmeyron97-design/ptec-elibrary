@@ -392,6 +392,37 @@
   }
 }
 
+/* ── Pushed screens (components/layout/TopBarBack.tsx) ──────────────
+   Below lg, on a book, a path, an article …, once the page's <h1> has gone
+   under the bar the brand steps out and the page's title takes its place —
+   the header every phone app draws one level down. TopBarBack writes
+   data-topbar-title onto <html>; these rules are the whole behaviour.
+   Opacity only, 150 ms; `visibility` follows the fade so the hidden brand
+   link leaves the tab order. None under reduced motion. */
+@media (max-width: 63.999rem) {
+  .site-header .topbar-brand {
+    transition: opacity 150ms ease-out, visibility 0s linear 0s;
+  }
+  .site-header .topbar-title {
+    opacity: 0;
+    transition: opacity 150ms ease-out;
+  }
+  :root[data-topbar-title] .site-header .topbar-title {
+    opacity: 1;
+  }
+  :root[data-topbar-title] .site-header .topbar-brand {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 150ms ease-out, visibility 0s linear 150ms;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-header .topbar-brand,
+  .site-header .topbar-title {
+    transition: none;
+  }
+}
+
 @theme inline {
   /* Color — PTEC Blue (primary) */
   --color-blue-50: #EEF2FB;

@@ -5,6 +5,7 @@ import {
   activeTab,
   assistantFabHidden,
   assistantFabHiddenOnPhone,
+  backTarget,
   EXPLORE_ROUTES,
   isImmersiveReaderRoute,
   MORE_ROUTES,
@@ -150,5 +151,46 @@ describe("the routes the tabs own", () => {
       expect(fs.existsSync(path.join(root, route.slice(1), "page.tsx")), route).toBe(true);
     }
     expect(fs.existsSync(path.join(root, "lists", "[id]", "page.tsx"))).toBe(true);
+  });
+});
+
+describe("backTarget", () => {
+  it.each([
+    ["/books/effective-school-management", "/books"],
+    ["/km/books/effective-school-management", "/books"],
+    ["/books/effective-school-management/", "/books"],
+    ["/theses/a-thesis", "/theses"],
+    ["/theses/summary", "/theses"],
+    ["/journals/articles/handmade-conductivity", "/journals"],
+    ["/km/journals/a-journal/issues/vol-1-issue-1", "/journals"],
+    ["/paths/early-grade-reading", "/paths"],
+    ["/subjects/x", "/subjects"],
+    ["/authors/kenneth-berk", "/authors"],
+    ["/catalogs/some-title", "/catalogs"],
+    ["/posts/news-item", "/posts"],
+    ["/about/team", "/about"],
+    ["/dashboard/settings", "/dashboard"],
+    // A reader's list lives in Saved.
+    ["/lists/abc", "/dashboard"],
+  ] as const)("%s → %s", (pathname, parent) => {
+    expect(backTarget(pathname)).toBe(parent);
+  });
+
+  it("gives tab roots and the reading route no Back", () => {
+    for (const root of ["/", "/km", "/books", "/km/paths", "/search", "/dashboard", "/offline-books", "/offline-reader", "/about"]) {
+      expect(backTarget(root), root).toBeNull();
+    }
+    // The reader draws its own Back (to the book), so the top bar must not.
+    expect(backTarget("/books/x/read")).toBeNull();
+    expect(backTarget("/km/books/x/read/")).toBeNull();
+  });
+
+  it("only ever points at a page that exists", () => {
+    const root = path.resolve(__dirname, "../../app/[locale]/(public)");
+    const samples = ["/books/x", "/theses/x", "/journals/articles/x", "/paths/x", "/subjects/x", "/authors/x", "/catalogs/x", "/posts/x", "/about/team", "/lists/x", "/dashboard/settings"];
+    for (const sample of samples) {
+      const parent = backTarget(sample)!;
+      expect(fs.existsSync(path.join(root, parent.slice(1), "page.tsx")), `${sample} → ${parent}`).toBe(true);
+    }
   });
 });

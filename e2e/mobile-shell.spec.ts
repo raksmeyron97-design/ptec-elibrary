@@ -177,8 +177,111 @@ test.describe("phone shell at 360 px", () => {
   });
 });
 
+// Pushed screens (MUX-01): one level below a collection the phone bar draws
+// ‹ Back, and the page's title once its <h1> has gone under the bar. Back is
+// a history Back when the previous entry is this site, and goes UP to the
+// collection when the reader landed here — never off the site.
+test.describe("pushed screens at 390 px: Back and the page title", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  // Exact: "Back to top" exists too.
+  const back = (page: Page) => page.locator(".site-header").getByRole("button", { name: "Back", exact: true });
+
+  test("Back on a pushed screen, and never on a tab root", async ({ page }) => {
+    await page.goto("/about/team");
+    await expect(back(page)).toBeVisible();
+    const box = (await back(page).boundingBox())!;
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    for (const root of ["/books", "/"]) {
+      await page.goto(root);
+      await expect(page.locator(".site-header .topbar-brand")).toBeVisible();
+      await expect(back(page)).toHaveCount(0);
+    }
+  });
+
+  test("landed from outside the site: Back goes UP to the collection", async ({ page }) => {
+    // A fresh page — no in-app history, like a Telegram link or a search result.
+    await page.goto("/about/team");
+    await back(page).click();
+    await expect(page).toHaveURL(/\/about$/, NAVIGATION);
+  });
+
+  test("arrived from inside the site: Back is a history Back, to where the reader was", async ({ page }) => {
+    await page.goto("/");
+    // A book opened from the homepage: UP would be /books, history is /.
+    await page.locator('main a[href^="/books/"]').first().click();
+    await expect(page).toHaveURL(/\/books\/[^/]+$/, NAVIGATION);
+    await back(page).click();
+    await expect(page).toHaveURL(/localhost:\d+\/$/, NAVIGATION);
+  });
+
+  test("without the Navigation API, a count of in-app navigations decides the same way", async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(window, "navigation", { configurable: true, value: undefined });
+    });
+    await page.goto("/");
+    await page.locator('main a[href^="/books/"]').first().click();
+    await expect(page).toHaveURL(/\/books\/[^/]+$/, NAVIGATION);
+    await back(page).click();
+    await expect(page).toHaveURL(/localhost:\d+\/$/, NAVIGATION);
+
+    await page.goto("/about/team"); // a fresh load resets the count: landed
+    await back(page).click();
+    await expect(page).toHaveURL(/\/about$/, NAVIGATION);
+  });
+
+  test("once the heading is under the bar, the bar carries the page's title — its first line", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    page.on("console", (m) => m.type() === "error" && /hydrat/i.test(m.text()) && errors.push(m.text()));
+    await page.goto("/about/team");
+    const title = page.locator(".site-header .topbar-title");
+    const brand = page.locator(".site-header .topbar-brand");
+    await expect(back(page)).toBeVisible();
+    expect(await page.evaluate(() => "topbarTitle" in document.documentElement.dataset)).toBe(false);
+
+    // Scroll the heading away (the bar steps aside on the way down), then a
+    // little back up so the bar returns with the heading still out of view.
+    await page.mouse.wheel(0, 900);
+    await page.waitForTimeout(400);
+    await page.mouse.wheel(0, -120);
+    await expect(page.locator("html")).toHaveAttribute("data-topbar-title", "");
+    await expect(title).toHaveText("Library Team"); // not "Library Team ក្រុមការងារ…"
+    await expect(title).toHaveCSS("opacity", "1");
+    await expect(title).toHaveAttribute("aria-hidden", "true");
+    // The brand steps out of sight AND out of the tab order.
+    await expect(brand).toHaveCSS("visibility", "hidden");
+
+    // Back at the top the brand returns.
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(page.locator("html")).not.toHaveAttribute("data-topbar-title", "");
+    await expect(brand).toHaveCSS("visibility", "visible");
+    expect(errors).toEqual([]);
+  });
+
+  test("Khmer: the Back label and the title are Khmer", async ({ page }) => {
+    await page.goto("/km/about/team");
+    const backKm = page.locator(".site-header").getByRole("button", { name: "ថយក្រោយ", exact: true });
+    await expect(backKm).toBeVisible();
+    await page.mouse.wheel(0, 900);
+    await page.waitForTimeout(400);
+    await page.mouse.wheel(0, -120);
+    await expect(page.locator(".site-header .topbar-title")).toHaveText("ក្រុមការងារបណ្ណាល័យ");
+    await backKm.click();
+    await expect(page).toHaveURL(/\/km\/about$/, NAVIGATION);
+  });
+});
+
 test.describe("desktop at 1280 px is untouched", () => {
   test.use({ viewport: { width: 1280, height: 900 } });
+
+  test("a pushed screen draws no Back and no title swap", async ({ page }) => {
+    await page.goto("/about/team");
+    await expect(page.locator(".site-header").getByRole("button", { name: "Back", exact: true })).toBeHidden();
+    await expect(page.locator(".site-header .topbar-title")).toBeHidden();
+    await expect(page.locator(".site-header .topbar-brand")).toBeVisible();
+  });
 
   test("no tab bar, no sticky phone header, the full navigation", async ({ page }) => {
     await page.goto("/");
