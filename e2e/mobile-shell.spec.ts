@@ -356,6 +356,89 @@ test.describe("sheets pull down to close", () => {
   });
 });
 
+// The current tab goes to the top (MUX-07): tapping Home on Home scrolls to
+// the top instead of navigating to the page you are on, and a long press on
+// a tab selects nothing and opens no link menu — native tab bars have neither.
+test.describe("tab bar: tapping the current tab goes to the top", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  async function onHomeScrolled(page: Page) {
+    await page.goto("/");
+    await shellReady(page);
+    // Next's dev-tools badge sits over the Home tab; production has none.
+    await page.evaluate(() => document.querySelector("nextjs-portal")?.remove());
+    await page.evaluate(() => {
+      (window as unknown as { __sameDocument: boolean }).__sameDocument = true;
+      window.scrollTo(0, 1600);
+    });
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(1000);
+  }
+  async function tapHome(page: Page, isMobile: boolean) {
+    const home = tabBar(page).getByRole("link", { name: "Home" });
+    if (!isMobile) return home.click();
+    const box = (await home.boundingBox())!;
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+  }
+
+  test("Home on Home scrolls to the top, with no navigation", async ({ page, isMobile }) => {
+    await onHomeScrolled(page);
+    const requests: string[] = [];
+    page.on("request", (r) => {
+      if (r.resourceType() === "document" || r.url().includes("_rsc=")) requests.push(r.url());
+    });
+    await tapHome(page, isMobile);
+    await expect.poll(() => page.evaluate(() => window.scrollY), { timeout: 5_000 }).toBe(0);
+    expect(await page.evaluate(() => (window as unknown as { __sameDocument?: boolean }).__sameDocument)).toBe(true);
+    expect(requests, "no request for the page you are already on").toEqual([]);
+    await expect(page).toHaveURL(/localhost:\d+\/$/);
+  });
+
+  test("under reduced motion the jump is instant", async ({ page, isMobile }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await onHomeScrolled(page);
+    await tapHome(page, isMobile);
+    await page.waitForTimeout(80); // far shorter than any smooth scroll over 1600 px
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  });
+
+  test("a modified click on the current tab is left to the browser", async ({ page }) => {
+    await page.goto("/");
+    await shellReady(page);
+    const prevented = await tabBar(page)
+      .getByRole("link", { name: "Home" })
+      .evaluate((el) => {
+        const seen: boolean[] = [];
+        // Bubble phase on window runs after React's root listener, so it sees
+        // what the tab's handler decided; then stop the real navigation.
+        const probe = (e: Event) => {
+          seen.push(e.defaultPrevented);
+          e.preventDefault();
+        };
+        window.addEventListener("click", probe);
+        el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
+        el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0, ctrlKey: true }));
+        window.removeEventListener("click", probe);
+        return seen;
+      });
+    expect(prevented).toEqual([true, false]);
+  });
+
+  test("a long press on a tab selects nothing and opens no link menu", async ({ page }) => {
+    await page.goto("/");
+    for (const name of ["Home", "Search"]) {
+      const prevented = await tabBar(page)
+        .getByRole("link", { name })
+        .evaluate((el) => {
+          const e = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+          el.dispatchEvent(e);
+          return e.defaultPrevented;
+        });
+      expect(prevented, `contextmenu on ${name}`).toBe(true);
+    }
+    await expect(tabBar(page)).toHaveCSS("user-select", "none");
+  });
+});
+
 test.describe("desktop at 1280 px is untouched", () => {
   test.use({ viewport: { width: 1280, height: 900 } });
 

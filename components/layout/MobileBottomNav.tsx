@@ -108,6 +108,19 @@ function SearchFace({ label, active }: { label: string; active: boolean }) {
 }
 
 // ── Component ───────────────────────────────────────────────────────────────
+/** Tapping the tab you are already on takes you back to the top — the
+ *  convention of every tab bar on both phone platforms — instead of
+ *  navigating to the page you are on. A modified click is left alone (open
+ *  in a new tab etc.). */
+function onCurrentTab(event: MouseEvent<HTMLAnchorElement>) {
+  if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+    return;
+  }
+  event.preventDefault();
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+}
+
 export default function MobileBottomNav({ hours, contact }: MobileBottomNavProps) {
   const { user } = useSession();
   const t = useTranslations("nav");
@@ -186,9 +199,13 @@ export default function MobileBottomNav({ hours, contact }: MobileBottomNavProps
 
   return (
     <>
+      {/* select-none + no touch callout + no context menu: a long press on a
+          tab is not a request to select "Explore" or to open Home in a new
+          tab — native tab bars have neither. */}
       <nav
         aria-label={t("tabBarLabel")}
-        className="glass-surface glass-surface--strong fixed inset-x-2.5 bottom-[calc(var(--ptec-mobile-nav-gap)+env(safe-area-inset-bottom,0px))] z-50 mx-auto h-[var(--ptec-mobile-nav-height)] max-w-md rounded-[24px] p-1 lg:hidden print:hidden"
+        onContextMenu={(event) => event.preventDefault()}
+        className="glass-surface glass-surface--strong fixed inset-x-2.5 bottom-[calc(var(--ptec-mobile-nav-gap)+env(safe-area-inset-bottom,0px))] z-50 mx-auto h-[var(--ptec-mobile-nav-height)] max-w-md select-none rounded-[24px] p-1 [-webkit-touch-callout:none] lg:hidden print:hidden"
       >
         <div className="relative h-full">
           {/* The sliding indicator. It mirrors TabFace's column (icon slot +
@@ -219,6 +236,7 @@ export default function MobileBottomNav({ hours, contact }: MobileBottomNavProps
                     <Link
                       href={tab.href}
                       aria-current={active ? "page" : undefined}
+                      onClick={active ? onCurrentTab : undefined}
                       // The active route is the one navigation that cannot happen.
                       prefetch={active ? false : undefined}
                       // A tab switch is not a page transition: the indicator
