@@ -1595,6 +1595,7 @@ export default function PDFViewer({
             numPages={numPages}
             onPrev={() => navigateToPage(currentPage - 1)}
             onNext={() => navigateToPage(currentPage + 1)}
+            onJump={navigateToPage}
             onOpenNavigator={() => setNavigatorOpen(true)}
             progressPct={progress.progressPct}
             maxProgressPct={progress.maxProgressPct}

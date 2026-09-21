@@ -150,7 +150,14 @@ export function useAutoHideControls({
       else pageTouchedAt = performance.now();
     };
     const onPointerMove = (e: PointerEvent) => {
-      if (e.pointerType === "touch") return;
+      if (e.pointerType === "touch") {
+        // A finger moving on the PAGE is scrolling; a finger moving on the
+        // CONTROLS is using them (dragging the scrubber) and must keep them
+        // up — a range input is not always focused by a touch (iOS), so
+        // focus alone would let a long drag hide the bar under the finger.
+        if (closest(e, CONTROLS)) activity();
+        return;
+      }
       lastInput = "other";
       activity();
     };
@@ -170,10 +177,13 @@ export function useAutoHideControls({
     const onPointerEnd = (e: PointerEvent) => {
       if (e.pointerType === "touch") stampTouch(e);
     };
-    // A value committed on the controls (the scrubber's `change`, the Go to
-    // page field) is a use of the controls, whatever input produced it.
+    // A value changed on the controls (the scrubber's `input`/`change`, the
+    // Go to page field) is a use of the controls, whatever input produced it
+    // — and, like any use, it keeps them up.
     const onControlValue = (e: Event) => {
-      if (closest(e, CONTROLS)) hudTouchedAt = performance.now();
+      if (!closest(e, CONTROLS)) return;
+      hudTouchedAt = performance.now();
+      activity();
     };
     const onPointerOver = (e: PointerEvent) => {
       // A finger does not hover: a tapped control must not pin the bars up.

@@ -57,6 +57,7 @@ automated check is listed as manual on purpose; nothing here is assumed.
 | D2a | Single mode at fit width: a tap on the outer fifth of the page turns it by one, at once — no double-tap zoom in those zones, so two quick taps are two pages | unit + e2e (Mobile Chrome) |
 | D3 | Progress bar reflects current/max; percent localised | component |
 | D4 | "Welcome back" prompt appears only when resuming beyond page 1; "Start from beginning" goes to page 1; never overwrites a newer position | component |
+| D5 | Phones: the bottom bar's middle is a native range scrubber (1…numPages). Dragging shows an `aria-hidden` "Page N of M" bubble and the percentage follows the draft; the reader moves once, on the native `change` (also what a keyboard arrow or a VoiceOver/TalkBack adjust sends) — `pointerup`/`pointercancel`/`blur` only clear a drag that ended where it began. Named from `reader.goToPage`, valued from `reader.pageIndicator` | unit (`ReaderScrubber.test.tsx`) + e2e (Mobile Chrome: a finger drag lands near ¾ with no pages visited in between and the bars up; ArrowRight commits) |
 
 ## E. Zoom & layout
 

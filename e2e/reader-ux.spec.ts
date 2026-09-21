@@ -428,3 +428,58 @@ test.describe("PDF reader on touch", () => {
     await expect(pill).toHaveAttribute("aria-label", "Page 2 of 40");
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The phone page scrubber (MUX-05): one drag is one jump, committed on the
+// native `change`, and the jump it causes never hides the bars being used.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe("PDF reader scrubber on phones", () => {
+  test.slow();
+  test.beforeEach(({ isMobile }) => test.skip(!isMobile, "the scrubber is the phone bottom bar"));
+
+  const slider = (page: Page) => page.locator('[data-reader-hud="bottom"] input[type="range"]');
+  const pill = (page: Page) => page.locator('[data-reader-hud="top"] button[aria-label^="Page "]');
+  const pageOf = async (page: Page) => Number(/Page (\d+) of/.exec((await pill(page).getAttribute("aria-label")) ?? "")?.[1]);
+
+  test("a finger drag to three quarters lands there, once, and the bars stay up", async ({ page, isMobile, browserName }) => {
+    test.skip(browserName !== "chromium", "CDP touch input is Chromium-only");
+    await openReader(page, isMobile);
+    await showByTap(page);
+
+    const box = (await slider(page).boundingBox())!;
+    const y = box.y + box.height / 2;
+    // Record every page the reader reports while the finger moves: a
+    // scrubber that committed per step would walk the reader through them.
+    await pill(page).evaluate((el) => {
+      const seen: string[] = [];
+      (window as unknown as { __pages: string[] }).__pages = seen;
+      new MutationObserver(() => seen.push(el.getAttribute("aria-label") ?? "")).observe(el, { attributeFilter: ["aria-label"] });
+    });
+    // From the thumb at page 1 to 75 % of the track, lifted: one `change`.
+    await touchDrag(page, { x: box.x + 8, y }, { x: box.x + box.width * 0.75, y }, { steps: 20 });
+
+    await expect.poll(() => pageOf(page), { timeout: 10_000 }).toBeGreaterThan(20);
+    const landed = await pageOf(page);
+    expect(landed, "lands near three quarters of 40").toBeGreaterThanOrEqual(26);
+    expect(landed).toBeLessThanOrEqual(33);
+    await expect(page.locator(`[data-page="${landed}"] canvas`).first()).toBeVisible({ timeout: 30_000 });
+    // The jump scrolled the viewport; that scroll was the scrubber's doing.
+    expect(await hudHidden(page), "the bars being used stay up").toBe(false);
+    expect(await slider(page).getAttribute("aria-valuetext")).toBe(`Page ${landed} of 40`);
+    const walked = await page.evaluate(() => (window as unknown as { __pages: string[] }).__pages);
+    expect(walked, "one drag, one jump — the reader never visited the pages in between").toEqual([`Page ${landed} of 40`]);
+  });
+
+  test("ArrowRight on the focused slider commits one page", async ({ page, isMobile }) => {
+    await openReader(page, isMobile);
+    // A key brings the bars up without toggling them (a tap on bars already
+    // up would schedule a hide) and makes the focus a keyboard one.
+    await page.keyboard.press("Shift");
+    await slider(page).focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(pill(page)).toHaveAttribute("aria-label", "Page 2 of 40");
+    await page.keyboard.press("ArrowRight");
+    await expect(pill(page)).toHaveAttribute("aria-label", "Page 3 of 40");
+  });
+});

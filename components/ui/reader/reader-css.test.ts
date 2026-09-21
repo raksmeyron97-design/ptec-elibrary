@@ -16,7 +16,9 @@
 // component — the markup is correct; the cascade is not. Hence a source scan.
 //
 // The rule enforced is the DEFECT CLASS, not one line: no unlayered rule
-// anywhere in globals.css may set `display` on `.reader-btn`.
+// anywhere in globals.css may set `display` on `.reader-btn`, nor on any
+// other reader component class that a call site hides by breakpoint
+// (`.reader-scrubber`, MUX-05) — LAYERED_COMPONENT_CLASSES below.
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -24,7 +26,6 @@ import { describe, expect, it } from "vitest";
 
 const ROOT = path.resolve(__dirname, "../../..");
 const cssSource = readFileSync(path.join(ROOT, "app/globals.css"), "utf8");
-const hudSource = readFileSync(path.join(__dirname, "ReaderHUD.tsx"), "utf8");
 
 /** Comments can contain anything, including the rule this file forbids — the
  *  fix's own explanation quotes it. Strip them before scanning. */
@@ -74,34 +75,50 @@ function rules(css: string): Rule[] {
   return out;
 }
 
-/** Selector lists that target the bare `.reader-btn` class (not a variant such
- *  as `.reader-btn--pill`, and not a state such as `.reader-btn:hover`). */
-function targetsBaseReaderBtn(selector: string): boolean {
+/** Selector lists that target a bare class (not a variant such as
+ *  `.reader-btn--pill`, and not a state such as `.reader-btn:hover`). */
+function targetsBase(selector: string, cls: string): boolean {
+  const bare = new RegExp(`(^|[\\s>+~])\\${cls}$`);
   return selector
     .split(",")
     .map((s) => s.trim())
-    .some((s) => /(^|[\s>+~])\.reader-btn$/.test(s));
+    .some((s) => bare.test(s));
 }
+
+// Every reader component class that sets `display` and is also given a
+// breakpoint utility (`hidden`, `md:hidden`, `md:inline-flex`) at its call
+// site. Each must set display from INSIDE a layer, or the utility loses.
+const LAYERED_COMPONENT_CLASSES: { cls: string; source: string; breakpoints: RegExp[] }[] = [
+  {
+    cls: ".reader-btn",
+    source: "ReaderHUD.tsx",
+    breakpoints: [/className="reader-btn[^"]*\bhidden md:inline-flex/, /className="reader-btn[^"]*\bmd:hidden/],
+  },
+  { cls: ".reader-scrubber", source: "ReaderScrubber.tsx", breakpoints: [/className="reader-scrubber[^"]*\bmd:hidden/] },
+];
 
 describe("reader chrome CSS", () => {
   const all = rules(stripComments(cssSource));
-  const base = all.filter((r) => targetsBaseReaderBtn(r.selector) && /(^|[;\s])display\s*:/.test(r.body));
 
-  it("declares the .reader-btn base rule at all", () => {
-    // Guards the other assertions: they would both pass vacuously if the rule
-    // were renamed or deleted, and the HUD would then lose its 44 px targets.
-    expect(base.length).toBeGreaterThan(0);
-  });
+  for (const { cls, source, breakpoints } of LAYERED_COMPONENT_CLASSES) {
+    const base = all.filter((r) => targetsBase(r.selector, cls) && /(^|[;\s])display\s*:/.test(r.body));
 
-  it("sets .reader-btn's display only from inside a cascade layer", () => {
-    const unlayered = base.filter((r) => !r.layered).map((r) => r.selector);
-    expect(unlayered).toEqual([]);
-  });
+    it(`declares the ${cls} base rule at all`, () => {
+      // Guards the next assertion, which would pass vacuously if the rule
+      // were renamed or deleted.
+      expect(base.length).toBeGreaterThan(0);
+    });
 
-  it("keeps the breakpoint classes the layering exists to make work", () => {
-    // If the cascade bug is ever 'fixed' by deleting these instead, the rule
-    // above would still pass while the HUD went back to drawing both layouts.
-    expect(hudSource).toMatch(/className="reader-btn[^"]*\bhidden md:inline-flex/);
-    expect(hudSource).toMatch(/className="reader-btn[^"]*\bmd:hidden/);
-  });
+    it(`sets ${cls}'s display only from inside a cascade layer`, () => {
+      const unlayered = base.filter((r) => !r.layered).map((r) => r.selector);
+      expect(unlayered).toEqual([]);
+    });
+
+    it(`keeps the breakpoint classes on ${cls} in ${source} that the layering exists to make work`, () => {
+      // If the cascade bug is ever 'fixed' by deleting these instead, the rule
+      // above would still pass while the layout went back to drawing both.
+      const markup = readFileSync(path.join(__dirname, source), "utf8");
+      for (const breakpoint of breakpoints) expect(markup).toMatch(breakpoint);
+    });
+  }
 });

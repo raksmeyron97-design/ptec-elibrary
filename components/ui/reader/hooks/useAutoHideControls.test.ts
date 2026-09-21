@@ -108,6 +108,24 @@ describe("useAutoHideControls — touch reads like a reading app", () => {
     expect(hook.result.current.visible).toBe(false);
   });
 
+  it("a long drag on the controls keeps them up, focused or not", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { slider, hook, wait } = setup();
+    act(() => hook.result.current.show());
+    act(() => pointer(slider, "pointerdown", "touch"));
+    // Five seconds of scrubbing — longer than the idle delay — with the input
+    // never focused (iOS does not focus a range on touch).
+    for (let i = 0; i < 10; i++) {
+      await wait(500);
+      act(() => {
+        pointer(slider, "pointermove", "touch");
+        slider.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    }
+    expect(document.activeElement).not.toBe(slider);
+    expect(hook.result.current.visible).toBe(true);
+  });
+
   it("the grace window runs from the END of a touch on the controls (a long drag ending in pointercancel)", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { slider, viewport, hook, scrollTo, wait } = setup();
