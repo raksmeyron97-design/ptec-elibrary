@@ -11,6 +11,7 @@ import { useTranslations } from 'next-intl';
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { authRedirect } from "@/lib/auth/redirect-url";
 import { signInWithPassword, type SignInErrorCode } from "@/app/actions/sign-in";
+import { safeReturnTo } from "@/lib/security/return-to";
 
 // ── Friendly error messages ───────────────────────────────────────────────────
 // ── PTEC content data ────────────────────────────────────────────────────────
@@ -74,14 +75,18 @@ export default function LoginContent({ stats, site }: Props) {
   const t = useTranslations('auth');
   const router = useRouter();
   const searchParams = useSearchParams();
-  const rawCallback = searchParams.get("callbackUrl") ?? "/dashboard";
-  // Reject protocol-relative, absolute, and backslash-escape variants
-  const callbackUrl =
-    rawCallback.startsWith("/") &&
-    !rawCallback.startsWith("//") &&
-    !rawCallback.startsWith("/\\")
-      ? rawCallback
-      : "/dashboard";
+  // Open-redirect guard: the SHARED, unit-tested helper, never a local copy.
+  //
+  // The local copy this replaces tested three prefixes — "/", not "//", not
+  // "/\\" — and a control character defeated all three. `?callbackUrl=/%09/evil.com`
+  // arrives here percent-DECODED as "/<TAB>/evil.com", passes every prefix
+  // test, and is then handed to `router.push`, which resolves it with the URL
+  // parser: tab, CR and LF are stripped BEFORE parsing, so the string becomes
+  // "//evil.com" — protocol-relative — and Next hard-navigates off-site with
+  // the visitor's freshly established session. `safeReturnTo` rejects every
+  // control character and re-resolves against a sentinel origin, so a target
+  // that escapes the origin cannot survive the check.
+  const callbackUrl = safeReturnTo(searchParams.get("callbackUrl"), "/dashboard");
   const urlError = searchParams.get("error");
   const urlErrorKey = urlError === "admin_signup_blocked" ? "errAdminBlocked" : urlError === "auth_failed" ? "errDefault" : null;
 

@@ -1,42 +1,44 @@
-// lib/team/directory.test.ts
+// Pins the /about/team directory's decision rules — the ones a screenshot
+// cannot catch and the type system cannot express.
 //
-// The team directory's decisions, exercised offline: no React, no DOM, no
-// database. Everything asserted here is what the reader experiences as
-// "the chips are right", "my name is in the right script", "searching for my
-// colleague finds them" and "this link opens the right panel".
+// Three of them are load-bearing enough to be worth stating here:
+//
+//   • A name's `lang` comes from the VALUE that was used, not the requested
+//     locale. Get this wrong and a Latin name on /km is handed to Hanuman.
+//   • Search matches BOTH scripts whatever the page's locale is.
+//   • The featured section is `is_featured` and nothing else — never a
+//     position string, and never padded to fill a row.
 
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import {
-  ALL_DEPARTMENTS,
-  DEPARTMENT_ACCENTS,
-  UNSECTIONED,
-  departmentAccents,
-  departmentIdOf,
-  filterTeamMembers,
-  heroPortrait,
-  isTeamView,
-  matchesTeamQuery,
-  memberBySlug,
-  memberDepartment,
+  FILTER_ALL,
+  FILTER_UNSECTIONED,
+  FEATURED_MAX,
+  areaChips,
+  filterMembers,
+  matchesQuery,
+  memberArea,
+  memberBio,
   memberNames,
   memberPosition,
+  memberResponsibilities,
   memberSummary,
-  teamDepartments,
+  searchHaystack,
+  sectionBlurb,
+  sectionName,
+  splitFeatured,
 } from "./directory";
 import type { PublicTeamMember, PublicTeamSection } from "./public";
 
-const ROOT = path.resolve(__dirname, "..", "..");
-
 function member(overrides: Partial<PublicTeamMember> = {}): PublicTeamMember {
   return {
-    id: overrides.slug ?? "id-1",
-    slug: null,
-    name_km: "",
-    name_en: "",
+    id: "m1",
+    slug: "sokha",
+    updated_at: null,
+    name_km: "សុខា",
+    name_en: "Sokha",
     position_km: null,
-    position_en: null,
+    position_en: "Librarian",
     education: null,
     years_experience: null,
     photo_url: null,
@@ -56,358 +58,313 @@ function member(overrides: Partial<PublicTeamMember> = {}): PublicTeamMember {
     section_name_en: null,
     phone: null,
     email: null,
-    updated_at: null,
     ...overrides,
   };
 }
 
-function section(id: string, en: string, km: string, order = 1): PublicTeamSection {
+function section(overrides: Partial<PublicTeamSection> = {}): PublicTeamSection {
   return {
-    id,
-    name_en: en,
-    name_km: km,
-    description_en: null,
+    id: "s1",
+    name_km: "សេវាអ្នកអាន",
+    name_en: "Reader Services",
     description_km: null,
-    display_order: order,
+    description_en: null,
+    display_order: 0,
+    ...overrides,
   };
 }
 
-/* ────────────────────────────────────────────────────────────────────────── */
-
-describe("departments are derived from the roster", () => {
-  const sections = [
-    section("s1", "Library Leadership", "ថ្នាក់ដឹកនាំបណ្ណាល័យ", 1),
-    section("s2", "Cataloging & Processing", "ចុះបញ្ជី", 2),
-    section("s3", "Reader Services", "សេវាកម្មអ្នកអាន", 3),
-  ];
-  const members = [
-    member({ id: "a", section_id: "s1" }),
-    member({ id: "b", section_id: "s2" }),
-    member({ id: "c", section_id: "s2" }),
-    member({ id: "d", section_id: null }),
-  ];
-
-  it("counts every member, in section order", () => {
-    const departments = teamDepartments(members, sections, "en", "Other");
-    expect(departments.map((d) => [d.id, d.label, d.count])).toEqual([
-      ["s1", "Library Leadership", 1],
-      ["s2", "Cataloging & Processing", 2],
-      [UNSECTIONED, "Other", 1],
-    ]);
-  });
-
-  it("drops a section nobody published into — a chip that always shows 0 and an empty grid is a dead control", () => {
-    expect(teamDepartments(members, sections, "en", "Other").map((d) => d.id)).not.toContain("s3");
-  });
-
-  it("omits the loose bucket entirely when every member has a live section", () => {
-    const tidy = members.filter((m) => m.section_id);
-    expect(teamDepartments(tidy, sections, "en", "Other").map((d) => d.id)).toEqual(["s1", "s2"]);
-  });
-
-  it("labels each department in the active locale", () => {
-    expect(teamDepartments(members, sections, "km", "ផ្សេងទៀត")[0].label).toBe(
-      "ថ្នាក់ដឹកនាំបណ្ណាល័យ",
-    );
-  });
-
-  it("assigns the four validated hues in order and repeats rather than inventing a fifth", () => {
-    const many = Array.from({ length: 6 }, (_, i) => section(`x${i}`, `Area ${i}`, `ផ្នែក ${i}`, i));
-    const roster = many.map((s, i) => member({ id: `m${i}`, section_id: s.id }));
-    const accents = teamDepartments(roster, many, "en", "Other").map((d) => d.accent);
-    expect(accents).toEqual([1, 2, 3, 4, 1, 2]);
-    expect(new Set(accents).size).toBe(DEPARTMENT_ACCENTS);
-  });
-
-  it("maps a member with no live section into the loose bucket", () => {
-    expect(departmentIdOf(member({ section_id: null }))).toBe(UNSECTIONED);
-    expect(departmentIdOf(member({ section_id: "s2" }))).toBe("s2");
-  });
-
-  it("indexes accents by department id, for the cards to read", () => {
-    const departments = teamDepartments(members, sections, "en", "Other");
-    expect(departmentAccents(departments)).toEqual({ s1: 1, s2: 2, [UNSECTIONED]: 3 });
-  });
-});
-
-/* ────────────────────────────────────────────────────────────────────────── */
-
-describe("name script ordering", () => {
-  const both = member({ name_en: "Sok Dara", name_km: "សុខ ដារា" });
-
-  it("leads with Khmer on /km and with Latin on /, and always shows both", () => {
-    expect(memberNames(both, "km")).toEqual({
-      primary: "សុខ ដារា",
+describe("memberNames", () => {
+  it("leads with the active locale and keeps the other script as a secondary line", () => {
+    expect(memberNames(member(), "en")).toEqual({
+      primary: "Sokha",
+      primaryLang: "en",
+      secondary: "សុខា",
+      secondaryLang: "km",
+    });
+    expect(memberNames(member(), "km")).toEqual({
+      primary: "សុខា",
       primaryLang: "km",
-      secondary: "Sok Dara",
+      secondary: "Sokha",
       secondaryLang: "en",
     });
-    expect(memberNames(both, "en")).toEqual({
-      primary: "Sok Dara",
-      primaryLang: "en",
-      secondary: "សុខ ដារា",
-      secondaryLang: "km",
-    });
   });
 
-  it("never repeats the same string twice", () => {
-    const one = member({ name_en: "MoEYS", name_km: "MoEYS" });
-    expect(memberNames(one, "km").secondary).toBeNull();
-    expect(memberNames(one, "en").secondary).toBeNull();
+  it("tags the language of the value it actually used, not the locale it was asked for", () => {
+    // A member with no Khmer name renders their Latin name on /km. Tagging
+    // that run lang="km" hands an English string to the Khmer serif.
+    const latinOnly = member({ name_km: "" });
+    const km = memberNames(latinOnly, "km");
+    expect(km.primary).toBe("Sokha");
+    expect(km.primaryLang).toBe("en");
+    expect(km.secondary).toBeNull();
   });
 
-  it("falls back to the only script stored, with the right lang, and no second line", () => {
-    const latinOnly = member({ name_en: "Sok Dara", name_km: "" });
-    expect(memberNames(latinOnly, "km")).toEqual({
-      primary: "Sok Dara",
-      primaryLang: "en",
-      secondary: null,
-      secondaryLang: "km",
-    });
-
-    const khmerOnly = member({ name_en: "", name_km: "សុខ ដារា" });
-    expect(memberNames(khmerOnly, "en").primaryLang).toBe("km");
-    expect(memberNames(khmerOnly, "en").primary).toBe("សុខ ដារា");
-  });
-
-  it("applies the same rule to positions and departments", () => {
-    const m = member({
-      position_en: "Cataloging Officer",
-      position_km: "មន្ត្រីចុះបញ្ជី",
-      section_name_en: "Reader Services",
-      section_name_km: "សេវាកម្មអ្នកអាន",
-    });
-    expect(memberPosition(m, "km")).toBe("មន្ត្រីចុះបញ្ជី");
-    expect(memberPosition(m, "en")).toBe("Cataloging Officer");
-    expect(memberDepartment(m, "km")).toBe("សេវាកម្មអ្នកអាន");
-    expect(memberDepartment(m, "en")).toBe("Reader Services");
-    // Only one language stored: it answers for both locales rather than
-    // rendering nothing.
-    expect(memberPosition(member({ position_en: "Librarian" }), "km")).toBe("Librarian");
-    expect(memberDepartment(member(), "en")).toBeNull();
+  it("never repeats one name on both lines", () => {
+    const same = member({ name_km: "Sokha", name_en: "Sokha" });
+    expect(memberNames(same, "en").secondary).toBeNull();
   });
 });
 
-describe("the card's one line is in the reader's own language", () => {
-  const full = member({
-    short_bio_en: "Runs the reading-room desk.",
-    short_bio_km: "ទទួលបន្ទុកតុបម្រើសេវានៅបន្ទប់អាន។",
-    responsibilities_en: ["Inter-library requests"],
-    bio_en: "A much longer biography that should never win.",
+describe("memberPosition / memberArea / memberBio", () => {
+  it("prefers the active locale and falls back to whichever language exists", () => {
+    const m = member({ position_km: "បណ្ណារក្ស", position_en: "Librarian" });
+    expect(memberPosition(m, "km")).toEqual({ text: "បណ្ណារក្ស", lang: "km" });
+    expect(memberPosition(m, "en")).toEqual({ text: "Librarian", lang: "en" });
+
+    // Khmer missing: the English string is shown on /km, tagged English.
+    const latin = member({ position_km: null, position_en: "Librarian" });
+    expect(memberPosition(latin, "km")).toEqual({ text: "Librarian", lang: "en" });
   });
 
-  it("prefers the active locale inside the tier, not Khmer unconditionally", () => {
-    expect(memberSummary(full, "en")).toEqual({ text: "Runs the reading-room desk.", lang: "en" });
-    expect(memberSummary(full, "km")).toEqual({
-      text: "ទទួលបន្ទុកតុបម្រើសេវានៅបន្ទប់អាន។",
-      lang: "km",
+  it("returns null rather than an empty string, so a caller renders nothing", () => {
+    const blank = member({ position_km: "   ", position_en: null, bio_km: null, bio_en: null });
+    expect(memberPosition(blank, "en")).toBeNull();
+    expect(memberArea(blank, "en")).toBeNull();
+    expect(memberBio(blank, "en")).toBeNull();
+  });
+});
+
+describe("sectionName / sectionBlurb", () => {
+  it("localizes a section and reports the language it resolved to", () => {
+    expect(sectionName(section(), "km")).toEqual({ text: "សេវាអ្នកអាន", lang: "km" });
+    expect(sectionName(section(), "en")).toEqual({ text: "Reader Services", lang: "en" });
+    expect(sectionBlurb(section(), "en")).toBeNull();
+    expect(sectionBlurb(section({ description_en: "Front desk." }), "en")).toEqual({
+      text: "Front desk.",
+      lang: "en",
     });
   });
+});
 
-  it("keeps the tier order: a dedicated short bio still beats a long one", () => {
-    const m = member({ short_bio_km: "សង្ខេប", bio_en: "A long biography" });
+describe("memberResponsibilities", () => {
+  it("falls back to the populated language — an empty list in the reader's language says less", () => {
+    const m = member({ responsibilities_en: ["Cataloguing"], responsibilities_km: [] });
+    expect(memberResponsibilities(m, "km")).toEqual({ items: ["Cataloguing"], lang: "en" });
+  });
+
+  it("prefers Khmer on /km when Khmer entries exist", () => {
+    const m = member({ responsibilities_en: ["Cataloguing"], responsibilities_km: ["ចុះបញ្ជី"] });
+    expect(memberResponsibilities(m, "km")).toEqual({ items: ["ចុះបញ្ជី"], lang: "km" });
+    expect(memberResponsibilities(m, "en")).toEqual({ items: ["Cataloguing"], lang: "en" });
+  });
+});
+
+describe("memberSummary", () => {
+  it("leads with the reader's own language — the defect it exists to fix", () => {
+    // cardSummary() prefers short_bio_km unconditionally, so the ENGLISH page
+    // rendered a Khmer paragraph for every member who has one.
+    const m = member({ short_bio_km: "សង្ខេបខ្មែរ", short_bio_en: "English summary" });
+    expect(memberSummary(m, "en")).toEqual({ text: "English summary", lang: "en" });
+    expect(memberSummary(m, "km")).toEqual({ text: "សង្ខេបខ្មែរ", lang: "km" });
+  });
+
+  it("falls back across languages WITHIN a rung before dropping to the next one", () => {
+    // A Khmer short bio beats an English full biography on /en: a sentence the
+    // librarian wrote for a card, in the wrong language, still says more than
+    // the opening of a paragraph written to be read whole.
+    const m = member({ short_bio_km: "សង្ខេប", short_bio_en: null, bio_en: "Long biography" });
     expect(memberSummary(m, "en")).toEqual({ text: "សង្ខេប", lang: "km" });
   });
 
-  it("falls through short bio → responsibility → biography", () => {
-    expect(
-      memberSummary(member({ responsibilities_en: ["Maintain the platform"], bio_en: "long" }), "en"),
-    ).toEqual({ text: "Maintain the platform", lang: "en" });
-    expect(memberSummary(member({ bio_km: "ជីវប្រវត្តិ" }), "en")).toEqual({
-      text: "ជីវប្រវត្តិ",
-      lang: "km",
-    });
-  });
-
-  it("truncates rather than overflowing the card, and answers null with nothing to say", () => {
-    const long = memberSummary(member({ short_bio_en: "x".repeat(300) }), "en", 40);
-    expect(long!.text).toHaveLength(40);
-    expect(long!.text.endsWith("…")).toBe(true);
+  it("walks short bio → first responsibility → biography", () => {
+    expect(memberSummary(member({ responsibilities_en: ["Cataloguing"], bio_en: "Long" }), "en"))
+      .toEqual({ text: "Cataloguing", lang: "en" });
+    expect(memberSummary(member({ bio_en: "Long" }), "en")).toEqual({ text: "Long", lang: "en" });
     expect(memberSummary(member(), "en")).toBeNull();
   });
-});
 
-/* ────────────────────────────────────────────────────────────────────────── */
-
-describe("search", () => {
-  const dara = member({
-    id: "dara",
-    name_en: "Sok Dara",
-    name_km: "សុខ ដារា",
-    position_en: "Cataloging Officer",
-    position_km: "មន្ត្រីចុះបញ្ជី",
-    section_name_en: "Cataloging & Processing",
-    section_name_km: "ចុះបញ្ជី និងដំណើរការ",
-    section_id: "s2",
-  });
-  const chan = member({
-    id: "chan",
-    name_en: "Chan Sophea",
-    name_km: "ចាន់ សុភា",
-    position_en: "Reader Services Assistant",
-    position_km: "ជំនួយការសេវាកម្មអ្នកអាន",
-    section_name_en: "Reader Services",
-    section_name_km: "សេវាកម្មអ្នកអាន",
-    section_id: "s3",
-  });
-  const roster = [dara, chan];
-
-  it("matches nothing in particular when the query is empty — everyone stays", () => {
-    expect(matchesTeamQuery(dara, "")).toBe(true);
-    expect(matchesTeamQuery(dara, "   ")).toBe(true);
-  });
-
-  it("finds a person by either script, whichever locale the page is in", () => {
-    expect(matchesTeamQuery(dara, "dara")).toBe(true);
-    expect(matchesTeamQuery(dara, "ដារា")).toBe(true);
-    expect(matchesTeamQuery(chan, "សុភា")).toBe(true);
-  });
-
-  it("searches position and department, not only the name", () => {
-    expect(matchesTeamQuery(dara, "cataloging")).toBe(true);
-    expect(matchesTeamQuery(chan, "reader services")).toBe(true);
-    expect(matchesTeamQuery(chan, "ជំនួយការ")).toBe(true);
-  });
-
-  it("requires a Latin term to BEGIN a word — the site's own rule", () => {
-    // "log" sits inside "Cataloging"; matching it would be the same accident
-    // that made "mining" match "Examining" in search (lib/search/normalize).
-    expect(matchesTeamQuery(dara, "log")).toBe(false);
-    // Truncation still matches: people search by prefix.
-    expect(matchesTeamQuery(dara, "catalog")).toBe(true);
-  });
-
-  it("forgives one typo in a word long enough to be worth guessing about", () => {
-    expect(matchesTeamQuery(dara, "catologing")).toBe(true);
-    expect(matchesTeamQuery(chan, "servises")).toBe(true);
-    // A short token gets no fuzzy leg: at three characters a one-edit
-    // neighbourhood is most of the alphabet.
-    expect(matchesTeamQuery(dara, "xyz")).toBe(false);
-  });
-
-  it("narrows with every word — tokens are an AND", () => {
-    expect(matchesTeamQuery(dara, "sok cataloging")).toBe(true);
-    expect(matchesTeamQuery(dara, "sok reader")).toBe(false);
-  });
-
-  it("filters by department and query together, and keeps the librarians' order", () => {
-    expect(filterTeamMembers(roster, { department: ALL_DEPARTMENTS, query: "" })).toEqual(roster);
-    expect(
-      filterTeamMembers(roster, { department: "s3", query: "" }).map((m) => m.id),
-    ).toEqual(["chan"]);
-    expect(
-      filterTeamMembers(roster, { department: "s2", query: "chan" }).map((m) => m.id),
-    ).toEqual([]);
-    expect(
-      filterTeamMembers([chan, dara], { department: ALL_DEPARTMENTS, query: "s" }).map((m) => m.id),
-    ).toEqual(["chan", "dara"]);
+  it("truncates to the caller's budget", () => {
+    const long = "x".repeat(200);
+    const out = memberSummary(member({ short_bio_en: long }), "en", 50);
+    expect(out?.text).toHaveLength(50);
+    expect(out?.text.endsWith("…")).toBe(true);
   });
 });
 
-/* ────────────────────────────────────────────────────────────────────────── */
+describe("searchHaystack", () => {
+  it("carries both scripts of every public field", () => {
+    const hay = searchHaystack(
+      member({
+        position_km: "បណ្ណារក្ស",
+        section_name_en: "Reader Services",
+        responsibilities_en: ["Cataloguing"],
+        languages: ["Khmer", "English"],
+      }),
+    );
+    expect(hay).toEqual(
+      expect.arrayContaining(["Sokha", "សុខា", "បណ្ណារក្ស", "Reader Services", "Cataloguing", "Khmer"]),
+    );
+  });
 
-describe("?member= resolution", () => {
+  it("never carries a contact field, approved or not", () => {
+    // The view nulls these unless approved — but a member who DID approve
+    // publication still must not have their number act as a search key.
+    const hay = searchHaystack(member({ phone: "012 345 678", email: "a@b.kh" }));
+    expect(hay).not.toContain("012 345 678");
+    expect(hay).not.toContain("a@b.kh");
+  });
+
+  it("drops blank and whitespace-only fields", () => {
+    expect(searchHaystack(member({ position_en: "   ", short_bio_en: "" }))).not.toContain("   ");
+  });
+});
+
+describe("matchesQuery", () => {
+  it("matches mid-word, so a surname finds a full name", () => {
+    expect(matchesQuery(member({ name_en: "LAM SOKLANG" }), "soklang")).toBe(true);
+  });
+
+  it("matches a Khmer substring — Khmer has no word boundaries to anchor to", () => {
+    expect(matchesQuery(member({ name_km: "លាម សុខឡាង" }), "សុខ")).toBe(true);
+  });
+
+  it("finds a Khmer name while the page is in English, and the reverse", () => {
+    const m = member({ name_en: "Sokha", name_km: "សុខា" });
+    expect(matchesQuery(m, "សុខា")).toBe(true);
+    expect(matchesQuery(m, "sokha")).toBe(true);
+  });
+
+  it("is case-insensitive and treats an empty query as matching everything", () => {
+    expect(matchesQuery(member(), "SOKHA")).toBe(true);
+    expect(matchesQuery(member(), "   ")).toBe(true);
+  });
+
+  it("does not match a term the member does not carry", () => {
+    expect(matchesQuery(member(), "astrophysics")).toBe(false);
+  });
+});
+
+describe("filterMembers", () => {
   const roster = [
-    member({ id: "a", slug: "head-librarian" }),
-    member({ id: "b", slug: "content-staff" }),
-    member({ id: "c", slug: null }),
+    member({ id: "a", section_id: "s1", name_en: "Ana" }),
+    member({ id: "b", section_id: "s2", name_en: "Bora" }),
+    member({ id: "c", section_id: null, name_en: "Chan" }),
   ];
 
-  it("opens the member the slug names", () => {
-    expect(memberBySlug(roster, "content-staff")?.id).toBe("b");
+  it("returns the whole roster for the All filter and an empty query", () => {
+    expect(filterMembers(roster, { area: FILTER_ALL, query: "" }).map((m) => m.id)).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
   });
 
-  it("ignores every wrong input silently — a stale link lands in the directory", () => {
-    for (const bad of ["", "   ", "nobody", null, undefined]) {
-      expect(memberBySlug(roster, bad)).toBeNull();
-    }
+  it("filters by section id", () => {
+    expect(filterMembers(roster, { area: "s1", query: "" }).map((m) => m.id)).toEqual(["a"]);
   });
 
-  it("never resolves a member who has no slug at all", () => {
-    expect(memberBySlug(roster, "c")).toBeNull();
+  it("gathers everyone with no section under the Other filter", () => {
+    expect(filterMembers(roster, { area: FILTER_UNSECTIONED, query: "" }).map((m) => m.id)).toEqual([
+      "c",
+    ]);
+  });
+
+  it("applies area and query together", () => {
+    expect(filterMembers(roster, { area: "s1", query: "bora" })).toEqual([]);
+    expect(filterMembers(roster, { area: FILTER_ALL, query: "bora" }).map((m) => m.id)).toEqual([
+      "b",
+    ]);
+  });
+
+  it("preserves the library's display order", () => {
+    expect(filterMembers(roster, { area: FILTER_ALL, query: "a" }).map((m) => m.id)).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
   });
 });
 
-describe("view preference", () => {
-  it("accepts only the two views it knows, so anything in localStorage is grid", () => {
-    expect(isTeamView("grid")).toBe(true);
-    expect(isTeamView("list")).toBe(true);
-    for (const junk of ["", "GRID", "table", null, undefined, 1, {}]) {
-      expect(isTeamView(junk)).toBe(false);
-    }
+describe("areaChips", () => {
+  const s1 = section({ id: "s1", name_en: "Reader Services" });
+  const s2 = section({ id: "s2", name_en: "Research Support", display_order: 1 });
+
+  it("counts the whole roster on All and each area on its own chip", () => {
+    const chips = areaChips(
+      [member({ id: "a", section_id: "s1" }), member({ id: "b", section_id: "s2" }), member({ id: "c", section_id: "s2" })],
+      [s1, s2],
+      "en",
+    );
+    expect(chips.map((c) => [c.value, c.count])).toEqual([
+      [FILTER_ALL, 3],
+      ["s1", 1],
+      ["s2", 2],
+    ]);
+  });
+
+  it("offers no chip for an area with nobody in it — it could only produce an empty state", () => {
+    const chips = areaChips([member({ id: "a", section_id: "s1" })], [s1, s2], "en");
+    expect(chips.map((c) => c.value)).toEqual([FILTER_ALL, "s1"]);
+  });
+
+  it("adds Other only when somebody is unsectioned, including a dangling section id", () => {
+    expect(areaChips([member({ section_id: "s1" })], [s1], "en").map((c) => c.value)).toEqual([
+      FILTER_ALL,
+      "s1",
+    ]);
+    expect(
+      areaChips([member({ id: "x", section_id: "deleted" })], [s1], "en").map((c) => c.value),
+    ).toEqual([FILTER_ALL, FILTER_UNSECTIONED]);
+  });
+
+  it("labels area chips from the row and leaves All/Other to the message catalogue", () => {
+    const chips = areaChips(
+      [member({ section_id: "s1" }), member({ id: "z", section_id: null })],
+      [s1],
+      "km",
+    );
+    expect(chips[0].name).toBeNull();
+    expect(chips[1].name).toEqual({ text: "សេវាអ្នកអាន", lang: "km" });
+    expect(chips[2].name).toBeNull();
+  });
+
+  it("keeps the All chip even for a single-area roster — it is what clears a search", () => {
+    expect(areaChips([member({ section_id: "s1" })], [s1], "en")).toHaveLength(2);
   });
 });
 
-describe("hero portrait", () => {
-  it("prefers a featured member with a photo", () => {
+describe("splitFeatured", () => {
+  it("leads with the featured members, in the library's display order", () => {
+    const { featured } = splitFeatured([
+      member({ id: "head", is_featured: true }),
+      member({ id: "deputy", is_featured: true }),
+      member({ id: "other" }),
+    ]);
+    expect(featured.map((m) => m.id)).toEqual(["head", "deputy"]);
+  });
+
+  it("reads is_featured ONLY — never a position string", () => {
+    // "Head of Department" is a job title the library wrote, not a flag it
+    // set. Inferring rank from prose is how a redesign invents a hierarchy.
+    const { featured } = splitFeatured([
+      member({ id: "a", position_en: "Head of Department of Educational Research and Library" }),
+      member({ id: "b", position_en: "Deputy Head of Department" }),
+    ]);
+    expect(featured).toEqual([]);
+  });
+
+  it("shows a single featured member rather than padding the row", () => {
+    // The heading is "Meet the Library Team", which introduces people without
+    // ranking them, so one card is a legitimate section — and a placeholder
+    // person invented to make it three would not be.
+    const { featured } = splitFeatured([member({ id: "a", is_featured: true }), member({ id: "b" })]);
+    expect(featured.map((m) => m.id)).toEqual(["a"]);
+  });
+
+  it("caps at one desktop row, leaving the overflow in the searchable directory", () => {
+    const many = Array.from({ length: FEATURED_MAX + 3 }, (_, i) =>
+      member({ id: `f${i}`, is_featured: true }),
+    );
+    expect(splitFeatured(many).featured).toHaveLength(FEATURED_MAX);
+  });
+
+  it("keeps every featured member in the directory too, so search stays complete", () => {
     const roster = [
-      member({ id: "a", photo_url: "https://cdn.test/a.jpg" }),
-      member({ id: "b", photo_url: "https://cdn.test/b.jpg", is_featured: true }),
+      member({ id: "head", is_featured: true }),
+      member({ id: "deputy", is_featured: true }),
+      member({ id: "other" }),
     ];
-    expect(heroPortrait(roster)?.id).toBe("b");
-  });
-
-  it("falls back to the first member who has one", () => {
-    const roster = [member({ id: "a" }), member({ id: "b", photo_url: "https://cdn.test/b.jpg" })];
-    expect(heroPortrait(roster)?.id).toBe("b");
-  });
-
-  it("answers null rather than nominating a monogram for the hero", () => {
-    expect(heroPortrait([member({ id: "a", is_featured: true })])).toBeNull();
-    expect(heroPortrait([])).toBeNull();
-  });
-});
-
-/* ────────────────────────────────────────────────────────────────────────── */
-
-/**
- * The department hues are BORROWED, not chosen. admin.css declares the
- * validated categorical palette (lightness band, chroma floor, protan/deutan
- * ΔE under all pairs) and the public tree never loads that file, so globals.css
- * restates the values. This is the check that keeps the copy honest: a hue
- * edited on one side and not the other would put a colour outside the set that
- * was validated as a set.
- */
-describe("department accents are the validated series palette", () => {
-  const globals = readFileSync(path.join(ROOT, "app", "globals.css"), "utf8");
-  const admin = readFileSync(path.join(ROOT, "app", "admin.css"), "utf8");
-
-  function value(css: string, token: string): string {
-    const match = new RegExp(`${token}:\\s*([^;]+);`).exec(css);
-    expect(match, `${token} not declared`).not.toBeNull();
-    return match![1].trim().toUpperCase();
-  }
-
-  const PAIRS: [string, string][] = [
-    ["--ptec-dept-1", "--ptec-series-views"],
-    ["--ptec-dept-2", "--ptec-series-visitors"],
-    ["--ptec-dept-3", "--ptec-series-reader"],
-    ["--ptec-dept-4", "--ptec-series-downloads"],
-    ["--ptec-dept-1-ink", "--ptec-series-views-ink"],
-    ["--ptec-dept-2-ink", "--ptec-series-visitors-ink"],
-    ["--ptec-dept-3-ink", "--ptec-series-reader-ink"],
-    ["--ptec-dept-4-ink", "--ptec-series-downloads-ink"],
-  ];
-
-  it("declares one department token per series token, with the same value", () => {
-    for (const [dept, series] of PAIRS) {
-      expect(value(globals, dept), `${dept} must equal ${series}`).toBe(
-        value(admin, series).replace(/\s+\/\*.*$/, "").trim(),
-      );
-    }
-  });
-
-  it("declares exactly as many hues as the code cycles through", () => {
-    const declared = globals.match(/--ptec-dept-\d+:/g) ?? [];
-    expect(declared.length).toBe(DEPARTMENT_ACCENTS);
-  });
-
-  it("re-derives the dark ink step from the same hue instead of adding a fifth value", () => {
-    const darkBlock = globals.slice(globals.indexOf(":root.dark {"));
-    for (const step of [1, 2, 3, 4]) {
-      expect(darkBlock).toContain(
-        `--ptec-dept-${step}-ink: color-mix(in oklab, var(--ptec-dept-${step})`,
-      );
-    }
+    expect(splitFeatured(roster).directory.map((m) => m.id)).toEqual(["head", "deputy", "other"]);
   });
 });

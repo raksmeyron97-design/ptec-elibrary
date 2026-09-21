@@ -45,6 +45,28 @@ describe("safeInternalUrl", () => {
     expect(safeInternalUrl("//evil.example/path")).toBe("/");
     expect(safeInternalUrl("https://evil.example/path")).toBe("/");
   });
+
+  // A push URL is opened by the service worker with clients.openWindow(), so
+  // an off-site target arrives as a notification from the library with no
+  // address bar to inspect first. Each string below passed the old prefix test
+  // ("starts with /", "does not start with //") and still resolves CROSS-ORIGIN
+  // once a browser parses it — the resolution is asserted here rather than
+  // assumed, so the rule is pinned to the URL parser and not to a prefix list.
+  it.each([
+    ["backslash authority", "/\\evil.example/path"],
+    ["tab-smuggled protocol-relative", "/\t/evil.example/path"],
+    ["newline-smuggled protocol-relative", "/\n/evil.example/path"],
+    ["carriage-return-smuggled", "/\r/evil.example/path"],
+  ])("rejects %s", (_label, raw) => {
+    expect(new URL(raw, "https://library.ptec.edu.kh").origin).not.toBe(
+      "https://library.ptec.edu.kh",
+    );
+    expect(safeInternalUrl(raw)).toBe("/");
+  });
+
+  it("honours the caller's fallback when refusing", () => {
+    expect(safeInternalUrl("/\\evil.example", "/dashboard")).toBe("/dashboard");
+  });
 });
 
 describe("validatePushPayload", () => {
