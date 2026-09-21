@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+import { touchDrag } from "./utils/touch";
 
 // The phone shell (docs/MOBILE-GLASS-UI.md §2, Shell): Home · Explore ·
 // Search · Saved · More, a sliding indicator, a one-tap search overlay, and a
@@ -270,6 +271,88 @@ test.describe("pushed screens at 390 px: Back and the page title", () => {
     await expect(page.locator(".site-header .topbar-title")).toHaveText("ក្រុមការងារបណ្ណាល័យ");
     await backKm.click();
     await expect(page).toHaveURL(/\/km\/about$/, NAVIGATION);
+  });
+});
+
+// Sheets pull down to close (MUX-02). Every sheet is a GlassSheet, so the
+// More sheet stands for Explore, Saved and the search filters too. Real
+// touch (CDP): the claim is made on the first touchmove, and only a real
+// touch shows whether the browser scrolled instead.
+test.describe("sheets pull down to close", () => {
+  // Short enough that the More sheet's list overflows and can scroll.
+  test.use({ viewport: { width: 390, height: 640 } });
+  test.beforeEach(({ isMobile, browserName }) => {
+    test.skip(!isMobile, "a pull is a touch gesture");
+    test.skip(browserName !== "chromium", "CDP touch input is Chromium-only");
+  });
+
+  async function openMore(page: Page) {
+    await page.goto("/");
+    await shellReady(page);
+    await tabBar(page).getByRole("button", { name: "More" }).click();
+    const more = page.getByRole("dialog", { name: "More" });
+    await expect(more).toBeVisible();
+    await page.waitForTimeout(400); // the 260 ms open transition settles
+    return more;
+  }
+  async function grip(sheet: Locator) {
+    const box = (await sheet.boundingBox())!;
+    return { x: box.x + box.width / 2, y: box.y + 12, height: box.height };
+  }
+
+  test("a long pull closes the sheet; a short one springs back", async ({ page }) => {
+    const more = await openMore(page);
+    const g = await grip(more);
+    await touchDrag(page, g, { x: g.x, y: g.y + 50 }, { steps: 10, stepDelay: 40 });
+    await page.waitForTimeout(400);
+    await expect(more).toBeVisible();
+    expect(await more.evaluate((el) => (el as HTMLElement).style.transform)).toMatch(/^translateY\(0(px)?\)$/);
+
+    await touchDrag(page, g, { x: g.x, y: g.y + g.height * 0.5 }, { steps: 16, stepDelay: 40 });
+    await expect(more).toBeHidden();
+  });
+
+  test("a fast, short flick closes it; the same pull held before the lift does not", async ({ page }) => {
+    let more = await openMore(page);
+    let g = await grip(more);
+    expect(90, "the flick is shorter than the distance rule").toBeLessThan(g.height * 0.25);
+    await touchDrag(page, g, { x: g.x, y: g.y + 90 }, { steps: 3, stepDelay: 0 });
+    await expect(more).toBeHidden();
+
+    more = await openMore(page);
+    g = await grip(more);
+    await touchDrag(page, g, { x: g.x, y: g.y + 90 }, { steps: 3, stepDelay: 0, holdMs: 250 });
+    await page.waitForTimeout(400);
+    await expect(more).toBeVisible();
+  });
+
+  test("a list scrolled down scrolls first; the sheet does not move", async ({ page }) => {
+    const more = await openMore(page);
+    const body = more.locator("[data-sheet-body]");
+    const overflow = await body.evaluate((el) => el.scrollHeight - el.clientHeight);
+    expect(overflow, "the sheet's list must overflow for this test to mean anything").toBeGreaterThan(40);
+    const box = (await body.boundingBox())!;
+    const mid = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+
+    await touchDrag(page, mid, { x: mid.x, y: mid.y - 120 }, { steps: 10, stepDelay: 30 }); // scroll the list down
+    await page.waitForTimeout(300);
+    const scrolled = await body.evaluate((el) => el.scrollTop);
+    expect(scrolled).toBeGreaterThan(0);
+
+    await touchDrag(page, mid, { x: mid.x, y: mid.y + 150 }, { steps: 12, stepDelay: 40 }); // a pull, mid-list
+    await page.waitForTimeout(400);
+    await expect(more).toBeVisible();
+    expect(await body.evaluate((el) => el.scrollTop)).toBeLessThan(scrolled);
+    expect(await more.evaluate((el) => (el as HTMLElement).style.transform)).toMatch(/^translateY\(0(px)?\)$/);
+  });
+
+  test("the close button and Escape still close it", async ({ page }) => {
+    let more = await openMore(page);
+    await page.keyboard.press("Escape");
+    await expect(more).toBeHidden();
+    more = await openMore(page);
+    await more.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(more).toBeHidden();
   });
 });
 
