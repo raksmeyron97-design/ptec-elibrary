@@ -1173,7 +1173,10 @@ export default function PDFViewer({
   /* ── Overlays, auto-hide, keyboard, gestures, focus mode ────── */
   const overlayOpen = moreOpen || navigatorOpen || settingsOpen || shortcutsOpen || citationOpen;
   const controlsPaused = overlayOpen || panelOpen || !!selectionPopup || resumePrompt !== null;
-  const controlsVisible = useAutoHideControls({ enabled: !!pdfUrl, paused: controlsPaused, rootRef });
+  // Touch: a tap on the page toggles the bars and scrolling the book down
+  // hides them; mouse and keyboard keep the show-on-activity rule.
+  const controls = useAutoHideControls({ enabled: !!pdfUrl, paused: controlsPaused, rootRef, scrollRef: containerRef });
+  const controlsVisible = controls.visible;
 
   // Topmost first. The welcome-back card is a passive status, so it yields
   // to everything that is actually modal.
@@ -1218,6 +1221,8 @@ export default function PDFViewer({
       commitZoom: applyCustomZoom,
       fitWidth: () => applyFitMode("width"),
       navigate: navigateToPage,
+      controlsVisible,
+      onTap: controls.toggle,
     }),
   });
   useFocusModeTrap({ active: focusMode, rootRef, viewportRef: containerRef });

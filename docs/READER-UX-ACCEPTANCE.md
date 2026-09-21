@@ -28,7 +28,11 @@ automated check is listed as manual on purpose; nothing here is assumed.
 | # | Criterion | Check |
 |---|---|---|
 | B1 | Controls visible on open; hidden after 3 s of inactivity in every mode | component (fake timers) |
-| B2 | Pointer move, touch, or any key reveals them | component |
+| B2 | Mouse/pen movement, a mouse press, or any key reveals them. On touch, a finger on the PAGE is not activity (a finger is how a phone scrolls); a touch on the HUD or an overlay is | unit (`hooks/useAutoHideControls.test.ts`) + component |
+| B2a | Touch: a single tap on the page toggles the controls — showing is immediate, hiding waits out the 300 ms double-tap window, and a double-tap zoom never blinks them | unit (`hooks/useReaderGestures.test.ts`) + e2e (Mobile Chrome, `PDF reader on touch`) |
+| B2b | Touch: scrolling the book down more than 24 px hides the controls; scrolling up never brings them back | unit + e2e (real CDP finger scroll) |
+| B2c | A scroll the controls caused never hides them — a jump from Go to page or the scrubber, a scroll within 600 ms of touching the HUD, a scroll made with the keyboard or a wheel | unit |
+| B2d | A button a finger tapped keeps focus on Android; that focus does not pin the controls up. Keyboard focus (`data-focus-modality="keyboard"`) still does | unit |
 | B3 | Open panel / menu / dialog / selection popup / focus inside HUD pauses hiding | component |
 | B4 | Hidden HUD is `inert` (not focusable) and `aria-hidden` | component |
 | B5 | `prefers-reduced-motion` → no fade transition (`motion-reduce:transition-none`) | source check in component test |
@@ -50,6 +54,7 @@ automated check is listed as manual on purpose; nothing here is assumed.
 |---|---|---|
 | D1 | Page indicator opens "Go to page"; Enter submits, Esc closes, out-of-range clamps, Khmer digits accepted | unit (`page-input`) + component |
 | D2 | Prev/next, swipe (single mode), keyboard ←→↑↓ Home End PageUp PageDown | component (keys) + manual (swipe) |
+| D2a | Single mode at fit width: a tap on the outer fifth of the page turns it by one, at once — no double-tap zoom in those zones, so two quick taps are two pages | unit + e2e (Mobile Chrome) |
 | D3 | Progress bar reflects current/max; percent localised | component |
 | D4 | "Welcome back" prompt appears only when resuming beyond page 1; "Start from beginning" goes to page 1; never overwrites a newer position | component |
 

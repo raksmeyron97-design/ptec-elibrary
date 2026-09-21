@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { clearReaderBookmarks, installSeededReaderSession } from "./utils/auth";
 import { makeTestPdf } from "./utils/pdf";
+import { touchDrag } from "./utils/touch";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PDF reader UX — real pdf.js, real layout, a generated multi-page PDF.
@@ -330,5 +331,100 @@ test.describe("PDF reader", () => {
       expect(overflow.doc, `document overflow at ${width}`).toBeLessThanOrEqual(0);
       expect(overflow.reader, `reader overflow at ${width}`).toBeLessThanOrEqual(0);
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Touch reads like a reading app (MUX-04): a finger on the page is not
+// "activity", a tap toggles the controls, scrolling the book down hides them,
+// and in single-page mode the outer fifth of the page turns it.
+//
+// Each state is established by a deliberate act and then read ONCE, never
+// polled across an auto-hide window (see the note on the inactivity spec).
+// Taps are spaced ≥ 350 ms apart: two closer than 300 ms are a double tap.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const hudHidden = async (page: Page) => (await topBar(page).getAttribute("inert")) !== null;
+const viewportTop = (page: Page) => page.locator(".reader-viewport").evaluate((el) => el.scrollTop);
+
+/** Wait out the idle timer, then bring the controls up with one tap. */
+async function showByTap(page: Page) {
+  const vp = page.viewportSize()!;
+  await expect(topBar(page)).toHaveAttribute("inert", "", { timeout: 8_000 });
+  await page.touchscreen.tap(vp.width / 2, vp.height / 2);
+  await page.waitForTimeout(150);
+  expect(await hudHidden(page), "one tap on the page shows the controls at once").toBe(false);
+  await page.waitForTimeout(400); // out of the double-tap window
+}
+
+test.describe("PDF reader on touch", () => {
+  test.slow();
+
+  test.beforeEach(({ isMobile, browserName }) => {
+    test.skip(!isMobile, "touch only");
+    test.skip(browserName !== "chromium", "CDP touch input is Chromium-only");
+  });
+
+  test("a tap on the page toggles the controls", async ({ page, isMobile }) => {
+    await openReader(page, isMobile);
+    const vp = page.viewportSize()!;
+    await showByTap(page);
+
+    const tapped = Date.now();
+    await page.touchscreen.tap(vp.width / 2, vp.height / 2);
+    await page.waitForTimeout(120);
+    // Hiding waits out the double-tap window, so a double-tap zoom never
+    // blinks the bars away and back…
+    expect(await hudHidden(page), "still up inside the double-tap window").toBe(false);
+    // …and then they go — well before the 3 s idle timer could have done it.
+    await expect(topBar(page)).toHaveAttribute("inert", "", { timeout: 1_500 });
+    expect(Date.now() - tapped).toBeLessThan(2_500);
+  });
+
+  test("a finger scroll down hides the controls; scrolling back up does not return them", async ({ page, isMobile }) => {
+    await openReader(page, isMobile);
+    const vp = page.viewportSize()!;
+    await showByTap(page);
+
+    const shown = Date.now();
+    const before = await viewportTop(page);
+    await touchDrag(page, { x: vp.width / 2, y: vp.height * 0.7 }, { x: vp.width / 2, y: vp.height * 0.3 });
+    await page.waitForTimeout(200);
+    expect(await viewportTop(page), "the finger really scrolled the book").toBeGreaterThan(before + 100);
+    expect(await hudHidden(page), "reading on hides the controls").toBe(true);
+    // Hidden by the scroll, not by the idle timer.
+    expect(Date.now() - shown).toBeLessThan(2_900);
+
+    await touchDrag(page, { x: vp.width / 2, y: vp.height * 0.3 }, { x: vp.width / 2, y: vp.height * 0.6 });
+    await page.waitForTimeout(200);
+    expect(await hudHidden(page), "scrolling back up leaves them hidden").toBe(true);
+  });
+
+  test("a finger scroll does not bring hidden controls back", async ({ page, isMobile }) => {
+    await openReader(page, isMobile);
+    const vp = page.viewportSize()!;
+    await expect(topBar(page)).toHaveAttribute("inert", "", { timeout: 8_000 });
+    await touchDrag(page, { x: vp.width / 2, y: vp.height * 0.7 }, { x: vp.width / 2, y: vp.height * 0.4 });
+    await page.waitForTimeout(150);
+    expect(await hudHidden(page)).toBe(true);
+  });
+
+  test("single-page mode: a tap on the page edge turns the page", async ({ page, isMobile }) => {
+    await openReader(page, isMobile);
+    const vp = page.viewportSize()!;
+    const pill = page.locator('[data-reader-hud="top"] button[aria-label^="Page "]');
+
+    await page.getByRole("button", { name: "More options" }).click();
+    await page.getByRole("menuitemradio", { name: "Single page" }).click();
+    await expect(pill).toHaveAttribute("aria-label", "Page 1 of 40");
+
+    await page.touchscreen.tap(vp.width * 0.92, vp.height / 2);
+    await expect(pill).toHaveAttribute("aria-label", "Page 2 of 40");
+    await page.waitForTimeout(400);
+    await page.touchscreen.tap(vp.width * 0.92, vp.height / 2);
+    await expect(pill).toHaveAttribute("aria-label", "Page 3 of 40");
+    await page.waitForTimeout(400);
+    await page.touchscreen.tap(vp.width * 0.08, vp.height / 2);
+    await expect(pill).toHaveAttribute("aria-label", "Page 2 of 40");
   });
 });
