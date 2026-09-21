@@ -38,6 +38,7 @@ import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
 import JsonLd from "@/components/seo/JsonLd";
 import { buildBookMetadata, bookCanonicalUrl, bookJsonLd, type BookSeoInput } from "@/lib/seo/book-seo";
+import { pdfTitleSuffixEnabled } from "@/lib/seo/seo-flags";
 import ResourceConnections from "@/components/seo/ResourceConnections";
 import BookTopics from "@/components/ui/books/BookTopics";
 import { resolveSubjectLinks } from "@/lib/resources/connections";
@@ -158,6 +159,10 @@ export async function generateMetadata({
         ogImage: (book as { og_image?: string | null }).og_image,
       },
       await getOrgIdentity(),
+      // Server-resolved, OFF everywhere unless SEO_PDF_TITLE_SUFFIX=on.
+      // book-seo.ts stays browser-safe, so it is handed the boolean rather
+      // than reading the environment itself.
+      { pdfTitleSuffix: pdfTitleSuffixEnabled() },
     ),
     other: {
       // Google Scholar citation_* meta tags — see lib/seo/citation.ts.

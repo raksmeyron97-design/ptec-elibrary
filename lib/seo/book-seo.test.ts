@@ -367,3 +367,65 @@ describe("bookFallbackDescription — download honesty", () => {
     expect(out.toLowerCase()).not.toContain("download");
   });
 });
+
+// ── SEO5-07: the (PDF) title suffix ────────────────────────────────────────
+
+describe("buildBookMetadata — (PDF) title suffix", () => {
+  const BOOK = { slug: "b", title: "A Book", authors: ["A. Author"] };
+  const build = (
+    book: Partial<typeof BOOK> & Record<string, unknown>,
+    opts?: { pdfTitleSuffix?: boolean },
+    overrides?: { seoTitle?: string | null },
+  ) => buildBookMetadata({ ...BOOK, ...book }, "en", overrides, undefined, opts);
+
+  // flag × downloadable, all four corners.
+  it.each([
+    [false, false, "A Book"],
+    [false, true, "A Book"],
+    [true, false, "A Book"],
+    [true, true, "A Book (PDF)"],
+  ])("flag=%s downloadable=%s → %s", (flag, downloadable, expected) => {
+    expect(build({ downloadable }, { pdfTitleSuffix: flag }).title).toBe(expected);
+  });
+
+  it("does nothing when downloadable is UNKNOWN", () => {
+    // `undefined` means the caller did not select the column. The suffix is
+    // a promise about a file; an unknown must never make a promise.
+    expect(build({}, { pdfTitleSuffix: true }).title).toBe("A Book");
+  });
+
+  it("is off when no options are passed at all", () => {
+    // Every pre-5.0 caller. The default must be the old behaviour.
+    expect(buildBookMetadata({ ...BOOK, downloadable: true }, "en").title).toBe("A Book");
+  });
+
+  it("leaves an admin seo_title VERBATIM", () => {
+    // A librarian who wrote a title meant that title; appending to it would
+    // quietly edit their words.
+    const m = build({ downloadable: true }, { pdfTitleSuffix: true }, { seoTitle: "Curated Title" });
+    expect(m.title).toBe("Curated Title");
+  });
+
+  it("does not double up if the title already says (PDF)", () => {
+    const m = build({ title: "A Book (PDF)", downloadable: true }, { pdfTitleSuffix: true });
+    expect(m.title).toBe("A Book (PDF)");
+  });
+
+  it("leaves the OG and Twitter titles alone", () => {
+    // The `<title>` is a search-result line, where a format cue helps. An
+    // OG title is a social card headline, where it is noise. They are
+    // allowed to differ, and here they must.
+    const m = build({ downloadable: true }, { pdfTitleSuffix: true });
+    expect(m.title).toBe("A Book (PDF)");
+    expect((m.openGraph as { title?: string }).title).toBe("A Book");
+    expect((m.twitter as { title?: string }).title).toBe("A Book");
+  });
+
+  it("changes nothing else about the metadata", () => {
+    const off = build({ downloadable: true }, { pdfTitleSuffix: false });
+    const on = build({ downloadable: true }, { pdfTitleSuffix: true });
+    expect(on.description).toEqual(off.description);
+    expect(on.alternates).toEqual(off.alternates);
+    expect(on.openGraph).toEqual(off.openGraph);
+  });
+});

@@ -154,16 +154,51 @@ export function bookMetaDescription(book: BookSeoInput, locale: string): string 
 
 // ── Metadata (generateMetadata) ──────────────────────────────────────────────
 
+/** The "(PDF)" cue, per locale. Khmer readers see the Latin acronym too —
+ *  it is how the format is written on every Khmer library site checked. */
+const PDF_SUFFIX = "(PDF)";
+
+/**
+ * The `<title>` a search result shows, which is NOT always the OG title.
+ *
+ * `(PDF)` tells someone scanning a results page that clicking gets them a
+ * document rather than another catalogue entry. It goes ONLY on the
+ * `<title>`: an Open Graph title is a social card headline, where a format
+ * cue is noise, and the two are allowed to differ for exactly this reason.
+ *
+ * Three conditions, all required:
+ *   - the flag is on (SEO_PDF_TITLE_SUFFIX=on, off everywhere by default);
+ *   - the file is actually downloadable — the suffix is a promise, and the
+ *     same resolver that decides `citation_pdf_url` decides this;
+ *   - there is no admin `seo_title`. A librarian who wrote a title meant
+ *     that title, and appending to it would quietly edit their words.
+ */
+function pageTitleFor(
+  title: string,
+  book: BookSeoInput,
+  override: string | null,
+  pdfTitleSuffix: boolean,
+): string {
+  if (!pdfTitleSuffix) return title;
+  if (override) return title;
+  if (book.downloadable !== true) return title;
+  if (title.includes(PDF_SUFFIX)) return title;
+  return `${title} ${PDF_SUFFIX}`;
+}
+
 export function buildBookMetadata(
   book: BookSeoInput,
   locale: string,
   overrides?: { seoTitle?: string | null; seoDescription?: string | null; ogImage?: string | null },
   orgArg?: OrgIdentity,
+  options?: { pdfTitleSuffix?: boolean },
 ): Metadata {
   const org = resolveOrgIdentity(orgArg);
   // Admin overrides win; blank/whitespace overrides fall back to auto-generated
   // values so an empty field never blanks the tag.
-  const title = clean(overrides?.seoTitle) || book.title;
+  const seoTitleOverride = clean(overrides?.seoTitle) || null;
+  const title = seoTitleOverride || book.title;
+  const pageTitle = pageTitleFor(title, book, seoTitleOverride, options?.pdfTitleSuffix === true);
   const description = clean(overrides?.seoDescription) || bookMetaDescription(book, locale);
   const authors = (book.authors ?? []).map(clean).filter(Boolean);
   const alternates = localeAlternates(`/books/${book.slug}`, locale);
@@ -195,7 +230,9 @@ export function buildBookMetadata(
   };
 
   return {
-    title,
+    // The `<title>` may carry the format cue; `openGraph.title` and
+    // `twitter.title` above deliberately do not.
+    title: pageTitle,
     description,
     keywords: tags.length > 0 ? tags : undefined,
     authors: authors.length > 0 ? authors.map((name) => ({ name })) : undefined,
