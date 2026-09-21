@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState, type ComponentProps, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import BookCard from "@/components/ui/books/BookCard";
+import { toBookCardList, type BookCardData } from "@/lib/books/card-data";
 import BookCarousel from "./BookCarousel";
 import { useSession } from "@/components/providers/SessionProvider";
 import { HomeSection, SectionHeader, SectionMobileLink } from "./HomeSection";
 
-type BookCardData = ComponentProps<typeof BookCard>["book"];
-type ContinueBook = BookCardData & { lastReadAt?: string | null };
+// The card already carries lastReadAt, so this is just the card's type.
+type ContinueBook = BookCardData;
 
 /**
  * Swaps the public "Popular with PTEC students" shelf for a personalised
@@ -36,8 +37,13 @@ export default function ContinueReadingSwap({ children }: { children: ReactNode 
     let active = true;
     fetch("/api/me/continue-reading", { credentials: "same-origin" })
       .then((res) => (res.ok ? res.json() : { books: [] }))
-      .then((data: { books: ContinueBook[] }) => {
-        if (active) setBooks(data.books ?? []);
+      .then((data: { books?: unknown[] }) => {
+        // `res.json()` is `any`, so an annotation here would ASSERT the card
+        // type rather than produce it — the one hole a phantom brand cannot
+        // close. Narrowing the rows for real is both the honest type and the
+        // second half of the payload fix: /api/me/continue-reading already
+        // sends only these fields, and this guarantees it whatever it sends.
+        if (active) setBooks(toBookCardList((data.books ?? []) as never[]));
       })
       .catch(() => {
         // A failed personalisation fetch must never blank the shelf — fall

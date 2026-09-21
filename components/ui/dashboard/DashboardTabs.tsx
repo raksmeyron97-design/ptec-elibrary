@@ -5,35 +5,15 @@ import { useSearchParams } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import BookCard from "@/components/ui/books/BookCard";
+import type { BookCardData } from "@/lib/books/card-data";
 import ReadingListsSection from "@/components/ui/lists/ReadingListsSection";
 import { BookOpen, Bookmark, BookMarked, CheckCircle2 } from "lucide-react";
 import type { ReadingList } from "@/app/actions/reading-lists";
 
-type BookItem = {
-  slug: string;
-  title: string;
-  author: string;
-  department: string;
-  category: string;
-  language: string;
-  year: number;
-  format: "PDF" | "Print" | "Audio" | "Video";
-  availability: "Available" | "Borrowed" | "Digital";
-  rating: number;
-  pages: number;
-  summary: string;
-  cover: string;
-  coverUrl?: string | null;
-  pdfUrl?: string | null;
-  isbn: string;
-  tags: string[];
-  dbId?: string | null;
-  progressPct?: number;
-  downloadCount?: number;
-  viewCount?: number;
-  reviewCount?: number;
-  createdAt?: string;
-};
+// Exactly what a card renders. This was a hand-copied `Book`: eleven fields
+// the three shelves below never draw — including `summary` and a `pdfUrl` —
+// serialised into the dashboard document once per book.
+type BookItem = BookCardData;
 
 interface Props {
   inProgressBooks:  BookItem[];
@@ -234,10 +214,7 @@ export default function DashboardTabs({
         ) : (
           <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
             {savedBooks.map((book) => (
-              <BookCard
-                key={book.slug}
-                book={{ ...book, format: (book.format ?? "PDF") as "PDF" | "Print" | "Audio" | "Video" }}
-              />
+              <BookCard key={book.slug} book={book} />
             ))}
           </div>
         )}

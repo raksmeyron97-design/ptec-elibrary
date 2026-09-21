@@ -2,6 +2,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { mapRowToBook } from "@/lib/books";
 import { rankRelated, type RelatedCandidate, type RelatedReason } from "@/lib/discovery/related-score";
 import BookCard from "@/components/ui/books/BookCard";
+import { toBookCardData } from "@/lib/books/card-data";
 import { getTranslations } from 'next-intl/server';
 
 interface RelatedBooksProps {
@@ -106,7 +107,7 @@ export default async function RelatedBooks({
       </div>
       <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 sm:gap-5">
         {ranked.map(({ item }) => {
-          const book = mapRowToBook(item);
+          const book = toBookCardData(mapRowToBook(item));
           return <BookCard key={book.slug} book={book} />;
         })}
       </div>

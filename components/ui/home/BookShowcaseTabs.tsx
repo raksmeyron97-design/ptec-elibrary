@@ -28,11 +28,13 @@
 import { useCallback, useId, useRef, useState, type ComponentProps } from "react";
 import { Link } from "@/i18n/navigation";
 import BookCard from "@/components/ui/books/BookCard";
+import type { BookCardData } from "@/lib/books/card-data";
 import BookCarousel from "./BookCarousel";
 import { useTranslations } from "next-intl";
 import { StaggerRevealContainer, StaggerRevealItem } from "@/components/ui/animations/ScrollRevealWrapper";
 
-type BookCardData = ComponentProps<typeof BookCard>["book"];
+// Imported, not re-derived: this is the branded type, so a caller cannot
+// hand this component anything that did not come through toBookCardData().
 
 type TabKey = "trending" | "recent";
 

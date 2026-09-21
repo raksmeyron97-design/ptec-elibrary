@@ -5,9 +5,12 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import BookCard from "@/components/ui/books/BookCard";
 import BookCarousel from "./BookCarousel";
 import { SectionTitle } from "@/components/ui/core/SectionTitle";
-import { bookFileHref } from "@/lib/book-utils";
+import { toBookCardData, type BookCardData } from "@/lib/books/card-data";
 
-type ContinueBook = React.ComponentProps<typeof BookCard>["book"] & { lastReadAt?: string | null };
+// The card already carries lastReadAt, so this is the card's own type.
+// It used to be the card's type PLUS a whole Book's worth of fields the
+// card does not render, built here and serialised once per shelf entry.
+type ContinueBook = BookCardData;
 
 /**
  * Fetches the signed-in user's in-progress books (1–99%), most recently read first.
@@ -37,9 +40,11 @@ async function getContinueReading(): Promise<ContinueBook[]> {
   const ids = rows.map((r) => r.book_id);
   const { data: booksData } = await db
     .from("books")
-    .select(`id, title, slug, description, cover_url, cover_color,
-      department, language, pages, rating, download_count, view_count,
-      authors ( name ), categories ( name ), book_files ( format, file_url )`)
+    // Exactly the columns a card renders. `description`, `language` and
+    // `pages` were selected here only to be serialised and never shown.
+    .select(`id, title, slug, cover_url, cover_color,
+      department, rating, download_count, view_count,
+      authors ( name ), categories ( name )`)
     .in("id", ids);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -49,34 +54,22 @@ async function getContinueReading(): Promise<ContinueBook[]> {
   return rows.flatMap((r): ContinueBook[] => {
     const b = byId.get(r.book_id);
     if (!b) return [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const pdfFile = b.book_files?.find((f: any) => f.format === "pdf");
     return [
-      {
+      toBookCardData({
         slug: b.slug,
         title: b.title,
         author: b.authors?.name ?? "Unknown",
-        isbn: "N/A",
         department: b.department ?? "General",
         category: b.categories?.name ?? "General",
-        language: b.language ?? "English",
-        year: new Date().getFullYear(),
-        format: "PDF" as const,
-        availability: "Digital" as const,
         rating: Number(b.rating) || 0,
-        pages: b.pages ?? 1,
-        summary: b.description ?? "",
         cover: b.cover_color ?? "bg-brand",
         coverUrl: b.cover_url ?? null,
-        // Proxy url, never the raw storage url — see bookFileHref().
-        pdfUrl: pdfFile?.file_url ? bookFileHref(b.id) : null,
-        tags: [],
         progressPct: r.progress_pct,
         downloadCount: b.download_count ?? 0,
         viewCount: b.view_count ?? 0,
         dbId: b.id,
         lastReadAt: r.last_read_at,
-      } as ContinueBook,
+      }),
     ];
   });
 }

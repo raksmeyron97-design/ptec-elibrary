@@ -2,12 +2,16 @@
 
 // components/ui/books/InfiniteBookGrid.tsx
 import { useEffect, useRef, useState, useTransition } from "react";
-import type { Book } from "@/lib/books";
 import type { BookCursor, BooksListParams } from "@/lib/books-data";
 import { loadMoreBooks } from "@/app/actions/books";
 import BookCard from "@/components/ui/books/BookCard";
+import type { BookCardData } from "@/lib/books/card-data";
 
-type GridBook = Book & { reviewCount?: number };
+// Narrowing the INITIAL props is only half of an infinite grid: every slice
+// after the first crosses the same boundary, from the Server Action rather
+// than from the document. loadMoreBooks() therefore returns the same narrow
+// shape — otherwise the saving stops at the first screen.
+type GridBook = BookCardData;
 
 type Props = {
   initialBooks: GridBook[];

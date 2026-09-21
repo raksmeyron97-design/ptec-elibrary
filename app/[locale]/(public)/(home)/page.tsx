@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { preload } from "react-dom";
 import { getTrendingBooksCached, getTrendingTermsCached } from "@/lib/home-data";
+import { toBookCardList } from "@/lib/books/card-data";
 import { getPublishedPaths } from "@/app/actions/learning-paths";
 import { getHomepagePhotos } from "@/lib/homepage-photos";
 import HeroBookStack from "@/components/ui/home/HeroBookStack";
@@ -163,6 +164,12 @@ export default async function HomePage() {
     coverColor: b.cover,
     department: b.department,
   }));
+
+  // One narrowing for both shelves that render cards from this set. The
+  // cards are client components, so this is the homepage's serialisation
+  // boundary: `trendingBooks` is a full `Book[]`, and of its fields the card
+  // renders 13.
+  const trendingCards = toBookCardList(trendingBooks);
 
   const latinEyebrow = locale === "en" ? "uppercase tracking-[0.22em]" : "tracking-normal";
 
@@ -403,13 +410,13 @@ export default async function HomePage() {
           signed-in users who have reading in progress. Deciding this
           server-side is what used to make the whole homepage dynamic. */}
       <ContinueReadingSwap>
-        <ForYouShelf popularBooks={trendingBooks} />
+        <ForYouShelf popularBooks={trendingCards} />
       </ContinueReadingSwap>
 
       {/* ════════ COLLECTION PREVIEW — ≤8 cards, 4-per-row, tabbed ════════ */}
       <div className="cv-auto">
         <Suspense fallback={<BrowseBooksSkeleton />}>
-          <BrowseBooksSection trendingBooks={trendingBooks} />
+          <BrowseBooksSection trendingBooks={trendingCards} />
         </Suspense>
       </div>
 

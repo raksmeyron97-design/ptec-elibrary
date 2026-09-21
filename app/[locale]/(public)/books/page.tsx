@@ -2,6 +2,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import BookCard from "@/components/ui/books/BookCard";
+import { toBookCardList } from "@/lib/books/card-data";
 import Pagination from "@/components/ui/core/Pagination";
 import SearchBar from "@/components/ui/search/SearchBar";
 import Icon from "@/components/ui/core/Icon";
@@ -345,7 +346,7 @@ export default async function BooksPage({
             {/* Card titles are h3s; this keeps the h1 → h2 → h3 outline intact */}
             <h2 className="sr-only">{total > 0 ? countLabel : t('title')}</h2>
             <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 sm:gap-4">
-              {books.map((book, i) => (
+              {toBookCardList(books).map((book, i) => (
                 <BookCard key={book.slug} book={book} priority={i < 6} />
               ))}
             </div>

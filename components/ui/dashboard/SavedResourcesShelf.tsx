@@ -8,6 +8,7 @@ import { Bookmark } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import HorizontalCarousel from "@/components/ui/core/HorizontalCarousel";
 import BookCard from "@/components/ui/books/BookCard";
+import { toBookCardList } from "@/lib/books/card-data";
 
 const SHELF_SIZE = 5;
 
@@ -40,9 +41,9 @@ export default async function SavedResourcesShelf({ savedBooks }: { savedBooks: 
         </div>
       ) : (
         <HorizontalCarousel>
-          {shelf.map((book) => (
+          {toBookCardList(shelf).map((book) => (
             <div key={book.slug} className="w-[168px] shrink-0 sm:w-[188px]">
-              <BookCard book={{ ...book, format: (book.format ?? "PDF") as "PDF" | "Print" | "Audio" | "Video" }} />
+              <BookCard book={book} />
             </div>
           ))}
         </HorizontalCarousel>

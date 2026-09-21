@@ -13,14 +13,16 @@
 import NextLink from "next/link";
 import { getTranslations } from "next-intl/server";
 import { getMostViewedBooksCached } from "@/lib/home-data";
-import type { ComponentProps } from "react";
 import BookCard from "@/components/ui/books/BookCard";
+import { toBookCardList, type BookCardData } from "@/lib/books/card-data";
 import BookCarousel from "./BookCarousel";
 import { ArrowRight } from "lucide-react";
 import SignedOutOnly from "./SignedOutOnly";
 import { HomeSection, SectionHeader, SectionMobileLink } from "./HomeSection";
 
-type BookCardData = ComponentProps<typeof BookCard>["book"];
+// The card's own type, imported rather than re-derived: a local alias of
+// the same name shadowed it and made `viewed as BookCardData[]` look local
+// and harmless, which is exactly the cast the brand exists to prevent.
 
 // "See all" — a signpost, not a committed destination. It points at the same
 // /books?sort=downloads route as the hero's mobile strip, whose RSC payload is
@@ -35,7 +37,7 @@ export default async function ForYouShelf({ popularBooks }: { popularBooks: Book
   // so the same titles aren't shown twice. Falls back to the passed trending
   // set if the view-ranked query is empty.
   const viewed = await getMostViewedBooksCached();
-  const shelf = (viewed.length > 0 ? (viewed as BookCardData[]) : popularBooks).slice(0, 6);
+  const shelf = (viewed.length > 0 ? toBookCardList(viewed) : popularBooks).slice(0, 6);
   if (shelf.length === 0) return null;
 
   return (

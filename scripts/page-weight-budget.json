@@ -1,0 +1,56 @@
+{
+  "note": [
+    "Per-page document ceilings, in IDENTITY (uncompressed) bytes.",
+    "",
+    "HOW THESE WERE SET: from the measured AFTER state of SEO5-09, plus ~10%",
+    "headroom. They are not aspirations and not a minimum achievable size.",
+    "",
+    "GOING OVER IS A DECISION, NOT A FAILURE TO BE SILENCED. A page that grows",
+    "because it gained something a reader wanted is a page that should have a",
+    "bigger number here. Raise it in the SAME commit as the change, and put the",
+    "reason in `why`. What this check exists to stop is the other thing: the",
+    "homepage grew ~60 KB between the SEO 5.0 audit (821 KB) and Phase 0",
+    "(883 KB) with nobody choosing it and nobody noticing.",
+    "",
+    "WHY NOT THE COMPRESSED SIZE. The report prints Brotli and gzip per page,",
+    "because that is what a student on a phone downloads. The BUDGET is on the",
+    "uncompressed document on purpose: flight payload is extremely repetitive",
+    "JSON, so a compressor that gets a little better can shrink the transfer",
+    "while the document grows — a compressed ceiling stays green through the",
+    "exact regression this file is here to catch.",
+    "",
+    "WHAT IS STILL IN THESE NUMBERS. Card props are no longer the largest",
+    "avoidable item. Two known ones remain and are NOT addressed by SEO5-09:",
+    "the inline SVG (see `inlineSvgBytes` in the report) and the repeated",
+    "next-intl `localeCookie` object. Do not read a green run as 'this is as",
+    "small as this page gets'.",
+    "",
+    "Run: npx tsx scripts/measure-page-weight.ts --budget   (needs npm start)"
+  ],
+  "pages": {
+    "/": {
+      "totalBytes": 742984,
+      "flightBytes": 382247,
+      "why": "SEO5-09 after-state + 10%. 59 book cards in production, 6 in the seed.",
+      "unusedCardFieldBytes": 1143
+    },
+    "/km": {
+      "totalBytes": 872377,
+      "flightBytes": 492874,
+      "why": "SEO5-09 after-state + 10%. Khmer is the heavier locale: longer strings, same structure.",
+      "unusedCardFieldBytes": 1571
+    },
+    "/books": {
+      "totalBytes": 440057,
+      "flightBytes": 242840,
+      "why": "SEO5-09 after-state + 10%. Featured shelf + the listing grid.",
+      "unusedCardFieldBytes": 1195
+    },
+    "/books/assessment-for-learning": {
+      "totalBytes": 442264,
+      "flightBytes": 263206,
+      "why": "SEO5-09 after-state + 10%. One book detail page, which carries one real book record by design.",
+      "unusedCardFieldBytes": 1656
+    }
+  }
+}

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
-import { bookFileHref } from "@/lib/book-utils";
+import { toBookCardData } from "@/lib/books/card-data";
 
 export const dynamic = "force-dynamic";
 
@@ -44,9 +44,9 @@ export async function GET() {
   const { data: booksData } = await db
     .from("books")
     .select(
-      `id, title, slug, description, cover_url, cover_color,
-      department, language, pages, rating, download_count, view_count,
-      authors ( name ), categories ( name ), book_files ( format, file_url )`,
+      `id, title, slug, cover_url, cover_color,
+      department, rating, download_count, view_count,
+      authors ( name ), categories ( name )`,
     )
     .in(
       "id",
@@ -56,38 +56,28 @@ export async function GET() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const byId = new Map((booksData ?? []).map((b: any) => [b.id, b]));
 
+  // Exactly what a book card renders — the same narrowing the server shelves
+  // apply. This response used to carry a whole `Book` per row: isbn "N/A", a
+  // fabricated `year`, the full description, a pdfUrl the card never draws.
   const books = rows.flatMap((r) => {
     const b = byId.get(r.book_id);
     if (!b) return [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const pdfFile = b.book_files?.find((f: any) => f.format === "pdf");
     return [
-      {
+      toBookCardData({
         slug: b.slug,
         title: b.title,
         author: b.authors?.name ?? "Unknown",
-        isbn: "N/A",
         department: b.department ?? "General",
         category: b.categories?.name ?? "General",
-        language: b.language ?? "English",
-        year: new Date().getFullYear(),
-        format: "PDF" as const,
-        availability: "Digital" as const,
         rating: Number(b.rating) || 0,
-        pages: b.pages ?? 1,
-        summary: b.description ?? "",
         cover: b.cover_color ?? "bg-brand",
         coverUrl: b.cover_url ?? null,
-        // Proxy url, never the raw storage url — see bookFileHref(). This
-        // response is JSON a browser reads.
-        pdfUrl: pdfFile?.file_url ? bookFileHref(b.id) : null,
-        tags: [] as string[],
         progressPct: r.progress_pct,
         downloadCount: b.download_count ?? 0,
         viewCount: b.view_count ?? 0,
         dbId: b.id,
         lastReadAt: r.last_read_at,
-      },
+      }),
     ];
   });
 
