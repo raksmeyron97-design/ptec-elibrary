@@ -267,6 +267,53 @@ test.describe("PDF reader", () => {
     await expect(sheet).toHaveCount(0);
   });
 
+  test("HUD buttons obey their breakpoint classes at both widths", async ({ page, isMobile }) => {
+    // The reader HUD draws two layouts from one markup: four controls marked
+    // `hidden md:inline-flex` (search, panel, theme, bookmark in the top bar)
+    // and three marked `md:hidden` (the page pill, and bookmark + panel in the
+    // bottom bar). An unlayered `.reader-btn { display: inline-flex }` beat
+    // both sets of utilities, so every width drew every control.
+    //
+    // `display` is asserted directly rather than through Playwright's
+    // visibility: that is the property the cascade bug corrupted, and it is
+    // also unaffected by the HUD's auto-hide, which only changes opacity.
+    test.skip(isMobile, "desktop project drives the viewport loop");
+    await openReader(page, isMobile);
+
+    for (const width of [390, 1280]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.waitForTimeout(400);
+      const controls = await page.evaluate(() =>
+        [...document.querySelectorAll('[data-reader-hud] [class*="reader-btn"]')].map((el) => ({
+          cls: el.className,
+          label: el.getAttribute("aria-label") ?? el.textContent?.trim().slice(0, 30) ?? "",
+          drawn: getComputedStyle(el).display !== "none",
+        })),
+      );
+      expect(controls.length, `HUD controls found at ${width}px`).toBeGreaterThan(0);
+
+      const phone = width < 768;
+      let desktopOnly = 0;
+      let phoneOnly = 0;
+      for (const c of controls) {
+        const where = `${c.label || c.cls} at ${width}px`;
+        if (/\bhidden\b/.test(c.cls) && /\bmd:inline-flex\b/.test(c.cls)) {
+          desktopOnly++;
+          expect(c.drawn, `desktop-only ${where}`).toBe(!phone);
+        } else if (/\bmd:hidden\b/.test(c.cls)) {
+          phoneOnly++;
+          expect(c.drawn, `phone-only ${where}`).toBe(phone);
+        } else {
+          expect(c.drawn, `unconditional ${where}`).toBe(true);
+        }
+      }
+      // Both sets must actually be present, or the assertions above hold
+      // vacuously and the layout could regress unseen.
+      expect(desktopOnly, `desktop-only controls at ${width}px`).toBeGreaterThan(0);
+      expect(phoneOnly, `phone-only controls at ${width}px`).toBeGreaterThan(0);
+    }
+  });
+
   test("no horizontal overflow at the narrow phone widths", async ({ page, isMobile }) => {
     test.skip(isMobile, "desktop project drives the viewport loop");
     await openReader(page, isMobile);

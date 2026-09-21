@@ -2719,23 +2719,34 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 }
 
 /* ── Controls ─────────────────────────────────────────────────────── */
-.reader-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: .375rem;
-  flex-shrink: 0;
-  min-width: 2.75rem;   /* 44px touch target */
-  min-height: 2.75rem;
-  padding: 0 .5rem;
-  border-radius: .5rem;
-  font-size: .8125rem;
-  font-weight: 600;
-  line-height: 1;
-  color: var(--reader-fg-muted);
-  background: transparent;
-  cursor: pointer;
-  transition: background-color .15s ease, color .15s ease;
+/* The BASE rule is layered, on purpose: Tailwind's utilities live in
+   `@layer utilities`, and an unlayered rule beats every layered one — so an
+   unlayered `.reader-btn { display: inline-flex }` silently overrode
+   `hidden`, `md:hidden` and `md:inline-flex` on every HUD button (the same
+   trap as the focus system's fallback). Phones drew the desktop-only search,
+   panel, theme and bookmark buttons in the top bar, beside the bottom bar's
+   own bookmark and panel; desktops drew the phone-only page pill, bookmark
+   and panel. The variants and states below stay unlayered: they refine this
+   rule and still beat it. Pinned by components/ui/reader/reader-css.test.ts. */
+@layer components {
+  .reader-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .375rem;
+    flex-shrink: 0;
+    min-width: 2.75rem;   /* 44px touch target */
+    min-height: 2.75rem;
+    padding: 0 .5rem;
+    border-radius: .5rem;
+    font-size: .8125rem;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--reader-fg-muted);
+    background: transparent;
+    cursor: pointer;
+    transition: background-color .15s ease, color .15s ease;
+  }
 }
 .reader-btn:hover { color: var(--reader-fg); background: var(--reader-hover); }
 .reader-btn:active { background: var(--reader-active); }
