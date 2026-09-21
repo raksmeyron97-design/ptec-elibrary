@@ -57,8 +57,30 @@ const TARGETS: Target[] = [
   { key: "linkedin", label: "LinkedIn", bg: "bg-[#0A66C2]", href: (u) => `https://www.linkedin.com/sharing/share-offsite/?url=${u}` },
 ];
 
+/**
+ * On a phone, Share opens the phone's OWN share sheet (Web Share API): the
+ * reader's Telegram chats, Messenger contacts and Facebook groups, one tap
+ * away — what a share button does in every app on that phone. The brand grid
+ * below is the fallback: desktops (where the OS sheet is a poor substitute),
+ * and browsers without navigator.share. True when the native sheet handled it
+ * — including a reader dismissing it, which is an answer, not a failure.
+ */
+async function shareNatively(data: { title: string; url: string }): Promise<boolean> {
+  const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
+  if (typeof nav.share !== "function") return false;
+  if (!window.matchMedia("(pointer: coarse)").matches) return false;
+  if (nav.canShare && !nav.canShare(data)) return false;
+  try {
+    await nav.share(data);
+    return true;
+  } catch (err) {
+    return (err as { name?: string } | null)?.name === "AbortError";
+  }
+}
+
 export default function ShareButton({ url, title = "PTEC Library", className, label }: ShareButtonProps) {
   const t = useTranslations('share');
+  const tNav = useTranslations('nav');
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -100,9 +122,11 @@ export default function ShareButton({ url, title = "PTEC Library", className, la
       {/* Trigger */}
       <button
         type="button"
-        onClick={() => setOpen(true)}
-        title="Share"
-        aria-label="Share"
+        onClick={async () => {
+          if (!(await shareNatively({ title, url }))) setOpen(true);
+        }}
+        title={t('title')}
+        aria-label={t('title')}
         className={
           className ??
           "inline-flex h-full min-h-[46px] items-center justify-center gap-2 rounded-[14px] border border-divider bg-bg-surface px-4 py-2 font-bold text-text-heading transition-colors duration-150 hover:border-brand/30 hover:bg-brand/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
@@ -119,7 +143,7 @@ export default function ShareButton({ url, title = "PTEC Library", className, la
           onClick={close}
           role="dialog"
           aria-modal="true"
-          aria-label="Share this resource"
+          aria-label={t('title')}
         >
           <div
             className="modal-pop-in w-full max-w-md rounded-t-2xl bg-bg-surface p-6 shadow-2xl sm:rounded-2xl"
@@ -131,7 +155,7 @@ export default function ShareButton({ url, title = "PTEC Library", className, la
               <button
                 type="button"
                 onClick={close}
-                aria-label="Close"
+                aria-label={tNav('close')}
                 className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-text-muted transition-colors duration-150 hover:bg-paper hover:text-text-heading focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
               >
                 <Icon name="x" className="text-[20px]" />
