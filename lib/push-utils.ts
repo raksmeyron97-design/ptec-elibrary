@@ -1,3 +1,5 @@
+import { safeReturnTo } from "@/lib/security/return-to";
+
 export const PUSH_ERROR_CODES = {
   UNSUPPORTED: "PUSH_UNSUPPORTED",
   SW_REGISTRATION_FAILED: "SW_REGISTRATION_FAILED",
@@ -97,12 +99,34 @@ export function validateSerializedSubscription(input: unknown): PushValidationRe
   return { ok: true, data: { endpoint, keys: { p256dh, auth } } };
 }
 
+/**
+ * The click target of a push notification, or the fallback.
+ *
+ * This value reaches `clients.openWindow()` in the service worker, so it is a
+ * navigation the browser performs on the reader's behalf with no address bar
+ * to inspect first — an off-site target here is a phishing page that arrived
+ * as a notification from the library.
+ *
+ * The prefix test this replaces ("starts with /", "does not start with //")
+ * passed two shapes that both resolve CROSS-ORIGIN, verified against the URL
+ * parser:
+ *
+ *   "/\\evil.com"      → https://evil.com/   (in a special scheme the parser
+ *                                             treats `\` as `/`, so the
+ *                                             authority starts after all)
+ *   "/<TAB>/evil.com"  → https://evil.com/   (tab, CR and LF are stripped
+ *                                             BEFORE parsing, leaving "//")
+ *
+ * `safeReturnTo` is the one implementation of this rule in the app: it drops
+ * backslashes and every control character, then re-resolves the result against
+ * a sentinel origin and refuses anything that escaped it. Length is checked
+ * here first so the push-specific cap still applies.
+ */
 export function safeInternalUrl(input: unknown, fallback = "/"): string {
   if (typeof input !== "string") return fallback;
   const trimmed = input.trim();
   if (!trimmed || trimmed.length > MAX_URL_LENGTH) return fallback;
-  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) return trimmed;
-  return fallback;
+  return safeReturnTo(trimmed, fallback);
 }
 
 export function validatePushPayload(input: unknown): PushValidationResult<PushPayload> {

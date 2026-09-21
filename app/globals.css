@@ -145,37 +145,6 @@
   --ptec-topbar-height: calc(3.5rem + 5px + env(safe-area-inset-top, 0px));
   --ptec-sticky-top: 0px;
 
-  /* The About section's sticky sub-navigation row (AboutSubNavigation), so a
-     page-level sticky bar can sit UNDER it without a private copy of its
-     height — the same rule --ptec-mobile-nav-clearance exists for. The row is
-     a min-h-11 link strip plus its 1px bottom border. */
-  --ptec-about-subnav-height: 2.8125rem;
-
-  /* ── Department accents (/about/team) ──────────────────────────────────
-     Four hues for the team directory's department chips. They are NOT new
-     colours: they are the four values of the validated categorical palette
-     in app/admin.css (--ptec-series-*), which was chosen as a SET — OKLCH
-     lightness band, chroma floor, protan/deutan ΔE under all pairs, ≥3:1 on
-     white. They are restated here rather than referenced because admin.css
-     is loaded only by app/(admin)/layout.tsx; the public tree never sees it.
-     lib/team/directory.test.ts fails if the two files disagree, so the copy
-     cannot drift into a fifth palette.
-
-     `-ink` is the AA-on-white step of the same hue, for the chip's LABEL —
-     a chip is text on a tint, not a mark. Colour is never the only channel:
-     a department chip always carries its own name.
-
-     A fifth department repeats the first hue (see DEPARTMENT_ACCENTS in
-     lib/team/directory.ts) rather than inventing a hue outside the set. */
-  --ptec-dept-1: #2563EB;
-  --ptec-dept-2: #0D9488;
-  --ptec-dept-3: #A21CAF;
-  --ptec-dept-4: #D97706;
-  --ptec-dept-1-ink: #1D4ED8;
-  --ptec-dept-2-ink: #0F766E;
-  --ptec-dept-3-ink: #86198F;
-  --ptec-dept-4-ink: #B45309;
-
   /* ── Admin forms palette ───────────────────────────────────────── */
   --ptec-navy-700: #27499f;
   --ptec-navy-950: #152258;
@@ -332,16 +301,6 @@
   --ptec-glass-highlight: rgba(255, 255, 255, .06);
   --ptec-glass-shadow: 0 14px 36px -12px rgba(0, 0, 0, .70), 0 2px 8px -2px rgba(0, 0, 0, .45);
   --ptec-glass-selected: rgba(138, 164, 228, .18);
-
-  /* Department accents, dark. The four HUES are unchanged — the ink step is
-     lifted off the dark surface instead, and it is DERIVED from the hue with
-     color-mix rather than hand-picked, so a change to the palette above
-     carries into both themes and no fifth value is ever introduced. The mid
-     hues themselves (#2563EB and friends) would sit at ~2:1 on #161C2B. */
-  --ptec-dept-1-ink: color-mix(in oklab, var(--ptec-dept-1) 45%, #FFFFFF);
-  --ptec-dept-2-ink: color-mix(in oklab, var(--ptec-dept-2) 45%, #FFFFFF);
-  --ptec-dept-3-ink: color-mix(in oklab, var(--ptec-dept-3) 45%, #FFFFFF);
-  --ptec-dept-4-ink: color-mix(in oklab, var(--ptec-dept-4) 45%, #FFFFFF);
 }
 
 /* No tab bar from `lg` up, so nothing reserves room for one. */
@@ -1399,6 +1358,16 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   max-width: 76ch;
 }
 
+/* A small-caps eyebrow label, corrected per script. Khmer has no case, so
+   `text-transform: uppercase` does nothing there — but the tracking that goes
+   with it collides the script's stacked diacritics with the consonants beside
+   them. Latin renders exactly as before on every page that uses it. */
+.about-eyebrow:lang(km),
+.about-eyebrow [lang="km"] {
+  letter-spacing: normal;
+  text-transform: none;
+}
+
 /* Long Khmer compound words have few break opportunities, so a narrow card
    or button can be overflowed by a single "word". Khmer has no hyphenation
    rules to fall back on, hence anywhere rather than break-word. */
@@ -1481,18 +1450,14 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   }
 }
 
-/* ── Roster system: the About section's committee directory ───────────────
-   /about/committee (components/about/CommitteeRoster.tsx) draws one plain
-   institutional layout: a solid navy band names each group, a white panel
-   sits beneath it, and the people are small portrait cards in a grid — a
-   bold navy name, a blue role line, a quiet detail line and a "View profile"
-   link. Flat on purpose: no stage, no glass, no connectors, no motion. The
-   order of the panels and the band carry the structure; the cards carry the
-   people.
-
-   /about/team used to share this and no longer does: at four departments it
-   meant four bands and four grids to scan before finding one person. See the
-   .team-* block below, where the grouping became a control instead.
+/* ── Roster system: the About section's people directories ────────────────
+   /about/committee (components/about/CommitteeRoster.tsx) and /about/team
+   (components/about/TeamDirectory.tsx) share one plain institutional layout:
+   a solid navy band names each group, a white panel sits beneath it, and the
+   people are small portrait cards in a grid — a bold navy name, a blue role
+   line, a quiet detail line and a "View profile" link. Flat on purpose: no
+   stage, no glass, no connectors, no motion. The order of the panels and the
+   band carry the structure; the cards carry the people.
 
    The band is literal navy (`--color-blue-900`) rather than the brand token:
    the brand token flips to a light blue in dark mode, where white text on it
@@ -1688,351 +1653,150 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   inset: 0;
 }
 
-/* ── Team directory (/about/team, components/about/TeamDirectory.tsx) ─────
-   One grid of people, filtered by a sticky bar, in two views.
+/* ── Team directory (/about/team) ─────────────────────────────────────────
+   A SEPARATE namespace from .roster-* above, which /about/committee shares.
+   The committee is a body with ranks, so it is drawn as ordered navy-banded
+   panels. The team is a staff directory, so it is drawn the way a university
+   faculty page is: a white card per person on a soft page, a circular
+   portrait beside the name rather than above it, and one editorial text link
+   out to the full profile.
 
-   The roster system above (.roster-*) is the COMMITTEE's layout: one navy
-   band per group, panels stacked down the page. The team page used to share
-   it, and at four departments that meant four bands and four grids to scan
-   before finding one person. Here the grouping is a CONTROL instead: one
-   grid, one filter bar, and the department travels on each card as a chip.
+   The card is HORIZONTAL and the portrait is a circle, and both decisions are
+   the same decision. A 4:5 image block on top of a card makes the photograph
+   the first and largest thing on it, pushes the name below the fold of the
+   card, and — when a member has no portrait — leaves a tall empty rectangle
+   that reads as a failed image load. A 5.5rem circle beside the name costs
+   about a fifth of the height, puts the NAME first in the reading order, and
+   turns a missing portrait into a small monogram instead of a hole.
 
-   Glass appears exactly once on this page — on the filter bar, which is the
-   only surface that floats over content. Nothing behind a portrait, a name
-   or a line of running text is translucent. */
+   Portraits are full colour. This page exists to make a reader comfortable
+   walking up to a librarian and asking a question, and a desaturated portrait
+   reads formal and distant; there is no grayscale variant to opt out of. */
 
-/* The bar sits under the site header AND under the About sub-navigation, both
-   of which are already sticky; the two offsets are tokens so no copy of
-   either height lives here. --strong because the bar carries text labels. */
-.team-filterbar {
-  position: sticky;
-  top: calc(var(--ptec-sticky-top) + var(--ptec-about-subnav-height));
-  z-index: 30;
+/* The quiet metadata strip. Every value on it is derived from the roster on
+   screen; it is one muted line because it is context, not a finding — a row
+   of statistic cards on a page about people is the loudest thing on it and
+   the least important. */
+.team-meta {
   display: flex;
-  flex-direction: column;
-  gap: 0.625rem;
-  margin-bottom: 1.25rem;
-  padding: 0.625rem 0.75rem;
-  border-radius: 0.875rem;
-}
-.team-filterbar__chips {
-  display: flex;
-  gap: 0.375rem;
-  overflow-x: auto;
-  padding-bottom: 0.125rem;
-}
-.team-filterbar__tools {
-  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
-}
-.team-filterbar__search {
-  position: relative;
-  display: flex;
-  min-width: 0;
-  flex: 1 1 auto;
-  align-items: center;
-  border: 1px solid var(--ptec-divider);
-  border-radius: 0.625rem;
-  background: var(--ptec-bg-surface);
-}
-
-/* A chip: label, then count. `--ptec-text-body` and never `--ptec-text-muted`
-   — muted is the one colour that does not clear 4.5:1 on strong glass over
-   the worst backdrop (lib/glass-tokens.test.ts). */
-.team-chip {
-  display: inline-flex;
-  min-height: 2.25rem;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 0.4375rem;
-  padding: 0.25rem 0.75rem;
-  border: 1px solid var(--ptec-divider);
-  border-radius: 9999px;
-  background: var(--ptec-bg-surface);
-  color: var(--ptec-text-body);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: color 160ms ease-out, border-color 160ms ease-out,
-    background-color 160ms ease-out;
-}
-.team-chip:hover {
-  border-color: color-mix(in oklab, var(--ptec-brand) 45%, var(--ptec-divider));
-  color: var(--ptec-brand);
-}
-.team-chip[aria-pressed="true"] {
-  border-color: transparent;
-  background: var(--ptec-brand);
-  color: var(--ptec-brand-contrast);
-}
-.team-chip__count {
-  font-size: 0.75rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.75;
-}
-/* The accent dot is the chip's only decorative signal, and it is never the
-   only one: the chip's own label names the department beside it. */
-.team-chip__dot {
-  width: 0.5rem;
-  height: 0.5rem;
-  flex-shrink: 0;
-  border-radius: 9999px;
-  background: var(--team-hue, var(--ptec-brand));
-}
-
-/* Department accents — one class per hue, set on the chip, the card and the
-   list row. Everything downstream reads --team-hue / --team-ink, so a call
-   site never names a colour. */
-.team-accent--1 { --team-hue: var(--ptec-dept-1); --team-ink: var(--ptec-dept-1-ink); }
-.team-accent--2 { --team-hue: var(--ptec-dept-2); --team-ink: var(--ptec-dept-2-ink); }
-.team-accent--3 { --team-hue: var(--ptec-dept-3); --team-ink: var(--ptec-dept-3-ink); }
-.team-accent--4 { --team-hue: var(--ptec-dept-4); --team-ink: var(--ptec-dept-4-ink); }
-
-.team-tag {
-  display: inline-flex;
-  max-width: 100%;
-  align-items: center;
-  padding: 0.125rem 0.5rem;
-  border: 1px solid color-mix(in oklab, var(--team-hue, var(--ptec-brand)) 30%, transparent);
-  border-radius: 9999px;
-  /* 8%, not 12%: the label is 11px, so it needs 4.5:1 against the tint it
-     sits on. At 12% the amber pair (--ptec-dept-4 on its own tint over white)
-     measures 4.42:1 and fails; at 8% the worst of the four is 4.61:1. */
-  background: color-mix(in oklab, var(--team-hue, var(--ptec-brand)) 8%, transparent);
-  color: var(--team-ink, var(--ptec-brand));
-  font-size: 0.6875rem;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.team-view-toggle {
-  display: inline-flex;
-  flex-shrink: 0;
-  gap: 0.125rem;
-  padding: 0.125rem;
-  border: 1px solid var(--ptec-divider);
-  border-radius: 0.625rem;
-  background: var(--ptec-bg-surface);
-}
-.team-view-toggle__button {
-  display: inline-flex;
-  width: 2.25rem;
-  height: 2rem;
-  align-items: center;
-  justify-content: center;
-  border-radius: 0.5rem;
-  color: var(--ptec-text-body);
-  cursor: pointer;
-  transition: background-color 160ms ease-out, color 160ms ease-out;
-}
-.team-view-toggle__button[aria-pressed="true"] {
-  background: var(--ptec-surface-brand-soft);
-  color: var(--ptec-brand);
-}
-
-/* ── Grid view ──────────────────────────────────────────────────────── */
-.team-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.875rem;
-  list-style: none;
+  gap: 0.375rem 0.875rem;
   margin: 0;
   padding: 0;
+  list-style: none;
+  color: var(--ptec-text-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
 }
-/* The whole card is ONE link, so there is no interactive element inside it to
-   nest — that is what keeps the markup parseable and the tab order one stop
-   per person. */
+.team-meta > li {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+/* A separator, not a bullet: it must never be read out as list structure. */
+.team-meta > li + li::before {
+  content: "";
+  width: 3px;
+  height: 3px;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.55;
+}
+.team-meta__value {
+  color: var(--ptec-text-heading);
+  font-weight: 700;
+}
+
+/* A section header with an action on the right ("View all team →"). */
+.team-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+}
+.team-section-link {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--ptec-brand);
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: color 180ms ease-out;
+}
+.team-section-link:hover {
+  color: var(--ptec-brand-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ── The card ──────────────────────────────────────────────────────────── */
+
+.team-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
 .team-card {
   position: relative;
   display: flex;
   height: 100%;
   flex-direction: column;
-  overflow: hidden;
+  padding: 1.25rem;
   border: 1px solid var(--ptec-divider);
-  border-radius: 0.875rem;
+  /* 18px — the middle of the 16–20px the design system uses for a content
+     surface, and the same family as .rounded-2xl elsewhere on the page. */
+  border-radius: 1.125rem;
   background: var(--ptec-bg-surface);
-  box-shadow: 0 1px 3px rgb(11 21 48 / 0.08);
-  text-align: start;
-  transition: box-shadow 200ms ease-out, border-color 200ms ease-out,
-    transform 200ms ease-out;
+  box-shadow: 0 1px 2px rgb(11 21 48 / 0.04);
+  transition:
+    border-color 180ms ease-out,
+    box-shadow 180ms ease-out;
 }
 .team-card:hover,
-.team-card:focus-visible {
-  border-color: color-mix(in oklab, var(--team-hue, var(--ptec-brand)) 50%, var(--ptec-divider));
-  box-shadow: 0 14px 28px -18px rgb(11 21 48 / 0.45);
-  transform: translateY(-2px);
+.team-card:focus-within {
+  border-color: color-mix(in oklab, var(--ptec-brand) 35%, var(--ptec-divider));
+  box-shadow: 0 10px 24px -18px rgb(11 21 48 / 0.3);
 }
-/* The department's hue as a hairline at the top of the card. Decoration: the
-   chip below it carries the same department as text. */
-.team-card::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 3px;
-  background: var(--team-hue, var(--ptec-brand));
-  opacity: 0.85;
-  z-index: 1;
-}
-.team-card__photo {
-  position: relative;
-  display: block;
-  aspect-ratio: 3 / 4;
-  overflow: hidden;
-  background: var(--ptec-surface-brand-soft);
-}
-/* Desaturated at rest, full colour on hover or keyboard focus. A CSS filter
-   only — the same bytes are served either way, and no image is re-processed
-   or fetched twice. */
-.team-card__photo img {
-  filter: grayscale(0.4);
-  transition: filter 260ms ease-out, transform 400ms ease-out;
-}
-.team-card:hover .team-card__photo img,
-.team-card:focus-visible .team-card__photo img {
-  filter: grayscale(0);
-  transform: scale(1.03);
-}
-.team-card__body {
+/* Portrait beside identity. `start` rather than `center`: a two-line Khmer
+   name plus a wrapped position grows the identity column downwards, and a
+   centred circle then drifts away from the name it belongs to. */
+.team-card__head {
   display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.75rem;
-}
-.team-card__name {
-  margin: 0;
-  color: var(--ptec-text-heading);
-  font-size: 0.9375rem;
-  font-weight: 700;
-  line-height: 1.3;
-}
-.team-card__alt {
-  display: block;
-  margin-top: 0.125rem;
-  color: var(--ptec-text-muted);
-  font-size: 0.8125rem;
-  font-weight: 400;
-}
-/* Uppercase, letter-spaced, small: a LABEL, not a sentence. Khmer is never
-   uppercased — the script has no case, and letter-spacing pulls its stacked
-   diacritics away from the consonants they belong to. */
-.team-card__role {
-  margin: 0.1875rem 0 0;
-  color: var(--ptec-text-body);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  line-height: 1.4;
-  text-transform: uppercase;
-}
-.team-card__role:lang(km),
-.team-card__role[lang="km"] {
-  font-size: 0.8125rem;
-  letter-spacing: normal;
-  text-transform: none;
-}
-.team-card__line {
-  margin: 0.25rem 0 0;
-  color: var(--ptec-text-body);
-  font-size: 0.75rem;
-  line-height: 1.5;
-}
-.team-card__foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.375rem;
-  margin-top: auto;
-  padding-top: 0.625rem;
-}
-.team-card__key {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.125rem 0.5rem;
-  border-radius: 9999px;
-  background: var(--color-gold-500);
-  color: #0b1530;
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-/* ── List view ──────────────────────────────────────────────────────── */
-.team-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.team-row {
-  display: flex;
-  width: 100%;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.875rem;
-  padding: 0.625rem 0.875rem;
-  border: 1px solid var(--ptec-divider);
-  border-radius: 0.75rem;
-  background: var(--ptec-bg-surface);
-  text-align: start;
-  transition: border-color 160ms ease-out, background-color 160ms ease-out;
 }
-.team-row:hover,
-.team-row:focus-visible {
-  border-color: color-mix(in oklab, var(--team-hue, var(--ptec-brand)) 50%, var(--ptec-divider));
-  background: var(--ptec-surface-brand-soft);
-}
-.team-row__avatar {
-  position: relative;
-  display: block;
-  width: 2.75rem;
-  height: 2.75rem;
-  flex-shrink: 0;
-  overflow: hidden;
-  border-radius: 9999px;
-  background: var(--ptec-surface-brand-soft);
-}
-.team-row__avatar img {
-  filter: grayscale(0.4);
-  transition: filter 260ms ease-out;
-}
-.team-row:hover .team-row__avatar img,
-.team-row:focus-visible .team-row__avatar img {
-  filter: grayscale(0);
-}
-.team-row__main {
+.team-card__identity {
   min-width: 0;
   flex: 1;
 }
-.team-row__name {
-  margin: 0;
-  color: var(--ptec-text-heading);
-  font-size: 0.9375rem;
-  font-weight: 700;
-  line-height: 1.3;
-}
-.team-row__role {
-  margin: 0.125rem 0 0;
-  color: var(--ptec-text-body);
-  font-size: 0.75rem;
-  line-height: 1.4;
-}
-.team-row__chevron {
-  flex-shrink: 0;
-  color: var(--ptec-text-muted);
-}
 
-/* The monogram that stands in for a missing portrait — a deliberate mark,
-   never a broken-image icon or a blank grey box. It is sized to the FRAME it
-   fills, not to one number: at 0.875rem inside a 3:4 card it read as a typo
-   in an empty box. Initials come from the person's name, never from the
-   honorific (committeeInitials). */
-.team-monogram {
+/* ── The portrait ──────────────────────────────────────────────────────── */
+
+.team-avatar {
+  position: relative;
+  overflow: hidden;
+  flex: 0 0 auto;
+  width: 4.75rem;
+  height: 4.75rem;
+  border-radius: 9999px;
+  background: var(--ptec-surface-brand-soft);
+  /* A hairline rather than a border: on a white card a full border rings the
+     face; this only separates a pale portrait from the surface. */
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--ptec-brand) 12%, transparent);
+}
+.team-avatar--lead {
+  width: 5.25rem;
+  height: 5.25rem;
+}
+/* No photograph is not an error state. A monogram on the brand tint says "no
+   portrait was published"; a tall empty rectangle says "the image failed". */
+.team-avatar__mark {
   display: flex;
   width: 100%;
   height: 100%;
@@ -2040,212 +1804,455 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   justify-content: center;
   background: var(--ptec-surface-brand-soft);
   color: var(--ptec-brand);
-  font-size: 0.9375rem;
+  font-size: 1.0625rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
-}
-.team-card__photo .team-monogram {
-  font-size: 2.25rem;
-}
-.team-dialog .team-monogram {
-  font-size: 1.75rem;
+  letter-spacing: 0.02em;
 }
 
-/* ── "At a glance" band ─────────────────────────────────────────────────
-   One quiet strip in place of four stat cards. Four cards gave four figures
-   the visual weight of four claims; this is a caption on the page, which is
-   what these numbers are. On a phone it scrolls with snap points rather than
-   stacking into four more screens of chrome. */
-.team-glance {
-  display: flex;
-  gap: 0;
-  overflow-x: auto;
-  list-style: none;
+/* ── Card text ─────────────────────────────────────────────────────────── */
+
+.team-card__name {
   margin: 0;
-  padding: 0;
-  border: 1px solid var(--ptec-divider);
-  border-radius: 0.875rem;
-  background: var(--ptec-bg-surface);
-  scroll-snap-type: x proximity;
-}
-.team-glance__item {
-  display: flex;
-  min-width: 10.5rem;
-  flex: 1 0 auto;
-  flex-direction: column;
-  gap: 0.125rem;
-  padding: 0.875rem 1rem;
-  scroll-snap-align: start;
-}
-.team-glance__item + .team-glance__item {
-  border-inline-start: 1px solid var(--ptec-divider);
-}
-.team-glance__value {
   color: var(--ptec-text-heading);
-  font-size: 1.375rem;
+  font-size: 1.125rem;
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
+  line-height: 1.25;
+  letter-spacing: -0.005em;
 }
-.team-glance__label {
+.team-card--lead .team-card__name {
+  font-size: 1.1875rem;
+}
+/* The other script: smaller and quieter, never uppercased and never tracked —
+   letter-spacing on Khmer collides the stacked diacritics with the consonants
+   beside them, and Khmer has no case to change. */
+.team-card__alt {
+  display: block;
+  margin-top: 0.1875rem;
+  color: var(--ptec-text-muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.5;
+  text-transform: none;
+}
+.team-card__role {
+  margin: 0.375rem 0 0;
+  color: var(--ptec-text-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+/* ONE small department label, and it is a label rather than a badge: the
+   service area is context for the person, and a saturated pill per card turns
+   the grid into a colour legend with faces attached. The dot is the only
+   colour, and text stays the identifier. */
+/* One row for the two small labels, so a member who is both a key contact
+   and in a service area does not get them jammed together. */
+.team-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.875rem;
+  margin: 0.5rem 0 0;
+}
+.team-card__area {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4375rem;
   color: var(--ptec-text-muted);
   font-size: 0.75rem;
-  line-height: 1.4;
+  line-height: 1.45;
 }
-@media (min-width: 640px) {
-  .team-glance__item {
-    min-width: 0;
-  }
+.team-card__area::before {
+  content: "";
+  position: relative;
+  top: -0.125rem;
+  width: 0.375rem;
+  height: 0.375rem;
+  flex: 0 0 auto;
+  border-radius: 9999px;
+  background: var(--color-gold-500);
+}
+/* "Key contact" is a quiet word next to the role, not a navy plate over a
+   face — the featured section already says these people are worth meeting.
+   The LABEL takes a text token and the gold lives only in the star: gold on
+   white is 2.6:1 at this size, which axe caught as a serious contrast failure
+   on every card carrying the flag. Weight plus the icon do the distinguishing
+   that colour was doing, so the label reads the same and is legible. */
+.team-card__flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  color: var(--ptec-text-body);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+.team-card__flag svg {
+  color: var(--color-gold-500);
+}
+.team-card__flag:lang(km),
+.team-card__flag [lang="km"] {
+  letter-spacing: normal;
+}
+.team-card__bio {
+  margin: 0.875rem 0 0;
+  color: var(--ptec-text-body);
+  font-size: 0.875rem;
+  /* 1.6 for Latin; .about-copy raises Khmer to 1.85 on the same element. */
+  line-height: 1.6;
+}
+.team-card__foot {
+  display: flex;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 1rem;
+}
+/* An editorial text link, never a filled button: a button per card is twelve
+   primary actions on one page. */
+.team-card__link {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--ptec-brand);
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: color 180ms ease-out;
+}
+.team-card__link svg {
+  transition: transform 180ms ease-out;
+}
+.team-card__link:hover {
+  color: var(--ptec-brand-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.team-card__link:hover svg {
+  transform: translateX(2px);
+}
+/* The link's target is the whole card, so the card is one target rather than
+   a card with a small link in the corner. It stays a real <a href>: a
+   crawler follows it, and ⌘/middle-click open it in a tab. */
+.team-card__link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
 }
 
-/* ── Empty state and the member dialog ──────────────────────────────── */
-/* The recovery chips inside the empty state reuse the chip row's look, but
-   not its `flex: 1 1 auto` — in a column they would grow vertically. */
-.team-empty .team-filterbar__chips {
-  flex: 0 0 auto;
-  max-width: 100%;
-  flex-wrap: wrap;
-  justify-content: center;
-}
+/* The empty state — a search that found nobody, or an area with nobody in it. */
 .team-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.875rem;
-  padding: 2.5rem 1.5rem;
+  padding: 3rem 1.5rem;
   border: 1px dashed var(--ptec-border-strong);
-  border-radius: 0.875rem;
+  border-radius: 1.125rem;
   background: var(--ptec-bg-surface);
   text-align: center;
 }
 
-/* Solid, never glass: a portrait and a full biography are content. */
-.team-dialog {
+/* ── Directory toolbar ─────────────────────────────────────────────────── */
+
+.team-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+.team-search {
   position: relative;
   display: flex;
-  width: 100%;
-  max-height: 92vh;
-  flex-direction: column;
-  overflow: hidden;
-  border-radius: 1rem 1rem 0 0;
+  max-width: 26rem;
+  align-items: center;
+  border: 1px solid var(--ptec-divider);
+  border-radius: 0.75rem;
   background: var(--ptec-bg-surface);
-  box-shadow: 0 -12px 40px -16px rgb(11 21 48 / 0.55);
 }
-@media (min-width: 640px) {
-  .team-dialog {
-    max-width: 40rem;
-    border-radius: 1rem;
-  }
+.team-search__input {
+  /* 44px: the WCAG 2.5.5 target floor, and no taller — a search field is the
+     directory's utility, not the page's headline. */
+  min-height: 2.75rem;
+  width: 100%;
+  flex: 1;
+  padding: 0.5rem 2.5rem;
+  border-radius: 0.75rem;
+  background: transparent;
+  color: var(--ptec-text-heading);
+  /* 16px floor: anything smaller makes iOS Safari zoom the page on focus and
+     strand the reader at 2×. */
+  font-size: 1rem;
+  outline: none;
 }
-@media (prefers-reduced-motion: no-preference) {
-  .team-dialog {
-    animation: team-dialog-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
+.team-search__input::placeholder {
+  color: var(--ptec-text-muted);
 }
-@keyframes team-dialog-in {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: none; }
+.team-search__icon {
+  position: absolute;
+  left: 0.8125rem;
+  color: var(--ptec-text-muted);
+  pointer-events: none;
 }
-
-/* ── Hero portrait: one slow Ken Burns, CSS only ────────────────────── */
-@media (prefers-reduced-motion: no-preference) {
-  .about-hero-ken img {
-    animation: about-hero-ken 28s ease-in-out infinite alternate;
-    transform-origin: 50% 35%;
-    will-change: transform;
-  }
+.team-search__clear {
+  position: absolute;
+  right: 0.25rem;
+  display: flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  color: var(--ptec-text-muted);
+  cursor: pointer;
+  transition: color 180ms ease-out;
 }
-@keyframes about-hero-ken {
-  from { transform: scale(1); }
-  to   { transform: scale(1.08); }
-}
-
-/* The "Meet the team ↓" anchor glides to the directory. On <html> because
-   only the viewport's own scrolling box honours scroll-behavior for a
-   fragment navigation; :has scopes it to the About pages. A media query
-   rather than the reduced-motion blocks below, because scroll-behavior is
-   not an animation and `animation: none` would not catch it. */
-@media (prefers-reduced-motion: no-preference) {
-  html:has(.about-page) {
-    scroll-behavior: smooth;
-  }
-}
-
-@media (min-width: 640px) {
-  .team-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 1rem;
-  }
-  .team-filterbar {
-    flex-direction: row;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.625rem 0.875rem;
-  }
-  .team-filterbar__chips {
-    flex: 1 1 auto;
-    flex-wrap: wrap;
-    overflow-x: visible;
-  }
-  .team-filterbar__tools {
-    flex-shrink: 0;
-  }
-  .team-filterbar__search {
-    width: 15rem;
-    flex: 0 1 15rem;
-  }
-}
-@media (min-width: 1024px) {
-  .team-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .team-card,
-  .team-card__photo img,
-  .team-row,
-  .team-row__avatar img,
-  .team-chip,
-  .team-view-toggle__button {
-    transition: none !important;
-  }
-  .team-card:hover,
-  .team-card:focus-visible {
-    transform: none;
-  }
-  .team-card:hover .team-card__photo img,
-  .team-card:focus-visible .team-card__photo img {
-    transform: none;
-  }
-}
-@media print {
-  .team-filterbar {
-    display: none !important;
-  }
-  .team-card,
-  .team-row {
-    box-shadow: none !important;
-    break-inside: avoid;
-  }
+.team-search__clear:hover {
+  color: var(--ptec-text-heading);
 }
 
-.team-panel__heading {
+/* Chips scroll horizontally on a phone rather than wrapping to four rows and
+   pushing every face below the fold. The padding + negative margin let the
+   row bleed to the screen edge so a half-visible chip signals the overflow. */
+.team-chips {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0 -1rem;
+  padding: 0.125rem 1rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.team-chips::-webkit-scrollbar {
+  display: none;
+}
+.team-chip {
+  display: inline-flex;
+  min-height: 2.25rem;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.3125rem 0.8125rem;
+  border: 1px solid var(--ptec-divider);
+  border-radius: 9999px;
+  background: var(--ptec-bg-surface);
+  color: var(--ptec-text-body);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 180ms ease-out,
+    border-color 180ms ease-out,
+    color 180ms ease-out;
+}
+.team-chip:hover {
+  border-color: color-mix(in oklab, var(--ptec-brand) 35%, var(--ptec-divider));
+  color: var(--ptec-brand);
+}
+/* Selected is a filled chip AND aria-pressed AND a weight change — colour is
+   never the only signal. */
+.team-chip--active {
+  border-color: var(--ptec-brand);
+  background: var(--ptec-brand);
+  color: var(--ptec-brand-contrast);
+  font-weight: 600;
+}
+.team-chip--active:hover {
+  color: var(--ptec-brand-contrast);
+}
+.team-chip__count {
+  color: inherit;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.65;
+}
+.team-toolbar__status {
+  margin: 0;
+  color: var(--ptec-text-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Profile sheet ─────────────────────────────────────────────────────── */
+
+/* Bottom sheet on a phone, right-hand panel from `sm` up. One element; only
+   the edge it is anchored to changes. */
+.team-sheet {
+  position: relative;
+  display: flex;
+  max-height: 92vh;
+  width: 100%;
+  flex-direction: column;
+  border-radius: 1.25rem 1.25rem 0 0;
+  background: var(--ptec-bg-surface);
+  box-shadow: 0 -12px 40px -12px rgb(11 21 48 / 0.45);
+  animation: team-sheet-up 220ms ease-out;
+}
+.team-sheet__scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* A light header on the page's own surface, with the gold rule the header and
+   footer carry. A navy plate here made the panel read as an application
+   dialog; this reads as the top of a profile. */
+.team-sheet__head {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem 1.25rem 1rem;
+  border-bottom: 1px solid var(--ptec-divider);
+  background: var(--ptec-bg-surface);
+}
+.team-sheet__head::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -1px 0;
+  height: 2px;
+  background: linear-gradient(to right, var(--color-gold-500), var(--color-gold-500) 4rem, transparent 4rem);
+}
+.team-sheet__grabber {
+  position: absolute;
+  top: 0.5rem;
+  left: 50%;
+  width: 2.25rem;
+  height: 0.25rem;
+  transform: translateX(-50%);
+  border-radius: 9999px;
+  background: var(--ptec-border-strong);
+}
+@keyframes team-sheet-up {
+  from {
+    transform: translateY(2rem);
+    opacity: 0;
+  }
+}
+@keyframes team-sheet-in {
+  from {
+    transform: translateX(2rem);
+    opacity: 0;
+  }
+}
+.team-sheet__backdrop {
+  animation: team-fade 200ms ease-out;
+}
+@keyframes team-fade {
+  from {
+    opacity: 0;
+  }
+}
+.team-sheet__heading {
   display: flex;
   align-items: center;
   gap: 0.625rem;
+  margin: 0;
   color: var(--ptec-text-heading);
   font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
-.team-panel__heading::after {
+/* Khmer has no case and letter-spacing collides its stacked marks, so a Khmer
+   run inside a small-caps heading opts back out of both. */
+.team-sheet__heading:lang(km),
+.team-sheet__heading [lang="km"],
+.team-meta:lang(km) {
+  letter-spacing: normal;
+  text-transform: none;
+}
+.team-sheet__heading::after {
   content: "";
   flex: 1;
   height: 1px;
   background: var(--ptec-divider);
 }
 
+@media (min-width: 640px) {
+  .team-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+  .team-chips {
+    margin: 0;
+    padding: 0.125rem 0;
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+  .team-sheet {
+    max-height: 100%;
+    max-width: 30rem;
+    border-radius: 1.25rem 0 0 1.25rem;
+    box-shadow: -12px 0 40px -12px rgb(11 21 48 / 0.45);
+    animation-name: team-sheet-in;
+  }
+  .team-sheet__grabber {
+    display: none;
+  }
+  .team-sheet__head {
+    padding-top: 1.25rem;
+  }
+}
+@media (min-width: 768px) {
+  .team-toolbar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1rem;
+  }
+  .team-toolbar > .team-search {
+    flex: 0 1 22rem;
+  }
+  .team-toolbar > .team-chips {
+    flex: 1 1 auto;
+  }
+  .team-toolbar__status {
+    flex: 1 1 100%;
+  }
+  .team-avatar {
+    width: 5.5rem;
+    height: 5.5rem;
+  }
+  .team-avatar--lead {
+    width: 6rem;
+    height: 6rem;
+  }
+}
+@media (min-width: 1024px) {
+  /* Three columns and no more. A fourth leaves the identity column too narrow
+     for a bilingual name beside a portrait, which is the one thing this card
+     exists to show. */
+  .team-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .team-card,
+  .team-chip,
+  .team-card__link,
+  .team-card__link svg,
+  .team-section-link,
+  .team-search__clear {
+    transition: none !important;
+  }
+  .team-card__link:hover svg {
+    transform: none;
+  }
+  .team-sheet,
+  .team-sheet__backdrop {
+    animation: none !important;
+  }
+}
+@media print {
+  .team-card {
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+  .team-toolbar,
+  .team-section-link {
+    display: none !important;
+  }
+}
 @media (min-width: 640px) {
   .roster-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
