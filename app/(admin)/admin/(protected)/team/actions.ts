@@ -75,7 +75,8 @@ export async function getTeamSections(): Promise<TeamSection[]> {
   const { data } = await supabase
     .from("team_sections")
     .select("*")
-    .order("display_order", { ascending: true });
+    .order("display_order", { ascending: true })
+    .order("id", { ascending: true });
   return (data ?? []) as TeamSection[];
 }
 
@@ -600,30 +601,83 @@ export async function toggleSectionActive(id: string, isActive: boolean): Promis
   }
 }
 
-export async function reorderTeamSection(id: string, direction: "up" | "down") {
-  await requireAdmin();
-  const supabase = createServiceClient();
+/**
+ * Move one section one place up or down.
+ *
+ * It RENUMBERS the whole list to 1..n rather than swapping the two rows'
+ * `display_order` values, and that is the fix rather than a tidy-up: two
+ * adjacent sections sharing an order made the swap write `1 → 1` and `1 → 1`,
+ * a database no-op that the optimistic client still rendered as a success.
+ * `team_sections.display_order` carries no unique constraint and the seed
+ * itself ships ties (two separate inserts each numbering from 1), so equal
+ * neighbours are the normal case, not a corrupted one. Renumbering also
+ * removes the ties permanently instead of preserving them.
+ *
+ * Position is read with `id` as a tiebreak so a tied list has ONE order rather
+ * than whichever order Postgres last happened to return — without it the row
+ * the user asked to move is not necessarily the row at the index we computed.
+ *
+ * Each write is asked for its row, because a PostgREST update that matched
+ * nothing is byte-identical to one that succeeded (see lib/db/changed-row.ts).
+ * The renumber is not wrapped in a transaction; with no unique index it cannot
+ * collide mid-flight, and because every run rewrites the full 1..n sequence a
+ * partial failure is repaired by the next reorder rather than compounding.
+ */
+export async function reorderTeamSection(
+  id: string,
+  direction: "up" | "down",
+): Promise<ActionResult> {
+  try {
+    const { userId } = await requireAdmin();
+    const supabase = createServiceClient();
 
-  const { data: sections } = await supabase
-    .from("team_sections")
-    .select("id, display_order")
-    .order("display_order", { ascending: true });
+    const { data: sections, error: readError } = await supabase
+      .from("team_sections")
+      .select("id, display_order, name_en")
+      .order("display_order", { ascending: true })
+      .order("id", { ascending: true })
+      .order("id", { ascending: true });
+    if (readError) throw new Error(readError.message);
+    if (!sections?.length) return { error: "No sections to reorder." };
 
-  if (!sections) return;
+    const from = sections.findIndex((s) => s.id === id);
+    if (from === -1) return { error: "That section no longer exists." };
 
-  const idx = sections.findIndex((s) => s.id === id);
-  if (idx === -1) return;
+    const to = direction === "up" ? from - 1 : from + 1;
+    if (to < 0 || to >= sections.length) return { success: true }; // already at the edge
 
-  const swapIdx = direction === "up" ? idx - 1 : idx + 1;
-  if (swapIdx < 0 || swapIdx >= sections.length) return;
+    const ordered = [...sections];
+    [ordered[from], ordered[to]] = [ordered[to], ordered[from]];
 
-  const a = sections[idx];
-  const b = sections[swapIdx];
+    // Only rows whose number actually changes are written; on a tied list that
+    // is still most of them, which is the point.
+    const writes = ordered
+      .map((section, index) => ({ section, position: index + 1 }))
+      .filter(({ section, position }) => section.display_order !== position);
 
-  await supabase.from("team_sections").update({ display_order: b.display_order }).eq("id", a.id);
-  await supabase.from("team_sections").update({ display_order: a.display_order }).eq("id", b.id);
+    for (const { section, position } of writes) {
+      const { data: updated, error } = await supabase
+        .from("team_sections")
+        .update({ display_order: position })
+        .eq("id", section.id)
+        .select("id");
+      if (error) throw new Error(error.message);
+      if (!updated?.length) {
+        return { error: "A section changed while reordering. Reload and try again." };
+      }
+    }
 
-  revalidateTeam();
+    await logAdminAction(userId, "team_section.reorder", "team_sections", id, {
+      direction,
+      from: from + 1,
+      to: to + 1,
+      renumbered: writes.length,
+    });
+    revalidateTeam();
+    return { success: true };
+  } catch (err) {
+    return toResult(err);
+  }
 }
 
 /**

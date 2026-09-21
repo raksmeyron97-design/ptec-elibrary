@@ -21,12 +21,18 @@ import {
   validateSectionDoc,
 } from "@/lib/system-settings/schemas";
 import { DEFAULT_SECTION_DOCS } from "@/lib/system-settings/defaults";
-import type { FieldError } from "@/lib/system-settings/types";
+import type { AnySectionDoc, FieldError } from "@/lib/system-settings/types";
 
 export type SettingsActionResult =
   | {
       ok: true;
       publishedVersion?: number;
+      /** The document that is now published, returned by `rollbackSettingsSection`
+       *  only. A rollback is the one mutation whose new values come from
+       *  neither the editor's form nor its draft, so it is the one the client
+       *  cannot reconstruct: without this it kept showing — and would have
+       *  re-published — the values that were just rolled back. */
+      restoredDoc?: AnySectionDoc;
       /** Set when the write succeeded but the public caches could NOT be
        *  purged. The UI must surface this instead of a clean success toast:
        *  the new version IS live in the database, yet visitors keep seeing the
@@ -384,7 +390,12 @@ export async function rollbackSettingsSection(
       changedFields,
     });
     const cacheWarning = invalidatePublicCaches();
-    return { ok: true, publishedVersion: newVersion, cacheWarning };
+    return {
+      ok: true,
+      publishedVersion: newVersion,
+      restoredDoc: parsed.value,
+      cacheWarning,
+    };
   } catch (e) {
     return failure(e);
   }

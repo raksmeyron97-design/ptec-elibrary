@@ -233,7 +233,18 @@ export default function SettingsWorkspace({ data }: { data: SettingsWorkspaceDat
       try {
         const result = await rollbackSettingsSection(section, version);
         if (result.ok) {
-          setDocs((prev) => ({ ...prev, [section]: prev[section] }));
+          // Adopt the restored document as the editor's state. `docs` is
+          // seeded once and never re-derived from props, so `router.refresh()`
+          // alone updates the baseline `isDirty` compares against while the
+          // form still holds the values that were just rolled back: the
+          // section reads "Unsaved changes", the tab warns on close, and
+          // publishing from there would put the rolled-back values straight
+          // back. (This line used to set the section to itself.)
+          if (result.restoredDoc) {
+            const restored = clone(result.restoredDoc);
+            setDocs((prev) => ({ ...prev, [section]: restored }));
+          }
+          setErrors((prev) => ({ ...prev, [section]: [] }));
           setNotice(
             result.cacheWarning
               ? {

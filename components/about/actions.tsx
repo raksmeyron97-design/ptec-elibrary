@@ -59,6 +59,36 @@ export function AboutLinkAction({
 }
 
 /**
+ * An IN-PAGE anchor ("#directory").
+ *
+ * Its own component rather than one of the two above, because it is neither:
+ * routing a fragment through the localized Link would produce "/km#directory"
+ * as a navigation, and AboutExternalAction's contract is an absolute URL. The
+ * smooth glide is CSS on the page, under a reduced-motion guard — there is no
+ * scroll handler here.
+ */
+export function AboutAnchorAction({
+  targetId,
+  icon: Icon,
+  children,
+  variant = "secondary",
+  className = "",
+}: {
+  targetId: string;
+  icon?: LucideIcon;
+  children: ReactNode;
+  variant?: Variant;
+  className?: string;
+}) {
+  return (
+    <a href={`#${targetId}`} className={`${BASE} ${VARIANTS[variant]} ${className}`}>
+      {Icon && <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />}
+      {children}
+    </a>
+  );
+}
+
+/**
  * An absolute URL, `tel:` or `mailto:` link.
  *
  * `newTab` adds the security rel AND a visually-hidden "opens in a new tab"

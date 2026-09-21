@@ -80,14 +80,16 @@ async function fetchSections(): Promise<PublicTeamSection[]> {
   const result = await supabase
     .from("team_sections")
     .select("id,name_km,name_en,description_km,description_en,display_order,is_active")
-    .order("display_order", { ascending: true });
+    .order("display_order", { ascending: true })
+    .order("id", { ascending: true });
 
   if (result.error) {
     // Pre-0070: no is_active column yet.
     const { data: legacySections } = await supabase
       .from("team_sections")
       .select("id,name_km,name_en,description_km,description_en,display_order")
-      .order("display_order", { ascending: true });
+      .order("display_order", { ascending: true })
+      .order("id", { ascending: true });
     return (legacySections ?? []) as PublicTeamSection[];
   }
 

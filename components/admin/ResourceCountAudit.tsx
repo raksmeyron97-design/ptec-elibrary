@@ -206,9 +206,7 @@ export default function ResourceCountAudit({ initial }: Props) {
           <>
             <p className="mt-0.5 text-[11.5px] text-text-muted">
               {t.rich("search.hint", {
-                command: () => (
-                  <code className="rounded bg-paper px-1">npx tsx scripts/embed-library.ts</code>
-                ),
+                command: (chunks) => <code className="rounded bg-paper px-1">{chunks}</code>,
               })}
             </p>
             <ul className="mt-2 flex flex-wrap gap-2">
@@ -254,9 +252,7 @@ export default function ResourceCountAudit({ initial }: Props) {
           <>
             <p className="mt-0.5 max-w-[78ch] text-[11.5px] text-text-muted">
               {t.rich("fullText.hint", {
-                command: () => (
-                  <code className="rounded bg-paper px-1">npx tsx scripts/extract-pdf-text.ts</code>
-                ),
+                command: (chunks) => <code className="rounded bg-paper px-1">{chunks}</code>,
               })}
             </p>
             <ul className="mt-2 flex flex-wrap gap-2">
@@ -334,11 +330,7 @@ export default function ResourceCountAudit({ initial }: Props) {
           <>
             <p className="mt-0.5 max-w-[78ch] text-[11.5px] text-text-muted">
               {t.rich("semantic.hint", {
-                command: () => (
-                  <code className="rounded bg-paper px-1">
-                    npx tsx scripts/build-semantic-insights.ts
-                  </code>
-                ),
+                command: (chunks) => <code className="rounded bg-paper px-1">{chunks}</code>,
               })}
             </p>
             <ul className="mt-2 flex flex-wrap gap-2">

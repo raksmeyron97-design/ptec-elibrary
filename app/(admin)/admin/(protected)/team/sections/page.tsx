@@ -14,7 +14,8 @@ export default async function TeamSectionsPage() {
     supabase
       .from("team_sections")
       .select("*")
-      .order("display_order", { ascending: true }),
+      .order("display_order", { ascending: true })
+      .order("id", { ascending: true }),
     supabase.from("team_members").select("section_id"),
   ]);
 

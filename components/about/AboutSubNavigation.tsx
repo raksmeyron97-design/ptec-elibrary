@@ -64,7 +64,11 @@ export default function AboutSubNavigation() {
   return (
     <div
       data-about-print="hide"
-      className="sticky top-[var(--ptec-sticky-top)] z-40 border-b border-divider bg-bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-bg-surface/80"
+      // The row's height is pinned to --ptec-about-subnav-height rather than
+      // left to the content, because a page-level sticky bar has to sit under
+      // it (/about/team's filter bar) and a hand-written copy of this height
+      // is exactly the drift --ptec-mobile-nav-clearance exists to prevent.
+      className="sticky top-[var(--ptec-sticky-top)] z-40 min-h-[var(--ptec-about-subnav-height)] border-b border-divider bg-bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-bg-surface/80"
     >
       <nav aria-label={t("subnav.label")} className="mx-auto max-w-[1240px] px-4 sm:px-6">
         <div

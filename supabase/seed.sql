@@ -372,6 +372,20 @@ INSERT INTO public.team_sections (id, name_en, name_km, description_en, descript
    'ក្រុមការងារចុះបញ្ជី ខ្ចី-សង និងសេវាកម្មអ្នកអាន។', 2)
 ON CONFLICT (id) DO NOTHING;
 
+-- Renumber the whole list to 1..n. The baseline migration already seeds six
+-- sections numbered 1-6 and the two rows above start again at 1, so a freshly
+-- built stack otherwise ships two sections at order 1 and two at order 2.
+-- `display_order` carries no unique constraint, so nothing rejects that, and a
+-- tied list has no defined order — /about/team and /admin/team/sections would
+-- each render whichever order Postgres happened to return.
+UPDATE public.team_sections t
+   SET display_order = o.rn
+  FROM (
+    SELECT id, row_number() OVER (ORDER BY display_order, id) AS rn
+      FROM public.team_sections
+  ) o
+ WHERE o.id = t.id AND t.display_order <> o.rn;
+
 -- `slug` is set explicitly. Migration 0115 backfills slugs for rows that
 -- already exist, and seeding runs AFTER the migration chain — so without this
 -- every seeded member has slug NULL, and /about/team/<slug> (plus every link

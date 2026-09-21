@@ -103,8 +103,19 @@ export type AboutHeroProps = {
   /** Primary action, e.g. "Get directions". */
   action?: ReactNode;
   /** Supporting image. Only pass one on a page where it means something —
-   *  the hero reads fine without it. */
-  image?: { src: string; alt: string; priority?: boolean };
+   *  the hero reads fine without it.
+   *
+   *  `shape` is "landscape" (4:3) unless the subject is a person, in which
+   *  case a portrait frame is the honest crop. `kenBurns` adds ONE slow,
+   *  CSS-only drift, switched off entirely under prefers-reduced-motion — no
+   *  JS, no library, and nothing that runs off the compositor. */
+  image?: {
+    src: string;
+    alt: string;
+    priority?: boolean;
+    shape?: "landscape" | "portrait";
+    kenBurns?: boolean;
+  };
 };
 
 /**
@@ -187,7 +198,11 @@ function AboutHero({
             <div className="mt-8 lg:mt-0">
               {/* Fixed aspect ratio + `fill` means the box is reserved before
                   the bytes arrive — no CLS when the photo decodes. */}
-              <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-white/15 bg-blue-950/40 shadow-[0_24px_48px_-24px_rgba(0,0,0,0.6)] ring-1 ring-gold-400/30 ring-offset-2 ring-offset-blue-900">
+              <div
+                className={`relative overflow-hidden rounded-2xl border border-white/15 bg-blue-950/40 shadow-[0_24px_48px_-24px_rgba(0,0,0,0.6)] ring-1 ring-gold-400/30 ring-offset-2 ring-offset-blue-900 ${
+                  image.shape === "portrait" ? "aspect-[4/5]" : "aspect-[4/3]"
+                } ${image.kenBurns ? "about-hero-ken" : ""}`}
+              >
                 <Image
                   src={image.src}
                   alt={image.alt}
