@@ -82,9 +82,16 @@ export type ClassifiedPage = {
 
 // ── Tokenization ─────────────────────────────────────────────────────────────
 
-/** Digits carry the page number, which differs on every page by definition. */
+/**
+ * Digits carry the page number, which differs on every page by definition.
+ *
+ * Khmer numerals too: a Khmer running header ("ជំពូកទី៣ ៤៧") kept its page
+ * number under an ASCII-only class, so the token differed on every page and
+ * the header was never recognised as furniture — meaning it was never
+ * stripped, on the 82% of this collection that is Khmer.
+ */
 function furnitureKey(token: string): string {
-  return token.toLowerCase().replace(/\d+/g, "#");
+  return token.toLowerCase().replace(/[\d០-៩]+/gu, "#");
 }
 
 function tokenize(text: string): string[] {
@@ -129,9 +136,18 @@ export function detectFurniture(pages: readonly PageInput[]): Furniture {
   return { header: pick(headCounts), footer: pick(footCounts) };
 }
 
-/** A bare page number, a folio, a section number: "105", "4.", "(17)". */
+/**
+ * A bare page number, a folio, a section number: "105", "4.", "(17)", "១០៥".
+ *
+ * Khmer numerals for the same reason as furnitureKey above — but BELT, not
+ * braces, and unproven in isolation: furnitureKey already normalises a Khmer
+ * folio to "#", which makes it FREQUENT, and this predicate is only consulted
+ * for a token that is not. No realistic fixture was found where it alone
+ * decides, so it carries no test of its own. It is kept because it is
+ * strictly more correct and costs nothing, not because it was measured.
+ */
 function isLocatorToken(token: string): boolean {
-  return /^[([]?\d+[.,)\]]?$/.test(token);
+  return /^[([]?[\d០-៩]+[.,)\]។]?$/u.test(token);
 }
 
 /**
@@ -222,7 +238,28 @@ const MIN_BODY_CHARS = 200;
 /** Letters ÷ characters. Below this the page is a table, an index or a plate. */
 const MIN_LETTER_RATIO = 0.45;
 
-const CONTENTS_HEADING = /\b(contents|table of contents)\b/i;
+/**
+ * A contents heading, in either language.
+ *
+ * `\b` is defined over ASCII, so it can never sit beside a Khmer word — the
+ * same trap `\bទំព័រ` hit in lib/ai/page-target.ts, where every Khmer page
+ * reference was silently unparseable. The Khmer alternatives therefore carry
+ * no boundary assertion at all, which is correct: Khmer has no word
+ * boundaries, and `មាតិកា` is long enough (5 code points) not to occur
+ * inside an unrelated word by accident.
+ *
+ * `មាតិកា` is "contents"; `តារាងមាតិកា` contains it as a substring and so
+ * is covered too.
+ *
+ * MEASURED, because a negative control said so: reverting this alternative
+ * alone broke no test, while reverting the Khmer NUMERALS below broke
+ * three. The numerals are what actually recovers Khmer contents pages —
+ * they clear the `numeric > 0.25` route unaided. This heading only opens
+ * the lower-density route (`> 0.12`) that English contents pages rely on,
+ * so it is a belt rather than the braces. Kept because it is correct and
+ * costs nothing; do not assume it is carrying the behaviour.
+ */
+const CONTENTS_HEADING = /\b(contents|table of contents)\b|មាតិកា/i;
 const REFERENCES_HEADING = /\b(references|bibliography|works cited)\b/i;
 const INDEX_HEADING = /\b(index|glossary|appendix)\b/i;
 
@@ -231,11 +268,20 @@ function letterRatio(text: string): number {
   return (text.match(/[\p{L}\p{M}]/gu) ?? []).length / text.length;
 }
 
-/** Share of tokens that are bare numbers — a contents page is mostly locators. */
+/**
+ * Share of tokens that are bare numbers — a contents page is mostly locators.
+ *
+ * Khmer numerals ០-៩ (U+17E0-17E9) count. `\d` is ASCII-only in JavaScript
+ * even under the `u` flag, so a Khmer contents page — whose page numbers are
+ * printed in Khmer digits — scored a numeric ratio of ZERO and could never
+ * be recognised, whatever its heading said.
+ */
+const NUMERIC_TOKEN = /^[\d០-៩]+[.,)។]?$/u;
+
 function numericTokenRatio(text: string): number {
   const tokens = tokenize(text);
   if (tokens.length === 0) return 0;
-  return tokens.filter((t) => /^\d+[.,)]?$/.test(t)).length / tokens.length;
+  return tokens.filter((t) => NUMERIC_TOKEN.test(t)).length / tokens.length;
 }
 
 /** Citation years: "(2007)", "1998;" — dense in a bibliography, rare in prose. */

@@ -140,3 +140,31 @@ describe("scoreTopic and the evidence gate", () => {
     expect(supportedTopics([...evidence].reverse()).map((t) => t.label)).toEqual(["alpha", "beta"]);
   });
 });
+
+// ── Khmer numerals in the locator patterns (SEO5-08 sweep) ─────────────────
+
+describe("a Khmer volume number is a locator", () => {
+  const verdictOf = (label: string) => admitLabel(label);
+
+  it("filters ភាគ with a KHMER numeral, which is how a Khmer book prints it", () => {
+    // The clearest case in the sweep: a rule written specifically for Khmer,
+    // matching the Khmer word for "volume" and then demanding an ASCII
+    // digit. "ភាគ ២" was never filtered and was published as a topic the
+    // book "covers".
+    expect(verdictOf("ភាគ ២")).toMatchObject({ admissible: false, reason: "locator" });
+    expect(verdictOf("ភាគ ២០")).toMatchObject({ admissible: false, reason: "locator" });
+    // The ASCII form kept working.
+    expect(verdictOf("ភាគ 2")).toMatchObject({ admissible: false, reason: "locator" });
+  });
+
+  it("filters a bare Khmer number", () => {
+    expect(verdictOf("១២៣").admissible).toBe(false);
+    expect(verdictOf("123").admissible).toBe(false);
+  });
+
+  it("still keeps a real Khmer subject", () => {
+    // The error that would cost a topic: over-filtering.
+    expect(verdictOf("គណិតវិទ្យា").admissible).toBe(true);
+    expect(verdictOf("ការស្រាវជ្រាវប្រតិបត្តិ").admissible).toBe(true);
+  });
+});

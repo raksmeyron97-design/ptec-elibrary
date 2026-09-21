@@ -309,3 +309,95 @@ describe("assessKhmerText — syllables split mid-word (measured, not acted on)"
     expect(v.unreadable).toBe(false);
   });
 });
+
+// ── Khmer locators (SEO5-08) ────────────────────────────────────────────────
+//
+// Found while dry-running the contents audit. `BARE_NUMBER` was ASCII-only,
+// so a Khmer page's locators counted as zero and `locatorHeavy` could never
+// fire. The heading marker `មាតិកា` hid it for the FIRST contents page; a
+// continuation page has no heading and went through as prose.
+
+describe("a Khmer locator is a locator", () => {
+  // A contents CONTINUATION page: the heading was on the previous page, so
+  // the marker route cannot save this one.
+  const KM_CONTINUATION =
+    "ជំពូកទី៩ អនុសាសន៍ ៧៨ ជំពូកទី១០ ការអនុវត្ត ៨៥ ជំពូកទី១១ ការវាយតម្លៃ ៩២ " +
+    "ជំពូកទី១២ ការបណ្ដុះបណ្ដាល ៩៨ ឧបសម្ព័ន្ធក ទម្រង់សំណួរ ១០៥ ឧបសម្ព័ន្ធខ តារាងទិន្នន័យ ១១២ " +
+    "ឧបសម្ព័ន្ធគ រូបភាព ១១៨ សន្ទស្សន៍ ១២៥ ឯកសារយោងបន្ថែម ១៣០ កំណត់ចំណាំ ១៣៥";
+
+  it("refuses an evidence slot to a Khmer contents continuation page", () => {
+    const q = assessPageText(KM_CONTINUATION);
+    expect(q.substantive).toBe(false);
+    expect(q.kind).toBe("index");
+  });
+
+  it("scores it the same as the identical page in ASCII digits", () => {
+    // The property that was broken: the SCRIPT of the numeral changed the
+    // verdict. It must not.
+    const ascii = KM_CONTINUATION.replace(/[០-៩]/g, (d) =>
+      String("០១២៣៤៥៦៧៨៩".indexOf(d)),
+    );
+    expect(assessPageText(KM_CONTINUATION).substantive).toBe(
+      assessPageText(ascii).substantive,
+    );
+  });
+
+  it("still admits real Khmer PROSE — the error that would cost a book", () => {
+    // The two-signal rule is what makes the fix safe: a page is dropped only
+    // when it is locator-heavy AND has no sentences. Khmer prose terminates
+    // with the khan (។), which SENTENCE_END already counts.
+    const prose =
+      "ការស្រាវជ្រាវប្រតិបត្តិគឺជាដំណើរការមួយ ដែលគ្រូបង្រៀនពិនិត្យមើលការអនុវត្តរបស់ខ្លួន។ " +
+      "វិធីសាស្ត្រនេះត្រូវបានប្រើប្រាស់យ៉ាងទូលំទូលាយក្នុងវិស័យអប់រំ។ " +
+      "គ្រូបង្រៀនអាចប្រមូលទិន្នន័យពីថ្នាក់រៀនរបស់ខ្លួន ដើម្បីកែលម្អគុណភាពបង្រៀន។";
+    expect(assessPageText(prose).substantive).toBe(true);
+  });
+
+  it("does not drop a Khmer page that merely cites years or figures", () => {
+    // A prose page carrying numbers is not a locator list. Sentences are
+    // what separate them, and this is the page the two-signal rule protects.
+    const withNumbers =
+      "ការសិក្សានេះបានប្រមូលទិន្នន័យពីសិស្ស ១២០ នាក់ ក្នុងឆ្នាំ ២០២៤។ " +
+      "លទ្ធផលបង្ហាញថា ៨៥ ភាគរយនៃសិស្សបានធ្វើតេស្តប្រសើរឡើង។ " +
+      "ការវិភាគត្រូវបានធ្វើឡើងដោយប្រើវិធីសាស្ត្រស្ថិតិពិពណ៌នា។";
+    expect(assessPageText(withNumbers).substantive).toBe(true);
+  });
+});
+
+describe("a Khmer-numbered list item is not a sentence", () => {
+  // Pins behaviour the sweep verified rather than changed: a Khmer numbered
+  // list reports zero sentence density, and the two scripts agree. Kept
+  // because "we checked this and it was already right" is worth as much to
+  // the next reader as a fix.
+  const KM_NUMBERED_CONTENTS =
+    "១. សេចក្ដីផ្ដើម ២. ការត្រួតពិនិត្យអក្សរសិល្ប៍ ៣. វិធីសាស្ត្រស្រាវជ្រាវ " +
+    "៤. ការប្រមូលទិន្នន័យ ៥. លទ្ធផលនៃការសិក្សា ៦. ការវិភាគទិន្នន័យ " +
+    "៧. ការពិភាក្សា ៨. សេចក្ដីសន្និដ្ឋាន ៩. អនុសាសន៍ ១០. ឯកសារយោង";
+
+  it("counts NO sentence ends on it", () => {
+    // Held by the LOOKAHEAD, not the lookbehind: the terminator must be
+    // followed by an uppercase letter or end of input, and Khmer has no
+    // uppercase. Measured during the SEO5-08 sweep — adding ០-៩ to the
+    // lookbehind changes nothing here, which is why it was not kept.
+    expect(assessPageText(KM_NUMBERED_CONTENTS).sentenceDensity).toBe(0);
+  });
+
+  it("reports the same density as the identical page in ASCII numerals", () => {
+    const ascii = KM_NUMBERED_CONTENTS.replace(/[០-៩]/g, (d) =>
+      String("០១២៣៤៥៦៧៨៩".indexOf(d)),
+    );
+    expect(assessPageText(KM_NUMBERED_CONTENTS).sentenceDensity).toBe(
+      assessPageText(ascii).sentenceDensity,
+    );
+  });
+
+  it("KNOWN GAP, script-neutral: a bare numbered list is still admitted", () => {
+    // Recorded rather than fixed. `BARE_NUMBER` does not allow a trailing
+    // period, so "១." / "1." is not a locator and `locatorHeavy` stays
+    // false; with thin prose but no second signal the page falls through to
+    // `prose`. The ASCII version escapes only incidentally, on the word
+    // floor. Widening BARE_NUMBER to accept "N." would change English
+    // behaviour too and belongs in its own change, not in a script sweep.
+    expect(assessPageText(KM_NUMBERED_CONTENTS).substantive).toBe(true);
+  });
+});

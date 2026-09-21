@@ -58,12 +58,17 @@ const MIN_LABEL_CHARS = 3;
  * useful catalogue facet and a false topic claim: a book does not "cover" the
  * Ministry of Education because the Ministry published it.
  */
+// Khmer numerals ០-៩ are in the digit classes below. `/^ភាគ\s*\d/` was the
+// clearest case: a rule written specifically for Khmer, matching the Khmer
+// word for "volume" and then demanding an ASCII digit — so "ភាគ ២", which is
+// how a Khmer book actually prints it, was never filtered and was published
+// as a topic the book "covers".
 const LOCATOR_PATTERNS: RegExp[] = [
-  /^\d+$/,
-  /^(?:grade|year|level|volume|vol|part|edition|ed|chapter|unit)\s*\d+$/,
-  /^\d+\s*(?:st|nd|rd|th)?\s*(?:grade|year|edition|volume|part)$/,
+  /^[\d០-៩]+$/u,
+  /^(?:grade|year|level|volume|vol|part|edition|ed|chapter|unit)\s*[\d០-៩]+$/u,
+  /^[\d០-៩]+\s*(?:st|nd|rd|th)?\s*(?:grade|year|edition|volume|part)$/u,
   /^ថ្នាក់ទី/, // "Grade …"
-  /^ភាគ\s*\d/, // "Volume …"
+  /^ភាគ\s*[\d០-៩]/u, // "Volume …"
   /^បោះពុម្ពលើកទី/, // "…th edition"
 ];
 

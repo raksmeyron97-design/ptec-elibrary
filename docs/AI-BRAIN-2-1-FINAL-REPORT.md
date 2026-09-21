@@ -37,6 +37,33 @@ book, so it out-matches every real page on term count while carrying no claim
 a reader could be told. Furniture in retrieved evidence fell **21.0% → 1.2%**,
 and in topic questions **54% → 0%**.
 
+> **CORRECTION, 2026-09-21 (SEO5-08 sweep).** These figures were measured
+> with an ASCII-only locator class and therefore never described Khmer
+> pages. `BARE_NUMBER` in `lib/ai/page-quality.ts` was `/^\d{1,4}…$/`, and
+> `\d` is ASCII-only in JavaScript even under `/u`, so a Khmer contents or
+> index page — which prints its locators in Khmer digits ០-៩ — scored a
+> numeric ratio of exactly 0% and the `locatorHeavy` signal could never fire
+> for it. The `មាតិកា` marker masked this on the FIRST page of a contents
+> listing, which is caught by `marker && thinProse` before the locator route
+> is reached; a continuation page carries no heading and was classified
+> `prose`, `substantive = true`.
+>
+> 1,521 of the library's 1,848 indexed books are Khmer, so the numbers above
+> describe a minority of the collection.
+>
+> Fixed in `f409aef`. Re-measured over 20,000 production pages:
+>
+> | | pages | refused before | refused after |
+> |---|---|---|---|
+> | Khmer | 12,228 | 2,325 (19.01%) | **2,889 (23.63%)** |
+> | Latin | 7,772 | 845 (10.87%) | 845 (10.87%) |
+>
+> That is a **corpus refusal rate**, not the retrieved-evidence share above —
+> a different denominator, and not a substitute for it. Restating
+> "furniture in retrieved evidence" needs a fresh run of the 98-question
+> retrieval benchmark, whose semantic leg calls a paid embedder, so it is
+> deliberately not restated here rather than guessed at.
+
 **The one question AI Brain 2.0 left failing is closed.** "What is validty?"
 now retrieves and cites real validity pages, through a corpus-vocabulary
 spell-check that costs 0.001 ms on a query whose words the corpus knows.
@@ -155,6 +182,9 @@ index lists authors by initial (`Spradley, J. P., 190`), and both read as
 sentence boundaries until they did not.
 
 ### 4.2 Measured effect
+
+See the correction in §1: the furniture rows below were measured with an
+ASCII-only locator class and do not describe Khmer pages.
 
 ```
 furniture in retrieved evidence     21.0% → 1.2%     (252 → 250 passages)
