@@ -1008,6 +1008,37 @@ describe("navigation", () => {
 
 /* ═══════════════════════════════ E. zoom / focus / settings ══════════════ */
 
+describe("screen wake lock (MUX-06)", () => {
+  // The hook's own rules are in hooks/useScreenWakeLock.test.ts; this pins
+  // WHICH readers ask: the full reader and focus mode, never the preview
+  // embedded on a book's detail page.
+  const request = vi.fn(async () => Object.assign(new EventTarget(), { released: false, release: async () => {} }));
+  beforeEach(() => {
+    request.mockClear();
+    Object.defineProperty(navigator, "wakeLock", { configurable: true, value: { request } });
+  });
+  afterEach(() => {
+    // @ts-expect-error — test cleanup of the stub
+    delete navigator.wakeLock;
+  });
+
+  it("the full reader holds the screen on", async () => {
+    renderViewer({ layout: "fill" });
+    await loaded();
+    await waitFor(() => expect(request).toHaveBeenCalledWith("screen"));
+  });
+
+  it("the embedded preview never asks — until the reader enters focus mode", async () => {
+    renderViewer();
+    await loaded();
+    await act(async () => {});
+    expect(request).not.toHaveBeenCalled();
+    screen.getByRole("button", { name: "Next page" }).focus();
+    key("f");
+    await waitFor(() => expect(request).toHaveBeenCalledWith("screen"));
+  });
+});
+
 describe("zoom, focus mode and settings", () => {
   it("steps zoom with the keyboard and persists it", async () => {
     renderViewer();

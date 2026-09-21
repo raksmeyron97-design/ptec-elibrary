@@ -47,6 +47,7 @@ automated check is listed as manual on purpose; nothing here is assumed.
 | C3 | Bottom bar honours `env(safe-area-inset-bottom)` in focus mode | source check |
 | C4 | Panel opens as a bottom sheet below `md`, side panel at `md+` | e2e (viewport) |
 | C5 | Body scroll locked in focus mode; viewport has `overscroll-behavior: contain` | component + source |
+| C6 | The full reader (`layout="fill"`) and focus mode anywhere hold a Screen Wake Lock; the embedded preview never asks. Released after 5 min with no pointerdown, scroll (captured on the reader root) or key; re-taken on the next one and on `visibilitychange` → visible. Missing or refused API: nothing happens, no UI | unit (`hooks/useScreenWakeLock.test.ts`) + component (which readers ask) + **manual on a device** (a secure context is required) |
 
 ## D. Navigation & progress
 

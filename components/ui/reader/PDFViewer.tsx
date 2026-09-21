@@ -101,6 +101,7 @@ import { useMountPlan } from "./hooks/useMountPlan";
 import { useConnectivity } from "./hooks/useConnectivity";
 import { useIdleDocumentCleanup } from "./hooks/useIdleDocumentCleanup";
 import { useAutoHideControls } from "./hooks/useAutoHideControls";
+import { useScreenWakeLock } from "./hooks/useScreenWakeLock";
 import { useTextLayerA11y } from "./hooks/useTextLayerA11y";
 import { useReaderGestures } from "./hooks/useReaderGestures";
 import { useReaderKeyboard } from "./hooks/useReaderKeyboard";
@@ -1226,6 +1227,9 @@ export default function PDFViewer({
     }),
   });
   useFocusModeTrap({ active: focusMode, rootRef, viewportRef: containerRef });
+  // The full reader (and focus mode anywhere) keeps the screen on while it is
+  // being read; the preview on a book's page does not.
+  useScreenWakeLock({ active: !!pdfUrl && (layout === "fill" || focusMode), rootRef });
   useEffect(() => {
     numPagesRef.current = numPages;
   }, [numPages]);
