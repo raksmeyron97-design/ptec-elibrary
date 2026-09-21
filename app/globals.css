@@ -344,6 +344,20 @@
   --ptec-dept-4-ink: color-mix(in oklab, var(--ptec-dept-4) 45%, #FFFFFF);
 }
 
+/* ── The installed app (display-mode: standalone), phones ──────────────
+   The footer's brand block (seal, names, mission) is a website's signature;
+   inside the installed app the reader knows whose app this is, and the tab
+   bar's More sheet already carries every destination. Every link stays.
+   Crawlers never run in standalone, so nothing they read changes.
+   UNLAYERED ON PURPOSE: the hidden elements carry `flex` / `truncate`
+   utilities, and this rule must beat them — the one case where an
+   unlayered rule is the right tool (compare `.reader-btn`). */
+@media (display-mode: standalone) and (max-width: 47.999rem) {
+  [data-standalone-hide] {
+    display: none;
+  }
+}
+
 /* No tab bar from `lg` up, so nothing reserves room for one. */
 @media (min-width: 64rem) {
   :root {

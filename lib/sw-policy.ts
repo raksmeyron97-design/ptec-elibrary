@@ -167,6 +167,11 @@ export function isObsoleteCache(name: string): boolean {
  *     therefore the worker are running, so the worker can never serve one.
  *     Precaching them is pure waste.
  *
+ *   • /pwa/screenshots/** — the store-style screenshots in the manifest,
+ *     read by Android's install sheet over HTTP, once, by a browser that has
+ *     not installed anything yet. Precaching ~1 MB of them on every
+ *     visitor's install would be the worst trade in the manifest.
+ *
  *   • Files the page never requests. Measured from a real install: the
  *     precache held ~1.5 MB of images no runtime code fetches. Open Graph
  *     images are read by social crawlers off an absolute URL; the schema.org
@@ -185,6 +190,7 @@ export function isObsoleteCache(name: string): boolean {
 const NEVER_PRECACHED = [
   "/pdf/cmaps/",
   "/pwa/splash/",
+  "/pwa/screenshots/",
 ] as const;
 
 /** Exact paths in public/ that no runtime request ever asks the worker for. */

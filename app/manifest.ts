@@ -1,6 +1,34 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { MetadataRoute } from "next";
 import { getSiteConfig } from "@/lib/system-settings/config";
 import { PWA_SPLASH, PWA_THEME_COLOR } from "@/lib/pwa/launch";
+
+// Store-style screenshots for Chrome's richer install sheet on Android
+// (web.dev/articles/web-apps/richer-install-ui): with at least one "narrow"
+// screenshot, "Install app" opens an app-store-like sheet — name,
+// description, swipeable screenshots — instead of a one-line prompt. Captured
+// from production by `node scripts/capture-pwa-screenshots.mjs`; a file that
+// is not on disk is left out, so the manifest never names a 404. Every one
+// is 780×1688 (390×844 at 2×): one aspect ratio per form factor is a
+// requirement, and 2.16:1 is inside the 2.3:1 limit. Never precached
+// (lib/sw-policy.ts).
+const SCREENSHOTS = [
+  { file: "home.png", label: "Search every book, thesis and journal in the library" },
+  { file: "books.png", label: "Browse the collection" },
+  { file: "path.png", label: "Follow a learning path, step by step" },
+] as const;
+
+function installScreenshots(): NonNullable<MetadataRoute.Manifest["screenshots"]> {
+  const dir = path.join(process.cwd(), "public", "pwa", "screenshots");
+  return SCREENSHOTS.filter((shot) => fs.existsSync(path.join(dir, shot.file))).map((shot) => ({
+    src: `/pwa/screenshots/${shot.file}`,
+    sizes: "780x1688",
+    type: "image/png",
+    form_factor: "narrow" as const,
+    label: shot.label,
+  }));
+}
 
 // The web app manifest, served at /manifest.webmanifest.
 //
@@ -82,6 +110,8 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
         purpose: "maskable",
       },
     ],
+
+    screenshots: installScreenshots(),
 
     shortcuts: [
       { name: "Browse books", url: "/books" },
