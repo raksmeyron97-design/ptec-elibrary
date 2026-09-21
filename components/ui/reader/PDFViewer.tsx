@@ -102,6 +102,7 @@ import { useConnectivity } from "./hooks/useConnectivity";
 import { useIdleDocumentCleanup } from "./hooks/useIdleDocumentCleanup";
 import { useAutoHideControls } from "./hooks/useAutoHideControls";
 import { useScreenWakeLock } from "./hooks/useScreenWakeLock";
+import { useFocusFullscreen } from "./hooks/useFocusFullscreen";
 import { useTextLayerA11y } from "./hooks/useTextLayerA11y";
 import { useReaderGestures } from "./hooks/useReaderGestures";
 import { useReaderKeyboard } from "./hooks/useReaderKeyboard";
@@ -1230,6 +1231,9 @@ export default function PDFViewer({
   // The full reader (and focus mode anywhere) keeps the screen on while it is
   // being read; the preview on a book's page does not.
   useScreenWakeLock({ active: !!pdfUrl && (layout === "fill" || focusMode), rootRef });
+  // Android: focus mode takes the whole screen and unlocks rotation; the
+  // system Back gesture out of fullscreen leaves focus mode too.
+  useFocusFullscreen({ active: focusMode, rootRef, onExit: () => setFocusMode(false) });
   useEffect(() => {
     numPagesRef.current = numPages;
   }, [numPages]);

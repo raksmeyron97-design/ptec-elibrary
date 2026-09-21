@@ -67,6 +67,7 @@ automated check is listed as manual on purpose; nothing here is assumed.
 | E1 | Presets: Fit width, Fit page, 75, 100, 125, 150, 200 %; ± steps through levels; 50–300 % clamp | unit (`zoom.test.ts`) + component |
 | E2 | Double-tap toggles fit-width ↔ zoomed; pinch previews with CSS only | manual (touch) + unit (`doubleTapTarget`) |
 | E3 | Focus mode maximises the reader, traps focus, Esc exits, restores focus | component |
+| E3a | On a coarse pointer with element fullscreen (Android Chrome), focus mode also takes the whole screen (`navigationUI: "hide"`) and unlocks rotation (`screen.orientation.lock("any")`); leaving fullscreen (system Back) leaves focus mode; turning focus mode off exits only the reader's own fullscreen. iPhone and desktop unchanged; every refusal swallowed | unit (`hooks/useFocusFullscreen.test.ts`) + e2e (Mobile Chrome, headless grants fullscreen) + **manual on a device** (rotation, the real system bars) |
 | E4 | Settings dialog edits the same persisted preferences (no second store) | component (localStorage keys) |
 
 ## F. Panels

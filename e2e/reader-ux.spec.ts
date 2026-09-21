@@ -409,6 +409,21 @@ test.describe("PDF reader on touch", () => {
     expect(await hudHidden(page)).toBe(true);
   });
 
+  test("focus mode takes the whole screen, and leaving fullscreen leaves focus mode", async ({ page, isMobile }) => {
+    await openReader(page, isMobile);
+    await page.keyboard.press("Shift"); // bars up without a toggling tap
+    await page.getByRole("button", { name: "More options" }).click();
+    await page.getByRole("menuitemcheckbox", { name: "Focus reading" }).click();
+    await expect(reader(page)).toHaveAttribute("role", "dialog");
+    // Skip on the CAPABILITY, never on the outcome: skipping whenever
+    // fullscreen did not happen would turn a broken wiring into a skip.
+    test.skip(!(await page.evaluate(() => document.fullscreenEnabled)), "no element fullscreen in this browser");
+    await page.waitForFunction(() => document.fullscreenElement?.hasAttribute("data-reader-root") ?? false, null, { timeout: 5_000 });
+    // The system Back gesture, as the page sees it: fullscreen ends.
+    await page.evaluate(() => document.exitFullscreen());
+    await expect(reader(page)).not.toHaveAttribute("role", "dialog");
+  });
+
   test("single-page mode: a tap on the page edge turns the page", async ({ page, isMobile }) => {
     await openReader(page, isMobile);
     const vp = page.viewportSize()!;
