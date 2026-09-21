@@ -24,7 +24,12 @@ const PAGES = 500;
 
 const pageIndicator = (page: Page) =>
   page.locator('[data-reader-hud] button[aria-label^="Page "]:visible').first();
-const zoomButton = (page: Page) => page.locator('[data-reader-hud] button[aria-label^="Zoom —"]:visible').first();
+// The zoom LEVEL, read from the one zoom control the reader renders. Phones
+// have no zoom buttons since the scrubber took the bottom bar's middle (they
+// zoom by pinch, double tap, the +/- keys and Page sizing), so the control is
+// present but `display: none` there — hence no `:visible`. The text is the
+// same prop either way; these specs measure zoom, not the control.
+const zoomButton = (page: Page) => page.locator('[data-reader-hud] button[aria-label^="Zoom —"]').first();
 
 async function reveal(page: Page) {
   await page.keyboard.press("Shift");
