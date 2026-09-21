@@ -104,6 +104,15 @@ const DOT_LEADER = /\.{3,}\s*[\d០-៩]{1,4}/u;
  *                *Qualitative Inquiry* p.7 — "Detailed Contents About the
  *                Authors Acknowledgments …" — a density of 2.2 and let it
  *                through as evidence.
+ *
+ * Khmer numerals are deliberately NOT added to that lookbehind, and the
+ * reason is worth writing down because it looks like an omission. The
+ * LOOKAHEAD already requires an uppercase letter (or end of input) after the
+ * terminator, and Khmer has no uppercase — `/\p{Lu}/u` is false for any
+ * Khmer string. So a period between two Khmer words can never match at all,
+ * with or without ០-៩ in the lookbehind. Adding it was tried during the
+ * SEO5-08 script sweep, measured at 0 matches either way, and reverted
+ * rather than kept as a fix that fixes nothing.
  *   (?<!\b\p{Lu}) a back-of-book index lists authors by initial ("Spradley,
  *                J. P., 190"; "(Neuman, McCormick), 182"), and every initial
  *                read as a sentence boundary. An initial is a single capital

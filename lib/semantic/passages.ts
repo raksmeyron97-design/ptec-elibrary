@@ -82,9 +82,16 @@ export type ClassifiedPage = {
 
 // ── Tokenization ─────────────────────────────────────────────────────────────
 
-/** Digits carry the page number, which differs on every page by definition. */
+/**
+ * Digits carry the page number, which differs on every page by definition.
+ *
+ * Khmer numerals too: a Khmer running header ("ជំពូកទី៣ ៤៧") kept its page
+ * number under an ASCII-only class, so the token differed on every page and
+ * the header was never recognised as furniture — meaning it was never
+ * stripped, on the 82% of this collection that is Khmer.
+ */
 function furnitureKey(token: string): string {
-  return token.toLowerCase().replace(/\d+/g, "#");
+  return token.toLowerCase().replace(/[\d០-៩]+/gu, "#");
 }
 
 function tokenize(text: string): string[] {
@@ -129,9 +136,18 @@ export function detectFurniture(pages: readonly PageInput[]): Furniture {
   return { header: pick(headCounts), footer: pick(footCounts) };
 }
 
-/** A bare page number, a folio, a section number: "105", "4.", "(17)". */
+/**
+ * A bare page number, a folio, a section number: "105", "4.", "(17)", "១០៥".
+ *
+ * Khmer numerals for the same reason as furnitureKey above — but BELT, not
+ * braces, and unproven in isolation: furnitureKey already normalises a Khmer
+ * folio to "#", which makes it FREQUENT, and this predicate is only consulted
+ * for a token that is not. No realistic fixture was found where it alone
+ * decides, so it carries no test of its own. It is kept because it is
+ * strictly more correct and costs nothing, not because it was measured.
+ */
 function isLocatorToken(token: string): boolean {
-  return /^[([]?\d+[.,)\]]?$/.test(token);
+  return /^[([]?[\d០-៩]+[.,)\]។]?$/u.test(token);
 }
 
 /**

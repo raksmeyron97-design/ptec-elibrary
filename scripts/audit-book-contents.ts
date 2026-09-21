@@ -193,22 +193,33 @@ async function run(): Promise<void> {
     const batch = ids.slice(i, i + BOOK_BATCH);
 
     // Highest page number per book, so the BACK window can be bounded.
-    const { data: maxRows, error: maxErr } = await db
-      .from("book_pages")
-      .select("record_id, page_no")
-      .eq("record_type", "book")
-      .in("record_id", batch)
-      .order("page_no", { ascending: false })
-      .limit(batch.length * 400);
-    if (maxErr) {
-      console.error(`batch ${i / BOOK_BATCH + 1}: ${maxErr.message}`);
-      continue;
-    }
+    //
+    // PAGINATED — the THIRD place the 1,000-row cap bit. `.limit(40000)`
+    // returned the first 1,000 rows ordered by page_no DESC ACROSS the
+    // batch, so only the longest books appeared here; every other book got
+    // `total = 0`, failed the `total > FRONT_WINDOW` test, and had its back
+    // window silently skipped. The back-contents figures from the first
+    // full run were therefore undercounts, not measurements.
     const lastPage = new Map<string, number>();
-    for (const r of maxRows ?? []) {
-      const id = r.record_id as string;
-      const p = Number(r.page_no);
-      if (!lastPage.has(id) || p > (lastPage.get(id) as number)) lastPage.set(id, p);
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await db
+        .from("book_pages")
+        .select("record_id, page_no")
+        .eq("record_type", "book")
+        .in("record_id", batch)
+        .order("record_id", { ascending: true })
+        .order("page_no", { ascending: false })
+        .range(from, from + 999);
+      if (error) {
+        console.error(`batch ${i / BOOK_BATCH + 1}: ${error.message}`);
+        break;
+      }
+      for (const r of data ?? []) {
+        const id = r.record_id as string;
+        const p = Number(r.page_no);
+        if (!lastPage.has(id) || p > (lastPage.get(id) as number)) lastPage.set(id, p);
+      }
+      if (!data || data.length < 1000) break;
     }
 
     // Only the two windows. An `.or()` of two ranges per book would be one

@@ -59,6 +59,35 @@ describe("the dry run is bounded the way the owner asked", () => {
     expect(body).toMatch(/\.gte\("page_no", backFrom\)/);
   });
 
+  it("never relies on a .limit() above PostgREST's row cap", () => {
+    // The cap bit THREE times in this one script — the id scan, the front
+    // window, and the last-page lookup — and each time it produced a number
+    // that read as a finding about the collection: "11 books have extracted
+    // pages", "20 of 60 books have no text", and an undercount of
+    // back-of-book contents. `.limit(n)` does NOT raise `max-rows`; it
+    // silently returns the first 1,000 rows.
+    //
+    // So every read here must be range-paginated. This asserts the absence
+    // of the shape that caused it.
+    // A named constant counts, resolved from its own declaration — the
+    // point is the VALUE, and `.limit(BACK_WINDOW)` is 15.
+    const constant = (name: string): number | null => {
+      const m = new RegExp(`const ${name}\\s*=\\s*(\\d+)`).exec(body);
+      return m ? Number(m[1]) : null;
+    };
+    const limits = [...body.matchAll(/\.limit\(([^)]*)\)/g)].map((m) => m[1].trim());
+    expect(limits.length).toBeGreaterThan(0);
+    for (const arg of limits) {
+      const value = /^\d+$/.test(arg) ? Number(arg) : constant(arg);
+      expect(
+        value !== null && value <= 1000,
+        `.limit(${arg}) does not resolve to a value at or below the 1,000-row cap — paginate with .range() instead`,
+      ).toBe(true);
+    }
+    // …and the three paginated reads are all present.
+    expect([...body.matchAll(/\.range\(/g)].length).toBeGreaterThanOrEqual(3);
+  });
+
   it("counts front and back contents separately", () => {
     // classifyPage decides "contents" by POSITION, so a Khmer book printing
     // មាតិកា at the end is `back-matter`. Folding them together would report

@@ -363,3 +363,41 @@ describe("a Khmer locator is a locator", () => {
     expect(assessPageText(withNumbers).substantive).toBe(true);
   });
 });
+
+describe("a Khmer-numbered list item is not a sentence", () => {
+  // Pins behaviour the sweep verified rather than changed: a Khmer numbered
+  // list reports zero sentence density, and the two scripts agree. Kept
+  // because "we checked this and it was already right" is worth as much to
+  // the next reader as a fix.
+  const KM_NUMBERED_CONTENTS =
+    "១. សេចក្ដីផ្ដើម ២. ការត្រួតពិនិត្យអក្សរសិល្ប៍ ៣. វិធីសាស្ត្រស្រាវជ្រាវ " +
+    "៤. ការប្រមូលទិន្នន័យ ៥. លទ្ធផលនៃការសិក្សា ៦. ការវិភាគទិន្នន័យ " +
+    "៧. ការពិភាក្សា ៨. សេចក្ដីសន្និដ្ឋាន ៩. អនុសាសន៍ ១០. ឯកសារយោង";
+
+  it("counts NO sentence ends on it", () => {
+    // Held by the LOOKAHEAD, not the lookbehind: the terminator must be
+    // followed by an uppercase letter or end of input, and Khmer has no
+    // uppercase. Measured during the SEO5-08 sweep — adding ០-៩ to the
+    // lookbehind changes nothing here, which is why it was not kept.
+    expect(assessPageText(KM_NUMBERED_CONTENTS).sentenceDensity).toBe(0);
+  });
+
+  it("reports the same density as the identical page in ASCII numerals", () => {
+    const ascii = KM_NUMBERED_CONTENTS.replace(/[០-៩]/g, (d) =>
+      String("០១២៣៤៥៦៧៨៩".indexOf(d)),
+    );
+    expect(assessPageText(KM_NUMBERED_CONTENTS).sentenceDensity).toBe(
+      assessPageText(ascii).sentenceDensity,
+    );
+  });
+
+  it("KNOWN GAP, script-neutral: a bare numbered list is still admitted", () => {
+    // Recorded rather than fixed. `BARE_NUMBER` does not allow a trailing
+    // period, so "១." / "1." is not a locator and `locatorHeavy` stays
+    // false; with thin prose but no second signal the page falls through to
+    // `prose`. The ASCII version escapes only incidentally, on the word
+    // floor. Widening BARE_NUMBER to accept "N." would change English
+    // behaviour too and belongs in its own change, not in a script sweep.
+    expect(assessPageText(KM_NUMBERED_CONTENTS).substantive).toBe(true);
+  });
+});

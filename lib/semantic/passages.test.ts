@@ -229,3 +229,80 @@ describe("classifyPage — Khmer contents", () => {
     expect(classifyPage({ pageNo: 40, content: enProse }, 120, enProse)).toBe("body");
   });
 });
+
+// ── Khmer numerals in furniture detection (SEO5-08 sweep) ──────────────────
+
+describe("a Khmer running header is furniture", () => {
+  // detectFurniture matches a header across pages by normalising away the
+  // part that VARIES — the page number. Under an ASCII-only digit class a
+  // Khmer header kept its Khmer page number, so every page's header token
+  // differed and the header was never recognised, on 82% of this collection.
+  // At least EDGE_WINDOW * 2 = 16 whitespace tokens, or detectFurniture
+  // skips the page entirely. Measured on 828 real Khmer production pages,
+  // the median is 178 tokens and only 2.4% fall under 16 — so the floor is
+  // not a Khmer problem, but a toy fixture trips it.
+  const page = (pageNo: number, folio: string) => ({
+    pageNo,
+    content:
+      `ជំពូកទី៣ វិធីសាស្ត្រស្រាវជ្រាវ ${folio} ` +
+      "ការស្រាវជ្រាវ ប្រតិបត្តិ គឺជា ដំណើរការ មួយ ដែល គ្រូបង្រៀន ពិនិត្យមើល " +
+      "ការអនុវត្ត របស់ខ្លួន ដើម្បី កែលម្អ គុណភាព នៃការបង្រៀន និង ការរៀនសូត្រ " +
+      "របស់សិស្ស វិធីសាស្ត្រ នេះ ត្រូវបាន ប្រើប្រាស់ យ៉ាងទូលំទូលាយ ក្នុងវិស័យ អប់រំ។",
+  });
+
+  // detectFurniture needs MIN_PAGES_FOR_FURNITURE (12) pages before it will
+  // look for a running header at all — a short document has no "running"
+  // anything. 14 keeps the fixture clear of that floor.
+  const FOLIOS = ["៤៥", "៤៦", "៤៧", "៤៨", "៤៩", "៥០", "៥១", "៥២", "៥៣", "៥៤", "៥៥", "៥៦", "៥៧", "៥៨"];
+
+  it("detects a Khmer header whose folio is in Khmer numerals", () => {
+    const pages = FOLIOS.map((f, i) => page(i + 45, f));
+    const furniture = detectFurniture(pages);
+    expect(furniture.header.size).toBeGreaterThan(0);
+  });
+
+  it("strips it, so the page's own text is what reaches the reader", () => {
+    const pages = FOLIOS.map((f, i) => page(i + 45, f));
+    const furniture = detectFurniture(pages);
+    const stripped = stripFurniture(pages[0].content, furniture);
+    // The folio and the chapter header are gone…
+    expect(stripped).not.toContain("៤៥");
+    expect(stripped).not.toContain("ជំពូកទី៣");
+    // …and the page's own sentence, which sits past the edge window, stays.
+    expect(stripped).toContain("គុណភាព");
+    expect(stripped).toContain("ការរៀនសូត្រ");
+    expect(stripped.length).toBeLessThan(pages[0].content.length);
+  });
+});
+
+
+// ── Isolating the digit class itself (SEO5-08 sweep) ───────────────────────
+//
+// The tests above pass with OR without the Khmer digits, because their
+// fixtures carry a constant Khmer WORD in the header that is detected on its
+// own. These isolate the numeral: the only thing recurring across pages is
+// the folio, so the header is found only if Khmer digits normalise.
+
+describe("Khmer digits are what makes a varying folio detectable", () => {
+  const KM_FOLIOS = ["៤៥","៤៦","៤៧","៤៨","៤៩","៥០","៥១","៥២","៥៣","៥៤","៥៥","៥៦","៥៧","៥៨"];
+  // Each page's body is DIFFERENT, so nothing but the folio can recur.
+  const uniqueBody = (i: number) =>
+    [`ខ្លឹមសារ${i}`, `ចំណុច${i}`, `ការពិភាក្សា${i}`, `ឧទាហរណ៍${i}`, `សេចក្ដី${i}`,
+     `លទ្ធផល${i}`, `ការវិភាគ${i}`, `សន្និដ្ឋាន${i}`, `អនុសាសន៍${i}`, `កំណត់${i}`,
+     `តារាង${i}`, `រូបភាព${i}`, `ឧបសម្ព័ន្ធ${i}`, `ឯកសារ${i}`, `បញ្ជី${i}`, `សូចនាករ${i}`].join(" ");
+
+  it("detects a running folio printed in Khmer numerals", () => {
+    const pages = KM_FOLIOS.map((f, i) => ({ pageNo: i + 45, content: `${f} ${uniqueBody(i)}` }));
+    const furniture = detectFurniture(pages);
+    // Normalised to "#", the folio is the one token every page shares.
+    expect(furniture.header.has("#")).toBe(true);
+  });
+
+  it("does the same for an ASCII folio — the scripts must agree", () => {
+    const pages = KM_FOLIOS.map((_, i) => ({
+      pageNo: i + 45,
+      content: `${i + 45} ${uniqueBody(i)}`,
+    }));
+    expect(detectFurniture(pages).header.has("#")).toBe(true);
+  });
+});
