@@ -28,6 +28,7 @@ import {
   YEAR_MIN,
   yearMax,
 } from "@/lib/catalog";
+import { assessContributorName } from "@/lib/resources/contributor-trust";
 import { escapeCsvCell } from "@/lib/admin/csv";
 import { hasKhmer } from "@/lib/search/normalize";
 
@@ -342,6 +343,7 @@ export type ImportIssueCode =
   | "REQUIRED_TITLE"
   | "REQUIRED_AUTHOR"
   | "MISSING_AUTHOR"
+  | "PLACEHOLDER_AUTHOR"
   | "LANGUAGE_DEFAULTED"
   | "INVALID_ISBN"
   | "INVALID_YEAR"
@@ -500,7 +502,41 @@ export function validateRow(
   // "គ្មានអ្នកនិពន្ធ" / "No author listed" is a LABEL rendered at display
   // time; storing it would put a placeholder into the author index, where
   // every downstream consumer would treat it as a person's name.
-  const author = tidy(original.author);
+  // A TYPED placeholder is the same fact as a blank one, and must be stored
+  // the same way.
+  //
+  // The comment above used to end "the PMB import stores NULL for a missing
+  // author rather than this placeholder". That is not true of the sheets the
+  // library actually has: joining the PMB export to the prepared import
+  // sheets on barcode, **472 rows blank in PMB arrive carrying the literal
+  // string "គ្មានអ្នកនិពន្ធ"** — the label, written into the data column.
+  // Blank was handled; the label was not, so those rows would have imported
+  // with a placeholder as their author.
+  //
+  // What that costs, none of it hypothetical: 472 books share an author
+  // string, so `fetchRelated()` relates them to each other; the catalogue
+  // page renders the stored value, so an English reader sees Khmer where
+  // "No author listed" belongs; and search indexes it as an author term.
+  // The JSON-LD was already safe — `contributor-trust.ts` refuses it as a
+  // Person — which is exactly why this is decided by the SAME function
+  // rather than a second list. One definition of "a string that names
+  // nobody", and it is already tested against the ten junk names production
+  // published.
+  //
+  // Measured over all 13,429 prepared rows: 12,947 valid, 475 invalid — and
+  // every one of the 475 is this placeholder family. Nothing else is
+  // affected, and `suspicious` still changes nothing by design.
+  let author = tidy(original.author);
+  if (author && assessContributorName(author).trust === "invalid") {
+    warn(
+      "PLACEHOLDER_AUTHOR",
+      `\u201c${author}\u201d names nobody, so it is imported as no author rather than stored. ` +
+        "The reader still sees \u201cNo author listed\u201d.",
+      "author",
+    );
+    author = "";
+  }
+
   if (!author) {
     warn(
       "MISSING_AUTHOR",
