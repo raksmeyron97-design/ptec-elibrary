@@ -51,20 +51,30 @@ describe("a placeholder is imported as NO author", () => {
     }
   });
 
-  it("does NOT yet cover the English label — a known asymmetry", () => {
-    // `គ្មានអ្នកនិពន្ធ` is in the Khmer furniture vocabulary; its English
-    // counterpart "No author listed" is not, so it would be stored as an
-    // author. It does not appear in any of the 13,429 prepared rows — all
-    // 475 invalid ones are the Khmer form — so this is a gap, not a live
-    // defect, and closing it means widening a vocabulary shared with
-    // /authors, the sitemap and every JSON-LD surface.
-    //
-    // Asserted rather than left silent: if someone adds it to
-    // contributor-trust.ts, this test tells them the decision was
-    // deliberate and this file is where to record the change.
-    expect(validateRow({ ...ROW, author: "No author listed" }, 2).normalized?.author).toBe(
+  it("covers the English labels too — the two languages refuse the same fact", () => {
+    // `គ្មានអ្នកនិពន្ធ` was in the vocabulary and its English counterpart was
+    // not, so the same fact was refused in one language and stored in the
+    // other. These are the labels this app itself renders
+    // (messages/en.json: `noAuthorListed`, `noAuthor`) — the strings a
+    // cataloguer copies off the screen. "no author" alone did not catch them
+    // because the vocabulary is matched WHOLE.
+    for (const a of [
       "No author listed",
-    );
+      "No author recorded",
+      "No authors listed",
+      "NO AUTHOR LISTED",
+      "no author listed.",
+    ]) {
+      expect(validateRow({ ...ROW, author: a }, 2).normalized?.author).toBeNull();
+    }
+  });
+
+  it("does not swallow a real name that contains those words", () => {
+    // The vocabulary matches a whole string, never a substring — a publisher
+    // called "Author House" is a real credit.
+    for (const a of ["Author House", "No Author Books Ltd"]) {
+      expect(validateRow({ ...ROW, author: a }, 2).normalized?.author).toBe(a);
+    }
   });
 });
 

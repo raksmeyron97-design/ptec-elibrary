@@ -240,6 +240,15 @@ const PLACEHOLDERS = new Set([
   "title",
   "untitled",
   "no author",
+  // The labels this app itself renders where a byline is absent
+  // (messages/en.json: `noAuthorListed`, `noAuthor`). They are the strings a
+  // cataloguer copies off the screen and the strings a generator emits, and
+  // "no author" alone did not catch them because the vocabulary is matched
+  // WHOLE. Added for symmetry with `គ្មានអ្នកនិពន្ធ` in KHMER_FURNITURE: the
+  // two languages must refuse the same fact.
+  "no author listed",
+  "no author recorded",
+  "no authors listed",
   "unknown",
   "unknown author",
   "unknown user",
