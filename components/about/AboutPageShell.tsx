@@ -173,7 +173,11 @@ function AboutHero({
         >
           <div className="min-w-0">
             {badge && <div className="mb-4">{badge}</div>}
-            <p className="flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.14em] text-gold-300">
+            {/* .about-eyebrow drops the uppercasing and the tracking for a
+                Khmer run: Khmer has no case, and letter-spacing collides its
+                stacked diacritics with the consonants beside them. Latin is
+                unchanged on every page. */}
+            <p className="about-eyebrow flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.14em] text-gold-300">
               <span aria-hidden="true" className="h-px w-6 bg-gold-400" />
               {category}
             </p>

@@ -4,6 +4,9 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import { zimaUpload } from "@/lib/zima";
 import { optimizeImage, AVATAR_OPTS } from "@/lib/image-optimize";
+import { guardUploadContent } from "@/lib/upload-content-guard";
+import { rateLimit } from "@/lib/rate-limit";
+import { ratePolicy } from "@/lib/rate-limit-policy";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import type { AppRole } from "@/lib/types/roles";
 import { logSecurityEvent } from "@/lib/security-log";
@@ -33,17 +36,50 @@ export async function updateProfile(formData: FormData) {
     let avatarUrl = undefined;
 
     if (avatarFile && avatarFile.size > 0) {
-      const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"];
-      if (!ALLOWED_MIME.includes(avatarFile.type)) {
-        return { error: "Avatar must be a JPEG, PNG, or WebP image" };
-      }
       if (avatarFile.size > 5 * 1024 * 1024) {
         return { error: "Avatar image must be less than 5MB" };
       }
 
-      // Optimize avatar before upload (resize + convert to WebP)
+      // Rate limit BEFORE any storage work. Every avatar is written to Zima by
+      // this server, and Zima meters uploads per CLIENT IP — which is this
+      // server for every reader at once — so an unmetered settings form is a
+      // way for one signed-in reader to spend the library's whole hourly
+      // upload quota and stall book ingestion. See ratePolicy("avatarUpload").
+      const { limit, windowMs } = ratePolicy("avatarUpload");
+      const rl = await rateLimit(`avatar:${user.id}`, limit, windowMs);
+      if (!rl.success) {
+        logSecurityEvent({
+          type: "rate_limited",
+          where: "actions/updateProfile:avatar",
+          userId: user.id,
+        });
+        return { error: "Too many avatar changes. Please try again later." };
+      }
+
+      // Judge the CONTENT, not the declared type. `avatarFile.type` is the
+      // browser's claim about a file the caller chose, and a Server Action is
+      // callable directly — so the old `ALLOWED_MIME.includes(avatarFile.type)`
+      // check decided nothing an attacker could not simply assert. It also
+      // chose which branch `optimizeImage` took: a file declared
+      // "application/pdf" would have skipped sharp entirely and been stored
+      // verbatim. `guardUploadContent` sniffs magic bytes and is the same gate
+      // `uploadToZima` already applies to every other image path in the app.
       const bytes = await avatarFile.arrayBuffer();
-      const optimized = await optimizeImage(bytes, avatarFile.name, avatarFile.type, AVATAR_OPTS);
+      const guard = guardUploadContent(bytes, "avatars");
+      if (!guard.ok) {
+        logSecurityEvent({
+          type: "upload_rejected",
+          where: "actions/updateProfile:avatar",
+          userId: user.id,
+          detail: `${guard.reason} (declared ${avatarFile.type || "unknown"})`,
+        });
+        return { error: "Avatar must be a JPEG, PNG, WebP or AVIF image" };
+      }
+
+      // Optimize avatar before upload (resize + convert to WebP). The SNIFFED
+      // type is passed, so a mislabelled but genuine image is still re-encoded
+      // by sharp rather than passed through untouched.
+      const optimized = await optimizeImage(bytes, avatarFile.name, guard.effectiveType, AVATAR_OPTS);
       const optimizedFile = new File([optimized.buffer], optimized.filename, {
         type: optimized.contentType,
       });

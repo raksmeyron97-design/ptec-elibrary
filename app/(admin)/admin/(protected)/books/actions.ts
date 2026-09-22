@@ -860,11 +860,21 @@ export async function updateBook(
           .select("id")
           .single();
         if (catInsertErr) {
-          const { data: retryCat } = await supabase
-            .from("categories")
-            .select("id")
-            .or(`name.eq."${category}",slug.eq."${slugify(category)}"`)
-            .maybeSingle();
+          // Two `.eq()` reads, never one `.or()` string.
+          //
+          // This was `.or(`name.eq."${NAME}",slug.eq."${SLUG}"`)`, and the
+          // value was interpolated into a PostgREST filter EXPRESSION with
+          // hand-written quotes. A name containing `"` or `,` closes the
+          // quoted literal and appends filter terms of the caller's choosing —
+          // a librarian-authored taxonomy name reaching a query language is
+          // the same defect `sanitizeFilterTerm` exists to prevent everywhere
+          // else in this app. `.eq()` sends the value as a parameter, so no
+          // quoting rule has to hold.
+          const [byName, bySlug] = await Promise.all([
+            supabase.from("categories").select("id").eq("name", category).maybeSingle(),
+            supabase.from("categories").select("id").eq("slug", slugify(category)).maybeSingle(),
+          ]);
+          const retryCat = byName.data ?? bySlug.data;
           if (!retryCat) {
             const found = await findTaxonomyByName(supabase, "categories", category);
             if (!found) throw new Error(`Category error: ${catInsertErr.message}`);
@@ -896,11 +906,21 @@ export async function updateBook(
           .select("id")
           .single();
         if (deptInsertErr) {
-          const { data: retryDept } = await supabase
-            .from("departments")
-            .select("id")
-            .or(`name.eq."${department}",slug.eq."${slugify(department)}"`)
-            .maybeSingle();
+          // Two `.eq()` reads, never one `.or()` string.
+          //
+          // This was `.or(`name.eq."${NAME}",slug.eq."${SLUG}"`)`, and the
+          // value was interpolated into a PostgREST filter EXPRESSION with
+          // hand-written quotes. A name containing `"` or `,` closes the
+          // quoted literal and appends filter terms of the caller's choosing —
+          // a librarian-authored taxonomy name reaching a query language is
+          // the same defect `sanitizeFilterTerm` exists to prevent everywhere
+          // else in this app. `.eq()` sends the value as a parameter, so no
+          // quoting rule has to hold.
+          const [byName, bySlug] = await Promise.all([
+            supabase.from("departments").select("id").eq("name", department).maybeSingle(),
+            supabase.from("departments").select("id").eq("slug", slugify(department)).maybeSingle(),
+          ]);
+          const retryDept = byName.data ?? bySlug.data;
           if (!retryDept) {
             const found = await findTaxonomyByName(supabase, "departments", department);
             if (!found) throw new Error(`Department error: ${deptInsertErr.message}`);

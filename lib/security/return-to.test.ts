@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, it, expect } from "vitest";
 import { safeReturnTo, downloadProfileSettingsPath } from "@/lib/security/return-to";
 
@@ -74,5 +77,62 @@ describe("safeReturnTo — open-redirect guard", () => {
     const link = downloadProfileSettingsPath("https://evil.com", "en");
     expect(link).toContain("returnTo=%2Ftheses");
     expect(link).not.toContain("evil.com");
+  });
+});
+
+// ── Invariant: one guard, and every redirect reader uses it ─────────────────
+//
+// This exists because a second, weaker copy is how the defect came back. The
+// login page carried its own three-prefix test — starts with "/", not "//",
+// not "/\" — and a control character defeated all three: `?callbackUrl=/%09/evil.com`
+// arrives percent-DECODED, passes every prefix, and `router.push` then resolves
+// it with the URL parser, which strips tab/CR/LF BEFORE parsing and lands on
+// "//evil.com". The rule cannot be a prefix list; it has to be a re-resolution
+// against a sentinel origin, and there is exactly one implementation of that.
+describe("every redirect-target reader uses the shared guard", () => {
+  const ROOTS = ["app", "components", "lib"];
+  /** Reads a caller-controlled navigation target out of the query string. */
+  const READS_TARGET =
+    /searchParams\)?\.get\(\s*["'](?:callbackUrl|returnTo|next|redirect|redirectTo)["']/;
+
+  function sourceFiles(dir: string, out: string[] = []): string[] {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) sourceFiles(full, out);
+      else if (/\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)) out.push(full);
+    }
+    return out;
+  }
+
+  it("routes every query-string redirect target through safeReturnTo", () => {
+    const offenders: string[] = [];
+    for (const root of ROOTS) {
+      for (const file of sourceFiles(root)) {
+        const src = readFileSync(file, "utf8");
+        if (!READS_TARGET.test(src)) continue;
+        // A CALL, not a mention: the negative control for this test reverted
+        // the login page and left the explanatory comment behind, and
+        // `includes("safeReturnTo")` was satisfied by the prose.
+        if (!/\bsafeReturnTo\s*\(/.test(src)) offenders.push(file);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("leaves no hand-rolled prefix guard beside a redirect target", () => {
+    // `startsWith("//")` on its own is a legitimate shape (deciding whether a
+    // href is locale-scoped, whether an image is remote). It is only wrong
+    // when it is what DECIDES a navigation target — so the pairing is what is
+    // banned, not the idiom.
+    const offenders: string[] = [];
+    for (const root of ROOTS) {
+      for (const file of sourceFiles(root)) {
+        if (file.endsWith(join("lib", "security", "return-to.ts"))) continue;
+        const src = readFileSync(file, "utf8");
+        if (!READS_TARGET.test(src)) continue;
+        if (/startsWith\(\s*["']\/\/["']\s*\)/.test(src)) offenders.push(file);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });

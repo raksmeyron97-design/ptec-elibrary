@@ -8303,6 +8303,10 @@
         "heading": "What the team does",
         "body": "The library team manages the collection, keeps the e-Library running, supports research, and helps students and teachers find what they need."
       },
+      "featured": {
+        "heading": "Meet the Library Team",
+        "viewAll": "View all team"
+      },
       "metrics": {
         "heading": "The team at a glance",
         "members": "Team members",
@@ -8311,7 +8315,7 @@
         "daysOpen": "Days open each week"
       },
       "directory": {
-        "heading": "Team directory",
+        "heading": "Our Team",
         "filterLabel": "Filter by service area",
         "all": "All",
         "other": "Other",
@@ -8329,13 +8333,14 @@
         "otherMembers": "Other members",
         "noPhoto": "No portrait available",
         "searchLabel": "Search the team",
-        "searchPlaceholder": "Search by name, role or responsibility",
+        "searchPlaceholder": "Search team members…",
         "searchClear": "Clear search",
         "noSearchResults": "No team member matches “{query}”.",
         "showingSearch": "Showing {count} of {total, plural, one {# member} other {# members}} for “{query}”",
         "askMeAbout": "Ask me about",
-        "viewProfile": "View profile",
+        "viewProfile": "View full profile",
         "availability": "Availability",
+        "meetTheTeam": "Meet the team",
         "viewLabel": "Directory layout",
         "viewGrid": "Grid view",
         "viewList": "List view"

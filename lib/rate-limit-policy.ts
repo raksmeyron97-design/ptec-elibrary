@@ -144,6 +144,21 @@ const POLICIES = {
     windowMs: 3600_000,
   }),
   /**
+   * Avatar upload on `/dashboard/settings`, per signed-in reader.
+   *
+   * Every avatar is written to Zima by THIS server, and Zima meters
+   * `POST /api/upload` per client IP at `RL_UPLOAD_PER_HOUR` (60) — so the
+   * whole library shares ONE bucket with the bulk book importer
+   * (see the note at the top of lib/zima.ts). Without a limit here, any
+   * authenticated reader could spend the institution's entire hourly upload
+   * quota from a settings form and stall every librarian's book upload.
+   * A person changes their portrait a handful of times, not sixty.
+   */
+  avatarUpload: () => ({
+    limit: envInt("RL_AVATAR_UPLOAD_PER_HOUR", 6),
+    windowMs: 3600_000,
+  }),
+  /**
    * Password sign-in, per client. Added with the server-side login proxy
    * (app/actions/sign-in.ts): before that the login form had NO rate limit of
    * its own — only Turnstile, which a headless client with a solver defeats.
