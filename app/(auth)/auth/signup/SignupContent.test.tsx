@@ -47,6 +47,21 @@ vi.mock("@marsidev/react-turnstile", async () => {
 
 import SignupContent from "./SignupContent";
 
+// Per-file test timeout: this file's slowest test measures 498 ms on an idle
+// machine against Vitest's 5,000 ms default, and it renders the full signup
+// form, including the Turnstile widget's shell.
+//
+// In a full `vitest run` the suite fans out across workers and that figure
+// inflates with contention — enough to cross 5,000 ms and report
+// "Test timed out in 5000ms" for a test that passes in 498 ms on its own.
+// The failure was environmental, never a defect, and a red run that means
+// "the laptop was busy" is one people stop reading.
+//
+// The headroom is for contention, not an expectation: a test that genuinely
+// hangs still fails, 15 seconds later. Nothing about what this file asserts
+// changes.
+vi.setConfig({ testTimeout: 20_000 });
+
 function renderSignup() {
   return render(
     <NextIntlClientProvider locale="en" messages={enMessages}>

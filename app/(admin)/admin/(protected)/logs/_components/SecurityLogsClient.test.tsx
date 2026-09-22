@@ -22,6 +22,21 @@ import type { ActivityResult } from "@/lib/admin/activity-log";
 import type { ActivityEvent } from "@/lib/admin/activity-log-shared";
 import SecurityLogsClient, { type ClientFilters } from "./SecurityLogsClient";
 
+// Per-file test timeout: this file's slowest test measures 711 ms on an idle
+// machine against Vitest's 5,000 ms default, and it renders the whole
+// console — every panel, every level — through jsdom.
+//
+// In a full `vitest run` the suite fans out across workers and that figure
+// inflates with contention — enough to cross 5,000 ms and report
+// "Test timed out in 5000ms" for a test that passes in 711 ms on its own.
+// The failure was environmental, never a defect, and a red run that means
+// "the laptop was busy" is one people stop reading.
+//
+// The headroom is for contention, not an expectation: a test that genuinely
+// hangs still fails, 15 seconds later. Nothing about what this file asserts
+// changes.
+vi.setConfig({ testTimeout: 20_000 });
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
   usePathname: () => "/admin/logs",

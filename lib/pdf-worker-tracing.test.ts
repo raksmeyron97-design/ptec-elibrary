@@ -34,7 +34,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 
@@ -82,11 +82,33 @@ describe("pdfjs worker is shipped to the standalone server", () => {
   });
 
   it("the traced path points at the same file pdf.mjs would load", () => {
-    // Belt and braces: resolve the config's literal against the repo root and
-    // check it is byte-identical in location to the worker beside the entry.
     const configured = path.join(ROOT, "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs");
     const beside = path.join(path.dirname(require_.resolve(PDFJS_ENTRY)), "pdf.worker.mjs");
-    expect(path.resolve(configured)).toBe(path.resolve(beside));
+
+    // TWO claims, and they are different questions.
+    //
+    // 1. The config's literal is valid FROM THE REPO ROOT. Next resolves
+    //    `outputFileTracingIncludes` relative to the project directory, so a
+    //    worker that exists only somewhere else — hoisted to a parent
+    //    node_modules, or in a pnpm store — is a worker Next will not copy.
+    expect(existsSync(configured)).toBe(true);
+
+    // 2. It is the SAME FILE the entry would load.
+    //
+    //    Compared by real identity, not by string. This assertion used to be
+    //    `path.resolve(a) === path.resolve(b)`, and `path.resolve` normalises
+    //    a path without resolving symlinks — so it compared two SPELLINGS
+    //    while its own comment claimed to compare a location. Any layout
+    //    where `require.resolve()` returns a different spelling of the same
+    //    file failed it: a symlinked `node_modules` (a git worktree, a Docker
+    //    bind mount, a CI cache), pnpm's store, or workspace hoisting. The
+    //    tracing config can be perfectly correct in every one of those.
+    //
+    //    realpath AND inode: realpath answers "the same path after symlinks",
+    //    inode answers "the same file on disk", and a hard link satisfies the
+    //    second without the first.
+    expect(realpathSync(configured)).toBe(realpathSync(beside));
+    expect(statSync(configured).ino).toBe(statSync(beside).ino);
   });
 });
 

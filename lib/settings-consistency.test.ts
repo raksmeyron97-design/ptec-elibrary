@@ -13,11 +13,26 @@
 // emergency fallback behind lib/system-settings/defaults.ts. These tests fail
 // the moment a duplicate literal or an unwired call site comes back.
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { PTEC } from "./ptec";
+
+// Per-file test timeout: this file's slowest test measures 2,865 ms on an idle
+// machine against Vitest's 5,000 ms default, and it greps the entire source
+// tree for identity literals and builder call sites.
+//
+// In a full `vitest run` the suite fans out across workers and that figure
+// inflates with contention — enough to cross 5,000 ms and report
+// "Test timed out in 5000ms" for a test that passes in 2,865 ms on its own.
+// The failure was environmental, never a defect, and a red run that means
+// "the laptop was busy" is one people stop reading.
+//
+// The headroom is for contention, not an expectation: a test that genuinely
+// hangs still fails, 15 seconds later. Nothing about what this file asserts
+// changes.
+vi.setConfig({ testTimeout: 20_000 });
 
 const ROOT = path.resolve(__dirname, "..");
 const SELF = "lib/settings-consistency.test.ts";
