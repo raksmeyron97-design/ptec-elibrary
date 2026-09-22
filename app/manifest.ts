@@ -21,13 +21,19 @@ const SCREENSHOTS = [
 
 function installScreenshots(): NonNullable<MetadataRoute.Manifest["screenshots"]> {
   const dir = path.join(process.cwd(), "public", "pwa", "screenshots");
-  return SCREENSHOTS.filter((shot) => fs.existsSync(path.join(dir, shot.file))).map((shot) => ({
-    src: `/pwa/screenshots/${shot.file}`,
-    sizes: "780x1688",
-    type: "image/png",
-    form_factor: "narrow" as const,
-    label: shot.label,
-  }));
+  return SCREENSHOTS.flatMap((shot) =>
+    fs.existsSync(path.join(dir, shot.file))
+      ? [
+          {
+            src: `/pwa/screenshots/${shot.file}`,
+            sizes: "780x1688",
+            type: "image/png",
+            form_factor: "narrow" as const,
+            label: shot.label,
+          },
+        ]
+      : [],
+  );
 }
 
 // The web app manifest, served at /manifest.webmanifest.
