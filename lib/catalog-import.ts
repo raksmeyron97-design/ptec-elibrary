@@ -29,6 +29,7 @@ import {
   yearMax,
 } from "@/lib/catalog";
 import { assessContributorName } from "@/lib/resources/contributor-trust";
+import { isDerivedDescription } from "./catalogs/derived-description";
 import { escapeCsvCell } from "@/lib/admin/csv";
 import { hasKhmer } from "@/lib/search/normalize";
 
@@ -355,6 +356,7 @@ export type ImportIssueCode =
   | "NEW_CATEGORY"
   | "NEW_DEPARTMENT"
   | "TOO_MANY_KEYWORDS"
+  | "DERIVED_DESCRIPTION"
   | "COPIES_BARCODE_MISMATCH"
   | "DUPLICATE_BARCODE_IN_FILE"
   | "DUPLICATE_ACCESSION_IN_FILE"
@@ -589,9 +591,47 @@ export function validateRow(
     warn("NEW_DEPARTMENT", `"${department}" is a new department value.`, "department");
   }
 
-  const description = tidyMultiline(original.description) || null;
+  let description = tidyMultiline(original.description) || null;
   if (description && description.length > FIELD_MAX.description) {
     err("FIELD_TOO_LONG", `Description must be at most ${FIELD_MAX.description} characters.`, "description");
+  }
+
+  // A description that only restates the row is DROPPED, not stored.
+  //
+  // Every row in the PMB sheets carries one — measured 2026-09-21, all
+  // 13,429 rows of import-csv/ptec-books-part*.xlsx, in 53 shapes, none of
+  // them editorial: "Social sciences by Martin Ann M. DDC call number:
+  // 300 MAR." It is 58 characters that a reader already has from the page's
+  // own fields, and storing it made all six live records `index, follow` on
+  // the strength of their own metadata read back to them.
+  //
+  // Dropped rather than kept-and-hidden: a stored description is what the
+  // detail page renders, what the meta description falls back to, and what
+  // the indexability gate reads. Keeping a value that every consumer must
+  // then remember to ignore is the shape of bug this is.
+  //
+  // This is a WARNING, never an error — the row is fine, the sentence is
+  // not, and refusing 13,429 real holdings over a generated sentence would
+  // keep the physical catalogue out of the library.
+  if (
+    description &&
+    isDerivedDescription({
+      description,
+      title,
+      author,
+      category,
+      department,
+      ddc: original.ddc ?? null,
+      publisher,
+      shelfLocation: shelf,
+    })
+  ) {
+    warn(
+      "DERIVED_DESCRIPTION",
+      "Description only restates the title, author, category or call number, so it is not imported. Write one that says what the book is about, or leave it blank.",
+      "description",
+    );
+    description = null;
   }
 
   const ddcRes = validateDdc(original.ddc ?? null);

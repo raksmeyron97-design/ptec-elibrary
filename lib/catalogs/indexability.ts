@@ -40,9 +40,14 @@
 // record stays LINKED from /catalogs and stays `follow` — what is withdrawn
 // is the claim that the page is worth ranking, not the page.
 
+import {
+  isDerivedDescription,
+  type CatalogDescriptionSource,
+} from "./derived-description";
+
 /** The fields this decision reads. Everything is optional: a caller that did
  *  not select a column must not accidentally promote or demote a record. */
-export interface CatalogRecordSignals {
+export interface CatalogRecordSignals extends CatalogDescriptionSource {
   /** The record's OWN description — never the generated meta description. */
   description?: string | null;
   /**
@@ -71,7 +76,18 @@ export type CatalogVisibility = "index" | "noindex";
 export interface CatalogIndexability {
   visibility: CatalogVisibility;
   /** Why, for the report and for the admin data-quality surface. */
-  reason: "has-description" | "links-to-full-text" | "record-only";
+  reason:
+    | "has-description"
+    | "links-to-full-text"
+    | "record-only"
+    /** Long enough, but it only restates the record. See derived-description.ts. */
+    | "derived-description"
+    /**
+     * A description was given with none of the fields needed to tell whether
+     * it merely restates them. Conservative on purpose: the alternative is
+     * crediting a template nobody could check.
+     */
+    | "unchecked-description";
 }
 
 /**
@@ -90,10 +106,40 @@ export function assessCatalogIndexability(
     return { visibility: "index", reason: "links-to-full-text" };
   }
   const description = record.description?.trim() ?? "";
-  if (description.length >= CATALOG_MIN_DESCRIPTION_CHARS) {
-    return { visibility: "index", reason: "has-description" };
+  if (description.length < CATALOG_MIN_DESCRIPTION_CHARS) {
+    return { visibility: "noindex", reason: "record-only" };
   }
-  return { visibility: "noindex", reason: "record-only" };
+
+  // Long enough is not the same as saying anything. Every one of the six
+  // live records cleared the length check with the record read back to
+  // itself — "Social sciences by Martin Ann M. DDC call number: 300 MAR."
+  // — and so would all 13,429 rows staged in the import sheets.
+  if (!hasComparableFields(record)) {
+    return { visibility: "noindex", reason: "unchecked-description" };
+  }
+  if (isDerivedDescription(record)) {
+    return { visibility: "noindex", reason: "derived-description" };
+  }
+  return { visibility: "index", reason: "has-description" };
+}
+
+/**
+ * Did the caller give us anything to compare the description AGAINST?
+ *
+ * Without at least one identity field there is nothing to strip, so every
+ * template would read as novel and the gate would credit exactly what it
+ * exists to catch. A caller that selected no identity column therefore gets
+ * `noindex` — the same direction this module is conservative in everywhere
+ * else, and a source scan keeps both real call sites passing the fields.
+ */
+function hasComparableFields(record: CatalogRecordSignals): boolean {
+  return Boolean(
+    record.title?.trim() ||
+      record.author?.trim() ||
+      record.category?.trim() ||
+      record.department?.trim() ||
+      record.ddc?.trim(),
+  );
 }
 
 /** The `robots` value for a catalogue page. `follow` always: the record's
