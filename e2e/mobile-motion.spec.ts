@@ -276,6 +276,20 @@ test.describe("scroll reveal", () => {
     await page.goto("/");
     const supported = await page.evaluate(() => CSS.supports("animation-timeline: view()"));
     test.skip(!supported, "no scroll-driven animations here — the reveal is simply not drawn");
+    // The homepage STREAMS its lower sections (Suspense): straight after
+    // `goto` the card grids may not exist yet — in CI the first attempt of
+    // every test here found no card at all, then passed on retry. Wait for
+    // one well below the fold before choosing it.
+    await page
+      .waitForFunction(
+        () =>
+          [...document.querySelectorAll<HTMLElement>("main .reveal")].some(
+            (el) => el.getBoundingClientRect().top > window.innerHeight + 300 && el.offsetHeight < window.innerHeight,
+          ),
+        null,
+        { timeout: 30_000 },
+      )
+      .catch(() => {}); // the assertion on `found` below reports it
     return page.evaluate(() => {
       const probe = document.createElement("div");
       probe.style.height = "var(--ptec-mobile-nav-clearance)";

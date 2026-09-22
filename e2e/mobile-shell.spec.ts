@@ -188,6 +188,19 @@ test.describe("pushed screens at 390 px: Back and the page title", () => {
   // Exact: "Back to top" exists too.
   const back = (page: Page) => page.locator(".site-header").getByRole("button", { name: "Back", exact: true });
 
+  /** The page's OWN heading, first line — read from the page rather than
+   *  hard-coded, because the heading is content: #229 rewrote /about/team's
+   *  from "Library Team" to "Meet the people behind PTEC Library" and every
+   *  literal here broke with nothing wrong in the bar. */
+  const headingFirstLine = (page: Page) =>
+    page.locator("main#main-content h1").first().evaluate((h1) => {
+      const lines = (h1 as HTMLElement).innerText
+        .split("\n")
+        .map((line) => line.replace(/\s+/g, " ").trim())
+        .filter(Boolean);
+      return { first: lines[0] ?? "", lineCount: lines.length };
+    });
+
   test("Back on a pushed screen, and never on a tab root", async ({ page }) => {
     await page.goto("/about/team");
     await expect(back(page)).toBeVisible();
@@ -248,7 +261,12 @@ test.describe("pushed screens at 390 px: Back and the page title", () => {
     await page.waitForTimeout(400);
     await page.mouse.wheel(0, -120);
     await expect(page.locator("html")).toHaveAttribute("data-topbar-title", "");
-    await expect(title).toHaveText("Library Team"); // not "Library Team ក្រុមការងារ…"
+    // The heading's first line — never a bilingual heading's two lines run
+    // together (that rule is pinned in TopBarBack.test.tsx; this page's
+    // heading may or may not carry a second language).
+    const heading = await headingFirstLine(page);
+    expect(heading.first.length).toBeGreaterThan(0);
+    await expect(title).toHaveText(heading.first);
     await expect(title).toHaveCSS("opacity", "1");
     await expect(title).toHaveAttribute("aria-hidden", "true");
     // The brand steps out of sight AND out of the tab order.
@@ -268,7 +286,9 @@ test.describe("pushed screens at 390 px: Back and the page title", () => {
     await page.mouse.wheel(0, 900);
     await page.waitForTimeout(400);
     await page.mouse.wheel(0, -120);
-    await expect(page.locator(".site-header .topbar-title")).toHaveText("ក្រុមការងារបណ្ណាល័យ");
+    const heading = await headingFirstLine(page);
+    expect(heading.first, "the Khmer page's heading leads in Khmer").toMatch(/[\u1780-\u17FF]/);
+    await expect(page.locator(".site-header .topbar-title")).toHaveText(heading.first);
     await backKm.click();
     await expect(page).toHaveURL(/\/km\/about$/, NAVIGATION);
   });
