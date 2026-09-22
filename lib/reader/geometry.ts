@@ -15,6 +15,10 @@ export const PAD = 32;
 export const MAX_SCROLL_W = 1000;
 /** Vertical padding around each virtualised scroll row. */
 export const SCROLL_PAGE_Y = 24;
+/** Horizontal padding of each virtualised scroll row. A zoomed page wider
+    than the viewport starts this far in; the zoom anchor (lib/reader/virtual
+    `zoomAnchor`) needs the same number the row is laid out with. */
+export const SCROLL_ROW_PAD_X = 4;
 /** A4 height/width — the placeholder aspect until page 1 has been measured. */
 export const DEFAULT_ASPECT = Math.SQRT2;
 /** Cap canvas density: a DPR-3 phone would otherwise raster 9× the pixels. */

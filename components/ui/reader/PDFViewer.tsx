@@ -4,6 +4,7 @@ import {
   Fragment,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -46,12 +47,15 @@ import {
   computeGeometry,
   pageRotateProp,
   SCROLL_PAGE_Y,
+  SCROLL_ROW_PAD_X,
 } from "@/lib/reader/geometry";
 import {
   clamp,
   computeVirtualRange,
   pageAtScroll,
   rowTop,
+  zoomAnchor,
+  type ZoomFrame,
 } from "@/lib/reader/virtual";
 import {
   READER_BUDGETS,
@@ -329,6 +333,18 @@ export default function PDFViewer({
   const programmaticTargetRef = useRef<number | null>(null);
   const progScrollTimer = useRef<number | undefined>(undefined);
   const scrollRafRef = useRef<number | null>(null);
+  /* The scroll offsets as the DOM last reported them, recorded SYNCHRONOUSLY
+     on every scroll event.
+
+     The zoom anchor cannot read them off the element when it runs. A layout
+     effect runs after React has mutated the DOM, and reading `scrollTop`
+     there forces the new layout — at which point the browser has already
+     CLAMPED the offset to content that just got shorter. Measured on a
+     500-page book at page 500, zoomed, rotated 90°: 432,275 → 308,974 before
+     a line of the anchor ran, so it faithfully preserved the wrong point
+     (page 357). Any zoom OUT past the middle of a book shrinks the content
+     the same way. This ref is what the position was BEFORE the commit. */
+  const scrollPosRef = useRef({ top: 0, left: 0 });
   const initialScrollDoneRef = useRef(false);
   /** A document is loaded and its rows have real heights. Read by the scroll
       handler, which must not interpret the loading placeholder's geometry. */
@@ -592,6 +608,9 @@ export default function PDFViewer({
 
   const handleViewportScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     const el = event.currentTarget;
+    // Before the rAF gate, and before any early return: the anchor needs the
+    // LAST position, not the last one we happened to sample for React.
+    scrollPosRef.current = { top: el.scrollTop, left: el.scrollLeft };
     if (scrollRafRef.current !== null) return;
     scrollRafRef.current = window.requestAnimationFrame(() => {
       scrollRafRef.current = null;
@@ -743,32 +762,57 @@ export default function PDFViewer({
   const zoomOut = useCallback(() => applyCustomZoom(stepZoom(geomRef.current.effectiveScale, -1)), [applyCustomZoom, geomRef]);
   const resetZoom = useCallback(() => applyCustomZoom(1), [applyCustomZoom]);
 
-  // When the committed page width changes, adjust the scroll offsets so the
+  // When the committed page width changes, move the scroll offsets so the
   // recorded focal point (button = viewport centre, wheel = pointer, pinch =
-  // finger midpoint, double-tap = tap) stays put, and drop any live pinch
-  // preview now that the real size has landed.
-  const prevPageWidthRef = useRef<number | undefined>(undefined);
+  // finger midpoint, double-tap = tap) stays on the same spot of the same
+  // page, and drop any live pinch preview now that the real size has landed.
+  // The maths is `zoomAnchor` (lib/reader/virtual.ts): scaling the offset by
+  // the width ratio ignored each row's fixed padding and landed pages away
+  // from the text being zoomed, further the deeper into the book.
+  //
+  // A LAYOUT effect, so the correction happens before paint. A passive one let
+  // the browser paint a frame of the new layout at the old offset — another
+  // page, still under the pinch preview's transform — and mount rows there.
+  const prevZoomFrameRef = useRef<ZoomFrame | undefined>(undefined);
   const prevRowHeightRef = useRef(rowHeight);
-  useEffect(() => {
-    const el = containerRef.current;
-    const prev = prevPageWidthRef.current;
-    prevPageWidthRef.current = pageWidth;
+  useLayoutEffect(() => {
+    const prev = prevZoomFrameRef.current;
+    prevZoomFrameRef.current = pageWidth ? { pageWidth, pageHeight: estHeight, rowHeight } : undefined;
+    // Same width, new height (page 1's real aspect, a rotation): not a zoom.
+    // The row-height effect below re-anchors that; this only records it.
+    if (prev && prev.pageWidth === pageWidth) return;
     const layer = gestureLayerRef.current;
     if (layer) {
       layer.style.transform = "";
       layer.style.transformOrigin = "";
     }
-    if (!el || !prev || !pageWidth || prev === pageWidth) return;
-    const ratio = pageWidth / prev;
+    const el = containerRef.current;
+    if (!el || !prev || !pageWidth) return;
+    const scrollMode = viewMode === "scroll";
     const focal = zoomFocalRef.current ?? { x: el.clientWidth / 2, y: el.clientHeight / 2 };
     zoomFocalRef.current = null;
-    el.scrollLeft = (el.scrollLeft + focal.x) * ratio - focal.x;
-    el.scrollTop = Math.max(0, (el.scrollTop + focal.y - HUD_INSET_TOP) * ratio + HUD_INSET_TOP - focal.y);
+    const next = zoomAnchor({
+      scrollTop: scrollPosRef.current.top,
+      scrollLeft: scrollPosRef.current.left,
+      focal,
+      viewportWidth: el.clientWidth,
+      insetTop: HUD_INSET_TOP,
+      rowPadTop: SCROLL_PAGE_Y / 2,
+      rowPadX: scrollMode ? SCROLL_ROW_PAD_X : 0,
+      rows: scrollMode ? numPagesRef.current || 1 : 1,
+      prev,
+      next: { pageWidth, pageHeight: estHeight, rowHeight },
+    });
+    el.scrollTop = next.scrollTop;
+    el.scrollLeft = next.scrollLeft;
+    // Two geometry commits can land inside one frame (a pinch that crosses
+    // several steps), and the scroll event for this write has not fired yet.
+    scrollPosRef.current = { top: el.scrollTop, left: el.scrollLeft };
     setScrollTop(el.scrollTop);
     // The row-height effect below must not ALSO re-anchor for this change.
     prevRowHeightRef.current = rowHeight;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageWidth]);
+  }, [pageWidth, estHeight, rowHeight]);
 
   // When the ROW height changes without the page width moving — page 1's real
   // aspect replacing the A4 placeholder, or a rotation — every row above the
@@ -1523,7 +1567,13 @@ export default function PDFViewer({
                   }
                 >
                   {viewMode === "scroll" ? (
-                    <div className="flex flex-col" style={{ paddingTop: HUD_INSET_TOP, paddingBottom: HUD_INSET_BOTTOM }}>
+                    <div
+                      className="flex flex-col"
+                      // As wide as a zoomed row in the SAME render: the zoom
+                      // anchor sets scrollLeft before a page's canvas has grown,
+                      // and the browser clamps to what is laid out.
+                      style={{ paddingTop: HUD_INSET_TOP, paddingBottom: HUD_INSET_BOTTOM, minWidth: pageWidth ? pageWidth + 2 * SCROLL_ROW_PAD_X : undefined }}
+                    >
                       {spacerBefore > 0 && <div style={{ height: spacerBefore }} aria-hidden />}
                       {mountedPages.map((p, i) => {
                         // The plan is a set, not a span: a page evicted from
@@ -1559,7 +1609,7 @@ export default function PDFViewer({
                       )}
                     </div>
                   ) : (
-                    <div className="w-full" style={{ paddingTop: HUD_INSET_TOP + SCROLL_PAGE_Y / 2, paddingBottom: HUD_INSET_BOTTOM + SCROLL_PAGE_Y / 2 }}>
+                    <div className="w-full" style={{ paddingTop: HUD_INSET_TOP + SCROLL_PAGE_Y / 2, paddingBottom: HUD_INSET_BOTTOM + SCROLL_PAGE_Y / 2, minWidth: pageWidth }}>
                       <div key={showTransition ? currentPage : "static"} className={cx(frameClass, showTransition && "reader-page-enter")}>
                         <Page
                           pageNumber={currentPage}
