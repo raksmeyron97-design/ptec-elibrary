@@ -25,6 +25,9 @@
 // falls back to name + position. It is never empty: a portrait in a directory
 // carries information (who this is), so it is not decorative.
 
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
 import { photoAltText, type PublicTeamMember } from "@/lib/team/public";
 import { committeeInitials } from "@/lib/committee/public";
@@ -42,11 +45,14 @@ export default function TeamPortrait({
   priority?: boolean;
   className?: string;
 }) {
+  const [failed, setFailed] = useState(false);
+  const showPhoto = !!member.photo_url && !failed;
+
   return (
     <span className={`team-avatar ${className}`}>
-      {member.photo_url ? (
+      {showPhoto ? (
         <Image
-          src={member.photo_url}
+          src={member.photo_url!}
           alt={photoAltText(member)}
           fill
           sizes={sizes}
@@ -55,6 +61,7 @@ export default function TeamPortrait({
           // object-top: an institutional portrait is shot head-and-shoulders,
           // so a square crop taken from the centre lands on the chest.
           className="object-cover object-top"
+          onError={() => setFailed(true)}
         />
       ) : (
         <span className="team-avatar__mark" aria-hidden="true">

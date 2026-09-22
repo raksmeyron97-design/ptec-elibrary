@@ -360,6 +360,41 @@ function SectionPanel({
   );
 }
 
+function CommitteeMemberAvatar({
+  photoUrl,
+  photoAlt,
+  name,
+  size = 48,
+}: {
+  photoUrl: string | null;
+  photoAlt?: string | null;
+  name: string;
+  size?: number;
+}) {
+  const [failed, setFailed] = useState(false);
+
+  if (photoUrl && !failed) {
+    return (
+      <Image
+        src={photoUrl}
+        alt={photoAlt ?? name}
+        width={size}
+        height={size}
+        className="h-full w-full object-cover"
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-blue-950">
+      <span className="select-none text-base font-bold text-white" aria-hidden="true">
+        {(name || "?").trim().charAt(0).toUpperCase()}
+      </span>
+    </div>
+  );
+}
+
 function SeatRow({
   seat,
   index,
@@ -394,22 +429,12 @@ function SeatRow({
       } ${seat.is_published ? "" : "opacity-70"}`}
     >
       <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-divider bg-paper">
-        {person?.photo_url ? (
-          <Image
-            src={person.photo_url}
-            alt={person.photo_alt ?? name}
-            width={48}
-            height={48}
-            className="h-full w-full object-cover"
-            unoptimized
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-blue-950">
-            <span className="select-none text-base font-bold text-white" aria-hidden="true">
-              {name.charAt(0).toUpperCase()}
-            </span>
-          </div>
-        )}
+        <CommitteeMemberAvatar
+          photoUrl={person?.photo_url ?? null}
+          photoAlt={person?.photo_alt ?? name}
+          name={name}
+          size={48}
+        />
       </div>
 
       <div className="min-w-0 flex-1">
@@ -697,20 +722,12 @@ function SeatDialog({
                           }`}
                         >
                           <span className="h-9 w-9 shrink-0 overflow-hidden rounded-full border border-divider bg-paper">
-                            {candidate.photo_url ? (
-                              <Image
-                                src={candidate.photo_url}
-                                alt=""
-                                width={36}
-                                height={36}
-                                className="h-full w-full object-cover"
-                                unoptimized
-                              />
-                            ) : (
-                              <span className="flex h-full w-full items-center justify-center bg-blue-950 text-sm font-bold text-white">
-                                {(candidate.name_en || "?").charAt(0).toUpperCase()}
-                              </span>
-                            )}
+                            <CommitteeMemberAvatar
+                              photoUrl={candidate.photo_url}
+                              photoAlt={candidate.name_en}
+                              name={candidate.name_en}
+                              size={36}
+                            />
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-semibold text-text-heading">
