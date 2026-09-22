@@ -240,6 +240,15 @@ const PLACEHOLDERS = new Set([
   "title",
   "untitled",
   "no author",
+  // The labels this app itself renders where a byline is absent
+  // (messages/en.json: `noAuthorListed`, `noAuthor`). They are the strings a
+  // cataloguer copies off the screen and the strings a generator emits, and
+  // "no author" alone did not catch them because the vocabulary is matched
+  // WHOLE. Added for symmetry with `គ្មានអ្នកនិពន្ធ` in KHMER_FURNITURE: the
+  // two languages must refuse the same fact.
+  "no author listed",
+  "no author recorded",
+  "no authors listed",
   "unknown",
   "unknown author",
   "unknown user",
@@ -277,10 +286,14 @@ const KHMER_FURNITURE = new Set([
   "គ្មាន", // none
   // "no author". Matched WHOLE, so neither "គ្មាន" nor "អ្នកនិពន្ធ" above
   // catches the compound — and a substring rule is out of the question here
-  // (Khmer has no word boundaries). A guard for legacy rows: the PMB import
-  // stores NULL for a missing author rather than this placeholder, but the
-  // string is the natural thing for a cataloguer to have typed, and it names
-  // nobody wherever it came from.
+  // (Khmer has no word boundaries).
+  //
+  // This entry was once described as "a guard for legacy rows", on the
+  // grounds that the PMB import stores NULL for a missing author rather than
+  // this placeholder. That turned out to be false: 472 rows blank in the PMB
+  // export arrive in the prepared import sheets carrying this exact string,
+  // so `validateRow()` now asks this function and nulls them. It is a live
+  // rule on the ingestion path, not a legacy guard.
   "គ្មានអ្នកនិពន្ធ",
   "គ្មានឈ្មោះ", // no name
   "មិនស្គាល់", // unknown
