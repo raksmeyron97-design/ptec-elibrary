@@ -500,6 +500,42 @@ export default function TeamClient({
   );
 }
 
+function MemberAvatar({
+  photoUrl,
+  photoAlt,
+  name,
+}: {
+  photoUrl: string | null;
+  photoAlt: string | null;
+  name: string;
+}) {
+  const [failed, setFailed] = useState(false);
+
+  if (photoUrl && !failed) {
+    return (
+      <Image
+        src={photoUrl}
+        alt={photoAlt ?? name}
+        width={48}
+        height={48}
+        className="h-full w-full object-cover"
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <div
+      className="flex h-full w-full items-center justify-center"
+      style={{ background: "linear-gradient(135deg,#1E3A8A,#4f46e5)" }}
+    >
+      <span className="select-none text-base font-bold text-white" aria-hidden="true">
+        {(name || "?").trim().charAt(0).toUpperCase()}
+      </span>
+    </div>
+  );
+}
+
 function MemberRow({
   member, idx, total, canReorder, isBusy, isPending, isSelected,
   onSelect, onDelete, onDuplicate, onTogglePublish, onReorder,
@@ -542,25 +578,11 @@ function MemberRow({
 
       {/* Photo */}
       <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-divider bg-paper">
-        {member.photo_url ? (
-          <Image
-            src={member.photo_url}
-            alt={member.photo_alt ?? member.name_en}
-            width={48}
-            height={48}
-            className="h-full w-full object-cover"
-            unoptimized={true}
-          />
-        ) : (
-          <div
-            className="flex h-full w-full items-center justify-center"
-            style={{ background: "linear-gradient(135deg,#1E3A8A,#4f46e5)" }}
-          >
-            <span className="select-none text-base font-bold text-white">
-              {member.name_en.charAt(0).toUpperCase()}
-            </span>
-          </div>
-        )}
+        <MemberAvatar
+          photoUrl={member.photo_url}
+          photoAlt={member.photo_alt ?? member.name_en}
+          name={member.name_en}
+        />
       </div>
 
       {/* Info */}

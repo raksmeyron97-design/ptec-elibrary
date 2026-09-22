@@ -361,10 +361,17 @@ const nextConfig: NextConfig = {
         hostname: "*.supabase.co",
         pathname: "/storage/v1/object/public/**",
       },
-      // PTEC WordPress
+      // PTEC WordPress. Both hostnames, because `isAllowedTeamPhotoUrl()`
+      // accepts both and next/image THROWS on a host it was not told about —
+      // a refusal the portrait's onError fallback cannot catch, because the
+      // component never gets to render.
       {
         protocol: "https",
         hostname: "www.ptec.edu.kh",
+      },
+      {
+        protocol: "https",
+        hostname: "ptec.edu.kh",
       },
       // Google Drive direct image CDN (lh3.googleusercontent.com/d/{FILE_ID})
       {
