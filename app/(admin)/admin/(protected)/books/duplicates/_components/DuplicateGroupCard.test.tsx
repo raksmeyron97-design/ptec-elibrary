@@ -13,9 +13,13 @@ import { NextIntlClientProvider } from "next-intl";
 import enMessages from "@/messages/en.json";
 import ToastProvider from "@/components/admin/kit/ToastProvider";
 import DuplicateGroupCard, { type UIBook, type UIGroup } from "./DuplicateGroupCard";
-import { retireDuplicateBook } from "@/app/actions/duplicates";
+import { dismissDuplicateGroup, retireDuplicateBook } from "@/app/actions/duplicates";
+import { compareDuplicateGroup } from "@/lib/admin/duplicate-review";
 
-vi.mock("@/app/actions/duplicates", () => ({ retireDuplicateBook: vi.fn() }));
+vi.mock("@/app/actions/duplicates", () => ({
+  retireDuplicateBook: vi.fn(),
+  dismissDuplicateGroup: vi.fn(),
+}));
 
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -23,6 +27,25 @@ vi.mock("next/navigation", () => ({
 }));
 
 const retireMock = vi.mocked(retireDuplicateBook);
+const dismissMock = vi.mocked(dismissDuplicateGroup);
+
+/** The page computes both of these on the server; the fixtures do the same
+ *  rather than hand-writing a comparison the real card could never receive. */
+function uiGroup(partial: Omit<UIGroup, "fingerprint" | "comparison">): UIGroup {
+  return {
+    ...partial,
+    fingerprint: `fp-${partial.key}`,
+    comparison: compareDuplicateGroup(
+      partial.books.map((book) => ({
+        isbn: book.isbn,
+        year: book.year,
+        author: book.author,
+        pages: book.pages,
+        fileSizeKb: book.fileSizeKb,
+      })),
+    ),
+  };
+}
 
 function uiBook(partial: Partial<UIBook> & { id: string; slug: string; title: string }): UIBook {
   return {
@@ -38,7 +61,7 @@ function uiBook(partial: Partial<UIBook> & { id: string; slug: string; title: st
   };
 }
 
-const HIGH: UIGroup = {
+const HIGH: UIGroup = uiGroup({
   key: "group-high",
   confidence: "high",
   signals: ["isbn", "content-hash"],
@@ -66,9 +89,9 @@ const HIGH: UIGroup = {
       createdLabel: "2 Mar 2025",
     }),
   ],
-};
+});
 
-const MEDIUM: UIGroup = {
+const MEDIUM: UIGroup = uiGroup({
   key: "group-medium",
   confidence: "medium",
   signals: ["title", "author", "year"],
@@ -77,9 +100,9 @@ const MEDIUM: UIGroup = {
     uiBook({ id: "44444444-4444-4444-8444-444444444444", slug: "prm-1", title: "Practical Research Methods" }),
     uiBook({ id: "55555555-5555-4555-8555-555555555555", slug: "prm-2", title: "Practical Research Methods" }),
   ],
-};
+});
 
-const LOW: UIGroup = {
+const LOW: UIGroup = uiGroup({
   key: "group-low",
   confidence: "low",
   signals: ["title-prefix", "author"],
@@ -87,7 +110,7 @@ const LOW: UIGroup = {
     uiBook({ id: "66666666-6666-4666-8666-666666666666", slug: "srm", title: "Social Research Methods" }),
     uiBook({ id: "77777777-7777-4777-8777-777777777777", slug: "srm-4th", title: "Social Research Methods, 4th Edition" }),
   ],
-};
+});
 
 function renderCard(group: UIGroup) {
   return render(
@@ -106,6 +129,7 @@ function recordRows(): HTMLElement[] {
 
 beforeEach(() => {
   retireMock.mockReset();
+  dismissMock.mockReset();
   refresh.mockReset();
 });
 
@@ -291,6 +315,126 @@ describe("retire confirmation", () => {
         ),
       ).toBeInTheDocument(),
     );
+    expect(refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe("the counter-evidence a reviewer has to see", () => {
+  // Production, 2026-09-22: a six-record group of "the same" Khmer textbook
+  // whose PDFs run 196, 388, 540, 699, 729 and 1,016 pages — six different
+  // volumes whose titles were truncated on import so the grade number is gone.
+  // The card said "Medium confidence · same title, same author, same year" and
+  // showed the page counts inside one `·`-joined grey line. Retiring on that
+  // reading archives five real textbooks and 301s them onto a sixth.
+  const VOLUMES: UIGroup = uiGroup({
+    key: "group-volumes",
+    confidence: "medium",
+    signals: ["title", "author", "year"],
+    books: [
+      uiBook({
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        slug: "self-study-maths",
+        title: "ឯកសារបណ្តាញចំណេះដឹងស្វ័យសិក្សា មុខវិជ្ជាគណិតវិទ្យា ថ្ន",
+        author: "MoEYS",
+        year: 2019,
+        pages: 196,
+        fileSizeKb: 4585,
+      }),
+      uiBook({
+        id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        slug: "self-study-maths-1",
+        title: "ឯកសារបណ្តាញចំណេះដឹងស្វ័យសិក្សា មុខវិជ្ជាគណិតវិទ្យា ថ្ន",
+        author: "MoEYS",
+        year: 2019,
+        pages: 1016,
+        fileSizeKb: 30228,
+      }),
+    ],
+  });
+
+  it("names the fields that disagree, beside the ones that match", () => {
+    renderCard(VOLUMES);
+    expect(screen.getByText("Different page count")).toBeInTheDocument();
+    expect(screen.getByText("Different file size")).toBeInTheDocument();
+    expect(screen.getByText("Identical author")).toBeInTheDocument();
+    expect(screen.getByText("Identical year")).toBeInTheDocument();
+  });
+
+  it("says an absent ISBN is uncomparable rather than matching", () => {
+    renderCard(VOLUMES);
+    expect(screen.getByText("No ISBN to compare")).toBeInTheDocument();
+    expect(screen.queryByText("Identical ISBN")).not.toBeInTheDocument();
+  });
+
+  it("marks the disagreeing VALUE on each record, not just the group", () => {
+    renderCard(VOLUMES);
+    // The number itself has to carry the mark: a chip in the header says the
+    // page counts differ, but only the emphasised value says WHICH record is
+    // the 1,016-page one.
+    // Each emphasised value carries the screen-reader note, so colour is never
+    // the only channel that says "this is the one that disagrees".
+    const notes = screen.getAllByText("(differs from the other records in this group)");
+    // Two disagreeing fields (pages, file size) across two records.
+    expect(notes).toHaveLength(4);
+
+    const marked = notes.map((note) => note.parentElement?.textContent ?? "");
+    expect(marked.some((text) => text.includes("1,016") || text.includes("1016"))).toBe(true);
+    expect(marked.some((text) => text.includes("196"))).toBe(true);
+  });
+});
+
+describe("marking a group as not duplicates", () => {
+  it("promises, in the dialog, that nothing is archived or redirected", () => {
+    renderCard(MEDIUM);
+    fireEvent.click(screen.getByRole("button", { name: /not duplicates/i }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText(/No book is archived, unpublished, redirected/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Reversible at any time/i)).toBeInTheDocument();
+  });
+
+  it("sends every record in the group, so the dismissal matches what was shown", () => {
+    dismissMock.mockResolvedValue({ success: true });
+    renderCard(MEDIUM);
+    fireEvent.click(screen.getByRole("button", { name: /not duplicates/i }));
+
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByRole("textbox"), { target: { value: "separate grade levels" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: /mark as not duplicates/i }));
+
+    expect(dismissMock).toHaveBeenCalledWith({
+      bookIds: MEDIUM.books.map((book) => book.id),
+      note: "separate grade levels",
+    });
+  });
+
+  it("omits an empty note rather than storing a blank one", () => {
+    dismissMock.mockResolvedValue({ success: true });
+    renderCard(MEDIUM);
+    fireEvent.click(screen.getByRole("button", { name: /not duplicates/i }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByRole("textbox"), { target: { value: "   " } });
+    fireEvent.click(within(dialog).getByRole("button", { name: /mark as not duplicates/i }));
+
+    expect(dismissMock).toHaveBeenCalledWith({ bookIds: MEDIUM.books.map((b) => b.id), note: undefined });
+  });
+
+  it("re-runs detection on success so the group leaves the queue", async () => {
+    dismissMock.mockResolvedValue({ success: true });
+    renderCard(MEDIUM);
+    fireEvent.click(screen.getByRole("button", { name: /not duplicates/i }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: /mark as not duplicates/i }));
+
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+  });
+
+  it("keeps the group on screen when the dismissal fails", async () => {
+    dismissMock.mockResolvedValue({ success: false, error: "Too many changes" });
+    renderCard(MEDIUM);
+    fireEvent.click(screen.getByRole("button", { name: /not duplicates/i }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: /mark as not duplicates/i }));
+
+    await waitFor(() => expect(screen.getByText("Too many changes")).toBeInTheDocument());
     expect(refresh).not.toHaveBeenCalled();
   });
 });
