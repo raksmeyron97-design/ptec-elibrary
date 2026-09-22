@@ -124,7 +124,10 @@ async function goToPage(page: Page, n: number, opts: { expectRendered?: boolean 
 /** The zoom control's own label — the bottom bar's text also carries the page
     numbers and the progress percentage, which change for other reasons. */
 const zoomLabel = (page: Page) =>
-  page.locator('[data-reader-hud] button[aria-label^="Zoom —"]:visible').first().textContent();
+  // No `:visible`: phones zoom by pinch / double tap / keys and draw no zoom
+  // control since the page scrubber (MUX-05); the desktop one is still in the
+  // DOM and carries the same level.
+  page.locator('[data-reader-hud] button[aria-label^="Zoom —"]').first().textContent();
 
 async function openReader(page: Page, isMobile: boolean, server: PdfServer, totalPages: number) {
   await page.addInitScript(PROBE_SCRIPT);

@@ -97,6 +97,26 @@ export function assistantFabHiddenOnPhone(pathname: string): boolean {
   return /^\/books\/[^/]+\/?$/.test(path) || /^\/journals\/articles\/[^/]+\/?$/.test(path);
 }
 
+/**
+ * Where the phone top bar's Back goes when there is no in-app history to
+ * return through — the reader arrived on a book from a search engine or a
+ * shared Telegram link, and a history Back would take them off the site.
+ *
+ * A "pushed" screen is anything one or more levels below a collection:
+ * /books/x → /books, /journals/articles/x → /journals, /about/team → /about.
+ * A list lives in Saved, so it goes up to the dashboard. Tab roots ("/",
+ * "/books", "/search", "/offline-books" …) answer null — they show the brand,
+ * not a Back — and so does the reading route, which carries its own Back.
+ */
+export function backTarget(pathname: string): string | null {
+  const path = stripLocale(pathname).replace(/\/+$/, "") || "/";
+  if (isImmersiveReaderRoute(path)) return null;
+  const segments = path.split("/").filter(Boolean);
+  if (segments.length < 2) return null;
+  if (segments[0] === "lists") return "/dashboard";
+  return `/${segments[0]}`;
+}
+
 /** The tab that should read as current, or null for a route no tab owns. */
 export function activeTab(pathname: string): ShellTab | null {
   const path = stripLocale(pathname);

@@ -28,7 +28,11 @@ automated check is listed as manual on purpose; nothing here is assumed.
 | # | Criterion | Check |
 |---|---|---|
 | B1 | Controls visible on open; hidden after 3 s of inactivity in every mode | component (fake timers) |
-| B2 | Pointer move, touch, or any key reveals them | component |
+| B2 | Mouse/pen movement, a mouse press, or any key reveals them. On touch, a finger on the PAGE is not activity (a finger is how a phone scrolls); a touch on the HUD or an overlay is | unit (`hooks/useAutoHideControls.test.ts`) + component |
+| B2a | Touch: a single tap on the page toggles the controls — showing is immediate, hiding waits out the 300 ms double-tap window, and a double-tap zoom never blinks them | unit (`hooks/useReaderGestures.test.ts`) + e2e (Mobile Chrome, `PDF reader on touch`) |
+| B2b | Touch: scrolling the book down more than 24 px hides the controls; scrolling up never brings them back | unit + e2e (real CDP finger scroll) |
+| B2c | A scroll the controls caused never hides them — a jump from Go to page or the scrubber, a scroll within 600 ms of touching the HUD, a scroll made with the keyboard or a wheel | unit |
+| B2d | A button a finger tapped keeps focus on Android; that focus does not pin the controls up. Keyboard focus (`data-focus-modality="keyboard"`) still does | unit |
 | B3 | Open panel / menu / dialog / selection popup / focus inside HUD pauses hiding | component |
 | B4 | Hidden HUD is `inert` (not focusable) and `aria-hidden` | component |
 | B5 | `prefers-reduced-motion` → no fade transition (`motion-reduce:transition-none`) | source check in component test |
@@ -43,6 +47,7 @@ automated check is listed as manual on purpose; nothing here is assumed.
 | C3 | Bottom bar honours `env(safe-area-inset-bottom)` in focus mode | source check |
 | C4 | Panel opens as a bottom sheet below `md`, side panel at `md+` | e2e (viewport) |
 | C5 | Body scroll locked in focus mode; viewport has `overscroll-behavior: contain` | component + source |
+| C6 | The full reader (`layout="fill"`) and focus mode anywhere hold a Screen Wake Lock; the embedded preview never asks. Released after 5 min with no pointerdown, scroll (captured on the reader root) or key; re-taken on the next one and on `visibilitychange` → visible. Missing or refused API: nothing happens, no UI | unit (`hooks/useScreenWakeLock.test.ts`) + component (which readers ask) + **manual on a device** (a secure context is required) |
 
 ## D. Navigation & progress
 
@@ -50,8 +55,10 @@ automated check is listed as manual on purpose; nothing here is assumed.
 |---|---|---|
 | D1 | Page indicator opens "Go to page"; Enter submits, Esc closes, out-of-range clamps, Khmer digits accepted | unit (`page-input`) + component |
 | D2 | Prev/next, swipe (single mode), keyboard ←→↑↓ Home End PageUp PageDown | component (keys) + manual (swipe) |
+| D2a | Single mode at fit width: a tap on the outer fifth of the page turns it by one, at once — no double-tap zoom in those zones, so two quick taps are two pages | unit + e2e (Mobile Chrome) |
 | D3 | Progress bar reflects current/max; percent localised | component |
 | D4 | "Welcome back" prompt appears only when resuming beyond page 1; "Start from beginning" goes to page 1; never overwrites a newer position | component |
+| D5 | Phones: the bottom bar's middle is a native range scrubber (1…numPages). Dragging shows an `aria-hidden` "Page N of M" bubble and the percentage follows the draft; the reader moves once, on the native `change` (also what a keyboard arrow or a VoiceOver/TalkBack adjust sends) — `pointerup`/`pointercancel`/`blur` only clear a drag that ended where it began. Named from `reader.goToPage`, valued from `reader.pageIndicator` | unit (`ReaderScrubber.test.tsx`) + e2e (Mobile Chrome: a finger drag lands near ¾ with no pages visited in between and the bars up; ArrowRight commits) |
 
 ## E. Zoom & layout
 
@@ -60,6 +67,7 @@ automated check is listed as manual on purpose; nothing here is assumed.
 | E1 | Presets: Fit width, Fit page, 75, 100, 125, 150, 200 %; ± steps through levels; 50–300 % clamp | unit (`zoom.test.ts`) + component |
 | E2 | Double-tap toggles fit-width ↔ zoomed; pinch previews with CSS only | manual (touch) + unit (`doubleTapTarget`) |
 | E3 | Focus mode maximises the reader, traps focus, Esc exits, restores focus | component |
+| E3a | On a coarse pointer with element fullscreen (Android Chrome), focus mode also takes the whole screen (`navigationUI: "hide"`) and unlocks rotation (`screen.orientation.lock("any")`); leaving fullscreen (system Back) leaves focus mode; turning focus mode off exits only the reader's own fullscreen. iPhone and desktop unchanged; every refusal swallowed | unit (`hooks/useFocusFullscreen.test.ts`) + e2e (Mobile Chrome, headless grants fullscreen) + **manual on a device** (rotation, the real system bars) |
 | E4 | Settings dialog edits the same persisted preferences (no second store) | component (localStorage keys) |
 
 ## F. Panels

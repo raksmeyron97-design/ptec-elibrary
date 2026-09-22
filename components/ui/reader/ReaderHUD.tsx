@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import ZoomControl from "./ZoomControl";
+import ReaderScrubber from "./ReaderScrubber";
 import type { ReaderFitMode, ReaderTheme } from "./reader-config";
 
 /* The reader HUD: a top bar and a bottom bar overlaid on the document.
@@ -25,12 +26,16 @@ import type { ReaderFitMode, ReaderTheme } from "./reader-config";
    can never receive focus. Phones get the compact layout from the design:
 
      ‹   42 / 245   ⋯            (top)
-     🔖   −  100%  +   ☰         (bottom)
+     🔖   ━━━━●━━━━  17%   ☰     (bottom)
 
    Desktop:
 
      ← Back   Title …   ✓ offline  ☾  🔖  ⋯        (top)
-     ◀ 12 / 245 ▶   ━━━━━━━━ 52%   [− 100% ▾ +]    (bottom) */
+     ◀ 12 / 245 ▶   ━━━━━━━━ 52%   [− 100% ▾ +]    (bottom)
+
+   On phones the bottom bar's middle is the page scrubber (drag to any page,
+   progress at a glance) — zoom is pinch / double-tap there, and Page sizing
+   in the settings. */
 
 type Fmt = (n: number | string) => string;
 
@@ -175,6 +180,8 @@ export type ReaderBottomBarProps = {
   numPages: number;
   onPrev: () => void;
   onNext: () => void;
+  /** Phones: the scrubber's destination, committed when the finger lifts. */
+  onJump: (page: number) => void;
   onOpenNavigator: () => void;
   progressPct: number;
   maxProgressPct: number;
@@ -248,7 +255,7 @@ export const ReaderBottomBar = memo(function ReaderBottomBar(p: ReaderBottomBarP
         </div>
       )}
 
-      {/* Phones: bookmark · zoom · panel */}
+      {/* Phones: bookmark · page scrubber · panel */}
       <button
         type="button"
         onClick={p.onToggleBookmark}
@@ -259,18 +266,13 @@ export const ReaderBottomBar = memo(function ReaderBottomBar(p: ReaderBottomBarP
       >
         <Bookmark className="h-5 w-5" fill={p.isBookmarked ? "currentColor" : "none"} aria-hidden />
       </button>
-      <div className="mx-auto md:hidden">
-        <ZoomControl
-          percent={p.zoomPercent}
-          fitMode={p.fitMode}
-          onZoomIn={p.onZoomIn}
-          onZoomOut={p.onZoomOut}
-          onFit={p.onFit}
-          onScale={p.onScale}
-          fmtNum={p.fmt}
-          compact
-        />
-      </div>
+      <ReaderScrubber
+        currentPage={p.currentPage}
+        numPages={p.numPages}
+        progressPct={p.progressPct}
+        onCommit={p.onJump}
+        fmt={p.fmt}
+      />
       <button
         type="button"
         onClick={p.onTogglePanel}

@@ -18,11 +18,12 @@
 // Only mounted while open (plus its exit transition), so the portal target
 // always exists and nothing renders on the server.
 
-import { useEffect, useEffectEvent, useId, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useId, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
 import { useMountTransition } from "@/lib/hooks/useMountTransition";
+import { useSheetDrag } from "@/lib/hooks/useSheetDrag";
 
 export type GlassSheetProps = {
   open: boolean;
@@ -62,6 +63,10 @@ export default function GlassSheet({
   const titleId = useId();
   const sheet = useMountTransition(open, 260);
   const trapRef = useFocusTrap<HTMLDivElement>(open && sheet.mounted, { initialFocus });
+  const scrimRef = useRef<HTMLDivElement>(null);
+  // Pull the sheet down to close it (lib/hooks/useSheetDrag.ts). The close
+  // button and Escape stay: a swipe is a shortcut, not the only way out.
+  useSheetDrag({ sheetRef: trapRef, scrimRef, enabled: open && sheet.mounted, onClose });
 
   // An Effect Event, so a caller passing an inline `onClose` does not re-bind
   // the key listener on every render — and the listener always calls the
@@ -96,6 +101,7 @@ export default function GlassSheet({
   return createPortal(
     <>
       <div
+        ref={scrimRef}
         aria-hidden="true"
         onClick={onClose}
         className={`fixed inset-0 z-[110] bg-slate-950/45 backdrop-blur-[2px] transition-opacity duration-200 ease-out motion-reduce:transition-none ${className}`}
@@ -116,7 +122,9 @@ export default function GlassSheet({
           opacity: sheet.shown ? 1 : 0,
         }}
       >
-        {/* Grab handle — a visual cue that this is a sheet, not a control. */}
+        {/* Grab handle — the cue that this sheet can be pulled down to close
+            (useSheetDrag). The gesture works anywhere on the sheet, not only
+            here, so the handle itself stays decorative. */}
         <div className="flex shrink-0 justify-center pb-1 pt-2.5" aria-hidden="true">
           <span className="h-1 w-9 rounded-full bg-[var(--ptec-border-strong)]" />
         </div>
@@ -140,7 +148,9 @@ export default function GlassSheet({
 
         {header}
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">{children}</div>
+        {/* data-sheet-body: a pull-down here closes the sheet only once the
+            list is scrolled to its top — until then it is a scroll. */}
+        <div data-sheet-body className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">{children}</div>
 
         {footer && <div className="shrink-0 border-t border-divider/70 px-4 py-3">{footer}</div>}
       </div>

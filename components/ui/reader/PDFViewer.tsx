@@ -101,6 +101,8 @@ import { useMountPlan } from "./hooks/useMountPlan";
 import { useConnectivity } from "./hooks/useConnectivity";
 import { useIdleDocumentCleanup } from "./hooks/useIdleDocumentCleanup";
 import { useAutoHideControls } from "./hooks/useAutoHideControls";
+import { useScreenWakeLock } from "./hooks/useScreenWakeLock";
+import { useFocusFullscreen } from "./hooks/useFocusFullscreen";
 import { useTextLayerA11y } from "./hooks/useTextLayerA11y";
 import { useReaderGestures } from "./hooks/useReaderGestures";
 import { useReaderKeyboard } from "./hooks/useReaderKeyboard";
@@ -1173,7 +1175,10 @@ export default function PDFViewer({
   /* ── Overlays, auto-hide, keyboard, gestures, focus mode ────── */
   const overlayOpen = moreOpen || navigatorOpen || settingsOpen || shortcutsOpen || citationOpen;
   const controlsPaused = overlayOpen || panelOpen || !!selectionPopup || resumePrompt !== null;
-  const controlsVisible = useAutoHideControls({ enabled: !!pdfUrl, paused: controlsPaused, rootRef });
+  // Touch: a tap on the page toggles the bars and scrolling the book down
+  // hides them; mouse and keyboard keep the show-on-activity rule.
+  const controls = useAutoHideControls({ enabled: !!pdfUrl, paused: controlsPaused, rootRef, scrollRef: containerRef });
+  const controlsVisible = controls.visible;
 
   // Topmost first. The welcome-back card is a passive status, so it yields
   // to everything that is actually modal.
@@ -1218,9 +1223,17 @@ export default function PDFViewer({
       commitZoom: applyCustomZoom,
       fitWidth: () => applyFitMode("width"),
       navigate: navigateToPage,
+      controlsVisible,
+      onTap: controls.toggle,
     }),
   });
   useFocusModeTrap({ active: focusMode, rootRef, viewportRef: containerRef });
+  // The full reader (and focus mode anywhere) keeps the screen on while it is
+  // being read; the preview on a book's page does not.
+  useScreenWakeLock({ active: !!pdfUrl && (layout === "fill" || focusMode), rootRef });
+  // Android: focus mode takes the whole screen and unlocks rotation; the
+  // system Back gesture out of fullscreen leaves focus mode too.
+  useFocusFullscreen({ active: focusMode, rootRef, onExit: () => setFocusMode(false) });
   useEffect(() => {
     numPagesRef.current = numPages;
   }, [numPages]);
@@ -1590,6 +1603,7 @@ export default function PDFViewer({
             numPages={numPages}
             onPrev={() => navigateToPage(currentPage - 1)}
             onNext={() => navigateToPage(currentPage + 1)}
+            onJump={navigateToPage}
             onOpenNavigator={() => setNavigatorOpen(true)}
             progressPct={progress.progressPct}
             maxProgressPct={progress.maxProgressPct}

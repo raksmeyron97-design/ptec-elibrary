@@ -149,6 +149,69 @@ for (const locale of ["en", "km"] as const) {
   });
 }
 
+// The INSTALLED app (MUX-11): in `display-mode: standalone` on a phone the
+// footer's brand row and mission line step out — a website's signature — and
+// every link stays. Crawlers never run standalone, so they see no change.
+test.describe("phone footer in the installed app", () => {
+  test.use({ viewport: { width: 360, height: 780 } });
+
+  test("the brand block steps out and every link stays", async ({ page }) => {
+    // Playwright cannot emulate `display-mode`, and neither can this
+    // Chromium over CDP (tried: the query never matches). So the check runs
+    // the real cascade another way: find the SERVED standalone rule and apply
+    // its body unconditionally. That proves the rule ships, that it targets
+    // exactly the marked elements, and that it beats their `flex`/`truncate`
+    // utilities. The real installed-app view is a device check.
+    await toFooter(page, "/");
+    const footer = page.locator("footer");
+    const hidden = footer.locator("[data-standalone-hide]");
+    expect(await hidden.count(), "the brand row and the mission line are marked").toBe(2);
+    for (const el of await hidden.all()) await expect(el).toBeVisible();
+    const linksInBrowser = await footer.locator("a").count();
+
+    const applied = await page.evaluate(() => {
+      // Walk nested rules too, remembering any enclosing @layer: the copy is
+      // re-wrapped in the SAME layers, so it competes in the cascade exactly
+      // as the served rule would — a layered rule must still lose to the
+      // elements' utilities here, or this check would prove nothing.
+      const find = (rules: CSSRuleList, layers: string[]): string | null => {
+        for (const rule of [...rules]) {
+          if (rule instanceof CSSMediaRule && /display-mode:\s*standalone/.test(rule.conditionText) && /max-width/.test(rule.conditionText)) {
+            let css = [...rule.cssRules].map((r) => r.cssText).join("\n");
+            for (const name of [...layers].reverse()) css = `@layer ${name} {\n${css}\n}`;
+            const style = document.createElement("style");
+            style.textContent = css;
+            document.head.append(style);
+            return rule.conditionText;
+          }
+          if (rule instanceof CSSLayerBlockRule) {
+            const found = find(rule.cssRules, [...layers, rule.name]);
+            if (found) return found;
+          } else if ("cssRules" in rule && !(rule instanceof CSSMediaRule)) {
+            const found = find((rule as CSSGroupingRule).cssRules, layers);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+      for (const sheet of [...document.styleSheets]) {
+        try {
+          const found = find(sheet.cssRules, []);
+          if (found) return found;
+        } catch {
+          // a cross-origin sheet (fonts) cannot be read; not ours
+        }
+      }
+      return null;
+    });
+    expect(applied, "the served CSS carries the standalone rule").toMatch(/display-mode:\s*standalone/);
+    for (const el of await hidden.all()) await expect(el).toBeHidden();
+    expect(await footer.locator("a").count(), "every link stays in the DOM").toBe(linksInBrowser);
+    await expect(footer.getByRole("link", { name: /About/ }).first()).toBeVisible();
+    expect(await horizontalOverflow(page)).toBe(false);
+  });
+});
+
 test.describe("phone footer without JavaScript", () => {
   test.use({ viewport: { width: 360, height: 780 }, javaScriptEnabled: false });
 

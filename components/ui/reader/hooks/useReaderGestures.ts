@@ -13,13 +13,26 @@ export type GestureState = {
   commitZoom: (scale: number, focal?: { x: number; y: number }) => void;
   fitWidth: () => void;
   navigate: (page: number) => void;
+  /** Whether the HUD is showing — a tap shows it at once, but waits out the
+   *  double-tap window before hiding it. */
+  controlsVisible: boolean;
+  /** A single tap on the page (not a link, not the HUD): show/hide the HUD. */
+  onTap: () => void;
 };
+
+/** Single-page mode at fit width: a tap on this outer fraction of the page,
+ *  either side, turns the page (the Kindle / Play Books tap zones). */
+export const EDGE_TAP_ZONE = 0.2;
+/** Two taps closer together than this are a double tap (zoom). */
+export const DOUBLE_TAP_MS = 300;
 
 const dist = (a: Touch, b: Touch) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 
 /**
- * Touch: swipe (single mode), pinch-zoom, double-tap-zoom. Wheel: Ctrl/⌘ +
- * wheel (and trackpad pinch, which browsers report as ctrl+wheel).
+ * Touch: swipe (single mode), pinch-zoom, double-tap-zoom, and the single
+ * tap — which shows or hides the HUD, or, on the outer fifth of a page in
+ * single mode, turns the page. Wheel: Ctrl/⌘ + wheel (and trackpad pinch,
+ * which browsers report as ctrl+wheel).
  *
  * Pinch uses a two-stage strategy: while fingers move, a cheap CSS transform
  * on the gesture layer previews the zoom (rAF-throttled, no React re-render,
@@ -54,6 +67,11 @@ export function useReaderGestures({
       raf: number | null;
     } | null = null;
     let lastTap = { time: 0, x: 0, y: 0 };
+    let pendingTap: number | undefined;
+    const cancelPendingTap = () => {
+      window.clearTimeout(pendingTap);
+      pendingTap = undefined;
+    };
 
     const containerPoint = (clientX: number, clientY: number) => {
       const c = containerRef.current;
@@ -131,30 +149,61 @@ export function useReaderGestures({
       const dy = tch.clientY - start.y;
       const dt = Date.now() - start.time;
 
-      // Double-tap → toggle zoom around the tapped point.
       if (Math.abs(dx) < 10 && Math.abs(dy) < 10 && dt < 250) {
         const now = Date.now();
+        // Never hijack link taps, annotation taps, HUD taps or active selections.
+        const target = e.target as HTMLElement | null;
+        const sel = window.getSelection();
+        const onControl =
+          !!target?.closest("a, button, input, .annotationLayer, [data-reader-hud], [data-reader-overlay]") ||
+          !!(sel && !sel.isCollapsed);
+
+        // Double-tap → toggle zoom around the tapped point.
         if (
-          now - lastTap.time < 300 &&
+          now - lastTap.time < DOUBLE_TAP_MS &&
           Math.abs(tch.clientX - lastTap.x) < 30 &&
           Math.abs(tch.clientY - lastTap.y) < 30
         ) {
           lastTap = { time: 0, x: 0, y: 0 };
-          // Never hijack link taps, annotation taps, HUD taps or active selections.
-          const target = e.target as HTMLElement | null;
-          const sel = window.getSelection();
-          if (
-            target?.closest("a, button, input, .annotationLayer, [data-reader-hud], [data-reader-overlay]") ||
-            (sel && !sel.isCollapsed)
-          ) {
-            return;
-          }
+          cancelPendingTap(); // it was a double tap: the bars stay as they were
+          if (onControl) return;
           const targetScale = doubleTapTarget(s.effectiveScale, s.fitWidthScale);
           if (targetScale === null) s.fitWidth();
           else s.commitZoom(targetScale, containerPoint(tch.clientX, tch.clientY));
           return;
         }
         lastTap = { time: now, x: tch.clientX, y: tch.clientY };
+        if (onControl) return;
+
+        // Single page at fit width: the outer fifth of the page turns it — at
+        // once, with no double-tap zoom out there, so two quick taps are two
+        // pages, not a page and a zoom.
+        if (s.viewMode === "single" && isAtFitWidth(s.effectiveScale, s.fitWidthScale, s.fitMode)) {
+          const rect = el.getBoundingClientRect();
+          const fx = rect.width > 0 ? (tch.clientX - rect.left) / rect.width : 0.5;
+          if (fx < EDGE_TAP_ZONE || fx > 1 - EDGE_TAP_ZONE) {
+            lastTap = { time: 0, x: 0, y: 0 };
+            cancelPendingTap();
+            s.navigate(s.currentPage + (fx < EDGE_TAP_ZONE ? -1 : 1));
+            return;
+          }
+        }
+
+        // Anywhere else: show or hide the HUD. Showing is immediate; hiding
+        // waits out the double-tap window, so a double-tap zoom never blinks
+        // the bars away and back. The deferred hide re-reads the HUD's state
+        // when it fires: if the idle timer hid the bars inside the window, a
+        // toggle then would bring them back — the opposite of the tap.
+        cancelPendingTap();
+        if (!s.controlsVisible) {
+          s.onTap();
+        } else {
+          pendingTap = window.setTimeout(() => {
+            pendingTap = undefined;
+            if (latest.current.controlsVisible) latest.current.onTap();
+          }, DOUBLE_TAP_MS);
+        }
+        return;
       }
 
       // Horizontal swipe → page turn (single mode, not zoomed in).
@@ -181,6 +230,7 @@ export function useReaderGestures({
       el.removeEventListener("touchend", onEnd);
       el.removeEventListener("touchcancel", onEnd);
       if (pinch?.raf) cancelAnimationFrame(pinch.raf);
+      cancelPendingTap();
     };
   }, [docAreaRef, containerRef, gestureLayerRef, latest]);
 

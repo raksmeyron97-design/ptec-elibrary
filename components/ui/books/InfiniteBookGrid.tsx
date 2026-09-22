@@ -67,8 +67,12 @@ export default function InfiniteBookGrid({
   return (
     <>
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 sm:gap-4">
+        {/* `reveal`: each card fades up as it scrolls in — CSS only, nothing
+            hidden where unsupported or under reduced motion (app/globals.css). */}
         {books.map((book, i) => (
-          <BookCard key={book.slug} book={book} priority={i < 6} />
+          <div key={book.slug} className="reveal">
+            <BookCard book={book} priority={i < 6} />
+          </div>
         ))}
       </div>
 

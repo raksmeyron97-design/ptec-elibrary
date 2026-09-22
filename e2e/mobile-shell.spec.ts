@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+import { touchDrag } from "./utils/touch";
 
 // The phone shell (docs/MOBILE-GLASS-UI.md §2, Shell): Home · Explore ·
 // Search · Saved · More, a sliding indicator, a one-tap search overlay, and a
@@ -177,8 +178,296 @@ test.describe("phone shell at 360 px", () => {
   });
 });
 
+// Pushed screens (MUX-01): one level below a collection the phone bar draws
+// ‹ Back, and the page's title once its <h1> has gone under the bar. Back is
+// a history Back when the previous entry is this site, and goes UP to the
+// collection when the reader landed here — never off the site.
+test.describe("pushed screens at 390 px: Back and the page title", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  // Exact: "Back to top" exists too.
+  const back = (page: Page) => page.locator(".site-header").getByRole("button", { name: "Back", exact: true });
+
+  /** The page's OWN heading, first line — read from the page rather than
+   *  hard-coded, because the heading is content: #229 rewrote /about/team's
+   *  from "Library Team" to "Meet the people behind PTEC Library" and every
+   *  literal here broke with nothing wrong in the bar. */
+  const headingFirstLine = (page: Page) =>
+    page.locator("main#main-content h1").first().evaluate((h1) => {
+      const lines = (h1 as HTMLElement).innerText
+        .split("\n")
+        .map((line) => line.replace(/\s+/g, " ").trim())
+        .filter(Boolean);
+      return { first: lines[0] ?? "", lineCount: lines.length };
+    });
+
+  test("Back on a pushed screen, and never on a tab root", async ({ page }) => {
+    await page.goto("/about/team");
+    await expect(back(page)).toBeVisible();
+    const box = (await back(page).boundingBox())!;
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    for (const root of ["/books", "/"]) {
+      await page.goto(root);
+      await expect(page.locator(".site-header .topbar-brand")).toBeVisible();
+      await expect(back(page)).toHaveCount(0);
+    }
+  });
+
+  test("landed from outside the site: Back goes UP to the collection", async ({ page }) => {
+    // A fresh page — no in-app history, like a Telegram link or a search result.
+    await page.goto("/about/team");
+    await back(page).click();
+    await expect(page).toHaveURL(/\/about$/, NAVIGATION);
+  });
+
+  test("arrived from inside the site: Back is a history Back, to where the reader was", async ({ page }) => {
+    await page.goto("/");
+    // A book opened from the homepage: UP would be /books, history is /.
+    await page.locator('main a[href^="/books/"]').first().click();
+    await expect(page).toHaveURL(/\/books\/[^/]+$/, NAVIGATION);
+    await back(page).click();
+    await expect(page).toHaveURL(/localhost:\d+\/$/, NAVIGATION);
+  });
+
+  test("without the Navigation API, a count of in-app navigations decides the same way", async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(window, "navigation", { configurable: true, value: undefined });
+    });
+    await page.goto("/");
+    await page.locator('main a[href^="/books/"]').first().click();
+    await expect(page).toHaveURL(/\/books\/[^/]+$/, NAVIGATION);
+    await back(page).click();
+    await expect(page).toHaveURL(/localhost:\d+\/$/, NAVIGATION);
+
+    await page.goto("/about/team"); // a fresh load resets the count: landed
+    await back(page).click();
+    await expect(page).toHaveURL(/\/about$/, NAVIGATION);
+  });
+
+  test("once the heading is under the bar, the bar carries the page's title — its first line", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    page.on("console", (m) => m.type() === "error" && /hydrat/i.test(m.text()) && errors.push(m.text()));
+    await page.goto("/about/team");
+    const title = page.locator(".site-header .topbar-title");
+    const brand = page.locator(".site-header .topbar-brand");
+    await expect(back(page)).toBeVisible();
+    expect(await page.evaluate(() => "topbarTitle" in document.documentElement.dataset)).toBe(false);
+
+    // Scroll the heading away (the bar steps aside on the way down), then a
+    // little back up so the bar returns with the heading still out of view.
+    await page.mouse.wheel(0, 900);
+    await page.waitForTimeout(400);
+    await page.mouse.wheel(0, -120);
+    await expect(page.locator("html")).toHaveAttribute("data-topbar-title", "");
+    // The heading's first line — never a bilingual heading's two lines run
+    // together (that rule is pinned in TopBarBack.test.tsx; this page's
+    // heading may or may not carry a second language).
+    const heading = await headingFirstLine(page);
+    expect(heading.first.length).toBeGreaterThan(0);
+    await expect(title).toHaveText(heading.first);
+    await expect(title).toHaveCSS("opacity", "1");
+    await expect(title).toHaveAttribute("aria-hidden", "true");
+    // The brand steps out of sight AND out of the tab order.
+    await expect(brand).toHaveCSS("visibility", "hidden");
+
+    // Back at the top the brand returns.
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(page.locator("html")).not.toHaveAttribute("data-topbar-title", "");
+    await expect(brand).toHaveCSS("visibility", "visible");
+    expect(errors).toEqual([]);
+  });
+
+  test("Khmer: the Back label and the title are Khmer", async ({ page }) => {
+    await page.goto("/km/about/team");
+    const backKm = page.locator(".site-header").getByRole("button", { name: "ថយក្រោយ", exact: true });
+    await expect(backKm).toBeVisible();
+    await page.mouse.wheel(0, 900);
+    await page.waitForTimeout(400);
+    await page.mouse.wheel(0, -120);
+    const heading = await headingFirstLine(page);
+    expect(heading.first, "the Khmer page's heading leads in Khmer").toMatch(/[\u1780-\u17FF]/);
+    await expect(page.locator(".site-header .topbar-title")).toHaveText(heading.first);
+    await backKm.click();
+    await expect(page).toHaveURL(/\/km\/about$/, NAVIGATION);
+  });
+});
+
+// Sheets pull down to close (MUX-02). Every sheet is a GlassSheet, so the
+// More sheet stands for Explore, Saved and the search filters too. Real
+// touch (CDP): the claim is made on the first touchmove, and only a real
+// touch shows whether the browser scrolled instead.
+test.describe("sheets pull down to close", () => {
+  // Short enough that the More sheet's list overflows and can scroll.
+  test.use({ viewport: { width: 390, height: 640 } });
+  test.beforeEach(({ isMobile, browserName }) => {
+    test.skip(!isMobile, "a pull is a touch gesture");
+    test.skip(browserName !== "chromium", "CDP touch input is Chromium-only");
+  });
+
+  async function openMore(page: Page) {
+    await page.goto("/");
+    await shellReady(page);
+    await tabBar(page).getByRole("button", { name: "More" }).click();
+    const more = page.getByRole("dialog", { name: "More" });
+    await expect(more).toBeVisible();
+    await page.waitForTimeout(400); // the 260 ms open transition settles
+    return more;
+  }
+  async function grip(sheet: Locator) {
+    const box = (await sheet.boundingBox())!;
+    return { x: box.x + box.width / 2, y: box.y + 12, height: box.height };
+  }
+
+  test("a long pull closes the sheet; a short one springs back", async ({ page }) => {
+    const more = await openMore(page);
+    const g = await grip(more);
+    await touchDrag(page, g, { x: g.x, y: g.y + 50 }, { steps: 10, stepDelay: 40 });
+    await page.waitForTimeout(400);
+    await expect(more).toBeVisible();
+    expect(await more.evaluate((el) => (el as HTMLElement).style.transform)).toMatch(/^translateY\(0(px)?\)$/);
+
+    await touchDrag(page, g, { x: g.x, y: g.y + g.height * 0.5 }, { steps: 16, stepDelay: 40 });
+    await expect(more).toBeHidden();
+  });
+
+  test("a fast, short flick closes it; the same pull held before the lift does not", async ({ page }) => {
+    let more = await openMore(page);
+    let g = await grip(more);
+    expect(90, "the flick is shorter than the distance rule").toBeLessThan(g.height * 0.25);
+    await touchDrag(page, g, { x: g.x, y: g.y + 90 }, { steps: 3, stepDelay: 0 });
+    await expect(more).toBeHidden();
+
+    more = await openMore(page);
+    g = await grip(more);
+    await touchDrag(page, g, { x: g.x, y: g.y + 90 }, { steps: 3, stepDelay: 0, holdMs: 250 });
+    await page.waitForTimeout(400);
+    await expect(more).toBeVisible();
+  });
+
+  test("a list scrolled down scrolls first; the sheet does not move", async ({ page }) => {
+    const more = await openMore(page);
+    const body = more.locator("[data-sheet-body]");
+    const overflow = await body.evaluate((el) => el.scrollHeight - el.clientHeight);
+    expect(overflow, "the sheet's list must overflow for this test to mean anything").toBeGreaterThan(40);
+    const box = (await body.boundingBox())!;
+    const mid = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+
+    await touchDrag(page, mid, { x: mid.x, y: mid.y - 120 }, { steps: 10, stepDelay: 30 }); // scroll the list down
+    await page.waitForTimeout(300);
+    const scrolled = await body.evaluate((el) => el.scrollTop);
+    expect(scrolled).toBeGreaterThan(0);
+
+    await touchDrag(page, mid, { x: mid.x, y: mid.y + 150 }, { steps: 12, stepDelay: 40 }); // a pull, mid-list
+    await page.waitForTimeout(400);
+    await expect(more).toBeVisible();
+    expect(await body.evaluate((el) => el.scrollTop)).toBeLessThan(scrolled);
+    expect(await more.evaluate((el) => (el as HTMLElement).style.transform)).toMatch(/^translateY\(0(px)?\)$/);
+  });
+
+  test("the close button and Escape still close it", async ({ page }) => {
+    let more = await openMore(page);
+    await page.keyboard.press("Escape");
+    await expect(more).toBeHidden();
+    more = await openMore(page);
+    await more.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(more).toBeHidden();
+  });
+});
+
+// The current tab goes to the top (MUX-07): tapping Home on Home scrolls to
+// the top instead of navigating to the page you are on, and a long press on
+// a tab selects nothing and opens no link menu — native tab bars have neither.
+test.describe("tab bar: tapping the current tab goes to the top", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  async function onHomeScrolled(page: Page) {
+    await page.goto("/");
+    await shellReady(page);
+    // Next's dev-tools badge sits over the Home tab; production has none.
+    await page.evaluate(() => document.querySelector("nextjs-portal")?.remove());
+    await page.evaluate(() => {
+      (window as unknown as { __sameDocument: boolean }).__sameDocument = true;
+      window.scrollTo(0, 1600);
+    });
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(1000);
+  }
+  async function tapHome(page: Page, isMobile: boolean) {
+    const home = tabBar(page).getByRole("link", { name: "Home" });
+    if (!isMobile) return home.click();
+    const box = (await home.boundingBox())!;
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+  }
+
+  test("Home on Home scrolls to the top, with no navigation", async ({ page, isMobile }) => {
+    await onHomeScrolled(page);
+    const requests: string[] = [];
+    page.on("request", (r) => {
+      if (r.resourceType() === "document" || r.url().includes("_rsc=")) requests.push(r.url());
+    });
+    await tapHome(page, isMobile);
+    await expect.poll(() => page.evaluate(() => window.scrollY), { timeout: 5_000 }).toBe(0);
+    expect(await page.evaluate(() => (window as unknown as { __sameDocument?: boolean }).__sameDocument)).toBe(true);
+    expect(requests, "no request for the page you are already on").toEqual([]);
+    await expect(page).toHaveURL(/localhost:\d+\/$/);
+  });
+
+  test("under reduced motion the jump is instant", async ({ page, isMobile }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await onHomeScrolled(page);
+    await tapHome(page, isMobile);
+    await page.waitForTimeout(80); // far shorter than any smooth scroll over 1600 px
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  });
+
+  test("a modified click on the current tab is left to the browser", async ({ page }) => {
+    await page.goto("/");
+    await shellReady(page);
+    const prevented = await tabBar(page)
+      .getByRole("link", { name: "Home" })
+      .evaluate((el) => {
+        const seen: boolean[] = [];
+        // Bubble phase on window runs after React's root listener, so it sees
+        // what the tab's handler decided; then stop the real navigation.
+        const probe = (e: Event) => {
+          seen.push(e.defaultPrevented);
+          e.preventDefault();
+        };
+        window.addEventListener("click", probe);
+        el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
+        el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0, ctrlKey: true }));
+        window.removeEventListener("click", probe);
+        return seen;
+      });
+    expect(prevented).toEqual([true, false]);
+  });
+
+  test("a long press on a tab selects nothing and opens no link menu", async ({ page }) => {
+    await page.goto("/");
+    for (const name of ["Home", "Search"]) {
+      const prevented = await tabBar(page)
+        .getByRole("link", { name })
+        .evaluate((el) => {
+          const e = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+          el.dispatchEvent(e);
+          return e.defaultPrevented;
+        });
+      expect(prevented, `contextmenu on ${name}`).toBe(true);
+    }
+    await expect(tabBar(page)).toHaveCSS("user-select", "none");
+  });
+});
+
 test.describe("desktop at 1280 px is untouched", () => {
   test.use({ viewport: { width: 1280, height: 900 } });
+
+  test("a pushed screen draws no Back and no title swap", async ({ page }) => {
+    await page.goto("/about/team");
+    await expect(page.locator(".site-header").getByRole("button", { name: "Back", exact: true })).toBeHidden();
+    await expect(page.locator(".site-header .topbar-title")).toBeHidden();
+    await expect(page.locator(".site-header .topbar-brand")).toBeVisible();
+  });
 
   test("no tab bar, no sticky phone header, the full navigation", async ({ page }) => {
     await page.goto("/");

@@ -348,6 +348,7 @@ describe("service worker caching policy", () => {
     it.each([
       "/pdf/cmaps/78-EUC-H.bcmap",
       "/pwa/splash/iphone-430x932-portrait.png",
+      "/pwa/screenshots/home.png",
       "/og-default.png",
       "/logo.png",
       "/ptec-library.jpg",

@@ -247,7 +247,10 @@ export default async function Footer() {
             aria-labelledby="footer-brand-heading"
             className="mb-4 space-y-4 md:col-span-2 md:mb-0 md:space-y-5 lg:col-span-1"
           >
-            <div className="flex items-center gap-4">
+            {/* data-standalone-hide: inside the INSTALLED app on a phone the
+                reader knows whose app this is — the brand block is a
+                website's signature there (app/globals.css). */}
+            <div data-standalone-hide className="flex items-center gap-4">
               <Seal size={56} variant="footer" />
               <div className="min-w-0">
                 <p lang="km" className="font-khmer-serif text-[13px] font-bold leading-6 text-gold-200">
@@ -275,6 +278,7 @@ export default async function Footer() {
                 two or three lines at 360 px. */}
             <p
               data-footer-mission
+              data-standalone-hide
               className={`truncate text-[13.5px] text-blue-100 md:hidden ${locale === "km" ? "leading-7" : "leading-6"}`}
             >
               {t("taglineShort")}

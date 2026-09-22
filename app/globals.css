@@ -303,6 +303,20 @@
   --ptec-glass-selected: rgba(138, 164, 228, .18);
 }
 
+/* ── The installed app (display-mode: standalone), phones ──────────────
+   The footer's brand block (seal, names, mission) is a website's signature;
+   inside the installed app the reader knows whose app this is, and the tab
+   bar's More sheet already carries every destination. Every link stays.
+   Crawlers never run in standalone, so nothing they read changes.
+   UNLAYERED ON PURPOSE: the hidden elements carry `flex` / `truncate`
+   utilities, and this rule must beat them — the one case where an
+   unlayered rule is the right tool (compare `.reader-btn`). */
+@media (display-mode: standalone) and (max-width: 47.999rem) {
+  [data-standalone-hide] {
+    display: none;
+  }
+}
+
 /* No tab bar from `lg` up, so nothing reserves room for one. */
 @media (min-width: 64rem) {
   :root {
@@ -347,6 +361,37 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .site-header {
+    transition: none;
+  }
+}
+
+/* ── Pushed screens (components/layout/TopBarBack.tsx) ──────────────
+   Below lg, on a book, a path, an article …, once the page's <h1> has gone
+   under the bar the brand steps out and the page's title takes its place —
+   the header every phone app draws one level down. TopBarBack writes
+   data-topbar-title onto <html>; these rules are the whole behaviour.
+   Opacity only, 150 ms; `visibility` follows the fade so the hidden brand
+   link leaves the tab order. None under reduced motion. */
+@media (max-width: 63.999rem) {
+  .site-header .topbar-brand {
+    transition: opacity 150ms ease-out, visibility 0s linear 0s;
+  }
+  .site-header .topbar-title {
+    opacity: 0;
+    transition: opacity 150ms ease-out;
+  }
+  :root[data-topbar-title] .site-header .topbar-title {
+    opacity: 1;
+  }
+  :root[data-topbar-title] .site-header .topbar-brand {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 150ms ease-out, visibility 0s linear 150ms;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-header .topbar-brand,
+  .site-header .topbar-title {
     transition: none;
   }
 }
@@ -1080,32 +1125,40 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 }
 .tab-panel-in { animation: tab-panel-in .2s cubic-bezier(.22,1,.36,1) both; }
 
-/* ── Scroll reveal (CSS-only; toggled by ScrollRevealWrapper's observer) ─
-   Default state is fully visible — the hidden start state only applies once
-   JS sets data-revealed="false", so no-JS visitors never lose content. */
-.scroll-reveal,
-.scroll-reveal-stagger .scroll-reveal-item {
-  opacity: 1;
-  transform: none;
-  /* 250 ms, 12 px, 40 ms apart. Long enough to read as "arriving", short
-     enough that someone scrolling at reading speed never lands on a block
-     that is still invisible — at the old 0.7 s plus 0.75 s of stagger, the
-     sixth tile of a grid stayed blank for most of a second and a half after
-     it was on screen. */
-  transition: opacity .25s ease-out, transform .25s ease-out;
+/* ── Scroll reveal (components/ui/animations/ScrollRevealWrapper.tsx,
+   StaggerGrid.tsx — or add `reveal` to any element) ────────────────────
+   Each element fades up as IT enters the viewport: a scroll-driven
+   animation, so no observer, no client JS, and it works in server
+   components. The fade is over the first 140 px of the element's entry,
+   whatever its height, and the view is inset by the phone tab bar's
+   clearance so nothing finishes revealing behind the bar. A row of cards
+   shares a scroll position and so arrives together — the stagger is the
+   layout. Where scroll-driven animations are unsupported, or motion is
+   reduced, nothing is hidden and nothing moves. Opacity and transform only.
+   Keep `.reveal` for blocks about a screen tall or less (cards, heading
+   rows): a very tall block would fade as one.
+   Layered, like `.reader-btn` (docs/ACCESSIBILITY-FOCUS.md on why an
+   unlayered rule is a trap): `.reveal` sits on elements that also carry
+   utilities (`h-full`, grid placement, an `animate-*`), and an unlayered
+   rule would beat every one of them. Pinned by
+   components/ui/animations/reveal-css.test.ts, which also pins that the
+   hidden start state exists ONLY behind the @supports and motion guards. */
+@layer components {
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .reveal {
+        animation: reveal-in linear both;
+        animation-timeline: view(block auto var(--ptec-mobile-nav-clearance));
+        animation-range: entry 0% entry 140px;
+      }
+    }
+  }
 }
-.scroll-reveal[data-revealed="false"],
-.scroll-reveal-stagger[data-revealed="false"] .scroll-reveal-item {
-  opacity: 0;
-  transform: translateY(12px);
-}
-.scroll-reveal-stagger .scroll-reveal-item:nth-child(2) { transition-delay: .04s; }
-.scroll-reveal-stagger .scroll-reveal-item:nth-child(3) { transition-delay: .08s; }
-.scroll-reveal-stagger .scroll-reveal-item:nth-child(4) { transition-delay: .12s; }
-.scroll-reveal-stagger .scroll-reveal-item:nth-child(5) { transition-delay: .16s; }
-.scroll-reveal-stagger .scroll-reveal-item:nth-child(n+6) { transition-delay: .2s; }
-@media (prefers-reduced-motion: reduce) {
-  .scroll-reveal, .scroll-reveal-item { transition: none !important; }
+@keyframes reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
 }
 
 /* ── Below-the-fold render skipping ─────────────────────────────────
@@ -2726,23 +2779,34 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 }
 
 /* ── Controls ─────────────────────────────────────────────────────── */
-.reader-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: .375rem;
-  flex-shrink: 0;
-  min-width: 2.75rem;   /* 44px touch target */
-  min-height: 2.75rem;
-  padding: 0 .5rem;
-  border-radius: .5rem;
-  font-size: .8125rem;
-  font-weight: 600;
-  line-height: 1;
-  color: var(--reader-fg-muted);
-  background: transparent;
-  cursor: pointer;
-  transition: background-color .15s ease, color .15s ease;
+/* The BASE rule is layered, on purpose: Tailwind's utilities live in
+   `@layer utilities`, and an unlayered rule beats every layered one — so an
+   unlayered `.reader-btn { display: inline-flex }` silently overrode
+   `hidden`, `md:hidden` and `md:inline-flex` on every HUD button (the same
+   trap as the focus system's fallback). Phones drew the desktop-only search,
+   panel, theme and bookmark buttons in the top bar, beside the bottom bar's
+   own bookmark and panel; desktops drew the phone-only page pill, bookmark
+   and panel. The variants and states below stay unlayered: they refine this
+   rule and still beat it. Pinned by components/ui/reader/reader-css.test.ts. */
+@layer components {
+  .reader-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .375rem;
+    flex-shrink: 0;
+    min-width: 2.75rem;   /* 44px touch target */
+    min-height: 2.75rem;
+    padding: 0 .5rem;
+    border-radius: .5rem;
+    font-size: .8125rem;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--reader-fg-muted);
+    background: transparent;
+    cursor: pointer;
+    transition: background-color .15s ease, color .15s ease;
+  }
 }
 .reader-btn:hover { color: var(--reader-fg); background: var(--reader-hover); }
 .reader-btn:active { background: var(--reader-active); }
@@ -2899,6 +2963,46 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 .reader-progress__max { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--reader-line); }
 .reader-progress__now { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--reader-accent); transition: width .25s ease; }
 @media (prefers-reduced-motion: reduce) { .reader-progress__now { transition: none; } }
+
+/* ── Page scrubber (phones — components/ui/reader/ReaderScrubber.tsx) ──
+   A native range input: it brings keyboard and screen-reader support for
+   free, and accent-color is enough to put it in the reader's palette. The
+   input is a 44 px touch row; the track inside it stays thin. Layered, like
+   `.reader-btn`, so the component's `md:hidden` wins over this display. */
+@layer components {
+  .reader-scrubber {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: .5rem;
+    padding: 0 .25rem;
+  }
+  .reader-scrubber__input {
+    display: block;
+    width: 100%;
+    height: 2.75rem;
+    margin: 0;
+    background: transparent;
+    accent-color: var(--reader-accent);
+    cursor: pointer;
+  }
+  .reader-scrubber__bubble {
+    position: absolute;
+    bottom: calc(100% + .125rem);
+    transform: translateX(-50%);
+    white-space: nowrap;
+    border-radius: 999px;
+    padding: .25rem .625rem;
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--reader-accent-text);
+    background: var(--reader-accent);
+    box-shadow: 0 6px 16px -6px rgba(0, 0, 0, .45);
+    pointer-events: none;
+  }
+}
 
 /* ── Document surface ────────────────────────────────────────────── */
 .reader-viewport {

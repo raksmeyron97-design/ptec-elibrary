@@ -17,8 +17,6 @@ type ZoomControlProps = {
   /** Apply an explicit scale factor (1 = 100% / actual size). */
   onScale: (scale: number) => void;
   fmtNum: (n: number | string) => string;
-  /** Phones: no editable field, the menu opens upward from the bottom bar. */
-  compact?: boolean;
 };
 
 /* Zoom cluster: [−] [percent ▾] [+]. Buttons step through ZOOM_LEVELS; the
@@ -32,7 +30,6 @@ const ZoomControl = memo(function ZoomControl({
   onFit,
   onScale,
   fmtNum,
-  compact = false,
 }: ZoomControlProps) {
   const t = useTranslations("reader");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -94,19 +91,15 @@ const ZoomControl = memo(function ZoomControl({
           ref={triggerRef}
           type="button"
           onClick={() => setMenuOpen((v) => !v)}
-          onDoubleClick={
-            compact
-              ? undefined
-              : () => {
-                  setMenuOpen(false);
-                  setDraft(String(percent));
-                  setEditing(true);
-                  requestAnimationFrame(() => {
-                    inputRef.current?.focus();
-                    inputRef.current?.select();
-                  });
-                }
-          }
+          onDoubleClick={() => {
+            setMenuOpen(false);
+            setDraft(String(percent));
+            setEditing(true);
+            requestAnimationFrame(() => {
+              inputRef.current?.focus();
+              inputRef.current?.select();
+            });
+          }}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           aria-label={`${t("zoom")} — ${modeLabel}`}
@@ -133,7 +126,6 @@ const ZoomControl = memo(function ZoomControl({
         label={t("zoom")}
         triggerRef={triggerRef}
         align="right"
-        direction={compact ? "up" : "down"}
         className="min-w-[11rem]"
       >
         <MenuRow role="menuitemradio" checked={fitMode === "width"} onSelect={() => { onFit("width"); closeMenu(true); }}>

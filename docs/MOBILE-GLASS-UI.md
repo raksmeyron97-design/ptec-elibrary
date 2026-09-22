@@ -103,12 +103,54 @@ Performance before/after is recorded in the pull request.
     the zoom is hover-only. Page transitions are behind `PAGE_TRANSITIONS`
     (`lib/motion/flags.ts`), pinned by `e2e/mobile-motion.spec.ts`.
 
+12. **A pushed screen draws Back, and its title once the heading is gone.**
+    One level below a collection (`/books/x`, `/paths/x`, `/about/team` …)
+    the phone top bar puts ‹ Back before the brand
+    (`components/layout/TopBarBack.tsx`). Back is a history Back when the
+    previous entry is this site, and goes UP to `backTarget()` in
+    `lib/nav/shell-routes.ts` when the reader landed — never off the site.
+    Once the page's `<h1>` is above the bar, `data-topbar-title` on `<html>`
+    crossfades the brand to the heading's first line (opacity, 150 ms; the
+    hidden brand is `visibility: hidden`, out of the tab order). A new
+    route shape with its own parent adds a case to `backTarget()`.
+13. **Every bottom sheet is a `GlassSheet`, and every `GlassSheet` pulls down
+    to close** (`lib/hooks/useSheetDrag.ts`). The claim is made on the
+    FIRST `touchmove`, while it is cancelable, and only when the list under
+    the finger (`[data-sheet-body]`) is at its top; a second finger or a
+    `touchcancel` springs back. A hand-rolled sheet gets none of this —
+    move it onto `GlassSheet` instead of adding a second gesture.
+14. **Scroll reveal is `.reveal`, per item, and never inside a box that
+    scrolls.** A CSS scroll-driven animation (`animation-timeline: view()`)
+    behind `@supports` and `prefers-reduced-motion: no-preference`, inset
+    by the tab bar's clearance. `view()` follows the NEAREST scroll
+    container, and `overflow: hidden` makes one — a reveal inside an
+    overflow-hidden section silently never plays. Clip with
+    `overflow-clip` instead. Keep `.reveal` to blocks about a screen tall
+    or less.
+15. **In the reader, a finger on the page is not activity.** A tap toggles
+    the HUD (classified in `useReaderGestures`, beside swipe, pinch and
+    double-tap), a finger scroll DOWN hides it, and a scroll the controls
+    caused (the scrubber, Go to page, anything in `[data-reader-overlay]`)
+    never does. Mouse, pen and keyboard keep show-on-activity.
+
 Pinned by `lib/glass-tokens.test.ts`, `lib/nav/shell-routes.test.ts`,
+`components/layout/TopBarBack.test.tsx`, `lib/hooks/useSheetDrag.test.ts`,
+`components/ui/animations/reveal-css.test.ts`,
+`components/ui/reader/hooks/useAutoHideControls.test.ts`,
 `lib/mobile-field-zoom.test.ts`, `lib/error-boundaries.test.ts`,
 `components/ui/core/ErrorRecovery.test.tsx`,
 `components/layout/mobile-shell-parity.test.ts` and `e2e/mobile-shell.spec.ts`.
 
 ## 5. Not done here
+
+- `InfiniteBookGrid` (whose cards carry `.reveal`) is imported by nothing:
+  the real `/books` grid does not reveal. Extending `.reveal` to it, and to
+  theses, paths and posts, is open.
+- The Share grid (the fallback when the phone's own sheet is unavailable)
+  hand-rolls its sheet and its close button is 32 px; moving it onto
+  `GlassSheet` fixes both.
+- Several public components still hard-code English accessible names
+  (`GoogleSearchModal`, `AdvancedSearchModal`, the posts `ImageGallery`).
 
 - The `/books` and `/posts` filter sheets still hand-roll their sheet; they
   are candidates for `GlassSheet`.

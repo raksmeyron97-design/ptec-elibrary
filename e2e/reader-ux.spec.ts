@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { clearReaderBookmarks, installSeededReaderSession } from "./utils/auth";
 import { makeTestPdf } from "./utils/pdf";
+import { touchDrag } from "./utils/touch";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PDF reader UX — real pdf.js, real layout, a generated multi-page PDF.
@@ -267,6 +268,53 @@ test.describe("PDF reader", () => {
     await expect(sheet).toHaveCount(0);
   });
 
+  test("HUD buttons obey their breakpoint classes at both widths", async ({ page, isMobile }) => {
+    // The reader HUD draws two layouts from one markup: four controls marked
+    // `hidden md:inline-flex` (search, panel, theme, bookmark in the top bar)
+    // and three marked `md:hidden` (the page pill, and bookmark + panel in the
+    // bottom bar). An unlayered `.reader-btn { display: inline-flex }` beat
+    // both sets of utilities, so every width drew every control.
+    //
+    // `display` is asserted directly rather than through Playwright's
+    // visibility: that is the property the cascade bug corrupted, and it is
+    // also unaffected by the HUD's auto-hide, which only changes opacity.
+    test.skip(isMobile, "desktop project drives the viewport loop");
+    await openReader(page, isMobile);
+
+    for (const width of [390, 1280]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.waitForTimeout(400);
+      const controls = await page.evaluate(() =>
+        [...document.querySelectorAll('[data-reader-hud] [class*="reader-btn"]')].map((el) => ({
+          cls: el.className,
+          label: el.getAttribute("aria-label") ?? el.textContent?.trim().slice(0, 30) ?? "",
+          drawn: getComputedStyle(el).display !== "none",
+        })),
+      );
+      expect(controls.length, `HUD controls found at ${width}px`).toBeGreaterThan(0);
+
+      const phone = width < 768;
+      let desktopOnly = 0;
+      let phoneOnly = 0;
+      for (const c of controls) {
+        const where = `${c.label || c.cls} at ${width}px`;
+        if (/\bhidden\b/.test(c.cls) && /\bmd:inline-flex\b/.test(c.cls)) {
+          desktopOnly++;
+          expect(c.drawn, `desktop-only ${where}`).toBe(!phone);
+        } else if (/\bmd:hidden\b/.test(c.cls)) {
+          phoneOnly++;
+          expect(c.drawn, `phone-only ${where}`).toBe(phone);
+        } else {
+          expect(c.drawn, `unconditional ${where}`).toBe(true);
+        }
+      }
+      // Both sets must actually be present, or the assertions above hold
+      // vacuously and the layout could regress unseen.
+      expect(desktopOnly, `desktop-only controls at ${width}px`).toBeGreaterThan(0);
+      expect(phoneOnly, `phone-only controls at ${width}px`).toBeGreaterThan(0);
+    }
+  });
+
   test("no horizontal overflow at the narrow phone widths", async ({ page, isMobile }) => {
     test.skip(isMobile, "desktop project drives the viewport loop");
     await openReader(page, isMobile);
@@ -283,5 +331,170 @@ test.describe("PDF reader", () => {
       expect(overflow.doc, `document overflow at ${width}`).toBeLessThanOrEqual(0);
       expect(overflow.reader, `reader overflow at ${width}`).toBeLessThanOrEqual(0);
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Touch reads like a reading app (MUX-04): a finger on the page is not
+// "activity", a tap toggles the controls, scrolling the book down hides them,
+// and in single-page mode the outer fifth of the page turns it.
+//
+// Each state is established by a deliberate act and then read ONCE, never
+// polled across an auto-hide window (see the note on the inactivity spec).
+// Taps are spaced ≥ 350 ms apart: two closer than 300 ms are a double tap.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const hudHidden = async (page: Page) => (await topBar(page).getAttribute("inert")) !== null;
+const viewportTop = (page: Page) => page.locator(".reader-viewport").evaluate((el) => el.scrollTop);
+
+/** Wait out the idle timer, then bring the controls up with one tap. */
+async function showByTap(page: Page) {
+  const vp = page.viewportSize()!;
+  await expect(topBar(page)).toHaveAttribute("inert", "", { timeout: 8_000 });
+  await page.touchscreen.tap(vp.width / 2, vp.height / 2);
+  await page.waitForTimeout(150);
+  expect(await hudHidden(page), "one tap on the page shows the controls at once").toBe(false);
+  await page.waitForTimeout(400); // out of the double-tap window
+}
+
+test.describe("PDF reader on touch", () => {
+  test.slow();
+
+  test.beforeEach(({ isMobile, browserName }) => {
+    test.skip(!isMobile, "touch only");
+    test.skip(browserName !== "chromium", "CDP touch input is Chromium-only");
+  });
+
+  test("a tap on the page toggles the controls", async ({ page, isMobile }) => {
+    await openReader(page, isMobile);
+    const vp = page.viewportSize()!;
+    await showByTap(page);
+
+    const tapped = Date.now();
+    await page.touchscreen.tap(vp.width / 2, vp.height / 2);
+    await page.waitForTimeout(120);
+    // Hiding waits out the double-tap window, so a double-tap zoom never
+    // blinks the bars away and back…
+    expect(await hudHidden(page), "still up inside the double-tap window").toBe(false);
+    // …and then they go — well before the 3 s idle timer could have done it.
+    await expect(topBar(page)).toHaveAttribute("inert", "", { timeout: 1_500 });
+    expect(Date.now() - tapped).toBeLessThan(2_500);
+  });
+
+  test("a finger scroll down hides the controls; scrolling back up does not return them", async ({ page, isMobile }) => {
+    await openReader(page, isMobile);
+    const vp = page.viewportSize()!;
+    await showByTap(page);
+
+    const shown = Date.now();
+    const before = await viewportTop(page);
+    await touchDrag(page, { x: vp.width / 2, y: vp.height * 0.7 }, { x: vp.width / 2, y: vp.height * 0.3 });
+    await page.waitForTimeout(200);
+    expect(await viewportTop(page), "the finger really scrolled the book").toBeGreaterThan(before + 100);
+    expect(await hudHidden(page), "reading on hides the controls").toBe(true);
+    // Hidden by the scroll, not by the idle timer.
+    expect(Date.now() - shown).toBeLessThan(2_900);
+
+    await touchDrag(page, { x: vp.width / 2, y: vp.height * 0.3 }, { x: vp.width / 2, y: vp.height * 0.6 });
+    await page.waitForTimeout(200);
+    expect(await hudHidden(page), "scrolling back up leaves them hidden").toBe(true);
+  });
+
+  test("a finger scroll does not bring hidden controls back", async ({ page, isMobile }) => {
+    await openReader(page, isMobile);
+    const vp = page.viewportSize()!;
+    await expect(topBar(page)).toHaveAttribute("inert", "", { timeout: 8_000 });
+    await touchDrag(page, { x: vp.width / 2, y: vp.height * 0.7 }, { x: vp.width / 2, y: vp.height * 0.4 });
+    await page.waitForTimeout(150);
+    expect(await hudHidden(page)).toBe(true);
+  });
+
+  test("focus mode takes the whole screen, and leaving fullscreen leaves focus mode", async ({ page, isMobile }) => {
+    await openReader(page, isMobile);
+    await page.keyboard.press("Shift"); // bars up without a toggling tap
+    await page.getByRole("button", { name: "More options" }).click();
+    await page.getByRole("menuitemcheckbox", { name: "Focus reading" }).click();
+    await expect(reader(page)).toHaveAttribute("role", "dialog");
+    // Skip on the CAPABILITY, never on the outcome: skipping whenever
+    // fullscreen did not happen would turn a broken wiring into a skip.
+    test.skip(!(await page.evaluate(() => document.fullscreenEnabled)), "no element fullscreen in this browser");
+    await page.waitForFunction(() => document.fullscreenElement?.hasAttribute("data-reader-root") ?? false, null, { timeout: 5_000 });
+    // The system Back gesture, as the page sees it: fullscreen ends.
+    await page.evaluate(() => document.exitFullscreen());
+    await expect(reader(page)).not.toHaveAttribute("role", "dialog");
+  });
+
+  test("single-page mode: a tap on the page edge turns the page", async ({ page, isMobile }) => {
+    await openReader(page, isMobile);
+    const vp = page.viewportSize()!;
+    const pill = page.locator('[data-reader-hud="top"] button[aria-label^="Page "]');
+
+    await page.getByRole("button", { name: "More options" }).click();
+    await page.getByRole("menuitemradio", { name: "Single page" }).click();
+    await expect(pill).toHaveAttribute("aria-label", "Page 1 of 40");
+
+    await page.touchscreen.tap(vp.width * 0.92, vp.height / 2);
+    await expect(pill).toHaveAttribute("aria-label", "Page 2 of 40");
+    await page.waitForTimeout(400);
+    await page.touchscreen.tap(vp.width * 0.92, vp.height / 2);
+    await expect(pill).toHaveAttribute("aria-label", "Page 3 of 40");
+    await page.waitForTimeout(400);
+    await page.touchscreen.tap(vp.width * 0.08, vp.height / 2);
+    await expect(pill).toHaveAttribute("aria-label", "Page 2 of 40");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The phone page scrubber (MUX-05): one drag is one jump, committed on the
+// native `change`, and the jump it causes never hides the bars being used.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe("PDF reader scrubber on phones", () => {
+  test.slow();
+  test.beforeEach(({ isMobile }) => test.skip(!isMobile, "the scrubber is the phone bottom bar"));
+
+  const slider = (page: Page) => page.locator('[data-reader-hud="bottom"] input[type="range"]');
+  const pill = (page: Page) => page.locator('[data-reader-hud="top"] button[aria-label^="Page "]');
+  const pageOf = async (page: Page) => Number(/Page (\d+) of/.exec((await pill(page).getAttribute("aria-label")) ?? "")?.[1]);
+
+  test("a finger drag to three quarters lands there, once, and the bars stay up", async ({ page, isMobile, browserName }) => {
+    test.skip(browserName !== "chromium", "CDP touch input is Chromium-only");
+    await openReader(page, isMobile);
+    await showByTap(page);
+
+    const box = (await slider(page).boundingBox())!;
+    const y = box.y + box.height / 2;
+    // Record every page the reader reports while the finger moves: a
+    // scrubber that committed per step would walk the reader through them.
+    await pill(page).evaluate((el) => {
+      const seen: string[] = [];
+      (window as unknown as { __pages: string[] }).__pages = seen;
+      new MutationObserver(() => seen.push(el.getAttribute("aria-label") ?? "")).observe(el, { attributeFilter: ["aria-label"] });
+    });
+    // From the thumb at page 1 to 75 % of the track, lifted: one `change`.
+    await touchDrag(page, { x: box.x + 8, y }, { x: box.x + box.width * 0.75, y }, { steps: 20 });
+
+    await expect.poll(() => pageOf(page), { timeout: 10_000 }).toBeGreaterThan(20);
+    const landed = await pageOf(page);
+    expect(landed, "lands near three quarters of 40").toBeGreaterThanOrEqual(26);
+    expect(landed).toBeLessThanOrEqual(33);
+    await expect(page.locator(`[data-page="${landed}"] canvas`).first()).toBeVisible({ timeout: 30_000 });
+    // The jump scrolled the viewport; that scroll was the scrubber's doing.
+    expect(await hudHidden(page), "the bars being used stay up").toBe(false);
+    expect(await slider(page).getAttribute("aria-valuetext")).toBe(`Page ${landed} of 40`);
+    const walked = await page.evaluate(() => (window as unknown as { __pages: string[] }).__pages);
+    expect(walked, "one drag, one jump — the reader never visited the pages in between").toEqual([`Page ${landed} of 40`]);
+  });
+
+  test("ArrowRight on the focused slider commits one page", async ({ page, isMobile }) => {
+    await openReader(page, isMobile);
+    // A key brings the bars up without toggling them (a tap on bars already
+    // up would schedule a hide) and makes the focus a keyboard one.
+    await page.keyboard.press("Shift");
+    await slider(page).focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(pill(page)).toHaveAttribute("aria-label", "Page 2 of 40");
+    await page.keyboard.press("ArrowRight");
+    await expect(pill(page)).toHaveAttribute("aria-label", "Page 3 of 40");
   });
 });
