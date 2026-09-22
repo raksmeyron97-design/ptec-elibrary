@@ -189,13 +189,27 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
           .order(TIEBREAK, { ascending: true })
           .range(from, to),
     ),
-    fetchAllRows<{ slug: string; updated_at: string | null; created_at: string | null; description: string | null }>(
+    fetchAllRows<{
+      slug: string;
+      updated_at: string | null;
+      created_at: string | null;
+      description: string | null;
+      title: string | null;
+      author: string | null;
+      category: string | null;
+      department: string | null;
+      ddc: string | null;
+      publisher: string | null;
+      shelf_location: string | null;
+    }>(
       (from, to) =>
         supabase
           .from('catalog_books')
-          // `description` is selected only so the indexability gate can be
-          // asked. It is never emitted — see catalogUrls below.
-          .select('slug, updated_at, created_at, description')
+          // These columns are selected only so the indexability gate can be
+          // asked — a description is credited only when it says something the
+          // record's own fields do not. None of them is ever emitted; see
+          // catalogUrls below.
+          .select('slug, updated_at, created_at, description, title, author, category, department, ddc, publisher, shelf_location')
           .eq('is_active', true)
           .order('created_at', { ascending: false })
           .order(TIEBREAK, { ascending: true })
@@ -295,7 +309,18 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
   // page's `robots` meta asks the SAME function, so the sitemap cannot
   // advertise a URL that then answers `noindex`.
   const catalogUrls: MetadataRoute.Sitemap = catalogBooks
-    .filter((b) => isCatalogRecordIndexable({ description: b.description }))
+    .filter((b) =>
+      isCatalogRecordIndexable({
+        description: b.description,
+        title: b.title,
+        author: b.author,
+        category: b.category,
+        department: b.department,
+        ddc: b.ddc,
+        publisher: b.publisher,
+        shelfLocation: b.shelf_location,
+      }),
+    )
     .map((b) =>
       entry(`/catalogs/${b.slug}`, {
         lastModified: sitemapLastmod(b.updated_at, b.created_at),

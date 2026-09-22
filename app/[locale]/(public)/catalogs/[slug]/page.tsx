@@ -2,6 +2,7 @@
 import { Link } from "@/i18n/navigation";
 import { decodeSlugParam } from "@/lib/slug";
 import { catalogRobots } from "@/lib/catalogs/indexability";
+import { displayAuthorName } from "@/lib/catalogs/author-name";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
@@ -150,7 +151,20 @@ export async function generateMetadata({
     //
     // `follow` either way: the record's links to its subject and its copies
     // are still worth crawling, and the page still answers 200 to a reader.
-    robots: catalogRobots({ description: book.description }),
+    // The identity fields go WITH the description: a description is only
+    // credited when it says something these do not already say. Omitting
+    // them is not neutral — the gate would then have nothing to compare
+    // against and answers `noindex` rather than crediting a template.
+    robots: catalogRobots({
+      description: book.description,
+      title: book.title,
+      author: book.author,
+      category: book.category,
+      department: book.department,
+      ddc: book.ddc,
+      publisher: book.publisher,
+      shelfLocation: book.shelf_location,
+    }),
     openGraph,
     twitter: buildTwitter({
       card: "summary_large_image",
@@ -217,6 +231,13 @@ export default async function CatalogBookPage({
 
   const related = await fetchRelated(b.id, b.category, b.author);
 
+  // The column is catalogued surname-first ("Martin, Ann M."); a reader is
+  // shown "Ann M. Martin". Computed ONCE so the visible byline, the
+  // JSON-LD Person and the metadata row can never disagree. A byline that
+  // does not state where its surname ends comes back unchanged — see
+  // lib/catalogs/author-name.ts.
+  const authorDisplay = displayAuthorName(b.author);
+
   // Hero/accent tint comes from the deterministic category theme, so records
   // with and without real covers share the same visual identity.
   const coverTheme = getCategoryCoverTheme(b.category);
@@ -236,8 +257,8 @@ export default async function CatalogBookPage({
     name: b.title,
     url: `${SITE_URL}/catalogs/${b.slug}`,
     inLanguage: b.language || undefined,
-    author: contributorNodes(b.author, org).length > 0
-      ? contributorNodes(b.author, org)
+    author: contributorNodes(authorDisplay, org).length > 0
+      ? contributorNodes(authorDisplay, org)
       : undefined,
     isbn: b.isbn || undefined,
     datePublished: b.year ? String(b.year) : undefined,
@@ -252,7 +273,7 @@ export default async function CatalogBookPage({
     // omits the row reads as "we forgot to fill this in". The placeholder is
     // a LABEL — the database stores null, and the JSON-LD below emits no
     // author node at all, so nothing machine-readable claims a person.
-    { label: t("detail.author"),      value: b.author || t("detail.noAuthorListed") },
+    { label: t("detail.author"),      value: authorDisplay || t("detail.noAuthorListed") },
     { label: t("detail.language"),    value: langLabel(b.language) },
     { label: t("detail.year"),        value: b.year },
     { label: t("detail.isbn"),        value: formatIsbn(b.isbn) },
@@ -323,7 +344,7 @@ export default async function CatalogBookPage({
                 <SmartBookCover
                   coverUrl={b.cover_url}
                   title={b.title}
-                  author={b.author}
+                  author={authorDisplay}
                   category={b.category}
                   callNumber={b.shelf_location}
                   seed={b.slug}
@@ -411,12 +432,12 @@ export default async function CatalogBookPage({
               <h1 className="font-khmer-serif text-2xl font-bold leading-tight text-text-heading md:text-[28px]">
                 {b.title}
               </h1>
-              {b.author && (
+              {authorDisplay && (
                 <p className="mt-2 flex items-center gap-1.5 text-base font-medium text-text-muted">
                   <svg className="h-4 w-4 shrink-0 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
                   </svg>
-                  {b.author}
+                  {authorDisplay}
                   {b.year ? <span className="text-text-muted">· {b.year}</span> : null}
                 </p>
               )}
@@ -615,7 +636,7 @@ export default async function CatalogBookPage({
                             {r.title}
                           </p>
                           <p className="mt-0.5 truncate text-[11px] text-text-muted">
-                            {r.author}{r.year ? ` · ${r.year}` : ""}
+                            {displayAuthorName(r.author)}{r.year ? ` · ${r.year}` : ""}
                           </p>
                         </div>
                       </Link>

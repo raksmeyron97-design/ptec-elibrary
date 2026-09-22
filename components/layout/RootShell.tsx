@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { toInternationalKhPhone } from "@/lib/seo/phone";
 import { getMessages, getTranslations } from "next-intl/server";
 
 // The site stylesheet. This used to be imported by app/layout.tsx; when that
@@ -104,7 +105,7 @@ function buildSiteGraph(cfg: SiteConfig) {
         alternateName: cfg.name.short,
         url: cfg.links.website,
         logo: `${SITE_URL}/logo.png`,
-        telephone: cfg.phone,
+        telephone: toInternationalKhPhone(cfg.phone),
         email: cfg.email,
         // Its own site is `url` above; repeating it here says nothing.
         sameAs: profilesFor(cfg, cfg.links.website),
@@ -117,7 +118,7 @@ function buildSiteGraph(cfg: SiteConfig) {
         name: cfg.seo.siteName,
         url: SITE_URL,
         image: `${SITE_URL}/logo.png`,
-        telephone: cfg.phone,
+        telephone: toInternationalKhPhone(cfg.phone),
         email: cfg.email,
         // The published site description — same text search engines see in
         // the meta description, so the two can never disagree.
