@@ -1,8 +1,8 @@
 "use client";
 
 // components/layout/MobileBottomNav.tsx
-// The phone tab bar: Home · Explore · Search · Saved · More, on a floating
-// glass pill (docs/MOBILE-GLASS-UI.md). Below `lg` only — the desktop header
+// The phone tab bar: Home · Explore · Search · Saved · More, docked to the
+// bottom edge (docs/MOBILE-GLASS-UI.md). Below `lg` only — the desktop header
 // is untouched.
 //
 // WHY THESE FIVE. Search is the centre, raised tab because finding a book is
@@ -205,9 +205,23 @@ export default function MobileBottomNav({ hours, contact }: MobileBottomNavProps
       <nav
         aria-label={t("tabBarLabel")}
         onContextMenu={(event) => event.preventDefault()}
-        className="glass-surface glass-surface--strong fixed inset-x-2.5 bottom-[calc(var(--ptec-mobile-nav-gap)+env(safe-area-inset-bottom,0px))] z-50 mx-auto h-[var(--ptec-mobile-nav-height)] max-w-md select-none rounded-[24px] p-1 [-webkit-touch-callout:none] lg:hidden print:hidden"
+        // Docked, full width, flush with the bottom edge: the surface runs
+        // under the home indicator (pb = the safe-area inset) and a hairline
+        // on top is the only edge, as on every native tab bar. The tabs keep
+        // their max-w-md row, centred on wide phones and small tablets.
+        //
+        // The hairline is --ptec-glass-edge, not --ptec-glass-border: the
+        // border token is white at 72% in the light theme and invisible
+        // against a white page. It is a SHADOW so it costs no layout — a 1px
+        // border would make the bar taller than the clearance token reserves.
+        // Forced colours drops box-shadows, so the top border comes back
+        // there (the old floating pill was bordered on all four sides, and
+        // .glass-surface's forced-colours rule already colours it CanvasText).
+        className="glass-surface glass-surface--strong fixed inset-x-0 bottom-0 z-50 select-none rounded-none border-0 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-1px_0_var(--ptec-glass-edge)] forced-colors:border-t [-webkit-touch-callout:none] lg:hidden print:hidden"
       >
-        <div className="relative h-full">
+        {/* The tab row: the old pill's content box (64px tall less its 4px
+            inset, 28rem wide less the same), centred in the full-width bar. */}
+        <div className="relative mx-auto my-1 h-[calc(var(--ptec-mobile-nav-height)-0.5rem)] w-[calc(100%-0.5rem)] max-w-[27.5rem]">
           {/* The sliding indicator. It mirrors TabFace's column (icon slot +
               an invisible label line) so the pill lands exactly behind the
               icon at any label height, and it moves by transform only. The
