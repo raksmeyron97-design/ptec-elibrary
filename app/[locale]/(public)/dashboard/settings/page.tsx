@@ -1,3 +1,4 @@
+import { resolveAvatarUrl, resolveFullName } from "@/lib/auth/oauth-avatar";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import SettingsClient from "./SettingsClient";
@@ -52,8 +53,10 @@ export default async function SettingsPage({
   const userInfo = {
     id: user.id,
     email: user.email || "",
-    full_name: profile?.full_name || user.user_metadata?.full_name || null,
-    avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url || null,
+    full_name: resolveFullName(profile?.full_name, user.user_metadata),
+    // Reading `avatar_url` alone missed every account where GoTrue recorded
+    // the OIDC `picture` claim instead.
+    avatar_url: resolveAvatarUrl(profile?.avatar_url, user.user_metadata),
   };
 
   const translations: Record<string, string> = {

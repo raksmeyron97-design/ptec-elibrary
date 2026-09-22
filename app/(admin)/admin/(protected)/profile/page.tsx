@@ -4,6 +4,7 @@ import AdminProfileClient from "@/components/admin/AdminProfileClient";
 import type { Metadata } from "next";
 import type { TeamMemberData, TeamSectionData } from "@/components/admin/AdminProfileClient";
 import { requireRouteAccess } from "@/lib/admin/route-guard";
+import { resolveAvatarUrl, resolveFullName } from "@/lib/auth/oauth-avatar";
 
 export const metadata: Metadata = {
   title: "My Profile — Admin",
@@ -70,8 +71,8 @@ export default async function AdminProfilePage() {
         user={{
           id: user.id,
           email: user.email ?? "",
-          full_name: profile?.full_name ?? null,
-          avatar_url: profile?.avatar_url ?? null,
+          full_name: resolveFullName(profile?.full_name, user.user_metadata),
+          avatar_url: resolveAvatarUrl(profile?.avatar_url, user.user_metadata),
         }}
         teamMember={teamMember}
         sections={sections}

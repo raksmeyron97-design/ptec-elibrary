@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { redirect } from "next/navigation";
+import { resolveAvatarUrl, resolveFullName } from "@/lib/auth/oauth-avatar";
 import { createClient } from "@/lib/supabase/server";
 import { getSavedBooks } from "@/app/actions/saved-books";
 import { getMyReadingLists } from "@/app/actions/reading-lists";
@@ -129,10 +130,9 @@ export default async function DashboardPage() {
   const profile  = profileResult.data;
   const progress = progressResult.data ?? [];
 
-  const googleAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture;
-  const googleName   = user.user_metadata?.full_name  || user.user_metadata?.name;
-  const avatarUrl    = profile?.avatar_url ?? googleAvatar ?? null;
-  const displayName  = profile?.full_name || googleName || profile?.email || user.email || "Reader";
+  const avatarUrl    = resolveAvatarUrl(profile?.avatar_url, user.user_metadata);
+  const displayName  =
+    resolveFullName(profile?.full_name, user.user_metadata) ?? profile?.email ?? user.email ?? "Reader";
   const isAdmin      = ADMIN_PANEL_ROLES.includes(profile?.role as AppRole);
 
   const inProgress = progress.filter((p) => p.progress_pct < 100);

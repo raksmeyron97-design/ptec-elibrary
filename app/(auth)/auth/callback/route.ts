@@ -4,7 +4,13 @@ import { verifySignup } from "@/app/actions/auth";
 import { createAdminNotification } from "@/lib/admin-notifications";
 import { safeReturnTo } from "@/lib/security/return-to";
 import { canonicalOrigin } from "@/lib/site-origin";
+import {
+  providerAvatarMayReplace,
+  providerAvatarUrl,
+  providerFullName,
+} from "@/lib/auth/oauth-avatar";
 import type { EmailOtpType } from "@supabase/supabase-js";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 // The PKCE `code` path runs on every OAuth sign-in, so guard the "new user"
 // admin notification to genuinely fresh accounts (created in the last 5 minutes)
@@ -13,6 +19,59 @@ function isFreshSignup(createdAt?: string): boolean {
   if (!createdAt) return false;
   const ageMs = Date.now() - new Date(createdAt).getTime();
   return ageMs >= 0 && ageMs < 5 * 60 * 1000;
+}
+
+/**
+ * Persist the identity provider's photo and name into `public.profiles`.
+ *
+ * `handle_new_user()` copies only id/email/full_name out of
+ * `raw_user_meta_data`, so `profiles.avatar_url` is NULL for every Google
+ * account. The read paths fall back to auth metadata for the signed-in reader
+ * and for anything the admin API can reach, but the surfaces that JOIN the
+ * profile row for OTHER people — review lists, the admin activity log, the
+ * mobile nav — have no metadata to fall back to. This is what fills the column
+ * for them.
+ *
+ * Three rules:
+ *  - An uploaded avatar is never overwritten (`providerAvatarMayReplace`); a
+ *    photo we put there ourselves IS refreshed, because Google's URLs rotate.
+ *  - A name is only filled when the row has none. A reader who renamed
+ *    themselves in Settings must not be renamed back by Google on next login.
+ *  - Failure is silent. This is a nicety attached to a sign-in; a write that
+ *    fails must not cost the reader their session.
+ *
+ * Runs on the reader's own client, not the service role: `profiles` already
+ * allows a self-update, and `tr_prevent_role_update` still guards role.
+ */
+async function syncProviderProfile(
+  supabase: SupabaseClient,
+  user: User,
+): Promise<void> {
+  const avatar = providerAvatarUrl(user.user_metadata);
+  const name = providerFullName(user.user_metadata);
+  if (!avatar && !name) return;
+
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, avatar_url")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (!profile) return;
+
+    const updates: { avatar_url?: string; full_name?: string } = {};
+    if (avatar && providerAvatarMayReplace(profile.avatar_url as string | null)) {
+      if (avatar !== profile.avatar_url) updates.avatar_url = avatar;
+    }
+    if (name && !(profile.full_name as string | null)?.trim()) {
+      updates.full_name = name;
+    }
+    if (!Object.keys(updates).length) return;
+
+    await supabase.from("profiles").update(updates).eq("id", user.id);
+  } catch {
+    /* A profile that did not take the photo still has a working session. */
+  }
 }
 
 export async function GET(request: Request) {
@@ -51,6 +110,7 @@ export async function GET(request: Request) {
         return NextResponse.redirect(`${origin}/auth/login?error=admin_signup_blocked`);
       }
       const { data: { user: newUser } } = await supabase.auth.getUser();
+      if (newUser) await syncProviderProfile(supabase, newUser);
       if (newUser?.email && isFreshSignup(newUser.created_at)) {
         await createAdminNotification("new_user", `New user registered: ${newUser.email}`, undefined, "/admin/users");
       }
@@ -65,6 +125,7 @@ export async function GET(request: Request) {
         return NextResponse.redirect(`${origin}/auth/login?error=admin_signup_blocked`);
       }
       const { data: { user: newUser } } = await supabase.auth.getUser();
+      if (newUser) await syncProviderProfile(supabase, newUser);
       if (newUser?.email && isFreshSignup(newUser.created_at)) {
         await createAdminNotification("new_user", `New user registered: ${newUser.email}`, undefined, "/admin/users");
       }
