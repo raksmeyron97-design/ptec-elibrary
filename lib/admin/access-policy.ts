@@ -330,6 +330,10 @@ export const ACTION_POLICIES: Readonly<Record<string, Requirement>> = {
   "books.bulk": perm("books", "write"),
   "books.replaceFile": perm("books", "write"),
   "books.retireDuplicate": perm("books", "write"),
+  /* Recording "these are not duplicates" writes no book — but it hides a group
+     from every other reviewer's queue, so it is the same bar as the retire it
+     stands opposite. */
+  "books.dismissDuplicate": perm("books", "write"),
   /* Editorial curation — the "Featured by PTEC Library" shelf (0149).
      One id for feature, unfeature and reorder: all three are the same
      authority over the same public surface, and splitting them would create

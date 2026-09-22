@@ -25,6 +25,7 @@ import { logAdminAction } from "@/app/actions/audit";
 import { rateLimit } from "@/lib/rate-limit";
 import { clientIpOrUndefined } from "@/lib/client-ip";
 import { EBOOKS_BASE_PATH, EBOOKS_DUPLICATES_PATH } from "@/lib/admin/ebooks-url";
+import { duplicateGroupFingerprint } from "@/lib/admin/duplicate-dismissal";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const REVALIDATE_PATHS = [EBOOKS_BASE_PATH, EBOOKS_DUPLICATES_PATH, "/admin", "/books", "/"];
@@ -140,4 +141,136 @@ export async function retireDuplicateBook(input: {
   REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
 
   return { success: true, redirectFrom: retired.slug, redirectTo: canonical.slug };
+}
+
+// ── "These are not duplicates" ──────────────────────────────────────────────
+//
+// The queue is DERIVED: detection re-runs over the whole collection on every
+// page load, so a group nobody retires comes back forever. Before this, the
+// only way to make a group leave was to archive a record — the page rewarded
+// retiring a book over correctly deciding not to. Dismissal is the other
+// verdict, and it is reversible: the row is a memo, not a state change on any
+// book. Nothing about the records themselves is touched.
+
+const MAX_DISMISSAL_NOTE = 500;
+const MAX_GROUP_MEMBERS = 50;
+
+type DismissResult = { success: true } | { success: false; error: string };
+
+/**
+ * Remember that this exact set of records has been reviewed and is not a
+ * duplicate.
+ *
+ * The fingerprint is RECOMPUTED here from the ids rather than taken from the
+ * client: it is a derived value, and a derived value accepted from a caller is
+ * a value the caller chose. Restoring goes the other way (see below) because
+ * there the fingerprint is the row's own key.
+ *
+ * It deliberately does NOT re-run detection to prove the ids really group. That
+ * would re-scan the collection to defend against an actor who already holds
+ * books:write — i.e. who can archive these books outright — and the worst a
+ * fabricated set can do is leave an inert row that no real group ever matches.
+ * The ids are checked to EXIST, so a typo cannot bury a live group by accident.
+ */
+export async function dismissDuplicateGroup(input: {
+  bookIds: string[];
+  note?: string;
+}): Promise<DismissResult> {
+  const bookIds = [...new Set(input.bookIds ?? [])];
+  if (bookIds.length < 2 || bookIds.length > MAX_GROUP_MEMBERS) {
+    return { success: false, error: "A duplicate group must name between 2 and 50 records." };
+  }
+  if (!bookIds.every((id) => UUID_RE.test(id))) {
+    return { success: false, error: "Invalid book id." };
+  }
+  const note = input.note?.trim().slice(0, MAX_DISMISSAL_NOTE) || null;
+
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
+  try {
+    admin = await requirePermission("books", "write");
+    const { success } = await rateLimit(`dup-dismiss:${admin.user.id}`, 60, 60_000);
+    if (!success) throw new Error("Too many changes — please wait a moment and try again.");
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+  const { supabase, user } = admin;
+
+  const { data: found, error: lookupErr } = await supabase.from("books").select("id").in("id", bookIds);
+  if (lookupErr) return { success: false, error: lookupErr.message };
+  if ((found?.length ?? 0) !== bookIds.length) {
+    return { success: false, error: "One of the records no longer exists — refresh and try again." };
+  }
+
+  const fingerprint = duplicateGroupFingerprint(bookIds);
+  // Upsert, not insert: dismissing a group twice (two tabs, a double click) is
+  // the same statement made twice, not an error to show a librarian.
+  const { error: writeErr } = await supabase
+    .from("duplicate_dismissals")
+    .upsert(
+      { fingerprint, book_ids: bookIds, note, dismissed_by: user.id, dismissed_at: new Date().toISOString() },
+      { onConflict: "fingerprint" },
+    );
+  if (writeErr) {
+    const msg = writeErr.message.includes("duplicate_dismissals")
+      ? "The dismissals table is missing — apply migration 0153_duplicate_dismissals.sql first."
+      : writeErr.message;
+    return { success: false, error: msg };
+  }
+
+  const meta = await requestMeta();
+  await logAdminAction(user.id, "book.duplicate_group_dismissed", "books", bookIds[0], {
+    fingerprint,
+    bookIds,
+    records: bookIds.length,
+    note,
+    ...meta,
+  });
+
+  // Only the queue changes — no book's status, slug or visibility moved, so the
+  // public cache is deliberately left alone.
+  revalidatePath(EBOOKS_DUPLICATES_PATH);
+  return { success: true };
+}
+
+/** Put a dismissed group back in the queue. Keyed by the row's own primary key,
+ *  and safe in the only direction it can fail: a wrong fingerprint deletes
+ *  nothing, and a right one only ever makes a group visible again. */
+export async function restoreDuplicateGroup(input: { fingerprint: string }): Promise<DismissResult> {
+  const fingerprint = (input.fingerprint ?? "").trim().toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(fingerprint)) {
+    return { success: false, error: "Invalid dismissal reference." };
+  }
+
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
+  try {
+    admin = await requirePermission("books", "write");
+    const { success } = await rateLimit(`dup-dismiss:${admin.user.id}`, 60, 60_000);
+    if (!success) throw new Error("Too many changes — please wait a moment and try again.");
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+  const { supabase, user } = admin;
+
+  // A delete that matched nothing has still reached the requested state, but the
+  // audit trail must not claim a restore that did not happen — so the row is
+  // asked for on the way out.
+  const { data: removed, error: deleteErr } = await supabase
+    .from("duplicate_dismissals")
+    .delete()
+    .eq("fingerprint", fingerprint)
+    .select("fingerprint, book_ids");
+  if (deleteErr) return { success: false, error: deleteErr.message };
+  if (!removed || removed.length === 0) {
+    return { success: false, error: "That group is already back in the queue." };
+  }
+
+  const meta = await requestMeta();
+  await logAdminAction(user.id, "book.duplicate_group_restored", "books", removed[0].book_ids?.[0], {
+    fingerprint,
+    bookIds: removed[0].book_ids,
+    ...meta,
+  });
+
+  revalidatePath(EBOOKS_DUPLICATES_PATH);
+  return { success: true };
 }

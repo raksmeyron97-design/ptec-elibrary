@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import type { DuplicateBook, DuplicateGroup } from "./duplicates";
+import enMessages from "@/messages/en.json";
 import {
+  DUPLICATE_COMPARE_FIELDS,
   DUPLICATE_SORTS,
+  compareDuplicateGroup,
   SIGNAL_DISPLAY_ORDER,
   filterDuplicateGroups,
   isStrongSignal,
@@ -178,5 +181,98 @@ describe("URL state parsing", () => {
 
   it("accepts every sort it advertises", () => {
     for (const sort of DUPLICATE_SORTS) expect(parseSort(sort)).toBe(sort);
+  });
+});
+
+describe("compareDuplicateGroup", () => {
+  const book = (partial: Partial<Parameters<typeof compareDuplicateGroup>[0][number]> = {}) => ({
+    isbn: null,
+    year: null,
+    author: null,
+    pages: null,
+    fileSizeKb: null,
+    contentHash: null,
+    ...partial,
+  });
+
+  it("separates what agrees from what provably differs", () => {
+    const result = compareDuplicateGroup([
+      book({ pages: 250, fileSizeKb: 4636, year: 2019, author: "MoEYS" }),
+      book({ pages: 733, fileSizeKb: 20088, year: 2019, author: "MoEYS" }),
+    ]);
+    expect(result.differ).toEqual(expect.arrayContaining(["pages", "fileSize"]));
+    expect(result.agree).toEqual(expect.arrayContaining(["year", "author"]));
+  });
+
+  it("reports a field no record can answer as UNCOMPARABLE, never as agreement", () => {
+    // The rule that recurs across this codebase: "we could not look" and "they
+    // match" are opposite statements, and a reviewer reading a green "identical
+    // ISBN" over two books that have no ISBN at all is being told the strongest
+    // possible thing by the weakest possible evidence.
+    const result = compareDuplicateGroup([book({ pages: 10 }), book({ pages: 10 })]);
+    expect(result.unknown).toContain("isbn");
+    expect(result.agree).not.toContain("isbn");
+    expect(result.differ).not.toContain("isbn");
+  });
+
+  it("treats a field ONE record leaves blank as uncomparable, not as a difference", () => {
+    const result = compareDuplicateGroup([book({ pages: 120 }), book({ pages: null })]);
+    expect(result.unknown).toContain("pages");
+    expect(result.differ).not.toContain("pages");
+  });
+
+  it("folds ISBN forms before comparing, so one book is not two", () => {
+    const result = compareDuplicateGroup([
+      book({ isbn: "978-0-13-268963-7" }),
+      book({ isbn: "9780132689637" }),
+    ]);
+    expect(result.agree).toContain("isbn");
+  });
+
+  it("compares nothing for a group that is not a group", () => {
+    const result = compareDuplicateGroup([book({ pages: 10 })]);
+    expect(result).toEqual({ agree: [], differ: [], unknown: [] });
+  });
+
+  it("assigns every comparable field to exactly one bucket", () => {
+    const result = compareDuplicateGroup([
+      book({ pages: 10, year: 2020 }),
+      book({ pages: 12, year: 2020 }),
+    ]);
+    const all = [...result.agree, ...result.differ, ...result.unknown];
+    expect([...all].sort()).toEqual([...DUPLICATE_COMPARE_FIELDS].sort());
+    expect(new Set(all).size).toBe(all.length);
+  });
+});
+
+describe("comparison labels never restate the detector's evidence", () => {
+  // Two chips sit in the same card: one says why the records were GROUPED, the
+  // other says how they compare. Rendering the same words in both is how a
+  // reviewer reads a corroborating signal as a second, independent one — and
+  // it is a real collision, not a hypothetical: `signals.content-hash` and an
+  // earlier "Same {field}" template both produced "Same PDF file".
+  for (const locale of ["en", "km"] as const) {
+    it(`holds in ${locale}`, async () => {
+      const messages = (await import(`@/messages/${locale}.json`)).default as {
+        adminDuplicates: {
+          signals: Record<string, string>;
+          fields: Record<string, string>;
+          comparison: Record<string, string>;
+        };
+      };
+      const ns = messages.adminDuplicates;
+      const rendered = Object.values(ns.comparison)
+        .filter((template) => template.includes("{field}"))
+        .flatMap((template) => Object.values(ns.fields).map((field) => template.replace("{field}", field)));
+      const signals = new Set(Object.values(ns.signals));
+      expect(rendered.filter((text) => signals.has(text))).toEqual([]);
+    });
+  }
+
+  it("has a label for every field the comparison can name", () => {
+    const en = enMessages.adminDuplicates as unknown as { fields: Record<string, string> };
+    for (const field of DUPLICATE_COMPARE_FIELDS) {
+      expect(en.fields[field], `missing adminDuplicates.fields.${field}`).toBeTruthy();
+    }
   });
 });

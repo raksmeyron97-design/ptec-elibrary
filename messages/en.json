@@ -4952,6 +4952,11 @@
     "description": "Probable duplicate books, grouped by a shared ISBN, an identical PDF file, or a matching title with a corroborating signal. Nothing is merged automatically — choose the record to keep, then retire the others.",
     "refresh": "Refresh",
     "refreshing": "Refreshing…",
+    "incomplete": "The collection could not be read in full, so this queue is based on part of the library. Groups shown are real; groups missing may simply not have been scanned. Refresh to try again.",
+    "scanFailed": {
+      "title": "The collection could not be scanned",
+      "description": "Reading the library failed part-way through, so no duplicate check was completed. This does not mean the library is clean — refresh to try again."
+    },
     "summary": {
       "aria": "Duplicate queue overview",
       "filterHint": "Filter the queue to these groups",
@@ -5057,6 +5062,52 @@
     "toasts": {
       "retired": "Retired — /books/{from} now redirects to /books/{to}",
       "failed": "Could not retire the record — refresh the page and review the group again."
+    },
+    "views": {
+      "aria": "Duplicate queue views",
+      "queue": "Review queue",
+      "dismissed": "Dismissed"
+    },
+    "comparison": {
+      "title": "How these records compare",
+      "differ": "Different {field}",
+      "agree": "Identical {field}",
+      "unknown": "No {field} to compare",
+      "differsSr": "differs from the other records in this group"
+    },
+    "fields": {
+      "isbn": "ISBN",
+      "pages": "page count",
+      "fileSize": "file size",
+      "year": "year",
+      "author": "author"
+    },
+    "dismissDialog": {
+      "prompt": "Reviewed these and they are different books?",
+      "action": "Not duplicates",
+      "title": "Mark as not duplicates",
+      "lead": "These {count} records will be removed from the review queue. No book is archived, unpublished, redirected or changed in any way.",
+      "effectHide": "The group leaves this queue for everyone",
+      "effectKeep": "Every record stays published exactly as it is",
+      "effectUndo": "Reversible at any time from the Dismissed tab",
+      "noteLabel": "Why are these different? (optional)",
+      "notePlaceholder": "e.g. separate grade levels — the titles are cut off",
+      "noteHint": "Shown to whoever reviews the dismissal later.",
+      "confirm": "Mark as not duplicates",
+      "busy": "Saving…",
+      "done": "Group dismissed — it will not appear in the queue again."
+    },
+    "dismissals": {
+      "lead": "Groups someone has reviewed and judged not to be duplicates. Restoring one puts it back in the queue; nothing here has changed any book.",
+      "on": "dismissed {date}",
+      "restore": "Restore to queue",
+      "restoring": "Restoring…",
+      "restored": "Group restored to the review queue.",
+      "recordGone": "This record no longer exists",
+      "emptyTitle": "Nothing dismissed yet",
+      "emptyDescription": "When you mark a group as not duplicates, it moves here so you can undo it later.",
+      "unavailableTitle": "Dismissals could not be read",
+      "unavailable": "Dismissed groups could not be read, so any group previously dismissed is showing in the queue again. Nothing has been lost — refresh to try again."
     }
   },
   "adminDataQuality": {

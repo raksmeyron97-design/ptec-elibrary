@@ -161,3 +161,87 @@ export function sortDuplicateGroups(groups: readonly DuplicateGroup[], sort: Dup
       return list;
   }
 }
+
+// ── Comparing the records inside a group ────────────────────────────────────
+
+/**
+ * The fields a reviewer compares by eye before deciding anything. Ordered
+ * strongest-evidence-first, which is also how the UI reads them out.
+ *
+ * The content hash is deliberately NOT one of them, in either direction. Two
+ * PDFs of one book differ in hash whenever either was re-scanned, re-compressed
+ * or re-saved, so "different PDF file" is true of almost every pair and says
+ * nothing about whether they are the same work — measured on production, not one
+ * of 73 groups shared a hash, so the chip would have appeared on all 73 and
+ * carried no information on any. The other direction is already covered: a
+ * byte-identical pair is the `content-hash` SIGNAL, which the evidence strip
+ * states as a match, and repeating it here would read as a second, independent
+ * confirmation of a single fact.
+ */
+export const DUPLICATE_COMPARE_FIELDS = ["isbn", "pages", "fileSize", "year", "author"] as const;
+export type DuplicateCompareField = (typeof DUPLICATE_COMPARE_FIELDS)[number];
+
+/**
+ * A three-way read-out of one group: which comparable fields AGREE across every
+ * record, which provably DIFFER, and which could not be compared because some
+ * record leaves them blank.
+ *
+ * Three buckets rather than two, for the reason that recurs all over this
+ * codebase: "we could not look" is not "they match". A group where two of five
+ * records have no page count must not report its page counts as agreeing, and
+ * must not report them as differing either.
+ *
+ * This asserts NOTHING about whether the group is a duplicate, and deliberately
+ * feeds no threshold. Measured on production 2026-09-22, the page-count spread
+ * inside genuine duplicate groups and inside groups of distinct volumes filed
+ * under one truncated title overlaps almost completely (p50 1.29 vs 1.45, p90
+ * 3.38 vs 3.39) — so a rule that demoted confidence on "the documents differ"
+ * would be tuned on noise, and would fire on 70 of 73 groups besides. What the
+ * reviewer was missing is not a verdict, it is the ability to SEE the numbers
+ * side by side; that is all this produces.
+ */
+export type DuplicateComparison = {
+  agree: DuplicateCompareField[];
+  differ: DuplicateCompareField[];
+  unknown: DuplicateCompareField[];
+};
+
+type ComparableBook = {
+  isbn: string | null;
+  year: number | null;
+  author: string | null;
+  pages: number | null;
+  fileSizeKb: number | null;
+};
+
+/** The comparison value for one field, or null when this record cannot answer. */
+function fieldValue(book: ComparableBook, field: DuplicateCompareField): string | null {
+  switch (field) {
+    case "isbn":
+      // Folded, so a hyphenated ISBN-13 and its bare ISBN-10 are one value.
+      return normalizeIsbn(book.isbn);
+    case "pages":
+      return book.pages && book.pages > 0 ? String(book.pages) : null;
+    case "fileSize":
+      return book.fileSizeKb && book.fileSizeKb > 0 ? String(book.fileSizeKb) : null;
+    case "year":
+      return book.year && book.year > 0 ? String(book.year) : null;
+    case "author":
+      return book.author?.trim().toLowerCase() || null;
+  }
+}
+
+export function compareDuplicateGroup(books: readonly ComparableBook[]): DuplicateComparison {
+  const result: DuplicateComparison = { agree: [], differ: [], unknown: [] };
+  if (books.length < 2) return result;
+
+  for (const field of DUPLICATE_COMPARE_FIELDS) {
+    const values = books.map((book) => fieldValue(book, field));
+    if (values.some((value) => value === null)) {
+      result.unknown.push(field);
+      continue;
+    }
+    (new Set(values).size === 1 ? result.agree : result.differ).push(field);
+  }
+  return result;
+}
