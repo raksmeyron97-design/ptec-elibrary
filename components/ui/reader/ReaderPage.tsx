@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useEffect, useRef } from "react";
 import { Page } from "react-pdf";
-import { SCROLL_PAGE_Y } from "@/lib/reader/geometry";
+import { SCROLL_PAGE_Y, SCROLL_ROW_PAD_X } from "@/lib/reader/geometry";
 
 export type PageColors = { background: string; foreground: string };
 
@@ -85,9 +85,10 @@ const ReaderPage = memo(function ReaderPage({
   return (
     <div
       data-page={pageNumber}
-      className="w-full px-1"
+      className="w-full"
       style={{
         boxSizing: "border-box",
+        paddingInline: SCROLL_ROW_PAD_X,
         height: estHeight + SCROLL_PAGE_Y,
         paddingBottom: SCROLL_PAGE_Y / 2,
         paddingTop: SCROLL_PAGE_Y / 2,

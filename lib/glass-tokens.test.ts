@@ -153,6 +153,20 @@ describe("the phone shell's geometry is declared once", () => {
     expect(CSS).toMatch(/@media \(min-width: 64rem\)\s*\{\s*:root\s*\{\s*--ptec-mobile-nav-clearance:\s*0px;/);
   });
 
+  it("docks the tab bar to the bottom edge: no gap under it, the home indicator inside it", () => {
+    // It used to float 10px above the safe-area inset, so on an iPhone 44px
+    // of page showed under the bar. Docked, the clearance is the bar's height
+    // plus the inset, and the bar pads the inset rather than sitting on it.
+    const clearance = tokenValue(LIGHT, "--ptec-mobile-nav-clearance");
+    expect(clearance.replace(/\s+/g, "")).toBe("calc(var(--ptec-mobile-nav-height)+env(safe-area-inset-bottom,0px))");
+    expect(CSS).not.toMatch(/--ptec-mobile-nav-gap/);
+    const nav = fs.readFileSync(path.join(ROOT, "components", "layout", "MobileBottomNav.tsx"), "utf8");
+    const navClass = nav.match(/<nav[\s\S]*?className="([^"]+)"/)?.[1] ?? "";
+    for (const cls of ["fixed", "inset-x-0", "bottom-0", "rounded-none", "pb-[env(safe-area-inset-bottom,0px)]"]) {
+      expect(navClass.split(/\s+/)).toContain(cls);
+    }
+  });
+
   it("no component hand-writes the tab bar's height any more", () => {
     // Every one of these was a private copy of "64px tall, plus the home
     // indicator": 64px, 4.5rem, 5.5rem, 76px + 14px. They drifted apart by

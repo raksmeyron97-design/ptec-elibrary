@@ -125,14 +125,17 @@
   --ptec-glass-ink-border: rgba(255, 255, 255, .18);
 
   /* ── The phone shell ─────────────────────────────────────────────
-     The floating tab bar's geometry, declared ONCE. Six components used to
+     The tab bar's geometry, declared ONCE. Six components used to
      hand-write their own copy of its height (64px, 4.5rem, 5.5rem, 76px +
      14px …) and they had already drifted apart by 8px. Anything fixed to the
      bottom of a phone reserves --ptec-mobile-nav-clearance; it is 0px from
-     `lg` up, where there is no tab bar. */
+     `lg` up, where there is no tab bar.
+     The bar is DOCKED to the bottom edge, like every native tab bar: its
+     surface runs under the home indicator (the safe-area inset is padding
+     inside the bar, not air below it). It used to float 10px above the inset
+     — on an iPhone, 44px of page showing under the bar. */
   --ptec-mobile-nav-height: 4rem;
-  --ptec-mobile-nav-gap: 0.625rem;
-  --ptec-mobile-nav-clearance: calc(var(--ptec-mobile-nav-height) + var(--ptec-mobile-nav-gap) + env(safe-area-inset-bottom, 0px));
+  --ptec-mobile-nav-clearance: calc(var(--ptec-mobile-nav-height) + env(safe-area-inset-bottom, 0px));
 
   /* The phone TOP bar (below `lg`): sticky, and it steps aside on
      scroll-down. Its height is the 3px gold rule + the 56px row + the row's

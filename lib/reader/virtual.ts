@@ -38,6 +38,67 @@ export function rowTop(page: number, rowHeight: number, insetTop: number): numbe
   return insetTop + (page - 1) * rowHeight;
 }
 
+/** One side of a zoom: the geometry the rows are laid out with. */
+export type ZoomFrame = {
+  /** Rendered page width, CSS px. */
+  pageWidth: number;
+  /** Rendered page height — the page box inside every row. */
+  pageHeight: number;
+  /** Row pitch: the page height plus the row's fixed vertical padding. */
+  rowHeight: number;
+};
+
+/**
+ * Where to scroll after the page width changes (pinch, double-tap, ± and the
+ * zoom presets, Ctrl + wheel, a fit mode) so the point under `focal` — the
+ * finger midpoint, the tap, the pointer, or the viewport centre — is the SAME
+ * point of the SAME page afterwards.
+ *
+ * Scaling the raw scroll offset by the width ratio, which is what the reader
+ * did, is wrong twice over. Every row carries SCROLL_PAGE_Y of padding that
+ * does not scale, so the error is (page − 1) × SCROLL_PAGE_Y × (ratio − 1) and
+ * grows with depth: measured in the real reader at 390 px, a pinch at page
+ * 150 landed on page 153 and one at page 280 on page 286; stepping 75 % →
+ * 100 % at page 150 landed on page 152. And a page narrower than the viewport
+ * is centred, so its left margin does not scale either.
+ *
+ * So: map the point to (row, fraction down its page, fraction across it) with
+ * the OLD geometry, and back to pixels with the NEW one.
+ */
+export function zoomAnchor(input: {
+  scrollTop: number;
+  scrollLeft: number;
+  /** The fixed point, in viewport coordinates. */
+  focal: { x: number; y: number };
+  /** The scroll viewport's clientWidth. */
+  viewportWidth: number;
+  /** Content above the first row (the top HUD inset). */
+  insetTop: number;
+  /** Padding above the page inside a row. */
+  rowPadTop: number;
+  /** Horizontal padding of a row: a page wider than the viewport starts here. */
+  rowPadX: number;
+  /** Rows in the column: the page count in scroll mode, 1 in single-page mode. */
+  rows: number;
+  prev: ZoomFrame;
+  next: ZoomFrame;
+}): { scrollTop: number; scrollLeft: number } {
+  const { scrollTop, scrollLeft, focal, viewportWidth, insetTop, rowPadTop, rowPadX, rows, prev, next } = input;
+
+  const y = scrollTop + focal.y - insetTop;
+  const row = clamp(0, Math.max(0, rows - 1), Math.floor(y / prev.rowHeight));
+  const down = (y - row * prev.rowHeight - rowPadTop) / prev.pageHeight;
+  const nextY = insetTop + row * next.rowHeight + rowPadTop + down * next.pageHeight;
+
+  // A page narrower than the viewport is centred; a wider one starts at the
+  // row's padding.
+  const left = (width: number) => Math.max(rowPadX, (viewportWidth - width) / 2);
+  const across = (scrollLeft + focal.x - left(prev.pageWidth)) / prev.pageWidth;
+  const nextX = left(next.pageWidth) + across * next.pageWidth;
+
+  return { scrollTop: Math.max(0, nextY - focal.y), scrollLeft: Math.max(0, nextX - focal.x) };
+}
+
 /** The page the reader is "on" for a given scrollTop: the row crossing a line
     35% down the viewport. That line — rather than the top edge — is what makes
     the indicator turn over when most of the next page is in view, and stops a
