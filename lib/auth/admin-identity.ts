@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getPermissionsForRole } from "@/lib/permissions";
+import { resolveAvatarUrl, resolveFullName } from "@/lib/auth/oauth-avatar";
 import type { AppRole, PermLevel } from "@/lib/types/roles";
 
 export type AdminIdentity = {
@@ -67,8 +68,10 @@ export const getAdminIdentity = cache(async (): Promise<AdminIdentity> => {
     role,
     effectiveRole,
     isSuperAdmin,
-    fullName: (profile?.full_name as string | null) ?? null,
-    avatarUrl: (profile?.avatar_url as string | null) ?? null,
+    // An administrator who signed in with Google has a photo in their auth
+    // metadata and, until they upload one, nothing in `profiles.avatar_url`.
+    fullName: resolveFullName(profile?.full_name as string | null, user.user_metadata),
+    avatarUrl: resolveAvatarUrl(profile?.avatar_url as string | null, user.user_metadata),
     perms,
   };
 });

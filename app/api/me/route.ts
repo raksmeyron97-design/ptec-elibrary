@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveAvatarUrl, resolveFullName } from "@/lib/auth/oauth-avatar";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
 
@@ -38,16 +39,16 @@ export async function GET() {
     .eq("id", user.id)
     .single();
 
-  const googleAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture;
-  const googleName = user.user_metadata?.full_name || user.user_metadata?.name;
-
   return NextResponse.json(
     {
       user: {
         id: user.id,
         email: user.email ?? "",
-        full_name: profile?.full_name ?? googleName ?? null,
-        avatar_url: profile?.avatar_url ?? googleAvatar ?? null,
+        // `??` used to stand here, and `handle_new_user()` writes `''` for a
+        // name it cannot find — so every Google reader was served a blank name
+        // beside the photo that `??` did let through.
+        full_name: resolveFullName(profile?.full_name, user.user_metadata),
+        avatar_url: resolveAvatarUrl(profile?.avatar_url, user.user_metadata),
         role: (profile?.role ?? "reader") as "reader" | "admin",
       },
     },

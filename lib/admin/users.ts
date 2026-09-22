@@ -1,6 +1,11 @@
 import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/server";
+import {
+  preferStored,
+  providerAvatarUrl,
+  providerFullName,
+} from "@/lib/auth/oauth-avatar";
 import { ALL_ROLES, type AppRole } from "@/lib/types/roles";
 import {
   type UserRow,
@@ -15,9 +20,14 @@ import {
  * Server-only data layer for the admin Users page.
  *
  * Merges profiles (role, name, avatar, created_at, status, phone) with
- * auth.users metadata (last_sign_in_at, email_confirmed_at, banned_until) via
- * the service-role admin API. No membership/borrowing — the library is free
- * and unlimited.
+ * auth.users metadata (last_sign_in_at, email_confirmed_at, banned_until,
+ * and the identity provider's photo/name) via the service-role admin API. No
+ * membership/borrowing — the library is free and unlimited.
+ *
+ * The provider photo is carried because `listUsers()` already returns
+ * `user_metadata` on every row — it costs nothing here, and without it every
+ * Google reader drew initials while their photo sat one field away. The
+ * precedence rule is `lib/auth/oauth-avatar.ts`'s, not this file's.
  *
  * SCALE NOTE: filtering/sort/pagination run in memory over the candidate set
  * (bounded by CANDIDATE_CAP). Correct and fast for a university library
@@ -32,6 +42,8 @@ type AuthMeta = {
   lastSignInAt: string | null;
   emailConfirmed: boolean;
   bannedUntil: string | null;
+  avatarUrl: string | null;
+  fullName: string | null;
 };
 
 async function loadAuthMeta(sb: SB): Promise<Map<string, AuthMeta>> {
@@ -42,10 +54,13 @@ async function loadAuthMeta(sb: SB): Promise<Map<string, AuthMeta>> {
       const { data, error } = await sb.auth.admin.listUsers({ page, perPage });
       if (error || !data?.users?.length) break;
       for (const u of data.users) {
+        const metadata = u.user_metadata as Record<string, unknown> | undefined;
         map.set(u.id, {
           lastSignInAt: u.last_sign_in_at ?? null,
           emailConfirmed: Boolean(u.email_confirmed_at),
           bannedUntil: (u as { banned_until?: string | null }).banned_until ?? null,
+          avatarUrl: providerAvatarUrl(metadata),
+          fullName: providerFullName(metadata),
         });
       }
       if (data.users.length < perPage) break;
@@ -128,10 +143,10 @@ export async function getUsers(params: GetUsersParams): Promise<GetUsersResult> 
     const status = deriveStatus(hasStatusCol ? (r.status as string | null) : null, meta);
     return {
       id,
-      fullName: (r.full_name as string | null) ?? null,
+      fullName: preferStored(r.full_name as string | null, meta?.fullName),
       email: (r.email as string) ?? "",
       phone: (r.phone as string | null) ?? null,
-      avatarUrl: (r.avatar_url as string | null) ?? null,
+      avatarUrl: preferStored(r.avatar_url as string | null, meta?.avatarUrl),
       role: (r.role as AppRole) ?? "reader",
       isSuperAdmin: Boolean(r.is_super_admin),
       status,

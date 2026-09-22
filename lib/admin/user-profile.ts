@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/server";
+import { preferStored, providerAvatarUrl, providerFullName } from "@/lib/auth/oauth-avatar";
 import type { AppRole } from "@/lib/types/roles";
 import type { AccountStatus } from "@/lib/admin/users-shared";
 import type {
@@ -85,17 +86,31 @@ async function fetchIdentityRow(sb: SB, userId: string): Promise<ProfileRow | nu
   return (base.data as ProfileRow | null) ?? null;
 }
 
-type AuthMeta = { lastSignInAt: string | null; emailConfirmed: boolean; bannedUntil: string | null };
+type AuthMeta = {
+  lastSignInAt: string | null;
+  emailConfirmed: boolean;
+  bannedUntil: string | null;
+  /** The identity provider's photo/name, already judged by `lib/auth/oauth-avatar.ts`. */
+  avatarUrl: string | null;
+  fullName: string | null;
+};
 
 async function fetchAuthMeta(sb: SB, userId: string): Promise<AuthMeta | null> {
   return attempt(async () => {
     const { data, error } = await sb.auth.admin.getUserById(userId);
     if (error || !data?.user) throw error ?? new Error("no user");
-    const u = data.user as { last_sign_in_at?: string | null; email_confirmed_at?: string | null; banned_until?: string | null };
+    const u = data.user as {
+      last_sign_in_at?: string | null;
+      email_confirmed_at?: string | null;
+      banned_until?: string | null;
+      user_metadata?: Record<string, unknown>;
+    };
     return {
       lastSignInAt: u.last_sign_in_at ?? null,
       emailConfirmed: Boolean(u.email_confirmed_at),
       bannedUntil: u.banned_until ?? null,
+      avatarUrl: providerAvatarUrl(u.user_metadata),
+      fullName: providerFullName(u.user_metadata),
     };
   });
 }
@@ -421,9 +436,11 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
 
   const identity = {
     id: row.id as string,
-    fullName: (row.full_name as string | null) ?? null,
+    // Same precedence as the directory's — one account must not show a photo
+    // on `/admin/users` and initials on its own profile.
+    fullName: preferStored(row.full_name as string | null, meta?.fullName),
     email: (row.email as string) ?? "",
-    avatarUrl: (row.avatar_url as string | null) ?? null,
+    avatarUrl: preferStored(row.avatar_url as string | null, meta?.avatarUrl),
     role: ((row.role as AppRole) ?? "reader") as AppRole,
     isSuperAdmin: Boolean(row.is_super_admin),
     status: deriveStatus(row.status as string | null | undefined, meta),
