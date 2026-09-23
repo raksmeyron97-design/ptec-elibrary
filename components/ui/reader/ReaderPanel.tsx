@@ -71,6 +71,11 @@ export default function ReaderPanel({
 
   const tabBar = (
     <div className="reader-line-b flex items-center gap-1 px-2 py-1.5">
+      {/* No `overflow-hidden` here, deliberately: a tab is exactly the strip's
+          height and the focus ring is a 2px outline at 2px offset, so clipping
+          the strip erases the keyboard indicator on all five tabs (verified —
+          only the right arc survived). `.reader-tab`'s `min-width: 0` is what
+          keeps the tabs inside; a clip would only hide a recurrence. */}
       <div role="tablist" aria-label={t("panelLabel")} className="flex min-w-0 flex-1 items-center gap-0.5" onKeyDown={onTabKey}>
         {tabs.map((x) => (
           <button
@@ -91,11 +96,11 @@ export default function ReaderPanel({
             className="reader-tab"
           >
             {x.icon}
-            <span className="sr-only lg:not-sr-only">{x.label}</span>
+            <span className="sr-only">{x.label}</span>
           </button>
         ))}
       </div>
-      <button type="button" onClick={onClose} aria-label={t("close")} className="reader-btn">
+      <button type="button" onClick={onClose} aria-label={t("close")} className="reader-btn shrink-0">
         <X className="h-4 w-4" aria-hidden />
       </button>
     </div>
