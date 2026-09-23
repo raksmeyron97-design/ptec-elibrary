@@ -144,6 +144,42 @@ const ORG_WORDS_KHMER = [
   "ដេប៉ាតឺម៉ង់",       // department     — ដេប៉ាតឺម៉ង់ស្រាវជ្រាវ…
   "សាលាភូមិន្ទ",      // royal school   — សាលាភូមិន្ទរដ្ឋបាល
   "លេខាធិការដ្ឋាន",   // secretariat
+  // Added 2026-09-23. `ការិយាល័យ` (office) is five syllables of pure
+  // bureaucratic vocabulary and occurs in no personal name; it matched 0 of
+  // the 265 names on production's own /authors roster, and it is the head-word
+  // of ការិយាល័យអប់រំ យុវជន និងកីឡា នៃរដ្ឋបាលស្រុកសំឡូត, a district education
+  // office credited on 12 books and published as a `Person`
+  // (SEO corpus audit, 2026-09-23, F-A2).
+  //
+  // Note the deliberate asymmetry with the Latin list, which excludes "office"
+  // because Office is a plausible English surname. The Khmer compound is not.
+  "ការិយាល័យ",        // office
+];
+
+/**
+ * Khmer institutional head-words matched only at the START of the name.
+ *
+ * `សាលា` ("school", "hall") is the head of សាលាឌីជីថល — credited on 40 books
+ * and published as a `Person` — and of សាលា អេឌូផ្លើស Edu Plus, and it is the
+ * generalisation of `សាលាភូមិន្ទ` above. But it is two syllables of ordinary
+ * vocabulary, and the list above matches as a SUBSTRING because Khmer has no
+ * word boundaries, so admitting it there would let an interior coincidence
+ * retype a real person as an institution.
+ *
+ * Anchoring it is not a compromise, it is the actual rule: a Khmer
+ * institution's name LEADS with its head-word. Measured against production's
+ * 265-name /authors roster, `សាលា` matched exactly one name — សាលាភូមិន្ទរដ្ឋបាល,
+ * which the list above already types as an organisation — so this adds no
+ * disagreement with what the site publishes today.
+ *
+ * That roster is the listed authors only, so it is evidence about false
+ * POSITIVES and says nothing about names it does not contain. Precision is the
+ * direction that matters here: a false positive retypes a human as an
+ * institution, which is the same untrue claim this module removes, pointed the
+ * other way.
+ */
+const ORG_WORDS_KHMER_LEADING = [
+  "សាលា", // school / hall — សាលាឌីជីថល, សាលា អេឌូផ្លើស
 ];
 
 /**
@@ -233,6 +269,7 @@ export function looksLikeOrganization(name: string | null | undefined): boolean 
   const raw = collapse(name);
   if (!raw) return false;
   if (ORG_WORDS_KHMER.some((w) => raw.includes(w))) return true;
+  if (ORG_WORDS_KHMER_LEADING.some((w) => raw.startsWith(w))) return true;
   const words = fold(raw).split(" ").filter(Boolean);
   return words.some((w) => ORG_WORDS_LATIN.includes(w));
 }
@@ -258,6 +295,34 @@ export function isOwnInstitution(name: string, org: OrgIdentity): boolean {
 }
 
 /**
+/**
+ * The Khmer conjunction "and", as a byline delimiter — with whitespace on BOTH
+ * sides required.
+ *
+ * Khmer writes no spaces between words, so `និង` appears inside compounds all
+ * the time: ក្រសួងអប់រំ យុវជន និងកីឡា is "Ministry of Education, Youth and
+ * Sport", one body. What separates the two readings in practice is the space
+ * AFTER it, and what makes relying on that safe is the ORDERING this file
+ * documents at the top: whole-string organisation identity is decided BEFORE
+ * any split, so an institution never reaches this function at all.
+ *
+ * Measured against production's own /authors roster (265 names, fetched
+ * 2026-09-23). Nine names contain `និង`:
+ *
+ *   8 are typed `organization` by looksLikeOrganization() and return whole,
+ *     before this runs — including វិទ្យាល័យ ព្រែកលៀប និង វិទ្យាល័យ ព្រះស៊ីសុវត្ថិ,
+ *     which is genuinely two schools and is still better left as the one
+ *     corporate credit the catalogue recorded
+ *   1 reaches this function: យ៉េង ធី និង នយ យ៉េហ៊ាង — two people, published as
+ *     one fabricated `Person`, which is exactly what this delimiter fixes
+ *
+ * Zero false positives on that roster, and 7 of the 9 do not even carry the
+ * trailing space. Three of the bylines this corrects are PTEC Library Press's
+ * own ISBN-registered books (SEO corpus audit, 2026-09-23, F-A2).
+ */
+const KHMER_CONJUNCTION = /\s+និង\s+/g;
+
+/**
  * Split a byline into individual names, but ONLY when doing so is safe.
  *
  * `parseAuthorNames()` is the library's one splitter (it mirrors migration
@@ -267,8 +332,8 @@ export function isOwnInstitution(name: string, org: OrgIdentity): boolean {
  *
  * The rule: a list of people has full names on both sides of every delimiter,
  * so a comma-delimited byline splits only when EVERY segment has at least two
- * whitespace-separated tokens. A non-comma delimiter (";", "&", "/", " and ")
- * is unambiguous and needs no such guard.
+ * whitespace-separated tokens. A non-comma delimiter (";", "&", "/", " and ",
+ * " និង ") is unambiguous and needs no such guard.
  *
  * Being wrong by refusing costs a less granular but still TRUE record. Being
  * wrong by splitting invents a person who does not exist. That asymmetry
@@ -280,10 +345,17 @@ export function splitByline(raw: string | null | undefined): string[] {
   const cleaned = stripRoleSuffix(raw);
   if (!cleaned) return [];
 
-  const parts = parseAuthorNames(cleaned).map(stripRoleSuffix).filter(Boolean);
+  // The Khmer conjunction is rewritten to a delimiter `parseAuthorNames()`
+  // already knows, rather than added to it: that helper MIRRORS migration
+  // 0105's SQL split, and the two must keep agreeing about how a legacy
+  // `author_names` string decomposes. This rewrite is local to the safe
+  // splitter, which the backfill never ran.
+  const delimited = cleaned.replace(KHMER_CONJUNCTION, "; ");
+
+  const parts = parseAuthorNames(delimited).map(stripRoleSuffix).filter(Boolean);
   if (parts.length < 2) return [];
 
-  const commaOnly = !/[;&/]|\s+and\s+/.test(cleaned);
+  const commaOnly = !/[;&/]|\s+and\s+/.test(delimited);
   if (commaOnly && !parts.every((part) => /\s/.test(part))) return [];
 
   return parts;
