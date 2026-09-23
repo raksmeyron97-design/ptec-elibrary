@@ -2843,7 +2843,6 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   border-radius: .625rem;
   background: var(--reader-hover);
 }
-.reader-divider { width: 1px; height: 1.5rem; flex-shrink: 0; background: var(--reader-line); }
 
 /* ── Popover menus ───────────────────────────────────────────────── */
 .reader-menu {
@@ -2925,6 +2924,12 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   align-items: center;
   justify-content: center;
   gap: .375rem;
+  /* A flex item's default `min-width: auto` is its CONTENT, so `flex: 1 1 0`
+     could not shrink a tab below its icon + label and the strip pushed the
+     panel's ✕ out from under itself. The sidebar is 300–340px and holds five
+     tabs; the label is `sr-only` (ReaderPanel.tsx) and the name is carried by
+     `aria-label` + `title`. */
+  min-width: 0;
   min-height: 2.75rem;
   padding: 0 .5rem;
   border-radius: .5rem;
