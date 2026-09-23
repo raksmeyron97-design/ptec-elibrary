@@ -29,6 +29,7 @@ import "server-only";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
+import { pagedScan, type PagedScanResult } from "@/lib/db/paged-scan";
 import { sanitizeFilterTerm } from "@/lib/postgrest-filter";
 import { TAGS } from "@/lib/cache/revalidate";
 import {
@@ -138,6 +139,40 @@ const INDEXABLE_RECORD_TYPES = new Set(["book", "research", "publication"]);
 type CategoryRow = { id: string; name: string; slug: string; created_at: string | null };
 
 /**
+ * Ceiling on how far one of these scans will PAGE.
+ *
+ * NOT a limit one request can honour — PostgREST clips every response at 1000
+ * rows whatever `.limit()` says, which is why each read below goes through
+ * pagedScan(). Sized an order of magnitude above the published collection
+ * (1,956 books, ~1,900 subject assignments) so it is a runaway guard and never
+ * a working limit; hitting it is reported as `truncated` and refused, not
+ * published as a count.
+ */
+const SUBJECT_SCAN_CAP = 100_000;
+
+/**
+ * A scan whose result feeds a published COUNT, so it must be complete.
+ *
+ * Throwing is the documented degradation for this module: `getSubjectIndex()`
+ * catches and answers "no subject hub", which is a visibly missing page. A
+ * PARTIAL scan is worse than that in a way nothing downstream can see — it
+ * publishes a number. Production served subject counts summing to exactly 1,000
+ * over a collection holding 1,955 assignments, put four hubs that clear the
+ * depth gate at `noindex`, dropped a fifth from the hub entirely, and printed
+ * "153 e-books about គណិតវិទ្យា" in the meta description of a subject holding
+ * 440 (SEO corpus audit, 2026-09-23, F-S1).
+ */
+function counted<T>(table: string, scan: PagedScanResult<T>): T[] {
+  if (scan.error) {
+    throw new Error(`[subject-index] ${table}: ${scan.error.message ?? "read failed"}`);
+  }
+  if (scan.truncated) {
+    throw new Error(`[subject-index] ${table}: scan hit the ${SUBJECT_SCAN_CAP}-row ceiling`);
+  }
+  return scan.data;
+}
+
+/**
  * Every subject with an exact count of the public resources attached to it.
  *
  * ONE query per resource table, matched in memory — not one query per subject
@@ -148,26 +183,75 @@ type CategoryRow = { id: string; name: string; slug: string; created_at: string 
 async function loadSubjectIndex(): Promise<SubjectSummary[]> {
   const supabase = createServiceClient();
 
-  const [categories, books, theses, publications, catalog, indexState] = await Promise.all([
-    supabase.from("categories").select("id, name, slug, created_at").order("name"),
-    supabase.from("books").select("id, category_id").eq("is_published", true),
-    supabase
-      .from("research_reports")
-      .select("id, subject, program, faculty")
-      .eq("is_published", true),
-    supabase.from("publications").select("id, subjects").eq("is_published", true),
-    supabase.from("catalog_books").select("category").eq("is_active", true),
-    // SEO 3.3 §5.2. `status = 'indexed'` is the only status that means text was
-    // extracted and stored — `no_text_layer` is a scan, `unfetchable` and
-    // `failed` produced nothing (lib/indexing/state.ts). The `pages` floor is
-    // belt-and-braces: a row claiming `indexed` with zero pages is not evidence
-    // a reader could search inside.
-    supabase
-      .from("resource_index_state")
-      .select("record_id, record_type")
-      .eq("status", "indexed")
-      .gt("pages", 0),
-  ]);
+  // Every sweep orders on a UNIQUE key before it pages. Without one Postgres
+  // makes no promise that two LIMIT/OFFSET windows agree on row order, so a
+  // book can be counted twice or not at all — and a book missing from a count
+  // is indistinguishable from a book that is not in the subject.
+  const [categories, bookScan, thesisScan, publicationScan, catalogScan, indexScan] =
+    await Promise.all([
+      supabase.from("categories").select("id, name, slug, created_at").order("name"),
+      pagedScan<{ id: string; category_id: string | null }>(
+        (from, to) =>
+          supabase
+            .from("books")
+            .select("id, category_id")
+            .eq("is_published", true)
+            .order("id", { ascending: true })
+            .range(from, to),
+        SUBJECT_SCAN_CAP,
+      ),
+      pagedScan<{ id: string; subject: string | null; program: string | null; faculty: string | null }>(
+        (from, to) =>
+          supabase
+            .from("research_reports")
+            .select("id, subject, program, faculty")
+            .eq("is_published", true)
+            .order("id", { ascending: true })
+            .range(from, to),
+        SUBJECT_SCAN_CAP,
+      ),
+      pagedScan<{ id: string; subjects: string[] | null }>(
+        (from, to) =>
+          supabase
+            .from("publications")
+            .select("id, subjects")
+            .eq("is_published", true)
+            .order("id", { ascending: true })
+            .range(from, to),
+        SUBJECT_SCAN_CAP,
+      ),
+      pagedScan<{ category: string | null }>(
+        (from, to) =>
+          supabase
+            .from("catalog_books")
+            .select("id, category")
+            .eq("is_active", true)
+            .order("id", { ascending: true })
+            .range(from, to),
+        SUBJECT_SCAN_CAP,
+      ),
+      // SEO 3.3 §5.2. `status = 'indexed'` is the only status that means text was
+      // extracted and stored — `no_text_layer` is a scan, `unfetchable` and
+      // `failed` produced nothing (lib/indexing/state.ts). The `pages` floor is
+      // belt-and-braces: a row claiming `indexed` with zero pages is not evidence
+      // a reader could search inside.
+      //
+      // `resource_index_state` has no `id`; its primary key is
+      // (record_type, record_id), so the sweep orders on both. Ordering on
+      // `record_id` alone would tie across the three record types.
+      pagedScan<{ record_id: string; record_type: string }>(
+        (from, to) =>
+          supabase
+            .from("resource_index_state")
+            .select("record_id, record_type")
+            .eq("status", "indexed")
+            .gt("pages", 0)
+            .order("record_type", { ascending: true })
+            .order("record_id", { ascending: true })
+            .range(from, to),
+        SUBJECT_SCAN_CAP,
+      ),
+    ]);
 
   const rows = (categories.data ?? []) as CategoryRow[];
   if (rows.length === 0) return [];
@@ -175,30 +259,30 @@ async function loadSubjectIndex(): Promise<SubjectSummary[]> {
   // A FAILED index-state read is `null`, never an empty set. Counting it as
   // zero would push all 25 subjects below §5.2 at once and de-index the whole
   // taxonomy on one flaky query; `subjectVisibility` is built to refuse that.
-  const fullTextIds: Set<string> | null = indexState.error
-    ? null
-    : new Set(
-        ((indexState.data ?? []) as { record_id: string; record_type: string }[])
-          .filter((r) => INDEXABLE_RECORD_TYPES.has(r.record_type))
-          .map((r) => r.record_id),
-      );
+  // An INCOMPLETE one is null for the same reason and with more force: a
+  // half-read of this table understates the full-text criterion for every
+  // subject at once, which reads exactly like a collection that was never
+  // indexed.
+  const fullTextIds: Set<string> | null =
+    indexScan.error || indexScan.truncated
+      ? null
+      : new Set(
+          indexScan.data
+            .filter((r) => INDEXABLE_RECORD_TYPES.has(r.record_type))
+            .map((r) => r.record_id),
+        );
 
   const bookIdsByCategoryId = new Map<string, string[]>();
-  for (const b of (books.data ?? []) as { id: string; category_id: string | null }[]) {
+  for (const b of counted("books", bookScan)) {
     if (!b.category_id) continue;
     const list = bookIdsByCategoryId.get(b.category_id);
     if (list) list.push(b.id);
     else bookIdsByCategoryId.set(b.category_id, [b.id]);
   }
 
-  const thesisRows = (theses.data ?? []) as {
-    id: string;
-    subject: string | null;
-    program: string | null;
-    faculty: string | null;
-  }[];
-  const publicationRows = (publications.data ?? []) as { id: string; subjects: string[] | null }[];
-  const catalogRows = (catalog.data ?? []) as { category: string | null }[];
+  const thesisRows = counted("research_reports", thesisScan);
+  const publicationRows = counted("publications", publicationScan);
+  const catalogRows = counted("catalog_books", catalogScan);
 
   return rows
     .filter((c) => c.slug && c.name)
@@ -259,9 +343,15 @@ const cachedSubjectIndex = unstable_cache(loadSubjectIndex, ["subject-index-v2"]
 export const getSubjectIndex = cache(async (): Promise<SubjectSummary[]> => {
   try {
     return await cachedSubjectIndex();
-  } catch {
+  } catch (err) {
     // A taxonomy read failure must degrade to "no subject hub", never to a
-    // hub claiming the library has no resources.
+    // hub claiming the library has no resources — and never to a hub whose
+    // counts are a fraction of the collection, which is what an INCOMPLETE
+    // scan produces and why `counted()` throws rather than returning one.
+    //
+    // Logged because this branch is now reachable by a failure that used to be
+    // swallowed into wrong numbers. A missing hub is loud; a wrong count is not.
+    console.error("[subject-index] read failed:", err instanceof Error ? err.message : err);
     return [];
   }
 });
@@ -307,13 +397,23 @@ export async function getSubjectsWithResources(): Promise<SubjectSummary[]> {
 
 async function loadSubjectHierarchyRecords(): Promise<SubjectHierarchyRecord[]> {
   const supabase = createServiceClient();
-  const { data, error } = await supabase
-    .from("subjects")
-    .select("id, slug, name_en, name_km, parent_id, legacy_category_id")
-    .eq("status", "active");
+  const { data, error, truncated } = await pagedScan<SubjectHierarchyRecord>(
+    (from, to) =>
+      supabase
+        .from("subjects")
+        .select("id, slug, name_en, name_km, parent_id, legacy_category_id")
+        .eq("status", "active")
+        .order("id", { ascending: true })
+        .range(from, to),
+    SUBJECT_SCAN_CAP,
+  );
 
-  if (error || !data) return [];
-  return data as SubjectHierarchyRecord[];
+  // The hierarchy is 3 parents and 7 children today, far below any cap. It is
+  // paged anyway because "small today" is not a property the code can hold: a
+  // clipped hierarchy would silently orphan subtopics, and a subtopic with no
+  // parent renders as a top-level subject rather than as an error.
+  if (error || truncated) return [];
+  return data;
 }
 
 const cachedSubjectHierarchyRecords = unstable_cache(
@@ -489,15 +589,21 @@ async function relatedSubjects(
   index: SubjectSummary[],
 ): Promise<SubjectSummary[]> {
   const supabase = createServiceClient();
-  const { data } = await supabase
-    .from("publications")
-    .select("subjects")
-    .eq("is_published", true)
-    .contains("subjects", [name]);
+  const { data } = await pagedScan<{ subjects: string[] | null }>(
+    (from, to) =>
+      supabase
+        .from("publications")
+        .select("id, subjects")
+        .eq("is_published", true)
+        .contains("subjects", [name])
+        .order("id", { ascending: true })
+        .range(from, to),
+    SUBJECT_SCAN_CAP,
+  );
 
   const key = subjectKey(name);
   const cooccurrence = new Map<string, number>();
-  for (const row of (data ?? []) as { subjects: string[] | null }[]) {
+  for (const row of data) {
     for (const s of row.subjects ?? []) {
       const k = subjectKey(s);
       if (!k || k === key) continue;

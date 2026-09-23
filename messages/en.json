@@ -5390,6 +5390,22 @@
         "damagedHint": "{count} resources hold text that extraction produced but that is not the document's text — broken Khmer encoding from legacy non-Unicode fonts. Those documents are not searchable by their contents, cannot be cited by page, and are excluded from every public claim. Fixing them is an extraction-toolchain change (OCR or a font remap), not a cataloguing task.",
         "unsupportedHint": "These resources extracted cleanly, but none of their catalogue tags appear in the body text. Usually that means the tags describe the document's context rather than its contents — worth a cataloguer's eye, not a defect."
       }
+    },
+    "catalogueText": {
+      "title": "Catalogue text",
+      "subtitle": "Descriptions and titles across {examined} published books",
+      "templatedBadge": "{percent}% templated",
+      "truncatedBadge": "{count, plural, =1 {1 cut title} other {# cut titles}}",
+      "healthyTitle": "Every description is its own",
+      "healthyBody": "No shared description shapes, and no title sitting on a truncation length.",
+      "templatesLead": "{templated} of {described} descriptions share one of {groups} shapes once the title, the subject and the digits are masked out.",
+      "moreTemplates": "{count, plural, =1 {1 more shape} other {# more shapes}} not shown.",
+      "truncatedLead": "{count, plural, =1 {1 title is} other {# titles are}} exactly {length} characters long — the fingerprint of a cut made before this catalogue. {colliding, plural, =0 {None collide with another record.} =1 {1 of them now shares a title with another book.} other {# of them now share a title with another book.}}",
+      "sharedWith": "Shares this title with {count, plural, =1 {1 other book} other {# other books}}",
+      "retitle": "Retitle",
+      "retitleAria": "Edit the title of {title}",
+      "moreTitles": "{count, plural, =1 {1 more title} other {# more titles}} not shown.",
+      "note": "Reported only. A cut title must be retitled from the book's own title page, never retired — archiving one would redirect a real textbook's URL onto a different book. A shared description must be rewritten by someone who has read the book."
     }
   },
   "adminSearchInsights": {

@@ -163,6 +163,23 @@ jobs:
             --json reports/curriculum-links.json \
             ${{ inputs.strict && '--strict' || '' }} 2>&1 | tee reports/curriculum-links.log
 
+      # ── 5. Entity parity (SEO corpus audit F-S1 / F-A1) ─────────────────
+      # Do two loaders reading the same relations still agree? PostgREST clips
+      # every response at 1000 rows silently, so a loader that reads a whole
+      # table in one request publishes a number computed from a fraction of it —
+      # subject counts that summed to exactly 1,000 over 1,955 assignments, an
+      # author hub crediting 652 works where the author's own page said 1,000.
+      # Nothing errored. This asks the site to contradict itself.
+      - name: Verify entity parity
+        id: entity_parity
+        if: always()
+        run: |
+          set -uo pipefail
+          mkdir -p reports
+          npx tsx scripts/verify-entity-parity.ts \
+            --json reports/entity-parity.json \
+            ${{ inputs.strict && '--strict' || '' }} 2>&1 | tee reports/entity-parity.log
+
       - name: Summary
         if: always()
         run: |
@@ -178,6 +195,10 @@ jobs:
             echo "### Curriculum links"
             echo
             sed -n '1,40p' reports/curriculum-links.log 2>/dev/null || echo "(curriculum links produced no log)"
+            echo
+            echo "### Entity parity"
+            echo
+            sed -n '1,60p' reports/entity-parity.log 2>/dev/null || echo "(entity parity produced no log)"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload verification reports

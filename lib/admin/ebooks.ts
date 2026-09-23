@@ -2,7 +2,7 @@ import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { scoreEbookQuality } from "@/lib/admin/ebook-quality";
-import { pagedScan, type PagedScanError } from "@/lib/admin/paged-scan";
+import { pagedScan, type PagedScanError } from "@/lib/db/paged-scan";
 import {
   LARGE_FILE_KB,
   normalizeEbookStatus,

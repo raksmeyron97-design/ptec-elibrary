@@ -285,6 +285,72 @@ describe("§4.5 omission is valid", () => {
   });
 });
 
+// ── A stored name that names nobody ──────────────────────────────────────────
+
+describe("a manual row is believed about TYPE, not about being somebody", () => {
+  // The trust rule (contributor-trust.ts) arrived after rows were already
+  // stored, so "the write path refuses a byline that names nobody" could not
+  // be true retroactively. Measured on production 2026-09-23: 19 such names
+  // over 90 credits were reaching indexable book pages as `Person` — `user` on
+  // 39 books alone — each linked to an author page the same rule answers
+  // `noindex` (SEO corpus audit, F-A2).
+  it.each([
+    ["user", "an operating-system account"],
+    ["Windows User", "an operating-system account"],
+    ["ASUS", "a device manufacturer"],
+    ["CamScanner", "the software that produced the PDF"],
+    ["Administrator", "a placeholder"],
+    ["sotharykim789@hotmail.com", "an email address"],
+  ])("%s (%s) publishes nothing", (displayName) => {
+    expect(viewsFromCanonical([row({ displayName })], ORG)).toEqual([]);
+  });
+
+  it("drops only the invalid credit, never the byline it shares", () => {
+    const views = viewsFromCanonical(
+      [
+        row({ contributorId: "c1", displayName: "Sok Dara", sequence: 0 }),
+        row({ contributorId: "c2", displayName: "Windows User", sequence: 1 }),
+      ],
+      ORG,
+    );
+    expect(views.map((v) => v.name)).toEqual(["Sok Dara"]);
+  });
+
+  it("changes nothing for a name that is merely unusual", () => {
+    // `suspicious` has no consequences anywhere else and gains none here:
+    // IJERE is a real journal, and a rule that caught it would catch the next
+    // real institution too.
+    expect(viewsFromCanonical([row({ displayName: "IJERE" })], ORG)).toHaveLength(1);
+    expect(viewsFromCanonical([row({ displayName: "Set Seng" })], ORG)).toHaveLength(1);
+  });
+
+  it("still does not re-split or re-classify the name it keeps", () => {
+    // The check reads the name; it does not take over the row. An inverted
+    // single name stays one person, and a stored `organization` stays one.
+    const inverted = viewsFromCanonical([row({ displayName: "Smith, John" })], ORG);
+    expect(inverted.map((v) => v.name)).toEqual(["Smith, John"]);
+    const org = viewsFromCanonical(
+      [row({ displayName: "Riverside Trust", contributorType: "organization" })],
+      ORG,
+    );
+    expect(org[0].kind).toBe("organization");
+  });
+
+  it("falls through to the legacy byline when every canonical row names nobody", () => {
+    // Canonical wins WHOLESALE, so a graph that resolves to nothing must not
+    // strand the page — and the legacy leg applies the same rule, so junk does
+    // not come back in through the other door.
+    const result = resolveContributors({
+      canonical: [row({ displayName: "user" })],
+      canonicalAvailable: true,
+      legacyByline: "Sok Dara",
+      org: ORG,
+    });
+    expect(result.contributors.map((c) => c.name)).toEqual(["Sok Dara"]);
+    expect(result.source).toBe("legacy");
+  });
+});
+
 // ── Roles ────────────────────────────────────────────────────────────────────
 
 describe("§10 roles stay semantic", () => {

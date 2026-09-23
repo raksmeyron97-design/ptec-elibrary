@@ -91,17 +91,98 @@ describe("§15 byline matrix — Khmer", () => {
   });
 
   it("splits a Khmer two-name byline on an unambiguous delimiter", () => {
-    expect(names("ឡុង សុវណ្ណារ៉ា និង ចាន់ សុភា", ORG)).toEqual([
-      "person:ឡុង សុវណ្ណារ៉ា និង ចាន់ សុភា",
-    ]);
-    // " និង " is Khmer "and" — NOT a delimiter this parser knows, and it is
-    // deliberately not added: parseAuthorNames mirrors migration 0105's SQL,
-    // and teaching one side a delimiter the other lacks is how the app and the
-    // backfill would start disagreeing about where a name ends.
     expect(names("ឡុង សុវណ្ណារ៉ា; ចាន់ សុភា", ORG)).toEqual([
       "person:ឡុង សុវណ្ណារ៉ា",
       "person:ចាន់ សុភា",
     ]);
+  });
+
+  // ── " និង " — Khmer "and" ──────────────────────────────────────────────
+  //
+  // This test previously pinned the OPPOSITE rule, for a reason that was
+  // right about the mechanism and is still honoured: parseAuthorNames()
+  // mirrors migration 0105's SQL, and teaching one side a delimiter the other
+  // lacks is how the app and the backfill start disagreeing about where a
+  // name ends. So the conjunction was NOT added there. splitByline() rewrites
+  // it to a delimiter that splitter already knows, and splitByline is the app's
+  // own safe splitter, which the backfill never ran.
+  //
+  // What changed is the evidence. Measured against production's /authors
+  // roster on 2026-09-23 (265 names), exactly ONE name changes classification
+  // under this rule, and it is a real two-person byline published as one
+  // fabricated `Person`. Three more of the same shape are PTEC Library Press's
+  // own ISBN-registered books.
+  describe("the Khmer conjunction splits people and never institutions", () => {
+    it("splits two people written with និង", () => {
+      expect(names("ឡុង សុវណ្ណារ៉ា និង ចាន់ សុភា", ORG)).toEqual([
+        "person:ឡុង សុវណ្ណារ៉ា",
+        "person:ចាន់ សុភា",
+      ]);
+      // The four production bylines this exists for.
+      expect(names("យ៉េង ធី និង នយ យ៉េហ៊ាង", ORG)).toHaveLength(2);
+      expect(names("លុក សូលីនដា និង ជន សុគន្ធារី", ORG)).toHaveLength(2);
+      expect(names("សៀង គឹមស៊្រុន និង ឈាង សុភា", ORG)).toHaveLength(2);
+    });
+
+    it("leaves a ministry whose own name contains និង as one organisation", () => {
+      // "Ministry of Education, Youth and Sport" — one body. Two guards catch
+      // it independently: the whole-string organisation check runs BEFORE any
+      // split, and the conjunction here carries no trailing space.
+      expect(names("ក្រសួងអប់រំ យុវជន និងកីឡា", ORG)).toEqual([
+        "organization:ក្រសួងអប់រំ យុវជន និងកីឡា",
+      ]);
+      expect(names("ក្រសួងសាធារណការ និងដឹកជញ្ជូន", ORG)).toHaveLength(1);
+      expect(names("ក្រសួងរៀបចំដែនដី នគរូបនីយកម្ម និងសំណង់", ORG)).toHaveLength(1);
+      expect(names("នាយកដ្ឋានបឋមសិក្សា ក្រសួងអប់រំ យុវជន និងកីឡា", ORG)).toHaveLength(1);
+    });
+
+    it("leaves a SPACED និង alone when the whole string is an institution", () => {
+      // Two high schools, joined by a spaced conjunction — the case where the
+      // delimiter would fire if the organisation check did not run first. The
+      // catalogue recorded one corporate credit and that stays the answer.
+      expect(names("វិទ្យាល័យ ព្រែកលៀប និង វិទ្យាល័យ ព្រះស៊ីសុវត្ថិ (NGS)", ORG)).toEqual([
+        "organization:វិទ្យាល័យ ព្រែកលៀប និង វិទ្យាល័យ ព្រះស៊ីសុវត្ថិ (NGS)",
+      ]);
+    });
+
+    it("requires whitespace on BOTH sides", () => {
+      // Khmer writes no spaces between words, so និង sits inside compounds.
+      // Only the free-standing conjunction separates names.
+      expect(splitByline("ឡុង សុវណ្ណារ៉ានិងចាន់ សុភា")).toEqual([]);
+    });
+
+    it("does not teach parseAuthorNames the delimiter", async () => {
+      // The 0105 mirror. If this ever splits, the app and the backfill have
+      // started disagreeing about where a name ends.
+      const { parseAuthorNames } = await import("@/lib/resources/author-names");
+      expect(parseAuthorNames("ឡុង សុវណ្ណារ៉ា និង ចាន់ សុភា")).toEqual([
+        "ឡុង សុវណ្ណារ៉ា និង ចាន់ សុភា",
+      ]);
+    });
+  });
+
+  // ── Khmer institutional head-words ────────────────────────────────────
+  describe("Khmer institutions are organisations, not people", () => {
+    it.each([
+      ["សាលាឌីជីថល", "digital school — 40 books, published as a Person"],
+      ["សាលា អេឌូផ្លើស Edu Plus", "a school — 4 books"],
+      [
+        "ការិយាល័យអប់រំ យុវជន និងកីឡា នៃរដ្ឋបាលស្រុកសំឡូត",
+        "a district education office — 12 books",
+      ],
+    ])("%s (%s)", (raw) => {
+      expect(looksLikeOrganization(raw)).toBe(true);
+      expect(names(raw, ORG)).toHaveLength(1);
+      expect(names(raw, ORG)[0].startsWith("organization:")).toBe(true);
+    });
+
+    it("matches សាលា only at the START of the name", () => {
+      // Two syllables of ordinary vocabulary, matched as a substring like the
+      // rest of the Khmer list would retype a human as an institution on an
+      // interior coincidence. A Khmer institution LEADS with its head-word.
+      expect(looksLikeOrganization("ឡុង សាលា")).toBe(false);
+      expect(classifyName("ឡុង សាលា", ORG)).toBe("person");
+    });
   });
 });
 

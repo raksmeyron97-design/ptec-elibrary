@@ -9,6 +9,7 @@
 // Per-user data (auth state, ContinueReading) must NOT move here.
 import { unstable_cache } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
+import { pagedScan } from "@/lib/db/paged-scan";
 import { mapRowToBook, BOOK_SELECT, type Book } from "@/lib/books";
 import {
   academicTextToPlainText,
@@ -17,6 +18,10 @@ import {
 import type { PublicationReference } from "@/lib/publications";
 
 const REVALIDATE = 300; // seconds
+
+/** Ceiling on how far the department-count sweep will PAGE. See DIRECTORY_SCAN_CAP
+ *  in lib/authors/directory.ts for why a `.limit()` is not this. */
+const DEPARTMENT_SCAN_CAP = 100_000;
 
 // ── Trending books (hero stack + featured + browse tabs) ──────────────────
 export const getTrendingBooksCached = unstable_cache(
@@ -78,16 +83,35 @@ export const getTrendingTermsCached = unstable_cache(
 export const getDepartmentCountsCached = unstable_cache(
   async (): Promise<{ name: string; count: number }[]> => {
     const db = createServiceClient();
-    const { data, error } = await db
-      .from("books")
-      .select("departments!inner(name)")
-      .eq("is_published", true);
-    if (error) {
-      console.error("[home-data] department counts:", error.message);
+    // Paged, and ordered on the primary key so the pages tile the table exactly
+    // once. One request cannot return more than 1000 rows whatever it asks for,
+    // and this is a COUNT over every published book: the homepage tiles read
+    // "Science 256 items" against 749 books and "Mathematics 142" against 369
+    // (SEO corpus audit, 2026-09-23, F-A1).
+    const { data, error, truncated } = await pagedScan<{
+      departments: { name: string } | null;
+    }>(
+      (from, to) =>
+        db
+          .from("books")
+          .select("id, departments!inner(name)")
+          .eq("is_published", true)
+          .order("id", { ascending: true })
+          .range(from, to),
+      DEPARTMENT_SCAN_CAP,
+    );
+    if (error || truncated) {
+      // An INCOMPLETE scan is refused for the same reason a failed one is: the
+      // tile publishes a number, and a number that is quietly a fraction of the
+      // truth is worse than a section that does not render.
+      console.error(
+        "[home-data] department counts:",
+        error?.message ?? `scan hit the ${DEPARTMENT_SCAN_CAP}-row ceiling`,
+      );
       return [];
     }
     const counts = new Map<string, number>();
-    for (const row of data ?? []) {
+    for (const row of data) {
       const name = (row.departments as unknown as { name: string } | null)?.name;
       if (name) counts.set(name, (counts.get(name) ?? 0) + 1);
     }

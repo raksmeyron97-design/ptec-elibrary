@@ -5,6 +5,7 @@
 // librarians: incomplete metadata, and files that no longer resolve.
 
 import { requirePermission } from "@/lib/auth/requireAdmin";
+import { pagedScan } from "@/lib/db/paged-scan";
 import { requireAction } from "@/lib/admin/route-guard";
 import { scoreEbookQuality } from "@/lib/admin/ebook-quality";
 import { scoreMetadataQuality } from "@/lib/admin/thesis-metadata-quality";
@@ -35,6 +36,11 @@ import {
   buildContributorTrustReport,
   type ContributorTrustReport,
 } from "@/lib/admin/contributor-trust-report";
+import {
+  buildCatalogueTextReport,
+  type CatalogueTextReport,
+  type CatalogueTextRow,
+} from "@/lib/admin/catalogue-text-report";
 
 export type ContentType = "book" | "research";
 
@@ -48,6 +54,37 @@ const THESIS_QUALITY_COLUMNS = `
   id, title, slug, author_names, advisor_name, program, cohort, academic_year,
   published_at, abstract, keywords, references, cover_url, file_url, license
 `;
+
+/**
+ * Ceiling on how far an admin quality scan will PAGE.
+ *
+ * It replaces a `.limit(10_000)` that did nothing: PostgREST clips every
+ * response at 1000 rows on top of the request's own limit, so this whole
+ * screen — the repair queue, the tier distribution, the per-field impact
+ * ranking and the SEO health panel — was computed over the oldest 1,000 of
+ * 1,956 published books, and reported as the state of the collection.
+ *
+ * The same class of defect as the public entity layer's (lib/db/paged-scan.ts),
+ * and it matters here for a second reason: this is the screen a librarian works
+ * FROM, so a clipped read does not just publish a wrong number, it hides the
+ * records that need the work.
+ */
+const QUALITY_SCAN_CAP = 100_000;
+
+/**
+ * A quality scan, paged, ordered on the primary key.
+ *
+ * Returns `{ rows, complete }` rather than throwing: unlike a public count,
+ * a partial repair queue is still useful to a librarian — what it must never
+ * do is present itself as the whole library. `complete` is what the existing
+ * `available` flag already carries to the page.
+ */
+async function scanForQuality<T = Record<string, unknown>>(
+  page: (from: number, to: number) => PromiseLike<{ data: unknown; error: { message?: string } | null }>,
+): Promise<{ rows: T[]; complete: boolean }> {
+  const { data, error, truncated } = await pagedScan<T>(page, QUALITY_SCAN_CAP);
+  return { rows: data, complete: !error && !truncated };
+}
 
 function relatedName(value: unknown): string | null {
   if (Array.isArray(value)) return (value[0] as { name?: string } | undefined)?.name ?? null;
@@ -107,18 +144,44 @@ function scoreThesis(row: Record<string, unknown>) {
  */
 export async function getMetadataQualityReport(): Promise<{
   report: QualityReport;
+  /** Templated descriptions and cut titles, built from the SAME book rows.
+   *  A second action scanning `books` again is the shape this file already
+   *  removed once — see the note above. */
+  text: CatalogueTextReport;
   available: boolean;
 }> {
   const { supabase } = await requirePermission("books", "read");
 
   const [booksResult, thesesResult] = await Promise.all([
-    supabase.from("books").select(BOOK_QUALITY_COLUMNS).eq("is_published", true).limit(10_000),
-    supabase.from("research_reports").select(THESIS_QUALITY_COLUMNS).eq("is_published", true).limit(10_000),
+    scanForQuality((from, to) =>
+      supabase
+        .from("books")
+        .select(BOOK_QUALITY_COLUMNS)
+        .eq("is_published", true)
+        .order("id", { ascending: true })
+        .range(from, to),
+    ),
+    scanForQuality((from, to) =>
+      supabase
+        .from("research_reports")
+        .select(THESIS_QUALITY_COLUMNS)
+        .eq("is_published", true)
+        .order("id", { ascending: true })
+        .range(from, to),
+    ),
   ]);
 
   const records: ScoredRecord[] = [];
-  for (const book of booksResult.data ?? []) {
+  const textRows: CatalogueTextRow[] = [];
+  for (const book of booksResult.rows as any[]) {
     const { completeness, missing } = scoreBook(book);
+    textRows.push({
+      id: book.id,
+      title: book.title,
+      description: (book.description as string | null) ?? null,
+      subject: relatedName(book.categories),
+      editUrl: `/admin/edit/${book.id}`,
+    });
     records.push({
       id: book.id,
       type: "book",
@@ -129,7 +192,7 @@ export async function getMetadataQualityReport(): Promise<{
       editUrl: `/admin/edit/${book.id}`,
     });
   }
-  for (const thesis of thesesResult.data ?? []) {
+  for (const thesis of thesesResult.rows as any[]) {
     const { completeness, missing } = scoreThesis(thesis);
     records.push({
       id: thesis.id,
@@ -144,7 +207,11 @@ export async function getMetadataQualityReport(): Promise<{
 
   return {
     report: buildQualityReport(records),
-    available: !booksResult.error && !thesesResult.error,
+    // Books only. A thesis carries an abstract written by its author, which is
+    // a different artefact from a catalogue blurb and shares none of the
+    // shapes this measures.
+    text: buildCatalogueTextReport(textRows),
+    available: booksResult.complete && thesesResult.complete,
   };
 }
 
@@ -313,33 +380,66 @@ function hasYear(value: unknown): boolean {
 export async function getSeoHealth(): Promise<SeoHealthResult> {
   const { supabase } = await requirePermission("books", "read");
 
+  // Paged and ordered on the primary key, for the reason in QUALITY_SCAN_CAP:
+  // a `.limit(10_000)` is not a bound, and this panel reported the SEO health
+  // of the oldest 1,000 books as the health of the collection.
   const [
-    { data: books },
-    { data: theses },
-    { data: publications },
-    { data: paths },
-    { data: catalog },
-    { data: posts },
+    { rows: books },
+    { rows: theses },
+    { rows: publications },
+    { rows: paths },
+    { rows: catalog },
+    { rows: posts },
   ] = await Promise.all([
-    supabase.from("books").select("id, title, cover_url, og_image").eq("is_published", true).limit(10_000),
-    supabase
-      .from("research_reports")
-      .select("id, title, cover_url, og_image, abstract, author_names, published_at, academic_year")
-      .eq("is_published", true)
-      .limit(10_000),
-    supabase
-      .from("publications_with_stats")
-      .select("id, title, cover_url, og_image, abstract, author_names, publication_date, published_at")
-      .eq("is_published", true)
-      .limit(10_000),
-    supabase.from("learning_paths").select("id, title, cover_url, og_image_url").eq("is_published", true).limit(10_000),
-    supabase.from("catalog_books").select("id, title, cover_url, og_image").eq("is_active", true).limit(10_000),
-    supabase
-      .from("posts")
-      .select("id, title, cover_url, og_image")
-      .eq("is_published", true)
-      .eq("visibility", "public")
-      .limit(10_000),
+    scanForQuality<any>((from, to) =>
+      supabase
+        .from("books")
+        .select("id, title, cover_url, og_image")
+        .eq("is_published", true)
+        .order("id", { ascending: true })
+        .range(from, to),
+    ),
+    scanForQuality<any>((from, to) =>
+      supabase
+        .from("research_reports")
+        .select("id, title, cover_url, og_image, abstract, author_names, published_at, academic_year")
+        .eq("is_published", true)
+        .order("id", { ascending: true })
+        .range(from, to),
+    ),
+    scanForQuality<any>((from, to) =>
+      supabase
+        .from("publications_with_stats")
+        .select("id, title, cover_url, og_image, abstract, author_names, publication_date, published_at")
+        .eq("is_published", true)
+        .order("id", { ascending: true })
+        .range(from, to),
+    ),
+    scanForQuality<any>((from, to) =>
+      supabase
+        .from("learning_paths")
+        .select("id, title, cover_url, og_image_url")
+        .eq("is_published", true)
+        .order("id", { ascending: true })
+        .range(from, to),
+    ),
+    scanForQuality<any>((from, to) =>
+      supabase
+        .from("catalog_books")
+        .select("id, title, cover_url, og_image")
+        .eq("is_active", true)
+        .order("id", { ascending: true })
+        .range(from, to),
+    ),
+    scanForQuality<any>((from, to) =>
+      supabase
+        .from("posts")
+        .select("id, title, cover_url, og_image")
+        .eq("is_published", true)
+        .eq("visibility", "public")
+        .order("id", { ascending: true })
+        .range(from, to),
+    ),
   ]);
 
   const resources: SeoResourceInput[] = [];

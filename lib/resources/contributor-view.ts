@@ -41,6 +41,7 @@ import {
   stripRoleSuffix,
   type ContributorKind,
 } from "@/lib/resources/contributor-identity";
+import { isUnidentifiedContributorName } from "@/lib/resources/contributor-trust";
 import type { ContributorRole } from "@/lib/resources/types";
 import type { OrgIdentity } from "@/lib/system-settings/org-identity";
 
@@ -206,7 +207,27 @@ export function viewsFromCanonical(
     // like "Smith, John", which is a real single person and must survive.
     // So `manual` rows are taken as stored; only the backfill's copied strings
     // are put back through the contract.
+    //
+    // With ONE exception, which is a fact about time rather than about the
+    // write path: the trust rule (contributor-trust.ts) arrived after rows
+    // were already stored, so "the write path refuses a byline that names
+    // nobody" is a promise it could not make retroactively. Measured on
+    // production 2026-09-23, 19 names the library's own rule rates `invalid`
+    // were reaching indexable book pages as schema.org Person nodes across 90
+    // credits — `user` on 39 books, plus `Windows User`, `ASUS`, `CamScanner`,
+    // `Acer`, `PC`, `Administrator` — each printed as "by user" and linked to
+    // an author page that the SAME rule answers `noindex`
+    // (SEO corpus audit, 2026-09-23, F-A2).
+    //
+    // So the name is checked, and only the name: the row's stored TYPE is
+    // still believed, its role is still believed, and the string is not
+    // re-split. `invalid` is a closed vocabulary plus a structural
+    // impossibility, never a judgement, and its consequence here is the one it
+    // has everywhere else — silence, not deletion. The row stays, the
+    // catalogue record keeps its string, and what stops is the claim that it
+    // names a human being.
     if (row.recordSource === "manual") {
+      if (isUnidentifiedContributorName(row.displayName)) continue;
       const { kind, typeConflict } = kindOfCanonicalRow(row, org);
       out.push({
         contributorId: row.contributorId,
