@@ -48,6 +48,7 @@
 // A book with no subject is legitimate, so the difference is real data rather
 // than a defect, and a check that has to be explained away is one nobody reads.
 
+import { printedCount, printedOfCount, printedOfTotal } from "../lib/verify/counts";
 import {
   errorOutcome,
   exitCodeFor,
@@ -93,35 +94,55 @@ async function text(path: string): Promise<string> {
   return fetchText(`${BASE}${encodeURI(path)}`);
 }
 
+/**
+ * A path whose query value is ALREADY percent-encoded.
+ *
+ * `encodeURI` encodes `%`, so passing an encoded department name through
+ * `text()` turned `%E1%9E…` into `%25E1%259E…` and asked production for a
+ * department that does not exist. The listing then printed no count, and the
+ * check reported "could not look" for every tile.
+ */
+async function textEncoded(path: string): Promise<string> {
+  return fetchText(`${BASE}${path}`);
+}
+
 // ── Reading what the site says ───────────────────────────────────────────────
 
 /** Homepage subject tiles: the department each links to, and the count it prints. */
 function homeSubjectTiles(html: string): { dept: string; count: number }[] {
   const out: { dept: string; count: number }[] = [];
-  for (const m of html.matchAll(/href="\/(?:km\/)?books\?dept=([^"&]+)"([\s\S]{0,1200}?)<\/a>/g)) {
-    const count = m[2].match(/(\d[\d,]*)\s+items?\b/);
-    if (!count) continue;
-    out.push({ dept: decodeURIComponent(m[1]), count: Number(count[1].replace(/,/g, "")) });
+  // To the anchor's own </a>, with no length window. The first draft capped
+  // the span at 1,200 characters and matched NOTHING in production: a tile's
+  // inline SVG path data alone runs past that, and the count sits after it.
+  // `*?` cannot run past the current anchor, so dropping the cap is safe.
+  for (const m of html.matchAll(/href="\/(?:km\/)?books\?dept=([^"&]+)"([\s\S]*?)<\/a>/g)) {
+    // printedCount(), never a \b pattern: see lib/verify/counts.ts for the
+    // CSS class name that parsed as a count in production.
+    const count = printedCount(m[2], "items");
+    if (count === null) continue;
+    out.push({ dept: decodeURIComponent(m[1]), count });
   }
   return out;
 }
 
 /** `/books?dept=…`'s own count: "24 of 116 e-books", or an unfiltered total. */
 function listingTotal(html: string): number | null {
-  const filtered = html.match(/(\d[\d,]*)\s+of\s+(\d[\d,]*)\s+e-books/);
-  if (filtered) return Number(filtered[1].replace(/,/g, ""));
-  const plain = html.match(/(\d[\d,]*)\s+resources?\b/);
-  return plain ? Number(plain[1].replace(/,/g, "")) : null;
+  return printedOfCount(html, "e-books") ?? printedCount(html, "resources");
+}
+
+/** The collection total a listing states, whether or not a filter is on. */
+function listingCollectionTotal(html: string): number | null {
+  return printedOfTotal(html, "e-books") ?? printedCount(html, "resources");
 }
 
 /** Author hub cards: the slug each links to, and the work count it prints. */
 function hubAuthors(html: string): { slug: string; works: number }[] {
   const out = new Map<string, number>();
   for (const m of html.matchAll(/href="\/(?:km\/)?authors\/([^"#?]+)"([\s\S]*?)<\/a>/g)) {
-    const count = m[2].match(/(\d[\d,]*)\s+works?\b/);
-    if (!count) continue;
+    const count = printedCount(m[2], "works");
+    if (count === null) continue;
     const slug = decodeURIComponent(m[1]);
-    if (!out.has(slug)) out.set(slug, Number(count[1].replace(/,/g, "")));
+    if (!out.has(slug)) out.set(slug, count);
   }
   return [...out].map(([slug, works]) => ({ slug, works }));
 }
@@ -136,10 +157,10 @@ function worksShown(html: string): number | null {
 function hubSubjectCounts(html: string): { slug: string; books: number }[] {
   const out = new Map<string, number>();
   for (const m of html.matchAll(/href="\/(?:km\/)?subjects\/([^"#?]+)"([\s\S]*?)<\/a>/g)) {
-    const count = m[2].match(/(\d[\d,]*)\s+e-?books?\b/i);
-    if (!count) continue;
+    const count = printedCount(m[2], "e-books");
+    if (count === null) continue;
     const slug = decodeURIComponent(m[1]);
-    if (!out.has(slug)) out.set(slug, Number(count[1].replace(/,/g, "")));
+    if (!out.has(slug)) out.set(slug, count);
   }
   return [...out].map(([slug, books]) => ({ slug, books }));
 }
@@ -166,7 +187,7 @@ async function run() {
     record(`the homepage renders ${tiles.length} subject tiles with counts`, "ok");
     for (const tile of tiles) {
       try {
-        const total = listingTotal(await text(`/books?dept=${encodeURIComponent(tile.dept)}`));
+        const total = listingTotal(await textEncoded(`/books?dept=${encodeURIComponent(tile.dept)}`));
         if (total === null) {
           record(`tile "${tile.dept}" vs /books?dept=`, "unknown", "the listing printed no count");
           continue;
@@ -223,6 +244,35 @@ async function run() {
     subjects = hubSubjectCounts(await text("/subjects"));
   } catch (err) {
     record("GET /subjects", ...errorOutcome(err));
+  }
+
+  // The site's own published book total, from the unfiltered listing. Used to
+  // turn "the subject counts sum to the row cap" from a coincidence into a
+  // RELATION: a taxonomy covering 1,956 books cannot sum to 1,000 or fewer
+  // unless something stopped reading at the cap.
+  let bookTotal: number | null = null;
+  try {
+    bookTotal = listingCollectionTotal(await text("/books"));
+  } catch (err) {
+    record("GET /books", ...errorOutcome(err));
+  }
+
+  const subjectSum = subjects.reduce((a, s) => a + s.books, 0);
+  if (subjects.length === 0 || bookTotal === null) {
+    record("the subject counts cover more than one page of rows", "unknown", "nothing parsed");
+  } else {
+    // `<=` not `===`: a parser that misses a card, or a subject that gained a
+    // book since the cache was written, must not let the defect through. What
+    // cannot happen legitimately is a whole taxonomy fitting inside one page
+    // of a collection several times that size.
+    const clipped = subjectSum <= ROW_CAP && bookTotal > ROW_CAP;
+    record(
+      `subject e-book counts (${subjectSum}) are not bounded by the row cap, given ${bookTotal} books`,
+      clipped ? "fail" : "ok",
+      clipped
+        ? `every subject together holds ${subjectSum} e-books in a library of ${bookTotal} — a taxonomy does not stop at the server's page size by itself`
+        : null,
+    );
   }
 
   const sets: { name: string; values: number[] }[] = [
