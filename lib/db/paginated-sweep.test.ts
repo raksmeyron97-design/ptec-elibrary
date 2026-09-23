@@ -45,6 +45,7 @@ const SWEEP_FILES = [
   "scripts/embed-library.ts",
   "scripts/extract-pdf-text.ts",
   "scripts/build-semantic-insights.ts",
+  "scripts/repair-truncated-titles.ts",
   // The public entity layer. Every one of these read its tables in ONE
   // request until 2026-09-23, which PostgREST clipped at 1000 rows without
   // erroring — see PUBLIC_LOADERS below for what that published.
