@@ -26,6 +26,7 @@
 import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/server";
+import { chunked, pagedScan } from "@/lib/db/paged-scan";
 import { slugify } from "@/lib/books";
 import { parseAuthorNames } from "@/lib/resources/author-names";
 import { resolveDownloadAccess } from "@/lib/publications/access";
@@ -75,6 +76,16 @@ import { articlePath } from "@/lib/journals/urls";
  * author path, which is exactly what it measures.
  */
 const PER_TYPE_LIMIT = 5000;
+
+/**
+ * Ceiling on the identity SCANS — the fallback that resolves a slug by
+ * re-slugifying every name, for the pre-0125 rows that have no `slug` column.
+ *
+ * It replaces a `.limit(2000)` that PostgREST silently clipped to 1000. Those
+ * scans were the difference between "this URL used to work" and a 404: an
+ * author beyond the cut could not be resolved by any route.
+ */
+const IDENTITY_SCAN_CAP = 50_000;
 
 function clean(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
@@ -154,12 +165,17 @@ async function findPublicationAuthor(
     .maybeSingle();
   if (bySlug) return bySlug as unknown as AuthorRecord;
 
-  const { data: all } = await supabase
-    .from("publication_authors")
-    .select(AUTHOR_SELECT)
-    .limit(2000);
+  const { data: all } = await pagedScan<unknown>(
+    (from, to) =>
+      supabase
+        .from("publication_authors")
+        .select(AUTHOR_SELECT)
+        .order("id", { ascending: true })
+        .range(from, to),
+    IDENTITY_SCAN_CAP,
+  );
   return (
-    ((all ?? []) as unknown as AuthorRecord[]).find(
+    (all as unknown as AuthorRecord[]).find(
       (a) =>
         slugify(a.full_name) === slug ||
         (a.full_name_km ? slugify(a.full_name_km) === slug : false),
@@ -180,11 +196,59 @@ async function findBookAuthor(
     .maybeSingle();
   if (bySlug) return bySlug as BookAuthorRecord;
 
-  const { data: all } = await supabase
-    .from("authors")
-    .select("id, name, bio, photo_url")
-    .limit(2000);
-  return ((all ?? []) as BookAuthorRecord[]).find((a) => slugify(a.name) === slug) ?? null;
+  const { data: all } = await pagedScan<BookAuthorRecord>(
+    (from, to) =>
+      supabase
+        .from("authors")
+        .select("id, name, bio, photo_url")
+        .order("id", { ascending: true })
+        .range(from, to),
+    IDENTITY_SCAN_CAP,
+  );
+  return all.find((a) => slugify(a.name) === slug) ?? null;
+}
+
+// ── Reading a named set of rows ──────────────────────────────────────────────
+
+/**
+ * Rows of `table` named by id, published only.
+ *
+ * `.in("id", ids)` LOOKS bounded — you named the rows you want — which is
+ * exactly why its clipping is invisible: PostgREST caps the RESPONSE at 1000
+ * rows, so asking for an author's 1,037 canonical credits by id returns 1,000
+ * of them and the page renders that as their complete works. The ids are split
+ * into batches no single response can reach.
+ */
+async function publishedRowsByIds(
+  supabase: ReturnType<typeof createServiceClient>,
+  table: string,
+  columns: string,
+  ids: readonly string[],
+): Promise<any[]> {
+  const batches = chunked(ids.slice(0, PER_TYPE_LIMIT));
+  const results = await Promise.all(
+    batches.map((batch) =>
+      supabase.from(table).select(columns).in("id", batch).eq("is_published", true),
+    ),
+  );
+  return results.flatMap((r) => (r.data ?? []) as any[]);
+}
+
+/** Bylines for a page of publications, batched for the same reason. */
+async function bylinesById(
+  supabase: ReturnType<typeof createServiceClient>,
+  ids: readonly string[],
+): Promise<Map<string, string | null>> {
+  const results = await Promise.all(
+    chunked(ids).map((batch) =>
+      supabase.from("publications_with_stats").select("id, author_names").in("id", batch),
+    ),
+  );
+  return new Map<string, string | null>(
+    results
+      .flatMap((r) => (r.data ?? []) as any[])
+      .map((b) => [b.id as string, (b.author_names ?? null) as string | null]),
+  );
 }
 
 // ── Works ────────────────────────────────────────────────────────────────────
@@ -195,28 +259,27 @@ async function publicationWorks(
 ): Promise<AuthorWork[]> {
   // The join the old ilike was standing in for. `!inner` keeps the filter on
   // the link row, so this is one round trip, not one per publication.
-  const { data } = await supabase
-    .from("publications")
-    .select(
-      "id, slug, title, title_km, abstract, journal_name, doi, cover_url, pdf_url, " +
-        "publication_date, published_at, publisher, license, allow_download, " +
-        "fulltext_redistributable, publication_authorships!inner(author_id)",
-    )
-    .eq("publication_authorships.author_id", authorId)
-    .eq("is_published", true)
-    .limit(PER_TYPE_LIMIT);
+  const { data } = await pagedScan<any>(
+    (from, to) =>
+      supabase
+        .from("publications")
+        .select(
+          "id, slug, title, title_km, abstract, journal_name, doi, cover_url, pdf_url, " +
+            "publication_date, published_at, publisher, license, allow_download, " +
+            "fulltext_redistributable, publication_authorships!inner(author_id)",
+        )
+        .eq("publication_authorships.author_id", authorId)
+        .eq("is_published", true)
+        .order("id", { ascending: true })
+        .range(from, to),
+    PER_TYPE_LIMIT,
+  );
 
-  const rows = (data ?? []) as any[];
+  const rows = data;
   if (rows.length === 0) return [];
 
   // One extra query for every byline on the page, rather than one per row.
-  const { data: bylines } = await supabase
-    .from("publications_with_stats")
-    .select("id, author_names")
-    .in("id", rows.map((r) => r.id));
-  const bylineFor = new Map<string, string | null>(
-    ((bylines ?? []) as any[]).map((b) => [b.id, b.author_names ?? null]),
-  );
+  const bylineFor = await bylinesById(supabase, rows.map((r) => r.id));
 
   return rows.map((row) => ({
     id: row.id,
@@ -245,15 +308,25 @@ async function bookWorks(
   supabase: ReturnType<typeof createServiceClient>,
   bookAuthorId: string,
 ): Promise<AuthorWork[]> {
-  const { data } = await supabase
-    .from("books")
-    .select("id, slug, title, description, cover_url, published_at, created_at")
-    .eq("author_id", bookAuthorId)
-    .eq("is_published", true)
-    .order("download_count", { ascending: false })
-    .limit(PER_TYPE_LIMIT);
+  // `download_count` is the display order and is NOT unique — many books share
+  // a count, and most share zero. A sweep whose last ORDER BY term ties can
+  // hand one row to two pages or to neither, so `id` breaks it. This is the
+  // author page's own truncation: MoEYS's page stopped at "1000 works shown"
+  // of 1,037 because PER_TYPE_LIMIT is applied by a server that clips at 1000.
+  const { data } = await pagedScan<any>(
+    (from, to) =>
+      supabase
+        .from("books")
+        .select("id, slug, title, description, cover_url, published_at, created_at")
+        .eq("author_id", bookAuthorId)
+        .eq("is_published", true)
+        .order("download_count", { ascending: false })
+        .order("id", { ascending: true })
+        .range(from, to),
+    PER_TYPE_LIMIT,
+  );
 
-  return ((data ?? []) as any[]).map((row) => ({
+  return data.map((row) => ({
     id: row.id,
     type: "ebook" as const,
     title: row.title,
@@ -277,14 +350,19 @@ async function thesisWorks(
   if (aliases.length === 0) return [];
   // Widen with ilike (all Postgres can do against a free-text column), then
   // narrow with an exact name check below.
-  const { data } = await supabase
-    .from("research_reports")
-    .select("id, slug, title, abstract, author_names, cover_url, doi, published_at, created_at, faculty, file_url")
-    .eq("is_published", true)
-    .or(aliases.map((a) => `author_names.ilike.%${a}%`).join(","))
-    .limit(PER_TYPE_LIMIT * 2);
+  const { data } = await pagedScan<any>(
+    (from, to) =>
+      supabase
+        .from("research_reports")
+        .select("id, slug, title, abstract, author_names, cover_url, doi, published_at, created_at, faculty, file_url")
+        .eq("is_published", true)
+        .or(aliases.map((a) => `author_names.ilike.%${a}%`).join(","))
+        .order("id", { ascending: true })
+        .range(from, to),
+    PER_TYPE_LIMIT * 2,
+  );
 
-  return ((data ?? []) as any[])
+  return data
     .filter((row) => isNamedIn(row.author_names, aliases))
     .slice(0, PER_TYPE_LIMIT)
     .map((row) => ({
@@ -307,14 +385,19 @@ async function catalogWorks(
   aliases: string[],
 ): Promise<AuthorWork[]> {
   if (aliases.length === 0) return [];
-  const { data } = await supabase
-    .from("catalog_books")
-    .select("id, slug, title, description, author, cover_url, year")
-    .eq("is_active", true)
-    .or(aliases.map((a) => `author.ilike.%${a}%`).join(","))
-    .limit(PER_TYPE_LIMIT * 2);
+  const { data } = await pagedScan<any>(
+    (from, to) =>
+      supabase
+        .from("catalog_books")
+        .select("id, slug, title, description, author, cover_url, year")
+        .eq("is_active", true)
+        .or(aliases.map((a) => `author.ilike.%${a}%`).join(","))
+        .order("id", { ascending: true })
+        .range(from, to),
+    PER_TYPE_LIMIT * 2,
+  );
 
-  return ((data ?? []) as any[])
+  return data
     .filter((row) => isNamedIn(row.author, aliases))
     .slice(0, PER_TYPE_LIMIT)
     .map((row) => ({
@@ -364,12 +447,13 @@ async function canonicalBookWorks(
   supabase: ReturnType<typeof createServiceClient>,
   ids: string[],
 ): Promise<AuthorWork[]> {
-  const { data } = await supabase
-    .from("books")
-    .select("id, slug, title, description, cover_url, published_at, created_at")
-    .in("id", ids.slice(0, PER_TYPE_LIMIT))
-    .eq("is_published", true);
-  return ((data ?? []) as any[]).map((row) => ({
+  const data = await publishedRowsByIds(
+    supabase,
+    "books",
+    "id, slug, title, description, cover_url, published_at, created_at",
+    ids,
+  );
+  return data.map((row) => ({
     id: row.id,
     type: "ebook" as const,
     title: row.title,
@@ -388,12 +472,13 @@ async function canonicalThesisWorks(
   supabase: ReturnType<typeof createServiceClient>,
   ids: string[],
 ): Promise<AuthorWork[]> {
-  const { data } = await supabase
-    .from("research_reports")
-    .select("id, slug, title, abstract, author_names, cover_url, doi, published_at, created_at, faculty, file_url")
-    .in("id", ids.slice(0, PER_TYPE_LIMIT))
-    .eq("is_published", true);
-  return ((data ?? []) as any[]).map((row) => ({
+  const data = await publishedRowsByIds(
+    supabase,
+    "research_reports",
+    "id, slug, title, abstract, author_names, cover_url, doi, published_at, created_at, faculty, file_url",
+    ids,
+  );
+  return data.map((row) => ({
     id: row.id,
     type: "thesis" as const,
     title: row.title,
@@ -417,25 +502,16 @@ async function canonicalPublicationWorks(
   // the whole query, which this fetcher would have reported as "no works".
   // Same two-step the legacy leg above uses: rows first, bylines in one
   // follow-up query for the whole page.
-  const { data } = await supabase
-    .from("publications")
-    .select(
-      "id, slug, title, abstract, journal_name, doi, cover_url, pdf_url, " +
-        "publication_date, published_at, publisher, license, allow_download, fulltext_redistributable",
-    )
-    .in("id", ids.slice(0, PER_TYPE_LIMIT))
-    .eq("is_published", true);
-
-  const rows = (data ?? []) as any[];
+  const rows = await publishedRowsByIds(
+    supabase,
+    "publications",
+    "id, slug, title, abstract, journal_name, doi, cover_url, pdf_url, " +
+      "publication_date, published_at, publisher, license, allow_download, fulltext_redistributable",
+    ids,
+  );
   if (rows.length === 0) return [];
 
-  const { data: bylines } = await supabase
-    .from("publications_with_stats")
-    .select("id, author_names")
-    .in("id", rows.map((r) => r.id));
-  const bylineFor = new Map<string, string | null>(
-    ((bylines ?? []) as any[]).map((b) => [b.id, b.author_names ?? null]),
-  );
+  const bylineFor = await bylinesById(supabase, rows.map((r) => r.id));
 
   return rows.map((row) => ({
     id: row.id,

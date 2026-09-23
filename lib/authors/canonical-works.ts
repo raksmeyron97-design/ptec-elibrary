@@ -49,6 +49,7 @@ import "server-only";
 
 import type { createServiceClient } from "@/lib/supabase/server";
 import type { ResourceType } from "@/lib/resources/types";
+import { pagedScan } from "@/lib/db/paged-scan";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Db = ReturnType<typeof createServiceClient>;
@@ -130,27 +131,43 @@ function collect(into: Map<string, AuthorContributorRecord>, row: any): void {
   });
 }
 
-/** The resources these contributors are credited on, in one query. */
+/**
+ * The resources these contributors are credited on.
+ *
+ * PAGED, and ordered on a unique key. The `.limit(10000)` this carried was
+ * decoration: PostgREST clips every response at 1000 rows whatever is asked
+ * for, so the most-credited contributor in the library — the Ministry of
+ * Education, with 1,037 book credits — lost 37 of them here, and the profile
+ * page reported the 1,000 it was handed as the complete works
+ * (SEO corpus audit, 2026-09-23, F-A1). `sequence` is the byline order and
+ * is nowhere near unique (it is 0 on most rows), so `id` breaks the tie; a tie
+ * in the last ORDER BY term is precisely where a paged sweep drops rows.
+ */
 export async function canonicalWorkRefs(
   db: Db,
   contributorIds: readonly string[],
   limit = 10000,
 ): Promise<CanonicalWorkRef[]> {
   if (contributorIds.length === 0) return [];
-  const { data, error } = await db
-    .from("resource_contributors")
-    .select("resource_type, resource_id, role, sequence")
-    .in("contributor_id", contributorIds)
-    .order("sequence", { ascending: true })
-    .limit(limit);
+  const { data, error } = await pagedScan<any>(
+    (from, to) =>
+      db
+        .from("resource_contributors")
+        .select("id, resource_type, resource_id, role, sequence")
+        .in("contributor_id", contributorIds)
+        .order("sequence", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+    limit,
+  );
   // A failed read must not look like "this author has no canonical works" to
   // the caller — but the caller's legacy legs still answer, so returning []
   // here degrades to the pre-3.2 page rather than to an empty one.
-  if (error || !data) return [];
+  if (error) return [];
 
   const seen = new Set<string>();
   const out: CanonicalWorkRef[] = [];
-  for (const row of data as any[]) {
+  for (const row of data) {
     const key = `${row.resource_type}:${row.resource_id}`;
     if (seen.has(key)) continue;
     seen.add(key);

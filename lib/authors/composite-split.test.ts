@@ -138,7 +138,11 @@ describe("the directory counts canonical credits without double-counting", () =>
   it("selects the book id it dedupes on", () => {
     // Without `id` in the select, the dedupe set is empty and silently does
     // nothing.
-    expect(src).toContain('from("books").select("id, author_id")');
+    //
+    // Matched across whitespace: the read is a paged sweep now, so the chain
+    // spans several lines (lib/db/paged-scan.ts). The rule is which COLUMNS
+    // are asked for, never how the call is formatted.
+    expect(src).toMatch(/from\("books"\)\s*\.select\("id, author_id"\)/);
   });
 });
 

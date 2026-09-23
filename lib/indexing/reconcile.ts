@@ -48,6 +48,7 @@ import {
   type WorkReason,
 } from "./retry";
 import { judgeEnvironment, PROBE_SAMPLE_SIZE } from "./environment";
+import { pagedScan } from "@/lib/db/paged-scan";
 
 /** Records processed in one reconciliation pass. */
 export const DEFAULT_BATCH = 10;
@@ -85,6 +86,35 @@ type StateRow = {
 };
 
 /**
+ * Ceiling on how far a reconciler sweep will PAGE. A runaway guard, not a
+ * working limit — the published collection is ~2,000 resources.
+ */
+const RECONCILE_SCAN_CAP = 200_000;
+
+/**
+ * A whole-table read the reconciler REASONS from, so it must be complete.
+ *
+ * It throws rather than returning what it managed to fetch, for the same
+ * reason this module refuses to run at all when the storage allow-list cannot
+ * reach the database's files: a partial view produces confident, wrong
+ * conclusions about records it never saw. A clipped resource list silently
+ * stops indexing every book past the cut; a clipped state table re-extracts
+ * records that are already done. Aborting is loud, and there is nothing to
+ * learn from half a sweep.
+ */
+async function scanAll<T>(
+  page: (from: number, to: number) => PromiseLike<{ data: unknown; error: { message?: string } | null }>,
+  table: string,
+): Promise<T[]> {
+  const { data, error, truncated } = await pagedScan<T>(page, RECONCILE_SCAN_CAP);
+  if (error) throw new Error(`[index-reconcile] ${table}: ${error.message ?? "read failed"}`);
+  if (truncated) {
+    throw new Error(`[index-reconcile] ${table}: scan hit the ${RECONCILE_SCAN_CAP}-row ceiling`);
+  }
+  return data;
+}
+
+/**
  * Every published resource that has a file, with the URL it points at NOW.
  *
  * Deliberately mirrors the `published` CTE in migration 0134's health view:
@@ -94,13 +124,46 @@ type StateRow = {
 export async function listIndexableResources(db: SupabaseClient): Promise<ResourceRef[]> {
   const out: ResourceRef[] = [];
 
+  // Paged and ordered on the primary key. One request returns at most 1000
+  // rows whatever it asks for, so a one-shot read of `books` handed this sweep
+  // the oldest 1,000 of 1,956 published books: every newer book was invisible
+  // to the reconciler, which is to say it was never extracted, never
+  // searchable inside, and could be cited by no AI answer — while the hourly
+  // job reported a clean run.
   const [books, theses, publications] = await Promise.all([
-    db.from("books").select("id, title, book_files(file_url)").eq("is_published", true),
-    db.from("research_reports").select("id, title, file_url").eq("is_published", true),
-    db.from("publications").select("id, title, pdf_url").eq("is_published", true),
+    scanAll<{ id: string; title: string | null; book_files?: Array<{ file_url: string | null }> }>(
+      (from, to) =>
+        db
+          .from("books")
+          .select("id, title, book_files(file_url)")
+          .eq("is_published", true)
+          .order("id", { ascending: true })
+          .range(from, to),
+      "books",
+    ),
+    scanAll<{ id: string; title: string | null; file_url: string | null }>(
+      (from, to) =>
+        db
+          .from("research_reports")
+          .select("id, title, file_url")
+          .eq("is_published", true)
+          .order("id", { ascending: true })
+          .range(from, to),
+      "research_reports",
+    ),
+    scanAll<{ id: string; title: string | null; pdf_url: string | null }>(
+      (from, to) =>
+        db
+          .from("publications")
+          .select("id, title, pdf_url")
+          .eq("is_published", true)
+          .order("id", { ascending: true })
+          .range(from, to),
+      "publications",
+    ),
   ]);
 
-  for (const b of books.data ?? []) {
+  for (const b of books) {
     const files = (b.book_files ?? []) as Array<{ file_url: string | null }>;
     const url = files
       .map((f) => f.file_url)
@@ -108,11 +171,11 @@ export async function listIndexableResources(db: SupabaseClient): Promise<Resour
       .sort()[0];
     if (url) out.push({ recordType: "book", recordId: b.id, title: b.title ?? "", fileUrl: url });
   }
-  for (const r of theses.data ?? []) {
+  for (const r of theses) {
     if (r.file_url)
       out.push({ recordType: "research", recordId: r.id, title: r.title ?? "", fileUrl: r.file_url });
   }
-  for (const p of publications.data ?? []) {
+  for (const p of publications) {
     if (p.pdf_url)
       out.push({
         recordType: "publication",
@@ -218,12 +281,24 @@ export async function reconcileIndex(
     };
   }
 
-  const { data: stateRows } = await db
-    .from("resource_index_state")
-    .select("record_type, record_id, status, failure_kind, source_digest, next_attempt_at, claimed_at");
+  // The state table is read whole too, and its primary key is
+  // (record_type, record_id) — there is no `id` column, so the sweep must
+  // order on both or the pages tie across the three record types. A state row
+  // that falls in the gap reads as `never_attempted`, which sends the worker
+  // to re-extract a record it has already done.
+  const stateRows = await scanAll<StateRow>(
+    (from, to) =>
+      db
+        .from("resource_index_state")
+        .select("record_type, record_id, status, failure_kind, source_digest, next_attempt_at, claimed_at")
+        .order("record_type", { ascending: true })
+        .order("record_id", { ascending: true })
+        .range(from, to),
+    "resource_index_state",
+  );
 
   const states = new Map<string, StateRow>(
-    ((stateRows ?? []) as StateRow[]).map((r) => [`${r.record_type}:${r.record_id}`, r]),
+    stateRows.map((r) => [`${r.record_type}:${r.record_id}`, r]),
   );
 
   const work = selectWork(resources, states, now, limit);

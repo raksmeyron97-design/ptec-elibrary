@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ShieldCheck, SearchX, AlertTriangle } from "lucide-react";
 import { createServiceClient } from "@/lib/supabase/server";
-import { pagedScan } from "@/lib/admin/paged-scan";
+import { pagedScan } from "@/lib/db/paged-scan";
 import { duplicateGroupFingerprint } from "@/lib/admin/duplicate-dismissal";
 
 import { findDuplicateGroups, type DuplicateBook } from "@/lib/admin/duplicates";
@@ -38,7 +38,7 @@ const BASE_PATH = EBOOKS_DUPLICATES_PATH;
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZES = [10, 25, 50];
 // Ceiling on how far the scan will page. Not a per-request limit — PostgREST
-// ignores those above db-max-rows; see lib/admin/paged-scan.ts.
+// ignores those above db-max-rows; see lib/db/paged-scan.ts.
 const DETECTION_SCAN_CAP = 20_000;
 
 type SP = {

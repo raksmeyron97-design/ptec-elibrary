@@ -32,6 +32,7 @@ import "server-only";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
+import { pagedScan, type PagedScanResult } from "@/lib/db/paged-scan";
 import { addressableAuthorSlug } from "@/lib/authors/slug";
 import { TAGS } from "@/lib/cache/revalidate";
 
@@ -67,46 +68,170 @@ function isNamedIn(raw: string | null | undefined, names: string[]): boolean {
   return names.some((n) => listed.includes(n));
 }
 
+/**
+ * Ceiling on how far one of these scans will PAGE.
+ *
+ * NOT a limit one request can honour: PostgREST clips every response at 1000
+ * rows whatever `.limit()` says, so the `.limit(5000)` and `.limit(10000)` this
+ * loader used to carry were decoration. It read the first 1,000 of 1,956
+ * published books and the first 1,000 canonical credits, which is why the hub
+ * credited the Ministry of Education with 652 works against 1,037, and why 223
+ * author pages answering `index, follow` were in no sitemap, on no hub and
+ * linked from none of their own books (SEO corpus audit, 2026-09-23, F-A1).
+ */
+const DIRECTORY_SCAN_CAP = 100_000;
+
+/** PostgREST / Postgres codes for "that table is not there". */
+const MISSING_TABLE = new Set(["42P01", "PGRST205"]);
+
+/**
+ * A scan the roster is COUNTED from, so it must be complete.
+ *
+ * Throwing degrades the whole directory to empty, and that is the safe
+ * direction here because empty is already a handled, honest answer: an empty
+ * roster means UNKNOWN downstream — `lib/authors/sitemap-filter.ts` emits
+ * author URLs unfiltered rather than concluding nobody has works. A PARTIAL
+ * roster is the opposite: it reports work counts that are quietly too low, and
+ * a count of zero is what removes an author from /authors, from the sitemap and
+ * from their own books' bylines.
+ */
+function counted<T>(table: string, scan: PagedScanResult<T>): T[] {
+  if (scan.error) {
+    throw new Error(`[author-directory] ${table}: ${scan.error.message ?? "read failed"}`);
+  }
+  if (scan.truncated) {
+    throw new Error(`[author-directory] ${table}: scan hit the ${DIRECTORY_SCAN_CAP}-row ceiling`);
+  }
+  return scan.data;
+}
+
+/**
+ * The same, for a table that may not EXIST yet.
+ *
+ * `contributors` and `resource_contributors` arrive in 0105. Naming a table
+ * that is not there fails the whole directory rather than degrading it, which
+ * is why they were asked for defensively — but "the table is missing" is the
+ * only failure that may pass quietly. Every other error, and every truncation,
+ * is a credit count that would come out too low, so it is still fatal.
+ */
+function optional<T>(table: string, scan: PagedScanResult<T>): T[] {
+  if (scan.error && MISSING_TABLE.has(scan.error.code ?? "")) return [];
+  return counted(table, scan);
+}
+
 async function loadAuthorDirectory(): Promise<AuthorDirectoryEntry[]> {
   const supabase = createServiceClient();
 
-  const selectWithFallback = async <T,>(table: string, columns: string, fallback: string) => {
-    const first = await supabase.from(table).select(columns).limit(5000);
-    if (!first.error) return (first.data ?? []) as T[];
-    const second = await supabase.from(table).select(fallback).limit(5000);
-    return (second.data ?? []) as T[];
+  /**
+   * A paged scan that falls back to a narrower projection.
+   *
+   * The fallback is the pre-0125 "no `slug` column" case: PostgREST answers
+   * 42703 for the whole request, so the retry re-runs the WHOLE scan rather
+   * than resuming — a scan that changed its column list mid-way would hand the
+   * mapper two row shapes.
+   */
+  const scanWithFallback = async <T,>(table: string, columns: string, fallback: string) => {
+    const run = (cols: string) =>
+      pagedScan<T>(
+        (from, to) =>
+          supabase.from(table).select(cols).order("id", { ascending: true }).range(from, to),
+        DIRECTORY_SCAN_CAP,
+      );
+    const first = await run(columns);
+    if (!first.error) return counted(table, first);
+    return counted(table, await run(fallback));
   };
 
-  const [academics, bookAuthors, books, authorships, theses, catalog, contributors, credits] =
+  // Every sweep orders on a UNIQUE key before it pages: two LIMIT/OFFSET
+  // windows over an unordered query may hand the same row to both or to
+  // neither, and an author whose row falls in the gap reads as an author with
+  // no works.
+  const [academics, bookAuthors, bookScan, authorshipScan, thesisScan, catalogScan, contributorScan, creditScan] =
     await Promise.all([
-      selectWithFallback<{ id: string; full_name: string; full_name_km: string | null; slug?: string | null }>(
+      scanWithFallback<{ id: string; full_name: string; full_name_km: string | null; slug?: string | null }>(
         "publication_authors",
         "id, full_name, full_name_km, slug",
         "id, full_name, full_name_km",
       ),
-      selectWithFallback<{ id: string; name: string; slug?: string | null }>(
+      scanWithFallback<{ id: string; name: string; slug?: string | null }>(
         "authors",
         "id, name, slug",
         "id, name",
       ),
-      supabase.from("books").select("id, author_id").eq("is_published", true),
-      supabase.from("publication_authorships").select("author_id, publications!inner(is_published)"),
-      supabase.from("research_reports").select("author_names").eq("is_published", true),
-      supabase.from("catalog_books").select("author").eq("is_active", true),
+      pagedScan<{ id?: string | null; author_id: string | null }>(
+        (from, to) =>
+          supabase
+            .from("books")
+            .select("id, author_id")
+            .eq("is_published", true)
+            .order("id", { ascending: true })
+            .range(from, to),
+        DIRECTORY_SCAN_CAP,
+      ),
+      // `publication_authorships` has no `id`; its primary key is
+      // (publication_id, author_id), so the sweep orders on both.
+      pagedScan<{ author_id: string | null; publications?: { is_published?: boolean } | null }>(
+        (from, to) =>
+          supabase
+            .from("publication_authorships")
+            .select("publication_id, author_id, publications!inner(is_published)")
+            .order("publication_id", { ascending: true })
+            .order("author_id", { ascending: true })
+            .range(from, to),
+        DIRECTORY_SCAN_CAP,
+      ),
+      pagedScan<{ author_names: string | null }>(
+        (from, to) =>
+          supabase
+            .from("research_reports")
+            .select("id, author_names")
+            .eq("is_published", true)
+            .order("id", { ascending: true })
+            .range(from, to),
+        DIRECTORY_SCAN_CAP,
+      ),
+      pagedScan<{ author: string | null }>(
+        (from, to) =>
+          supabase
+            .from("catalog_books")
+            .select("id, author")
+            .eq("is_active", true)
+            .order("id", { ascending: true })
+            .range(from, to),
+        DIRECTORY_SCAN_CAP,
+      ),
+      pagedScan<{ id: string; legacy_author_id: string | null }>(
+        (from, to) =>
+          supabase
+            .from("contributors")
+            .select("id, legacy_author_id")
+            .order("id", { ascending: true })
+            .range(from, to),
+        DIRECTORY_SCAN_CAP,
+      ),
       // Canonical credits. `books.author_id` is a SINGLE foreign key, so a book
       // with three authors can name only one of them there — every other
       // contributor's credit lives here, and counting only the FK is what left
       // 113 scholars with `workCount` 0, unlisted and unlinkable, while their
-      // names were rendered on the book page (SEO 3.3 §7.2). Asked for
-      // defensively: before 0105 the table does not exist and naming it would
-      // fail the WHOLE directory rather than degrade it.
-      supabase.from("contributors").select("id, legacy_author_id").limit(5000),
-      supabase
-        .from("resource_contributors")
-        .select("contributor_id, resource_id, resource_type")
-        .eq("resource_type", "book")
-        .limit(10000),
+      // names were rendered on the book page (SEO 3.3 §7.2).
+      pagedScan<{ contributor_id: string; resource_id: string }>(
+        (from, to) =>
+          supabase
+            .from("resource_contributors")
+            .select("id, contributor_id, resource_id, resource_type")
+            .eq("resource_type", "book")
+            .order("id", { ascending: true })
+            .range(from, to),
+        DIRECTORY_SCAN_CAP,
+      ),
     ]);
+
+  const books = counted("books", bookScan);
+  const authorships = counted("publication_authorships", authorshipScan);
+  const theses = counted("research_reports", thesisScan);
+  const catalog = counted("catalog_books", catalogScan);
+  const contributors = optional("contributors", contributorScan);
+  const credits = optional("resource_contributors", creditScan);
 
   const bookCountByAuthorId = new Map<string, number>();
   const countedBooks = new Map<string, Set<string>>();
@@ -120,10 +245,8 @@ async function loadAuthorDirectory(): Promise<AuthorDirectoryEntry[]> {
     countedBooks.set(authorId, seen);
   };
 
-  const publishedBookIds = new Set(
-    ((books.data ?? []) as { id?: string | null }[]).map((b) => b.id).filter(Boolean) as string[],
-  );
-  for (const b of (books.data ?? []) as { id?: string | null; author_id: string | null }[]) {
+  const publishedBookIds = new Set(books.map((b) => b.id).filter(Boolean) as string[]);
+  for (const b of books) {
     if (!b.author_id) continue;
     if (b.id) creditBook(b.author_id, b.id);
     else bookCountByAuthorId.set(b.author_id, (bookCountByAuthorId.get(b.author_id) ?? 0) + 1);
@@ -132,10 +255,10 @@ async function loadAuthorDirectory(): Promise<AuthorDirectoryEntry[]> {
   // contributor → the authors row it denotes, so a canonical credit can be
   // attributed to the author URL the directory is built from.
   const authorIdByContributor = new Map<string, string>();
-  for (const c of (contributors.data ?? []) as { id: string; legacy_author_id: string | null }[]) {
+  for (const c of contributors) {
     if (c.legacy_author_id) authorIdByContributor.set(c.id, c.legacy_author_id);
   }
-  for (const rc of (credits.data ?? []) as { contributor_id: string; resource_id: string }[]) {
+  for (const rc of credits) {
     const authorId = authorIdByContributor.get(rc.contributor_id);
     // Only PUBLISHED books count, exactly as the legacy leg does — a credit on
     // an unpublished book is not a public work.
@@ -148,19 +271,14 @@ async function loadAuthorDirectory(): Promise<AuthorDirectoryEntry[]> {
   }
 
   const pubCountByAuthorId = new Map<string, number>();
-  for (const a of (authorships.data ?? []) as {
-    author_id: string | null;
-    publications?: { is_published?: boolean } | null;
-  }[]) {
+  for (const a of authorships) {
     if (!a.author_id) continue;
     if (a.publications?.is_published === false) continue;
     pubCountByAuthorId.set(a.author_id, (pubCountByAuthorId.get(a.author_id) ?? 0) + 1);
   }
 
-  const thesisBylines = ((theses.data ?? []) as { author_names: string | null }[]).map(
-    (t) => t.author_names,
-  );
-  const catalogBylines = ((catalog.data ?? []) as { author: string | null }[]).map((c) => c.author);
+  const thesisBylines = theses.map((t) => t.author_names);
+  const catalogBylines = catalog.map((c) => c.author);
 
   // slug → entry. Academic profiles are merged first so their richer identity
   // (Khmer name, profile flag) wins over a bare e-book author row of the same
@@ -232,7 +350,13 @@ const cachedAuthorDirectory = unstable_cache(loadAuthorDirectory, ["author-direc
 export const getAuthorDirectory = cache(async (): Promise<AuthorDirectoryEntry[]> => {
   try {
     return await cachedAuthorDirectory();
-  } catch {
+  } catch (err) {
+    // Empty is the honest degraded answer and downstream reads it as UNKNOWN
+    // (lib/authors/sitemap-filter.ts). A PARTIAL roster would not be: it under-
+    // counts works, and an author whose count reaches zero is dropped from
+    // /authors, from the sitemap and from their own books — which is why the
+    // scans above throw rather than return what they managed to fetch.
+    console.error("[author-directory] read failed:", err instanceof Error ? err.message : err);
     return [];
   }
 });
