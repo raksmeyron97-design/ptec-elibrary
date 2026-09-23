@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const {
   maybeSingle,
+  downloadCountedWithinWindow,
   createServiceClient,
   createClient,
   getUser,
@@ -19,6 +20,7 @@ const {
   insert,
 } = vi.hoisted(() => {
   const maybeSingle = vi.fn();
+  const downloadCountedWithinWindow = vi.fn(async () => false);
   const insert = vi.fn(async () => ({ error: null }));
   const rpc = vi.fn(async () => ({ error: null }));
   // books: .select().eq().eq().maybeSingle();  download_logs: .insert()
@@ -42,6 +44,7 @@ const {
     logAdminAction: vi.fn(async () => {}),
     rpc,
     insert,
+    downloadCountedWithinWindow,
   };
 });
 
@@ -56,8 +59,17 @@ vi.mock("@/app/actions/audit", () => ({ logAdminAction }));
 vi.mock("@/lib/analytics/events", () => ({
   logDownloadAttempt,
   logAppEvent: vi.fn(),
-  getViewerContext: vi.fn(async () => ({ sessionHash: "hash" })),
+  getViewerContext: vi.fn(async () => ({
+    userId: "user-1",
+    sessionHash: "hash",
+    locale: "en",
+    isBot: false,
+    ip: "127.0.0.1",
+  })),
 }));
+// The dedupe READ is exercised in lib/analytics/counting.test.ts and against a
+// real database; here it is a switch, so these tests stay about the route.
+vi.mock("@/lib/analytics/lifetime-counters", () => ({ downloadCountedWithinWindow }));
 
 import { GET } from "./route";
 
@@ -82,6 +94,7 @@ function bookRow(over: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  downloadCountedWithinWindow.mockResolvedValue(false);
   getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
   maybeSingle.mockResolvedValue(bookRow());
   canOverrideBookDownloadPolicy.mockResolvedValue({ allowed: false, role: null });
@@ -246,5 +259,42 @@ describe("GET /api/books/[slug]/download — file_access = catalogue_only", () =
     const res = await GET(req(), { params: params("a-book") });
     expect(res.status).toBe(200);
     expect(zimaFetch).toHaveBeenCalled();
+  });
+});
+
+// ── The lifetime counter ────────────────────────────────────────────────────
+// This route serves the file every search result and every detail page links
+// to, and until now it moved `books.download_count` on none of them: it called
+// `increment_download_count({ book_id })`, and PostgREST resolves a function BY
+// ARGUMENT NAME, so the call answered 404 rather than throwing — into a
+// Promise.all whose result was discarded.
+describe("GET /api/books/[slug]/download — download_count", () => {
+  it("counts a first download, with the argument name the function declares", async () => {
+    await GET(req(), { params: params("a-book") });
+    expect(rpc).toHaveBeenCalledWith("increment_download_count", {
+      row_id: "11111111-2222-3333-4444-555555555555",
+    });
+  });
+
+  it("does not count a repeat inside the window, and still serves the file", async () => {
+    downloadCountedWithinWindow.mockResolvedValue(true);
+    const res = await GET(req(), { params: params("a-book") });
+    expect(res.status).toBe(200);
+    expect(zimaFetch).toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("logs the repeat anyway — the log is the history, and the dedupe reads it back", async () => {
+    downloadCountedWithinWindow.mockResolvedValue(true);
+    await GET(req(), { params: params("a-book") });
+    expect(insert).toHaveBeenCalled();
+  });
+
+  it("asks about THIS book and THIS reader", async () => {
+    await GET(req(), { params: params("a-book") });
+    expect(downloadCountedWithinWindow).toHaveBeenCalledWith(
+      "11111111-2222-3333-4444-555555555555",
+      "user-1",
+    );
   });
 });

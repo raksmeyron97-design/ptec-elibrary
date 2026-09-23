@@ -17,6 +17,8 @@ import { logSecurityEvent } from "@/lib/security-log";
 import { zimaFetch } from "@/lib/zima";
 import { lockdownResponse } from "@/lib/security/lockdown";
 import { getViewerContext, logAppEvent, logDownloadAttempt } from "@/lib/analytics/events";
+import { decideLifetimeCount } from "@/lib/analytics/counting";
+import { downloadCountedWithinWindow } from "@/lib/analytics/lifetime-counters";
 import { resolveBookDownloadAccess } from "@/lib/books/access";
 import { canOverrideBookDownloadPolicy } from "@/lib/books/download-authority";
 import { logAdminAction } from "@/app/actions/audit";
@@ -206,16 +208,36 @@ export async function GET(
 
   // Log download + increment counter (non-blocking). session_hash column is
   // nullable pre-0090; on unknown-column errors, retry with the legacy shape.
+  //
+  // The counter moves once per reader per rolling 24 hours, the same rule the
+  // view counter applies (lib/analytics/counting.ts). The LOG row is written
+  // every time regardless — it is the download history, and it is what the
+  // next request's dedupe reads back.
+  //
+  // The RPC argument is `row_id`. This call site passed `book_id`, which
+  // PostgREST answers with 404 PGRST202 rather than an exception, and the
+  // result was discarded into a Promise.all — so the file-serving path, the
+  // one every search result links to, never moved the counter at all.
   const viewer = await getViewerContext();
+  const alreadyCounted = await downloadCountedWithinWindow(row.id as string, user.id);
   const dlRow: Record<string, unknown> = {
     user_id: user.id,
     book_file_id: pdfFile.id,
     session_hash: viewer.sessionHash,
   };
-  const [dlRes] = await Promise.all([
+  const counting =
+    decideLifetimeCount({
+      isBot: viewer.isBot,
+      identity: { column: "user_id", value: user.id },
+      countedWithinWindow: alreadyCounted,
+    }) === "count";
+  const [dlRes, rpcRes] = await Promise.all([
     supabase.from("download_logs").insert(dlRow),
-    supabase.rpc("increment_download_count", { book_id: row.id }),
+    counting
+      ? supabase.rpc("increment_download_count", { row_id: row.id })
+      : Promise.resolve({ error: null }),
   ]);
+  if (rpcRes.error) console.error("[books/download] counter:", rpcRes.error.message);
   if (dlRes.error && (dlRes.error.code === "42703" || dlRes.error.code === "PGRST204")) {
     delete dlRow.session_hash;
     await supabase.from("download_logs").insert(dlRow);

@@ -4,6 +4,9 @@
 // app/actions/download.ts
 import { createServiceClient } from "@/lib/supabase/server";
 import { createClient } from "@/lib/supabase/server";
+import { getViewerContext } from "@/lib/analytics/events";
+import { decideLifetimeCount } from "@/lib/analytics/counting";
+import { downloadCountedWithinWindow } from "@/lib/analytics/lifetime-counters";
 
 // ── Get current download count for a book ────────────────────
 export async function getDownloadCount(bookId: string): Promise<number> {
@@ -49,87 +52,68 @@ export async function downloadBook(bookFileId: string) {
     .eq("id", bookFileId)
     .single();
 
+  // `increment_download_count(row_id)` bumps books AND book_files in one
+  // statement, so the separate book_files read-then-write this used to do
+  // would now count every download twice on the file row.
   if (fileData?.book_id) {
     const { error: rpcError } = await supabase.rpc("increment_download_count", {
-      book_id: fileData.book_id,
+      row_id: fileData.book_id,
     });
-
-    if (rpcError) {
-      const { data: book } = await supabase
-        .from("books")
-        .select("download_count")
-        .eq("id", fileData.book_id)
-        .single();
-
-      if (book) {
-        await supabase
-          .from("books")
-          .update({ download_count: (book.download_count ?? 0) + 1 })
-          .eq("id", fileData.book_id);
-      }
-    }
-    
-    // Also increment book_files download_count
-    const { data: bFile } = await supabase
-      .from("book_files")
-      .select("download_count")
-      .eq("id", bookFileId)
-      .single();
-      
-    if (bFile) {
-      await supabase
-        .from("book_files")
-        .update({ download_count: (bFile.download_count ?? 0) + 1 })
-        .eq("id", bookFileId);
-    }
+    if (rpcError) console.error("[downloadBook]", rpcError.message);
   }
 }
 
 // ── Increment download count + record per-user history ───────
 // Called from PDFViewer whenever a user clicks Download.
 // Requires an authenticated session — silently no-ops for guests.
+//
+// The counter moves once per reader per rolling 24 hours
+// (lib/analytics/counting.ts), so a retry, a second device or a double-click
+// in the viewer serves the file without moving the public badge. Every
+// download still writes a download_logs row: that table is the history the
+// dashboard and "my downloads" read, and it is what the dedupe reads back.
 export async function incrementDownloadCount(bookId: string): Promise<void> {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) return;
+  if (!bookId) return;
+
+  const viewer = await getViewerContext();
+  if (!viewer.userId) return;
+  const userId = viewer.userId;
 
   const supabase = createServiceClient();
 
-  // 1. Atomic global counter via RPC (with manual fallback)
-  const { error: rpcError } = await supabase.rpc("increment_download_count", {
-    book_id: bookId,
+  const outcome = decideLifetimeCount({
+    isBot: viewer.isBot,
+    identity: { column: "user_id", value: userId },
+    countedWithinWindow: await downloadCountedWithinWindow(bookId, userId),
   });
 
-  if (rpcError) {
-    const { data } = await supabase
-      .from("books")
-      .select("download_count")
-      .eq("id", bookId)
-      .single();
-
-    await supabase
-      .from("books")
-      .update({ download_count: (data?.download_count ?? 0) + 1 })
-      .eq("id", bookId);
+  if (outcome === "count") {
+    // `row_id`, not `book_id`: PostgREST resolves functions by argument name,
+    // and the wrong name answers 404 rather than throwing. This one bumps
+    // books.download_count AND book_files.download_count.
+    const { error } = await supabase.rpc("increment_download_count", { row_id: bookId });
+    if (error) console.error("[incrementDownloadCount]", error.message);
   }
 
-  // 2. Record per-user log
-  try {
-    const { data: fileData } = await supabase
-      .from("book_files")
-      .select("id")
-      .eq("book_id", bookId)
-      .limit(1)
-      .single();
+  // Always logged, counted or not.
+  const { data: fileData } = await supabase
+    .from("book_files")
+    .select("id")
+    .eq("book_id", bookId)
+    .limit(1)
+    .maybeSingle();
 
-    await supabase.from("download_logs").insert({
-      user_id: user.id,
-      book_file_id: fileData?.id ?? null,
-      downloaded_at: new Date().toISOString(),
-    });
-  } catch (err) {
-    console.error("[incrementDownloadCount] log insert failed:", err);
-  }
+  // content_type/content_id are stated rather than left to the 0072 trigger,
+  // which only fills them from a book_file_id — a book with no file row would
+  // otherwise log a NULL content_id that the dedupe read can never match.
+  const { error: logError } = await supabase.from("download_logs").insert({
+    user_id: userId,
+    book_file_id: fileData?.id ?? null,
+    content_type: "book",
+    content_id: bookId,
+    downloaded_at: new Date().toISOString(),
+  });
+  if (logError) console.error("[incrementDownloadCount] log insert failed:", logError.message);
 }
 
 // ── Types ─────────────────────────────────────────────────────
