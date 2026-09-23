@@ -70,7 +70,17 @@ export default async function SearchView({
     <div className="space-y-8">
       {/* ── KPI row ── */}
       <section aria-label={t("searchSection")}>
-        <div className="grid grid-cols-2 gap-5 lg:grid-cols-5">
+        {/* Five KPIs, and a KPI card's label has to fit inside it.
+
+            This was `grid-cols-2 lg:grid-cols-5`, which asks a 1024px viewport
+            — a 712px content column once the shell's 256px sidebar is taken out
+            — to hold five cards of about 122px. Measured at every desktop width
+            from 1024 up, and at 390 in the two-column base, every label
+            truncated to its own ellipsis: "Search sessions", "Click-through",
+            "Zero-result rate", "Khmer searches" and their Khmer equivalents. A
+            metric whose name is unreadable is not a metric. Five across is now
+            reserved for 2xl, where the column genuinely holds five. */}
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 2xl:grid-cols-5">
           <KpiCard
             accent="views"
             title={t("totalSearches")}
@@ -185,7 +195,22 @@ export default async function SearchView({
         {filteredRows.length === 0 ? (
           <p className="px-4 py-8 text-center text-xs text-text-muted">{t("noQueries")}</p>
         ) : (
-          <div className="mt-2.5 overflow-x-auto">
+          <section
+            className="mt-2.5 overflow-x-auto"
+            tabIndex={0}
+            aria-labelledby="query-table-heading"
+          >
+            {/* A region that scrolls has to be reachable from the keyboard.
+
+                This table is wider than a phone and scrolls horizontally, but
+                the wrapper held no focusable element and no tab stop — so at
+                390px its right-hand columns could be read with a mouse or a
+                finger and by nobody using a keyboard (axe
+                `scrollable-region-focusable`, WCAG 2.1.1). `tabIndex={0}` gives
+                the scroller a stop, and a `<section>` named by the panel's own
+                heading means that stop is announced as a region rather than as
+                an unlabelled group — the role comes from the element plus its
+                accessible name, so there is no hand-written `role` to drift. */}
             <table className="w-full min-w-[640px] text-xs">
               <thead className="dash-thead">
                 <tr className="text-xs font-bold">
@@ -221,7 +246,7 @@ export default async function SearchView({
                 ))}
               </tbody>
             </table>
-          </div>
+          </section>
         )}
         <p className="border-t border-divider/70 px-4 py-2 text-xs text-text-muted">{t("testQueryNote")}</p>
       </section>

@@ -114,9 +114,21 @@ export default async function EngagementPathways({
   };
 
   const readerCollecting = volumes.readerOpens === null;
+
+  /* Column spans for the WIDE placement.
+
+     Every `xl:` rule here used to force this panel back to a single column,
+     because it lived in a 4-of-12 slot on the Overview. It now spans the row,
+     so the three pathway cards sit side by side and the volume evidence runs
+     underneath them at full measure. The two leading cards share the row with
+     the conversion card when there is one, and split it between them when
+     there is not — an empty third of a strip is the void this change exists to
+     remove, so it must not be reintroduced by a fixed span. */
+  const leadSpan = conversion ? "xl:col-span-2" : "xl:col-span-3";
+
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1">
-      <article className="rounded-2xl border border-brand/15 border-s-[3px] border-s-brand bg-brand/[0.025] p-3">
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+      <article className={`${leadSpan} rounded-2xl border border-brand/15 border-s-[3px] border-s-brand bg-brand/[0.025] p-3`}>
         <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-text-heading">
           <Search className="h-3.5 w-3.5 text-brand" aria-hidden="true" />
           {t("pathway.search")}
@@ -127,7 +139,7 @@ export default async function EngagementPathways({
         <p className="mt-2 text-xs leading-4 text-text-muted">{t("pathway.searchNote")}</p>
       </article>
 
-      <article className="rounded-2xl border border-brand/15 border-s-[3px] border-s-[var(--ptec-navy-950)] bg-brand/[0.025] p-3">
+      <article className={`${leadSpan} rounded-2xl border border-brand/15 border-s-[3px] border-s-[var(--ptec-navy-950)] bg-brand/[0.025] p-3`}>
         <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-text-heading">
           <Eye className="h-3.5 w-3.5 text-brand" aria-hidden="true" />
           {t("pathway.content")}
@@ -139,7 +151,7 @@ export default async function EngagementPathways({
       </article>
 
       {conversion && (
-        <article className="rounded-2xl border border-accent/30 border-s-[3px] border-s-[var(--ptec-accent-line)] bg-accent/[0.05] p-3 md:col-span-2 xl:col-span-1">
+        <article className="rounded-2xl border border-accent/30 border-s-[3px] border-s-[var(--ptec-accent-line)] bg-accent/[0.05] p-3 md:col-span-2 xl:col-span-2">
           <div className="flex items-center gap-3">
             <span className="dash-ico dash-ico--gold dash-ico--sm" aria-hidden="true">
               <Activity className="h-[15px] w-[15px]" />
@@ -165,9 +177,9 @@ export default async function EngagementPathways({
         </article>
       )}
 
-      <article className="rounded-2xl border border-divider bg-paper/35 p-3 md:col-span-2 xl:col-span-1">
+      <article className="rounded-2xl border border-divider bg-paper/35 p-3 md:col-span-2 xl:col-span-6">
         <h3 className="text-xs font-bold uppercase tracking-wide text-text-muted">{t("volumeEvidence")}</h3>
-        <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-5 xl:grid-cols-2">
+        <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-5">
           {(
             [
               ["searches", volumes.searches, prevVolumes.searches],
@@ -190,7 +202,7 @@ export default async function EngagementPathways({
         </dl>
       </article>
 
-      <p className="text-xs leading-4 text-text-muted md:col-span-2 xl:col-span-1">{t("definition")}</p>
+      <p className="text-xs leading-4 text-text-muted md:col-span-2 xl:col-span-6">{t("definition")}</p>
     </div>
   );
 }

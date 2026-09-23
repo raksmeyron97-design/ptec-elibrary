@@ -52,6 +52,7 @@ export default function MetricCard({
   definition,
   compareLabel,
   collectingLabel,
+  noComparisonLabel,
 }: {
   data: MetricCardData;
   title: string;
@@ -59,6 +60,9 @@ export default function MetricCard({
   /** e.g. "vs previous 30 days" — already localised by the server. */
   compareLabel: string | null;
   collectingLabel: string;
+  /** `null` when the row states it once beneath itself instead (see
+   *  ExecutivePulse.tsx). Defaults to the per-card sentence. */
+  noComparisonLabel?: string | null;
 }) {
   const t = useTranslations("adminDashboard.kpi");
   const { metric: selected, selectMetric, openDetails } = useMetricSelection();
@@ -92,7 +96,7 @@ export default function MetricCard({
         formattedPrevious: data.formattedPrevious,
         previousLabel:
           data.formattedPrevious !== null ? t("previously", { value: data.formattedPrevious }) : null,
-        noComparisonLabel: t("noComparison"),
+        noComparisonLabel: noComparisonLabel === undefined ? t("noComparison") : noComparisonLabel,
       }}
     />
   );

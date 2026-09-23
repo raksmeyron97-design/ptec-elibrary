@@ -446,7 +446,17 @@ export default function LegacyEngagementChart({
       )}
 
       <div ref={ref} className="mt-1.5">
-        <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={srSummary}>
+        {/* `role="group"`, not `role="img"`.
+
+            `img` tells assistive technology "this is one graphic, ignore my
+            children" — and this SVG ships focusable children: each publish
+            annotation is a `<g role="button" tabIndex={0}>`. So a keyboard user
+            could Tab into controls a screen reader had been told did not
+            exist, which axe reports as `nested-interactive` (serious). The V2
+            plot next door already resolves this the right way; this is the same
+            answer. The summary still names the group, and the toggleable data
+            table below remains the full text alternative. */}
+        <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} role="group" aria-label={srSummary}>
           <defs>
             <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={SERIES_COLOR[activeMetric]} stopOpacity="0.16" />

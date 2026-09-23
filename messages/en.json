@@ -2738,7 +2738,8 @@
         "unknown": "Not enough activity in this period to judge system health."
       },
       "failingList": "Attention needed: {list}",
-      "passingSummary": "{passing} of {total} checks passing",
+      "allPassing": "All {total} checks passing",
+      "passingWithUnknown": "{passing} of {total} checks passing · {unknown} not reporting yet",
       "check": {
         "brokenFiles": "File health",
         "storageErrors": "Storage error rate",

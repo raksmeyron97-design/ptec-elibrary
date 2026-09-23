@@ -118,46 +118,63 @@ export default async function OverviewView({
         <div className="dash-stagger space-y-5">
           <ZoneHeader label={t("overview.zoneTrendsLabel")} hint={t("overview.zoneTrendsHint")} />
 
-          {/* 3 — Engagement trends (8 cols) + measurement pathways (4 cols). */}
-          <div className="grid items-start gap-5 xl:grid-cols-12">
-            <section aria-labelledby="engagement-heading" className="dash-card min-w-0 p-5 xl:col-span-8">
-              <h2 id="engagement-heading" className="text-sm font-bold text-text-heading">
-                {t("engagement.title")}
-              </h2>
-              <p className="mb-2.5 text-xs text-text-muted">
-                {t("engagement.subtitle", { range: rangeLabel })}
-              </p>
-              <EngagementChart
-                version={chartVersion}
-                series={data.engagement.series}
-                prevSeries={data.engagement.prevSeries}
-                annotations={data.engagement.annotations}
-                granularity={data.granularity}
-                compare={filters.compare}
-                filters={filters}
-                generatedAt={data.generatedAt}
-              />
-            </section>
+          {/* 3 — Engagement trends, then the measurement pathways beneath them.
 
-            <section aria-labelledby="pathways-heading" className="dash-card min-w-0 p-5 xl:col-span-4">
-              <h2 id="pathways-heading" className="text-sm font-bold text-text-heading">
-                {t("discovery.title")}
-              </h2>
-              <p className="mb-2.5 text-xs text-text-muted">
-                {t("discovery.subtitle", { range: rangeLabel })}
-              </p>
-              <EngagementPathways
-                volumes={data.discovery.volumes}
-                prevVolumes={data.discovery.prevVolumes}
-                rates={data.discovery.rates}
-                prevRates={data.discovery.prevRates}
-                compare={filters.compare}
-                conversion={data.kpis.conversion}
-              />
-            </section>
-          </div>
+              These were an 8/4 split, and the two halves are not the same SHAPE
+              of content: a time series is wide and short, a stack of pathway
+              rates is narrow and long. Measured on this collection the chart
+              section came out 364px tall beside a 915px column — 551px of empty
+              card next to the page's most important chart, at every desktop
+              width. Stacking them gives the chart the full measure (its own
+              adaptive height already tops out at 300px from 720px wide, so it
+              gains resolution rather than dead space) and lets the pathways run
+              as a wide strip, which is a layout `EngagementPathways` was already
+              written for — its `md:grid-cols-2` had simply never been given the
+              room. */}
+          <section aria-labelledby="engagement-heading" className="dash-card min-w-0 p-5">
+            <h2 id="engagement-heading" className="text-sm font-bold text-text-heading">
+              {t("engagement.title")}
+            </h2>
+            <p className="mb-2.5 text-xs text-text-muted">
+              {t("engagement.subtitle", { range: rangeLabel })}
+            </p>
+            <EngagementChart
+              version={chartVersion}
+              series={data.engagement.series}
+              prevSeries={data.engagement.prevSeries}
+              annotations={data.engagement.annotations}
+              granularity={data.granularity}
+              compare={filters.compare}
+              filters={filters}
+              generatedAt={data.generatedAt}
+            />
+          </section>
 
-          {/* 4 + 5 — Where the collection is short, and what is performing. */}
+          <section aria-labelledby="pathways-heading" className="dash-card min-w-0 p-5">
+            <h2 id="pathways-heading" className="text-sm font-bold text-text-heading">
+              {t("discovery.title")}
+            </h2>
+            <p className="mb-2.5 text-xs text-text-muted">
+              {t("discovery.subtitle", { range: rangeLabel })}
+            </p>
+            <EngagementPathways
+              volumes={data.discovery.volumes}
+              prevVolumes={data.discovery.prevVolumes}
+              rates={data.discovery.rates}
+              prevRates={data.discovery.prevRates}
+              compare={filters.compare}
+              conversion={data.kpis.conversion}
+            />
+          </section>
+
+          {/* 4 + 5 — Where the collection is short, and what is performing.
+
+              These two are a MATCHED PAIR and both carry `h-full` — the row is
+              two readings of the same period, so they share a baseline. Do not
+              add `items-start` here expecting one to shrink: a percentage
+              height on a grid item resolves against the grid AREA, so `h-full`
+              wins and the only effect is code that says the opposite of what
+              renders. */}
           <div className="grid min-w-0 gap-5 lg:grid-cols-2 [&>*]:min-w-0">
             <SearchOpportunityPanel
               opportunities={data.searchOpportunities}
@@ -171,7 +188,7 @@ export default async function OverviewView({
             />
           </div>
 
-          {/* 6 — What to look at next. */}
+          {/* 6 — What to look at next. Matched pair, as above. */}
           <div className="grid min-w-0 gap-5 lg:grid-cols-2 [&>*]:min-w-0">
             <AutomatedInsightsPanel insights={data.insights} emptyHint={t("insights.emptyHint")} />
             {canSeeAudit && (
