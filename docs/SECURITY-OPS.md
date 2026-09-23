@@ -130,6 +130,34 @@ Retention policy suggestion: 7 daily + 4 weekly + 6 monthly snapshots.
   a real fix, npm reports it as actionable and the advisory starts failing CI
   again. **When a warning appears here, check it at the next dependency bump** —
   a warning means "no fix exists yet", never "ignore this".
+### When the vulnerable package is pinned by its parent
+
+`npm audit fix` cannot move a package that an upstream dependency pins to an
+EXACT version, and npm's proposed remedy in that case is a semver-major
+downgrade of the parent — the same shape as the `sharp`/`next` case above. When
+the parent's own newest release still pins a vulnerable version, the fix is an
+`overrides` entry in `package.json`. An override is a floor, not a fork: it
+stays until upstream's own pin clears the advisory, and then it goes.
+
+- **`browserslist: ~4.28.7`** (added 2026-09-23). `@serwist/next` pins
+  `browserslist` exactly — `4.28.2` at 9.5.11 and `4.28.6` at 9.5.12, its
+  newest release, both inside the range of
+  [GHSA-c83g-rgw3-j3cx](https://github.com/advisories/GHSA-c83g-rgw3-j3cx)
+  (unbounded cache growth → eventual OOM) and
+  [GHSA-73wf-gq98-2v4g](https://github.com/advisories/GHSA-73wf-gq98-2v4g)
+  (uncaught crash / prototype write via a custom `browserslist-stats.json`).
+  npm's only proposed fix was `@serwist/next@9.4.1`, a semver-major downgrade
+  of the package that builds the service worker. `~4.28.7` is the smallest step
+  that clears both and stays on the 4.28 line Serwist tracks, rather than
+  carrying it across a minor it has never built against.
+  **Remove it once `@serwist/next` pins `>= 4.28.7`.**
+
+Two things to check after adding one. `npm ls <package>` must report a single
+resolved version — an override that did not take looks identical to one that
+did in `package.json`. And because `browserslist` feeds Serwist's
+service-worker compilation targets, `npm run build` (webpack, never Turbopack —
+see CLAUDE.md) is the verification, not `npm audit`.
+
 - **gitleaks** — scans the full git history for committed secrets on every push.
 - **dependency-review** — on PRs, flags newly-introduced vulnerable packages.
 
