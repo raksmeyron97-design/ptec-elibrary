@@ -110,6 +110,21 @@ export default async function ExecutivePulse({
     };
   };
 
+  /* Said once, not four times.
+
+     Every card carried its own "No previous-period baseline to compare
+     against." line, and the case where one card lacks a baseline is almost
+     always the case where all four do — a first deployment, a widened range,
+     a fresh filter. The result was the same 47-character sentence repeated
+     across the row, taking about a quarter of each card's height to say one
+     thing. The notice moves under the row when it applies to the WHOLE row;
+     a mixed row (some cards comparable, some not) keeps it per-card, because
+     there the sentence is telling those cards apart. */
+  const rowCards = METRICS.map(cardData);
+  const noComparisonEverywhere = rowCards.every(
+    (c) => !c.collecting && (!c.trend || c.trend.mode === "hidden"),
+  );
+
   const detailPayload = (metric: DashboardMetric): MetricDetailPayload => {
     const d = datumOf(metric);
     const field = METRIC_FIELD[metric];
@@ -204,19 +219,37 @@ export default async function ExecutivePulse({
       )}
 
       {/* The four engagement measures, as one cohesive group. gap-5 matches
-          every other tab's KPI row — this one sat at gap-4 alone. */}
-      <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {METRICS.map((m) => (
+          every other tab's KPI row — this one sat at gap-4 alone.
+
+          Below `sm` this is a SNAP STRIP rather than a stack. Stacked, the four
+          cards ran 792px on a 390x844 phone — four numbers costing more than a
+          screen of scrolling, before the attention queue below them has said
+          anything. Each card keeps its full anatomy (title, figure, trend,
+          sparkline, definition and details) at 82% of the viewport, so the next
+          card always peeks and the swipe is self-evident; the cards are buttons,
+          so Tab still walks the row and the browser scrolls each into view.
+          Four across starts at `xl`, not `lg`. The admin shell's sidebar is a
+          fixed 256px, so at a 1024px viewport the content column is about
+          712px — four cards of 163px, which truncated "Unique visitors" and
+          "Detail views" to their own ellipsis. The breakpoint has to be read
+          against the content column, not the window. */}
+      <div className="dash-scroll-x -mx-1 mt-4 flex snap-x snap-mandatory gap-5 px-1 pb-1 sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:px-0 sm:pb-0 xl:grid-cols-4 [&>*]:w-[82%] [&>*]:shrink-0 [&>*]:snap-start sm:[&>*]:w-auto">
+        {rowCards.map((card) => (
           <MetricCard
-            key={m}
-            data={cardData(m)}
-            title={t(`${m}Title`)}
-            definition={t(`${m}Def`)}
+            key={card.metric}
+            data={card}
+            title={t(`${card.metric}Title`)}
+            definition={t(`${card.metric}Def`)}
             compareLabel={filters.compare ? data.vsLabel : null}
             collectingLabel={t("collecting")}
+            noComparisonLabel={noComparisonEverywhere ? null : t("noComparison")}
           />
         ))}
       </div>
+
+      {noComparisonEverywhere && (
+        <p className="dash-prose mt-2.5">{t("noComparison")}</p>
+      )}
 
       <MetricDetailsDrawer metrics={metricPayloads} health={healthPayload} />
     </section>

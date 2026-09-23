@@ -404,6 +404,18 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   color: var(--dash-ink-3);
 }
 
+/* …and the same prose one step darker, for a tinted row rather than a card.
+
+   The text ramp above is AA-checked against `--dash-surface` (white). On
+   `--ptec-paper` the tertiary step no longer clears it: #64748B on #F3F4F6
+   measures 4.32:1, under the 4.5:1 floor for 12px text, which is what axe
+   caught on the System tab's backup hint. #475569 measures ~7:1 there.
+
+   This has to be a class here rather than a Tailwind `text-[...]` utility:
+   `.dash-prose` is unlayered, so it beats anything in `@layer utilities`
+   whatever its specificity. */
+.dash-prose--on-paper { color: var(--dash-ink-2); }
+
 /* ── Numerals: the choice is named, not remembered ────────────────────────
    MetricCard documented the rule ("equal-width digits are for columns that
    must align; at 28px they make '116' look gappy") and three sibling

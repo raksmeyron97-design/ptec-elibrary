@@ -67,7 +67,11 @@ export default async function AudienceView({ filters }: { filters: DashboardFilt
   // that rhythm is WITHIN a zone, not between them, and stays unchanged.
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-2 gap-5 xl:grid-cols-4">
+      {/* One column on a phone: at 390px the two-column base gave ~157px
+          cards, in which "New registrations", "Returning users" and
+          "Identified visitors" all truncated. Same rule as the Search view's
+          KPI row. */}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           accent="visitors"
           title={t("newRegistrations")}

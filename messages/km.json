@@ -2743,7 +2743,8 @@
         "unknown": "សកម្មភាពក្នុងរយៈពេលនេះមិនគ្រប់គ្រាន់ដើម្បីវាយតម្លៃសុខភាពប្រព័ន្ធ។"
       },
       "failingList": "ត្រូវការការយកចិត្តទុកដាក់៖ {list}",
-      "passingSummary": "ជោគជ័យ {passing} ក្នុងចំណោម {total}",
+      "allPassing": "ការត្រួតពិនិត្យទាំង {total} ជោគជ័យ",
+      "passingWithUnknown": "ជោគជ័យ {passing} ក្នុងចំណោម {total} · {unknown} មិនទាន់រាយការណ៍",
       "check": {
         "brokenFiles": "សុខភាពឯកសារ",
         "storageErrors": "អត្រាកំហុសឃ្លាំងផ្ទុក",

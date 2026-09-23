@@ -140,43 +140,77 @@ export default async function SystemView({ filters }: { filters: DashboardFilter
   // that rhythm is WITHIN a zone, not between them, and stays unchanged.
   return (
     <div className="space-y-8">
-      {/* ── Health summary ── */}
-      <section aria-label={t("healthTitle")}>
-        <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-5">
+      {/* ── Health summary ──
+
+          One panel of subsystem ROWS, not five cards.
+
+          As a 5-across card grid this strip was 155px tall to carry about 60px
+          of content, because a grid row is as tall as its tallest cell and one
+          cell — Backups — carries a two-line setup hint. The other four were
+          95px of empty white each, and the whole band read as heavier than the
+          operations facts below it, which are the numbers an administrator
+          actually came for. Rows put the five subsystem names in one scannable
+          column with their verdicts aligned in a second, which is the shape
+          this content has always had; a hint or a fix link rides on its own
+          row without inflating the other four.
+
+          Every state still carries an icon shape and a word as well as a
+          colour, and `STATUS_CLASS` is unchanged — this is the same vocabulary
+          as the Overview's health ribbon, laid out differently. */}
+      <section aria-labelledby="health-heading" className={card}>
+        <div className="flex items-center gap-2.5">
+          <span className="dash-ico dash-ico--brand dash-ico--md" aria-hidden="true">
+            <Activity className="h-[18px] w-[18px]" />
+          </span>
+          <h3 id="health-heading" className="text-sm font-bold text-text-heading">
+            {t("healthTitle")}
+          </h3>
+        </div>
+
+        {/* Two columns from `sm`, and the row is a paper pill rather than a
+            hairline-separated line — the same row treatment the Operations
+            panel directly below already uses, so the two read as one system.
+            Two columns also halve the distance a reader's eye travels from a
+            subsystem's name to its verdict: at 1440px a single full-width
+            column puts them about 1000px apart. */}
+        <ul className="mt-3 grid items-start gap-1.5 sm:grid-cols-2">
           {chips.map(({ key, status, icon: IconCmp, hint }) => {
             const StatusIcon = STATUS_ICON[status];
+            const detail =
+              key === "files" && fixLink ? (
+                <Link
+                  href={fixLink.href}
+                  className="text-xs font-semibold text-brand hover:underline"
+                >
+                  {fixLink.label} →
+                </Link>
+              ) : hint ? (
+                /* The ramp is AA-checked against the white CARD surface, and
+                   this row sits on `--ptec-paper` — see `.dash-prose--on-paper`
+                   in admin.css for the measurement and for why this cannot be
+                   a Tailwind `text-[...]` utility. */
+                <p className="dash-prose dash-prose--on-paper">{hint}</p>
+              ) : null;
+
             return (
-              /* A white card with a status CHIP, not a tinted card. Five
-                 saturated tiles in a row made the whole strip read as an alert
-                 even when every check was healthy; the state now lives in the
-                 chip, where a glance can find it. */
-              <div
-                key={key}
-                className={`${STATUS_CLASS[status]} dash-card flex items-start gap-2.5 p-4`}
-              >
-                <span className="dash-ico dash-ico--sm dash-ico--brand" aria-hidden="true">
-                  <IconCmp className="h-4 w-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="dash-truncate text-xs font-semibold text-text-body">{t(`health.${key}`)}</p>
-                  <span className="dash-chip mt-1.5 text-xs font-bold">
+              <li key={key} className={`${STATUS_CLASS[status]} rounded-xl bg-paper px-3 py-2`}>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="dash-ico dash-ico--sm dash-ico--brand shrink-0" aria-hidden="true">
+                    <IconCmp className="h-4 w-4" />
+                  </span>
+                  <p className="min-w-0 flex-1 text-xs font-semibold text-text-body">
+                    {t(`health.${key}`)}
+                  </p>
+                  <span className="dash-chip shrink-0 text-xs font-bold">
                     <StatusIcon className="dash-mark h-3.5 w-3.5" aria-hidden="true" />
                     {t(`status.${status}`)}
                   </span>
-                  {hint && <p className="dash-prose mt-1.5">{hint}</p>}
-                  {key === "files" && fixLink && (
-                    <Link
-                      href={fixLink.href}
-                      className="mt-1.5 block w-fit text-xs font-semibold text-brand hover:underline"
-                    >
-                      {fixLink.label} →
-                    </Link>
-                  )}
                 </div>
-              </div>
+                {detail && <div className="mt-1 ps-[34px]">{detail}</div>}
+              </li>
             );
           })}
-        </div>
+        </ul>
       </section>
 
       <div className="grid items-start gap-5 lg:grid-cols-2">

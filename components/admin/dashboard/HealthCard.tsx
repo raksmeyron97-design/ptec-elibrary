@@ -38,6 +38,22 @@ export default function HealthCard({ pulse }: { pulse: HealthPulse }) {
 
   const failingChecks = pulse.checks.filter((c) => c.level === "warn" || c.level === "critical");
 
+  /* A check that has not reported is not a check that failed.
+     `{passing} of {total} checks passing` counted the three "unknown" checks a
+     fresh deployment always has against the total, so the ribbon read
+     "Operational · 1 of 4 checks passing" — an alarm sentence beside a green
+     verdict, and the one reading an administrator is most likely to act on.
+     `computeHealthPulse` has always returned `unknown` separately; only the
+     sentence conflated the two. */
+  const summary =
+    pulse.unknown > 0
+      ? t("passingWithUnknown", {
+          passing: pulse.passing,
+          total: pulse.checks.length,
+          unknown: pulse.unknown,
+        })
+      : t("allPassing", { total: pulse.checks.length });
+
   return (
     /* A severity RAIL, not the `.dash-kpi` top strip. That 3px strip is the
        metric cards' "this card is that series" mark, and this ribbon sits 16px
@@ -64,7 +80,7 @@ export default function HealthCard({ pulse }: { pulse: HealthPulse }) {
         <p className="dash-prose min-w-[min(100%,180px)] flex-1">
           {failingChecks.length > 0
             ? t("failingList", { list: failingChecks.map((c) => t(`check.${c.key}`)).join(", ") })
-            : t("passingSummary", { passing: pulse.passing, total: pulse.checks.length })}
+            : summary}
         </p>
 
         {/* Per-check state dots — text alternative in the drawer. Each <li>

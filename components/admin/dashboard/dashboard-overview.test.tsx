@@ -106,6 +106,50 @@ describe("MetricCard", () => {
     expect(new URLSearchParams(window.location.search).get("metric")).toBe("downloads");
   });
 
+  /**
+   * The row owns the "no baseline" sentence when it applies to the whole row.
+   *
+   * Every card stated it independently, so the common case — a first
+   * deployment, a widened range, a fresh filter, where NO metric has a
+   * baseline — printed the same 47-character sentence four times across the
+   * row, about a quarter of each card's height to say one thing once. Passing
+   * `null` is how ExecutivePulse takes the sentence over; passing nothing must
+   * keep the old per-card behaviour, because a MIXED row (some comparable,
+   * some not) is exactly where the per-card sentence is doing real work.
+   */
+  it("omits the per-card no-comparison line when the row states it instead", () => {
+    const bare = cardData({ trend: null, previous: null, formattedPrevious: null });
+    const { rerender } = render(
+      <Wrapper>
+        <MetricCard
+          data={bare}
+          title="Detail views"
+          definition="Detail-page views."
+          compareLabel={null}
+          collectingLabel="Collecting data"
+        />
+      </Wrapper>,
+    );
+    // Default (no prop): the card still says it — the mixed-row case.
+    expect(screen.getByText(/No previous-period baseline/)).toBeInTheDocument();
+
+    rerender(
+      <Wrapper>
+        <MetricCard
+          data={bare}
+          title="Detail views"
+          definition="Detail-page views."
+          compareLabel={null}
+          collectingLabel="Collecting data"
+          noComparisonLabel={null}
+        />
+      </Wrapper>,
+    );
+    expect(screen.queryByText(/No previous-period baseline/)).not.toBeInTheDocument();
+    // The figure is untouched — this moves a caption, never a measurement.
+    expect(screen.getByText("317")).toBeInTheDocument();
+  });
+
   it("suppresses the comparison entirely while an event is still collecting", () => {
     render(
       <Wrapper>
@@ -210,6 +254,66 @@ describe("HealthCard + MetricDetailsDrawer", () => {
     );
     expect(screen.getByText("Degraded")).toBeInTheDocument();
     expect(screen.getByText(/Attention needed/)).toBeInTheDocument();
+  });
+
+  /**
+   * A check that has not reported is not a check that failed.
+   *
+   * The ribbon's summary read "{passing} of {total} checks passing", which on a
+   * fresh deployment — where storage, AI and backup telemetry have all yet to
+   * produce a sample — rendered "Operational · 1 of 4 checks passing": a green
+   * verdict beside a sentence that counts three UNKNOWN checks as shortfalls.
+   * `computeHealthPulse` has always returned `unknown` separately from
+   * `failing`; only the sentence conflated them, and the sentence is the part
+   * an administrator reads.
+   */
+  it("reports unknown checks as not reporting, never as not passing", () => {
+    const collecting: HealthPulse = {
+      level: "operational",
+      failing: 0,
+      passing: 1,
+      unknown: 3,
+      checks: [
+        { key: "brokenFiles", level: "ok", value: 0, href: "/admin/data-quality" },
+        { key: "storageErrors", level: "unknown", value: null, sample: 0, href: "/admin?view=system" },
+        { key: "aiFailures", level: "unknown", value: null, sample: 0, href: "/admin?view=system" },
+        { key: "backupAge", level: "unknown", value: null, href: "/admin?view=system" },
+      ],
+    };
+
+    render(
+      <Wrapper>
+        <HealthCard pulse={collecting} />
+      </Wrapper>,
+    );
+
+    expect(screen.getByText(/3 not reporting yet/)).toBeInTheDocument();
+    // The failing-subsystem sentence must not appear: nothing is failing.
+    expect(screen.queryByText(/Attention needed/)).not.toBeInTheDocument();
+  });
+
+  it("says every check is passing without an arithmetic fraction when none is unknown", () => {
+    const allGood: HealthPulse = {
+      level: "operational",
+      failing: 0,
+      passing: 4,
+      unknown: 0,
+      checks: [
+        { key: "brokenFiles", level: "ok", value: 0, href: "/admin/data-quality" },
+        { key: "storageErrors", level: "ok", value: 0.1, sample: 900, href: "/admin?view=system" },
+        { key: "aiFailures", level: "ok", value: 0, sample: 40, href: "/admin?view=system" },
+        { key: "backupAge", level: "ok", value: 6, href: "/admin?view=system" },
+      ],
+    };
+
+    render(
+      <Wrapper>
+        <HealthCard pulse={allGood} />
+      </Wrapper>,
+    );
+
+    expect(screen.getByText("All 4 checks passing")).toBeInTheDocument();
+    expect(screen.queryByText(/not reporting yet/)).not.toBeInTheDocument();
   });
 
   it("opens as a modal dialog, lists every check, and closes on Escape", async () => {

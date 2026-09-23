@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { AlertOctagon, AlertTriangle, ChevronRight, Info, type LucideIcon } from "lucide-react";
+import { AlertOctagon, AlertTriangle, ChevronRight, Info, LineChart, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { TrendInfo } from "@/lib/admin/dashboard-shared";
 import SparkLine from "./SparkLine";
@@ -61,8 +61,15 @@ export type KpiCardSelection = {
   formattedPrevious: string | null;
   /** i18n string built from `formattedPrevious`, e.g. "213 previously". */
   previousLabel: string | null;
-  /** Shown when there is neither a trend nor a collecting state to report. */
-  noComparisonLabel: string;
+  /**
+   * Shown when there is neither a trend nor a collecting state to report.
+   * `null` when the CALLER has taken the notice over — the Executive Pulse
+   * states it once beneath the row rather than four times inside it (see
+   * ExecutivePulse.tsx). Only the sentence moves; the card still reserves
+   * the same sub-line height, so the row does not reflow between the two
+   * cases.
+   */
+  noComparisonLabel: string | null;
 };
 
 export type KpiCardProps = {
@@ -254,9 +261,25 @@ export default function KpiCard({
           <span className="flex w-full items-center gap-2">
             {iconTile}
             <span className="min-w-0 flex-1 dash-truncate text-xs font-semibold text-text-muted">{title}</span>
+            {/* A MARK, not a word.
+
+                This chip spelt "Charted" out, and on the selected card it took
+                about 79px out of a header row the metric's own name has to
+                share: at 1280px "Detail views" was drawn as "Detail vie…", and
+                in Khmer — where the label is "កំពុងបង្ហាញ" and the title
+                "ការមើលទំព័រលម្អិត" — it clips at every desktop width. A card
+                whose own name is cut to make room for a decoration has the
+                priority backwards.
+
+                Nothing is lost: selection is already carried by the card's
+                accent strip, its border and `aria-pressed`, the glyph adds a
+                fourth (shape, not colour), and the word itself is still in the
+                accessibility tree. A responsive rule was rejected — it would
+                still clip in Khmer, which is the locale that needs it most. */}
             {s.isSelected && (
-              <span className="shrink-0 rounded-md bg-brand/10 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-brand">
-                {s.selectedLabel}
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-brand/10 text-brand">
+                <LineChart className="h-3 w-3" aria-hidden="true" />
+                <span className="sr-only">{s.selectedLabel}</span>
               </span>
             )}
           </span>
@@ -282,9 +305,9 @@ export default function KpiCard({
                   <span className="mt-0.5 block text-xs tabular-nums text-text-muted">{s.previousLabel}</span>
                 )}
               </>
-            ) : (
+            ) : s.noComparisonLabel !== null ? (
               <span className="text-xs text-text-muted">{s.noComparisonLabel}</span>
-            )}
+            ) : null}
           </span>
         </button>
 
