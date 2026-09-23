@@ -32,6 +32,7 @@ import ResourceCountAudit from "@/components/admin/ResourceCountAudit";
 import CanonicalBackfillAudit from "@/components/admin/CanonicalBackfillAudit";
 import SeoHealthAudit from "@/components/admin/SeoHealthAudit";
 import ContributorTrustAudit from "@/components/admin/ContributorTrustAudit";
+import CatalogueTextAudit from "@/components/admin/CatalogueTextAudit";
 import MetadataAnalysis from "@/components/admin/data-quality/MetadataAnalysis";
 import RepairQueue from "@/components/admin/data-quality/RepairQueue";
 import { PageHeader } from "@/components/admin/kit";
@@ -397,6 +398,8 @@ export default async function DataQualityPage({ searchParams }: { searchParams: 
         <CanonicalBackfillAudit data={backfill} />
         <SeoHealthAudit data={seoHealth} />
         <ContributorTrustAudit data={contributors} />
+
+        <CatalogueTextAudit data={metadata.text} />
       </div>
     </div>
   );
