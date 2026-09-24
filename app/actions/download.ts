@@ -26,42 +26,13 @@ export async function getDownloadCount(bookId: string): Promise<number> {
   return data?.download_count ?? 0;
 }
 
-export async function downloadBook(bookFileId: string) {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) {
-    throw new Error("Unauthorized");
-  }
-
-  const supabase = createServiceClient();
-
-  // Insert into download_logs
-  const { error: logError } = await supabase.from("download_logs").insert({
-    user_id: user.id,
-    book_file_id: bookFileId,
-  });
-
-  if (logError) {
-    console.error("[downloadBook] log error:", logError);
-  }
-
-  // Find book_id from book_file_id to increment book download_count
-  const { data: fileData } = await supabase
-    .from("book_files")
-    .select("book_id")
-    .eq("id", bookFileId)
-    .single();
-
-  // `increment_download_count(row_id)` bumps books AND book_files in one
-  // statement, so the separate book_files read-then-write this used to do
-  // would now count every download twice on the file row.
-  if (fileData?.book_id) {
-    const { error: rpcError } = await supabase.rpc("increment_download_count", {
-      row_id: fileData.book_id,
-    });
-    if (rpcError) console.error("[downloadBook]", rpcError.message);
-  }
-}
+// `downloadBook(bookFileId)` used to live here: it inserted a log row and
+// bumped the counter on EVERY call, with no dedupe. Nothing in the app called
+// it, but `app/actions/download.ts` is in the module graph, so every "use
+// server" export in it is a live action id — one that moved a public number
+// once per invocation while every other path moved it once per reader per 24
+// hours. A second rule for the same counter is the defect this file's rule
+// exists to remove, so the dead path goes rather than gets a copy of the rule.
 
 // ── Increment download count + record per-user history ───────
 // Called from PDFViewer whenever a user clicks Download.
