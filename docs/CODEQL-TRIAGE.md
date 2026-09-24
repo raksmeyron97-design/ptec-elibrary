@@ -38,6 +38,13 @@ about whether it was fixed — only the scan of `main` after merge does. PR #174
 scan confirms the branch introduces **no new** alerts (and that `rules_count`
 stayed 201, i.e. the config-file change did not silently narrow the suite).
 
+### 2026-09-23 — the three alerts open after that round
+
+`#149`, `#150`, `#151`. Two fixed in code; `#149` is a dismissal, under the
+reason its rule was already dismissed under twice — apply it in the Security
+tab, it is not closed by a scan. The section is
+[Fixed in code — 2026-09-23](#fixed-in-code--2026-09-23-2-of-3).
+
 ## What CodeQL does and does not recognise here
 
 Three facts about this codebase's interaction with the JS queries, learned the
@@ -323,6 +330,67 @@ with it. Seven lines fewer, one fewer hand-escaped constant to drift.
 `const parts = subjectBreakdown(...)` in the page component, left over from the
 meta-description build that still uses it in `generateMetadata` (line 70).
 Removed the one line; the import is still needed.
+
+## Fixed in code — 2026-09-23 (2 of 3)
+
+Three alerts were open on `main` on 2026-09-23. Two are fixed in code; the
+third is a dismissal, for the reason the same rule was dismissed under in the
+2026-09-11 round. Nothing in a commit closes that one — it is applied in the
+Security tab, or with:
+
+```bash
+gh api -X PATCH repos/raksmeyron97-design/ptec-elibrary/code-scanning/alerts/149 \
+  -f state=dismissed -f dismissed_reason="won't fix" \
+  -f dismissed_comment="Read-only audit script writing a fetched page to a local report file; same shape as #34/#35. js/http-to-file-access ships no Sanitizer class, so no escaping can clear it. Cells go through escapeCsvCell (RFC 4180 + formula-injection guard). See docs/CODEQL-TRIAGE.md."
+```
+
+### #150 `js/unused-local-variable` — `app/(admin)/admin/(protected)/edit/[id]/_components/EditForm.tsx:42`
+
+`Switch` was imported from `@/components/admin/kit/form` and referenced nowhere
+else in the file. Removed the one line; every other name in that import is
+still used.
+
+### #151 `js/template-syntax-in-string-literal` — `lib/seo/entity-graph.test.ts:152`
+
+The same false positive as `#45`, `#46`, `#91`, `#92` and `#93`: a
+source-scanning invariant test asserts that `RootShell.tsx` does NOT contain
+the inline `{SITE_URL}/#website` form, and holds that fragment in a quoted
+string because the fragment is the NEEDLE, not a template somebody forgot to
+tag.
+
+Dismissed five times and back for a sixth — which is the point. A dismissal is
+fingerprinted against the line, so these three assertions mint a fresh alert
+every time the file shifts under them, and dismissing again just buys the next
+shift. So this one is fixed in code: the needle is assembled as
+`"$" + "{SITE_URL}/#" + name`, which is byte-identical (asserted in the same
+run) and is not a template-shaped literal, leaving the rule nothing to match.
+The sibling occurrences in `lib/pwa/launch.test.ts` (`#45`, `#46`) are untouched
+and stay dismissed; the same treatment applies if they resurface.
+
+### #149 `js/http-to-file-access` — `scripts/audit-rights-exposure.ts:313` — DISMISS
+
+`writeFileSync(OUT, toCsv(sorted, incomplete))`, in a read-only audit script
+whose CSV cells were read off the public site. Identical in shape to `#34` and
+`#35`, dismissed 2026-09-11: writing a fetched response to a local report file
+is what a report script does.
+
+Worth recording once, so nobody spends a cycle on it: **this rule cannot be
+satisfied by escaping.** `HttpToFileAccessCustomizations.qll` declares
+`Sanitizer` as an abstract class, and `HttpToFileAccessSpecific.qll` — the only
+file that extends it for JavaScript — defines Sources and nothing else. The
+pack ships no concrete sanitizer at all, so the configuration's
+`isBarrier(node) { node instanceof Sanitizer }` can never hold, and every flow
+from a `ClientRequest` response into a `FileSystemWriteAccess` is reported
+whatever sits in between. This is the one rule in the table where §"What CodeQL
+does and does not recognise here" does not apply, because there is no shape to
+get right.
+
+The substance behind the alert is handled, and is deliberately not what closes
+it: every cell goes through `escapeCsvCell`, which applies RFC 4180 quoting AND
+neutralises a leading `=`, `+`, `-` or `@`. That matters more here than almost
+anywhere else in the repo — the file is opened in Excel by a librarian, so a
+book whose title begins with `=` would otherwise be a formula executing on
+their machine.
 
 ## Re-triaging
 

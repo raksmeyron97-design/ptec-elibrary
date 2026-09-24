@@ -147,9 +147,17 @@ describe("only one module may declare the institution", () => {
     expect(src).toContain('from "@/lib/seo/entity-ids"');
     // The inline template form is what let org-nodes.ts have no way to
     // reference these anchors, which is why it duplicated the nodes instead.
-    expect(src).not.toContain("${SITE_URL}/#organization");
-    expect(src).not.toContain("${SITE_URL}/#library");
-    expect(src).not.toContain("${SITE_URL}/#website");
+    //
+    // The needle IS the source text `${SITE_URL}`, so spelling it inside a
+    // quoted string makes this assertion look like a template literal someone
+    // forgot to tag — and CodeQL's js/template-syntax-in-string-literal has
+    // minted an alert on these lines every time they shifted, five dismissed
+    // so far (docs/CODEQL-TRIAGE.md). Holding the `$` apart builds the exact
+    // same needle and ends the recurrence rather than dismissing it again.
+    const inlineAnchor = (name: string) => "$" + "{SITE_URL}/#" + name;
+    expect(src).not.toContain(inlineAnchor("organization"));
+    expect(src).not.toContain(inlineAnchor("library"));
+    expect(src).not.toContain(inlineAnchor("website"));
   });
 });
 
