@@ -10,21 +10,37 @@ export const dynamic = "force-dynamic";
 
 const COVERS = process.env.NEXT_PUBLIC_R2_COVERS_URL ?? "";
 const BOOK_SELECT =
-  "id, slug, title, cover_url, cover_color, department, language, rating, pages, authors(name), categories(name)";
+  "id, slug, title, cover_url, cover_color, department, language, pages, authors(name), categories(name)";
 
+/**
+ * Why a book was suggested, as DATA — the client words it in the reader's
+ * locale. This used to be an English sentence built here ("Because you read
+ * …", "Most popular in the library"), so a Khmer reader got English under
+ * every recommendation.
+ */
+export type RecommendationReason =
+  | { kind: "recent"; title: string }
+  | { kind: "topic"; name: string }
+  | { kind: "popular" };
+
+// No `rating` field, deliberately. `books.rating` has a column DEFAULT of 5,
+// so an unreviewed book reads as five stars — and this route used to fall
+// back to 5 even when the column was empty. The dashboard then drew "★ 5.0"
+// under every suggestion. A rating is only information next to a review
+// count (BookCard shows it only when `reviewCount > 0`), and this route has
+// none to offer.
 export type Recommendation = {
   id:         string;
   slug:       string;
   title:      string;
-  author:     string;
+  author:     string | null;
   coverUrl:   string | null;
   coverColor: string | null;
   category:   string | null;
   department: string | null;
   language:   string | null;
-  rating:     number;
   pages:      number;
-  reason:     string;
+  reason:     RecommendationReason;
 };
 
 export type RecommendationsResponse = {
@@ -32,19 +48,18 @@ export type RecommendationsResponse = {
   basedOn:  string | null;
 };
 
-function mapBook(b: any, reason: string): Recommendation {
+function mapBook(b: any, reason: RecommendationReason): Recommendation {
   const rawCover = b.cover_url ?? null;
   return {
     id:         b.id,
     slug:       b.slug,
     title:      b.title,
-    author:     b.authors?.name ?? "Unknown",
+    author:     b.authors?.name ?? null,
     coverUrl:   rawCover ? (rawCover.startsWith("http") ? rawCover : `${COVERS}/${rawCover}`) : null,
     coverColor: b.cover_color ?? null,
     category:   b.categories?.name ?? null,
     department: b.department ?? null,
     language:   b.language ?? null,
-    rating:     Number(b.rating) || 5,
     pages:      b.pages ?? 0,
     reason,
   };
@@ -109,9 +124,11 @@ export async function GET() {
 
   // 1. Same category as top-read category
   if (topCatId) {
-    const reason = recentTitle
-      ? `Because you read "${recentTitle.length > 35 ? recentTitle.slice(0, 35) + "…" : recentTitle}"`
-      : `Popular in ${topCatName ?? "your subjects"}`;
+    const reason: RecommendationReason = recentTitle
+      ? { kind: "recent", title: recentTitle }
+      : topCatName
+        ? { kind: "topic", name: topCatName }
+        : { kind: "popular" };
 
     const { data: catBooks } = await db
       .from("books")
@@ -141,7 +158,7 @@ export async function GET() {
     for (const b of deptBooks ?? []) {
       if (readIds.has((b as any).id)) continue;
       if (results.some(r => r.id === (b as any).id)) continue;
-      results.push(mapBook(b, `Popular in ${topDept}`));
+      results.push(mapBook(b, { kind: "topic", name: topDept }));
       if (results.length >= 8) break;
     }
   }
@@ -158,7 +175,7 @@ export async function GET() {
     for (const b of popular ?? []) {
       if (readIds.has((b as any).id)) continue;
       if (results.some(r => r.id === (b as any).id)) continue;
-      results.push(mapBook(b, "Most popular in the library"));
+      results.push(mapBook(b, { kind: "popular" }));
       if (results.length >= 8) break;
     }
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Download, ChevronDown } from "lucide-react";
 import { getExportData } from "@/app/actions/export";
@@ -33,10 +33,35 @@ export default function ExportMyLibrary() {
   const t = useTranslations("dashboard");
   const [open,    setOpen]    = useState(false);
   const [loading, setLoading] = useState<ExportType | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const itemRefs   = useRef<(HTMLButtonElement | null)[]>([]);
+
+  // Menu-button pattern: opening moves focus into the menu, Escape hands it
+  // back to the trigger. It used to open and leave focus on the trigger, so a
+  // keyboard user had to Tab through an overlay to find the items at all.
+  useEffect(() => {
+    if (open) itemRefs.current[0]?.focus();
+  }, [open]);
+
+  const close = (refocus: boolean) => {
+    setOpen(false);
+    if (refocus) triggerRef.current?.focus();
+  };
+
+  const onMenuKeyDown = (e: React.KeyboardEvent) => {
+    const items = itemRefs.current.filter(Boolean) as HTMLButtonElement[];
+    const i = items.indexOf(document.activeElement as HTMLButtonElement);
+    if (e.key === "Escape") { e.preventDefault(); close(true); }
+    else if (e.key === "Tab") close(false);
+    else if (e.key === "ArrowDown") { e.preventDefault(); items[(i + 1) % items.length]?.focus(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); items[(i - 1 + items.length) % items.length]?.focus(); }
+    else if (e.key === "Home") { e.preventDefault(); items[0]?.focus(); }
+    else if (e.key === "End") { e.preventDefault(); items[items.length - 1]?.focus(); }
+  };
 
   const handle = async (type: ExportType) => {
     setLoading(type);
-    setOpen(false);
+    close(true);
     try {
       const data = await getExportData();
       if (!data) return;
@@ -78,42 +103,48 @@ export default function ExportMyLibrary() {
   };
 
   return (
-    <div
-      className="relative"
-      onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
-    >
+    <div className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(v => !v)}
         disabled={loading !== null}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium text-text-body transition hover:bg-paper hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-wait disabled:opacity-70"
+        aria-controls={open ? "export-library-menu" : undefined}
+        className="focus-field inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border border-divider bg-bg-surface px-3.5 text-[13px] font-semibold text-text-body transition-colors hover:border-brand/30 hover:text-brand disabled:cursor-wait disabled:opacity-70"
       >
-        <span className="text-text-muted flex-none" aria-hidden="true">
-          <Download className="h-4 w-4" />
-        </span>
-        {t("exportLibrary")}
+        <Download className="h-4 w-4 text-text-muted" aria-hidden="true" />
         {loading
-          ? <span className="ml-auto text-[11px] text-text-muted animate-pulse" role="status">{t("exporting")}</span>
-          : <ChevronDown className={`ml-auto h-3.5 w-3.5 text-text-muted transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+          ? <span role="status">{t("exporting")}</span>
+          : <>
+              {t("exportLibrary")}
+              <ChevronDown className={`h-3.5 w-3.5 text-text-muted transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+            </>
         }
       </button>
 
       {open && (
         <>
-          <div className="fixed inset-0 z-10" aria-hidden="true" onClick={() => setOpen(false)} />
-          <div role="menu" aria-label={t("exportLibrary")}
-            className="absolute left-3 top-full z-20 mt-1 w-52 rounded-xl border border-divider bg-bg-surface shadow-lg py-1.5 overflow-hidden">
-            {OPTIONS.map(opt => (
+          <div className="fixed inset-0 z-10" aria-hidden="true" onClick={() => close(false)} />
+          <div
+            id="export-library-menu"
+            role="menu"
+            aria-label={t("exportLibrary")}
+            onKeyDown={onMenuKeyDown}
+            className="absolute right-0 top-full z-20 mt-1.5 w-56 overflow-hidden rounded-xl border border-divider bg-bg-surface py-1.5 shadow-lg"
+          >
+            {OPTIONS.map((opt, i) => (
               <button
                 key={opt.key}
+                ref={(el) => { itemRefs.current[i] = el; }}
                 type="button"
                 role="menuitem"
+                tabIndex={-1}
                 onClick={() => handle(opt.key)}
-                className="flex w-full cursor-pointer items-center gap-2.5 px-4 py-2 text-[12.5px] text-text-body transition hover:bg-paper hover:text-brand focus-visible:bg-paper focus-visible:text-brand focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring text-left"
+                className="flex w-full cursor-pointer items-center gap-2.5 px-4 py-2.5 text-left text-[13px] text-text-body transition-colors hover:bg-paper hover:text-brand focus-visible:bg-paper focus-visible:text-brand focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring"
               >
-                <Download className="h-3.5 w-3.5 text-text-muted flex-none" aria-hidden="true" />
+                <Download className="h-3.5 w-3.5 flex-none text-text-muted" aria-hidden="true" />
                 {t(opt.labelKey)}
               </button>
             ))}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import {
   BookMarked, Plus, Trash2, Globe, Lock, ChevronRight,
@@ -18,6 +19,7 @@ function ListCard({ list, onDelete, onUpdate }: {
   onDelete: (id: string) => void;
   onUpdate: (id: string, name: string, isPublic: boolean) => void;
 }) {
+  const t = useTranslations("dashboard");
   const [editing, setEditing] = useState(false);
   const [name, setName]       = useState(list.name);
   const [pub, setPub]         = useState(list.is_public);
@@ -41,14 +43,14 @@ function ListCard({ list, onDelete, onUpdate }: {
       // A Server Action can reject before it returns anything — a dropped
       // connection, a serialization failure. Without this the card keeps the
       // caller's optimistic state and stays disabled forever.
-      setError("Could not reach the server. Please try again.");
+      setError(t("listsErrorNetwork"));
     } finally {
       setBusy(false);
     }
   }
 
   async function handleDelete() {
-    if (!confirm(`Delete "${list.name}"? This cannot be undone.`)) return;
+    if (!confirm(t("listsDeleteConfirm", { name: list.name }))) return;
     setBusy(true);
     setError(null);
     try {
@@ -56,14 +58,14 @@ function ListCard({ list, onDelete, onUpdate }: {
       if (res?.error) { setError(res.error); return; }
       onDelete(list.id);
     } catch {
-      setError("Could not reach the server. Please try again.");
+      setError(t("listsErrorNetwork"));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="group relative rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm transition hover:shadow-md">
+    <div className="group relative rounded-2xl border border-divider bg-bg-surface p-4 transition-colors hover:border-brand/30">
       {error && (
         <p
           role="alert"
@@ -85,20 +87,21 @@ function ListCard({ list, onDelete, onUpdate }: {
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }}
             maxLength={80}
-            className="focus-field w-full rounded-lg border border-divider bg-paper px-3 py-2 text-[13.5px] font-semibold text-text-body"
+            aria-label={t("listsNameLabel")}
+            className="focus-field w-full rounded-lg border border-divider bg-paper px-3 py-2 text-base font-semibold text-text-body sm:text-[13.5px]"
           />
           <label className="flex items-center gap-2 text-[12.5px] text-text-muted cursor-pointer">
             <input type="checkbox" checked={pub} onChange={(e) => setPub(e.target.checked)} className="accent-brand" />
-            Make public (shareable link)
+            {t("listsMakePublicShort")}
           </label>
           <div className="flex gap-2">
-            <button onClick={save} disabled={busy || !name.trim()}
+            <button type="button" onClick={save} disabled={busy || !name.trim()}
               className="flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-[12px] font-bold text-brand-contrast disabled:opacity-60">
-              {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} Save
+              {busy ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" /> : <Check className="h-3 w-3" aria-hidden="true" />} {t("save")}
             </button>
-            <button onClick={() => setEditing(false)}
+            <button type="button" onClick={() => setEditing(false)}
               className="rounded-lg border border-divider px-3 py-1.5 text-[12px] font-semibold text-text-muted hover:text-text-body">
-              Cancel
+              {t("cancel")}
             </button>
           </div>
         </div>
@@ -113,31 +116,36 @@ function ListCard({ list, onDelete, onUpdate }: {
                 <p className="mt-0.5 text-[12px] text-text-muted line-clamp-2">{list.description}</p>
               )}
             </Link>
-            <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 motion-reduce:transition-none">
-              <button onClick={() => setEditing(true)}
-                className="rounded-lg p-1.5 text-text-muted hover:bg-paper hover:text-brand transition-colors">
-                <Pencil className="h-3.5 w-3.5" />
+            {/* Revealed on hover for a mouse; ALWAYS shown on touch, where there
+                is no hover — they were opacity-0 on every phone, so a list
+                could not be renamed or deleted there at all. */}
+            <div className="flex shrink-0 items-center gap-1 transition-opacity pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-within:opacity-100 motion-reduce:transition-none">
+              <button type="button" onClick={() => setEditing(true)}
+                aria-label={t("listsRename", { name: list.name })} title={t("listsRename", { name: list.name })}
+                className="focus-field rounded-lg p-1.5 text-text-muted transition-colors hover:bg-paper hover:text-brand">
+                <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
-              <button onClick={handleDelete} disabled={busy}
-                className="rounded-lg p-1.5 text-text-muted hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-60 dark:hover:bg-red-900/20">
-                <Trash2 className="h-3.5 w-3.5" />
+              <button type="button" onClick={handleDelete} disabled={busy}
+                aria-label={t("listsDelete", { name: list.name })} title={t("listsDelete", { name: list.name })}
+                className="focus-field rounded-lg p-1.5 text-text-muted transition-colors hover:bg-danger-soft hover:text-danger disabled:opacity-60">
+                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
             </div>
           </div>
 
           <div className="mt-3 flex items-center justify-between">
             <div className="flex items-center gap-3 text-[12px] text-text-muted">
-              <span>{list.book_count ?? 0} books</span>
+              <span>{t("listsItemCount", { count: list.book_count ?? 0 })}</span>
               <span className="flex items-center gap-1">
                 {list.is_public
-                  ? <><Globe className="h-3 w-3" /> Public</>
-                  : <><Lock className="h-3 w-3" /> Private</>
+                  ? <><Globe className="h-3 w-3" aria-hidden="true" /> {t("listsPublic")}</>
+                  : <><Lock className="h-3 w-3" aria-hidden="true" /> {t("listsPrivate")}</>
                 }
               </span>
             </div>
-            <Link href={`/lists/${list.id}`}
+            <Link href={`/lists/${list.id}`} tabIndex={-1} aria-hidden="true"
               className="inline-flex items-center gap-0.5 text-[12px] font-semibold text-brand hover:opacity-80">
-              View <ChevronRight className="h-3.5 w-3.5" />
+              {t("view")} <ChevronRight className="h-3.5 w-3.5 rtl:rotate-180" />
             </Link>
           </div>
         </>
@@ -147,6 +155,7 @@ function ListCard({ list, onDelete, onUpdate }: {
 }
 
 export default function ReadingListsSection({ initialLists }: Props) {
+  const t = useTranslations("dashboard");
   const [lists, setLists]   = useState<ReadingList[]>(initialLists);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName]   = useState("");
@@ -164,7 +173,7 @@ export default function ReadingListsSection({ initialLists }: Props) {
       // form cleared, the creator closed, no list appeared and nothing said
       // why. Keep the typed name so the reader can retry it.
       if (!res.success || !res.id) {
-        setCreateError(res.error ?? "Could not create the list. Please try again.");
+        setCreateError(res.error ?? t("listsErrorCreate"));
         return;
       }
       setLists((prev) => [{
@@ -180,7 +189,7 @@ export default function ReadingListsSection({ initialLists }: Props) {
       }, ...prev]);
       setNewName(""); setNewPub(false); setCreating(false);
     } catch {
-      setCreateError("Could not reach the server. Please try again.");
+      setCreateError(t("listsErrorNetwork"));
     } finally {
       setBusy(false);
     }
@@ -196,26 +205,24 @@ export default function ReadingListsSection({ initialLists }: Props) {
 
   return (
     <div id="lists" className="scroll-mt-6">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <BookMarked className="h-5 w-5 text-brand" />
-          <h2 className="text-lg sm:text-xl font-bold text-text-heading">Reading Lists</h2>
-          {lists.length > 0 && (
-            <span className="ml-1 text-sm font-normal text-text-muted">({lists.length})</span>
-          )}
+      {/* The tab above already names this panel and counts it, so no second
+          heading — only the action. */}
+      {(lists.length > 0 || creating) && (
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <p className="text-[13px] text-text-muted">{t("listsIntro")}</p>
+          <button
+            type="button"
+            onClick={() => setCreating(true)}
+            className="focus-field inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl bg-brand px-3.5 text-[13px] font-semibold text-brand-contrast transition-colors hover:bg-brand-hover"
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" /> {t("listsNew")}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => setCreating(true)}
-          className="inline-flex items-center gap-1.5 rounded-[10px] bg-brand px-3.5 py-2 text-[13px] font-bold text-brand-contrast transition hover:bg-brand-hover"
-        >
-          <Plus className="h-4 w-4" /> New List
-        </button>
-      </div>
+      )}
 
       {creating && (
-        <div className="mb-4 rounded-2xl border border-brand/30 bg-brand/5 p-4">
-          <p className="mb-3 text-[13px] font-semibold text-text-heading">Create a new list</p>
+        <div className="mb-4 rounded-2xl border border-surface-brand-line bg-surface-brand-soft p-4">
+          <p id="create-list-title" className="mb-3 text-[13px] font-semibold text-text-heading">{t("listsCreateTitle")}</p>
           {createError && (
             <p
               role="alert"
@@ -235,26 +242,28 @@ export default function ReadingListsSection({ initialLists }: Props) {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") setCreating(false); }}
-              placeholder="e.g. Research References, Semester 1…"
+              placeholder={t("listsNamePlaceholder")}
+              aria-labelledby="create-list-title"
               maxLength={80}
-              className="w-full rounded-xl border border-divider bg-paper px-3.5 py-2.5 text-[13.5px] text-text-body focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+              className="focus-field w-full rounded-xl border border-divider bg-bg-surface px-3.5 py-2.5 text-base text-text-body sm:text-[13.5px]"
             />
             <label className="flex items-center gap-2 text-[12.5px] text-text-muted cursor-pointer">
               <input type="checkbox" checked={newPub} onChange={(e) => setNewPub(e.target.checked)} className="accent-brand" />
-              Make public (anyone with the link can view)
+              {t("listsMakePublic")}
             </label>
             <div className="flex gap-2">
               <button
+                type="button"
                 onClick={handleCreate}
                 disabled={busy || !newName.trim()}
                 className="flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-[13px] font-bold text-brand-contrast disabled:opacity-60"
               >
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                Create List
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}
+                {t("listsCreate")}
               </button>
-              <button onClick={() => { setCreating(false); setNewName(""); }}
-                className="rounded-xl border border-divider px-4 py-2 text-[13px] font-semibold text-text-muted hover:text-text-body">
-                Cancel
+              <button type="button" onClick={() => { setCreating(false); setNewName(""); }}
+                className="rounded-xl border border-divider bg-bg-surface px-4 py-2 text-[13px] font-semibold text-text-muted hover:text-text-body">
+                {t("cancel")}
               </button>
             </div>
           </div>
@@ -262,21 +271,22 @@ export default function ReadingListsSection({ initialLists }: Props) {
       )}
 
       {lists.length === 0 && !creating ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-divider bg-bg-surface py-10 text-center">
-          <BookMarked className="mb-3 h-10 w-10 text-text-muted/30" />
-          <p className="text-sm font-semibold text-text-heading">No reading lists yet</p>
-          <p className="mt-1 text-[12.5px] text-text-muted">
-            Organise your books into named collections like &ldquo;Semester 1&rdquo; or &ldquo;Research Refs&rdquo;
-          </p>
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-divider bg-bg-surface px-6 py-12 text-center">
+          <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-brand-soft text-brand" aria-hidden="true">
+            <BookMarked className="h-5 w-5" />
+          </span>
+          <p className="text-[14px] font-semibold text-text-heading">{t("listsEmptyTitle")}</p>
+          <p className="mt-1 max-w-xs text-[12.5px] leading-relaxed text-text-muted">{t("listsEmptyDesc")}</p>
           <button
+            type="button"
             onClick={() => setCreating(true)}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-[10px] bg-brand px-4 py-2 text-[13px] font-bold text-brand-contrast hover:bg-brand-hover"
+            className="focus-field mt-4 inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand px-4 text-[13px] font-semibold text-brand-contrast transition-colors hover:bg-brand-hover"
           >
-            <Plus className="h-4 w-4" /> Create First List
+            <Plus className="h-4 w-4" aria-hidden="true" /> {t("listsCreateFirst")}
           </button>
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {lists.map((list) => (
             <ListCard key={list.id} list={list} onDelete={handleDelete} onUpdate={handleUpdate} />
           ))}

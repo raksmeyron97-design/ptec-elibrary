@@ -3,34 +3,27 @@
 import { useEffect, useState } from "react";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { Sparkles, Star } from "lucide-react";
+import SmartBookCover from "@/components/ui/books/SmartBookCover";
+import { ArrowLink, SectionHeading } from "@/components/ui/dashboard/primitives";
 import type { Recommendation, RecommendationsResponse } from "@/app/api/recommendations/route";
 
-const PLACEHOLDER_BG = ["#1e3a8a", "#065f46", "#7c2d12", "#4a1d96", "#0f4c75", "#064e3b"];
-
-function CoverPlaceholder({ title, color }: { title: string; color: string | null }) {
-  const bg = (color && color.startsWith("#"))
-    ? color
-    : PLACEHOLDER_BG[(title.charCodeAt(0) || 0) % PLACEHOLDER_BG.length];
-  const initials = title.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
-  return (
-    <div className="h-full w-full flex items-center justify-center text-white text-[11px] font-bold" style={{ background: bg }} aria-hidden="true">
-      {initials}
-    </div>
-  );
-}
+// Six fills every breakpoint's grid exactly (2×3, 3×2, 6×1), so no row ends
+// on a lone orphan card the way five-in-a-four-column grid did.
+const SHOWN = 6;
+const GRID = "grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 sm:gap-x-4 xl:grid-cols-6";
 
 function Skeleton() {
+  // Same heading block and grid as the loaded state, so the section does not
+  // jump when the fetch lands.
   return (
-    <div className="mt-6" aria-hidden="true">
-      <div className="h-4 w-44 rounded bg-divider animate-pulse mb-3" />
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-        {[1, 2, 3, 4].map(i => (
-          <div key={i} className="rounded-xl border border-divider bg-bg-surface p-2.5 animate-pulse">
-            <div className="h-[90px] rounded-lg bg-divider mb-2" />
-            <div className="h-2.5 w-3/4 rounded bg-divider mb-1.5" />
-            <div className="h-3 rounded bg-divider mb-1" />
-            <div className="h-2.5 w-1/2 rounded bg-divider" />
+    <div aria-hidden="true">
+      <div className="mb-5 h-6 w-52 rounded-md skeleton" />
+      <div className={GRID}>
+        {Array.from({ length: SHOWN }).map((_, i) => (
+          <div key={i}>
+            <div className="aspect-[2/3] w-full rounded-xl skeleton" />
+            <div className="mt-2.5 h-3.5 w-11/12 rounded skeleton" />
+            <div className="mt-1.5 h-3 w-2/3 rounded skeleton" />
           </div>
         ))}
       </div>
@@ -38,31 +31,26 @@ function Skeleton() {
   );
 }
 
-function BookCard({ item }: { item: Recommendation }) {
+function Item({ item, reason }: { item: Recommendation; reason: string }) {
   return (
-    <Link
-      href={`/books/${item.slug}`}
-      className="group rounded-xl border border-divider bg-bg-surface p-2.5 hover:border-brand/30 hover:shadow-sm transition-all overflow-hidden flex flex-col focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-    >
-      <div className="h-[90px] rounded-lg overflow-hidden mb-2 flex-none">
-        {item.coverUrl ? (
-          <img
-            src={item.coverUrl}
-            alt=""
-            loading="lazy"
-            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
-          />
-        ) : (
-          <CoverPlaceholder title={item.title} color={item.coverColor} />
-        )}
-      </div>
-      <p className="text-[10px] text-brand font-semibold truncate mb-0.5 leading-tight">{item.reason}</p>
-      <p className="text-[12px] font-semibold text-text-heading leading-snug line-clamp-2 mb-auto">{item.title}</p>
-      <p className="text-[11px] text-text-muted truncate mt-1">{item.author}</p>
-      <div className="flex items-center gap-1 mt-0.5">
-        <Star className="h-2.5 w-2.5 text-amber-400 fill-amber-400 flex-none" aria-hidden="true" />
-        <span className="text-[10px] text-text-muted tabular-nums">{item.rating.toFixed(1)}</span>
-      </div>
+    <Link href={`/books/${item.slug}`} prefetch={false} className="focus-field group block rounded-xl">
+      <span className="relative block aspect-[2/3] w-full overflow-hidden rounded-xl bg-paper ring-1 ring-divider transition-shadow group-hover:shadow-md">
+        <SmartBookCover
+          coverUrl={item.coverUrl}
+          title={item.title}
+          author={item.author}
+          category={item.category ?? item.department}
+          seed={item.slug}
+          variant="card"
+          sizes="(max-width:640px) 45vw, (max-width:1280px) 30vw, 200px"
+          imgClassName="transition-transform duration-500 group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+        />
+      </span>
+      <span className="mt-2.5 block font-khmer-serif text-[13.5px] font-bold leading-snug text-text-heading line-clamp-2 group-hover:text-brand" dir="auto">
+        {item.title}
+      </span>
+      {item.author && <span className="mt-0.5 block truncate text-[12px] text-text-muted" dir="auto">{item.author}</span>}
+      <span className="mt-1 block truncate text-[11.5px] font-medium text-brand/80" dir="auto">{reason}</span>
     </Link>
   );
 }
@@ -91,22 +79,26 @@ export default function RecommendedBooks({ viewAllHref = "/books" }: { viewAllHr
   if (loading) return <Skeleton />;
   if (!data || data.items.length === 0) return null;
 
+  const reasonText = (r: Recommendation["reason"]) => {
+    // Tolerate a response from a build that still sent a sentence.
+    if (!r || typeof r !== "object") return typeof r === "string" ? r : "";
+    if (r.kind === "recent") return t("reasonRecent", { title: r.title });
+    if (r.kind === "topic") return t("reasonTopic", { name: r.name });
+    return t("reasonPopular");
+  };
+
   return (
-    <section aria-label={t("recommendedForYou")}>
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-amber-500 flex-none" aria-hidden="true" />
-          <h2 className="text-[15px] font-bold text-text-heading">{t("recommendedForYou")}</h2>
-          {data.basedOn && (
-            <span className="hidden sm:block text-[11px] text-text-muted">· {t("basedOn", { name: data.basedOn })}</span>
-          )}
-        </div>
-        <Link href={viewAllHref} className="focus-field shrink-0 rounded text-[12.5px] font-semibold text-brand hover:underline">
-          {t("viewAll")} →
-        </Link>
-      </div>
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-        {data.items.map(item => <BookCard key={item.id} item={item} />)}
+    <section aria-labelledby="recommended-heading">
+      <SectionHeading
+        id="recommended-heading"
+        title={t("recommendedForYou")}
+        description={data.basedOn ? t("basedOn", { name: data.basedOn }) : undefined}
+        action={<ArrowLink href={viewAllHref}>{t("browseAll")}</ArrowLink>}
+      />
+      <div className={GRID}>
+        {data.items.slice(0, SHOWN).map(item => (
+          <Item key={item.id} item={item} reason={reasonText(item.reason)} />
+        ))}
       </div>
     </section>
   );

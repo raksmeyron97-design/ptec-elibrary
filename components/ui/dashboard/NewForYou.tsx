@@ -1,7 +1,12 @@
+// components/ui/dashboard/NewForYou.tsx
+// New titles matching the reader's subscriptions. Renders nothing when there
+// are none — it is news, not a fixture.
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { Bell, BookOpen, ChevronRight } from "lucide-react";
+import { Bell, ChevronRight } from "lucide-react";
+import CoverThumb from "@/components/ui/dashboard/CoverThumb";
 import type { NewContentAlert } from "@/app/actions/subscriptions";
+import { CARD, CardHeader } from "@/components/ui/dashboard/primitives";
 
 const COVERS = process.env.NEXT_PUBLIC_R2_COVERS_URL ?? "";
 
@@ -15,40 +20,25 @@ export default function NewForYou({ alerts }: { alerts: NewContentAlert[] }) {
   if (alerts.length === 0) return null;
 
   return (
-    <section aria-label={t("newForYou")} className="mx-auto max-w-[1300px] px-4 pt-4 sm:px-8 md:px-12">
-      <div className="rounded-2xl border border-brand/20 bg-brand/5 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Bell className="h-4 w-4 text-brand flex-none" aria-hidden="true" />
-          <p className="text-[13px] font-bold text-text-heading">{t("newForYou")}</p>
-          <span className="ml-auto text-[11px] text-text-muted">{t("basedOnSubscriptions")}</span>
-        </div>
-
-        <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
-          {alerts.map(alert => {
-            const url = coverUrl(alert.cover_url);
-            return (
-              <Link
-                key={alert.book_id}
-                href={alert.url ?? `/books/${alert.slug}`}
-                className="flex-none flex items-center gap-3 rounded-xl border border-divider bg-bg-surface px-3 py-2.5 hover:border-brand/30 hover:shadow-sm transition-all max-w-[240px] min-w-[180px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-              >
-                <div className="h-10 w-7 rounded-md overflow-hidden flex-none bg-brand/10 flex items-center justify-center" aria-hidden="true">
-                  {url ? (
-                    <img src={url} alt="" loading="lazy" className="h-full w-full object-cover" />
-                  ) : (
-                    <BookOpen className="h-4 w-4 text-brand/40" />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] text-brand font-semibold truncate leading-tight">{alert.matched_label}</p>
-                  <p className="text-[12.5px] font-semibold text-text-heading truncate">{alert.title}</p>
-                </div>
-                <ChevronRight className="h-3.5 w-3.5 text-text-muted flex-none" aria-hidden="true" />
-              </Link>
-            );
-          })}
-        </div>
-      </div>
+    <section aria-labelledby="new-for-you-heading" className={CARD}>
+      <CardHeader id="new-for-you-heading" title={t("newForYou")} meta={t("basedOnSubscriptions")} icon={Bell} />
+      <ul className="scroll-row flex gap-3 overflow-x-auto px-5 pb-5">
+        {alerts.map((alert) => (
+          <li key={alert.book_id} className="w-[240px] shrink-0">
+            <Link
+              href={alert.url ?? `/books/${alert.slug}`}
+              className="focus-field group flex h-full items-center gap-3 rounded-xl border border-divider bg-bg-surface p-2.5 pr-3 transition-colors hover:border-brand/30"
+            >
+              <CoverThumb coverUrl={coverUrl(alert.cover_url)} title={alert.title} seed={alert.slug} />
+              <span className="min-w-0 flex-1" dir="auto">
+                <span className="block truncate text-[11px] font-semibold text-brand">{alert.matched_label}</span>
+                <span className="block truncate text-[13px] font-semibold text-text-heading group-hover:text-brand">{alert.title}</span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-text-muted rtl:rotate-180" aria-hidden="true" />
+            </Link>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

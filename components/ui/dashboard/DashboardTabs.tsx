@@ -1,14 +1,17 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
-import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import BookCard from "@/components/ui/books/BookCard";
 import type { BookCardData } from "@/lib/books/card-data";
 import ReadingListsSection from "@/components/ui/lists/ReadingListsSection";
-import { BookOpen, Bookmark, BookMarked, CheckCircle2 } from "lucide-react";
+import { BookOpen, Bookmark, CheckCircle2 } from "lucide-react";
 import type { ReadingList } from "@/app/actions/reading-lists";
+import { EmptyState } from "@/components/ui/dashboard/primitives";
+import {
+  LIBRARY_TABS, parseLibraryTab, tabButtonId, writeLibraryTab, type LibraryTab,
+} from "@/components/ui/dashboard/library-tab";
 
 // Exactly what a card renders. This was a hand-copied `Book`: eleven fields
 // the three shelves below never draw — including `summary` and a `pdfUrl` —
@@ -22,197 +25,178 @@ interface Props {
   readingLists:     ReadingList[];
   totalInProgress:  number;
   totalCompleted:   number;
+  downloadCount:    number;
+  /** Server-rendered (translated, relative times computed on the server). */
+  downloadsPanel:   ReactNode;
 }
 
-type TabId = "reading" | "saved" | "lists";
+// Two columns on a phone, and denser from there: this grid used to be
+// `lg:grid-cols-2` inside a sidebar layout, so one in-progress book rendered
+// as a ~400px-wide card taller than the viewport.
+const GRID = "grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5";
 
-const TAB_IDS: TabId[] = ["reading", "saved", "lists"];
-
-const TAB_ICONS: Record<TabId, React.ReactNode> = {
-  reading: <BookOpen   className="h-4 w-4" aria-hidden="true" />,
-  saved:   <Bookmark   className="h-4 w-4" aria-hidden="true" />,
-  lists:   <BookMarked className="h-4 w-4" aria-hidden="true" />,
-};
-
-function EmptyState({
-  icon, title, desc, href, label,
-}: { icon: React.ReactNode; title: string; desc: string; href: string; label: string }) {
+function GroupHeading({ icon, title, count, note }: { icon: ReactNode; title: string; count: number; note?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-divider bg-bg-surface py-14 text-center px-6">
-      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand/8 text-brand" aria-hidden="true">
-        {icon}
-      </div>
-      <p className="text-[14px] font-semibold text-text-heading">{title}</p>
-      <p className="mt-1 max-w-xs text-[12.5px] text-text-muted">{desc}</p>
-      <Link href={href}
-        className="mt-5 inline-flex h-9 items-center rounded-xl bg-brand px-5 text-[13px] font-semibold text-brand-contrast transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
-        {label}
-      </Link>
+    <div className="mb-3 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+      {icon}
+      <h3 className="text-[14px] font-bold text-text-heading">{title}</h3>
+      <span className="rounded-full bg-paper px-2 py-0.5 text-[11px] font-bold tabular-nums text-text-muted dark:bg-paper/60">{count}</span>
+      {note && <span className="text-[12px] text-text-muted">· {note}</span>}
     </div>
   );
 }
 
 export default function DashboardTabs({
   inProgressBooks, completedBooks, savedBooks, readingLists,
-  totalInProgress, totalCompleted,
+  totalInProgress, totalCompleted, downloadCount, downloadsPanel,
 }: Props) {
   const t = useTranslations("dashboard");
-  // Read `?tab=` once via a lazy initializer (not a post-mount effect) so the
-  // server-rendered markup and the first client render agree on the active
-  // tab — an effect-driven flip would hydrate as "reading" and then jump,
-  // which both flashes the wrong panel and risks a hydration mismatch.
-  const searchParams = useSearchParams();
-  const [tab, setTab] = useState<TabId>(() => {
-    const requested = searchParams.get("tab");
-    return (TAB_IDS as readonly string[]).includes(requested ?? "") ? (requested as TabId) : "reading";
-  });
-  const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
+  // The URL is the state (library-tab.ts). No useState: a tile elsewhere on
+  // the page writes `?tab=` with replaceState and this re-renders from it.
+  // The old lazy-initialised state read the parameter once, at mount, so the
+  // Library Snapshot tiles never worked: clicking "Saved" re-rendered the
+  // whole page on the server, changed the URL to `?tab=saved`, and left the
+  // Reading panel showing (verified against the pre-redesign page).
+  const tab = parseLibraryTab(useSearchParams().get("tab"));
+  const tabRefs = useRef<Partial<Record<LibraryTab, HTMLButtonElement | null>>>({});
 
-  const labels: Record<TabId, string> = {
-    reading: t("tabReading"),
-    saved:   t("tabSaved"),
-    lists:   t("tabLists"),
+  const labels: Record<LibraryTab, string> = {
+    reading:   t("tabReading"),
+    saved:     t("tabSaved"),
+    lists:     t("tabLists"),
+    downloads: t("tabDownloads"),
   };
 
-  const counts: Record<TabId, number> = {
-    reading: totalInProgress + totalCompleted,
-    saved:   savedBooks.length,
-    lists:   readingLists.length,
+  const counts: Record<LibraryTab, number> = {
+    reading:   totalInProgress + totalCompleted,
+    saved:     savedBooks.length,
+    lists:     readingLists.length,
+    downloads: downloadCount,
   };
 
+  const select = (id: LibraryTab, focus = false) => {
+    writeLibraryTab(id);
+    if (focus) tabRefs.current[id]?.focus();
+  };
+
+  // WAI-ARIA tabs, automatic activation: arrows move and select, Home/End jump.
   const onTablistKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    const i = LIBRARY_TABS.indexOf(tab);
+    const n = LIBRARY_TABS.length;
+    const next =
+      e.key === "ArrowRight" ? LIBRARY_TABS[(i + 1) % n]
+      : e.key === "ArrowLeft" ? LIBRARY_TABS[(i - 1 + n) % n]
+      : e.key === "Home" ? LIBRARY_TABS[0]
+      : e.key === "End" ? LIBRARY_TABS[n - 1]
+      : null;
+    if (!next) return;
     e.preventDefault();
-    const dir = e.key === "ArrowRight" ? 1 : -1;
-    const next = TAB_IDS[(TAB_IDS.indexOf(tab) + dir + TAB_IDS.length) % TAB_IDS.length];
-    setTab(next);
-    tabRefs.current[next]?.focus();
+    select(next, true);
   };
+
+  const shownNote = (shown: number, total: number) =>
+    total > shown ? t("showingOf", { shown, total }) : undefined;
 
   return (
     <div>
-      {/* Tab bar */}
-      <div
-        role="tablist"
-        aria-label={t("tabsLabel")}
-        onKeyDown={onTablistKeyDown}
-        className="mb-6 flex items-center gap-1 rounded-2xl border border-divider bg-bg-surface p-1.5 shadow-sm"
-      >
-        {TAB_IDS.map((id) => (
-          <button
-            key={id}
-            ref={(el) => { tabRefs.current[id] = el; }}
-            type="button"
-            role="tab"
-            id={`dashboard-tab-${id}`}
-            aria-selected={tab === id}
-            aria-controls={`dashboard-panel-${id}`}
-            aria-label={labels[id]}
-            tabIndex={tab === id ? 0 : -1}
-            onClick={() => setTab(id)}
-            className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-semibold transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
-              tab === id
-                ? "bg-brand text-brand-contrast shadow-sm"
-                : "text-text-muted hover:bg-paper hover:text-text-body"
-            }`}
-          >
-            {TAB_ICONS[id]}
-            <span className="hidden sm:inline">{labels[id]}</span>
-            {counts[id] > 0 && (
-              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
-                tab === id ? "bg-brand-contrast/20 text-brand-contrast" : "bg-brand/10 text-brand"
-              }`}>
-                {counts[id]}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Reading tab ── */}
-      <div role="tabpanel" id="dashboard-panel-reading" aria-labelledby="dashboard-tab-reading" hidden={tab !== "reading"}>
-        <div className="space-y-8">
-          {/* Continue Reading */}
-          <div>
-            <div className="mb-4 flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand/10" aria-hidden="true">
-                <BookOpen className="h-4 w-4 text-brand" />
-              </div>
-              <h3 className="font-khmer-serif text-[17px] font-bold text-text-heading">
-                {t("continueReading")}
-              </h3>
-              {inProgressBooks.length > 0 && (
-                <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-bold text-brand tabular-nums">
-                  {inProgressBooks.length}
+      {/* Underline tabs. Scrolls sideways rather than wrapping when four
+          labels (longer in Khmer) do not fit a phone. */}
+      <div className="scroll-row -mx-4 mb-6 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <div
+          role="tablist"
+          aria-label={t("tabsLabel")}
+          onKeyDown={onTablistKeyDown}
+          className="flex min-w-max gap-1 border-b border-divider sm:gap-2"
+        >
+          {LIBRARY_TABS.map((id) => {
+            const active = tab === id;
+            return (
+              <button
+                key={id}
+                ref={(el) => { tabRefs.current[id] = el; }}
+                type="button"
+                role="tab"
+                id={tabButtonId(id)}
+                aria-selected={active}
+                aria-controls={`dashboard-panel-${id}`}
+                tabIndex={active ? 0 : -1}
+                onClick={() => select(id)}
+                className={`relative -mb-px flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-t-lg border-b-2 px-3 pb-3 pt-2 text-[14px] font-semibold transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring scroll-mt-28 ${
+                  active
+                    ? "border-brand text-brand"
+                    : "border-transparent text-text-muted hover:border-divider hover:text-text-heading"
+                }`}
+              >
+                {labels[id]}
+                <span
+                  className={`min-w-[1.5rem] rounded-full px-1.5 py-0.5 text-center text-[11px] font-bold tabular-nums ${
+                    active ? "bg-brand text-brand-contrast" : "bg-paper text-text-muted dark:bg-paper/60"
+                  }`}
+                >
+                  {counts[id]}
                 </span>
-              )}
-            </div>
-            {inProgressBooks.length === 0 ? (
-              <EmptyState
-                icon={<BookOpen className="h-6 w-6" />}
-                title={t("noInProgressTitle")}
-                desc={t("noInProgressDesc")}
-                href="/books"
-                label={t("browseCatalogue")}
-              />
-            ) : (
-              <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
-                {inProgressBooks.map((book) => (
-                  <BookCard key={book.slug} book={book} variant="continue" />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Completed */}
-          {completedBooks.length > 0 && (
-            <div>
-              <div className="mb-4 flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30" aria-hidden="true">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                </div>
-                <h3 className="font-khmer-serif text-[17px] font-bold text-text-heading">
-                  {t("completedHeading")}
-                </h3>
-                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 tabular-nums">
-                  {completedBooks.length}
-                </span>
-              </div>
-              <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
-                {completedBooks.map((book) => (
-                  <BookCard key={book.slug} book={book} />
-                ))}
-              </div>
-            </div>
-          )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* ── Saved tab ── */}
-      <div role="tabpanel" id="dashboard-panel-saved" aria-labelledby="dashboard-tab-saved" hidden={tab !== "saved"}>
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/10" aria-hidden="true">
-              <Bookmark className="h-4 w-4 text-accent" />
-            </div>
-            <h3 className="font-khmer-serif text-[17px] font-bold text-text-heading">{t("savedHeading")}</h3>
-          </div>
-          {savedBooks.length > 0 && (
-            <Link href="/books" className="text-[13px] font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand rounded">
-              {t("browseMore")} →
-            </Link>
-          )}
-        </div>
-        {savedBooks.length === 0 ? (
+      {/* ── Reading ── */}
+      <div role="tabpanel" id="dashboard-panel-reading" aria-labelledby={tabButtonId("reading")} hidden={tab !== "reading"}>
+        {inProgressBooks.length === 0 && completedBooks.length === 0 ? (
           <EmptyState
-            icon={<Bookmark className="h-6 w-6" />}
-            title={t("noSavedTitle")}
-            desc={t("noSavedDesc")}
-            href="/books"
-            label={t("browseCatalogue")}
+            icon={BookOpen}
+            title={t("noInProgressTitle")}
+            description={t("noInProgressDesc")}
+            action={{ href: "/books", label: t("browseCatalogue") }}
           />
         ) : (
-          <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
+          <div className="space-y-8">
+            {inProgressBooks.length > 0 && (
+              <div>
+                <GroupHeading
+                  icon={<BookOpen className="h-4 w-4 text-brand" aria-hidden="true" />}
+                  title={t("statInProgressShort")}
+                  count={totalInProgress}
+                  note={shownNote(inProgressBooks.length, totalInProgress)}
+                />
+                <div className={GRID}>
+                  {inProgressBooks.map((book) => (
+                    <BookCard key={book.slug} book={book} variant="continue" />
+                  ))}
+                </div>
+              </div>
+            )}
+            {completedBooks.length > 0 && (
+              <div>
+                <GroupHeading
+                  icon={<CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />}
+                  title={t("completedHeading")}
+                  count={totalCompleted}
+                  note={shownNote(completedBooks.length, totalCompleted)}
+                />
+                <div className={GRID}>
+                  {completedBooks.map((book) => (
+                    <BookCard key={book.slug} book={book} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Saved ── */}
+      <div role="tabpanel" id="dashboard-panel-saved" aria-labelledby={tabButtonId("saved")} hidden={tab !== "saved"}>
+        {savedBooks.length === 0 ? (
+          <EmptyState
+            icon={Bookmark}
+            title={t("noSavedTitle")}
+            description={t("noSavedDesc")}
+            action={{ href: "/books", label: t("browseCatalogue") }}
+          />
+        ) : (
+          <div className={GRID}>
             {savedBooks.map((book) => (
               <BookCard key={book.slug} book={book} />
             ))}
@@ -220,9 +204,16 @@ export default function DashboardTabs({
         )}
       </div>
 
-      {/* ── Lists tab ── */}
-      <div role="tabpanel" id="dashboard-panel-lists" aria-labelledby="dashboard-tab-lists" hidden={tab !== "lists"}>
-        {tab === "lists" && <ReadingListsSection initialLists={readingLists} />}
+      {/* ── Lists ── Always mounted: it holds the lists created on this page
+          in local state, and unmounting it on a tab switch threw them away
+          until the next full reload. */}
+      <div role="tabpanel" id="dashboard-panel-lists" aria-labelledby={tabButtonId("lists")} hidden={tab !== "lists"}>
+        <ReadingListsSection initialLists={readingLists} />
+      </div>
+
+      {/* ── Downloads ── */}
+      <div role="tabpanel" id="dashboard-panel-downloads" aria-labelledby={tabButtonId("downloads")} hidden={tab !== "downloads"}>
+        {downloadsPanel}
       </div>
     </div>
   );
