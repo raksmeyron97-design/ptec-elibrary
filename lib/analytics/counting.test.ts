@@ -148,3 +148,71 @@ describe("the download counter is not applied twice", () => {
     expect(src).not.toMatch(/from\("book_files"\)[\s\S]{0,200}?\.update\(\s*\{\s*download_count/);
   });
 });
+
+describe("every books path that moves a counter asks the rule first", () => {
+  // `downloadBook()` used to sit in app/actions/download.ts and bump
+  // `books.download_count` on every call with no dedupe at all. Nothing
+  // imported it, but a "use server" export in a module the graph already
+  // contains is a live action id, so a public number had a second, unmetered
+  // way to move. A file with more counter calls than rule consultations has
+  // grown one of those again.
+  const BOOK_COUNTER_FILES = [
+    "app/actions/view-count.ts",
+    "app/actions/download.ts",
+    "app/api/books/[slug]/download/route.ts",
+  ];
+
+  it.each(BOOK_COUNTER_FILES)("%s gates each increment on decideLifetimeCount", (file) => {
+    const src = read(file);
+    const increments = counterRpcArgs(src).length;
+    const decisions = [...src.matchAll(/decideLifetimeCount\(/g)].length;
+    expect(increments).toBeGreaterThan(0);
+    expect(decisions).toBe(increments);
+  });
+});
+
+// ── The backfill (0155) ─────────────────────────────────────────────────────
+//
+// Fixing the counter going forward left the card reading "6 views · 11
+// downloads": one number measuring the days since the deploy, the other the
+// life of the library. 0155 rebuilds `books.view_count` from `view_logs`,
+// which was never broken. These pin the three properties that make that a
+// repair rather than a second invented number.
+
+describe("migration 0155 — the lifetime counter backfill", () => {
+  const sql = read("supabase/migrations/0155_lifetime_counter_backfill.sql");
+
+  it("replays the ROLLING window rather than bucketing by calendar day", () => {
+    // A reader at 23:50 and again at 00:10 is one viewer in one evening. A
+    // `(viewer, date)` group would print a number the live rule can never
+    // produce again — the whole reason the window has no calendar boundary.
+    expect(sql).toMatch(/interval '24 hours'/);
+    expect(sql).not.toMatch(/AT TIME ZONE|::date/i);
+  });
+
+  it("skips a viewer the log cannot identify", () => {
+    // decideLifetimeCount's `unidentified` branch. Counting a row with no
+    // account and no session hash would make the repaired number a refresh
+    // counter.
+    expect(sql).toMatch(/user_id is not null or vl\.session_hash is not null/);
+    expect(sql).toMatch(/dl\.user_id is not null/);
+  });
+
+  it("only ever raises a counter", () => {
+    // A log is a LOWER bound: download_logs cascades away with a closed
+    // account, view_logs keeps the row but loses the identity, and anonymous
+    // view logging is rate-limited. Rebuilding downward on that evidence
+    // trades a frozen counter for a quietly wrong one — and the guard is what
+    // makes a second run a no-op.
+    const updates = [...sql.matchAll(/update public\.books[\s\S]*?;/g)].map((m) => m[0]);
+    expect(updates).toHaveLength(2);
+    for (const u of updates) expect(u).toMatch(/counted > coalesce\(b\.(view|download)_count, 0\)/);
+  });
+
+  it("touches no counter that was never frozen", () => {
+    // research_reports and publications pass `row_id` and have worked the
+    // whole time; book_files.download_count is written by the RPC and read by
+    // nothing.
+    expect(sql).not.toMatch(/update public\.(research_reports|publications|book_files)/);
+  });
+});
