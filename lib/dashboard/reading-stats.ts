@@ -1,11 +1,11 @@
 // lib/dashboard/reading-stats.ts
-// Pure aggregation over already-fetched `reading_progress` rows, split out
-// of app/actions/reading-analytics.ts (a "use server" file, which — per
-// Next.js's Server Actions rule — may only export async functions, so a
-// synchronous pure function can't live there). Mirrors the
-// lib/admin/metadata-quality-report.ts split: fetch stays in the action,
-// scoring/aggregation stays here, deterministic and unit-testable without
-// a database.
+// Pure aggregation over already-fetched `reading_progress` rows. The
+// dashboard page passes the rows it has already loaded for its shelves, so
+// the stats and the shelves are computed from one read and cannot disagree
+// (this used to be a separate `getReadingStats()` Server Action that re-read
+// the same rows). Mirrors the lib/admin/metadata-quality-report.ts split:
+// fetch stays with the caller, aggregation stays here, deterministic and
+// unit-testable without a database.
 //
 // Each `reading_progress` row is one book's CURRENT state — there is no
 // per-day history in this schema, so nothing here is or can be a
@@ -24,8 +24,7 @@ export type ReadingStats = {
    * Last 7 days, oldest → newest, ending today: was at least one book's
    * `last_read_at` on that date? Same `readDates` signal the streak below
    * is built from — not a separate data source, just 7 more days of it.
-   * Optional so the one other hand-built ReadingStats literal in the repo
-   * (a dev-only preview route) stays valid without editing it.
+   * Optional in the type; computeReadingStats() always fills it.
    */
   last7Days?: boolean[];
 };

@@ -4,34 +4,28 @@ import { resolveAvatarUrl, resolveFullName } from "@/lib/auth/oauth-avatar";
 import { createClient } from "@/lib/supabase/server";
 import { getSavedBooks } from "@/app/actions/saved-books";
 import { getMyReadingLists } from "@/app/actions/reading-lists";
-import { getReadingStats } from "@/app/actions/reading-analytics";
 import { getNewContentForSubscriptions } from "@/app/actions/subscriptions";
 import { getInProgressPaths } from "@/app/actions/learning-paths";
 import { getMyBookRequests } from "@/app/actions/book-requests";
 import { getMyDownloadHistory } from "@/app/actions/download";
 import { buildRecentActivity } from "@/lib/dashboard/recent-activity";
+import { computeReadingStats, type ReadingProgressRow } from "@/lib/dashboard/reading-stats";
 import DashboardHeader, { type GreetingBand } from "@/components/ui/dashboard/DashboardHeader";
-import DashboardSearch from "@/components/ui/dashboard/DashboardSearch";
-import QuickActions from "@/components/ui/dashboard/QuickActions";
-import ContinueReadingHero from "@/components/ui/dashboard/ContinueReadingHero";
-import LibrarySnapshot from "@/components/ui/dashboard/LibrarySnapshot";
-import MyStats from "@/components/ui/dashboard/MyStats";
-import SavedResourcesShelf from "@/components/ui/dashboard/SavedResourcesShelf";
-import LearningIntent from "@/components/ui/dashboard/LearningIntent";
-import RecentActivity from "@/components/ui/dashboard/RecentActivity";
-import UserRequests from "@/components/ui/dashboard/UserRequests";
-import ContinueLearningPaths from "@/components/ui/dashboard/ContinueLearningPaths";
-import DownloadHistory from "@/components/ui/pwa/DownloadHistory";
-import DashboardTabs from "@/components/ui/dashboard/DashboardTabs";
-import RecommendedBooks from "@/components/ui/dashboard/RecommendedBooks";
-import ExportMyLibrary from "@/components/ui/dashboard/ExportMyLibrary";
+import ContinueReadingHero, { type ContinueReadingBook } from "@/components/ui/dashboard/ContinueReadingHero";
+import ReadingSummary from "@/components/ui/dashboard/ReadingSummary";
 import NewForYou from "@/components/ui/dashboard/NewForYou";
+import DashboardTabs from "@/components/ui/dashboard/DashboardTabs";
+import DownloadsList from "@/components/ui/dashboard/DownloadsList";
+import ExportMyLibrary from "@/components/ui/dashboard/ExportMyLibrary";
+import RecommendedBooks from "@/components/ui/dashboard/RecommendedBooks";
+import UserRequests from "@/components/ui/dashboard/UserRequests";
+import RecentActivity from "@/components/ui/dashboard/RecentActivity";
+import LearningIntent from "@/components/ui/dashboard/LearningIntent";
+import { SectionHeading } from "@/components/ui/dashboard/primitives";
+import { LIBRARY_SECTION_ID } from "@/components/ui/dashboard/library-tab";
 import { mapRowToBook } from "@/lib/books";
 import { toBookCardData, toBookCardList } from "@/lib/books/card-data";
 import { getLocale, getTranslations } from "next-intl/server";
-import { Link } from "@/i18n/navigation";
-import NextLink from "next/link";
-import { Library, BookOpen, Settings, ShieldCheck } from "lucide-react";
 import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 
@@ -55,10 +49,10 @@ function greetingBand(hour: number): GreetingBand {
 }
 
 /**
- * In-progress rows, newest first, with `last_page` (0141) when the database
- * has it.
+ * In-progress rows, newest first, with `last_page` and `last_page_count`
+ * (both 0141) when the database has them.
  *
- * Asked for defensively and retried WITHOUT the column, because this select
+ * Asked for defensively and retried WITHOUT the columns, because this select
  * also carries the embedded book rows the whole "My library" section is built
  * from: on a database that predates 0141 an unknown column fails the entire
  * query, and the dashboard would lose Continue Reading, the shelves and the
@@ -78,7 +72,7 @@ async function readingProgressRows(
     progress_pct: number;
     last_read_at: string | null;
     last_page?: number | null;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    last_page_count?: number | null;
     books: any;
   };
 
@@ -91,7 +85,7 @@ async function readingProgressRows(
       .order("last_read_at", { ascending: false })
       .returns<ProgressRow[]>();
 
-  const withPage = await run("book_id, progress_pct, last_read_at, last_page");
+  const withPage = await run("book_id, progress_pct, last_read_at, last_page, last_page_count");
   if (!withPage.error) return withPage;
   if (withPage.error.code !== "42703" && withPage.error.code !== "PGRST204") return withPage;
   return run("book_id, progress_pct, last_read_at");
@@ -109,7 +103,7 @@ export default async function DashboardPage() {
     authors ( name ), categories ( name ), departments ( name ), book_files ( format, file_url )`;
 
   const [
-    profileResult, savedBooks, progressResult, readingLists, readingStats,
+    profileResult, savedBooks, progressResult, readingLists,
     subAlerts, inProgressPaths, myRequests, downloadHistory,
   ] = await Promise.all([
     supabase
@@ -120,7 +114,6 @@ export default async function DashboardPage() {
     getSavedBooks(),
     readingProgressRows(supabase, user.id, BOOK_FIELDS),
     getMyReadingLists(),
-    getReadingStats(),
     getNewContentForSubscriptions().catch(() => []),
     getInProgressPaths().catch(() => []),
     getMyBookRequests().catch(() => []),
@@ -134,6 +127,15 @@ export default async function DashboardPage() {
   const displayName  =
     resolveFullName(profile?.full_name, user.user_metadata) ?? profile?.email ?? user.email ?? "Reader";
   const isAdmin      = ADMIN_PANEL_ROLES.includes(profile?.role as AppRole);
+  const memberSince  = profile?.created_at
+    ? new Intl.DateTimeFormat(locale === "km" ? "km-KH" : "en-US", { month: "long", year: "numeric" })
+        .format(new Date(profile.created_at))
+    : null;
+
+  // The same rows the shelves are built from, so the stats cannot disagree
+  // with them. This used to be a separate `getReadingStats()` round trip that
+  // re-read the identical `reading_progress` rows with the service client.
+  const readingStats = computeReadingStats(progress as unknown as ReadingProgressRow[]);
 
   const inProgress = progress.filter((p) => p.progress_pct < 100);
   const completed  = progress.filter((p) => p.progress_pct >= 100);
@@ -141,9 +143,9 @@ export default async function DashboardPage() {
   // `mapRowToBook` returns a whole `Book`; DashboardTabs is a client
   // component, so anything left on these objects is serialised into the
   // dashboard document once per book. `toBookCardData` keeps the 13 fields
-  // a card renders. `lastPage` is dropped here and read from `heroBook`
-  // below, which is the only thing that uses it.
-  const inProgressBooks = inProgress.slice(0, 8).flatMap((p) => {
+  // a card renders. `lastPage` is dropped here and read from the continue
+  // rows below, which are the only thing that uses it.
+  const inProgressBooks = inProgress.slice(0, 10).flatMap((p) => {
     if (!p.books) return [];
     return [
       toBookCardData({
@@ -154,36 +156,36 @@ export default async function DashboardPage() {
     ];
   });
 
-  const completedBooks = completed.slice(0, 6).flatMap((p) => {
+  const completedBooks = completed.slice(0, 10).flatMap((p) => {
     if (!p.books) return [];
     return [toBookCardData({ ...mapRowToBook(p.books as any), progressPct: 100 })];
   });
 
   const savedCards = toBookCardList(savedBooks as any[]);
 
-  // Continue Reading hero: the single most-recently-opened in-progress book.
-  // `progress` is already ordered by last_read_at desc, so [0] is correct —
-  // and this is the ONLY place real progress_pct/last_read_at feed the UI;
-  // nothing here is fabricated.
-  // Built from the PROGRESS ROW, not from the card list: `lastPage` lives on
-  // reading_progress and is not a card field, so narrowing the shelves must
-  // not silently drop the hero's resume page.
-  const heroRow = inProgress[0]?.books ? inProgress[0] : null;
-  const heroBook = heroRow
-    ? (() => {
-        const b = mapRowToBook(heroRow.books as any);
-        return {
-          slug: b.slug,
-          title: b.title,
-          author: b.author,
-          category: b.category ?? null,
-          coverUrl: b.coverUrl ?? null,
-          progressPct: heroRow.progress_pct,
-          lastReadAt: heroRow.last_read_at ?? null,
-          lastPage: heroRow.last_page ?? null,
-        };
-      })()
-    : null;
+  // Continue card: the most-recently-opened in-progress book, then the next
+  // three. `progress` is already ordered by last_read_at desc — and this is
+  // the ONLY place real progress_pct/last_read_at/last_page feed the UI;
+  // nothing here is fabricated. Built from the PROGRESS ROWS, not the card
+  // list: `lastPage` lives on reading_progress and is not a card field.
+  const continueRows: ContinueReadingBook[] = inProgress
+    .filter((p) => p.books)
+    .slice(0, 4)
+    .map((p) => {
+      const b = mapRowToBook(p.books as any);
+      return {
+        slug: b.slug,
+        title: b.title,
+        author: b.author,
+        category: b.category ?? null,
+        coverUrl: b.coverUrl ?? null,
+        progressPct: p.progress_pct,
+        lastReadAt: p.last_read_at ?? null,
+        lastPage: p.last_page ?? null,
+        lastPageCount: p.last_page_count ?? null,
+      };
+    });
+  const [heroBook = null, ...otherInProgress] = continueRows;
 
   const recentActivity = buildRecentActivity({
     progress: progress.map((p) => ({
@@ -192,14 +194,12 @@ export default async function DashboardPage() {
     })),
     savedBooks: savedBooks.map((b) => ({ slug: b.slug, title: b.title, savedAt: b.savedAt })),
     downloadHistory: downloadHistory.map((d) => ({ slug: d.slug, title: d.title, downloadedAt: d.downloadedAt })),
-  });
+  }, 5);
 
-  const accountFields = [
-    { label: t("labelFullName"),    value: profile?.full_name || "—" },
-    { label: t("labelEmail"),       value: profile?.email ?? user.email ?? "—" },
-    { label: t("labelRole"),        value: profile?.role ?? "reader" },
-  ];
-
+  // One column on a phone, in exactly this order; the desktop grid places the
+  // same sequence into rows. Nothing is rendered twice for two breakpoints
+  // (the old sidebar duplicated account info and downloads under `lg:hidden`),
+  // and the reading/focus order is the visual order at every width.
   return (
     <div className="min-h-screen bg-bg-body">
       <DashboardHeader
@@ -208,130 +208,55 @@ export default async function DashboardPage() {
         avatarUrl={avatarUrl}
         isAdmin={isAdmin}
         greetingBand={greetingBand(new Date().getHours())}
+        memberSince={memberSince}
       />
 
-      <NewForYou alerts={subAlerts} />
-
-      <div className="mx-auto max-w-[1300px] px-4 py-6 sm:px-8 md:px-12">
-
-        {/* ── First viewport: identity (header, above) + search + Continue Reading + snapshot ── */}
-        <div className="space-y-5">
-          <DashboardSearch />
-          <QuickActions />
-          <ContinueReadingHero book={heroBook} />
-          {/* Phones: a path in progress is "continue" work too, so it sits
-              with Continue Reading in the first screen — it used to be the
-              last block of the page, under stats, shelves and activity.
-              From lg it lives in the sticky sidebar, unchanged. */}
-          {inProgressPaths.length > 0 && (
-            <div className="lg:hidden">
-              <ContinueLearningPaths paths={inProgressPaths} />
-            </div>
-          )}
-          <LibrarySnapshot
-            saved={savedBooks.length}
-            inProgress={inProgress.length}
-            downloads={downloadHistory.length}
+      <div className="mx-auto max-w-[1300px] space-y-10 px-4 py-6 sm:px-8 sm:py-8 md:px-12 lg:space-y-12">
+        {/* ── Pick up where you left off + where you stand ── */}
+        <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <ContinueReadingHero book={heroBook} others={otherInProgress} paths={inProgressPaths} />
+          <ReadingSummary
+            stats={readingStats}
+            counts={{
+              inProgress: inProgress.length,
+              completed: completed.length,
+              saved: savedBooks.length,
+              lists: readingLists.length,
+            }}
           />
         </div>
 
-        {/* ── My Stats: full-width, own responsive grid — needs more room
-             than the narrowed flex-1 column below would give it ── */}
-        <div className="mt-10">
-          <MyStats stats={readingStats} />
+        <NewForYou alerts={subAlerts} />
+
+        {/* ── Everything the reader owns ── */}
+        <section id={LIBRARY_SECTION_ID} aria-labelledby="library-heading" className="scroll-mt-24">
+          <SectionHeading
+            id="library-heading"
+            title={t("myLibrary")}
+            description={t("libraryDesc")}
+            action={<ExportMyLibrary />}
+          />
+          <DashboardTabs
+            inProgressBooks={inProgressBooks}
+            completedBooks={completedBooks}
+            savedBooks={savedCards}
+            readingLists={readingLists}
+            totalInProgress={inProgress.length}
+            totalCompleted={completed.length}
+            downloadCount={downloadHistory.length}
+            downloadsPanel={<DownloadsList history={downloadHistory} />}
+          />
+        </section>
+
+        <RecommendedBooks viewAllHref="/books" />
+
+        {/* ── Status: what the library owes you, what you did lately ── */}
+        <div className="grid gap-4 sm:gap-5 lg:grid-cols-2">
+          <UserRequests requests={myRequests} locale={locale} />
+          <RecentActivity items={recentActivity} />
         </div>
 
-        {/* ── Secondary / tertiary content — reached by scrolling ── */}
-        <div className="mt-10 flex gap-8 lg:items-start">
-          <div className="min-w-0 flex-1 space-y-10">
-            <SavedResourcesShelf savedBooks={savedCards} />
-            <RecommendedBooks viewAllHref="/books" />
-            <LearningIntent />
-            <RecentActivity items={recentActivity} />
-            <UserRequests requests={myRequests} locale={locale} />
-
-            <div id="library" className="scroll-mt-6 pt-2">
-              <h2 className="mb-4 text-[15px] font-bold text-text-heading">{t("myLibrary")}</h2>
-              <DashboardTabs
-                inProgressBooks={inProgressBooks}
-                completedBooks={completedBooks}
-                savedBooks={savedCards}
-                readingLists={readingLists}
-                totalInProgress={inProgress.length}
-                totalCompleted={completed.length}
-              />
-            </div>
-          </div>
-
-          {/* ── Right: sticky sidebar ── */}
-          <aside className="hidden lg:block w-72 shrink-0">
-            <div className="sticky top-20 space-y-4">
-              <ContinueLearningPaths paths={inProgressPaths} />
-
-              <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
-                <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">{t("quickLinks")}</p>
-                <nav className="flex flex-col gap-1" aria-label={t("quickLinks")}>
-                  {[
-                    { href: "/books",             icon: <Library className="h-4 w-4" />,    label: t("linkBrowseLibrary") },
-                    { href: "/theses",            icon: <BookOpen className="h-4 w-4" />,    label: t("linkTheses") },
-                    { href: "/dashboard/settings",icon: <Settings className="h-4 w-4" />,    label: t("settings") },
-                  ].map((l) => (
-                    <Link key={l.href} href={l.href}
-                      className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium text-text-body transition hover:bg-paper hover:text-brand">
-                      <span className="text-text-muted">{l.icon}</span>
-                      {l.label}
-                    </Link>
-                  ))}
-                  {isAdmin && (
-                    <NextLink href="/admin"
-                      className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium text-text-body transition hover:bg-paper hover:text-brand">
-                      <span className="text-text-muted"><ShieldCheck className="h-4 w-4" /></span>
-                      {t("linkAdminPanel")}
-                    </NextLink>
-                  )}
-                  <ExportMyLibrary />
-                </nav>
-              </div>
-
-              <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
-                <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">{t("accountInfo")}</p>
-                <div className="flex flex-col gap-2.5">
-                  {accountFields.map(({ label, value }) => (
-                    <div key={label} className="min-w-0">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted/70">{label}</p>
-                      <p className="truncate text-[12.5px] font-semibold text-text-heading">{value}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
-                <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">{t("recentDownloads")}</p>
-                <DownloadHistory history={downloadHistory} />
-              </div>
-            </div>
-          </aside>
-        </div>
-
-        {/* Mobile: sidebar content below main content (Continue Learning
-            Paths moved up into the first screen, above). */}
-        <div className="mt-8 lg:hidden space-y-4">
-          <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
-            <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">{t("accountInfo")}</p>
-            <div className="grid grid-cols-2 gap-2.5">
-              {accountFields.map(({ label, value }) => (
-                <div key={label} className="rounded-xl border border-divider bg-paper px-3 py-2.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{label}</p>
-                  <p className="mt-0.5 truncate text-[12px] font-semibold text-text-heading">{value}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
-            <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">{t("recentDownloads")}</p>
-            <DownloadHistory history={downloadHistory} />
-          </div>
-        </div>
+        <LearningIntent />
       </div>
     </div>
   );
