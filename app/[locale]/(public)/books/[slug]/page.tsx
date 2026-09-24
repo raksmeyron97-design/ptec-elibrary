@@ -284,6 +284,20 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
 
   const fileSrc = book.dbId ? `/api/books/${book.dbId}/file` : book.pdfUrl;
 
+  // Every way into the reader asks the same question the /read route and the
+  // file route ask. A file existing is not enough: a catalogue-only book
+  // (0151) has one and serves it to nobody, so an embedded reader or a
+  // "Sign in to read" prompt for it is a promise nothing on the server keeps.
+  const readable =
+    book.fromSupabase &&
+    !!book.pdfUrl &&
+    !!book.dbId &&
+    resolveBookDownloadAccess({
+      file_access: book.fileAccess,
+      allow_download: book.allowDownload,
+      fileUrl: book.pdfUrl,
+    }).canReadOnline;
+
   // Locale-correct canonical + breadcrumb URLs (Khmer under /km) so the
   // structured data matches the visible breadcrumbs and the page's canonical.
   const canonicalUrl = bookCanonicalUrl(slug, locale);
@@ -358,7 +372,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
       <RecentlyViewedRecorder slug={book.slug} title={book.title} author={book.author} coverUrl={book.coverUrl} />
       <div className="mx-auto max-w-[1200px]">
         <BookQuickNav
-          hasPdf={book.fromSupabase && !!book.pdfUrl && !!book.dbId}
+          hasPdf={readable}
           hasReviews={!!book.dbId}
           hasCopies={copies.length > 0}
         />
@@ -436,7 +450,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               </div>
             )}
 
-            {book.dbId && (
+            {readable && book.dbId && (
               <Suspense fallback={null}>
                 <ResumeBanner bookId={book.dbId} slug={slug} />
               </Suspense>
@@ -512,7 +526,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
           </div>
         </div>
 
-        {book.fromSupabase && book.pdfUrl && book.dbId && (
+        {readable && (
           <div id="reader" className="mt-8 sm:mt-12 mb-8 scroll-mt-24 w-full overflow-hidden">
             {/* Long reading sessions get a dedicated, chrome-light route. */}
             <div className="mb-2.5 flex justify-end">
