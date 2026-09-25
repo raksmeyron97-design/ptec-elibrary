@@ -1,11 +1,11 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/catalogs/page.tsx
 import { Suspense } from "react";
 import { Link } from "@/i18n/navigation";
 import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
 import { createPublicClient } from "@/lib/supabase/public";
-import type { CatalogBook, CopyStatusRow } from "@/lib/catalog";
+import { CATALOG_SCAN_CAP, type CatalogBook, type CopyStatusRow } from "@/lib/catalog";
+import { pagedScan } from "@/lib/db/paged-scan";
 import CatalogCard from "@/components/ui/books/CatalogCard";
 import CatalogSearchBar from "@/components/ui/search/CatalogSearchBar";
 import LibraryVisitStrip from "@/components/ui/books/LibraryVisitStrip";
@@ -79,6 +79,109 @@ export async function generateMetadata({
 // ── Fetch ──────────────────────────────────────────────────────────────────────
 type PublicCatalogBook = CatalogBook & { catalog_copies: CopyStatusRow[] };
 
+type PublicClient = ReturnType<typeof createPublicClient>;
+type CandidateRow = { id: string; created_at: string | null; title: string; copies_available: number | null };
+type SearchFilters = { category?: string; language?: string; availableOnly: boolean };
+
+/** One search leg's candidates: ids plus exactly what the sort needs, filters applied in SQL. */
+function candidateQuery(supabase: PublicClient, f: SearchFilters) {
+  let x = supabase
+    .from("catalog_books")
+    .select("id, created_at, title, copies_available")
+    .eq("is_active", true);
+  if (f.category) x = x.ilike("category", `%${f.category}%`);
+  if (f.language) x = x.eq("language", f.language);
+  if (f.availableOnly) x = x.gt("copies_available", 0);
+  return x;
+}
+
+const titleCollator = new Intl.Collator("en", { sensitivity: "base", numeric: true });
+
+function compareCandidates(sortKey: string) {
+  return (a: CandidateRow, b: CandidateRow): number => {
+    let d: number;
+    switch (sortKey) {
+      case "oldest":    d = (a.created_at ?? "").localeCompare(b.created_at ?? ""); break;
+      case "title_asc": d = titleCollator.compare(a.title, b.title); break;
+      case "available": d = (b.copies_available ?? 0) - (a.copies_available ?? 0); break;
+      default:          d = (b.created_at ?? "").localeCompare(a.created_at ?? "");
+    }
+    // Stable across pages: every sort ends in the record id.
+    return d || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  };
+}
+
+/**
+ * Search without putting the matches in the URL.
+ *
+ * Keyword and DDC matches used to be collected by pre-query and spliced into
+ * the listing query as `id.in.(…)`. With the PMB catalogue a common term
+ * matches hundreds of records — one keyword alone tags 496 — so that list was
+ * clipped at 1,000 by the pre-query AND outgrew the proxy's request-line limit,
+ * whose error path renders "No books found" for exactly the commonest searches.
+ * Each leg is now read in full a page at a time, the union is sorted here, and
+ * only the visible page's records are fetched by id.
+ *
+ * The title/author/ISBN leg is the search; if it fails the search fails. The
+ * keyword and DDC legs widen it, and — as before — their failure narrows the
+ * result rather than emptying it.
+ */
+async function searchCatalogBooks(
+  supabase: PublicClient,
+  o: SearchFilters & { q: string; ddcQ?: string; sortKey: string; from: number; pageSize: number; page: number },
+): Promise<{ books: PublicCatalogBook[]; total: number; page: number }> {
+  const empty = { books: [] as PublicCatalogBook[], total: 0, page: o.page };
+  const scan = (leg: (from: number, to: number) => PromiseLike<{ data: unknown; error: { message?: string } | null }>) =>
+    pagedScan<CandidateRow>(leg, CATALOG_SCAN_CAP);
+
+  const [main, keywords, ddc] = await Promise.all([
+    scan((from, to) =>
+      candidateQuery(supabase, o)
+        .or(`title.ilike.%${o.q}%,author.ilike.%${o.q}%,isbn.ilike.%${o.q}%,accession_number.ilike.%${o.q}%`)
+        .order("id", { ascending: true })
+        .range(from, to)),
+    scan((from, to) =>
+      candidateQuery(supabase, o)
+        .filter("keywords::text", "ilike", `%${o.q}%`)
+        .order("id", { ascending: true })
+        .range(from, to)),
+    o.ddcQ
+      ? scan((from, to) =>
+          candidateQuery(supabase, o).ilike("ddc", `%${o.ddcQ}%`).order("id", { ascending: true }).range(from, to))
+      : Promise.resolve(null),
+  ]);
+
+  if (main.error || main.truncated) {
+    console.error("[catalogs] search failed:", main.error?.message ?? "scan cap reached");
+    return empty;
+  }
+  const byId = new Map<string, CandidateRow>();
+  for (const leg of [main, keywords, ddc]) {
+    if (!leg) continue;
+    if (leg.error || leg.truncated) {
+      console.error("[catalogs] search leg skipped:", leg.error?.message ?? "scan cap reached");
+      continue;
+    }
+    for (const r of leg.data) byId.set(r.id, r);
+  }
+
+  const ordered = [...byId.values()].sort(compareCandidates(o.sortKey));
+  const pageIds = ordered.slice(o.from, o.from + o.pageSize).map((r) => r.id);
+  if (pageIds.length === 0) return { ...empty, total: ordered.length };
+
+  const { data, error } = await supabase
+    .from("catalog_books")
+    .select("*, catalog_copies(status)")
+    .in("id", pageIds);
+  if (error) {
+    console.error("[catalogs] search page read failed:", error.message);
+    return empty;
+  }
+  const rank = new Map(pageIds.map((id, i) => [id, i]));
+  const books = ((data ?? []) as PublicCatalogBook[]).sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
+  return { books, total: ordered.length, page: o.page };
+}
+
 const fetchCatalogBooks = unstable_cache(
   async (params: SearchParams) => {
     const supabase = createPublicClient();
@@ -102,6 +205,19 @@ const fetchCatalogBooks = unstable_cache(
   const sortKey = (params.sort && sortMap[params.sort]) ? params.sort : "newest";
   const { column, asc } = sortMap[sortKey];
 
+  if (q) {
+    // DDC keeps its dot: `q` has had its dots stripped by the sanitizer above —
+    // "372.7" would arrive as "372 7" and match nothing. `ddcQ` drops only the
+    // ILIKE wildcards and the characters that would break a PostgREST filter;
+    // it is safe because it is passed as a value to `.ilike()` rather than
+    // spliced into an `.or()` string.
+    const ddcQ = rawQ ? rawQ.replace(/[(),\\%_]/g, " ").replace(/\s+/g, " ").trim() : undefined;
+    return searchCatalogBooks(supabase, {
+      q, ddcQ, sortKey, from, pageSize, page,
+      category: params.category, language: params.language, availableOnly: avail === "available",
+    });
+  }
+
   // Copy statuses ride along so availability is computed from real copy rows,
   // not the denormalised counters.
   let query = supabase
@@ -111,39 +227,6 @@ const fetchCatalogBooks = unstable_cache(
     .order(column, { ascending: asc })
     .range(from, to);
 
-  if (q) {
-    const matchIds = new Set<string>();
-
-    const { data: kwMatches } = await supabase
-      .from("catalog_books")
-      .select("id")
-      .filter("keywords::text", "ilike", `%${q}%`)
-      .eq("is_active", true);
-    for (const r of kwMatches ?? []) matchIds.add(r.id);
-
-    // DDC is matched by its own pre-query rather than a clause in the `.or()`
-    // below, because `q` has had its dots stripped by the sanitizer above —
-    // "372.7" would arrive as "372 7" and match nothing. `ddcQ` keeps the dot
-    // (a DDC class is meaningless without it) and drops only the ILIKE
-    // wildcards and the characters that would break a PostgREST filter; it is
-    // safe here precisely because it is passed as a value to `.ilike()` rather
-    // than spliced into an `.or()` string.
-    const ddcQ = rawQ ? rawQ.replace(/[(),\\%_]/g, " ").replace(/\s+/g, " ").trim() : undefined;
-    if (ddcQ) {
-      const { data: ddcMatches } = await supabase
-        .from("catalog_books")
-        .select("id")
-        .ilike("ddc", `%${ddcQ}%`)
-        .eq("is_active", true);
-      for (const r of ddcMatches ?? []) matchIds.add(r.id);
-    }
-
-    let orStr = `title.ilike.%${q}%,author.ilike.%${q}%,isbn.ilike.%${q}%,accession_number.ilike.%${q}%`;
-    if (matchIds.size > 0) {
-      orStr += `,id.in.(${[...matchIds].join(",")})`;
-    }
-    query = query.or(orStr);
-  }
   if (params.category)    query = query.ilike("category", `%${params.category}%`);
   if (params.language)    query = query.eq("language", params.language);
   if (avail === "available") query = query.gt("copies_available", 0);
@@ -159,12 +242,24 @@ const fetchCatalogBooks = unstable_cache(
 const fetchCategories = unstable_cache(
   async (): Promise<string[]> => {
     const supabase = createPublicClient();
-  const { data } = await supabase
-    .from("catalog_books")
-    .select("category")
-    .eq("is_active", true)
-    .not("category", "is", null);
-    const unique = [...new Set((data ?? []).map((r: any) => r.category).filter(Boolean))];
+    // Paged: a one-shot select saw an arbitrary 1,000 records, so a category
+    // held only by records past them never became a chip.
+    const scan = await pagedScan<{ category: string | null }>(
+      (from, to) =>
+        supabase
+          .from("catalog_books")
+          .select("category")
+          .eq("is_active", true)
+          .not("category", "is", null)
+          .order("id", { ascending: true })
+          .range(from, to),
+      CATALOG_SCAN_CAP,
+    );
+    if (scan.error || scan.truncated) {
+      console.error("[catalogs] category list read failed:", scan.error?.message ?? "scan cap reached");
+      return [];
+    }
+    const unique = [...new Set(scan.data.map((r) => r.category).filter(Boolean))];
     return unique.sort() as string[];
   },
   ["catalog-categories"],

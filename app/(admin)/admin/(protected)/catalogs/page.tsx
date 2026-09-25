@@ -10,7 +10,9 @@ import {
   AVAILABILITY_ADMIN_LABEL,
   AVAILABILITY_TONE,
   TONE_DOT,
+  CATALOG_SCAN_CAP,
 } from "@/lib/catalog";
+import { pagedScan } from "@/lib/db/paged-scan";
 import CatalogAdminActions from "./_components/CatalogAdminActions";
 import CsvImportWizard from "./import/CsvImportWizard";
 import AdminCatalogToolbar from "./_components/AdminCatalogToolbar";
@@ -133,12 +135,11 @@ export default async function AdminCatalogsPage({
   const { data: books, count } = await query;
   const pageBooks = (books ?? []) as BookWithCopies[];
 
-  // ── Meta query: stats + filter options in ONE read (copy statuses embedded) ──
-  const { data: metaRows } = await supabase
-    .from("catalog_books")
-    .select("category, department, is_active, isbn, year, cover_url, catalog_copies(status)");
-
-  const meta = (metaRows ?? []) as Array<{
+  // ── Meta query: stats + filter options over the WHOLE collection ──
+  // Paged: a one-shot select is clipped at 1,000 records, so every figure
+  // below described an arbitrary 1,000 once the PMB import landed. A read that
+  // fails or is cut short renders "—", never a count of what it happened to get.
+  const metaScan = await pagedScan<{
     category: string | null;
     department: string | null;
     is_active: boolean;
@@ -146,7 +147,18 @@ export default async function AdminCatalogsPage({
     year: number | null;
     cover_url: string | null;
     catalog_copies: { status: string | null }[];
-  }>;
+  }>(
+    (from, to) =>
+      supabase
+        .from("catalog_books")
+        .select("category, department, is_active, isbn, year, cover_url, catalog_copies(status)")
+        .order("id", { ascending: true })
+        .range(from, to),
+    CATALOG_SCAN_CAP,
+  );
+  const metaUnavailable = Boolean(metaScan.error) || metaScan.truncated;
+  if (metaScan.error) console.error("[admin/catalogs] collection stats read failed:", metaScan.error.message);
+  const meta = metaUnavailable ? [] : metaScan.data;
 
   const categories = Array.from(
     new Set(meta.map((m) => m.category).filter(Boolean) as string[])
@@ -176,7 +188,7 @@ export default async function AdminCatalogsPage({
     { label: "using a generated cover", value: missingCovers, href: "/admin/catalogs?cover=missing" },
     { label: "unlisted", value: unlistedBooks, href: "/admin/catalogs?status=deleted" },
     { label: "copies damaged / lost / missing", value: problemCopies },
-  ].filter((a) => a.value > 0);
+  ].filter((a) => !metaUnavailable && a.value > 0);
 
   return (
     <div className="w-full space-y-6">
@@ -206,10 +218,17 @@ export default async function AdminCatalogsPage({
         ].map(({ label, value, color }) => (
           <div key={label} className="rounded-xl border border-divider bg-bg-surface p-4 shadow-sm">
             <p className="text-xs font-medium text-text-muted">{label}</p>
-            <p className={`mt-1 text-2xl font-bold ${color ?? "text-text-heading"}`}>{value}</p>
+            <p className={`mt-1 text-2xl font-bold ${metaUnavailable ? "text-text-muted" : color ?? "text-text-heading"}`}>
+              {metaUnavailable ? "—" : value}
+            </p>
           </div>
         ))}
       </div>
+      {metaUnavailable && (
+        <p role="status" className="text-xs text-text-muted">
+          Collection statistics could not be loaded — the figures above are unknown, not zero. The list below is unaffected.
+        </p>
+      )}
 
       {/* ── Needs attention ── */}
       {attention.length > 0 && (

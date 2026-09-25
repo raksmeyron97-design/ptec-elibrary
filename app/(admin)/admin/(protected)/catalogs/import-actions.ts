@@ -28,16 +28,20 @@ import { revalidatePath } from "next/cache";
 import { revalidateCatalogBook } from "@/lib/cache/revalidate";
 import { requirePermission } from "@/lib/auth/requireAdmin";
 import { logAdminAction } from "@/app/actions/audit";
-import { catalogRecordSlug, catalogSlugify, pickCatalogColor, computeCopyStats } from "@/lib/catalog";
+import { catalogRecordSlug, catalogSlugify, pickCatalogColor, computeCopyStats, CATALOG_SCAN_CAP } from "@/lib/catalog";
+import { pagedScan } from "@/lib/db/paged-scan";
 import {
   validateRow,
   markInFileDuplicates,
   buildImportGroups,
   refreshRowStatus,
+  matchExistingRecords,
+  titleAuthorKey,
   IMPORT_LIMITS,
   type BookImportField,
   type DuplicateMatch,
   type DuplicateStrategy,
+  type ExistingCatalogRecord,
   type ImportGroup,
   type ImportOptions,
   type ImportRowResult,
@@ -53,6 +57,29 @@ function isMissingColumn(error: { code?: string; message?: string } | null): boo
   return !!error && (error.code === "PGRST204" || error.code === "42703");
 }
 
+/**
+ * Every catalogue record, read a page at a time.
+ *
+ * A one-shot select is clipped at 1,000 rows by PostgREST with no error, and
+ * for a duplicate check a missing record reads exactly like a record that does
+ * not exist — so this THROWS rather than hand back a partial list. Callers
+ * decide what a refusal means; none may treat it as "no existing records".
+ */
+async function scanCatalog<T>(supabase: ServiceClient, columns: string, activeOnly: boolean): Promise<T[]> {
+  const scan = await pagedScan<T>((from, to) => {
+    let q = supabase.from("catalog_books").select(columns);
+    if (activeOnly) q = q.eq("is_active", true);
+    return q.order("id", { ascending: true }).range(from, to);
+  }, CATALOG_SCAN_CAP);
+  if (scan.error) {
+    throw new Error(`Could not read the existing catalogue (${scan.error.message ?? scan.error.code ?? "unknown error"}).`);
+  }
+  if (scan.truncated) {
+    throw new Error(`The catalogue holds more than ${CATALOG_SCAN_CAP.toLocaleString()} records — more than one check can read.`);
+  }
+  return scan.data;
+}
+
 // ── Context: reference values used by the mapping/validation steps ────────────
 
 export type CatalogImportContext = {
@@ -64,10 +91,11 @@ export type CatalogImportContext = {
 
 export async function getCatalogImportContext(): Promise<CatalogImportContext> {
   const { supabase } = await requirePermission("catalog", "write");
-  const { data } = await supabase
-    .from("catalog_books")
-    .select("category, department, shelf_location");
-  const rows = (data ?? []) as { category: string | null; department: string | null; shelf_location: string | null }[];
+  const rows = await scanCatalog<{ category: string | null; department: string | null; shelf_location: string | null }>(
+    supabase,
+    "category, department, shelf_location",
+    false,
+  );
   const distinct = (key: "category" | "department" | "shelf_location") =>
     [...new Set(rows.map((r) => r[key]).filter(Boolean) as string[])].sort();
   return {
@@ -111,34 +139,20 @@ async function lookupDuplicates(
   supabase: ServiceClient,
   req: DuplicateCheckRequest,
 ): Promise<DuplicateCheckResult> {
-  const result: DuplicateCheckResult = { byIsbn: {}, byTitleAuthor: {}, usedBarcodes: [], usedAccessions: [] };
+  // Existing bibliographic records — ALL of them. The in-memory match is only
+  // as good as the list it is handed; see scanCatalog().
+  const books = await scanCatalog<ExistingCatalogRecord>(supabase, "id, title, author, isbn, slug", true);
+  const matches = matchExistingRecords(books, req);
+  const result: DuplicateCheckResult = { ...matches, usedBarcodes: [], usedAccessions: [] };
 
-  // Existing bibliographic records. The whole physical catalog is small
-  // (the admin page already loads every row for its stats), so one columns-only
-  // read and in-memory case-insensitive matching is both simplest and correct.
-  const { data: books } = await supabase
-    .from("catalog_books")
-    .select("id, title, author, isbn, slug")
-    .eq("is_active", true);
-
-  const wantIsbn = new Set(req.isbns.filter(Boolean));
-  const wantTA = new Set(req.titleAuthors.filter(Boolean));
-  for (const b of (books ?? []) as { id: string; title: string; author: string | null; isbn: string | null; slug: string }[]) {
-    const isbn = b.isbn?.replace(/[\s-]+/g, "").toUpperCase() ?? "";
-    if (isbn && wantIsbn.has(isbn) && !result.byIsbn[isbn]) {
-      result.byIsbn[isbn] = { existingBookId: b.id, existingTitle: b.title, existingSlug: b.slug, matchedBy: "isbn" };
-    }
-    const ta = `${b.title.trim().toLowerCase()}|${(b.author ?? "").trim().toLowerCase()}`;
-    if (wantTA.has(ta) && !result.byTitleAuthor[ta]) {
-      result.byTitleAuthor[ta] = { existingBookId: b.id, existingTitle: b.title, existingSlug: b.slug, matchedBy: "title_author" };
-    }
-  }
-
-  // Barcode / accession collisions among live (non-withdrawn) copies.
+  // Barcode / accession collisions among live (non-withdrawn) copies. A failed
+  // read throws too: the unique index would still refuse the insert, but only
+  // after the book record had been created, leaving it with no copies.
   for (const part of chunk(req.barcodes.filter(Boolean))) {
     const { data, error } = await supabase
       .from("catalog_copies").select("barcode").in("barcode", part).neq("status", "withdrawn");
-    if (!error) result.usedBarcodes.push(...new Set((data ?? []).map((r: { barcode: string | null }) => r.barcode).filter(Boolean) as string[]));
+    if (error) throw new Error(`Duplicate check failed: ${error.message}`);
+    result.usedBarcodes.push(...new Set((data ?? []).map((r: { barcode: string | null }) => r.barcode).filter(Boolean) as string[]));
   }
   for (const part of chunk(req.accessions.filter(Boolean))) {
     const { data, error } = await supabase
@@ -408,18 +422,31 @@ export async function runCatalogImportBatch(req: ImportBatchRequest): Promise<Im
   const finalRows = req.options.includeWarnings ? importable : importable.filter((r) => r.status !== "warning");
 
   // 2. Fresh duplicate lookup for exactly this batch (client claims ignored).
-  const dupes = await lookupDuplicates(supabase, {
-    isbns: [...new Set(finalRows.map((r) => r.normalized.isbn).filter(Boolean) as string[])],
-    titleAuthors: [...new Set(finalRows.map((r) => `${r.normalized.title.toLowerCase()}|${(r.normalized.author ?? "").toLowerCase()}`))],
-    barcodes: [...new Set(finalRows.map((r) => r.normalized.barcode).filter(Boolean) as string[])],
-    accessions: [...new Set(finalRows.map((r) => r.normalized.accession_number).filter(Boolean) as string[])],
-  });
+  //    A lookup that could not complete writes NOTHING: importing on a partial
+  //    view of the catalogue is how duplicates get created. Returned rather
+  //    than thrown so the reason reaches the wizard — a thrown Server Action
+  //    error is redacted to a generic message in production.
+  let dupes: DuplicateCheckResult;
+  try {
+    dupes = await lookupDuplicates(supabase, {
+      isbns: [...new Set(finalRows.map((r) => r.normalized.isbn).filter(Boolean) as string[])],
+      titleAuthors: [...new Set(finalRows.map((r) => titleAuthorKey(r.normalized.title, r.normalized.author)))],
+      barcodes: [...new Set(finalRows.map((r) => r.normalized.barcode).filter(Boolean) as string[])],
+      accessions: [...new Set(finalRows.map((r) => r.normalized.accession_number).filter(Boolean) as string[])],
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "The duplicate check failed.";
+    for (const r of finalRows) {
+      results.push({ rowNumber: r.rowNumber, status: "failed", message: `Not imported — ${message}` });
+    }
+    return { ok: false, error: `Nothing in this batch was imported: ${message}`, results };
+  }
   const usedBarcodes = new Set(dupes.usedBarcodes);
   const usedAccessions = new Set(dupes.usedAccessions);
 
   const withDupes = finalRows.map((r) => {
     const isbnHit = r.normalized.isbn ? dupes.byIsbn[r.normalized.isbn] : undefined;
-    const taHit = dupes.byTitleAuthor[`${r.normalized.title.toLowerCase()}|${(r.normalized.author ?? "").toLowerCase()}`];
+    const taHit = dupes.byTitleAuthor[titleAuthorKey(r.normalized.title, r.normalized.author)];
     return refreshRowStatus({ ...r, duplicateMatch: isbnHit ?? taHit });
   });
 
