@@ -214,6 +214,16 @@ const POLICIES = {
     limit: envInt("RL_MFA_VERIFY_PER_5MIN", 10),
     windowMs: 5 * 60_000,
   }),
+  /**
+   * Add by ISBN lookups — per signed-in librarian. Each uncached lookup calls
+   * public metadata providers (Open Library, Google Books) on the library's
+   * behalf; 60 per 10 minutes clears a librarian scanning a cart of new books
+   * and bounds what a stuck client can spend of a shared provider quota.
+   */
+  isbnLookup: () => ({
+    limit: envInt("RL_ISBN_LOOKUP_PER_10MIN", 60),
+    windowMs: 10 * 60_000,
+  }),
 } as const;
 
 export type PolicyName = keyof typeof POLICIES;

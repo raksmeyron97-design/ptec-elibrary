@@ -7836,6 +7836,62 @@
         "recordedNote": "This import was recorded in the admin activity log",
         "importId": "import"
       }
+    },
+    "isbn": {
+      "description": "Scan or type the ISBN. We look it up, you review it, then save.",
+      "inputHint": "Scan the barcode on the back cover, or type the 10 or 13 digits. Hyphens are fine.",
+      "find": "Find book",
+      "finding": "Looking up…",
+      "manual": "Enter details manually",
+      "lookupByIsbn": "Look up by ISBN",
+      "backToResults": "Back to ISBN results",
+      "err": {
+        "empty": "Enter an ISBN.",
+        "not_an_isbn": "An ISBN has 10 or 13 digits.",
+        "bad_check_digit": "The last digit doesn't match the rest — check the ISBN for a typo.",
+        "rate_limited": "Too many lookups in a few minutes. Wait a moment and try again.",
+        "failed": "The lookup failed: {message}"
+      },
+      "localTitle": "Already in the catalogue",
+      "localBody": "A record we already hold has this ISBN. New copies of the book belong on that record.",
+      "openRecord": "Open record",
+      "addCopies": "Add copies",
+      "lookUpAnyway": "Look it up anyway — this is a different record",
+      "copiesCount": "{count, plural, one {# copy} other {# copies}}",
+      "unlisted": "Unlisted",
+      "koha": {
+        "not_connected": "Koha: not connected yet — this check runs once Koha is live.",
+        "none": "Koha: no record has this ISBN.",
+        "found": "Koha already has {count, plural, one {a record} other {# records}} with this ISBN:",
+        "error": "Koha could not be checked: {message}"
+      },
+      "sources": "Sources",
+      "provider": {
+        "open_library": "Open Library",
+        "google_books": "Google Books"
+      },
+      "outcome": {
+        "found": "{count, plural, one {# record} other {# records}}{cached, select, true { (saved answer)} other {}}",
+        "not_found": "No record{cached, select, true { (saved answer)} other {}}",
+        "skipped": "Not asked"
+      },
+      "outcomeError": {
+        "quota": "Daily quota reached — an API key would lift it.",
+        "timeout": "Timed out.",
+        "unreachable": "Unreachable.",
+        "http": "Answered with an error.",
+        "bad_response": "Sent an answer we could not read."
+      },
+      "resultsTitle": "{count, plural, one {Found # possible record} other {Found # possible records}}",
+      "resultsHint": "Pick the one that matches the book in your hands. Nothing is saved until you press Save on the next screen.",
+      "noResultsTitle": "No source knows this ISBN",
+      "noResultsBody": "Enter the details by hand — the ISBN is filled in for you.",
+      "use": "Use this record",
+      "details": "Details",
+      "pages": "{count} pages",
+      "subjects": "Subjects",
+      "noAuthor": "No author given",
+      "prefilledFrom": "Filled from {provider} for ISBN {isbn}. Check every field before saving — category, department, DDC and shelf are left for you to set."
     }
   },
   "adminUpload": {

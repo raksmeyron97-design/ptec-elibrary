@@ -3,7 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { CATALOG_SCAN_CAP } from "@/lib/catalog";
 import { pagedScan } from "@/lib/db/paged-scan";
 
-import AddBookWizard from "./_components/AddBookWizard";
+import AddCatalogRecord from "./_components/AddCatalogRecord";
 import { requireRouteAccess } from "@/lib/admin/route-guard";
 export default async function AddCatalogBookPage() {
   await requireRouteAccess("catalog.create");
@@ -35,5 +35,5 @@ export default async function AddCatalogBookPage() {
   const catRows = catScan.error || catScan.truncated ? [] : catScan.data;
   const categories = [...new Set(catRows.map((r) => r.category).filter(Boolean) as string[])].sort();
 
-  return <AddBookWizard categories={categories} />;
+  return <AddCatalogRecord categories={categories} />;
 }
