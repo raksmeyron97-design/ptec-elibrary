@@ -22,13 +22,14 @@ import type { AbstractIntlMessages } from "next-intl";
 
 /** components/layout/RootShell.tsx — the client components every root layout
  *  mounts OUTSIDE its group's own provider: PushNotificationOnboarding
- *  ("pushNotifications") and SearchModal, whose SearchSuggestions reads
- *  ("home"). NavigationProgress uses no messages.
+ *  ("pushNotifications"), SearchModal, whose SearchSuggestions reads
+ *  ("home"), and UpdateAvailable ("pwaUpdate"). NavigationProgress uses no
+ *  messages.
  *
  *  These are the only namespaces guaranteed present on /admin and /auth, so
  *  anything RootShell renders must be listed here — lib/i18n-namespaces.test.ts
  *  pins that. */
-export const ROOT_NAMESPACES = ["pushNotifications", "home"] as const;
+export const ROOT_NAMESPACES = ["pushNotifications", "home", "pwaUpdate"] as const;
 
 /** app/[locale]/(public): every namespace used by a client component
  *  reachable from public pages (incl. shared components/ui/*). */
@@ -42,6 +43,7 @@ export const PUBLIC_NAMESPACES = [
   "books",
   "catalogs",
   "cite",
+  "contact",
   "dashboard",
   "downloadProfile",
   "errors",
@@ -57,9 +59,13 @@ export const PUBLIC_NAMESPACES = [
   "publicationDetail",
   "pushNotifications",
   "reader",
+  "resourceActions",
   "search",
+  "searchBar",
   "share",
+  "thesisDetail",
   "thesisDownload",
+  "thesisSearch",
   "thesisSummary",
 ] as const;
 

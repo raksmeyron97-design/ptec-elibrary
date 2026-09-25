@@ -20,6 +20,7 @@ import type { ReactNode } from "react";
 import { ChevronRight, type LucideIcon } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import PolicyMetaBar, { type PolicyMetaLabels } from "./PolicyMetaBar";
+import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
 
 export default function PolicyHero({
   id,
@@ -66,7 +67,7 @@ export default function PolicyHero({
         aria-hidden="true"
       />
       <div className="relative mx-auto max-w-[1200px] px-4 py-10 sm:px-6 md:px-8 md:py-14">
-        <nav aria-label="Breadcrumb" className="print:hidden">
+        <BreadcrumbNav className="print:hidden">
           <ol className="flex flex-wrap items-center gap-1.5 text-[13px] text-white/70">
             <li>
               <Link
@@ -83,7 +84,7 @@ export default function PolicyHero({
               {breadcrumb.current}
             </li>
           </ol>
-        </nav>
+        </BreadcrumbNav>
 
         <div className="mt-6 flex items-start gap-4">
           <span

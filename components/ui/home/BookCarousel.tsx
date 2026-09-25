@@ -2,6 +2,7 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 
 type Props = {
   /** Each child is rendered as one snap item. */
@@ -30,6 +31,7 @@ export default function BookCarousel({
   className = "",
   ...rest
 }: Props) {
+  const t = useTranslations("nav");
   const scroller = useRef<HTMLDivElement>(null);
   const [atStart, setAtStart] = useState(true);
   const [atEnd, setAtEnd] = useState(false);
@@ -93,7 +95,7 @@ export default function BookCarousel({
       {/* Arrows (desktop, fade in on hover) */}
       <button
         type="button"
-        aria-label="Scroll left"
+        aria-label={t("scrollLeft")}
         onClick={() => scrollBy(-1)}
         disabled={atStart}
         className="absolute left-1 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center
@@ -107,7 +109,7 @@ export default function BookCarousel({
       </button>
       <button
         type="button"
-        aria-label="Scroll right"
+        aria-label={t("scrollRight")}
         onClick={() => scrollBy(1)}
         disabled={atEnd}
         className="absolute right-1 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center

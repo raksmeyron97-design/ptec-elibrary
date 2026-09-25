@@ -89,3 +89,18 @@ describe("validateContactInput", () => {
     expect(result.errors.email).toBeUndefined();
   });
 });
+
+describe("error codes (what the form translates)", () => {
+  it("every field error carries a language-free code, and only the codes the form has messages for", () => {
+    const cases: Partial<ContactInput>[] = [
+      {},
+      { ...VALID_INPUT, email: "nope", category: "made_up_category" },
+      { ...VALID_INPUT, name: "a".repeat(101), subject: "a".repeat(201), message: "a".repeat(5001), phone: "1".repeat(31) },
+    ];
+    for (const input of cases) {
+      const { errors, codes } = validateContactInput(input);
+      expect(Object.keys(codes).sort()).toEqual(Object.keys(errors).sort());
+      for (const code of Object.values(codes)) expect(["required", "tooLong", "invalid"]).toContain(code);
+    }
+  });
+});

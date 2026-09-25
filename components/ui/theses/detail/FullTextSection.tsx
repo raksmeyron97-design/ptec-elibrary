@@ -132,14 +132,15 @@ export default function FullTextSection({
 /** Skeleton shown while the viewer chunk loads. Exported for reuse by the
  *  page's Suspense boundary; kept here so the two never drift in size. */
 export function FullTextSkeleton() {
+  const t = useTranslations("thesisDetail");
   return (
     <div
       role="status"
-      aria-label="Loading document"
+      aria-label={t("loadingDocumentLabel")}
       className="flex items-center gap-3 rounded-2xl bg-bg-app p-6"
     >
       <Loader2 className="h-4 w-4 animate-spin text-text-muted motion-reduce:animate-none" aria-hidden="true" />
-      <span className="text-[13.5px] text-text-muted">Loading document…</span>
+      <span className="text-[13.5px] text-text-muted">{t("loadingDocument")}</span>
     </div>
   );
 }

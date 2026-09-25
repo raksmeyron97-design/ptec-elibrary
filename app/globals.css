@@ -1167,10 +1167,23 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 /* ── Below-the-fold render skipping ─────────────────────────────────
    content-visibility lets the browser skip layout/paint for offscreen
    sections; contain-intrinsic-size reserves approximate space so the
-   scrollbar doesn't jump (CLS-safe). */
+   scrollbar doesn't jump (CLS-safe).
+
+   The reservation must not be SMALLER than the section. A skipped section
+   is sized to the reservation while its children keep their real geometry,
+   so a 1,800px shelf in a 600px box reports its cards on top of the next
+   section's links — Lighthouse failed the homepage's target-size audit on
+   exactly that. Callers that know their height set --cv-reserve (rounding
+   UP: over-reserving an off-screen box costs nothing a reader can see).
+   An empty wrapper (a section that rendered nothing) reserves nothing,
+   rather than 600px of blank page. */
 .cv-auto {
   content-visibility: auto;
-  contain-intrinsic-size: auto 600px;
+  contain-intrinsic-size: auto var(--cv-reserve, 600px);
+}
+.cv-auto:empty {
+  content-visibility: visible;
+  contain-intrinsic-size: none;
 }
 
 /* ── Navigation progress bar (components/ui/NavigationProgress.tsx) ──

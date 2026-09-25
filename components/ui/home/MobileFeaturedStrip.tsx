@@ -54,8 +54,11 @@ export default function MobileFeaturedStrip({ books }: Props) {
               className="group relative w-[116px] shrink-0 snap-start overflow-hidden rounded-xl border border-white/15 shadow-lg shadow-black/30"
             >
               <div className="relative aspect-[3/4] w-full">
+                {/* alt="": the title is printed on the card below, so the link
+                    already has its name — an alt repeating it makes a screen
+                    reader say every title twice. */}
                 {b.coverUrl ? (
-                  <Image src={b.coverUrl} alt={b.title} fill sizes="116px" className="object-cover" />
+                  <Image src={b.coverUrl} alt="" fill sizes="116px" className="object-cover" />
                 ) : (
                   <div
                     className="flex h-full w-full flex-col justify-end p-2.5"

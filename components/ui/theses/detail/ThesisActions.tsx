@@ -21,6 +21,7 @@
 
 import { FileSearch, Loader2, Quote } from "lucide-react";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import BookmarkButton from "@/components/ui/detail/BookmarkButton";
 import ShareButton from "@/components/ui/books/ShareButton";
 import CopyLinkButton from "@/components/ui/detail/CopyLinkButton";
@@ -39,6 +40,7 @@ export function ThesisPrimaryActions({
   hasFile: boolean;
   downloadSlot: React.ReactNode;
 }) {
+  const t = useTranslations("thesisDetail");
   // "Opening…" is shown for one frame's worth of intent, then cleared. The
   // reader itself owns the real loading state (the PDF fetch happens inside
   // <FullTextSection>), so holding a spinner here would double-report it.
@@ -59,7 +61,7 @@ export function ThesisPrimaryActions({
           ) : (
             <FileSearch className="h-[18px] w-[18px]" aria-hidden="true" />
           )}
-          {opening ? "Opening PDF…" : "Preview PDF"}
+          {opening ? t("openingPdf") : t("previewPdf")}
         </button>
       )}
       {downloadSlot}
@@ -76,19 +78,20 @@ export function ThesisSecondaryActions({
   title: string;
   shareUrl: string;
 }) {
+  const t = useTranslations("thesisDetail");
   return (
     <>
       <BookmarkButton
         id={id}
         contentType="thesis"
-        label={{ saved: "Saved", unsaved: "Bookmark" }}
+        label={{ saved: t("saved"), unsaved: t("bookmark") }}
         className={UTILITY}
       />
-      <ShareButton url={shareUrl} title={title} label="Share" className={UTILITY} />
+      <ShareButton url={shareUrl} title={title} label={t("share")} className={UTILITY} />
       <CopyLinkButton url={shareUrl} compact className={UTILITY} />
       <a href="#cite-panel" className={UTILITY}>
         <Quote className="h-4 w-4" aria-hidden="true" />
-        Cite
+        {t("cite")}
       </a>
     </>
   );

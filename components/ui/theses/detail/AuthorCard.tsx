@@ -1,5 +1,6 @@
 import { Link } from "@/i18n/navigation";
 import { GraduationCap } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getKeywords, getDepartment } from "@/lib/theses/report-fields";
 
@@ -30,6 +31,7 @@ export default async function AuthorCard({
    */
   variant?: "section" | "rail";
 }) {
+  const t = await getTranslations("thesisDetail");
   const supabase = createServiceClient();
 
   const { data } = await supabase
@@ -72,7 +74,7 @@ export default async function AuthorCard({
           id="more-from-author-heading"
           className="mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-text-muted"
         >
-          More from {authorNames}
+          {t("moreFrom", { name: authorNames })}
         </h2>
         <ul className="flex flex-col">
           {otherWorks.slice(0, 3).map((w) => (
@@ -105,7 +107,7 @@ export default async function AuthorCard({
       <div className="mb-6 flex items-center gap-2">
         <span className="h-[3px] w-8 rounded-full bg-gradient-to-r from-brand to-accent" />
         <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted">
-          More From This Author
+          {t("moreFromAuthor")}
         </span>
       </div>
 

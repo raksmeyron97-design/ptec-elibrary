@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import {
   Building2,
   CalendarDays,
@@ -56,7 +57,7 @@ export default function ThesisMetadata({
   academicYear,
   language,
   publishedOn,
-  heading = "Thesis information",
+  heading: headingProp,
 }: {
   authorNames?: string | null;
   advisor?: string | null;
@@ -69,20 +70,22 @@ export default function ThesisMetadata({
   publishedOn?: string | null;
   heading?: string;
 }) {
+  const t = useTranslations("thesisDetail");
+  const heading = headingProp ?? t("metaHeading");
   const fields: Field[] = [
     {
       icon: <User className="h-3.5 w-3.5" />,
-      label: "Author",
+      label: t("metaAuthor"),
       value: authorNames ? <span className="font-khmer-serif">{authorNames}</span> : null,
     },
-    { icon: <UserCheck className="h-3.5 w-3.5" />, label: "Advisor", value: advisor },
-    { icon: <UserCheck className="h-3.5 w-3.5" />, label: "Co-advisor", value: coAdvisor },
-    { icon: <GraduationCap className="h-3.5 w-3.5" />, label: "Program", value: program },
-    { icon: <Layers className="h-3.5 w-3.5" />, label: "Faculty", value: faculty },
-    { icon: <Building2 className="h-3.5 w-3.5" />, label: "Department", value: department },
-    { icon: <CalendarDays className="h-3.5 w-3.5" />, label: "Academic year", value: academicYear },
-    { icon: <Languages className="h-3.5 w-3.5" />, label: "Language", value: language },
-    { icon: <CalendarDays className="h-3.5 w-3.5" />, label: "Published", value: publishedOn },
+    { icon: <UserCheck className="h-3.5 w-3.5" />, label: t("metaAdvisor"), value: advisor },
+    { icon: <UserCheck className="h-3.5 w-3.5" />, label: t("metaCoAdvisor"), value: coAdvisor },
+    { icon: <GraduationCap className="h-3.5 w-3.5" />, label: t("metaProgram"), value: program },
+    { icon: <Layers className="h-3.5 w-3.5" />, label: t("metaFaculty"), value: faculty },
+    { icon: <Building2 className="h-3.5 w-3.5" />, label: t("metaDepartment"), value: department },
+    { icon: <CalendarDays className="h-3.5 w-3.5" />, label: t("metaAcademicYear"), value: academicYear },
+    { icon: <Languages className="h-3.5 w-3.5" />, label: t("metaLanguage"), value: language },
+    { icon: <CalendarDays className="h-3.5 w-3.5" />, label: t("metaPublished"), value: publishedOn },
   ].filter((f) => f.value != null && f.value !== "");
 
   if (fields.length === 0) return null;

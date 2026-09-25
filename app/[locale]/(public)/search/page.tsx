@@ -11,9 +11,10 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "search" });
   return {
-    title: "Search",
-    description: "Search PTEC Library — find books, theses, physical catalog, and posts all in one place.",
+    title: t("metaTitle"),
+    description: t("metaDescription"),
     alternates: localeAlternates("/search", locale),
     // Internal search results shouldn't be indexed, but links found there should be crawled.
     robots: { index: false, follow: true },

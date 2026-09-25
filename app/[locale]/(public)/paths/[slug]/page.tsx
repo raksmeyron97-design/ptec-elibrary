@@ -23,6 +23,7 @@ import { getOrgIdentity } from "@/lib/system-settings/config";
 import { deriveScope, scopeLabelKeys } from "@/lib/learning-paths/taxonomy";
 import { getParentSubjectForPath } from "@/lib/learning-paths/subject-links";
 import { Bilingual, LangText } from "@/components/ui/core/LangText";
+import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
 
 export const dynamic = "force-dynamic";
 
@@ -122,7 +123,7 @@ export default async function LearningPathDetailPage({ params }: PageProps) {
       <JsonLd data={courseSchema} />
       <div className="mx-auto max-w-[1200px] px-4 py-6 md:px-8 md:py-12">
         {/* ── Breadcrumb ── */}
-        <nav aria-label="Breadcrumb" className="mb-4 text-[13px] font-medium text-text-muted sm:mb-5">
+        <BreadcrumbNav className="mb-4 text-[13px] font-medium text-text-muted sm:mb-5">
           <Link
             href="/paths"
             className="inline-flex min-h-11 items-center gap-1.5 hover:text-brand sm:hidden"
@@ -143,7 +144,7 @@ export default async function LearningPathDetailPage({ params }: PageProps) {
             <li aria-hidden="true">/</li>
             <li className="min-w-0 truncate text-text-heading" aria-current="page"><LangText text={title} locale={locale} /></li>
           </ol>
-        </nav>
+        </BreadcrumbNav>
 
         {/* ── Hero ── */}
         <header className="gradient-top-border overflow-hidden rounded-[28px] border border-divider bg-bg-surface p-5 shadow-sm sm:p-8">

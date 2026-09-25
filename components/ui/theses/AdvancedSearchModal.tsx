@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { SlidersHorizontal, X } from "lucide-react";
 import { getThesisPrograms, getThesisFaculties, type ThesisProgram, type ThesisFaculty } from "@/app/actions/theses";
@@ -52,6 +53,7 @@ export default function AdvancedSearchModal({
   advisors,
   keywords,
 }: Props) {
+  const t = useTranslations("thesisSearch");
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const headingId = useId();
@@ -110,37 +112,37 @@ export default function AdvancedSearchModal({
   const facultyOptions = faculties.filter((f) => f.program_code === program);
 
   const programSelectOptions: SearchableSelectOption[] = [
-    { value: "", label: "All Programs" },
+    { value: "", label: t("allPrograms") },
     ...programs.map((p) => ({ value: p.code, label: p.name_en })),
   ];
 
   const facultySelectOptions: SearchableSelectOption[] = [
-    { value: "", label: "All Faculties" },
+    { value: "", label: t("allFaculties") },
     ...facultyOptions.map((f) => ({ value: f.code, label: f.name_en })),
   ];
 
   const cohortSelectOptions: SearchableSelectOption[] = [
-    { value: "", label: "All Cohorts" },
+    { value: "", label: t("allCohorts") },
     ...cohorts.map((c) => ({ value: c.value, label: `${c.label} (${c.count})` })),
   ];
 
   const yearSelectOptions: SearchableSelectOption[] = [
-    { value: "", label: "Any Year" },
+    { value: "", label: t("anyYear") },
     ...years.map((y) => ({ value: y, label: y })),
   ];
 
   const authorSelectOptions: SearchableSelectOption[] = [
-    { value: "", label: "Any Author" },
+    { value: "", label: t("anyAuthor") },
     ...authors.map((a) => ({ value: a.value, label: `${a.label} (${a.count})` })),
   ];
 
   const advisorSelectOptions: SearchableSelectOption[] = [
-    { value: "", label: "Any Advisor" },
+    { value: "", label: t("anyAdvisor") },
     ...advisors.map((a) => ({ value: a.value, label: `${a.label} (${a.count})` })),
   ];
 
   const keywordSelectOptions: SearchableSelectOption[] = [
-    { value: "", label: "Any Keyword" },
+    { value: "", label: t("anyKeyword") },
     ...keywords.map((k) => ({ value: k.value, label: `${k.label} (${k.count})` })),
   ];
 
@@ -171,8 +173,8 @@ export default function AdvancedSearchModal({
         aria-expanded={open}
         className="inline-flex h-13 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-divider bg-bg-surface px-5 text-sm font-semibold text-text-body shadow-sm transition-colors duration-150 hover:border-brand/40 hover:bg-brand/5 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
       >
-        <SlidersHorizontal className="h-4 w-4" />
-        Advanced Search
+        <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+        {t("advancedSearch")}
       </button>
 
       {open && mounted && createPortal(
@@ -190,12 +192,12 @@ export default function AdvancedSearchModal({
           >
             <div className="mb-5 flex items-center justify-between">
               <h2 id={headingId} className="text-lg font-bold text-text-heading">
-                Advanced Search
+                {t("advancedSearch")}
               </h2>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                aria-label="Close"
+                aria-label={t("close")}
                 className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-text-muted transition-colors duration-150 hover:bg-paper hover:text-text-heading focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
               >
                 <X className="h-5 w-5" />
@@ -203,18 +205,18 @@ export default function AdvancedSearchModal({
             </div>
 
             <div className="space-y-4">
-              <Field label="Keyword or Title">
+              <Field label={t("fieldQuery")}>
                 <input
                   ref={firstFieldRef}
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search title, author, advisor..."
+                  placeholder={t("fieldQueryPlaceholder")}
                   className="focus-field h-11 w-full rounded-lg border border-divider bg-bg-surface px-4 text-sm text-text-heading placeholder:text-text-muted outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/30"
                 />
               </Field>
 
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Program">
+                <Field label={t("program")}>
                   <SearchableSelect
                     name="program"
                     ariaLabel="Program"
@@ -224,12 +226,12 @@ export default function AdvancedSearchModal({
                       setFaculty("");
                     }}
                     options={programSelectOptions}
-                    placeholder="All Programs"
+                    placeholder={t("allPrograms")}
                     chevron="down"
                   />
                 </Field>
 
-                <Field label="Faculty">
+                <Field label={t("faculty")}>
                   <SearchableSelect
                     name="faculty"
                     ariaLabel="Faculty"
@@ -237,68 +239,68 @@ export default function AdvancedSearchModal({
                     onChange={setFaculty}
                     disabled={facultyOptions.length === 0}
                     options={facultySelectOptions}
-                    placeholder="All Faculties"
+                    placeholder={t("allFaculties")}
                     chevron="down"
                   />
                 </Field>
 
-                <Field label="Cohort">
+                <Field label={t("cohort")}>
                   <SearchableSelect
                     name="cohort"
                     ariaLabel="Cohort"
                     value={cohort}
                     onChange={setCohort}
                     options={cohortSelectOptions}
-                    placeholder="All Cohorts"
+                    placeholder={t("allCohorts")}
                     chevron="down"
                   />
                 </Field>
 
-                <Field label="Published Year">
+                <Field label={t("year")}>
                   <SearchableSelect
                     name="year"
                     ariaLabel="Published Year"
                     value={year}
                     onChange={setYear}
                     options={yearSelectOptions}
-                    placeholder="Any Year"
+                    placeholder={t("anyYear")}
                     chevron="down"
                   />
                 </Field>
 
-                <Field label="Author">
+                <Field label={t("author")}>
                   <SearchableSelect
                     name="author"
                     ariaLabel="Author"
                     value={author}
                     onChange={setAuthor}
                     options={authorSelectOptions}
-                    placeholder="Any Author"
+                    placeholder={t("anyAuthor")}
                     chevron="down"
                   />
                 </Field>
 
-                <Field label="Advisor">
+                <Field label={t("advisor")}>
                   <SearchableSelect
                     name="advisor"
                     ariaLabel="Advisor"
                     value={advisor}
                     onChange={setAdvisor}
                     options={advisorSelectOptions}
-                    placeholder="Any Advisor"
+                    placeholder={t("anyAdvisor")}
                     chevron="down"
                   />
                 </Field>
               </div>
 
-              <Field label="Keyword Tag">
+              <Field label={t("keyword")}>
                 <SearchableSelect
                   name="keyword"
                   ariaLabel="Keyword Tag"
                   value={keyword}
                   onChange={setKeyword}
                   options={keywordSelectOptions}
-                  placeholder="Any Keyword"
+                  placeholder={t("anyKeyword")}
                   chevron="down"
                   placement="top"
                 />
@@ -320,13 +322,13 @@ export default function AdvancedSearchModal({
                 }}
                 className="cursor-pointer rounded-sm text-[13px] font-semibold text-text-muted transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
               >
-                Clear all
+                {t("clearAll")}
               </button>
               <button
                 type="submit"
                 className="ml-auto inline-flex cursor-pointer items-center justify-center rounded-xl bg-brand px-6 py-2.5 text-sm font-bold text-brand-contrast transition-all duration-150 hover:bg-brand-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
               >
-                Search
+                {t("searchButton")}
               </button>
             </div>
           </form>

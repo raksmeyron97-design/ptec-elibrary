@@ -52,6 +52,7 @@ import { breadcrumbSchema } from "@/lib/seo/schema";
 import { thesisScholarMeta } from "@/lib/seo/citation";
 import { buildThesisMetadata, thesisJsonLd, type ThesisSeoInput } from "@/lib/seo/thesis-seo";
 import { ChevronRight, FileX2, Pencil } from "lucide-react";
+import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
 
 /**
  * The LEGACY-byline fallback, used only when the canonical graph has no
@@ -277,7 +278,11 @@ export default async function ThesisDetailPage({ params }: PageProps) {
     (report.seo_description ?? "").trim() ||
     (abstractText ? `${abstractText.split(/(?<=[.!?។])\s/)[0]}`.slice(0, 240) : null);
 
-  const cohortLine = [report.cohort ? `Cohort ${report.cohort}` : null, report.academic_year]
+  const [tDetail, tSearch] = await Promise.all([
+    getTranslations({ locale, namespace: "thesisDetail" }),
+    getTranslations({ locale, namespace: "thesisSearch" }),
+  ]);
+  const cohortLine = [report.cohort ? tSearch("cohortNumber", { number: report.cohort }) : null, report.academic_year]
     .filter(Boolean)
     .join(" · ");
 
@@ -289,11 +294,11 @@ export default async function ThesisDetailPage({ params }: PageProps) {
   // index never points at an empty heading.
   const hasReferences = references.length > 0;
   const sections: RecordSection[] = [
-    { id: "abstract", label: "Abstract" },
-    ...(keywords.length > 0 ? [{ id: "keywords", label: "Keywords" }] : []),
-    { id: "full-text", label: "Full text" },
-    { id: "publication-details", label: "Publication details" },
-    { id: "references", label: "References", meta: String(references.length) },
+    { id: "abstract", label: tDetail("sectionAbstract") },
+    ...(keywords.length > 0 ? [{ id: "keywords", label: tDetail("sectionKeywords") }] : []),
+    { id: "full-text", label: tDetail("sectionFullText") },
+    { id: "publication-details", label: tDetail("sectionPublication") },
+    { id: "references", label: tDetail("sectionReferences"), meta: String(references.length) },
   ];
 
   const tNav = await getTranslations("nav");
@@ -340,8 +345,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
         {/* ── Breadcrumb ──
             Deliberately small and quiet: it orients, it does not compete with
             the title two elements below it. */}
-        <nav
-          aria-label="Breadcrumb"
+        <BreadcrumbNav
           className="flex flex-wrap items-center gap-x-2 gap-y-1 py-5 text-[12.5px] text-text-muted"
         >
           <Link href="/" className="rounded-sm transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50">
@@ -361,10 +365,10 @@ export default async function ThesisDetailPage({ params }: PageProps) {
               className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-divider bg-bg-surface px-3 py-1.5 text-[12px] font-medium text-text-muted transition-colors duration-150 hover:border-brand hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
             >
               <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-              Edit thesis
+              {tDetail("editThesis")}
             </NextLink>
           )}
-        </nav>
+        </BreadcrumbNav>
 
         <ThesisHero
           report={displayReport}
@@ -400,7 +404,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
             department={departmentLabel}
             academicYear={report.academic_year}
             language={getLanguageLabel(report)}
-            publishedOn={formatPublicationDate(report)}
+            publishedOn={formatPublicationDate(report, locale)}
           />
         </div>
 
@@ -436,7 +440,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
 
               <section id="full-text" className="scroll-mt-28 p-5 sm:p-7">
                 <h2 className="text-[20px] font-bold tracking-[-0.01em] text-text-heading sm:text-[22px]">
-                  Full text
+                  {tDetail("sectionFullText")}
                 </h2>
                 <div className="mt-4">
                   {report.file_url ? (
@@ -453,11 +457,10 @@ export default async function ThesisDetailPage({ params }: PageProps) {
                       <FileX2 className="mt-0.5 h-5 w-5 shrink-0 text-text-muted" aria-hidden="true" />
                       <div className="min-w-0">
                         <p className="text-[14.5px] font-semibold text-text-heading">
-                          No PDF deposited yet
+                          {tDetail("noPdf")}
                         </p>
                         <p className="mt-1 max-w-[52ch] text-[13.5px] leading-[1.6] text-text-muted">
-                          The full text for this thesis hasn&apos;t been uploaded to the
-                          repository. The record&apos;s abstract and details above are complete.
+                          {tDetail("noPdfBody")}
                         </p>
                       </div>
                     </div>
@@ -467,7 +470,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
 
               <section id="publication-details" className="scroll-mt-28 p-5 sm:p-7">
                 <h2 className="text-[20px] font-bold tracking-[-0.01em] text-text-heading sm:text-[22px]">
-                  Publication details
+                  {tDetail("sectionPublication")}
                 </h2>
                 <div className="mt-4">
                   <PublicationMetadata report={displayReport} />
@@ -520,7 +523,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
 
             <RecordStatusCard
               verifiedAt={report.verified_at}
-              publishedOn={formatPublicationDate(report)}
+              publishedOn={formatPublicationDate(report, locale)}
               views={(report.view_count || 0) + 1}
               downloads={report.download_count || 0}
               reportTitle={report.title ?? canonicalSlug}

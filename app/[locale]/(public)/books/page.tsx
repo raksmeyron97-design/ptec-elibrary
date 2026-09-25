@@ -98,7 +98,7 @@ export default async function BooksPage({
   searchParams: Promise<SearchParams>;
   params: Promise<{ locale: string }>;
 }) {
-  const t = await getTranslations('books');
+  const [t, tBook] = await Promise.all([getTranslations('books'), getTranslations('bookDetail')]);
   const params = await searchParams;
   const { locale } = await routeParams;
   const basePath = locale === "km" ? "/km/books" : "/books";
@@ -243,7 +243,7 @@ export default async function BooksPage({
                         : "bg-paper text-text-muted border-divider hover:bg-brand/5 hover:text-brand hover:border-brand/30"
                     }`}
                   >
-                    {cat}
+                    {isAll ? t("allOption") : cat}
                   </FilterLink>
                 );
               })}
@@ -273,6 +273,7 @@ export default async function BooksPage({
                 <FilterSelect
                   value={params.language || ""}
                   options={languages}
+                  optionLabels={{ Khmer: tBook("languageKhmer"), English: tBook("languageEnglish") }}
                   defaultLabel={t('filterLanguage')}
                   paramKey="language"
                   basePath={basePath}

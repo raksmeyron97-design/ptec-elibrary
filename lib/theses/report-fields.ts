@@ -90,12 +90,13 @@ export function getYear(report: ResearchReport): string | null {
 }
 
 /** Human date like "12 June 2026"; returns null on unparseable input. */
-export function formatPublicationDate(report: ResearchReport): string | null {
+/** In the page's locale: "12 May 2024" on English pages, Khmer month names on /km. */
+export function formatPublicationDate(report: ResearchReport, locale: string = "en"): string | null {
   const d = getPublicationDate(report);
   if (!d) return null;
   const date = new Date(d);
   if (isNaN(date.getTime())) return null;
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  return date.toLocaleDateString(locale === "km" ? "km-KH" : "en-GB", { day: "numeric", month: "long", year: "numeric" });
 }
 
 /** "Thesis" / "Research Report" / "Capstone Project" / etc. — defaults to "Thesis" for legacy rows with no thesis_type set. */

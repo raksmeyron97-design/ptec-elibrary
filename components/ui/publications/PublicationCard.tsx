@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import { Badge } from "@/components/ui/core/Badge";
@@ -6,14 +7,17 @@ import { citationYear } from "@/lib/citations";
 import ResourceMetrics from "@/components/ui/core/ResourceMetrics";
 import { articlePath } from "@/lib/journals/urls";
 
-const TYPE_LABELS: Record<string, string> = {
-  article: "Article",
-  review: "Review",
-  account: "Account",
-  editorial: "Editorial",
-};
+// Keys in the `publications` namespace; the labels were English literals,
+// so a Khmer journal listing read "Article" / "Review" / "Editorial".
+const TYPE_KEY = {
+  article: "typeArticle",
+  review: "typeReview",
+  account: "typeAccount",
+  editorial: "typeEditorial",
+} as const;
 
 export default function PublicationCard({ publication }: { publication: Publication }) {
+  const t = useTranslations("publications");
   const downloads = publication.download_count || 0;
   const views = publication.view_count || 0;
   const keywords = (publication.keywords ?? []).slice(0, 2);
@@ -73,7 +77,7 @@ export default function PublicationCard({ publication }: { publication: Publicat
         <div className="flex flex-1 flex-col px-3.5 pb-3.5 pt-3.5 sm:px-4 sm:pb-4 min-w-0">
           {/* Article-type pill */}
           <Badge variant="brand" className="mb-2 self-start !text-[9px] !px-2 !py-0.5 uppercase tracking-wide">
-            {TYPE_LABELS[publication.article_type] ?? publication.article_type}
+            {publication.article_type in TYPE_KEY ? t(TYPE_KEY[publication.article_type as keyof typeof TYPE_KEY]) : publication.article_type}
           </Badge>
 
           {/* Title — emphasized as the primary identifier */}

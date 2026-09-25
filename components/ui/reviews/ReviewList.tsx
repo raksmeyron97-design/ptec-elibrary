@@ -1,3 +1,4 @@
+import { useLocale, useTranslations } from "next-intl";
 import type { Review } from "@/app/actions/reviews";
 import Avatar from "@/components/ui/Avatar";
 
@@ -28,9 +29,11 @@ function StarBar({ rating, count, total }: { rating: number; count: number; tota
 
 
 function ReviewCard({ review }: { review: Review }) {
+  const t = useTranslations("resourceActions");
+  const locale = useLocale();
   const profile = review.profiles;
-  const displayName = profile?.full_name || "Reader";
-  const date = new Date(review.created_at).toLocaleDateString("en-US", {
+  const displayName = profile?.full_name || t("reviewerFallback");
+  const date = new Date(review.created_at).toLocaleDateString(locale === "km" ? "km-KH" : "en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -79,6 +82,7 @@ function ReviewCard({ review }: { review: Review }) {
 }
 
 export default function ReviewList({ reviews, totalCount, avgRating }: ReviewListProps) {
+  const t = useTranslations("resourceActions");
   // Tally counts per star level
   const tally = [5, 4, 3, 2, 1].map((star) => ({
     star,
@@ -114,7 +118,7 @@ export default function ReviewList({ reviews, totalCount, avgRating }: ReviewLis
               ))}
             </div>
             <span className="mt-1 text-xs text-text-muted">
-              {totalCount} {totalCount === 1 ? "review" : "reviews"}
+              {t("reviewCount", { count: totalCount })}
             </span>
           </div>
 
@@ -133,7 +137,7 @@ export default function ReviewList({ reviews, totalCount, avgRating }: ReviewLis
       <div className="px-6 pb-2">
         {reviews.length === 0 ? (
           <p className="py-8 text-center text-sm text-text-muted">
-            No reviews yet — be the first to share your thoughts.
+            {t("reviewsEmpty")}
           </p>
         ) : (
           reviews.map((review) => <ReviewCard key={review.id} review={review} />)

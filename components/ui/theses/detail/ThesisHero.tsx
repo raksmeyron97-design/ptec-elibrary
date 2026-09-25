@@ -26,6 +26,7 @@
 
 import Image from "next/image";
 import { GraduationCap } from "lucide-react";
+import { useTranslations } from "next-intl";
 import ThesisBadges from "./ThesisBadges";
 
 function Fact({ label, value }: { label: string; value: React.ReactNode }) {
@@ -58,6 +59,7 @@ export default function ThesisHero({
   primaryActions: React.ReactNode;
   secondaryActions: React.ReactNode;
 }) {
+  const t = useTranslations("thesisDetail");
   return (
     <header className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-12">
       <div className="flex min-w-0 flex-col">
@@ -91,10 +93,10 @@ export default function ThesisHero({
 
         <dl className="order-5 mt-7 grid grid-cols-1 gap-x-8 gap-y-4 border-t border-divider pt-6 sm:grid-cols-3">
           {report.author_names && (
-            <Fact label="Author" value={<span className="font-khmer-serif">{report.author_names}</span>} />
+            <Fact label={t("factAuthor")} value={<span className="font-khmer-serif">{report.author_names}</span>} />
           )}
-          {report.advisor_name && <Fact label="Advisor" value={report.advisor_name} />}
-          {cohortLine && <Fact label="Cohort" value={cohortLine} />}
+          {report.advisor_name && <Fact label={t("factAdvisor")} value={report.advisor_name} />}
+          {cohortLine && <Fact label={t("factCohort")} value={cohortLine} />}
         </dl>
 
         <div className="order-6 mt-7 flex flex-col gap-3">
@@ -114,6 +116,7 @@ export default function ThesisHero({
 }
 
 function ThesisCover({ report, className = "" }: { report: any; className?: string }) {
+  const t = useTranslations("thesisDetail");
   return (
     <div
       className={`group relative aspect-[3/4] w-full overflow-hidden rounded-2xl border border-divider bg-paper shadow-md ${className}`}
@@ -133,7 +136,7 @@ function ThesisCover({ report, className = "" }: { report: any; className?: stri
       ) : (
         <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-text-muted">
           <GraduationCap className="h-10 w-10" strokeWidth={1.5} aria-hidden="true" />
-          <span className="text-[11px] font-semibold uppercase tracking-[0.1em]">No cover</span>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.1em]">{t("heroNoCover")}</span>
         </div>
       )}
     </div>

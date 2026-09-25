@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import SearchBar from "@/components/ui/search/SearchBar";
 import AdvancedSearchModal, { type FacetOption } from "@/components/ui/theses/AdvancedSearchModal";
@@ -58,17 +59,17 @@ export default function HeroSearch({
   advisors: FacetOption[];
   keywords: FacetOption[];
 }) {
+  const t = useTranslations("thesisSearch");
   return (
     <section className="pt-7 pb-8 sm:pt-9">
       <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-accent-text">
-        PTEC Digital Repository · {collectionLabel}
+        {t("heroEyebrow", { collection: collectionLabel })}
       </p>
       <h1 className="mt-2.5 max-w-[20ch] text-[clamp(26px,3vw,36px)] font-bold leading-[1.15] tracking-[-0.015em] text-text-heading">
-        Find theses &amp; research
+        {t("heroTitle")}
       </h1>
       <p className="mt-2.5 max-w-[62ch] text-[14.5px] leading-[1.6] text-text-muted">
-        Search student theses from {institution} by title, author, advisor,
-        program or keyword.
+        {t("heroIntro", { institution })}
       </p>
 
       <div className="mt-6 flex max-w-[820px] flex-col items-stretch gap-3 sm:flex-row sm:items-center">
@@ -76,8 +77,8 @@ export default function HeroSearch({
           fallback={<div className="h-13 flex-1 animate-pulse rounded-xl bg-paper" />}
         >
           <SearchBar
-            placeholder="Search title, author, keyword, advisor, DOI…"
-            buttonLabel="Search"
+            placeholder={t("placeholder")}
+            buttonLabel={t("searchButton")}
           />
         </Suspense>
         <AdvancedSearchModal
@@ -103,7 +104,7 @@ export default function HeroSearch({
         // "Popular": the bare word left it ambiguous whether these were
         // popular THESES or popular subjects.
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <span className="text-[12.5px] text-text-muted">Popular topics:</span>
+          <span className="text-[12.5px] text-text-muted">{t("popularTopics")}</span>
           {quickChips.map((chip) => (
             <Link
               key={chip.value}

@@ -1,4 +1,5 @@
 import { Award, BadgeCheck, FileText, Hash, ShieldQuestion } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 // The record's status line, as four badges with four different jobs.
 //
@@ -35,6 +36,7 @@ export default function ThesisBadges({
   verifiedAt?: string | null;
   doi?: string | null;
 }) {
+  const t = useTranslations("thesisDetail");
   const doiHref = doi ? (doi.startsWith("http") ? doi : `https://doi.org/${doi}`) : null;
 
   return (
@@ -47,10 +49,10 @@ export default function ThesisBadges({
       {rank != null && (
         <span
           className={`${BASE} bg-accent/15 text-accent-text`}
-          title={`Ranked #${rank} by downloads`}
+          title={t("rankTitle", { rank })}
         >
           <Award className="h-3.5 w-3.5" aria-hidden="true" />
-          <span className="sr-only">Ranked number {rank} most downloaded. </span>
+          <span className="sr-only">{t("rankSr", { rank })} </span>
           Top 10 · #{rank}
         </span>
       )}
@@ -58,12 +60,12 @@ export default function ThesisBadges({
       {verifiedAt ? (
         <span className={`${BASE} bg-success-soft text-success-text`}>
           <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" />
-          Verified
+          {t("badgeVerified")}
         </span>
       ) : (
         <span className={`${BASE} bg-warning-soft text-warning-text`}>
           <ShieldQuestion className="h-3.5 w-3.5" aria-hidden="true" />
-          Unverified
+          {t("badgeUnverified")}
         </span>
       )}
 
@@ -82,7 +84,7 @@ export default function ThesisBadges({
       ) : (
         <span className={`${BASE} text-text-muted normal-case tracking-normal font-medium`}>
           <Hash className="h-3.5 w-3.5" aria-hidden="true" />
-          No DOI assigned
+          {t("badgeNoDoi")}
         </span>
       )}
     </div>

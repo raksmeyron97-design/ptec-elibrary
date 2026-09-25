@@ -391,14 +391,19 @@ export default async function HomePage() {
       <StartWithGoal paths={paths} />
 
       {/* Below-the-fold sections are wrapped in .cv-auto (content-visibility)
-          so the browser skips their layout/paint work until scrolled near. */}
+          so the browser skips their layout/paint work until scrolled near.
+          Each reserves roughly its real height (--cv-reserve, phone / lg):
+          measured on production 2026-09-24 at 412px and 1350px and rounded
+          up ~10%. A reservation SMALLER than the section is not harmless —
+          see .cv-auto in globals.css — so when a section grows, raise its
+          number rather than trimming it. */}
 
       {/* ════════ BROWSE BY COLLECTION — the four collections as equal cards ══
           Answers "what is actually in here?" for the reader who cannot yet
           name what they want and so has nothing to type into the hero search.
           Collections and counts are read from the nav config and
           getCollectionStats() respectively — see the component header. */}
-      <div className="cv-auto">
+      <div className="cv-auto [--cv-reserve:1000px] lg:[--cv-reserve:560px]">
         <Suspense fallback={<div className="h-96 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
           <CollectionGrid />
         </Suspense>
@@ -414,14 +419,14 @@ export default async function HomePage() {
       </ContinueReadingSwap>
 
       {/* ════════ COLLECTION PREVIEW — ≤8 cards, 4-per-row, tabbed ════════ */}
-      <div className="cv-auto">
+      <div className="cv-auto [--cv-reserve:1950px] lg:[--cv-reserve:1650px]">
         <Suspense fallback={<BrowseBooksSkeleton />}>
           <BrowseBooksSection trendingBooks={trendingCards} />
         </Suspense>
       </div>
 
       {/* ════════ BROWSE BY SUBJECT ════════ */}
-      <div className="cv-auto">
+      <div className="cv-auto [--cv-reserve:580px] lg:[--cv-reserve:600px]">
         <Suspense fallback={<div className="h-48 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
           <CategoryGrid />
         </Suspense>
@@ -431,14 +436,14 @@ export default async function HomePage() {
           Purely "what arrived most recently". Since <ThisWeekAtPtec> was
           replaced by <GrowTheCollection>, this is the only curated-by-date
           band left, so it no longer has a sibling to differentiate from. */}
-      <div className="cv-auto">
+      <div className="cv-auto [--cv-reserve:1080px] lg:[--cv-reserve:830px]">
         <Suspense fallback={<div className="h-72 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
           <NewArrivals />
         </Suspense>
       </div>
 
       {/* ════════ TRENDING RESEARCH — top-5 theses by reader activity ════════ */}
-      <div className="cv-auto">
+      <div className="cv-auto [--cv-reserve:1000px] lg:[--cv-reserve:700px]">
         <Suspense fallback={<div className="h-64 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
           <TrendingResearch />
         </Suspense>
@@ -451,7 +456,7 @@ export default async function HomePage() {
           This slot ASKS rather than displays, because the collection's real
           constraint is its size. Both doors land in the existing
           /admin/book-requests queue via the `kind` column from migration 0119. */}
-      <div className="cv-auto">
+      <div className="cv-auto [--cv-reserve:1000px] lg:[--cv-reserve:680px]">
         <Suspense fallback={<div className="h-80 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
           <GrowTheCollection />
         </Suspense>
@@ -461,7 +466,7 @@ export default async function HomePage() {
           The site's only news band now that <ThisWeekAtPtec> is gone — a
           featured post plus three more, with its own "view all posts" exit to
           /posts. */}
-      <div className="cv-auto">
+      <div className="cv-auto [--cv-reserve:1300px] lg:[--cv-reserve:1060px]">
         <Suspense fallback={<LatestPostsSkeleton />}>
           <LatestPostsSection />
         </Suspense>
@@ -474,18 +479,18 @@ export default async function HomePage() {
           are active. Together with <NarrativeCards> below it, it introduces
           <LibraryNow> — these are photographs of the room that section is
           inviting the reader into. */}
-      <div className="cv-auto">
+      <div className="cv-auto [--cv-reserve:1000px] lg:[--cv-reserve:650px]">
         <HeroPhotoGallery photos={mosaicPhotos} totalCount={galleryPhotos.length} />
       </div>
 
       {/* ════════ FOCUS / DISCOVER / CONNECT — the gallery's second half ════
           Needs all three slots filled or it renders nothing. */}
-      <div className="cv-auto">
+      <div className="cv-auto [--cv-reserve:1000px] lg:[--cv-reserve:700px]">
         <NarrativeCards photos={narrativePhotos} />
       </div>
 
       {/* ════════ LIBRARY NOW — digital ↔ physical bridge (live open/closed) ════════ */}
-      <div className="cv-auto">
+      <div className="cv-auto [--cv-reserve:920px] lg:[--cv-reserve:620px]">
         <LibraryNow
           openingHoursSpec={[...siteConfig.hours.openingHoursSpec]}
           closures={siteConfig.hours.closures}
@@ -496,7 +501,7 @@ export default async function HomePage() {
       {/* ════════ FAQ — six real front-desk questions + FAQPage schema ════════
           (JSON-LD inside stays in the HTML — content-visibility only skips
           rendering work, not markup, so the FAQPage schema is still crawled) */}
-      <div className="cv-auto">
+      <div className="cv-auto [--cv-reserve:760px] lg:[--cv-reserve:560px]">
         <FaqSection />
       </div>
 

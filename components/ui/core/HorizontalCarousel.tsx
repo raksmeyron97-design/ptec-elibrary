@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { useTranslations } from "next-intl";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 /**
@@ -9,6 +10,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
  * keyboard operable.
  */
 export default function HorizontalCarousel({ children }: { children: React.ReactNode }) {
+  const t = useTranslations("nav");
   const trackRef = useRef<HTMLDivElement>(null);
 
   const scrollBy = (dir: 1 | -1) => {
@@ -29,18 +31,18 @@ export default function HorizontalCarousel({ children }: { children: React.React
       <button
         type="button"
         onClick={() => scrollBy(-1)}
-        aria-label="Scroll left"
+        aria-label={t("scrollLeft")}
         className="absolute -left-3 top-1/2 hidden -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-divider bg-bg-surface p-2 text-text-muted shadow-md transition-all hover:border-brand/40 hover:text-brand active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 sm:flex"
       >
-        <ChevronLeft className="h-4 w-4" />
+        <ChevronLeft className="h-4 w-4" aria-hidden="true" />
       </button>
       <button
         type="button"
         onClick={() => scrollBy(1)}
-        aria-label="Scroll right"
+        aria-label={t("scrollRight")}
         className="absolute -right-3 top-1/2 hidden -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-divider bg-bg-surface p-2 text-text-muted shadow-md transition-all hover:border-brand/40 hover:text-brand active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 sm:flex"
       >
-        <ChevronRight className="h-4 w-4" />
+        <ChevronRight className="h-4 w-4" aria-hidden="true" />
       </button>
     </div>
   );

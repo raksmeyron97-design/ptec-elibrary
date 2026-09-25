@@ -76,6 +76,7 @@ import { getArticleJournalContext, getIssue, type ArticleJournalContext as Journ
 import { issueNeighbours } from "@/lib/journals/order";
 import { articlePath, issuePath, journalFilterPath, journalPath, JOURNALS_PATH } from "@/lib/journals/urls";
 import { formatJournalDate, issueLabel, journalTitle, languageName } from "@/lib/journals/types";
+import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
 
 /**
  * Adapt a Publication row into the typed, browser-safe SEO input.
@@ -479,8 +480,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
               The full path is still read out, and the BreadcrumbList JSON-LD
               (built separately) still carries every level. */}
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <nav
-              aria-label="Breadcrumb"
+            <BreadcrumbNav
               className="flex min-w-0 flex-wrap items-center gap-1.5 text-[13px] font-medium text-text-muted"
             >
               <Link href="/" className="transition-colors hover:text-brand">{t("breadcrumbHome")}</Link>
@@ -495,7 +495,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
                 {" › "}
                 {pub.title}
               </span>
-            </nav>
+            </BreadcrumbNav>
             {isAdmin && (
               <NextLink
                 href={`/admin/publications/edit/${pub.id}`}
