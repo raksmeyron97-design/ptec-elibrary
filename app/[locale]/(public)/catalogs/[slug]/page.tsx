@@ -3,6 +3,7 @@ import { Link } from "@/i18n/navigation";
 import { decodeSlugParam } from "@/lib/slug";
 import { catalogRobots } from "@/lib/catalogs/indexability";
 import { displayAuthorName } from "@/lib/catalogs/author-name";
+import { languageLabelKey } from "@/lib/catalogs/facets";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
@@ -38,9 +39,11 @@ export const revalidate = 300;
 
 // ── Cached data access (public client → safe inside unstable_cache) ───────────
 
+// No barcode: it identifies a copy to the circulation desk, not to a reader,
+// and a reader finds the book by its call number. It is not access control —
+// the column stays readable through the API under the table's public policy.
 type PublicCopy = {
   id: string;
-  barcode: string | null;
   call_number: string | null;
   shelf_location: string | null;
   holding_library: string | null;
@@ -179,20 +182,21 @@ export async function generateMetadata({
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-// 700-scale in light mode: the 600s fail WCAG AA (4.5:1) at small text sizes.
+// Status tokens (bg/border/text-{success,warning,danger,info}-*), which carry
+// their own dark-mode values and AA contrast — not hand-picked palette steps.
 const TONE_TEXT: Record<string, string> = {
-  positive: "text-emerald-700 dark:text-emerald-400",
-  warning:  "text-amber-700 dark:text-amber-400",
-  danger:   "text-red-600 dark:text-red-400",
-  info:     "text-sky-700 dark:text-sky-400",
+  positive: "text-success-text",
+  warning:  "text-warning-text",
+  danger:   "text-danger-text",
+  info:     "text-info-text",
   neutral:  "text-text-muted",
 };
 
 const TONE_SURFACE: Record<string, string> = {
-  positive: "bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800",
-  warning:  "bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800",
-  danger:   "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800",
-  info:     "bg-sky-50 border-sky-200 dark:bg-sky-900/20 dark:border-sky-800",
+  positive: "bg-success-soft border-success-line",
+  warning:  "bg-warning-soft border-warning-line",
+  danger:   "bg-danger-soft border-danger-line",
+  info:     "bg-info-soft border-info-line",
   neutral:  "bg-paper border-divider",
 };
 
@@ -245,11 +249,7 @@ export default async function CatalogBookPage({
   const coverTheme = getCategoryCoverTheme(b.category);
   const coverHex = coverTheme.background;
 
-  const langLabel = (lang?: string | null) => {
-    if (!lang) return null;
-    const key = ({ km: "langKm", en: "langEn", fr: "langFr", zh: "langZh" } as Record<string, string>)[lang] ?? "langOther";
-    return t(`detail.${key}`);
-  };
+  const langLabel = (lang?: string | null) => (lang?.trim() ? t(`detail.${languageLabelKey(lang)}`) : null);
 
   // JSON-LD: only factual values from the record. PTEC is the holding library,
   // never the publisher — publisher appears only when the record has one.
@@ -287,8 +287,8 @@ export default async function CatalogBookPage({
   ].filter((f) => f.value);
 
   const catalogBreadcrumbSchema = breadcrumbSchema([
-    { name: "Home", path: "/" },
-    { name: "Books In Library", path: "/catalogs" },
+    { name: t("detail.home"), path: "/" },
+    { name: t("title"), path: "/catalogs" },
     { name: b.title },
   ], { locale, pageUrl: `${SITE_URL}${locale === "km" ? "/km" : ""}/catalogs/${b.slug}` });
 
@@ -382,6 +382,17 @@ export default async function CatalogBookPage({
 
               {stats.total > 0 && (
                 <CatalogAvailabilityNotice text={t("availabilityNotice")} className="mt-3" />
+              )}
+
+              {b.ddc && (
+                <div className="mt-3 flex items-center gap-2 rounded-xl bg-white/60 px-3 py-2 dark:bg-black/15">
+                  <svg className="h-3.5 w-3.5 shrink-0 text-gold-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                  </svg>
+                  <span className="text-[12px] text-text-body">
+                    {t("detail.callNumber")}: <span className="font-mono font-bold text-text-heading">{b.ddc}</span>
+                  </span>
+                </div>
               )}
 
               {b.shelf_location && (
@@ -497,8 +508,8 @@ export default async function CatalogBookPage({
                   )}
                 </h2>
                 {copies.length > 0 && stats.available > 0 && (
-                  <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                    <span aria-hidden className="h-2 w-2 rounded-full bg-emerald-500" />
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-success-text">
+                    <span aria-hidden className="h-2 w-2 rounded-full bg-success" />
                     {t("detail.availableCount", { available: stats.available })}
                   </span>
                 )}
@@ -524,7 +535,6 @@ export default async function CatalogBookPage({
                         <tr className="border-b border-divider text-left">
                           {[
                             "",
-                            t("detail.barcode"),
                             t("detail.callNumber"),
                             t("detail.shelf"),
                             t("detail.holdingLibrary"),
@@ -546,10 +556,7 @@ export default async function CatalogBookPage({
                                 {t("detail.copyNumber", { number: copy.copy_number ?? idx + 1 })}
                               </th>
                               <td className="px-3 py-2.5 font-mono text-xs">
-                                {copy.barcode ?? <span aria-hidden className="text-text-muted">—</span>}
-                              </td>
-                              <td className="px-3 py-2.5 font-mono text-xs">
-                                {copy.call_number ?? <span aria-hidden className="text-text-muted">—</span>}
+                                {copy.call_number ?? b.ddc ?? <span aria-hidden className="text-text-muted">—</span>}
                               </td>
                               <td className="px-3 py-2.5 font-mono text-xs">
                                 {copy.shelf_location ?? b.shelf_location ?? <span aria-hidden className="text-text-muted">—</span>}
@@ -579,16 +586,10 @@ export default async function CatalogBookPage({
                             <CopyStatusBadge status={s} label={t(`copyStatus.${meta.publicKey}`)} />
                           </div>
                           <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
-                            {copy.barcode && (
-                              <div>
-                                <dt className="font-medium uppercase tracking-wider text-text-muted">{t("detail.barcode")}</dt>
-                                <dd className="font-mono font-semibold text-text-heading">{copy.barcode}</dd>
-                              </div>
-                            )}
-                            {copy.call_number && (
+                            {(copy.call_number ?? b.ddc) && (
                               <div>
                                 <dt className="font-medium uppercase tracking-wider text-text-muted">{t("detail.callNumber")}</dt>
-                                <dd className="font-mono font-semibold text-text-heading">{copy.call_number}</dd>
+                                <dd className="font-mono font-semibold text-text-heading">{copy.call_number ?? b.ddc}</dd>
                               </div>
                             )}
                             {(copy.shelf_location ?? b.shelf_location) && (

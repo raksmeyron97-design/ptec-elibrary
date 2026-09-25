@@ -15,6 +15,8 @@ import type { CatalogBook } from "@/lib/catalog";
 import type { CatalogCopy } from "../../../copy-actions";
 import { computeCopyStats, catalogRecordSlug } from "@/lib/catalog";
 import CopiesPanel from "../../../_components/CopiesPanel";
+import RecordHealthPanel from "./RecordHealthPanel";
+import { assessCatalogRecordHealth } from "@/lib/catalogs/record-health";
 import { ConfirmDialog } from "@/components/admin/kit";
 import TagInput from "@/components/ui/core/TagInput";
 import {
@@ -94,6 +96,7 @@ export default function EditBookWizard({
   const formRef = useRef<HTMLFormElement>(null);
 
   const stats = useMemo(() => computeCopyStats(initialCopies), [initialCopies]);
+  const health = useMemo(() => assessCatalogRecordHealth(book, stats), [book, stats]);
 
   const updateWithId = updateCatalogBook.bind(null, book.id);
 
@@ -143,6 +146,7 @@ export default function EditBookWizard({
   */
   const context =
     tab === "copies" ? null : tab === "info" ? (
+      <div className="space-y-4">
       <ContextPanel title={te("contextRecordTitle")} icon={BookOpen} hint={te("contextRecordHint")}>
         <dl className="space-y-2 text-[13px]">
           <ContextRow label={te("contextAuthor")} value={book.author || "—"} />
@@ -159,6 +163,8 @@ export default function EditBookWizard({
           {te("managePhysical")}
         </button>
       </ContextPanel>
+      <RecordHealthPanel checks={health} />
+      </div>
     ) : (
       <ContextPanel title={te("contextPreviewTitle")} icon={Search} hint={te("contextPreviewHint")}>
         <div className="rounded-lg border border-divider bg-bg-surface p-3">

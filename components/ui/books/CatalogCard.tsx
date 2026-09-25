@@ -38,6 +38,7 @@ export default function CatalogCard({ book }: Props) {
   const tone = AVAILABILITY_TONE[availability];
   const dotColor = TONE_DOT[tone];
   const textColor = TONE_TEXT[tone];
+  const where = book.ddc?.trim() || book.shelf_location?.trim() || null;
 
   return (
     <Link
@@ -95,14 +96,18 @@ export default function CatalogCard({ book }: Props) {
           {book.year ? ` · ${book.year}` : ""}
         </p>
 
-        {/* Copies + shelf */}
-        <div className="mt-auto flex items-center justify-between pt-2">
-          <span className={`text-[11px] font-semibold ${textColor}`}>
+        {/* Whether (copies) and where (call number). The call number is what
+            is printed on the spine and what the shelves are ordered by — the
+            PMB catalogue carries one for every record and a shelf for none —
+            so it leads, and a hand-entered shelf mark stands in without one. */}
+        <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+          <span className={`shrink-0 text-[11px] font-semibold ${textColor}`}>
             {t("copiesCount", { available: stats.available, total: stats.total })}
           </span>
-          {book.shelf_location && (
-            <span className="rounded-md bg-paper px-1.5 py-0.5 font-mono text-[10px] text-text-muted">
-              {book.shelf_location}
+          {where && (
+            <span className="min-w-0 truncate rounded-md bg-paper px-1.5 py-0.5 font-mono text-[10px] text-text-muted" title={where}>
+              <span className="sr-only">{book.ddc ? t("detail.callNumber") : t("detail.shelf")}: </span>
+              {where}
             </span>
           )}
         </div>
