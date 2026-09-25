@@ -44,7 +44,7 @@ import type { OrgIdentity } from "@/lib/system-settings/org-identity";
 export const OG_LOCALE = { en: "en_US", km: "km_KH" } as const;
 
 /** The shared social card. One constant; every builder's fallback. */
-export const OG_FALLBACK_IMAGE_PATH = "/og-default.png";
+export const OG_FALLBACK_IMAGE_PATH = "/og-default-v2.png";
 export const OG_FALLBACK_IMAGE = `${SITE_URL}${OG_FALLBACK_IMAGE_PATH}`;
 /** Dimensions of the asset scripts/generate-og-image.mjs emits. Verified by
  *  lib/seo/open-graph.test.ts against the committed file, so a regenerated

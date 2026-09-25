@@ -282,7 +282,7 @@ const nextConfig: NextConfig = {
       // at the edge/browser, serve stale for a week while revalidating.
       {
         source:
-          "/:file(logo.png|logo.webp|logo_top.png|logo_footer.png|logo_footer.webp|og-default.png|og-default.jpg|ptec-library.jpg)",
+          "/:file(logo.png|logo.webp|logo_top.png|logo_footer.png|logo_footer.webp|og-default.png|og-default-v2.png|og-default.jpg|og-default-v2.jpg|ptec-library.jpg)",
         headers: [
           {
             key: "Cache-Control",

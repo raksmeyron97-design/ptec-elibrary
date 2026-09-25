@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { SITE_URL } from "@/lib/seo/site";
+import { OG_FALLBACK_IMAGE_PATH } from "@/lib/seo/open-graph";
 import { defaultRobots } from "@/lib/seo/indexing";
 import { getSiteConfig } from "@/lib/system-settings/config";
 import { PWA_THEME_COLOR } from "@/lib/pwa/launch";
@@ -35,7 +36,7 @@ export const rootMetadata: Metadata = {
     type: "website",
     locale: "en_US",
     alternateLocale: "km_KH",
-    images: ["/og-default.png"],
+    images: [OG_FALLBACK_IMAGE_PATH],
   },
   twitter: {
     card: "summary_large_image",

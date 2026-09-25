@@ -374,11 +374,11 @@ test.describe("Open Graph contract", () => {
   test("the shared card declares the size it really is", async ({ page, request }) => {
     await page.goto("/about/rules");
     const image = (await og(page, "og:image"))[0];
-    expect(image).toContain("/og-default.png");
+    expect(image).toContain("/og-default-v2.png");
     expect((await og(page, "og:image:width"))[0]).toBe("1200");
     expect((await og(page, "og:image:height"))[0]).toBe("630");
     // And a crawler with no session gets image bytes from it.
-    const res = await request.get("/og-default.png");
+    const res = await request.get("/og-default-v2.png");
     expect(res.status()).toBe(200);
     expect(res.headers()["content-type"]).toContain("image/");
   });

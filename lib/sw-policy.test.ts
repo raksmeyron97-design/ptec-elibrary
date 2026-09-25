@@ -350,6 +350,7 @@ describe("service worker caching policy", () => {
       "/pwa/splash/iphone-430x932-portrait.png",
       "/pwa/screenshots/home.png",
       "/og-default.png",
+      "/og-default-v2.png",
       "/logo.png",
       "/ptec-library.jpg",
       "/favicon/web-app-manifest-512x512.png",

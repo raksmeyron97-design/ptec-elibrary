@@ -195,7 +195,9 @@ const NEVER_PRECACHED = [
 
 /** Exact paths in public/ that no runtime request ever asks the worker for. */
 const UNREACHABLE_FROM_THE_PAGE = new Set([
-  "/og-default.png", // Open Graph — fetched by crawlers off an absolute URL
+  "/og-default-v2.png", // Open Graph v2 — fetched by crawlers off an absolute URL
+  "/og-default-v2.jpg",
+  "/og-default.png", // Open Graph legacy fallback
   "/og-default.jpg", // no references at all
   "/logo.png", // JSON-LD "logo"/"image" string in RootShell, never an <img>
   "/logo_footer.png", // no references (the .webp is what the footer renders)

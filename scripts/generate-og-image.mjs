@@ -10,6 +10,8 @@ const ROOT = path.join(import.meta.dirname, "..");
 const LOGO_PATH = path.join(ROOT, "public/logo.png");
 const PNG_OUT = path.join(ROOT, "public/og-default.png");
 const JPG_OUT = path.join(ROOT, "public/og-default.jpg");
+const PNG_OUT_V2 = path.join(ROOT, "public/og-default-v2.png");
+const JPG_OUT_V2 = path.join(ROOT, "public/og-default-v2.jpg");
 
 async function generateOGImages() {
   const logoBuffer = await fs.readFile(LOGO_PATH);
@@ -123,13 +125,19 @@ async function generateOGImages() {
   await sharp(svgBuffer)
     .png({ compressionLevel: 9 })
     .toFile(PNG_OUT);
-  console.log(`✓ Generated ${path.relative(ROOT, PNG_OUT)}`);
+  await sharp(svgBuffer)
+    .png({ compressionLevel: 9 })
+    .toFile(PNG_OUT_V2);
+  console.log(`✓ Generated ${path.relative(ROOT, PNG_OUT)} & ${path.relative(ROOT, PNG_OUT_V2)}`);
 
   // Generate JPG
   await sharp(svgBuffer)
     .jpeg({ quality: 92 })
     .toFile(JPG_OUT);
-  console.log(`✓ Generated ${path.relative(ROOT, JPG_OUT)}`);
+  await sharp(svgBuffer)
+    .jpeg({ quality: 92 })
+    .toFile(JPG_OUT_V2);
+  console.log(`✓ Generated ${path.relative(ROOT, JPG_OUT)} & ${path.relative(ROOT, JPG_OUT_V2)}`);
 }
 
 generateOGImages().catch((err) => {
