@@ -41,15 +41,19 @@ describe("Open Library (recorded responses, 2026-09-25)", () => {
       year: 2017,
       pageCount: 416,
       edition: "3rd Edition",
+      // A SOURCE for the server to fetch on save — never shown directly.
+      coverSource: "https://covers.openlibrary.org/b/id/12420356-L.jpg",
     });
     expect(c!.subjects[0]).toBe("Java (Computer program language)");
     expect(asked).toHaveLength(2);
   });
 
-  it("404 on the edition is not found — search is never asked", async () => {
-    const { fetch, asked } = router({ "https://openlibrary.org/isbn/": () => json(404, null) });
+  it("404 on the edition is not found, whatever search said", async () => {
+    const { fetch } = router({
+      "https://openlibrary.org/isbn/": () => json(404, null),
+      "https://openlibrary.org/search.json": () => json(200, olSearch),
+    });
     expect(await createOpenLibraryProvider({ fetch })("9780000000002", null)).toEqual({ status: "not_found" });
-    expect(asked).toHaveLength(1);
   });
 
   it("a failed author search still returns the edition", async () => {
@@ -78,6 +82,7 @@ describe("Google Books", () => {
     expect(cs).toHaveLength(1); // the 2001 near miss carries a different ISBN
     expect(cs[0]).toMatchObject({
       provider: "google_books", title: "Effective Java", authors: ["Joshua Bloch"], year: 2017, language: "en", pageCount: 414,
+      coverSource: null, // thumbnails are under the 300×450 minimum
     });
     expect(cs[0].description).toBe("The Definitive Guide to Java Platform Best Practices–Updated for Java 9");
   });

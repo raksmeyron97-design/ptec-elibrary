@@ -5,7 +5,7 @@ import type { IsbnCandidate, IsbnProvider, ProviderResult } from "./types";
 
 const cand = (provider: IsbnProvider, title: string): IsbnCandidate => ({
   provider, providerRecordId: `${provider}:${title}`, title, subtitle: null, authors: [], publisher: null, year: null,
-  language: null, pageCount: null, edition: null, subjects: [], description: null, isbn13: "9780134685991", isbn10: null,
+  language: null, pageCount: null, edition: null, subjects: [], description: null, coverSource: null, isbn13: "9780134685991", isbn10: null,
 });
 
 function memoryCache() {

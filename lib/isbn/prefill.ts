@@ -10,6 +10,7 @@
  */
 import { MAX_TEXT } from "@/lib/catalog";
 import { resolveRowLanguage, type CatalogLanguage } from "@/lib/catalog-import";
+import { isAllowedCoverSource } from "./cover-source";
 import type { IsbnCandidate } from "./types";
 
 export type CatalogPrefill = {
@@ -21,6 +22,8 @@ export type CatalogPrefill = {
   language: CatalogLanguage;
   keywords: string[];
   description: string;
+  /** A found cover to fetch and store on Save — never shown or stored as-is. */
+  coverImportUrl: string | null;
 };
 
 /**
@@ -52,5 +55,6 @@ export function candidateToPrefill(c: IsbnCandidate): CatalogPrefill {
     language: resolveRowLanguage(c.language, title).value,
     keywords: [...new Set(c.subjects.map((s) => s.trim()).filter(Boolean))].slice(0, 10),
     description: (c.description ?? "").slice(0, MAX_TEXT.description),
+    coverImportUrl: isAllowedCoverSource(c.coverSource) ? c.coverSource : null,
   };
 }

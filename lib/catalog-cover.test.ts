@@ -142,6 +142,14 @@ describe("parseCoverInput", () => {
     expect(parseCoverInput(fd({ cover_url: "http://insecure.example/a.jpg" }))).toEqual({ mode: "keep" });
   });
 
+  it("import: accepts only an allow-listed found-cover source — re-checked on the server", () => {
+    const src = "https://covers.openlibrary.org/b/id/12420356-L.jpg";
+    expect(parseCoverInput(fd({ cover_mode: "import", cover_import_url: src }))).toEqual({ mode: "import", url: src });
+    for (const bad of ["https://evil.example/a.jpg", "http://covers.openlibrary.org/b/id/1-L.jpg", ""]) {
+      expect(parseCoverInput(fd({ cover_mode: "import", cover_import_url: bad })).mode).toBe("invalid");
+    }
+  });
+
   it("rejects unknown modes", () => {
     expect(parseCoverInput(fd({ cover_mode: "yolo" })).mode).toBe("invalid");
   });

@@ -3233,7 +3233,11 @@
     "urlBroken": "This URL is not loading — readers would see the generated PTEC cover instead.",
     "generatedInfo": "Nothing is stored. Readers see this PTEC cover, generated from the book's title, author and category.",
     "generatedCaption": "Generated preview",
-    "coverPreviewAlt": "Cover preview"
+    "coverPreviewAlt": "Cover preview",
+    "modeImport": "Found cover",
+    "importCaption": "Found cover",
+    "importInfo": "Found by the ISBN lookup. It is downloaded and stored in PTEC Storage when you save — never linked to the other site.",
+    "importBroken": "This cover could not be loaded — choose another option."
   },
   "paths": {
     "eyebrow": "Teacher Learning Paths",
@@ -7891,7 +7895,8 @@
       "pages": "{count} pages",
       "subjects": "Subjects",
       "noAuthor": "No author given",
-      "prefilledFrom": "Filled from {provider} for ISBN {isbn}. Check every field before saving — category, department, DDC and shelf are left for you to set."
+      "prefilledFrom": "Filled from {provider} for ISBN {isbn}. Check every field before saving — category, department, DDC and shelf are left for you to set.",
+      "coverAlt": "Cover: {title}"
     }
   },
   "adminUpload": {

@@ -10,6 +10,7 @@ import sharp from "sharp";
 import { optimizeImage, BOOK_COVER_OPTS } from "@/lib/image-optimize";
 import { zimaUpload, zimaDelete, isZimaUrl, zimaRelativePath } from "@/lib/zima";
 import { catalogSlugify } from "@/lib/catalog";
+import { isAllowedCoverSource } from "@/lib/isbn/cover-source";
 import {
   COVER_MAX_BYTES,
   COVER_MIN_WIDTH,
@@ -61,6 +62,7 @@ export type CoverInput =
   | { mode: "generated" }
   | { mode: "external"; url: string }
   | { mode: "upload"; file: File }
+  | { mode: "import"; url: string }
   | { mode: "invalid"; error: string };
 
 /**
@@ -94,6 +96,13 @@ export function parseCoverInput(formData: FormData): CoverInput {
     const url = validateExternalCoverUrl(raw);
     if (!url) return { mode: "invalid", error: "The cover URL must be a valid https:// image address." };
     return { mode: "external", url };
+  }
+
+  if (mode === "import") {
+    // Re-validated here: the URL came from a form, and the server is about to fetch it.
+    const url = formData.get("cover_import_url")?.toString().trim() ?? "";
+    if (!isAllowedCoverSource(url)) return { mode: "invalid", error: "This cover source is not one the library fetches from." };
+    return { mode: "import", url };
   }
 
   // upload

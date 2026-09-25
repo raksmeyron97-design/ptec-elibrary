@@ -12,6 +12,7 @@ import { Field, FormShell, ButtonBusy, BTN_PRIMARY, BTN_SECONDARY, ERROR_CLASS }
 import { StatusBadge } from "@/components/admin/kit";
 import { lookupCatalogIsbn, type IsbnLookupResponse } from "../../isbn-actions";
 import type { IsbnCandidate } from "@/lib/isbn/types";
+import { isAllowedCoverSource } from "@/lib/isbn/cover-source";
 
 export default function AddByIsbnPanel({
   input,
@@ -197,8 +198,19 @@ function CandidateCard({ c, onUse }: { c: IsbnCandidate; onUse: () => void }) {
   const meta = [c.publisher, c.year, c.pageCount ? t("pages", { count: c.pageCount }) : null, c.edition].filter(Boolean).join(" · ");
   return (
     <li className="flex gap-4 rounded-xl border border-divider bg-bg-surface p-4 shadow-sm">
-      <div className="flex h-24 w-16 shrink-0 items-center justify-center rounded-md border border-divider bg-paper text-text-muted" aria-hidden="true">
-        <BookOpen className="h-5 w-5" />
+      <div className="flex h-24 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md border border-divider bg-paper text-text-muted">
+        {isAllowedCoverSource(c.coverSource) ? (
+          // Through the same-origin proxy: the provider's image host is not in the CSP.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={`/api/admin/catalogs/cover-preview?src=${encodeURIComponent(c.coverSource)}`}
+            alt={t("coverAlt", { title: c.title })}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <BookOpen className="h-5 w-5" aria-hidden="true" />
+        )}
       </div>
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex flex-wrap items-start justify-between gap-2">
