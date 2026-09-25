@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import km from '../messages/km.json';
 
 // These run against the fresh local Supabase stack the e2e CI job boots (all
 // migrations, including 0111, applied). They assert on structure that holds
@@ -34,6 +35,7 @@ test.describe('Learning Paths — public catalogue', () => {
   test('Khmer catalogue renders under /km with localized breadcrumbs', async ({ page }) => {
     await page.goto('/km/paths');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-    await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toBeVisible();
+    // The landmark itself is localized too (components/ui/core/BreadcrumbNav).
+    await expect(page.getByRole('navigation', { name: km.nav.breadcrumbLabel })).toBeVisible();
   });
 });
