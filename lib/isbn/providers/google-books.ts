@@ -74,6 +74,9 @@ export function createGoogleBooksProvider(o: GoogleBooksOptions) {
         edition: null,
         subjects: strArr(v.categories),
         description: plainText(v.description),
+        // Google thumbnails are ~128 px wide, under the cover pipeline's 300×450
+        // minimum — every one would be refused, so none is offered.
+        coverSource: null,
         isbn13,
         isbn10,
       });

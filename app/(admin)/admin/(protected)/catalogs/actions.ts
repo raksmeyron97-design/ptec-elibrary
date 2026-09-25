@@ -27,6 +27,7 @@ import {
   coverSourceFromUrl,
   type CoverInput,
 } from "@/lib/catalog-cover";
+import { coverFetchMessage, fetchCoverSource } from "@/lib/isbn/cover-source";
 import { zimaRelativePath } from "@/lib/zima";
 
 export type BookActionResult =
@@ -164,14 +165,30 @@ async function resolveCover(formData: FormData, userId: string): Promise<Resolve
   if (input.mode === "generated") return { ok: true, input, update: { cover_url: null }, uploadedUrl: null };
   if (input.mode === "external") return { ok: true, input, update: { cover_url: input.url }, uploadedUrl: null };
 
-  // upload — validate, re-encode, push to Zima Storage.
+  // upload / import — validate, re-encode, push to Zima Storage. An imported
+  // cover is fetched here, on save, so an abandoned form never stores a file.
   const limit = await rateLimit(`catalog-cover:${userId}`, COVER_UPLOAD_LIMIT, COVER_UPLOAD_WINDOW_MS);
   if (!limit.success) {
     const msg = "Too many cover uploads in a short time. Wait a few minutes and try again.";
     return { ok: false, error: msg, fieldErrors: { cover: msg } };
   }
 
-  const processed = await processCatalogCover(await input.file.arrayBuffer(), input.file.name);
+  let bytes: ArrayBuffer;
+  let name: string;
+  if (input.mode === "import") {
+    const fetched = await fetchCoverSource(input.url, { fetch: (u, i) => fetch(u, i) });
+    if (!fetched.ok) {
+      const msg = `${coverFetchMessage(fetched.reason)} Choose another cover option, or save with the auto-generated cover.`;
+      return { ok: false, error: msg, fieldErrors: { cover: msg } };
+    }
+    bytes = fetched.bytes;
+    name = "found-cover.jpg";
+  } else {
+    bytes = await input.file.arrayBuffer();
+    name = input.file.name;
+  }
+
+  const processed = await processCatalogCover(bytes, name);
   if (!processed.ok) {
     return { ok: false, error: processed.error.message, fieldErrors: { cover: processed.error.message } };
   }

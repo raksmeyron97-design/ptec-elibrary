@@ -6,7 +6,7 @@ const base: IsbnCandidate = {
   provider: "open_library", providerRecordId: "/books/OL1M", title: "Effective Java", subtitle: null,
   authors: ["Joshua Bloch"], publisher: "Addison-Wesley Professional", year: 2017, language: "eng", pageCount: 416,
   edition: "3rd Edition", subjects: ["Java (Computer program language)", "Java (Computer program language)", " "],
-  description: null, isbn13: "9780134685991", isbn10: "0134685997",
+  description: null, coverSource: "https://covers.openlibrary.org/b/id/12420356-L.jpg", isbn13: "9780134685991", isbn10: "0134685997",
 };
 
 describe("candidateToPrefill", () => {
@@ -15,8 +15,10 @@ describe("candidateToPrefill", () => {
     expect(p).toEqual({
       title: "Effective Java", author: "Joshua Bloch", isbn: "9780134685991", publisher: "Addison-Wesley Professional",
       year: "2017", language: "en", keywords: ["Java (Computer program language)"], description: "",
+      coverImportUrl: "https://covers.openlibrary.org/b/id/12420356-L.jpg",
     });
     expect(Object.keys(p)).not.toContain("category");
+    // A cover is only ever an IMPORT source — never a URL the form would store and hotlink.
     expect(Object.keys(p)).not.toContain("coverUrl");
   });
 
@@ -24,6 +26,11 @@ describe("candidateToPrefill", () => {
     expect(candidateToPrefill({ ...base, language: null, title: "គណិតវិទ្យា ថ្នាក់ទី៤" }).language).toBe("km");
     expect(candidateToPrefill({ ...base, language: null }).language).toBe("en");
     expect(candidateToPrefill({ ...base, language: "ger" }).language).toBe("other");
+  });
+
+  it("drops a cover source that is not on the allow-list", () => {
+    expect(candidateToPrefill({ ...base, coverSource: "https://evil.example/x.jpg" }).coverImportUrl).toBeNull();
+    expect(candidateToPrefill({ ...base, coverSource: null }).coverImportUrl).toBeNull();
   });
 
   it("keeps a subtitle when it fits", () => {

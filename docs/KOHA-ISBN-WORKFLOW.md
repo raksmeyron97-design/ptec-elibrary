@@ -30,22 +30,39 @@ special support. The ISBN field is focused when the page opens.
 
 | | What we use | Why |
 |---|---|---|
-| **Open Library** | `/isbn/<isbn>.json` for the edition; `/search.json?isbn=` for **author names and subjects only** | `/api/books?bibkeys=` answered 404 for an ISBN the edition endpoint resolves. The search endpoint answers at the WORK level — for *Effective Java* it listed four publishers, five years and three languages — so taking a publisher or year from it would put another edition's facts on this record. Authors don't vary by edition. |
+| **Open Library** | `/isbn/<isbn>.json` for the edition; `/search.json?isbn=` for **author names and subjects only**, in parallel | Measured 3.0–3.7 s for the edition and ~0.9 s for search, so they run together with 10 s each (a 6 s budget timed out a real lookup). `/api/books?bibkeys=` answered 404 for an ISBN the edition endpoint resolves. The search endpoint answers at the WORK level — for *Effective Java* it listed four publishers, five years and three languages — so taking a publisher or year from it would put another edition's facts on this record. Authors don't vary by edition. |
 | **Google Books** | `/books/v1/volumes?q=isbn:` | Keyless requests are charged to Google's shared default project, whose daily quota was **already exhausted** (429). With `GOOGLE_BOOKS_API_KEY` set it is dependable; without, it pauses itself for an hour after each 429 and the panel says an API key would lift it. A volume is kept only if its own identifiers carry the ISBN — Google returns near misses. |
 
-**No cover is offered.** Measured 2026-09-25: `covers.openlibrary.org` is in the
-site's CSP but redirects to `archive.org`, which is not, so the browser refused
-the image — and a record saved with that URL would show a broken cover on its
-public page. Google's image host is not in the CSP at all. The fix is to copy a
-chosen cover into PTEC storage through the existing cover pipeline (a follow-up);
-widening the CSP to a user-content host is not.
+## Covers — stored, never hotlinked
+
+Open Library's covers redirect to `archive.org`, which the CSP does not allow
+(measured: a record saved with the URL showed a broken cover), so a found cover
+is never shown or stored as the provider's URL:
+
+- **Preview** — the candidate card and the Add form show it through
+  `GET /api/admin/catalogs/cover-preview?src=…` (catalogue editors only,
+  rate-limited `RL_COVER_PREVIEW_PER_10MIN`), a same-origin image.
+- **Save** — the form sends `cover_mode=import`; the server re-validates the
+  source, fetches it, and runs it through the ordinary cover pipeline (magic
+  bytes, 300×450 minimum, WebP re-encode, EXIF stripped) into PTEC storage's
+  `catalog-covers/`. Nothing is fetched or stored until Save, so an abandoned
+  form leaves no file behind.
+- **Fetch rules** (`lib/isbn/cover-source.ts`) — only
+  `https://covers.openlibrary.org/b/id/<id>-L.jpg`; redirects followed by hand,
+  at most 4 hops, each https on `covers.openlibrary.org`, `archive.org` or
+  `ia*.us.archive.org`; 5 MB cap; 20 s budget (measured 5.6–6.8 s).
+- **Too small is refused, not upscaled.** The 300×450 minimum is the upload
+  rule, unchanged: of six sampled Open Library covers four passed (most are
+  500 px tall); one was 306×400 and one 154×210. The librarian sees the exact
+  size and can upload another image.
+- Google thumbnails are ~128 px wide, so none is offered.
 
 ## What is filled in, and what is not
 
 Filled: title (with subtitle when it fits), author(s) joined with `; ` (the
 byline splitter's unambiguous delimiter), ISBN-13, publisher, year, language
 (the provider's, else the title's script — the CSV importer's rule), subjects as
-keyword suggestions, description (Google only). No cover (see above).
+keyword suggestions, description (Google only), and a found cover to import (Open Library).
 
 **Not filled: category, department, DDC, shelf.** A provider's subjects are not
 PTEC's taxonomy, and a plausible-looking wrong category is worse than an empty

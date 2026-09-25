@@ -26,9 +26,13 @@ export type IsbnCandidate = {
   /** Subject headings / categories — suggestions for keywords, never the PTEC category. */
   subjects: string[];
   description: string | null;
-  // No cover field, on purpose: neither provider's image host can be shown
-  // under the site's CSP (docs/KOHA-ISBN-WORKFLOW.md). Covers return when a
-  // chosen image is copied into PTEC storage instead of hotlinked.
+  /**
+   * Where the provider keeps a cover — NEVER an <img src>. Open Library's image
+   * host redirects to one the CSP blocks, so the browser only ever sees it
+   * through /api/admin/catalogs/cover-preview, and on Save the server fetches
+   * and stores it (lib/isbn/cover-source.ts). Only allow-listed URLs are set.
+   */
+  coverSource: string | null;
   isbn13: string;
   isbn10: string | null;
 };

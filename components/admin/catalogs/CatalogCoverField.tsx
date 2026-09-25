@@ -7,6 +7,9 @@
 //      when the book is saved, so an abandoned form never orphans a file.
 //   2. External image URL      — hotlinked https URL (legacy behavior).
 //   3. Auto-generated cover    — cover_url null; readers see GeneratedBookCover.
+//   4. Found cover (import)    — offered only when Add by ISBN found one. The
+//      browser sees it through /api/admin/catalogs/cover-preview; on save the
+//      server fetches it and stores it like an upload (lib/isbn/cover-source.ts).
 //
 // The component only emits form fields (cover_mode, cover_file, cover_url) —
 // no network calls of its own, and no storage credentials anywhere near it.
@@ -23,8 +26,9 @@ import {
   sniffImageType,
   type CoverSource,
 } from "@/lib/catalog-cover-shared";
+import { isAllowedCoverSource } from "@/lib/isbn/cover-source";
 
-type Segment = "upload" | "external" | "generated";
+type Segment = "upload" | "external" | "generated" | "import";
 
 type Props = {
   /** Saved cover URL (edit form) or null (add form / no cover). */
@@ -39,6 +43,8 @@ type Props = {
   /** Fired on interactions that don't bubble a form onChange (segment switch,
    *  drag-drop, remove) — lets the edit wizard flip its dirty flag. */
   onChanged?: () => void;
+  /** A cover Add by ISBN found (an allow-listed source URL). Offers a fourth option, preselected. */
+  importFrom?: string | null;
 };
 
 type SelectedFile = { file: File; objectUrl: string; width: number; height: number };
@@ -61,13 +67,16 @@ export default function CatalogCoverField({
   category,
   disabled = false,
   onChanged,
+  importFrom = null,
 }: Props) {
   const t = useTranslations("adminCatalogCover");
   const uid = useId();
 
+  const importSource = isAllowedCoverSource(importFrom) ? importFrom : null;
   const [segment, setSegment] = useState<Segment>(
-    initialSource === "storage" ? "upload" : initialSource === "external" ? "external" : "upload",
+    importSource ? "import" : initialSource === "storage" ? "upload" : initialSource === "external" ? "external" : "upload",
   );
+  const [importBroken, setImportBroken] = useState(false);
   const [selected, setSelected] = useState<SelectedFile | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -87,7 +96,9 @@ export default function CatalogCoverField({
 
   // What the server is asked to do on save.
   const coverMode: string =
-    segment === "generated"
+    segment === "import"
+      ? "import"
+      : segment === "generated"
       ? initialSource === "generated" ? "keep" : "generated"
       : segment === "external"
         ? "external"
@@ -198,10 +209,39 @@ export default function CatalogCoverField({
         aria-label={t("modeGroupLabel")}
         className="inline-flex flex-wrap gap-1 rounded-xl border border-divider bg-bg-surface p-1"
       >
+        {importSource && segBtn("import", t("modeImport"))}
         {segBtn("upload", t("modeUpload"))}
         {segBtn("external", t("modeExternal"))}
         {segBtn("generated", t("modeGenerated"))}
       </div>
+
+      {/* ── Found cover panel (Add by ISBN) ── */}
+      {importSource && (
+        <div hidden={segment !== "import"} className="mt-3">
+          <input type="hidden" name="cover_import_url" value={importSource} />
+          <div className="flex flex-wrap items-start gap-4 rounded-xl border border-divider bg-bg-surface p-3" aria-live="polite">
+            <figure className="w-[92px]">
+              <div className={figureCls}>
+                {!importBroken && (
+                  // Same-origin proxy, so the CSP never sees the provider's host.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={`/api/admin/catalogs/cover-preview?src=${encodeURIComponent(importSource)}`}
+                    alt={t("coverPreviewAlt")}
+                    className="h-full w-full object-cover"
+                    onError={() => setImportBroken(true)}
+                  />
+                )}
+              </div>
+              <figcaption className={captionCls}>{t("importCaption")}</figcaption>
+            </figure>
+            <div className="min-w-[160px] flex-1 space-y-2">
+              <p className="text-[11px] leading-relaxed text-text-muted">{t("importInfo")}</p>
+              {importBroken && <p role="alert" className="text-[11px] font-semibold text-danger">{t("importBroken")}</p>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Upload panel ── */}
       <div hidden={segment !== "upload"} className="mt-3 space-y-3">
