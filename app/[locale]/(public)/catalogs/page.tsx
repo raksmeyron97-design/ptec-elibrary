@@ -9,6 +9,7 @@ import { pagedScan } from "@/lib/db/paged-scan";
 import CatalogCard from "@/components/ui/books/CatalogCard";
 import CatalogSearchBar from "@/components/ui/search/CatalogSearchBar";
 import LibraryVisitStrip from "@/components/ui/books/LibraryVisitStrip";
+import CatalogAvailabilityNotice from "@/components/ui/books/CatalogAvailabilityNotice";
 import { resolveLibraryStatus } from "@/lib/about/status";
 import Pagination from "@/components/ui/core/Pagination";
 import { ClientNavWrapper } from "@/components/ui/books/ClientNavWrapper";
@@ -114,17 +115,25 @@ function compareCandidates(sortKey: string) {
 /**
  * Search without putting the matches in the URL.
  *
- * Keyword and DDC matches used to be collected by pre-query and spliced into
- * the listing query as `id.in.(…)`. With the PMB catalogue a common term
- * matches hundreds of records — one keyword alone tags 496 — so that list was
- * clipped at 1,000 by the pre-query AND outgrew the proxy's request-line limit,
- * whose error path renders "No books found" for exactly the commonest searches.
- * Each leg is now read in full a page at a time, the union is sorted here, and
- * only the visible page's records are fetched by id.
+ * DDC matches used to be collected by pre-query and spliced into the listing
+ * query as `id.in.(…)`. DDC is matched as a substring, so with the PMB
+ * catalogue a short query matches hundreds of records: measured against the
+ * local stack (same Kong 2.8.1 / PostgREST v14.17 as production), "37" spliced
+ * 497 ids into a 19,606-character URL and Kong answered 414 — whose error path
+ * renders "No books found" — and "3" was clipped at 1,000 ids before it got
+ * that far. Each leg is now read in full a page at a time, the union is sorted
+ * here, and only the visible page's records are fetched by id.
+ *
+ * There is deliberately no keyword leg. The old one filtered on
+ * `keywords::text`, but PostgREST does not apply a cast inside a filter, so it
+ * failed every time (`operator does not exist: text[] ~~* unknown`) and the
+ * error was discarded: keyword search on this page has never matched anything.
+ * Making it work needs a searchable text column (a migration), and would widen
+ * results considerably — a product decision, not part of this fix.
  *
  * The title/author/ISBN leg is the search; if it fails the search fails. The
- * keyword and DDC legs widen it, and — as before — their failure narrows the
- * result rather than emptying it.
+ * DDC leg widens it, and — as before — its failure narrows the result rather
+ * than emptying it.
  */
 async function searchCatalogBooks(
   supabase: PublicClient,
@@ -134,15 +143,10 @@ async function searchCatalogBooks(
   const scan = (leg: (from: number, to: number) => PromiseLike<{ data: unknown; error: { message?: string } | null }>) =>
     pagedScan<CandidateRow>(leg, CATALOG_SCAN_CAP);
 
-  const [main, keywords, ddc] = await Promise.all([
+  const [main, ddc] = await Promise.all([
     scan((from, to) =>
       candidateQuery(supabase, o)
         .or(`title.ilike.%${o.q}%,author.ilike.%${o.q}%,isbn.ilike.%${o.q}%,accession_number.ilike.%${o.q}%`)
-        .order("id", { ascending: true })
-        .range(from, to)),
-    scan((from, to) =>
-      candidateQuery(supabase, o)
-        .filter("keywords::text", "ilike", `%${o.q}%`)
         .order("id", { ascending: true })
         .range(from, to)),
     o.ddcQ
@@ -156,7 +160,7 @@ async function searchCatalogBooks(
     return empty;
   }
   const byId = new Map<string, CandidateRow>();
-  for (const leg of [main, keywords, ddc]) {
+  for (const leg of [main, ddc]) {
     if (!leg) continue;
     if (leg.error || leg.truncated) {
       console.error("[catalogs] search leg skipped:", leg.error?.message ?? "scan cap reached");
@@ -361,6 +365,9 @@ export default async function CatalogsPage({
             mapHref={cfg.links.mapPlace}
             directionsLabel={t("emptyVisitCta")}
           />
+
+          {/* The copy counts on every card below are not live yet. */}
+          <CatalogAvailabilityNotice text={t("availabilityNotice")} />
 
           {/* Search bar */}
           <Suspense fallback={<div className="h-11 w-full rounded-xl bg-paper animate-pulse" />}>
