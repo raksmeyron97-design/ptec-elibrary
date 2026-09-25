@@ -25,6 +25,7 @@
 
 import { useEffect, useState } from "react";
 import { ChevronDown, List } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export type RecordSection = {
   id: string;
@@ -130,7 +131,7 @@ function SectionLinks({
 export default function ThesisSectionNav({
   sections,
   variant,
-  heading = "On this page",
+  heading: headingProp,
 }: {
   sections: RecordSection[];
   /**
@@ -148,6 +149,8 @@ export default function ThesisSectionNav({
   variant: "disclosure" | "rail";
   heading?: string;
 }) {
+  const t = useTranslations("thesisDetail");
+  const heading = headingProp ?? t("onThisPage");
   const active = useActiveSection(sections);
   const activeLabel = sections.find((s) => s.id === active)?.label ?? sections[0]?.label;
 

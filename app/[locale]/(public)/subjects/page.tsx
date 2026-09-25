@@ -20,6 +20,7 @@ import {
   type SubjectSummary,
   type SubjectHierarchyRef,
 } from "@/lib/subjects";
+import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
 
 // ISR. The hub renders taxonomy + counts, both invalidated by the tags on
 // getSubjectIndex(), so publishing a book moves the numbers without a redeploy.
@@ -136,8 +137,7 @@ export default async function SubjectsHubPage({ params }: PageProps) {
       {sorted.length > 0 && <JsonLd data={collectionSchema} />}
 
       <div className="mx-auto max-w-5xl">
-        <nav
-          aria-label="Breadcrumb"
+        <BreadcrumbNav
           className="mb-6 flex flex-wrap items-center gap-1.5 text-[13px] font-medium text-text-muted sm:gap-2"
         >
           <Link href="/" className="focus-field rounded-sm transition-colors hover:text-brand">
@@ -145,7 +145,7 @@ export default async function SubjectsHubPage({ params }: PageProps) {
           </Link>
           <Icon name="chevron-right" className="text-[16px] text-divider" />
           <span className="font-semibold text-text-heading">{t("breadcrumbSubjects")}</span>
-        </nav>
+        </BreadcrumbNav>
 
         <CollectionHeader
           eyebrow={t("breadcrumbSubjects")}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Bookmark } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { isThesisBookmarked, toggleThesisBookmark } from "@/lib/theses/local-bookmarks";
 import { isPublicationBookmarked, togglePublicationBookmark } from "@/lib/publications/local-bookmarks";
 
@@ -33,6 +34,7 @@ export default function BookmarkButton({
   plain?: boolean;
   iconLabel?: { save: string; remove: string };
 }) {
+  const t = useTranslations("resourceActions");
   const [saved, setSaved] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -62,10 +64,10 @@ export default function BookmarkButton({
               ? iconLabel.remove
               : iconLabel.save
             : saved
-              ? `Remove from saved ${contentType === "thesis" ? "theses" : "publications"}`
-              : `Save ${contentType}`
+              ? t(contentType === "thesis" ? "bookmarkRemoveThesis" : "bookmarkRemovePublication")
+              : t(contentType === "thesis" ? "bookmarkSaveThesis" : "bookmarkSavePublication")
       }
-      title={plain ? undefined : saved ? "Saved" : "Save"}
+      title={plain ? undefined : saved ? t("saved") : t("bookmarkSave")}
       className={
         plain
           ? `${mounted ? "" : "opacity-0"} ${className}`

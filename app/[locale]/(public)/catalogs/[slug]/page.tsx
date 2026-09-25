@@ -31,6 +31,7 @@ import {
 } from "@/lib/catalog";
 import { getCategoryCoverTheme } from "@/lib/cover-theme";
 import SmartBookCover from "@/components/ui/books/SmartBookCover";
+import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
 
 export const revalidate = 300;
 
@@ -316,13 +317,13 @@ export default async function CatalogBookPage({
 
         <div className="relative mx-auto max-w-[1100px] px-4 pb-6 pt-4 md:px-12">
           {/* Breadcrumb */}
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm text-text-muted">
+          <BreadcrumbNav className="flex items-center gap-1.5 text-sm text-text-muted">
             <Link href="/" className="transition-colors hover:text-brand">{t("detail.home")}</Link>
             <svg className="h-3.5 w-3.5 shrink-0 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden><path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
             <Link href="/catalogs" className="transition-colors hover:text-brand">{t("detail.library")}</Link>
             <svg className="h-3.5 w-3.5 shrink-0 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden><path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
             <span className="max-w-[180px] truncate font-medium text-text-heading sm:max-w-xs" aria-current="page">{b.title}</span>
-          </nav>
+          </BreadcrumbNav>
         </div>
       </div>
 

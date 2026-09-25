@@ -62,6 +62,7 @@ import { SITE_URL } from "@/lib/seo/site";
 import { bookScholarMeta } from "@/lib/seo/citation";
 import { bookToCitationWork, hasCitableMetadata } from "@/lib/books/citation";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
+import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
 
 
 type BookDetailPageProps = {
@@ -174,6 +175,16 @@ export async function generateMetadata({
     },
   };
 }
+
+// The stored values are a closed English vocabulary (lib/book-utils.ts,
+// lib/books/language.ts); they were printed as-is, so /km/books/<slug> read
+// "● Digital" and "Khmer". Anything outside the vocabulary still prints raw.
+const AVAILABILITY_KEY = {
+  Available: "availabilityAvailable",
+  Borrowed: "availabilityBorrowed",
+  Digital: "availabilityDigital",
+} as const satisfies Record<Book["availability"], string>;
+const LANGUAGE_KEY = { Khmer: "languageKhmer", English: "languageEnglish" } as const;
 
 type BookWithSource = Book & {
   fromSupabase: boolean;
@@ -363,7 +374,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
           hasCopies={copies.length > 0}
         />
         
-        <nav aria-label="Breadcrumb" className="mb-5 flex flex-wrap items-center gap-1.5 sm:gap-2 text-[13px] sm:text-[14.5px] font-medium text-text-muted overflow-hidden">
+        <BreadcrumbNav className="mb-5 flex flex-wrap items-center gap-1.5 sm:gap-2 text-[13px] sm:text-[14.5px] font-medium text-text-muted overflow-hidden">
           <Link href="/" className="hover:text-brand transition-colors">{t("home")}</Link>
           <Icon name="chevron-right" className="text-[16px] text-divider" />
           <Link href="/books" className="hover:text-brand transition-colors">{t("books")}</Link>
@@ -382,7 +393,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
           <span className="max-w-[200px] truncate font-semibold text-text-heading sm:max-w-[300px]" title={book.title}>
             {book.title}
           </span>
-        </nav>
+        </BreadcrumbNav>
 
 
         {/* ── Hero card ── */}
@@ -413,7 +424,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
             <div className="flex flex-wrap gap-2 items-center">
               <Badge variant="brand">{book.department}</Badge>
               <Badge variant="neutral">{book.category}</Badge>
-              <Badge variant="success">● {book.availability}</Badge>
+              <Badge variant="success">● {t(AVAILABILITY_KEY[book.availability])}</Badge>
               <DownloadCount count={book.downloadCount ?? 0} />
               {book.department && (
                 <Suspense fallback={null}>
@@ -459,7 +470,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
             <dl className="mt-5 sm:mt-7 grid grid-cols-2 gap-2 sm:gap-3">
               {([
                 [t("isbn"),            book.isbn && book.isbn !== "N/A" ? book.isbn : null],
-                [t("language"),        book.language || null],
+                [t("language"),        book.language ? (book.language in LANGUAGE_KEY ? t(LANGUAGE_KEY[book.language as keyof typeof LANGUAGE_KEY]) : book.language) : null],
                 [t("publicationYear"), book.year && book.year <= new Date().getFullYear() + 1 ? String(book.year) : null],
                 [t("pages"),           book.pages && book.pages > 1 ? String(book.pages) : null],
               ] as [string, string | null][])

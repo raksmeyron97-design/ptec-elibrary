@@ -43,6 +43,7 @@ import {
   type SummaryEntry,
 } from "@/lib/theses/summary";
 import { getOrgIdentity } from "@/lib/system-settings/config";
+import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
 
 type SP = {
   q?: string;
@@ -372,8 +373,7 @@ export default async function ThesesSummaryPage({
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="border-b border-divider bg-bg-surface px-4 py-6 md:px-12 md:py-8">
           <div className="mx-auto max-w-[1100px]">
-            <nav
-              aria-label="Breadcrumb"
+            <BreadcrumbNav
               className="mb-4 flex flex-wrap items-center gap-1.5 text-[13px] font-medium text-text-muted sm:gap-2 sm:text-[14.5px]"
             >
               <Link href="/" className="rounded-sm transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50">
@@ -387,7 +387,7 @@ export default async function ThesesSummaryPage({
               <span aria-current="page" className="text-text-heading">
                 {tNav("summaryIndex")}
               </span>
-            </nav>
+            </BreadcrumbNav>
 
             <h1 className="font-khmer-serif text-2xl font-bold leading-tight text-text-heading md:text-4xl">
               {t("title")}

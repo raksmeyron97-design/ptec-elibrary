@@ -29,6 +29,7 @@ import {
   type SubjectResourceType,
 } from "@/lib/subjects";
 import { JOURNALS_PATH } from "@/lib/journals/urls";
+import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
 
 export const revalidate = 3600;
 
@@ -186,8 +187,7 @@ export default async function SubjectPage({ params }: PageProps) {
       <JsonLd data={collectionSchema} />
 
       <div className="mx-auto max-w-5xl">
-        <nav
-          aria-label="Breadcrumb"
+        <BreadcrumbNav
           className="mb-6 flex flex-wrap items-center gap-1.5 text-[13px] font-medium text-text-muted sm:gap-2"
         >
           <Link href="/" className="focus-field rounded-sm transition-colors hover:text-brand">
@@ -215,7 +215,7 @@ export default async function SubjectPage({ params }: PageProps) {
           <span className="max-w-[220px] truncate font-semibold text-text-heading sm:max-w-none">
             {subject.name}
           </span>
-        </nav>
+        </BreadcrumbNav>
 
         <header className="mb-10">
           {subject.parent && (

@@ -4,13 +4,13 @@
 // the same crumbs (lib/seo/schema.ts `breadcrumbSchema`).
 import { Link } from "@/i18n/navigation";
 import Icon from "@/components/ui/core/Icon";
+import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
 
 export type JournalCrumb = { label: string; href?: string };
 
 export default function JournalBreadcrumb({ crumbs }: { crumbs: JournalCrumb[] }) {
   return (
-    <nav
-      aria-label="Breadcrumb"
+    <BreadcrumbNav
       className="mb-6 flex flex-wrap items-center gap-1.5 text-[13px] font-medium text-text-muted sm:gap-2 sm:text-[14.5px]"
     >
       {crumbs.map((c, i) => {
@@ -34,6 +34,6 @@ export default function JournalBreadcrumb({ crumbs }: { crumbs: JournalCrumb[] }
           </span>
         );
       })}
-    </nav>
+    </BreadcrumbNav>
   );
 }

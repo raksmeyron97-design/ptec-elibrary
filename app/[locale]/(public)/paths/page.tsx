@@ -17,6 +17,7 @@ import {
   type LearningPathSeoInput,
 } from "@/lib/seo/learning-path-seo";
 import { getOrgIdentity } from "@/lib/system-settings/config";
+import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
 
 // ISR: this page renders no per-visit/per-user data (learner progress is fetched
 // client-side inside PathsCatalogueClient, so the shell stays cacheable). getPublished-
@@ -116,8 +117,7 @@ export default async function LearningPathsPage({
       <JsonLd data={breadcrumbs} />
       <div className="mx-auto max-w-[1200px] px-4 py-8 md:px-8 md:py-10">
         {/* Semantic Breadcrumb */}
-        <nav
-          aria-label="Breadcrumb"
+        <BreadcrumbNav
           className="mb-5 flex flex-wrap items-center gap-1.5 text-[13px] font-medium text-text-muted"
         >
           <Link href="/" className="focus-field rounded-sm transition-colors hover:text-brand">
@@ -125,7 +125,7 @@ export default async function LearningPathsPage({
           </Link>
           <ChevronRight className="h-3.5 w-3.5 text-divider" aria-hidden="true" />
           <span className="font-semibold text-text-heading">{t("breadcrumbPaths")}</span>
-        </nav>
+        </BreadcrumbNav>
 
         {/* ── Hero ── */}
         <header className="mb-8 border-b border-divider pb-7">

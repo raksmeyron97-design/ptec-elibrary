@@ -26,6 +26,7 @@ import AuthorHero from "@/components/ui/authors/AuthorHero";
 import AuthorAbout from "@/components/ui/authors/AuthorAbout";
 import ResearchInterests from "@/components/ui/authors/ResearchInterests";
 import AuthorWorksList from "@/components/ui/authors/AuthorWorksList";
+import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
 
 export const revalidate = 3600;
 
@@ -296,8 +297,7 @@ export default async function AuthorPage({ params }: PageProps) {
       <JsonLd data={breadcrumbs} />
 
       <div className="mx-auto max-w-5xl">
-        <nav
-          aria-label="Breadcrumb"
+        <BreadcrumbNav
           className="mb-6 flex flex-wrap items-center gap-1.5 text-[13px] font-medium text-text-muted sm:gap-2"
         >
           <Link href="/" className="focus-field rounded-sm transition-colors hover:text-brand">
@@ -314,7 +314,7 @@ export default async function AuthorPage({ params }: PageProps) {
           <span className="max-w-[220px] truncate font-semibold text-text-heading sm:max-w-none">
             {author.name}
           </span>
-        </nav>
+        </BreadcrumbNav>
 
         <AuthorHero
           author={author}

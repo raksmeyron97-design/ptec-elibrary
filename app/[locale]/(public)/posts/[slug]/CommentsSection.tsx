@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useTransition, useRef, useEffect, useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { createComment, deleteComment, updateComment, toggleCommentLike, getCommentLikes } from "@/app/actions/post-comments";
@@ -41,19 +41,23 @@ interface Props {
 function getInitial(name: string): string {
   return name.trim().charAt(0).toUpperCase();
 }
-function getAuthorName(author: CommentAuthor | null): string {
-  return author?.full_name ?? author?.email ?? "Anonymous";
+// Every string below comes from the `posts` namespace — the comment thread
+// printed English ("Reply", "5m ago", "Login to comment") on /km/posts/*.
+type PostsT = ReturnType<typeof useTranslations<"posts">>;
+
+function getAuthorName(author: CommentAuthor | null, t: PostsT): string {
+  return author?.full_name ?? author?.email ?? t("commentAnonymous");
 }
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, t: PostsT, locale: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
-  if (m < 1)  return "just now";
-  if (m < 60) return `${m}m ago`;
+  if (m < 1)  return t("commentJustNow");
+  if (m < 60) return t("commentMinutesAgo", { n: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
+  if (h < 24) return t("commentHoursAgo", { n: h });
   const d = Math.floor(h / 24);
-  if (d < 30) return `${d}d ago`;
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  if (d < 30) return t("commentDaysAgo", { n: d });
+  return new Date(iso).toLocaleDateString(locale === "km" ? "km-KH" : "en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 /* ─── Avatar with gold ring ─── */
@@ -260,6 +264,7 @@ function CommentForm({
   onCancel?: () => void; placeholder?: string; isEdit?: boolean;
   onTypingStart?: () => void; onTypingStop?: () => void;
 }) {
+  const t = useTranslations("posts");
   const [body, setBody] = useState(initialBody ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -296,7 +301,7 @@ function CommentForm({
           onChange={setBody}
           onFocus={onTypingStart}
           onBlur={onTypingStop}
-          placeholder={placeholder ?? "Share your thoughts…"}
+          placeholder={placeholder ?? t("commentPlaceholder")}
           disabled={isPending}
           maxLength={2000}
           className="px-4 pt-3 pb-10 text-sm text-text-heading font-sans
@@ -306,7 +311,7 @@ function CommentForm({
         {/* char counter inside box */}
         <span className={`absolute bottom-3 left-4 text-[10px] tabular-nums transition-colors
                           ${charLeft < 100 ? "text-amber-500" : "text-text-muted/50"}`}>
-          {body.length > 0 && `${charLeft} left`}
+          {body.length > 0 && t("commentCharsLeft", { n: charLeft })}
         </span>
         {/* submit inside box */}
         <div className="absolute bottom-2 right-2">
@@ -326,7 +331,7 @@ function CommentForm({
                   <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
                 </svg>
             }
-            {isEdit ? "Save" : parentId ? "Reply" : "Post"}
+            {isEdit ? t("commentSave") : parentId ? t("commentReply") : t("commentPost")}
           </button>
         </div>
       </div>
@@ -337,7 +342,7 @@ function CommentForm({
         <button type="button" onClick={onCancel} disabled={isPending}
           className="self-start text-xs text-text-muted hover:text-text-heading
                      transition-colors font-sans disabled:opacity-60">
-          Cancel
+          {t("commentCancel")}
         </button>
       )}
     </form>
@@ -349,10 +354,12 @@ function ReplyItem({ reply, currentUserId, canModerate, postSlug, onDelete }: {
   reply: Comment; currentUserId: string | null; canModerate: boolean;
   postSlug: string; onDelete: () => void;
 }) {
+  const t = useTranslations("posts");
+  const locale = useLocale();
   const { likes, liked, toggle } = useCommentLikes(reply.id, currentUserId);
   const [isDeleting, startDeleting] = useTransition();
   const [deleted, setDeleted] = useState(false);
-  const authorName = getAuthorName(reply.author);
+  const authorName = getAuthorName(reply.author, t);
   const canDelete = canModerate || reply.user_id === currentUserId;
 
   if (deleted) return null;
@@ -365,7 +372,7 @@ function ReplyItem({ reply, currentUserId, canModerate, postSlug, onDelete }: {
                         bg-bg-surface border border-divider/60">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="font-semibold text-text-heading text-xs font-sans">{authorName}</span>
-            <span className="text-text-muted text-[10px] font-sans">{timeAgo(reply.created_at)}</span>
+            <span className="text-text-muted text-[10px] font-sans">{timeAgo(reply.created_at, t, locale)}</span>
           </div>
           <p className="text-text-body text-sm font-sans leading-relaxed whitespace-pre-wrap">{reply.body}</p>
         </div>
@@ -373,14 +380,14 @@ function ReplyItem({ reply, currentUserId, canModerate, postSlug, onDelete }: {
           <HeartButton count={likes} liked={liked} onToggle={toggle} disabled={!currentUserId} />
           {canDelete && (
             <button type="button" onClick={() => {
-              if (!confirm("Delete this reply?")) return;
+              if (!confirm(t("commentDeleteReplyConfirm"))) return;
               startDeleting(async () => {
                 const res = await deleteComment(reply.id, postSlug);
                 if (!res.error) { setDeleted(true); onDelete(); }
               });
             }} disabled={isDeleting}
               className="text-[11px] text-text-muted hover:text-red-500 transition-colors font-sans">
-              {isDeleting ? "…" : "Delete"}
+              {isDeleting ? "…" : t("commentDelete")}
             </button>
           )}
         </div>
@@ -397,6 +404,8 @@ function CommentItem({
   isAdmin: boolean; canModerate: boolean; postId: string; postSlug: string;
   onReplySuccess: () => void;
 }) {
+  const t = useTranslations("posts");
+  const locale = useLocale();
   const [showReply, setShowReply] = useState(false);
   const [showReplies, setShowReplies] = useState(true);
   const [deleted, setDeleted] = useState(false);
@@ -408,13 +417,13 @@ function CommentItem({
   const router = useRouter();
   const supabase = createClient();
 
-  const authorName = getAuthorName(comment.author);
+  const authorName = getAuthorName(comment.author, t);
   const canDelete = canModerate || comment.user_id === currentUserId;
   const canEdit   = comment.user_id === currentUserId;
   const isOwner   = comment.user_id === currentUserId;
 
   function handleDelete() {
-    if (!confirm("Delete this comment?")) return;
+    if (!confirm(t("commentDeleteConfirm"))) return;
     startDeleting(async () => {
       const res = await deleteComment(comment.id, postSlug);
       if (!res.error) { setDeleted(true); onReplySuccess(); }
@@ -476,20 +485,20 @@ function CommentItem({
                 {isAdmin && comment.user_id !== currentUserId && (
                   <span className="text-[9px] font-bold text-white bg-gradient-to-r
                                    from-[#DDB022] to-[#d97706] px-1.5 py-0.5 rounded-full uppercase tracking-wide">
-                    Admin
+                    {t("commentBadgeAdmin")}
                   </span>
                 )}
                 {isOwner && (
                   <span className="text-[9px] font-bold text-[#806211] bg-[#DDB022]/15
                                    px-1.5 py-0.5 rounded-full border border-[#DDB022]/30 uppercase tracking-wide">
-                    You
+                    {t("commentBadgeYou")}
                   </span>
                 )}
-                <span className="text-text-muted text-xs font-sans">{timeAgo(comment.created_at)}</span>
+                <span className="text-text-muted text-xs font-sans">{timeAgo(comment.created_at, t, locale)}</span>
               </div>
               {/* edit indicator — from DB is_edited flag or local edit */}
               {(comment.is_edited || editedBody !== comment.body) && (
-                <span className="text-[9px] text-text-muted italic font-sans">(edited)</span>
+                <span className="text-[9px] text-text-muted italic font-sans">{t("commentEdited")}</span>
               )}
             </div>
             <p className="text-text-body text-sm font-sans leading-relaxed whitespace-pre-wrap">
@@ -506,20 +515,20 @@ function CommentItem({
             <button type="button" onClick={handleReplyClick}
               className={`text-xs font-semibold font-sans transition-colors
                           ${showReply ? "text-[#DDB022]" : "text-text-muted hover:text-[#DDB022]"}`}>
-              Reply
+              {t("commentReply")}
             </button>
 
             {canEdit && (
               <button type="button" onClick={() => setIsEditing(true)}
                 className="text-xs text-text-muted hover:text-[#4f46e5] transition-colors font-sans">
-                Edit
+                {t("commentEdit")}
               </button>
             )}
 
             {canDelete && (
               <button type="button" onClick={handleDelete} disabled={isDeleting}
                 className="text-xs text-text-muted hover:text-red-500 transition-colors font-sans disabled:opacity-60">
-                {isDeleting ? "…" : "Delete"}
+                {isDeleting ? "…" : t("commentDelete")}
               </button>
             )}
 
@@ -532,7 +541,7 @@ function CommentItem({
                      className={`transition-transform duration-200 ${showReplies ? "rotate-180" : ""}`}>
                   <path d="M6 9l6 6 6-6"/>
                 </svg>
-                {showReplies ? "Hide" : `${replies.length} ${replies.length === 1 ? "reply" : "replies"}`}
+                {showReplies ? t("commentHideReplies") : t("commentReplyCount", { count: replies.length })}
               </button>
             )}
           </div>
@@ -543,7 +552,7 @@ function CommentItem({
           <div className="mt-3 cmnt-fade-in">
             <CommentForm
               postId={postId} postSlug={postSlug} parentId={comment.id}
-              placeholder={`Reply to ${authorName}…`}
+              placeholder={t("commentReplyTo", { name: authorName })}
               onSuccess={() => { setShowReply(false); onReplySuccess(); }}
               onCancel={() => setShowReply(false)}
             />
@@ -653,7 +662,7 @@ export default function CommentsSection({
                             ${sort === s
                               ? "bg-[#DDB022] text-white shadow-sm"
                               : "text-text-muted hover:text-text-heading"}`}>
-                {s === "oldest" ? "Oldest" : "Newest"}
+                {s === "oldest" ? t("sortOldest") : t("sortNewest")}
               </button>
             ))}
           </div>
@@ -695,8 +704,8 @@ export default function CommentsSection({
           </div>
           <div>
             <p className="text-sm font-bold text-text-heading font-sans
-                          group-hover:text-accent-text transition-colors">Login to comment</p>
-            <p className="text-xs text-text-muted font-sans">Join the conversation — sign in to share your thoughts</p>
+                          group-hover:text-accent-text transition-colors">{t("commentLoginTitle")}</p>
+            <p className="text-xs text-text-muted font-sans">{t("commentLoginBody")}</p>
           </div>
           <svg className="ml-auto h-4 w-4 text-text-muted group-hover:text-[#DDB022]
                           transition-all group-hover:translate-x-0.5 shrink-0"
@@ -753,7 +762,7 @@ export default function CommentsSection({
             <TypingDots />
           </div>
           <span className="text-[10px] text-text-muted font-sans">
-            Someone is typing…
+            {t("commentTyping")}
           </span>
         </div>
       )}

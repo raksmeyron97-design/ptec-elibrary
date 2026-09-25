@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import {
   formatPublicationDate,
   getDoi,
@@ -52,7 +53,8 @@ function Row({ label, value }: { label: string; value: ReactNode }) {
 }
 
 export default function PublicationMetadata({ report }: { report: ResearchReport }) {
-  const publishedOn = formatPublicationDate(report);
+  const t = useTranslations("thesisDetail");
+  const publishedOn = formatPublicationDate(report, useLocale());
   const doi = getDoi(report);
   const language = getLanguageLabel(report);
   const defendedOn = getDefenseDate(report);
@@ -66,12 +68,12 @@ export default function PublicationMetadata({ report }: { report: ResearchReport
   const licence = /^(unknown|none|n\/a|-{1,2})$/i.test(rawLicence) ? null : rawLicence || null;
 
   const rows: Array<{ label: string; value: ReactNode } | null> = [
-    typeLabel ? { label: "Record type", value: typeLabel } : null,
-    language ? { label: "Language", value: language } : null,
-    submittedOn ? { label: "Submitted", value: submittedOn } : null,
-    defendedOn ? { label: "Defended", value: defendedOn } : null,
-    publishedOn ? { label: "Published", value: publishedOn } : null,
-    licence ? { label: "Licence", value: licence } : null,
+    typeLabel ? { label: t("pubRecordType"), value: typeLabel } : null,
+    language ? { label: t("pubLanguage"), value: language } : null,
+    submittedOn ? { label: t("pubSubmitted"), value: submittedOn } : null,
+    defendedOn ? { label: t("pubDefended"), value: defendedOn } : null,
+    publishedOn ? { label: t("pubPublished"), value: publishedOn } : null,
+    licence ? { label: t("pubLicence"), value: licence } : null,
     doi
       ? {
           label: "DOI",
@@ -93,7 +95,7 @@ export default function PublicationMetadata({ report }: { report: ResearchReport
   if (visible.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-divider px-4 py-5 text-[13.5px] text-text-muted">
-        No additional publication details have been recorded for this thesis.
+        {t("pubEmpty")}
       </p>
     );
   }

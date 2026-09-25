@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import { FileText, Fingerprint } from "lucide-react";
@@ -9,12 +10,14 @@ import { citationYear } from "@/lib/citations";
 import { academicTextToPlainText } from "@/lib/publications/citations";
 import { articlePath } from "@/lib/journals/urls";
 
-const TYPE_LABELS: Record<string, string> = {
-  article: "Article",
-  review: "Review",
-  account: "Account",
-  editorial: "Editorial",
-};
+// Keys in the `publications` namespace; the labels were English literals,
+// so a Khmer journal listing read "Article" / "Review" / "Editorial".
+const TYPE_KEY = {
+  article: "typeArticle",
+  review: "typeReview",
+  account: "typeAccount",
+  editorial: "typeEditorial",
+} as const;
 
 /**
  * A repository row, not a poster.
@@ -38,6 +41,7 @@ export default function PublicationListItem({
   publication: Publication;
   labels: { openAccess: string; licensed: string; rightsUnstated: string };
 }) {
+  const t = useTranslations("publications");
   const year = citationYear(publication);
   const snippet = academicTextToPlainText(publication.abstract, publication.references);
 
@@ -81,7 +85,7 @@ export default function PublicationListItem({
         <div className="min-w-0 flex-1">
           <div className="mb-1.5 flex flex-wrap items-center gap-2">
             <Badge variant="brand" className="!px-2 !py-0.5 !text-[9px] uppercase tracking-wide">
-              {TYPE_LABELS[publication.article_type] ?? publication.article_type}
+              {publication.article_type in TYPE_KEY ? t(TYPE_KEY[publication.article_type as keyof typeof TYPE_KEY]) : publication.article_type}
             </Badge>
             <AccessBadge license={publication.license} labels={labels} />
           </div>

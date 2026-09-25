@@ -2,6 +2,7 @@
 import Image from "next/image";
 import { Link } from "@/i18n/navigation";
 import { ArrowRight, GraduationCap } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
 interface RelatedThesesProps {
@@ -21,12 +22,12 @@ interface RelatedThesesProps {
   railHeading?: string;
 }
 
-const REASON_LABEL: Record<string, string> = {
-  cohort: "Same Cohort",
-  department: "Same Department",
-  academic_year: "Same Year",
-  popular: "Popular",
-};
+const REASON_KEY = {
+  cohort: "reasonCohort",
+  department: "reasonDepartment",
+  academic_year: "reasonYear",
+  popular: "reasonPopular",
+} as const;
 
 export default async function RelatedTheses({
   currentId,
@@ -34,13 +35,15 @@ export default async function RelatedTheses({
   academicYear,
   department,
   variant = "section",
-  railHeading = "Related · same faculty",
+  railHeading: railHeadingProp,
 }: RelatedThesesProps) {
   const supabase = createServiceClient();
   // The rail shows three; the shelf shows six. Fetching only what is rendered
   // keeps the rail from paying for three rows it will throw away.
   const TARGET = variant === "rail" ? 3 : 6;
 
+  const [t, tSearch] = await Promise.all([getTranslations("thesisDetail"), getTranslations("thesisSearch")]);
+  const railHeading = railHeadingProp ?? t("relatedRail");
   const seen = new Set<string>([currentId]);
   const collected: any[] = [];
   const reasons = new Map<string, string>();
@@ -93,7 +96,7 @@ export default async function RelatedTheses({
                   {report.title}
                 </span>
                 <span className="mt-1 block text-[11px] font-semibold uppercase leading-[1.4] tracking-[0.06em] text-text-muted">
-                  {[report.author_names, report.cohort && `Cohort ${report.cohort}`]
+                  {[report.author_names, report.cohort && tSearch("cohortNumber", { number: report.cohort })]
                     .filter(Boolean)
                     .join(" · ")}
                 </span>
@@ -113,17 +116,17 @@ export default async function RelatedTheses({
             id="related-theses-heading"
             className="text-[22px] font-bold tracking-[-0.01em] text-text-heading sm:text-[24px]"
           >
-            Related theses
+            {t("relatedTitle")}
           </h2>
           <p className="mt-1 text-[13.5px] text-text-muted">
-            Other research from the same cohort, faculty and year.
+            {t("relatedIntro")}
           </p>
         </div>
         <Link
           href="/theses"
           className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1.5 text-[13px] font-semibold text-brand transition-colors duration-150 hover:bg-bg-app focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
         >
-          Browse all theses
+          {t("relatedBrowseAll")}
           <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
         </Link>
       </div>
@@ -133,13 +136,13 @@ export default async function RelatedTheses({
         // young collection, so it says so and offers the next useful move.
         <div className="rounded-2xl border border-dashed border-divider px-5 py-8 text-center">
           <p className="text-[14px] text-text-muted">
-            No related theses are available yet — the collection is still growing.
+            {t("relatedEmpty")}
           </p>
           <Link
             href="/theses"
             className="mt-3 inline-flex items-center gap-1.5 rounded-lg text-[13.5px] font-semibold text-brand underline decoration-brand/30 underline-offset-4 transition-colors hover:decoration-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
           >
-            Explore all theses
+            {t("relatedExplore")}
             <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
           </Link>
         </div>
@@ -151,7 +154,7 @@ export default async function RelatedTheses({
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {collected.slice(0, 3).map((report) => {
             const reason = reasons.get(report.id);
-            const label = reason ? REASON_LABEL[reason] : undefined;
+            const label = reason && reason in REASON_KEY ? t(REASON_KEY[reason as keyof typeof REASON_KEY]) : undefined;
             return (
               <li key={report.id}>
                 <Link

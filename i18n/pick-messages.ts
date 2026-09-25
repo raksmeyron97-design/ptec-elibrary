@@ -63,6 +63,7 @@ export const PUBLIC_NAMESPACES = [
   "search",
   "searchBar",
   "share",
+  "thesisDetail",
   "thesisDownload",
   "thesisSearch",
   "thesisSummary",

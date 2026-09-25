@@ -460,7 +460,7 @@ export default function PriorityNav({
 
       {/* Real row */}
       <nav
-        aria-label="Primary"
+        aria-label={t("primaryLabel")}
         className={cx(
           "flex h-full items-center",
           !measured && "overflow-x-hidden",

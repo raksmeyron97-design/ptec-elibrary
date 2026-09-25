@@ -73,12 +73,16 @@ export function FilterSelect({
   defaultLabel,
   paramKey,
   basePath = "/books",
+  optionLabels,
 }: {
   value: string;
   options: string[];
   defaultLabel: string;
   paramKey: string;
   basePath?: string;
+  /** Display text per option VALUE. The value stays the URL parameter; only
+   *  what the reader sees changes (a stored "Khmer" shown as ខ្មែរ on /km). */
+  optionLabels?: Record<string, string>;
 }) {
   const { navigate } = useClientNav();
   const searchParams = useSearchParams();
@@ -110,7 +114,7 @@ export function FilterSelect({
       <option value="">{defaultLabel}</option>
       {options.map((opt) => (
         <option key={opt} value={opt}>
-          {opt}
+          {optionLabels?.[opt] ?? opt}
         </option>
       ))}
     </select>

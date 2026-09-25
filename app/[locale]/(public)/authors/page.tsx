@@ -16,6 +16,7 @@ import { getListedAuthors } from "@/lib/authors/directory";
 import { authorFilterKey } from "@/lib/authors/filter-key";
 import AuthorDirectoryFilter from "@/components/ui/authors/AuthorDirectoryFilter";
 import { CollectionHeader, CollectionEmptyState, EntityBadge } from "@/components/ui/collection";
+import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
 
 export const revalidate = 3600;
 
@@ -118,8 +119,7 @@ export default async function AuthorsHubPage({ params }: PageProps) {
 
       <div className="mx-auto max-w-5xl">
         {/* Semantic Breadcrumb */}
-        <nav
-          aria-label="Breadcrumb"
+        <BreadcrumbNav
           className="mb-5 flex flex-wrap items-center gap-1.5 text-[13px] font-medium text-text-muted"
         >
           <Link href="/" className="focus-field rounded-sm transition-colors hover:text-brand">
@@ -127,7 +127,7 @@ export default async function AuthorsHubPage({ params }: PageProps) {
           </Link>
           <Icon name="chevron-right" className="text-[15px] text-divider" />
           <span className="font-semibold text-text-heading">{t("breadcrumbAuthors")}</span>
-        </nav>
+        </BreadcrumbNav>
 
         {/* Editorial Academic Header */}
         <CollectionHeader
