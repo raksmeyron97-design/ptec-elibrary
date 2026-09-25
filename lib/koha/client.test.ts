@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { createKohaClient, kohaPath, assertSafePath, RETRY_DELAYS_MS } from "./client";
+import { createKohaClient, kohaPath, assertSafePath, RETRY_DELAYS_MS, newKohaRequestId } from "./client";
 import { resolveKohaConfig } from "./config";
 import { KohaError, kohaErrorFromResponse } from "./errors";
-import { MOCK_KOHA_BASE_URL, MOCK_KOHA_LIBRARIES } from "./mock";
+import { MOCK_KOHA_BASE_URL, MOCK_KOHA_LIBRARIES, createMockKoha } from "./mock";
+import { findKohaBiblioIdsByIsbn } from "./biblios";
 import { isKohaLibraryList, isKohaVersion } from "./types";
 import type { FetchLike } from "./auth";
 
@@ -33,7 +34,7 @@ function scripted(answers: Array<Response | Error | "hang">) {
     return a ?? new Response("[]", { status: 200 });
   };
   const sleeps: number[] = [];
-  const client = createKohaClient(REAL, { fetch, sleep: async (ms) => void sleeps.push(ms), newRequestId: () => "req-1" });
+  const client = createKohaClient(REAL, { fetch, sleep: async (ms) => void sleeps.push(ms), newRequestId: () => "4242" });
   return { client, calls, sleeps };
 }
 
@@ -70,11 +71,11 @@ describe("createKohaClient", () => {
   it("sends the bearer token, the request id and the library, to the configured host only", async () => {
     const { client, calls } = scripted([ok(MOCK_KOHA_LIBRARIES, { "X-Total-Count": "1" })]);
     const r = await client.get("/libraries", isKohaLibraryList, { query: { _per_page: 100, unused: undefined } });
-    expect(r).toEqual({ data: MOCK_KOHA_LIBRARIES, total: 1, requestId: "req-1" });
+    expect(r).toEqual({ data: MOCK_KOHA_LIBRARIES, total: 1, requestId: "4242" });
     expect(calls[0].url).toBe("http://koha.test/api/v1/libraries?_per_page=100");
     const h = calls[0].init!.headers as Record<string, string>;
     expect(h.Authorization).toMatch(/^Bearer tok-/);
-    expect(h["x-koha-request-id"]).toBe("req-1");
+    expect(h["x-koha-request-id"]).toBe("4242");
     expect(h["x-koha-library"]).toBe("PTEC");
     expect(calls[0].init!.method).toBe("GET");
   });
@@ -153,5 +154,44 @@ describe("kohaErrorFromResponse", () => {
   it("caps Koha's own reason so a huge error body cannot flood a log", () => {
     const e = kohaErrorFromResponse(400, { error: "x".repeat(5_000) }, "GET /x");
     expect(e.message.length).toBeLessThan(400);
+  });
+});
+
+// ── x-koha-request-id is an INTEGER in Koha 26.05 ──────────────────────────────
+// Found by the first run against a live Koha 26.05.03 (ptec-koha-deployment,
+// 2026-09-25): the client sent crypto.randomUUID(), Koha declares the header
+// `type: integer` on 49 paths, and every list call answered 400 while the
+// version check — whose path does not declare it — passed.
+describe("x-koha-request-id", () => {
+  it("the default id is a positive 31-bit integer", () => {
+    for (let i = 0; i < 2000; i++) {
+      const id = newKohaRequestId();
+      expect(id).toMatch(/^[1-9]\d*$/);
+      expect(Number(id)).toBeLessThanOrEqual(0x7fffffff);
+    }
+  });
+
+  it("the mock refuses a non-integer id with Koha's own 400, only where Koha declares the header", async () => {
+    const mock = createMockKoha();
+    const send = (path: string, id: string) =>
+      mock.fetch(`${MOCK_KOHA_BASE_URL}${path}`, { headers: { Authorization: "Bearer mock-token-1", "x-koha-request-id": id } });
+    await mock.fetch(`${MOCK_KOHA_BASE_URL}/api/v1/oauth/token`, {
+      method: "POST", headers: { Authorization: "Basic eDp5" }, body: "grant_type=client_credentials",
+    });
+    const refused = await send("/api/v1/libraries", "3f1c2e1a-8b7d-4c1e-9a6b-1f2e3d4c5b6a");
+    expect(refused.status).toBe(400);
+    expect(await refused.json()).toEqual({ errors: [{ message: "Expected integer - got string.", path: "/x-koha-request-id" }], status: 400 });
+    expect((await send("/api/v1/libraries", "4242")).status).toBe(200);
+    expect((await send("/api/v1/status/version", "not-an-integer")).status).toBe(200);
+  });
+
+  it("the client's DEFAULT ids pass every list endpoint the integration uses", async () => {
+    const mock = createMockKoha();
+    const client = createKohaClient(resolveKohaConfig({ KOHA_INTEGRATION: "mock" }), { fetch: mock.fetch });
+    await expect(client.get("/libraries", isKohaLibraryList)).resolves.toMatchObject({ data: MOCK_KOHA_LIBRARIES });
+    await expect(findKohaBiblioIdsByIsbn(client, "9780000000002", "0000000000")).resolves.toHaveLength(1);
+    for (const c of mock.calls.filter((c) => c.path.startsWith("/api/v1/") && !c.path.includes("oauth"))) {
+      expect(c.headers["x-koha-request-id"]).toMatch(/^\d+$/);
+    }
   });
 });

@@ -29,6 +29,9 @@ export const MOCK_KOHA_BIBLIOS: KohaBiblioSummary[] = [
   { biblio_id: 1, title: "Mock Koha record", author: "PTEC Test", isbn: "9780000000002 | 0000000000" },
 ];
 
+/** Paths the mock serves that declare the integer request-id header in 26.05. */
+const REQUEST_ID_PATHS = new Set(["/api/v1/libraries", "/api/v1/biblios"]);
+
 const json = (status: number, body: unknown, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...headers } });
 
@@ -67,6 +70,15 @@ export function createMockKoha(
 
     const bearer = headers.authorization?.replace(/^Bearer /, "");
     if (!bearer || !live.has(bearer)) return json(401, { error: "Authentication failure." });
+
+    // Koha 26.05 declares x-koha-request-id as `type: integer` on these paths
+    // (swagger.yaml request_id_header) and rejects anything else — verbatim
+    // body below, captured from a live 26.05.03. Not on /status/version, which
+    // is why a UUID once passed the version check and failed everything else.
+    const requestId = headers["x-koha-request-id"];
+    if (REQUEST_ID_PATHS.has(url.pathname) && requestId !== undefined && !/^-?\d+$/.test(requestId)) {
+      return json(400, { errors: [{ message: "Expected integer - got string.", path: "/x-koha-request-id" }], status: 400 });
+    }
 
     if (method === "GET" && url.pathname === "/api/v1/status/version") {
       return version ? json(200, version) : json(404, { error: "Not found." });
