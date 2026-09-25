@@ -139,6 +139,7 @@ export default async function ThesesPage({
   const tTheses = await getTranslations("theses");
   const params = await searchParams;
   const { locale } = await routeParams;
+  const tSearch = await getTranslations({ locale, namespace: "thesisSearch" });
   const basePath = locale === "km" ? "/km/theses" : "/theses";
 
   const [reportsRes, cohortRes, yearRes, programsRes, facultiesRes, stats] = await Promise.all([
@@ -228,7 +229,7 @@ export default async function ThesesPage({
   const keywords = toFacetOptions(keywordCounts);
   const cohortFacetOptions = toFacetOptions(cohortCounts).map((o) => ({
     ...o,
-    label: `Cohort ${o.value}`,
+    label: tSearch("cohortNumber", { number: o.value }),
   }));
   const quickChips = keywords.slice(0, 5).map((k) => ({ label: k.label, value: k.value }));
 
@@ -432,10 +433,10 @@ export default async function ThesesPage({
                   <EmptyState
                     message={
                       params.q
-                        ? `We couldn't find anything matching "${params.q}".`
+                        ? tSearch("emptyQuery", { query: params.q })
                         : hasFilters
-                          ? "No theses match your selected filters."
-                          : "No theses are currently available."
+                          ? tSearch("emptyFilters")
+                          : tSearch("emptyAll")
                     }
                     showReset={hasFilters}
                   />

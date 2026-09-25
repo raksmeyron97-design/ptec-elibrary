@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { Check, ChevronDown, X, SlidersHorizontal } from "lucide-react";
 import { getThesisPrograms, getThesisFaculties, type ThesisProgram, type ThesisFaculty } from "@/app/actions/theses";
 import type { FacetOption } from "@/components/ui/theses/AdvancedSearchModal";
@@ -120,7 +121,7 @@ function FacetList({
   activeValue,
   onToggle,
   initial = 8,
-  emptyLabel = "None found",
+  emptyLabel,
 }: {
   options: FacetOption[];
   activeValue: string;
@@ -128,9 +129,10 @@ function FacetList({
   initial?: number;
   emptyLabel?: string;
 }) {
+  const t = useTranslations("thesisSearch");
   const [expanded, setExpanded] = useState(false);
   if (options.length === 0) {
-    return <p className="px-1.5 text-[12.5px] text-text-muted">{emptyLabel}</p>;
+    return <p className="px-1.5 text-[12.5px] text-text-muted">{emptyLabel ?? t("noneFound")}</p>;
   }
   const shown = expanded ? options : options.slice(0, initial);
   return (
@@ -150,7 +152,7 @@ function FacetList({
           onClick={() => setExpanded((v) => !v)}
           className="mt-1.5 cursor-pointer rounded-sm text-[12.5px] font-semibold text-brand hover:underline hover:underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
         >
-          {expanded ? "Show less" : `Show all ${options.length}`}
+          {expanded ? t("showLess") : t("showAll", { count: options.length })}
         </button>
       )}
     </div>
@@ -197,6 +199,7 @@ function FilterPanel({
   programs: ThesisProgram[];
   faculties: ThesisFaculty[];
 }) {
+  const t = useTranslations("thesisSearch");
   const facultyOptions = faculties.filter((f) => f.program_code === currentProgram);
 
   return (
@@ -205,7 +208,7 @@ function FilterPanel({
       {hasFilters && (
         <div className="flex items-center justify-between border-b border-divider px-5 py-3.5">
           <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-text-muted">
-            Filters applied
+            {t("filtersApplied")}
           </span>
           <button
             type="button"
@@ -222,16 +225,16 @@ function FilterPanel({
             }
             className="flex cursor-pointer items-center gap-1 rounded-sm text-[12.5px] font-semibold text-brand hover:underline hover:underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
           >
-            <X className="w-3 h-3" /> Clear all
+            <X className="w-3 h-3" aria-hidden="true" /> {t("clearAll")}
           </button>
         </div>
       )}
 
       {/* Program */}
-      <FilterSection title="Program">
+      <FilterSection title={t("program")}>
         <div className="space-y-0.5">
           <FilterCheckboxRow
-            label="All Programs"
+            label={t("allPrograms")}
             active={!currentProgram}
             onClick={() => onNav({ program: undefined, faculty: undefined, cohort: undefined })}
           />
@@ -259,10 +262,10 @@ function FilterPanel({
 
       {/* Faculty — only for programs with faculties */}
       {facultyOptions.length > 0 && (
-        <FilterSection title="Faculty">
+        <FilterSection title={t("faculty")}>
           <div className="space-y-0.5">
             <FilterCheckboxRow
-              label="All Faculties"
+              label={t("allFaculties")}
               active={!currentFaculty}
               onClick={() => onNav({ faculty: undefined })}
             />
@@ -282,10 +285,10 @@ function FilterPanel({
       )}
 
       {/* Cohort — deduplicate by number when no program selected */}
-      <FilterSection title="Cohort">
+      <FilterSection title={t("cohort")}>
         <div className="space-y-0.5">
           <FilterCheckboxRow
-            label="All Cohorts"
+            label={t("allCohorts")}
             active={!currentCohort}
             onClick={() => onNav({ cohort: undefined })}
           />
@@ -294,7 +297,7 @@ function FilterPanel({
             .map((c) => (
             <FilterCheckboxRow
               key={c.id}
-              label={c.label ?? `Cohort ${c.number}`}
+              label={c.label ?? t("cohortNumber", { number: c.number })}
               count={cohortCounts[c.number.toString()] ?? 0}
               active={currentCohort === c.number.toString()}
               onClick={() =>
@@ -307,10 +310,10 @@ function FilterPanel({
 
       {/* Academic Year */}
       {availableYears.length > 0 && (
-        <FilterSection title="Published Year" defaultOpen={false}>
+        <FilterSection title={t("year")} defaultOpen={false}>
           <div className="space-y-0.5">
             <FilterCheckboxRow
-              label="Any Year"
+              label={t("anyYear")}
               active={!currentYear}
               onClick={() => onNav({ year: undefined })}
             />
@@ -330,7 +333,7 @@ function FilterPanel({
       )}
 
       {/* Author */}
-      <FilterSection title="Author" defaultOpen={false}>
+      <FilterSection title={t("author")} defaultOpen={false}>
         <FacetList
           options={authors}
           activeValue={currentAuthor}
@@ -339,7 +342,7 @@ function FilterPanel({
       </FilterSection>
 
       {/* Advisor */}
-      <FilterSection title="Advisor" defaultOpen={false}>
+      <FilterSection title={t("advisor")} defaultOpen={false}>
         <FacetList
           options={advisors}
           activeValue={currentAdvisor}
@@ -348,7 +351,7 @@ function FilterPanel({
       </FilterSection>
 
       {/* Keyword */}
-      <FilterSection title="Keyword" defaultOpen={false}>
+      <FilterSection title={t("keyword")} defaultOpen={false}>
         <FacetList
           options={keywords}
           activeValue={currentKeyword}
@@ -381,6 +384,7 @@ export default function ThesisSidebar({
   advisors,
   keywords,
 }: Props) {
+  const t = useTranslations("thesisSearch");
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -537,16 +541,16 @@ export default function ThesisSidebar({
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Filters"
+            aria-label={t("filters")}
             className="drawer-slide-in fixed bottom-0 left-0 top-0 z-[101] w-[286px] overflow-y-auto border-r border-divider bg-bg-surface lg:hidden"
           >
             <div className="flex items-center justify-between px-4 py-4 border-b border-divider">
-              <h2 className="text-[13px] font-bold uppercase tracking-[0.12em] text-text-heading">Filters</h2>
+              <h2 className="text-[13px] font-bold uppercase tracking-[0.12em] text-text-heading">{t("filters")}</h2>
               <button
                 ref={closeButtonRef}
                 type="button"
                 onClick={() => setMobileOpen(false)}
-                aria-label="Close filters"
+                aria-label={t("closeFilters")}
                 className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-divider transition-colors hover:bg-bg-app focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
               >
                 <X className="w-5 h-5 text-text-muted" />

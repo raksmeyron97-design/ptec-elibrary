@@ -1,21 +1,14 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { LayoutGrid, List, Rows3 } from "lucide-react";
 import { FilterLink } from "@/components/ui/books/ClientNavWrapper";
 import { SortSelect, RowsPerPageSelect } from "@/components/ui/books/ClientNavWrapper";
 
-// Not exported: nothing outside this file consumes either name — each
-// listing page passes its own translated sortOptions, and this is only the
-// fallback for one that doesn't. A component file that also exports a plain
-// const/type invites the const to grow its own unrelated importers over time.
+// Not exported: nothing outside this file consumes it — each listing page
+// may pass its own translated sortOptions, and the `listing` namespace is the
+// fallback for one that doesn't. The fallback used to be English literals,
+// which is what /km/theses rendered, because the theses page passes none.
 type SortOption = { value: string; label: string };
-
-/** The order a scholarly listing defaults to when the caller names none. */
-const DEFAULT_SORT_OPTIONS: SortOption[] = [
-  { value: "newest", label: "Newest" },
-  { value: "oldest", label: "Oldest" },
-  { value: "views", label: "Most Viewed" },
-  { value: "downloads", label: "Most Downloaded" },
-];
 
 function buildHref(basePath: string, current: Record<string, string | undefined>, overrides: Record<string, string | undefined>): string {
   const merged = { ...current, ...overrides };
@@ -46,10 +39,10 @@ export default function ResultToolbar({
   pageSizeOptions,
   summaryLabel,
   basePath = "/theses",
-  sortOptions = DEFAULT_SORT_OPTIONS,
-  sortDefaultLabel = "Newest",
+  sortOptions,
+  sortDefaultLabel,
   pageSizeId = "listing-page-size",
-  viewLabels = { group: "View mode", list: "List view", grid: "Grid view" },
+  viewLabels,
 }: {
   /** Pre-resolved, translated count text from the server page — e.g.
    *  "12 theses" or "3 of 12 theses". Built once by the page via
@@ -74,6 +67,15 @@ export default function ResultToolbar({
   pageSizeId?: string;
   viewLabels?: { group: string; list: string; grid: string };
 }) {
+  const t = useTranslations("listing");
+  const tPagination = useTranslations("pagination");
+  const sorts: SortOption[] = sortOptions ?? [
+    { value: "newest", label: t("sortNewest") },
+    { value: "oldest", label: t("sortOldest") },
+    { value: "views", label: t("sortViews") },
+    { value: "downloads", label: t("sortDownloads") },
+  ];
+  const views = viewLabels ?? { group: t("viewMode"), list: t("viewList"), grid: t("viewGrid") };
   return (
     // No card and no rule: the toolbar sits on the page ground between the
     // filter chips and the stack of result cards, and a container around it
@@ -83,28 +85,28 @@ export default function ResultToolbar({
           is the only thing on screen that confirms one took effect. */}
       <p aria-live="polite" className="text-[13.5px] text-text-muted">
         <span className="font-bold tabular-nums text-text-heading">{countLabel}</span>
-        {query && <> for &ldquo;{query}&rdquo;</>}
+        {query && <> {t("forQuery", { query })}</>}
       </p>
 
       <div className="flex flex-wrap items-center gap-2">
         {/* Items per page */}
-        <RowsPerPageSelect value={pageSize} options={pageSizeOptions} basePath={basePath} id={pageSizeId} />
+        <RowsPerPageSelect value={pageSize} options={pageSizeOptions} basePath={basePath} id={pageSizeId} label={tPagination("rowsPerPage")} />
 
         {/* Sort */}
         <SortSelect
           value={sort}
-          options={sortOptions}
-          defaultLabel={sortDefaultLabel}
+          options={sorts}
+          defaultLabel={sortDefaultLabel ?? t("sortNewest")}
           paramKey="sort"
           basePath={basePath}
         />
 
         {/* View toggle */}
-        <div role="group" aria-label={viewLabels.group} className="flex items-center overflow-hidden rounded-lg border border-divider [&>*+*]:border-l [&>*+*]:border-divider">
+        <div role="group" aria-label={views.group} className="flex items-center overflow-hidden rounded-lg border border-divider [&>*+*]:border-l [&>*+*]:border-divider">
           <FilterLink
             href={buildHref(basePath, params, { view: undefined })}
             className={viewBtnClass(!isGrid)}
-            aria-label={viewLabels.list}
+            aria-label={views.list}
             aria-current={!isGrid ? "true" : undefined}
           >
             <Rows3 className="h-4 w-4" />
@@ -112,7 +114,7 @@ export default function ResultToolbar({
           <FilterLink
             href={buildHref(basePath, params, { view: "grid" })}
             className={viewBtnClass(isGrid)}
-            aria-label={viewLabels.grid}
+            aria-label={views.grid}
             aria-current={isGrid ? "true" : undefined}
           >
             <LayoutGrid className="h-4 w-4" />

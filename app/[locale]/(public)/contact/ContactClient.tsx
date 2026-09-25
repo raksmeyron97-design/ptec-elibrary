@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import Icon, { type IconName } from "@/components/ui/core/Icon";
 import { Button } from "@/components/ui/core/Button";
@@ -8,46 +9,66 @@ import type { PublicContactSite } from "./page";
 import {
   validateContactInput,
   CONTACT_CATEGORIES,
-  CONTACT_CATEGORY_LABELS,
+  CONTACT_LIMITS,
   type ContactCategory,
+  type ContactInput,
+  type ContactErrorCode,
 } from "@/lib/contact/validate";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 // Contact details come from the PUBLISHED system settings, resolved by the
 // server component in page.tsx and passed in as `site` — this client file
-// hard-codes no institution data.
-function buildContactItems(site: PublicContactSite): { icon: IconName; label_km: string; label_en: string; value: string; href?: string }[] {
+// hard-codes no institution data. Every label is in the page's locale: this
+// page used to be English + Khmer side by side on both URLs, with the form
+// itself English-only on /km/contact.
+function buildContactItems(
+  site: PublicContactSite,
+  t: ReturnType<typeof useTranslations<"contact">>,
+): { key: string; icon: IconName; label: string; value: string; href?: string }[] {
   return [
     {
+      key: "phone",
       icon: "phone",
-      label_km: "ទូរស័ព្ទ",
-      label_en: "Phone",
+      label: t("labelPhone"),
       value: site.phoneLibrary,
       href: `tel:${site.phoneLibrary.replace(/\s/g, "")}`,
     },
     {
+      key: "email",
       icon: "mail",
-      label_km: "អ៊ីម៉ែល",
-      label_en: "Email",
+      label: t("labelEmail"),
       value: site.email,
       href: `mailto:${site.email}`,
     },
     {
+      key: "hours",
       icon: "clock",
-      label_km: "ម៉ោងបើក",
-      label_en: "Hours",
+      label: t("labelHours"),
       // Derived from the opening-hours settings — never hand-write hour
       // strings; they drift from the footer/JSON-LD when hours change.
-      value: site.hoursLabelKm,
+      value: site.hoursLabel,
     },
     {
+      key: "address",
       icon: "map-pin",
-      label_km: "អាសយដ្ឋាន",
-      label_en: "Address",
-      value: site.addressEn,
+      label: t("labelAddress"),
+      value: site.address,
     },
   ];
+}
+
+/** The validator's language-free code for a field, worded in the reader's
+ *  language. Keys are `<field><Code>`, e.g. `nameRequired`. */
+function fieldMessage(
+  t: ReturnType<typeof useTranslations<"contact">>,
+  field: keyof ContactInput,
+  code: ContactErrorCode,
+): string {
+  const suffix = code === "required" ? "Required" : code === "tooLong" ? "TooLong" : "Invalid";
+  const max = field in CONTACT_LIMITS ? CONTACT_LIMITS[field as keyof typeof CONTACT_LIMITS] : 0;
+  // The key set is closed (validate.ts emits only these pairs); cast for next-intl's typed keys.
+  return t(`errors.${field}${suffix}` as Parameters<typeof t>[0], { max });
 }
 
 // Contact persons provided by the library
@@ -107,7 +128,8 @@ function buildSocialLinks(site: PublicContactSite) {
 type Status = "idle" | "loading" | "success" | "error";
 
 export default function ContactClient({ site }: { site: PublicContactSite }) {
-  const contactItems = buildContactItems(site);
+  const t = useTranslations("contact");
+  const contactItems = buildContactItems(site, t);
   const socialLinks = buildSocialLinks(site);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -151,11 +173,15 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
     if (status === "loading" || status === "success") return;
     setErrorMsg("");
 
-    const { valid, errors } = validateContactInput({ name, email, phone, subject, category, message });
+    const { valid, codes } = validateContactInput({ name, email, phone, subject, category, message });
     if (!valid) {
-      setFieldErrors(errors);
+      const worded: Record<string, string> = {};
+      for (const [field, code] of Object.entries(codes) as [keyof ContactInput, ContactErrorCode][]) {
+        worded[field] = fieldMessage(t, field, code);
+      }
+      setFieldErrors(worded);
       setStatus("error");
-      setErrorMsg("Please fix the highlighted fields and try again.");
+      setErrorMsg(t("errors.fixFields"));
       return;
     }
     setFieldErrors({});
@@ -193,7 +219,19 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
             });
           }, 1000);
         }
-        setErrorMsg(data.error || "Something went wrong. Please try again.");
+        // The route answers in English (its messages are also its logs), so
+        // the reader is told by STATUS, in their language, what happened.
+        setErrorMsg(
+          res.status === 429
+            ? data.secondsLeft
+              ? t("errors.wait", { seconds: data.secondsLeft })
+              : t("errors.tooMany")
+            : res.status === 403
+              ? t("errors.captcha")
+              : res.status === 400
+                ? t("errors.invalid")
+                : t("errors.sendFailed"),
+        );
         setStatus("error");
         return;
       }
@@ -202,7 +240,7 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
       setName(""); setEmail(""); setPhone(""); setSubject(""); setCategory(""); setMessage("");
     } catch {
       setStatus("error");
-      setErrorMsg("Network error. Please check your connection and try again.");
+      setErrorMsg(t("errors.network"));
     }
   }
 
@@ -226,14 +264,13 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
         />
         <div className="relative mx-auto max-w-3xl px-6 py-14 md:py-20 text-center">
           <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em]" style={{ color: "#DDB022" }}>
-            ទំនាក់ទំនង · Get in Touch
+            {t("eyebrow")}
           </p>
           <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">
-            Contact the Library
-            <span className="font-kh ml-3 text-2xl md:text-3xl text-white/75" lang="km">ទំនាក់ទំនង</span>
+            {t("title")}
           </h1>
           <p className="mt-3 text-sm text-white/60 max-w-sm mx-auto">
-            Reach out by phone, email, or visit us in person. We&apos;re here to help.
+            {t("intro")}
           </p>
         </div>
       </section>
@@ -256,12 +293,11 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
               aria-hidden="true"
             />
             <h2 className="relative text-xl font-bold text-white mb-6">
-              <span className="font-kh" lang="km">ព័ត៌មានទំនាក់ទំនង</span>
-              <span className="block text-sm font-normal text-white/60 mt-0.5">Contact Information</span>
+              {t("infoTitle")}
             </h2>
             <div className="relative space-y-5">
               {contactItems.map((item) => (
-                <div key={item.label_en} className="flex items-start gap-4">
+                <div key={item.key} className="flex items-start gap-4">
                   <div
                     className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10"
                     aria-hidden="true"
@@ -270,7 +306,7 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
                   </div>
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-widest text-white/50 mb-0.5">
-                      <span className="font-kh" lang="km">{item.label_km}</span> · {item.label_en}
+                      {item.label}
                     </p>
                     {item.href ? (
                       <a
@@ -280,7 +316,7 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
                         {item.value}
                       </a>
                     ) : (
-                      <p className="font-kh text-sm text-white/90 leading-relaxed" lang="km">
+                      <p className="text-sm text-white/90 leading-relaxed">
                         {item.value}
                       </p>
                     )}
@@ -324,10 +360,8 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
             onPointerDownCapture={() => setCaptchaWanted(true)}
             className="rounded-2xl border border-divider bg-bg-surface p-7 shadow-sm"
           >
-            <h2 className="text-xl font-bold text-text-heading mb-1">Send a request</h2>
-            <p className="text-sm text-text-muted mb-6">
-              <span className="font-kh" lang="km">សូមផ្ញើសំណូមពររបស់អ្នក</span>
-            </p>
+            <h2 className="text-xl font-bold text-text-heading mb-1">{t("formTitle")}</h2>
+            <p className="text-sm text-text-muted mb-6">{t("formIntro")}</p>
 
             {/* Honeypot — visually hidden from humans, tempting to bots.
                 Kept off-screen (not display:none) so naive bots still fill it. */}
@@ -348,7 +382,7 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label htmlFor="contact-name" className="block text-xs font-semibold text-text-muted mb-1.5 uppercase tracking-wide">
-                    Full name <span className="text-danger">*</span>
+                    {t("fieldName")} <span className="text-danger">*</span>
                   </label>
                   <input
                     id="contact-name"
@@ -358,13 +392,13 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
                     disabled={isDisabled}
                     aria-invalid={Boolean(fieldErrors.name)}
                     className={`h-11 w-full rounded-xl border px-4 text-sm outline-none focus:ring-2 focus:ring-brand/10 disabled:opacity-50 bg-bg-surface text-text-heading ${fieldErrors.name ? "border-danger" : "border-divider focus:border-brand"}`}
-                    placeholder="Your full name"
+                    placeholder={t("fieldNamePlaceholder")}
                   />
                   {fieldErrors.name && <p className="mt-1 text-xs text-danger">{fieldErrors.name}</p>}
                 </div>
                 <div>
                   <label htmlFor="contact-email" className="block text-xs font-semibold text-text-muted mb-1.5 uppercase tracking-wide">
-                    Email address <span className="text-danger">*</span>
+                    {t("fieldEmail")} <span className="text-danger">*</span>
                   </label>
                   <input
                     id="contact-email"
@@ -386,7 +420,7 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
                   <label htmlFor="contact-phone" className="block text-xs font-semibold text-text-muted mb-1.5 uppercase tracking-wide">
                     {/* Full-strength muted, not /70: at 12px the faded variant
                         measured 3.02:1 on white (axe, WCAG 1.4.3 needs 4.5:1). */}
-                    Phone <span className="normal-case font-normal text-text-muted">(optional)</span>
+                    {t("fieldPhone")} <span className="normal-case font-normal text-text-muted">{t("optional")}</span>
                   </label>
                   <input
                     id="contact-phone"
@@ -402,7 +436,7 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
                 </div>
                 <div>
                   <label htmlFor="contact-category" className="block text-xs font-semibold text-text-muted mb-1.5 uppercase tracking-wide">
-                    Category <span className="text-danger">*</span>
+                    {t("fieldCategory")} <span className="text-danger">*</span>
                   </label>
                   <select
                     id="contact-category"
@@ -413,9 +447,9 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
                     aria-invalid={Boolean(fieldErrors.category)}
                     className={`h-11 w-full rounded-xl border px-4 text-sm outline-none focus:ring-2 focus:ring-brand/10 disabled:opacity-50 bg-bg-surface text-text-heading ${fieldErrors.category ? "border-danger" : "border-divider focus:border-brand"}`}
                   >
-                    <option value="" disabled>Select a category…</option>
+                    <option value="" disabled>{t("categoryPlaceholder")}</option>
                     {CONTACT_CATEGORIES.map((c) => (
-                      <option key={c} value={c}>{CONTACT_CATEGORY_LABELS[c]}</option>
+                      <option key={c} value={c}>{t(`categories.${c}`)}</option>
                     ))}
                   </select>
                   {fieldErrors.category && <p className="mt-1 text-xs text-danger">{fieldErrors.category}</p>}
@@ -424,7 +458,7 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
 
               <div>
                 <label htmlFor="contact-subject" className="block text-xs font-semibold text-text-muted mb-1.5 uppercase tracking-wide">
-                  Subject <span className="text-danger">*</span>
+                  {t("fieldSubject")} <span className="text-danger">*</span>
                 </label>
                 <input
                   id="contact-subject"
@@ -434,14 +468,14 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
                   disabled={isDisabled}
                   aria-invalid={Boolean(fieldErrors.subject)}
                   className={`h-11 w-full rounded-xl border px-4 text-sm outline-none focus:ring-2 focus:ring-brand/10 disabled:opacity-50 bg-bg-surface text-text-heading ${fieldErrors.subject ? "border-danger" : "border-divider focus:border-brand"}`}
-                  placeholder="Brief summary of your request"
+                  placeholder={t("fieldSubjectPlaceholder")}
                 />
                 {fieldErrors.subject && <p className="mt-1 text-xs text-danger">{fieldErrors.subject}</p>}
               </div>
 
               <div>
                 <label htmlFor="contact-message" className="block text-xs font-semibold text-text-muted mb-1.5 uppercase tracking-wide">
-                  Message <span className="text-danger">*</span>
+                  {t("fieldMessage")} <span className="text-danger">*</span>
                 </label>
                 <textarea
                   id="contact-message"
@@ -451,7 +485,7 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
                   disabled={isDisabled}
                   aria-invalid={Boolean(fieldErrors.message)}
                   className={`min-h-32 w-full rounded-xl border p-4 text-sm outline-none focus:ring-2 focus:ring-brand/10 disabled:opacity-50 bg-bg-surface text-text-heading resize-none ${fieldErrors.message ? "border-danger" : "border-divider focus:border-brand"}`}
-                  placeholder="How can the library help?"
+                  placeholder={t("fieldMessagePlaceholder")}
                 />
                 {fieldErrors.message && <p className="mt-1 text-xs text-danger">{fieldErrors.message}</p>}
               </div>
@@ -480,20 +514,20 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
 
             {status === "success" && (
               <p className="mt-4 rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-sm font-medium text-success">
-                Thank you. Your message has been received. Our library team will contact you by email soon.
+                {t("success")}
               </p>
             )}
             {status === "error" && errorMsg && (
               <p className="mt-4 rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm font-medium text-danger">
                 {errorMsg}
                 {cooldownSeconds > 0 && (
-                  <span className="ml-1 font-bold">({cooldownSeconds}s)</span>
+                  <span className="ml-1 font-bold">{t("cooldown", { seconds: cooldownSeconds })}</span>
                 )}
               </p>
             )}
 
             <Button type="submit" disabled={isDisabled || captchaPending} className="mt-5">
-              {status === "loading" ? "Sending…" : "Submit message"}
+              {status === "loading" ? t("sending") : t("submit")}
             </Button>
           </form>
         </div>
@@ -509,7 +543,7 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
                 aria-hidden="true"
               />
               <h2 className="text-lg font-bold text-text-heading">
-                <span className="font-kh" lang="km">ទីតាំង</span> · Find Us
+                {t("findUs")}
               </h2>
             </div>
             {site.links.mapEmbed && (
@@ -523,7 +557,7 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
                 sandbox="allow-scripts allow-popups allow-forms"
-                title="PTEC Library location on Google Maps"
+                title={t("mapTitle")}
               />
             </div>
             )}
@@ -538,8 +572,7 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
                 <circle cx="12" cy="10" r="3"/>
               </svg>
-              <span className="font-kh" lang="km">ទទួលការណែនាំ</span>
-              <span>· Get Directions</span>
+              <span>{t("directions")}</span>
             </a>
           </div>
 
@@ -552,8 +585,7 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
                 aria-hidden="true"
               />
               <h2 className="text-lg font-bold text-text-heading">
-                <span className="font-kh" lang="km">បុគ្គលទំនាក់ទំនង</span>
-                <span className="block text-xs font-normal text-text-muted mt-0.5">Contact Persons</span>
+                {t("contactPersons")}
               </h2>
             </div>
             <ul className="space-y-3" role="list">
@@ -587,7 +619,7 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
         <div>
           <div className="flex items-center gap-4 mb-6">
             <h2 className="text-lg font-bold text-text-heading">
-              <span className="font-kh" lang="km">ចូលរួមជាមួយយើង</span> · Connect with us
+              {t("connect")}
             </h2>
             <div className="flex-1 h-px bg-divider" />
           </div>

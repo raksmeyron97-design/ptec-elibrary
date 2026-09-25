@@ -21,7 +21,7 @@ export default async function ThesisCard({
   programLabel?: string | null;
   facultyLabel?: string | null;
 }) {
-  const t = await getTranslations("theses");
+  const [t, tSearch] = await Promise.all([getTranslations("theses"), getTranslations("thesisSearch")]);
 
   const downloads = report.download_count || 0;
   const views = report.view_count || 0;
@@ -91,7 +91,7 @@ export default async function ThesisCard({
           {/* Cohort pill */}
           {report.cohort && (
             <Badge variant="brand" className="mb-2 self-start !text-[9px] !px-2 !py-0.5 uppercase tracking-wide">
-              Cohort {report.cohort}
+              {tSearch("cohortNumber", { number: report.cohort })}
             </Badge>
           )}
 

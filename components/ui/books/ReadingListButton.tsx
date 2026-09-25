@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { BookMarked, Plus, Check, ChevronDown, X, Loader2 } from "lucide-react";
 import {
   getMyReadingLists,
@@ -35,7 +36,7 @@ interface Props {
   isLoggedIn?: boolean;
   initialListIds?: string[];
   className?: string;
-  /** Localised trigger text. Omitted, the trigger keeps its English wording. */
+  /** Trigger text override. Omitted, the trigger uses resourceActions.*. */
   label?: { add: string; inLists: (count: number) => string };
 }
 
@@ -47,6 +48,7 @@ export default function ReadingListButton({
   className,
   label,
 }: Props) {
+  const t = useTranslations("resourceActions");
   const { user } = useSession();
   const isLoggedIn = isLoggedInProp ?? !!user;
   const [open, setOpen]     = useState(false);
@@ -153,17 +155,17 @@ export default function ReadingListButton({
             ? label.inLists(inLists.size)
             : label.add
           : inAny
-            ? `In ${inLists.size} list${inLists.size > 1 ? "s" : ""}`
-            : "Add to List"}
-        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+            ? t("inLists", { count: inLists.size })
+            : t("addToList")}
+        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
       </button>
 
       {open && (
         <div className="absolute left-0 top-full z-30 mt-2 w-72 rounded-2xl border border-divider bg-bg-surface shadow-xl">
           <div className="flex items-center justify-between border-b border-divider px-4 py-3">
-            <span className="text-[13px] font-bold text-text-heading">My Reading Lists</span>
-            <button type="button" onClick={() => setOpen(false)} className="text-text-muted hover:text-text-body">
-              <X className="h-4 w-4" />
+            <span className="text-[13px] font-bold text-text-heading">{t("listsTitle")}</span>
+            <button type="button" onClick={() => setOpen(false)} aria-label={t("close")} className="text-text-muted hover:text-text-body">
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
 
@@ -179,7 +181,7 @@ export default function ReadingListButton({
                 <Loader2 className="h-5 w-5 animate-spin text-brand" />
               </div>
             ) : lists.length === 0 ? (
-              <p className="px-4 py-3 text-[12.5px] text-text-muted">No lists yet. Create one below.</p>
+              <p className="px-4 py-3 text-[12.5px] text-text-muted">{t("listsEmpty")}</p>
             ) : (
               lists.map((list) => {
                 const checked = inLists.has(list.id);
@@ -198,7 +200,7 @@ export default function ReadingListButton({
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[13px] font-medium text-text-body">{list.name}</p>
-                      <p className="text-[11px] text-text-muted">{list.book_count ?? 0} books</p>
+                      <p className="text-[11px] text-text-muted">{t("listItemCount", { count: list.book_count ?? 0 })}</p>
                     </div>
                     {busy === list.id && <Loader2 className="h-3.5 w-3.5 animate-spin text-brand" />}
                   </button>
@@ -215,7 +217,8 @@ export default function ReadingListButton({
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") setCreating(false); }}
-                  placeholder="List name…"
+                  placeholder={t("listNamePlaceholder")}
+                  aria-label={t("listNamePlaceholder")}
                   maxLength={80}
                   className="focus-field flex-1 rounded-lg border border-divider bg-paper px-2.5 py-1.5 text-[12.5px] text-text-body"
                 />
@@ -225,10 +228,10 @@ export default function ReadingListButton({
                   disabled={busy === "new" || !newName.trim()}
                   className="rounded-lg bg-brand px-3 py-1.5 text-[12px] font-bold text-brand-contrast disabled:opacity-60"
                 >
-                  {busy === "new" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Add"}
+                  {busy === "new" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("addButton")}
                 </button>
-                <button type="button" onClick={() => setCreating(false)} className="text-text-muted hover:text-text-body">
-                  <X className="h-4 w-4" />
+                <button type="button" onClick={() => setCreating(false)} aria-label={t("cancel")} className="text-text-muted hover:text-text-body">
+                  <X className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
             ) : (
@@ -237,7 +240,7 @@ export default function ReadingListButton({
                 onClick={() => setCreating(true)}
                 className="flex w-full items-center gap-2 rounded-lg py-1 text-[12.5px] font-semibold text-brand hover:opacity-80"
               >
-                <Plus className="h-4 w-4" /> New List
+                <Plus className="h-4 w-4" aria-hidden="true" /> {t("newList")}
               </button>
             )}
           </div>

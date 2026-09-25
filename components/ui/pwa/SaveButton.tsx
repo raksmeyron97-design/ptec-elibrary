@@ -2,6 +2,7 @@
 
 // components/ui/SaveButton.tsx
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { toggleSaveBook } from "@/app/actions/saved-books";
 import Icon from "@/components/ui/core/Icon";
 
@@ -18,6 +19,7 @@ export default function SaveButton({
   initialSaved,
   isLoggedIn,
 }: SaveButtonProps) {
+  const t = useTranslations("resourceActions");
   const [saved, setSaved]       = useState(initialSaved);
   const [isPending, startTransition] = useTransition();
 
@@ -53,8 +55,8 @@ export default function SaveButton({
       {isPending
         ? "..."
         : saved
-        ? "Saved"
-        : "Save resource"}
+        ? t("saved")
+        : t("save")}
     </button>
   );
 }

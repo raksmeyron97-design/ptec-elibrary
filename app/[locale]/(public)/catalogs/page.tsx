@@ -53,13 +53,13 @@ export async function generateMetadata({
     getOrgIdentity(),
   ]);
   const page = parsePageParam(params.page);
+  const t = await getTranslations({ locale, namespace: "catalogs" });
   return buildListingMetadata({
     org,
     path: "/catalogs",
     locale,
-    title: "Books In Library",
-    description:
-      "Browse physical books available in the PTEC library. Check availability, shelf location, and borrow status for each title.",
+    title: t("metaTitle"),
+    description: t("metaDescription"),
     page,
     // Unlike its siblings this listing does NOT clamp — it ranges past the
     // end and renders an empty grid, which was indexable and self-canonical

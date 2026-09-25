@@ -4,7 +4,7 @@ import { useState, useCallback, useRef } from "react";
 import { FileText, Check } from "lucide-react";
 import { saveBookNote } from "@/app/actions/book-notes";
 import Link from "next/link";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -20,6 +20,7 @@ export default function BookNotes({
   bookSlug: string;
 }) {
   const locale = useLocale();
+  const t = useTranslations("resourceActions");
   const [content, setContent] = useState(initialContent);
   const [status, setStatus] = useState<SaveStatus>("idle");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -46,16 +47,16 @@ export default function BookNotes({
     return (
       <div className="gradient-top-border overflow-hidden rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
         <h3 className="mb-3 inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-wider text-text-heading">
-          <FileText className="h-4 w-4 text-brand" /> My Notes
+          <FileText className="h-4 w-4 text-brand" aria-hidden="true" /> {t("notesTitle")}
         </h3>
         <p className="text-[13px] text-text-muted mb-3">
-          Sign in to take private notes on this book.
+          {t("notesSignIn")}
         </p>
         <Link
           href={`/auth/login?callbackUrl=${locale === "km" ? "/km" : ""}/books/${bookSlug}`}
           className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-[13px] font-semibold text-brand-contrast hover:bg-brand-hover transition-colors"
         >
-          Sign In to Take Notes
+          {t("notesSignInButton")}
         </Link>
       </div>
     );
@@ -65,7 +66,7 @@ export default function BookNotes({
     <div className="gradient-top-border overflow-hidden rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <h3 className="inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-wider text-text-heading">
-          <FileText className="h-4 w-4 text-brand" /> My Notes
+          <FileText className="h-4 w-4 text-brand" aria-hidden="true" /> {t("notesTitle")}
         </h3>
         <span
           className={`text-[11px] font-medium transition-opacity duration-200 ${
@@ -80,26 +81,27 @@ export default function BookNotes({
               : ""
           }`}
         >
-          {status === "saving" && "Saving…"}
+          {status === "saving" && t("notesSaving")}
           {status === "saved" && (
             <span className="flex items-center gap-1">
-              <Check className="h-3 w-3" /> Saved
+              <Check className="h-3 w-3" aria-hidden="true" /> {t("notesSaved")}
             </span>
           )}
-          {status === "error" && "Failed to save"}
+          {status === "error" && t("notesFailed")}
         </span>
       </div>
 
       <textarea
         value={content}
         onChange={handleChange}
-        placeholder="Add your private notes about this book… (auto-saved as you type)"
+        placeholder={t("notesPlaceholder")}
+        aria-label={t("notesTitle")}
         rows={5}
         className="w-full resize-none rounded-xl border border-divider bg-bg-app px-3.5 py-3 text-base leading-relaxed sm:text-[13px] text-text-body placeholder:text-text-muted/60 outline-none focus:border-brand/60 focus:ring-2 focus:ring-brand/10 transition-all"
       />
 
       <p className="mt-1.5 text-[11px] text-text-muted">
-        Private · only you can see these notes.
+        {t("notesPrivate")}
       </p>
     </div>
   );

@@ -5,6 +5,7 @@ import type { NextRequest } from "next/server";
 import { AUTH_COOKIE_OPTIONS } from "@/lib/supabase/cookie-options";
 import { serverSupabaseUrl } from "@/lib/supabase/origin";
 import { canonicalHostRedirect } from "@/lib/canonical-host";
+import { inferAuthLocale, LOCALE_COOKIE } from "@/lib/i18n/auth-locale";
 import { gateBookSlug } from "@/lib/book-slug-gate";
 import { gateResourceSlug, RESOURCE_GATES } from "@/lib/resource-slug-gate";
 import {
@@ -177,11 +178,39 @@ export async function middleware(request: NextRequest) {
   );
 
   if (isAdminOrAuthOrApi) {
+    // /auth renders in the ptec_locale cookie's language, and only the
+    // language switcher writes it — so a Khmer reader who never used the
+    // switcher got an English sign-in page from every "Sign in" on /km.
+    // Infer it from where they came from (lib/i18n/auth-locale.ts), apply it
+    // to this request, and keep it for the rest of the sign-in flow.
+    const authLocale = pathname.startsWith("/auth/")
+      ? inferAuthLocale({
+          cookie: request.cookies.get(LOCALE_COOKIE)?.value,
+          callbackUrl: url.searchParams.get("callbackUrl"),
+          referer: request.headers.get("referer"),
+          host: request.headers.get("host"),
+        })
+      : null;
+    if (authLocale) request.cookies.set(LOCALE_COOKIE, authLocale);
+    const finish = (res: NextResponse) => {
+      if (authLocale) {
+        // Same attributes as app/actions/locale.ts, the switcher's writer.
+        res.cookies.set(LOCALE_COOKIE, authLocale, {
+          path: "/",
+          maxAge: 60 * 60 * 24 * 365,
+          sameSite: "lax",
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+        });
+      }
+      return applySecurity(res);
+    };
+
     const needsAuthCheck =
       pathname.startsWith("/admin") || pathname.startsWith("/auth/login");
 
     if (!needsAuthCheck) {
-      return applySecurity(NextResponse.next({ request: { headers: request.headers } }));
+      return finish(NextResponse.next({ request: { headers: request.headers } }));
     }
 
     let response = NextResponse.next({
@@ -221,7 +250,7 @@ export async function middleware(request: NextRequest) {
         const res = NextResponse.redirect(loginUrl);
         // Copy any cookie changes (the signOut clears them)
         response.cookies.getAll().forEach((c) => res.cookies.set(c));
-        return applySecurity(res);
+        return finish(res);
       }
       user = data?.user ?? null;
     } catch (err) {
@@ -230,7 +259,7 @@ export async function middleware(request: NextRequest) {
         const loginUrl = new URL('/auth/login', request.url);
         const res = NextResponse.redirect(loginUrl);
         response.cookies.getAll().forEach((c) => res.cookies.set(c));
-        return applySecurity(res);
+        return finish(res);
       }
       // Other auth errors — proceed with user = null
     }
@@ -250,7 +279,7 @@ export async function middleware(request: NextRequest) {
       if (pathname !== "/admin/login" && pathname !== "/admin/auth/signout") {
         if (!user) {
           const res = NextResponse.redirect(new URL("/admin/login", request.url));
-          return applySecurity(copyCookies(res));
+          return finish(copyCookies(res));
         }
 
         // Check role — allow any admin-panel role, or the legacy
@@ -266,7 +295,7 @@ export async function middleware(request: NextRequest) {
           !profile?.is_super_admin
         ) {
           const res = NextResponse.redirect(new URL("/", request.url));
-          return applySecurity(copyCookies(res));
+          return finish(copyCookies(res));
         }
       }
 
@@ -283,7 +312,7 @@ export async function middleware(request: NextRequest) {
           profile?.is_super_admin
         ) {
           const res = NextResponse.redirect(new URL("/admin", request.url));
-          return applySecurity(copyCookies(res));
+          return finish(copyCookies(res));
         }
       }
     }
@@ -291,10 +320,10 @@ export async function middleware(request: NextRequest) {
     // Redirect logged-in users away from login page
     if (pathname === "/auth/login" && user) {
       const res = NextResponse.redirect(new URL("/books", request.url));
-      return applySecurity(copyCookies(res));
+      return finish(copyCookies(res));
     }
 
-    return applySecurity(copyCookies(response));
+    return finish(copyCookies(response));
   }
 
   // ── Public routes: locale-prefixed ("as-needed" — en unprefixed, km /km) ──

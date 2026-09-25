@@ -8,8 +8,9 @@ import ContactClient from "./ContactClient";
 export type PublicContactSite = {
   phoneLibrary: string;
   email: string;
-  addressEn: string;
-  hoursLabelKm: string;
+  /** In the page's own locale — a Khmer reader gets the Khmer address. */
+  address: string;
+  hoursLabel: string;
   links: {
     website: string;
     facebook: string;
@@ -21,14 +22,20 @@ export type PublicContactSite = {
   };
 };
 
-export default async function ContactPage() {
+export default async function ContactPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale: raw } = await params;
+  const locale = raw === "km" ? "km" : "en";
   const cfg = await getSiteConfig();
 
   const site: PublicContactSite = {
     phoneLibrary: cfg.phoneLibrary,
     email: cfg.email,
-    addressEn: cfg.address.en,
-    hoursLabelKm: compactHoursLabel("km", cfg.hours.openingHoursSpec),
+    address: (locale === "km" ? cfg.address.km : cfg.address.en) || cfg.address.en,
+    hoursLabel: compactHoursLabel(locale, cfg.hours.openingHoursSpec),
     links: {
       website: cfg.links.website,
       facebook: cfg.links.facebook,

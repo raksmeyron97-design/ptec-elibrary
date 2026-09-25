@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // "A new version is available" — the other half of `skipWaiting: false`.
@@ -19,6 +20,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function UpdateAvailable() {
+  // RootShell mounts this under every root layout, so its namespace is in
+  // ROOT_NAMESPACES — the only one guaranteed on /admin and /auth too.
+  const t = useTranslations("pwaUpdate");
   const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
   const [updating, setUpdating] = useState(false);
   const reloading = useRef(false);
@@ -111,7 +115,7 @@ export default function UpdateAvailable() {
     >
       <div className="flex items-center gap-3">
         <p className="min-w-0 flex-1 text-sm text-text-body">
-          A new version of PTEC Library is available.
+          {t("message")}
         </p>
         <button
           type="button"
@@ -119,15 +123,15 @@ export default function UpdateAvailable() {
           disabled={updating}
           className="shrink-0 rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-brand-contrast transition-colors hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 disabled:opacity-60"
         >
-          {updating ? "Updating…" : "Update"}
+          {updating ? t("updating") : t("update")}
         </button>
         <button
           type="button"
           onClick={() => setWaiting(null)}
           className="shrink-0 rounded-lg px-2 py-1.5 text-sm text-text-muted transition-colors hover:text-text-body focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
-          aria-label="Dismiss update notice"
+          aria-label={t("dismiss")}
         >
-          Later
+          {t("later")}
         </button>
       </div>
     </div>

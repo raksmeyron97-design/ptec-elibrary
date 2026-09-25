@@ -4,6 +4,7 @@
 
 import { useRef, useEffect, useState, FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import Icon, { IconName } from "@/components/ui/core/Icon";
 import type { Suggestion } from "@/app/api/books/suggestions/route";
 import { useBookSuggestions } from "@/components/ui/search/useBookSuggestions";
@@ -26,27 +27,17 @@ const TYPE_ICON: Record<Suggestion["type"], IconName> = {
   post: "bookmark",
 };
 
-const TYPE_LABEL: Record<Suggestion["type"], string> = {
-  book:     "Book",
-  author:   "Author",
-  category: "Category",
-  research: "Thesis",
-  publication: "Publication",
-  catalog: "Physical book",
-  learning_path: "Learning path",
-  post: "News",
-};
-
-const TYPE_LABEL_PLURAL: Record<Suggestion["type"], string> = {
-  book:     "Books",
-  author:   "Authors",
-  category: "Categories",
-  research: "Theses",
-  publication: "Publications",
-  catalog: "Physical books",
-  learning_path: "Learning paths",
-  post: "News",
-};
+/** Group heading keys in the `searchBar` namespace, one per suggestion type. */
+const TYPE_GROUP_KEY = {
+  book: "groupBook",
+  author: "groupAuthor",
+  category: "groupCategory",
+  research: "groupResearch",
+  publication: "groupPublication",
+  catalog: "groupCatalog",
+  learning_path: "groupLearningPath",
+  post: "groupPost",
+} as const satisfies Record<Suggestion["type"], string>;
 
 const TYPE_COLOR: Record<Suggestion["type"], string> = {
   book:     "text-brand",
@@ -70,13 +61,15 @@ const TYPE_BG: Record<Suggestion["type"], string> = {
   post: "bg-brand/8",
 };
 
-const FALLBACK_TRENDING = ["Pedagogy", "Mathematics", "Science", "History"];
 
 export default function SearchBar({
   compact = false,
-  placeholder = "Search title, author, ISBN, or topic",
-  buttonLabel = "Search",
+  placeholder: placeholderProp,
+  buttonLabel: buttonLabelProp,
 }: SearchBarProps) {
+  const t = useTranslations("searchBar");
+  const placeholder = placeholderProp ?? t("placeholder");
+  const buttonLabel = buttonLabelProp ?? t("button");
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q") ?? "";
 
@@ -99,7 +92,9 @@ export default function SearchBar({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [recent, setRecent]     = useState<string[]>([]);
-  const [trending, setTrending] = useState<string[]>(FALLBACK_TRENDING);
+  // Empty until /api/departments/trending answers. It used to start as four
+  // invented English subjects, shown as "Trending" on the Khmer site too.
+  const [trending, setTrending] = useState<string[]>([]);
   const fetchedTrending = useRef(false);
 
   useEffect(() => {
@@ -257,7 +252,7 @@ export default function SearchBar({
                 transition hover:bg-brand/8 hover:text-brand
                 active:scale-95 sm:flex
               "
-              aria-label="Clear search"
+              aria-label={t("clear")}
             >
               <Icon name="x" className="h-3 w-3" strokeWidth={2.5} />
             </button>
@@ -303,7 +298,7 @@ export default function SearchBar({
           ref={dropdownRef}
           id="searchbar-listbox"
           role="listbox"
-          aria-label="Search suggestions"
+          aria-label={t("suggestions")}
           className="
             absolute left-0 right-0 top-[calc(100%+8px)] z-50
             overflow-hidden rounded-2xl
@@ -318,7 +313,7 @@ export default function SearchBar({
               {recent.length > 0 && (
                 <div>
                   <h4 className="mb-2.5 text-[10px] font-bold uppercase tracking-widest text-text-muted">
-                    Recent Searches
+                    {t("recent")}
                   </h4>
                   <div className="flex flex-wrap gap-2">
                     {recent.map((term) => (
@@ -336,9 +331,10 @@ export default function SearchBar({
                 </div>
               )}
 
+              {trending.length > 0 && (
               <div>
                 <h4 className="mb-2.5 text-[10px] font-bold uppercase tracking-widest text-text-muted">
-                  Trending
+                  {t("trending")}
                 </h4>
                 <div className="flex flex-wrap gap-2">
                   {trending.map((term) => (
@@ -354,6 +350,7 @@ export default function SearchBar({
                   ))}
                 </div>
               </div>
+              )}
             </div>
           )}
 
@@ -362,10 +359,10 @@ export default function SearchBar({
             <div className="flex flex-col items-center px-4 py-10 text-center">
               <Icon name="search-off" className="mb-3 text-4xl text-text-muted/50" />
               <p className="mb-1 font-medium text-text-heading">
-                No matches for &quot;{query}&quot;
+                {t("noMatches", { query })}
               </p>
               <p className="mb-4 text-sm text-text-muted">
-                Try checking your spelling or use more general terms.
+                {t("noMatchesHint")}
               </p>
               <button
                 type="button"
@@ -373,7 +370,7 @@ export default function SearchBar({
                 className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-brand/8 px-4 py-2 text-sm font-semibold text-brand transition-colors hover:bg-brand/15"
               >
                 <Icon name="search" />
-                Search all books for &quot;{query}&quot;
+                {t("searchAll", { query })}
               </button>
             </div>
           )}
@@ -396,7 +393,7 @@ export default function SearchBar({
                       />
                     </span>
                     <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
-                      {TYPE_LABEL_PLURAL[type]}
+                      {t(TYPE_GROUP_KEY[type])}
                     </span>
                   </div>
 
@@ -459,7 +456,7 @@ export default function SearchBar({
                           )}
                           {(s.type === "author" || s.type === "category") && (
                             <span className="mt-0.5 block text-xs text-text-muted">
-                              Search by {TYPE_LABEL[type].toLowerCase()}
+                              {s.type === "author" ? t("searchByAuthor") : t("searchByCategory")}
                             </span>
                           )}
                         </span>
@@ -482,9 +479,9 @@ export default function SearchBar({
           {showSuggestions && (
             <div className="hidden items-center gap-3 border-t border-divider bg-bg-app px-4 py-2 sm:flex">
               {[
-                ["↑↓", "Navigate"],
-                ["↵",  "Select"],
-                ["Esc", "Close"],
+                ["↑↓", t("hintNavigate")],
+                ["↵",  t("hintSelect")],
+                ["Esc", t("hintClose")],
               ].map(([key, label]) => (
                 <span key={key} className="flex items-center gap-1.5">
                   <kbd className="rounded-md border border-divider bg-bg-surface px-1.5 py-0.5 font-mono text-[11px] text-text-muted shadow-sm">
