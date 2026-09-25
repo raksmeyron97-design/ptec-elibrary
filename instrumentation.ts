@@ -15,6 +15,8 @@
  *    every layer that emits events. See docs/SECURITY-MONITORING.md.
  */
 
+import { resolveKohaConfig } from "@/lib/koha/config";
+
 const ENV_GROUPS: { group: string; critical: boolean; vars: string[] }[] = [
   {
     group: "Supabase (database + auth)",
@@ -112,5 +114,16 @@ export async function register() {
     console[level](
       `[env-check] ${critical ? "CRITICAL: " : ""}${group} is missing: ${missing.join(", ")} — related features will fail.`,
     );
+  }
+
+  // Koha is optional and OFF by default, so it is not an ENV_GROUP — that
+  // would warn on every deployment that never asked for it. Speak only when
+  // someone switched it on and the configuration cannot work. Names
+  // variables, never values. The config module is pure (no node: imports), so
+  // it is safe in the Edge compilation of this file as well.
+  const koha = resolveKohaConfig(process.env);
+  for (const w of koha.warnings) console.warn(`[env-check] Koha integration: ${w}`);
+  if (koha.mode !== "off" && koha.problems.length > 0) {
+    console.warn(`[env-check] Koha integration (${koha.mode}) is not configured: ${koha.problems.join(" ")} — Koha calls will be refused.`);
   }
 }
