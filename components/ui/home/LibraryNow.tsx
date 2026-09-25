@@ -146,7 +146,7 @@ export default function LibraryNow({
                   className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-bold ${
                     isOpen
                       ? "bg-success-soft text-success-text"
-                      : "bg-text-muted/12 text-text-muted"
+                      : "bg-text-muted/12 text-text-body"
                   }`}
                 >
                   <Dot className={`h-4 w-4 ${isOpen ? "text-success" : "text-text-muted"}`} aria-hidden strokeWidth={6} />
