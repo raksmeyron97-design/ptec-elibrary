@@ -224,6 +224,15 @@ const POLICIES = {
     limit: envInt("RL_ISBN_LOOKUP_PER_10MIN", 60),
     windowMs: 10 * 60_000,
   }),
+  /**
+   * Found-cover previews (`/api/admin/catalogs/cover-preview`) — per librarian.
+   * One per candidate card and one on the pre-filled form; each is a server
+   * fetch from Open Library on the library's behalf. Private-cached for an hour.
+   */
+  coverPreview: () => ({
+    limit: envInt("RL_COVER_PREVIEW_PER_10MIN", 120),
+    windowMs: 10 * 60_000,
+  }),
 } as const;
 
 export type PolicyName = keyof typeof POLICIES;

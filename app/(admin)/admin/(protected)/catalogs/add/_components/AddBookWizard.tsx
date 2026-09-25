@@ -355,6 +355,7 @@ export default function AddBookWizard({
         <CatalogCoverField
           initialCoverUrl={null}
           initialSource="generated"
+          importFrom={initial?.coverImportUrl ?? null}
           title={preview.title}
           author={preview.author}
           category={preview.category}

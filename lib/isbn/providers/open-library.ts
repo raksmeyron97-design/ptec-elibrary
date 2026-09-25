@@ -13,14 +13,17 @@
  * facts on this record. Authors do not vary by edition, so they are safe; if
  * the search call fails, the edition is still returned without them.
  *
- * No cover. `covers.openlibrary.org` is in the site's CSP, but it answers with
- * a redirect to archive.org, which is not — measured 2026-09-25, the browser
- * refused the image, and a saved record would have carried a cover that shows
- * as broken on its public page. Copying the image into PTEC storage is the fix
- * for that, and a separate change; widening the CSP to a user-content host is not.
+ * The cover is a SOURCE, not a URL to show: `covers.openlibrary.org` redirects
+ * to archive.org, which the CSP blocks (a record saved with it showed a broken
+ * cover). The server fetches and stores it on Save — lib/isbn/cover-source.ts.
+ *
+ * Latency, measured 2026-09-25: the edition endpoint answers in 3.0–3.7 s and
+ * search in ~0.9 s, so the two run in PARALLEL (search does not depend on the
+ * edition) and each gets 10 s — a 6 s budget timed out a real lookup.
  */
 import type { FetchLike, IsbnCandidate, ProviderResult } from "../types";
 import { fetchJson, isObj, str, strArr, yearFrom } from "./fetch-json";
+import { openLibraryCoverSource } from "../cover-source";
 
 const BASE = "https://openlibrary.org";
 
@@ -30,10 +33,13 @@ export interface OpenLibraryOptions {
 }
 
 export function createOpenLibraryProvider(o: OpenLibraryOptions) {
-  const timeout = o.timeoutMs ?? 6_000;
+  const timeout = o.timeoutMs ?? 10_000;
 
   return async function lookupOpenLibrary(isbn13: string, isbn10: string | null): Promise<ProviderResult> {
-    const ed = await fetchJson(o.fetch, `${BASE}/isbn/${isbn13}.json`, timeout);
+    const [ed, s] = await Promise.all([
+      fetchJson(o.fetch, `${BASE}/isbn/${isbn13}.json`, timeout),
+      fetchJson(o.fetch, `${BASE}/search.json?isbn=${isbn13}&fields=author_name,subject&limit=1`, timeout),
+    ]);
     if (!ed.ok) {
       return { status: "error", kind: ed.kind, message: `Open Library ${ed.status ? `answered ${ed.status}` : ed.kind === "timeout" ? "timed out" : "is unreachable"}.` };
     }
@@ -45,7 +51,6 @@ export function createOpenLibraryProvider(o: OpenLibraryOptions) {
     // Best effort: a failed author lookup must not lose the edition.
     let authors: string[] = [];
     let subjects: string[] = [];
-    const s = await fetchJson(o.fetch, `${BASE}/search.json?isbn=${isbn13}&fields=author_name,subject&limit=1`, timeout);
     if (s.ok && isObj(s.body) && Array.isArray(s.body.docs) && isObj(s.body.docs[0])) {
       authors = strArr(s.body.docs[0].author_name);
       subjects = strArr(s.body.docs[0].subject).slice(0, 8);
@@ -56,6 +61,7 @@ export function createOpenLibraryProvider(o: OpenLibraryOptions) {
     }
 
     const langKey = Array.isArray(e.languages) && isObj(e.languages[0]) ? str(e.languages[0].key) : null;
+    const coverId = Array.isArray(e.covers) ? e.covers.find((c): c is number => typeof c === "number" && c > 0) : undefined;
     const candidate: IsbnCandidate = {
       provider: "open_library",
       providerRecordId: str(e.key) ?? `ISBN:${isbn13}`,
@@ -69,6 +75,7 @@ export function createOpenLibraryProvider(o: OpenLibraryOptions) {
       edition: str(e.edition_name),
       subjects,
       description: null,
+      coverSource: coverId ? openLibraryCoverSource(coverId) : null,
       isbn13,
       isbn10,
     };

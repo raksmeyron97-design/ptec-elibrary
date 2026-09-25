@@ -9,9 +9,10 @@
 export type CoverSource = "storage" | "external" | "generated";
 
 /** What the admin form asks the server to do with the cover on save. */
-export type CoverMode = "keep" | "upload" | "external" | "generated";
+/** `import` = a cover found by Add by ISBN, fetched and stored by the server on save (lib/isbn/cover-source.ts). */
+export type CoverMode = "keep" | "upload" | "external" | "generated" | "import";
 
-export const COVER_MODES: readonly CoverMode[] = ["keep", "upload", "external", "generated"];
+export const COVER_MODES: readonly CoverMode[] = ["keep", "upload", "external", "generated", "import"];
 
 /** Maximum accepted source file size (bytes). The stored file is far smaller —
  *  everything is re-encoded to WebP before upload. */

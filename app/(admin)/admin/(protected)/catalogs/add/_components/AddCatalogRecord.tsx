@@ -16,7 +16,7 @@ import type { IsbnLookupResponse } from "../../isbn-actions";
 type Chosen = { key: string; prefill: CatalogPrefill; provider: IsbnProvider | null };
 
 const EMPTY: CatalogPrefill = {
-  title: "", author: "", isbn: "", publisher: "", year: "", language: "km", keywords: [], description: "",
+  title: "", author: "", isbn: "", publisher: "", year: "", language: "km", keywords: [], description: "", coverImportUrl: null,
 };
 
 export default function AddCatalogRecord({ categories }: { categories: string[] }) {
