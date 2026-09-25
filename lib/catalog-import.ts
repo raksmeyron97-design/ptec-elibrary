@@ -733,6 +733,56 @@ export function groupKey(n: Pick<NormalizedRow, "title" | "author" | "isbn">): s
   return `${n.isbn ?? ""}|${n.title.toLowerCase()}|${(n.author ?? "").toLowerCase()}`;
 }
 
+// ── Matching an import against the existing catalogue ─────────────────────────
+
+/**
+ * The one "same title and author" key for the duplicate check — built by the
+ * wizard's preview, by every import batch, and for every existing record, so
+ * the three can never disagree about what they are comparing. It was three
+ * hand-written template strings, and only the existing-record one trimmed.
+ */
+export function titleAuthorKey(title: string, author: string | null | undefined): string {
+  return `${tidy(title).toLowerCase()}|${tidy(author).toLowerCase()}`;
+}
+
+/** The columns of an existing record the duplicate check reads. */
+export type ExistingCatalogRecord = {
+  id: string;
+  title: string;
+  author: string | null;
+  isbn: string | null;
+  slug: string;
+};
+
+/**
+ * Which of the wanted ISBNs and title|author keys already belong to a record.
+ *
+ * Pure, and only as correct as the list it is handed: the caller must pass the
+ * WHOLE active catalogue (see CATALOG_SCAN_CAP), because a record left out of
+ * `existing` is indistinguishable from a record that does not exist — which is
+ * how the importer came to create duplicates past the first 1,000 records.
+ */
+export function matchExistingRecords(
+  existing: readonly ExistingCatalogRecord[],
+  want: { isbns: readonly string[]; titleAuthors: readonly string[] },
+): { byIsbn: Record<string, DuplicateMatch>; byTitleAuthor: Record<string, DuplicateMatch> } {
+  const byIsbn: Record<string, DuplicateMatch> = {};
+  const byTitleAuthor: Record<string, DuplicateMatch> = {};
+  const wantIsbn = new Set(want.isbns.filter(Boolean));
+  const wantTA = new Set(want.titleAuthors.filter(Boolean));
+  for (const b of existing) {
+    const isbn = b.isbn?.replace(/[\s-]+/g, "").toUpperCase() ?? "";
+    if (isbn && wantIsbn.has(isbn) && !byIsbn[isbn]) {
+      byIsbn[isbn] = { existingBookId: b.id, existingTitle: b.title, existingSlug: b.slug, matchedBy: "isbn" };
+    }
+    const ta = titleAuthorKey(b.title, b.author);
+    if (wantTA.has(ta) && !byTitleAuthor[ta]) {
+      byTitleAuthor[ta] = { existingBookId: b.id, existingTitle: b.title, existingSlug: b.slug, matchedBy: "title_author" };
+    }
+  }
+  return { byIsbn, byTitleAuthor };
+}
+
 export type ImportCopyPlan = {
   barcode: string | null;
   accession_number: string | null;

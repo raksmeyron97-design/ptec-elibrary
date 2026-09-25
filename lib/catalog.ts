@@ -391,6 +391,20 @@ export type GeneratedCopy = {
 
 export const DEFAULT_HOLDING_LIBRARY = "PTEC Library";
 
+/**
+ * The most catalogue records a whole-collection read will page through before
+ * it refuses to call its answer complete.
+ *
+ * Every such read goes through pagedScan() (lib/db/paged-scan.ts), because
+ * PostgREST silently clips a one-shot select at 1,000 rows. That was harmless
+ * while the physical catalogue held six records and stopped being harmless
+ * with the PMB import (2,638 records, 13,429 copies): the importer's duplicate
+ * check, the admin statistics and the public category list each saw an
+ * arbitrary 1,000. The cap is a bound on the scan, not a product limit — it is
+ * set far above the collection so reaching it means something is wrong.
+ */
+export const CATALOG_SCAN_CAP = 50_000;
+
 /** Deterministic generation shared by the client preview and the server action. */
 export function generateCopies(spec: BulkCopySpec): GeneratedCopy[] {
   const count = Math.min(Math.max(1, Math.floor(spec.count)), 100);
