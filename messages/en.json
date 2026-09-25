@@ -746,6 +746,7 @@
     "emptyVisitLabel": "Visit us",
     "emptyVisitCta": "Get directions",
     "emptyBorrowNote": "Physical books can be borrowed at the library front desk with your student or staff card.",
+    "availabilityNotice": "Copy availability shown here is not updated in real time yet. Please confirm with the librarian at the library desk before you visit.",
     "avail": {
       "available": "Available to borrow",
       "referenceOnly": "In-library use only",
@@ -7686,6 +7687,7 @@
         "importBooks": "{count, plural, one {Import # book} other {Import # books}}",
         "finishingBatch": "Finishing current batch…",
         "cancelImport": "Cancel import",
+        "importAgainAnyway": "Import again anyway",
         "done": "Done"
       },
       "upload": {

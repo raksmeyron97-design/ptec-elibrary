@@ -31,6 +31,7 @@ import {
 } from "@/lib/catalog";
 import { getCategoryCoverTheme } from "@/lib/cover-theme";
 import SmartBookCover from "@/components/ui/books/SmartBookCover";
+import CatalogAvailabilityNotice from "@/components/ui/books/CatalogAvailabilityNotice";
 import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
 
 export const revalidate = 300;
@@ -377,6 +378,10 @@ export default async function CatalogBookPage({
                 <p className="mt-2 text-[12px] text-text-body">
                   {t("detail.copiesSummary", { available: stats.available, total: stats.total })}
                 </p>
+              )}
+
+              {stats.total > 0 && (
+                <CatalogAvailabilityNotice text={t("availabilityNotice")} className="mt-3" />
               )}
 
               {b.shelf_location && (

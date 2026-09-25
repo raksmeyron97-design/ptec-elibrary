@@ -6,14 +6,15 @@
  * 13,429 copies, and four readers each saw an arbitrary 1,000 of them:
  *
  *   • the importer's duplicate check — a record past the first 1,000 read as
- *     "does not exist", so re-running a sheet created empty duplicates, and a
+ *     "does not exist", so new copies of a title already in the catalogue
+ *     became a second record for that title (measured locally: 5 of 5), and a
  *     FAILED read was treated the same as an empty catalogue;
  *   • the admin statistics and the Add form's category suggestions;
  *   • the public category chips;
- *   • public search, which spliced every keyword/DDC match into the listing
- *     query as `id.in.(…)` — clipped at 1,000, and long enough past a few
- *     hundred ids to exceed the proxy's request line, whose error path renders
- *     "No books found" for exactly the commonest searches.
+ *   • public search, which spliced every DDC match into the listing query as
+ *     `id.in.(…)` — clipped at 1,000, and past a few hundred ids longer than
+ *     Kong's request line: "37" (497 ids, 19,606 chars) answered 414, whose
+ *     error path renders "No books found".
  *
  * The behavioural half proves the matcher finds a record a clipped read would
  * never have handed it; the source half pins that these readers page.
@@ -122,6 +123,13 @@ describe("whole-collection catalogue reads page", () => {
     expect(src).not.toMatch(/id\.in\.\(\$\{/);
     // Candidate legs are paged and ordered by id; only the visible page is fetched by id.
     expect(src).toMatch(/\.in\("id", pageIds\)/);
+  });
+
+  it("does not bring back a keyword filter PostgREST cannot run", () => {
+    // `keywords::text` in a filter is not a cast to PostgREST; Postgres answers
+    // `operator does not exist: text[] ~~* unknown`, every time.
+    const src = read("app/[locale]/(public)/catalogs/page.tsx");
+    expect(src).not.toMatch(/\.filter\("keywords::text"/);
   });
 });
 

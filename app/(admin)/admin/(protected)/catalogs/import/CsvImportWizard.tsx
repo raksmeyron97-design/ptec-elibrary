@@ -363,6 +363,18 @@ export default function CsvImportWizard() {
         );
       case "preview": {
         const n = importSet ? importSet.toCreate + importSet.toUpdate : 0;
+        // The server refused this file as a repeat within its window and its
+        // message tells the librarian to choose "Import again anyway" — so that
+        // choice has to exist. Without it a failed import could not be retried
+        // for 15 minutes. The duplicate check still runs on every batch.
+        if (state.duplicateSubmission) {
+          return (
+            <>
+              {backBtn(() => dispatch({ type: "BACK_TO_MAPPING" }))}
+              {primaryBtn(() => void runImport(true), t("importAgainAnyway"), n === 0)}
+            </>
+          );
+        }
         return (
           <>
             {backBtn(() => dispatch({ type: "BACK_TO_MAPPING" }))}
