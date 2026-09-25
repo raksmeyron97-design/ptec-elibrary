@@ -47,3 +47,26 @@ export function isKohaLibrary(v: unknown): v is KohaLibrary {
 export function isKohaLibraryList(v: unknown): v is KohaLibrary[] {
   return Array.isArray(v) && v.every(isKohaLibrary);
 }
+
+/**
+ * GET /biblios (JSON), definitions/biblio.yaml — the biblio and biblioitems
+ * columns merged. `isbn` holds EVERY 020$a joined with " | " (C4/Biblio.pm
+ * TransformMarcToKoha), which is why lookups match it with `-like`.
+ */
+export type KohaBiblioSummary = {
+  biblio_id: number;
+  title: string | null;
+  author: string | null;
+  isbn: string | null;
+};
+
+export function isKohaBiblioSummary(v: unknown): v is KohaBiblioSummary {
+  return (
+    isObject(v) && typeof v.biblio_id === "number" &&
+    isStrOrNull(v.title ?? null) && isStrOrNull(v.author ?? null) && isStrOrNull(v.isbn ?? null)
+  );
+}
+
+export function isKohaBiblioList(v: unknown): v is KohaBiblioSummary[] {
+  return Array.isArray(v) && v.every(isKohaBiblioSummary);
+}

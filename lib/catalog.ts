@@ -326,7 +326,7 @@ export function validateDdc(raw: string | null | undefined): { ok: true; ddc: st
   return { ok: true, ddc: v };
 }
 
-const MAX_TEXT: Record<string, number> = {
+export const MAX_TEXT: Record<string, number> = {
   title: 300, author: 200, publisher: 200, category: 100, department: 100,
   shelf_location: 60, call_number: 80, ddc: 80, accession_number: 60, description: 5000,
   notes: 500, holding_library: 120, condition: 60, edition: 60,

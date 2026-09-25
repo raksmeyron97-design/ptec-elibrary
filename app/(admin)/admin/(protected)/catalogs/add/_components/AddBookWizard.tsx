@@ -25,6 +25,7 @@ import { AlertCircle, BookOpen, Image as ImageIcon, type LucideIcon } from "luci
 import SeoOverrideFields from "@/components/admin/seo/SeoOverrideFields";
 import { SITE_URL } from "@/lib/seo/site";
 import { catalogRecordSlug } from "@/lib/catalog";
+import type { CatalogPrefill } from "@/lib/isbn/prefill";
 
 interface BookData {
   id: string;
@@ -47,7 +48,22 @@ const TABS: { key: Tab; labelKey: string; icon: LucideIcon }[] = [
   { key: "media", labelKey: "tabMedia", icon: ImageIcon },
 ];
 
-export default function AddBookWizard({ categories }: { categories: string[] }) {
+export default function AddBookWizard({
+  categories,
+  initial,
+  headerActions,
+  notice,
+}: {
+  categories: string[];
+  /**
+   * Starting values from Add by ISBN. The fields stay uncontrolled, so the
+   * caller remounts this component (a new `key`) to apply a different set.
+   */
+  initial?: CatalogPrefill;
+  headerActions?: React.ReactNode;
+  /** Shown above the fields — where the starting values came from. */
+  notice?: React.ReactNode;
+}) {
   const t = useTranslations("adminCatalog.form");
   const [tab, setTab] = useState<Tab>("info");
   const [step, setStep] = useState<1 | 2>(1);
@@ -56,7 +72,7 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   // Mirrors of the (uncontrolled) form fields that drive the cover preview.
-  const [preview, setPreview] = useState({ title: "", author: "", category: "" });
+  const [preview, setPreview] = useState({ title: initial?.title ?? "", author: initial?.author ?? "", category: "" });
   // The slug is the one field that is controlled: it follows the title until
   // the cataloguer edits it, which needs state on this side of the form.
   const [slug, setSlug] = useState("");
@@ -145,6 +161,7 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
       description={t("step1Subtitle")}
       contentKey={tab}
       action={handleAddBook}
+      headerActions={headerActions}
       tabs={
         <FormTabs
           idPrefix="catalogadd"
@@ -199,6 +216,8 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
         hidden={tab !== "info"}
         className="space-y-5 focus:outline-none"
       >
+        {notice}
+
         {/* ── Core info ── */}
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={t("titleReq")} required htmlFor="f-title" error={fieldErrors.title} className="sm:col-span-2">
@@ -206,6 +225,7 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
               <input
                 {...p}
                 name="title"
+                defaultValue={initial?.title}
                 placeholder={t("titlePlaceholder")}
                 onChange={(e) => setPreview((prev) => ({ ...prev, title: e.target.value }))}
               />
@@ -238,6 +258,7 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
               <input
                 {...p}
                 name="author"
+                defaultValue={initial?.author}
                 placeholder={t("authorPlaceholder")}
                 onChange={(e) => setPreview((prev) => ({ ...prev, author: e.target.value }))}
               />
@@ -246,7 +267,7 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
 
           <Field label={t("languageReq")} required htmlFor="f-language">
             {(p) => (
-              <select {...p} name="language" defaultValue="km">
+              <select {...p} name="language" defaultValue={initial?.language ?? "km"}>
                 <option value="km">{t("lang.km")}</option>
                 <option value="en">{t("lang.en")}</option>
                 <option value="fr">{t("lang.fr")}</option>
@@ -257,16 +278,16 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
           </Field>
 
           <Field label={t("isbn")} htmlFor="f-isbn" error={fieldErrors.isbn}>
-            {(p) => <input {...p} name="isbn" placeholder="978-0-000-00000-0" />}
+            {(p) => <input {...p} name="isbn" defaultValue={initial?.isbn} placeholder="978-0-000-00000-0" />}
           </Field>
 
           <Field label={t("publisher")} htmlFor="f-publisher" error={fieldErrors.publisher}>
-            {(p) => <input {...p} name="publisher" placeholder={t("optional")} />}
+            {(p) => <input {...p} name="publisher" defaultValue={initial?.publisher} placeholder={t("optional")} />}
           </Field>
 
           <Field label={t("year")} htmlFor="f-year" error={fieldErrors.year}>
             {(p) => (
-              <input {...p} name="year" inputMode="numeric" placeholder={String(new Date().getFullYear())} />
+              <input {...p} name="year" defaultValue={initial?.year} inputMode="numeric" placeholder={String(new Date().getFullYear())} />
             )}
           </Field>
 
@@ -351,6 +372,7 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
               {...p}
               className={`${p.className} h-auto resize-none py-3 leading-relaxed`}
               name="description"
+              defaultValue={initial?.description}
               rows={4}
               placeholder={t("descriptionPlaceholder")}
             />
@@ -358,7 +380,7 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
         </Field>
 
         <Field label={t("keywords")} htmlFor="f-keywords" hint={t("keywordsHint")}>
-          <TagInput name="keywords" placeholder={t("keywordsPlaceholder")} disabled={loading} />
+          <TagInput name="keywords" defaultTags={initial?.keywords} placeholder={t("keywordsPlaceholder")} disabled={loading} />
         </Field>
 
         <SeoOverrideFields

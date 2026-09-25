@@ -12,7 +12,7 @@
  * No network, no persistence, no real data. Fixtures are fictional.
  */
 import type { FetchLike } from "./auth";
-import type { KohaLibrary, KohaVersion } from "./types";
+import type { KohaBiblioSummary, KohaLibrary, KohaVersion } from "./types";
 
 export const MOCK_KOHA_BASE_URL = "http://koha.mock";
 export const MOCK_KOHA_VERSION: KohaVersion = {
@@ -24,6 +24,10 @@ export const MOCK_KOHA_VERSION: KohaVersion = {
   development: null,
 };
 export const MOCK_KOHA_LIBRARIES: KohaLibrary[] = [{ library_id: "PTEC", name: "PTEC Library" }];
+/** A fictional record whose ISBN (valid check digit) exists only in the mock. */
+export const MOCK_KOHA_BIBLIOS: KohaBiblioSummary[] = [
+  { biblio_id: 1, title: "Mock Koha record", author: "PTEC Test", isbn: "9780000000002 | 0000000000" },
+];
 
 const json = (status: number, body: unknown, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...headers } });
@@ -35,8 +39,11 @@ export interface MockKoha {
   calls: { method: string; path: string; headers: Record<string, string> }[];
 }
 
-export function createMockKoha(opts: { libraries?: KohaLibrary[]; version?: KohaVersion | null } = {}): MockKoha {
+export function createMockKoha(
+  opts: { libraries?: KohaLibrary[]; version?: KohaVersion | null; biblios?: KohaBiblioSummary[] } = {},
+): MockKoha {
   const libraries = opts.libraries ?? MOCK_KOHA_LIBRARIES;
+  const biblios = opts.biblios ?? MOCK_KOHA_BIBLIOS;
   const version = opts.version === undefined ? MOCK_KOHA_VERSION : opts.version;
   const calls: MockKoha["calls"] = [];
   let issued = 0;
@@ -66,6 +73,19 @@ export function createMockKoha(opts: { libraries?: KohaLibrary[]; version?: Koha
     }
     if (method === "GET" && url.pathname === "/api/v1/libraries") {
       return json(200, libraries, { "X-Total-Count": String(libraries.length) });
+    }
+    if (method === "GET" && url.pathname === "/api/v1/biblios") {
+      // Honours exactly the query shape findKohaBiblioIdsByIsbn sends:
+      // {"-or":[{"isbn":{"-like":"%<digits>%"}}, …]}. Like the real endpoint,
+      // it sends no pagination headers.
+      let wanted: string[] = [];
+      try {
+        const q = JSON.parse(url.searchParams.get("q") ?? "{}") as { "-or"?: { isbn?: { "-like"?: string } }[] };
+        wanted = (q["-or"] ?? []).map((c) => c.isbn?.["-like"]?.replace(/%/g, "") ?? "").filter(Boolean);
+      } catch {
+        return json(400, { error: "Malformed query string" });
+      }
+      return json(200, biblios.filter((b) => wanted.some((w) => b.isbn?.includes(w))));
     }
     return json(404, { error: "Not found." });
   };
