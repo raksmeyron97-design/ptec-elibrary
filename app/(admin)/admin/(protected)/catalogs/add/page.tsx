@@ -5,6 +5,7 @@ import { pagedScan } from "@/lib/db/paged-scan";
 
 import AddCatalogRecord from "./_components/AddCatalogRecord";
 import { requireRouteAccess } from "@/lib/admin/route-guard";
+import { kohaSyncInitialized } from "@/lib/koha/sync-server";
 export default async function AddCatalogBookPage() {
   await requireRouteAccess("catalog.create");
 
@@ -22,18 +23,22 @@ export default async function AddCatalogBookPage() {
   // Suggestions only, so a failed read offers none rather than blocking the
   // form. Paged, because `.limit(200)` took the first 200 ROWS — with 2,638
   // records that is not the category list.
-  const catScan = await pagedScan<{ category: string | null }>(
-    (from, to) =>
-      supabase
-        .from("catalog_books")
-        .select("category")
-        .not("category", "is", null)
-        .order("id", { ascending: true })
-        .range(from, to),
-    CATALOG_SCAN_CAP,
-  );
+  const [catScan, followsKoha] = await Promise.all([
+    pagedScan<{ category: string | null }>(
+      (from, to) =>
+        supabase
+          .from("catalog_books")
+          .select("category")
+          .not("category", "is", null)
+          .order("id", { ascending: true })
+          .range(from, to),
+      CATALOG_SCAN_CAP,
+    ),
+    // Once the Physical Library follows Koha, new books belong in Koha.
+    kohaSyncInitialized(),
+  ]);
   const catRows = catScan.error || catScan.truncated ? [] : catScan.data;
   const categories = [...new Set(catRows.map((r) => r.category).filter(Boolean) as string[])].sort();
 
-  return <AddCatalogRecord categories={categories} />;
+  return <AddCatalogRecord categories={categories} followsKoha={followsKoha} />;
 }

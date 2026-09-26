@@ -33,7 +33,7 @@ import {
   BTN_SECONDARY,
   type FormTab,
 } from "@/components/admin/kit/form";
-import { AlertCircle, BookOpen, Check, ExternalLink, Image as ImageIcon, Layers, Search, type LucideIcon } from "lucide-react";
+import { AlertCircle, BookOpen, Check, ExternalLink, Image as ImageIcon, Info, Layers, Search, type LucideIcon } from "lucide-react";
 import CatalogCoverField from "@/components/admin/catalogs/CatalogCoverField";
 import SeoOverrideFields from "@/components/admin/seo/SeoOverrideFields";
 import { SITE_URL } from "@/lib/seo/site";
@@ -50,6 +50,21 @@ type Tab = "info" | "media" | "copies";
   search-engine preview. Cover and SEO are the same job, done once, and they now
   have their own tab.
 */
+/*
+  A record linked to Koha (0157) is partly owned by Koha: the sync overwrites
+  its bibliographic fields and its copies (docs/KOHA-SYNC.md). The form stays
+  editable — the e-Library's own fields live on the same screen — so the notice
+  says which is which rather than disabling half the inputs.
+*/
+function KohaNotice({ title, body }: { title?: string; body: string }) {
+  return (
+    <div className="flex items-start gap-2 rounded-xl border border-info-line bg-info-soft px-3 py-2 text-xs leading-relaxed text-info-text">
+      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <p>{title && <span className="font-semibold">{title}. </span>}{body}</p>
+    </div>
+  );
+}
+
 const TABS: { key: Tab; labelKey: string; icon: LucideIcon }[] = [
   { key: "info", labelKey: "tabInfo", icon: BookOpen },
   { key: "media", labelKey: "tabMedia", icon: ImageIcon },
@@ -82,6 +97,8 @@ export default function EditBookWizard({
   const searchParams = useSearchParams();
   const t = useTranslations("adminCatalog.form");
   const te = useTranslations("adminCatalog.edit");
+  const tk = useTranslations("adminCatalog.koha");
+  const kohaId = book.koha_biblio_id ?? null;
   const [tab, setTab] = useState<Tab>(initialTab);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -286,6 +303,7 @@ export default function EditBookWizard({
         hidden={tab !== "info"}
         className="space-y-5 focus:outline-none"
       >
+        {kohaId !== null && <KohaNotice title={tk("linkedTitle", { id: kohaId })} body={tk("linkedBody")} />}
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={t("titleReq")} required htmlFor="f-title" error={fieldErrors.title} className="sm:col-span-2">
             {(p) => (
@@ -517,8 +535,9 @@ export default function EditBookWizard({
         aria-labelledby="catalog-tab-copies"
         tabIndex={-1}
         hidden={tab !== "copies"}
-        className="focus:outline-none"
+        className="space-y-4 focus:outline-none"
       >
+        {kohaId !== null && <KohaNotice body={tk("copiesBody")} />}
         {/* Mounted only while open. CopiesPanel fetches and holds its own copy
             rows, so keeping it alive behind the other two tabs made every
             catalog edit pay for inventory state nobody had asked to see. */}

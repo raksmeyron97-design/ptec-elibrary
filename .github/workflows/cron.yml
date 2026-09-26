@@ -46,6 +46,12 @@ on:
     # answer can cite. The pass is bounded (10 records) and claims what it
     # works on, so overlapping runs cannot double-process a record.
     - cron: "41 * * * *"
+    # Koha → e-Library sync (docs/KOHA-SYNC.md): what Koha changed — loans,
+    # returns, new and edited records — every 15 minutes, offset from the
+    # publish sweep; and a FULL reconcile nightly at 19:25 UTC = 02:25
+    # Asia/Phnom_Penh, the only run that can see what Koha deleted.
+    - cron: "7/15 * * * *"
+    - cron: "25 19 * * *"
   workflow_dispatch:
     inputs:
       job:
@@ -53,7 +59,7 @@ on:
         required: true
         default: publish-scheduled
         type: choice
-        options: [publish-scheduled, cleanup, security-scan, upload-reconcile, index-reconcile, both]
+        options: [publish-scheduled, cleanup, security-scan, upload-reconcile, index-reconcile, koha-sync, koha-sync-full, both]
 
 permissions:
   contents: read # checkout, on the runs that alert
@@ -305,4 +311,47 @@ jobs:
             [ "$attempt" -lt 2 ] && sleep 20
           done
           echo "::error title=Index reconciliation failed::/api/cron/index-reconcile did not return 200 — see docs/RUNBOOKS.md"
+          exit 1
+
+  # ── Koha → e-Library sync ───────────────────────────────────────────────────
+  # Starts a sync in the background on the box and returns at once (202); the
+  # outcome is recorded in koha_sync_state and shown at /admin/catalogs/koha-sync.
+  # 409 is NOT a failure: it means Koha is not connected yet (KOHA_INTEGRATION
+  # off), the first build has not been applied, or a run is still going — the
+  # normal states before and during go-live, and a red job every 15 minutes for
+  # them would teach people to ignore this workflow. 401/5xx do fail it.
+  # NO TELEGRAM ALERT: a missed pass delays an availability change by 15
+  # minutes; the admin page shows the last run's status and errors.
+  koha-sync:
+    if: >-
+      github.event.schedule == '7/15 * * * *' ||
+      github.event.schedule == '25 19 * * *' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (inputs.job == 'koha-sync' || inputs.job == 'koha-sync-full'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Start the Koha sync
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          MODE: ${{ (github.event.schedule == '25 19 * * *' || inputs.job == 'koha-sync-full') && 'full' || 'incremental' }}
+        run: |
+          set -uo pipefail
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error title=CRON_SECRET missing::Set the CRON_SECRET repo secret to the same value as the box's .env"
+            exit 1
+          fi
+          url="$SITE_URL/api/cron/koha-sync"
+          [ "$MODE" = "full" ] && url="$url?mode=full"
+          for attempt in 1 2; do
+            code=$(curl -sS --max-time 60 -o /tmp/body.json -w '%{http_code}' \
+              -H "Authorization: Bearer $CRON_SECRET" "$url")
+            cat /tmp/body.json 2>/dev/null; echo
+            case "$code" in
+              202|409) exit 0 ;;
+            esac
+            echo "attempt $attempt: HTTP ${code:-no-response}"
+            [ "$attempt" -lt 2 ] && sleep 20
+          done
+          echo "::error title=Koha sync could not start::/api/cron/koha-sync returned ${code:-no-response} — see docs/KOHA-SYNC.md"
           exit 1

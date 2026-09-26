@@ -39,9 +39,32 @@ export interface KohaResponse<T> {
   requestId: string;
 }
 
+/** Response formats a caller may ask for. JSON everywhere; MARC-in-JSON where Koha offers records as MARC (GET /biblios). */
+export type KohaAccept = "application/json" | "application/marc-in-json";
+/** `x-koha-embed` values a caller may send. A closed list, like the paths: nothing a caller passes becomes a header freely. */
+export const KOHA_EMBEDS = ["+strings"] as const;
+export type KohaEmbed = (typeof KOHA_EMBEDS)[number];
+
+export interface KohaGetOptions {
+  query?: Query;
+  signal?: AbortSignal;
+  accept?: KohaAccept;
+  embed?: readonly KohaEmbed[];
+  /**
+   * This call's time budget, in place of KOHA_TIMEOUT_MS — for background
+   * bulk reads (the sync), where a page legitimately takes seconds and nobody
+   * is waiting on it. Capped at KOHA_MAX_TIMEOUT_MS; interactive calls leave it
+   * unset and keep the configured budget.
+   */
+  timeoutMs?: number;
+}
+
+/** The ceiling on a per-call budget: one stuck request must not hold a run for long. */
+export const KOHA_MAX_TIMEOUT_MS = 120_000;
+
 export interface KohaClient {
   readonly mode: KohaMode;
-  get<T>(path: string, validate: Validate<T>, opts?: { query?: Query; signal?: AbortSignal }): Promise<KohaResponse<T>>;
+  get<T>(path: string, validate: Validate<T>, opts?: KohaGetOptions): Promise<KohaResponse<T>>;
 }
 
 export interface KohaClientDeps {
@@ -116,32 +139,35 @@ export function createKohaClient(cfg: KohaConfig, deps: KohaClientDeps = {}): Ko
     }
   }
 
-  async function send(url: string, token: string, requestId: string, outer?: AbortSignal): Promise<Response> {
-    const timeout = AbortSignal.timeout(cfg.timeoutMs);
+  type SendExtra = { accept: KohaAccept; embed: string | null; timeoutMs: number };
+
+  async function send(url: string, token: string, requestId: string, outer: AbortSignal | undefined, extra: SendExtra): Promise<Response> {
+    const timeout = AbortSignal.timeout(extra.timeoutMs);
     const signal = outer ? AbortSignal.any([timeout, outer]) : timeout;
     const headers: Record<string, string> = {
       Authorization: `Bearer ${token}`,
-      Accept: "application/json",
+      Accept: extra.accept,
       "x-koha-request-id": requestId,
     };
+    if (extra.embed) headers["x-koha-embed"] = extra.embed;
     if (cfg.libraryId) headers["x-koha-library"] = cfg.libraryId;
     try {
       return await doFetch(url, { method: "GET", headers, signal, cache: "no-store" });
     } catch {
       if (outer?.aborted) throw new KohaError("timeout", "The Koha call was cancelled.", { requestId });
-      if (timeout.aborted) throw new KohaError("timeout", `Koha did not answer within ${cfg.timeoutMs} ms.`, { requestId });
+      if (timeout.aborted) throw new KohaError("timeout", `Koha did not answer within ${extra.timeoutMs} ms.`, { requestId });
       throw new KohaError("unreachable", "Koha is unreachable.", { requestId });
     }
   }
 
-  async function once<T>(url: string, where: string, validate: Validate<T>, outer?: AbortSignal): Promise<KohaResponse<T>> {
+  async function once<T>(url: string, where: string, validate: Validate<T>, outer: AbortSignal | undefined, extra: SendExtra): Promise<KohaResponse<T>> {
     const requestId = newRequestId();
     let token = await tokens!.getToken();
-    let res = await send(url, token, requestId, outer);
+    let res = await send(url, token, requestId, outer, extra);
     if (res.status === 401) {
       tokens!.invalidate(token);
       token = await tokens!.getToken();
-      res = await send(url, token, requestId, outer);
+      res = await send(url, token, requestId, outer, extra);
     }
 
     let body: unknown = null;
@@ -165,16 +191,22 @@ export function createKohaClient(cfg: KohaConfig, deps: KohaClientDeps = {}): Ko
 
   return {
     mode: cfg.mode,
-    async get<T>(path: string, validate: Validate<T>, opts: { query?: Query; signal?: AbortSignal } = {}) {
+    async get<T>(path: string, validate: Validate<T>, opts: KohaGetOptions = {}) {
       if (refused) throw refused;
       assertSafePath(path);
+      const accept: KohaAccept = opts.accept === "application/marc-in-json" ? "application/marc-in-json" : "application/json";
+      const embeds = (opts.embed ?? []).filter((e): e is KohaEmbed => (KOHA_EMBEDS as readonly string[]).includes(e));
+      const timeoutMs = opts.timeoutMs !== undefined && Number.isFinite(opts.timeoutMs) && opts.timeoutMs > 0
+        ? Math.min(opts.timeoutMs, KOHA_MAX_TIMEOUT_MS)
+        : cfg.timeoutMs;
+      const extra: SendExtra = { accept, embed: embeds.length ? embeds.join(",") : null, timeoutMs };
       const url = new URL(`${baseUrl}/api/v1${path}`);
       for (const [k, v] of Object.entries(opts.query ?? {})) if (v !== undefined) url.searchParams.set(k, String(v));
       const where = `GET ${path}`;
 
       for (let attempt = 0; ; attempt++) {
         try {
-          return await once(url.toString(), where, validate, opts.signal);
+          return await once(url.toString(), where, validate, opts.signal, extra);
         } catch (e) {
           const err = e instanceof KohaError ? e : new KohaError("unreachable", `Koha call failed (${where}).`);
           if (!err.retryable || attempt >= RETRY_DELAYS_MS.length || opts.signal?.aborted) throw err;

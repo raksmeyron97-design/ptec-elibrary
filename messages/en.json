@@ -7940,6 +7940,12 @@
       "noAuthor": "No author given",
       "prefilledFrom": "Filled from {provider} for ISBN {isbn}. Check every field before saving — category, department, DDC and shelf are left for you to set.",
       "coverAlt": "Cover: {title}"
+    },
+    "koha": {
+      "linkedTitle": "From Koha (record {id})",
+      "linkedBody": "Title, author, ISBN, publisher, year, language, category, call number and department are copied from Koha, and the sync overwrites them here. Change them in Koha. The description, cover, keywords, web address and SEO fields belong to the e-Library and are kept.",
+      "copiesBody": "These copies come from Koha. Barcode, call number, status, shelf and accession number follow Koha: a loan or a return in Koha shows here within 15 minutes, and a change made here is replaced by the next sync. Lend, return and edit copies in Koha.",
+      "addNotice": "The Physical Library now follows Koha. Catalogue new books in Koha and they appear here within 15 minutes. A record added only here is not in Koha, so it cannot be lent, and the nightly sync lists it for review."
     }
   },
   "adminUpload": {
