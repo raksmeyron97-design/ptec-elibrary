@@ -54,14 +54,17 @@ export class KohaError extends Error {
   readonly kohaErrorCode?: string;
   /** Our `x-koha-request-id` for this call, for correlating with Koha's logs. */
   readonly requestId?: string;
+  /** Koha's own `error` text, as data (e.g. "Duplicate biblio 42"), bounded; never a credential. */
+  readonly kohaReason?: string;
 
-  constructor(kind: KohaErrorKind, message: string, opts: { status?: number; kohaErrorCode?: string; requestId?: string } = {}) {
+  constructor(kind: KohaErrorKind, message: string, opts: { status?: number; kohaErrorCode?: string; requestId?: string; kohaReason?: string } = {}) {
     super(message);
     this.name = "KohaError";
     this.kind = kind;
     this.status = opts.status;
     this.kohaErrorCode = opts.kohaErrorCode;
     this.requestId = opts.requestId;
+    this.kohaReason = opts.kohaReason;
   }
 
   get failureKind(): KohaFailureKind {
@@ -93,7 +96,7 @@ function readErrorBody(body: unknown): { reason?: string; code?: string; permiss
 export function kohaErrorFromResponse(status: number, body: unknown, where: string, requestId?: string): KohaError {
   const { reason, code, permissions } = readErrorBody(body);
   const said = reason ? `: ${reason}` : "";
-  const opts = { status, kohaErrorCode: code, requestId };
+  const opts = { status, kohaErrorCode: code, requestId, kohaReason: reason };
   if (status === 401) return new KohaError("auth", `Koha rejected the API credentials (${where})${said}`, opts);
   if (status === 403) {
     const need = permissions ? ` Required permissions: ${permissions}.` : "";

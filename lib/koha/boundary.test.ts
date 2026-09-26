@@ -47,10 +47,15 @@ describe("Koha integration boundary", () => {
     }
   });
 
-  it("the client exposes reads only in Phase 1, and retries nothing but GET", () => {
-    const src = read("lib/koha/client.ts");
-    expect(src).not.toMatch(/method:\s*"(POST|PUT|PATCH|DELETE)"/);
-    expect(src).toMatch(/method: "GET"/);
+  it("the client writes records only (POST /biblios, PUT /biblios/{id}), never DELETE or PATCH, and retries nothing but GET", () => {
+    const src = code("lib/koha/client.ts");
+    expect(src).not.toMatch(/"(DELETE|PATCH)"/);
+    expect(src).toMatch(/type KohaWriteMethod = "POST" \| "PUT";/);
+    expect(src).toMatch(/POST: \/\^\\\/biblios\$\/, PUT: \/\^\\\/biblios\\\/\[1-9\]\\d\*\$\//);
+    // write() sends once: the retry loop lives in get() alone.
+    const write = src.slice(src.indexOf("async write<T>("));
+    expect(write).not.toMatch(/RETRY_DELAYS_MS|sleep\(/);
+    expect(write).toMatch(/cfg\.mode !== "write" && cfg\.mode !== "mock"/);
   });
 
   it("nothing in lib/koha logs a token or a secret", () => {

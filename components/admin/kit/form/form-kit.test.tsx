@@ -13,6 +13,7 @@ import { useState } from "react";
 
 import Field from "./Field";
 import SlugField from "./SlugField";
+import FormShell from "./FormShell";
 import { focusFirstInvalid } from "./focus-first-invalid";
 
 describe("<Field>", () => {
@@ -233,5 +234,26 @@ describe("<SlugField>", () => {
     const status = screen.getByRole("status");
     expect(status).toHaveAttribute("aria-live", "polite");
     await waitFor(() => expect(status).toHaveTextContent("Already used"), { timeout: 2000 });
+  });
+});
+
+// React 19 resets every uncontrolled field after a <form action> function
+// settles — even when the server REFUSED the save. The catalog wizards came
+// back empty after a taken slug or a Koha duplicate, and "Create anyway" then
+// submitted nothing. FormShell calls `action` from onSubmit instead.
+describe("<FormShell action>", () => {
+  it("hands the action what was typed, and keeps it there once the action settles", async () => {
+    const seen: string[] = [];
+    render(
+      <FormShell backHref="/admin" backLabel="Back" title="Add" action={async (fd) => { seen.push(String(fd.get("title"))); }}>
+        <input name="title" aria-label="title" defaultValue="" />
+        <button type="submit">Save</button>
+      </FormShell>,
+    );
+    fireEvent.change(screen.getByLabelText("title"), { target: { value: "Typed by a librarian" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(seen).toEqual(["Typed by a librarian"]));
+    await new Promise((r) => setTimeout(r, 50));
+    expect((screen.getByLabelText("title") as HTMLInputElement).value).toBe("Typed by a librarian");
   });
 });

@@ -26,7 +26,7 @@ describe("Koha sync boundary", () => {
   });
 
   it("only reads Koha: the sync calls nothing on the client but get()", () => {
-    for (const f of SYNC) expect(code(f), f).not.toMatch(/\b(koha|client)\.(post|put|patch|del|delete|request)\s*\(/);
+    for (const f of SYNC) expect(code(f), f).not.toMatch(/\b(koha|client)\.(write|post|put|patch|del|delete|request)\s*\(/);
   });
 
   it("the cron route checks the bearer before it starts anything, and never runs a first build", () => {

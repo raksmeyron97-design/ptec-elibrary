@@ -29,6 +29,13 @@ export interface KohaConfig {
   /** Sent as `x-koha-library` — the library a call acts for. Null means the API user's home library. */
   libraryId: string | null;
   timeoutMs: number;
+  /**
+   * KOHA_STAFF_URL: Koha's staff interface as a LIBRARIAN'S BROWSER reaches it
+   * (the box's LAN address, e.g. http://192.168.1.20:8481) — not KOHA_BASE_URL,
+   * which is the container-network name only the server can resolve. Used only
+   * to link to Koha pages (a record, its "Add item" form). Null when unset.
+   */
+  staffUrl: string | null;
   /** Blocking: with any of these the client refuses to call Koha. */
   problems: string[];
   /** Advisory: the integration works, but someone should look. */
@@ -108,6 +115,14 @@ export function resolveKohaConfig(env: EnvSource): KohaConfig {
   }
   if (libraryId && libraryId.length > 10) problems.push("KOHA_LIBRARY_ID is longer than Koha's 10-character library code.");
 
+  let staffUrl: string | null = null;
+  if (env.KOHA_STAFF_URL?.trim()) {
+    const n = normalizeKohaBaseUrl(env.KOHA_STAFF_URL);
+    // Advisory: without it the admin names the Koha record instead of linking to it.
+    if ("error" in n) warnings.push(`KOHA_STAFF_URL: ${n.error}`);
+    else staffUrl = n.url;
+  }
+
   return {
     mode: m,
     baseUrl,
@@ -115,6 +130,7 @@ export function resolveKohaConfig(env: EnvSource): KohaConfig {
     clientSecret,
     libraryId,
     timeoutMs: positiveInt(env.KOHA_TIMEOUT_MS, KOHA_DEFAULT_TIMEOUT_MS),
+    staffUrl,
     problems,
     warnings,
   };
@@ -131,4 +147,13 @@ export function kohaCanRead(cfg: KohaConfig): boolean {
  */
 export function kohaCanWrite(cfg: KohaConfig): boolean {
   return cfg.mode === "write" && cfg.problems.length === 0;
+}
+
+/** Links into Koha's staff interface for one record, or null without KOHA_STAFF_URL. */
+export function kohaStaffLinks(staffUrl: string | null, biblioId: number): { record: string; addItem: string } | null {
+  if (!staffUrl || !Number.isInteger(biblioId) || biblioId <= 0) return null;
+  return {
+    record: `${staffUrl}/cgi-bin/koha/catalogue/detail.pl?biblionumber=${biblioId}`,
+    addItem: `${staffUrl}/cgi-bin/koha/cataloguing/additem.pl?biblionumber=${biblioId}`,
+  };
 }
