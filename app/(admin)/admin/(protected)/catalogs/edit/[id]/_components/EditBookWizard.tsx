@@ -86,12 +86,20 @@ export default function EditBookWizard({
   categories,
   initialCopies,
   initialTab = "info",
+  koha,
 }: {
   book: CatalogBook;
   coverSource: CoverSource;
   categories: string[];
   initialCopies: CatalogCopy[];
   initialTab?: Tab;
+  /**
+   * The Koha integration's view of this record (docs/KOHA-WRITES.md): `owned`
+   * when it is linked and the integration is on, `writes` when saving goes to
+   * Koha first (Phase 5), and links into Koha's staff interface when
+   * KOHA_STAFF_URL is set.
+   */
+  koha?: { owned: boolean; writes: boolean; recordUrl: string | null; addItemUrl: string | null };
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -99,6 +107,8 @@ export default function EditBookWizard({
   const te = useTranslations("adminCatalog.edit");
   const tk = useTranslations("adminCatalog.koha");
   const kohaId = book.koha_biblio_id ?? null;
+  // Koha owns its copies and the fields derived from them (call number, department).
+  const kohaOwned = kohaId !== null && !!koha?.owned;
   const [tab, setTab] = useState<Tab>(initialTab);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -226,6 +236,12 @@ export default function EditBookWizard({
               {te("viewPublic")}
             </a>
           )}
+          {kohaOwned && koha?.recordUrl && (
+            <a href={koha.recordUrl} target="_blank" rel="noopener noreferrer" className={BTN_SECONDARY}>
+              <ExternalLink className="h-4 w-4" aria-hidden="true" />
+              {tk("openInKoha")}
+            </a>
+          )}
         </>
       }
       tabs={
@@ -303,7 +319,9 @@ export default function EditBookWizard({
         hidden={tab !== "info"}
         className="space-y-5 focus:outline-none"
       >
-        {kohaId !== null && <KohaNotice title={tk("linkedTitle", { id: kohaId })} body={tk("linkedBody")} />}
+        {kohaId !== null && (
+          <KohaNotice title={tk("linkedTitle", { id: kohaId })} body={koha?.writes && kohaOwned ? tk("linkedBodyWrite") : tk("linkedBody")} />
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={t("titleReq")} required htmlFor="f-title" error={fieldErrors.title} className="sm:col-span-2">
             {(p) => (
@@ -356,8 +374,9 @@ export default function EditBookWizard({
             )}
           </div>
 
-          <Field label={t("authorReq")} required htmlFor="f-author" error={fieldErrors.author}>
-            {(p) => <input {...p} name="author" defaultValue={book.author} />}
+          {/* Koha records may have no author (an anthology); Koha decides. */}
+          <Field label={t("authorReq")} required={!kohaOwned} htmlFor="f-author" error={fieldErrors.author}>
+            {(p) => <input {...p} name="author" defaultValue={book.author ?? ""} />}
           </Field>
 
           <Field label={t("languageReq")} required htmlFor="f-language">
@@ -407,8 +426,8 @@ export default function EditBookWizard({
             )}
           </Field>
 
-          <Field label={t("department")} htmlFor="f-department" error={fieldErrors.department}>
-            {(p) => <input {...p} name="department" defaultValue={book.department ?? ""} />}
+          <Field label={t("department")} htmlFor="f-department" error={fieldErrors.department} hint={kohaOwned ? tk("derivedFromKoha") : undefined}>
+            {(p) => <input {...p} name="department" defaultValue={book.department ?? ""} readOnly={kohaOwned} aria-readonly={kohaOwned || undefined} />}
           </Field>
         </div>
 
@@ -440,10 +459,10 @@ export default function EditBookWizard({
             label={t("ddc")}
             htmlFor="f-ddc"
             error={fieldErrors.ddc}
-            hint={t("ddcHint")}
+            hint={kohaOwned ? tk("derivedFromKoha") : t("ddcHint")}
           >
             {(p) => (
-              <input {...p} name="ddc" defaultValue={book.ddc ?? ""} placeholder="372.7 BIL" />
+              <input {...p} name="ddc" defaultValue={book.ddc ?? ""} placeholder="372.7 BIL" readOnly={kohaOwned} aria-readonly={kohaOwned || undefined} />
             )}
           </Field>
 
@@ -542,7 +561,12 @@ export default function EditBookWizard({
             rows, so keeping it alive behind the other two tabs made every
             catalog edit pay for inventory state nobody had asked to see. */}
         {tab === "copies" && (
-          <CopiesPanel bookId={book.id} bookShelfLocation={book.shelf_location} initialCopies={initialCopies} />
+          <CopiesPanel
+            bookId={book.id}
+            bookShelfLocation={book.shelf_location}
+            initialCopies={initialCopies}
+            kohaOwned={kohaOwned && kohaId !== null ? { biblioId: kohaId, addItemUrl: koha?.addItemUrl ?? null } : undefined}
+          />
         )}
       </div>
     </FormShell>

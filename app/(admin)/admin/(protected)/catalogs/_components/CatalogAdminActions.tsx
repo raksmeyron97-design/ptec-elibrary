@@ -8,7 +8,16 @@ import Icon from "@/components/ui/core/Icon";
 import { useCan } from "@/components/admin/access/AdminCapabilities";
 import { deleteCatalogBook, restoreCatalogBook, hardDeleteCatalogBook } from "../actions";
 
-export default function CatalogAdminActions({ book, copyCount }: { book: CatalogBook; copyCount?: number }) {
+export default function CatalogAdminActions({ book, copyCount, kohaOwned = false }: {
+  book: CatalogBook;
+  copyCount?: number;
+  /**
+   * The record comes from Koha: deleting the e-Library's row would only have
+   * the next sync create it again, so there is no permanent Delete (the server
+   * refuses it too). Unlisting still hides it.
+   */
+  kohaOwned?: boolean;
+}) {
   const canWrite = useCan("catalog.edit");
   const [isPending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState<"unlist" | "purge" | null>(null);
@@ -154,15 +163,17 @@ export default function CatalogAdminActions({ book, copyCount }: { book: Catalog
           >
             Restore
           </button>
-          <button
-            type="button"
-            onClick={() => setConfirming("purge")}
-            disabled={isPending}
-            className="rounded-lg border border-red-200 px-2 py-1 text-[10px] font-bold text-red-500 transition hover:bg-red-50 disabled:opacity-50"
-            title="Delete permanently"
-          >
-            Delete
-          </button>
+          {!kohaOwned && (
+            <button
+              type="button"
+              onClick={() => setConfirming("purge")}
+              disabled={isPending}
+              className="rounded-lg border border-red-200 px-2 py-1 text-[10px] font-bold text-red-500 transition hover:bg-red-50 disabled:opacity-50"
+              title="Delete permanently"
+            >
+              Delete
+            </button>
+          )}
         </>
       )}
     </div>

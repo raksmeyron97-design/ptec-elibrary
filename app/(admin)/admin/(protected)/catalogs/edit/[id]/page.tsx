@@ -7,6 +7,7 @@ import type { CatalogCopy } from "../../copy-actions";
 import { coverSourceFromUrl } from "@/lib/catalog-cover";
 import EditBookWizard from "./_components/EditBookWizard";
 import { requireRouteAccess } from "@/lib/admin/route-guard";
+import { kohaOwnsLinkedRecords, kohaStaffLinksFor, kohaWritesRecords } from "@/lib/koha/catalog-writes";
 
 export default async function EditCatalogBookPage({
   params,
@@ -48,6 +49,15 @@ export default async function EditCatalogBookPage({
     ...new Set((catRows ?? []).map((r: { category: string | null }) => r.category).filter(Boolean)),
   ].sort() as string[];
 
+  const kohaId = b.koha_biblio_id ?? null;
+  const links = kohaId !== null ? kohaStaffLinksFor(kohaId) : null;
+  const koha = {
+    owned: kohaOwnsLinkedRecords(),
+    writes: kohaWritesRecords(),
+    recordUrl: links?.record ?? null,
+    addItemUrl: links?.addItem ?? null,
+  };
+
   const initialCopies = ((copies ?? []) as CatalogCopy[]).sort(
     (a, c) => (a.copy_number ?? 1e9) - (c.copy_number ?? 1e9),
   );
@@ -59,6 +69,7 @@ export default async function EditCatalogBookPage({
       categories={categories}
       initialCopies={initialCopies}
       initialTab={sp.tab === "copies" ? "copies" : "info"}
+      koha={koha}
     />
   );
 }

@@ -1,9 +1,12 @@
 # Koha integration
 
-**Status (2026-09-26): Phase 2 — read-only sync.** Phase 1 laid the
-server-only client, its configuration, error model and a mock Koha. Phase 2
-makes the Physical Library a read-only projection of a real Koha 26.05: see
-**[KOHA-SYNC.md](KOHA-SYNC.md)**. Nothing is written to Koha. Off by default.
+**Status (2026-09-27): Phase 5 — record writes (built, not switched on).**
+Phase 1 laid the server-only client, its configuration, error model and a mock
+Koha. Phase 2 makes the Physical Library a read-only projection of a real Koha
+26.05 (**[KOHA-SYNC.md](KOHA-SYNC.md)**, live since 2026-09-26). Phase 5 lets the
+admin create and edit bibliographic records in Koha first
+(**[KOHA-WRITES.md](KOHA-WRITES.md)**), with `KOHA_INTEGRATION=write`. Off by
+default.
 
 ## Who owns what
 
@@ -32,7 +35,7 @@ circulation read-only.
 | unset / `off` / anything unrecognised | No Koha calls. Every call is refused with `disabled`. |
 | `mock` | An in-process fake Koha 26.05 (`lib/koha/mock.ts`). No network. For development and tests. |
 | `read` | Reads from a real Koha. Requires the settings below. |
-| `write` | Reserved for the cataloguing phases. Nothing writes yet. |
+| `write` | Everything `read` does, and the admin creates/edits bibliographic records in Koha first (Phase 5). Needs the Koha API user at `PTEC_API_LEVEL=cataloguing`. |
 
 All settings are server-side environment variables — never `NEXT_PUBLIC_`,
 never stored in the database, never shown after they are set. See the Koha
@@ -43,7 +46,8 @@ section of `.env.example`.
 | `KOHA_BASE_URL` | Koha's **staff** interface origin; the API is `/api/v1` on it. On the box, the compose service name, e.g. `http://koha:8080`. |
 | `KOHA_CLIENT_ID`, `KOHA_CLIENT_SECRET` | The API key of a dedicated Koha staff patron (below). |
 | `KOHA_LIBRARY_ID` | Koha library code the integration acts for (`x-koha-library`). |
-| `KOHA_TIMEOUT_MS` | Per-call budget for interactive calls, default 8000. The sync's background page reads carry their own 60 s budget (KOHA-SYNC.md). |
+| `KOHA_TIMEOUT_MS` | Per-call budget for interactive calls, default 8000. The sync's background page reads carry their own 60 s budget (KOHA-SYNC.md); a record write, 30 s. |
+| `KOHA_STAFF_URL` | Optional. Koha's staff interface as a librarian's browser reaches it (the box's LAN address). Used only for "Open in Koha" / "Add copies in Koha" links. |
 
 ## Setting up Koha 26.05 for the integration
 
@@ -112,6 +116,5 @@ all pass. It never prints the secret.
 
 Phase order agreed at Gate 2: **1** foundation → **4** Add by ISBN → **3**
 catalogue redesign → **2** read-only sync and the barcode-keyed reconciliation
-(this; Koha 26.05.03 running on the ZimaOS box since 2026-09-26) → **5**
-bibliographic writes → **6** items → **8** librarian-assisted patron linking →
+(live since 2026-09-26) → **5** bibliographic writes (this) → **6** items → **8** librarian-assisted patron linking →
 **7** read-only circulation in My Library → **9** unified discovery.
