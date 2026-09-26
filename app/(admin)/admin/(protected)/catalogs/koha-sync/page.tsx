@@ -40,7 +40,10 @@ export default async function KohaSyncPage() {
   const summary = state?.last_summary ?? {};
   const counts = summary.counts ?? {};
   const previewReady = isFreshFullPreview(state);
+  // Keyed by content: each exception names its own record or barcode, and the
+  // run's error messages are de-duplicated before they are listed.
   const exceptions = summary.exceptions ?? [];
+  const errors = [...new Set(summary.errors ?? [])];
 
   return (
     <div className="w-full max-w-5xl space-y-6">
@@ -120,7 +123,7 @@ export default async function KohaSyncPage() {
           {(summary.errorsTotal ?? 0) > 0 && (
             <div className="mt-4 rounded-lg border border-danger-line bg-danger-soft p-3 text-xs text-danger-text">
               <p className="font-semibold">{summary.errorsTotal} error{summary.errorsTotal === 1 ? "" : "s"}. The next run retries; nothing was deleted.</p>
-              <ul className="mt-1 list-disc pl-4">{(summary.errors ?? []).map((e, i) => <li key={i}>{e}</li>)}</ul>
+              <ul className="mt-1 list-disc pl-4">{errors.map((e) => <li key={e}>{e}</li>)}</ul>
             </div>
           )}
         </section>
@@ -135,8 +138,8 @@ export default async function KohaSyncPage() {
             <EmptyState title="Nothing to look at" description="Every record and copy in the e-Library matches Koha." />
           ) : (
             <ul className="divide-y divide-divider">
-              {exceptions.map((e, i) => (
-                <li key={i} className="flex flex-col gap-1 px-4 py-2.5 text-sm sm:flex-row sm:items-baseline sm:gap-3">
+              {exceptions.map((e) => (
+                <li key={`${e.kind}|${e.bookId ?? ""}|${e.barcode ?? ""}|${e.message}`} className="flex flex-col gap-1 px-4 py-2.5 text-sm sm:flex-row sm:items-baseline sm:gap-3">
                   <StatusBadge tone={e.kind === "barcode_conflict" || e.kind === "missing_biblio" ? "danger" : "warning"} className="shrink-0">
                     {EXCEPTION_LABEL[e.kind] ?? e.kind}
                   </StatusBadge>
