@@ -11,7 +11,11 @@
  *     request elsewhere (SSRF). Path parameters go through kohaPath(), which
  *     encodes each as ONE segment.
  *   • Every call has a timeout and an `x-koha-request-id`, so a slow Koha
- *     costs a bounded wait and a failure can be found in Koha's logs.
+ *     costs a bounded wait and a failure can be found in Koha's logs. The id
+ *     is a positive INTEGER: Koha 26.05 declares that header `type: integer`
+ *     (swagger.yaml `request_id_header`, on 49 paths incl. /libraries and
+ *     /biblios) and answers 400 "Expected integer - got string" to anything
+ *     else. A UUID passed every mock test and failed the first live Koha.
  *   • Only GET is retried, and only on a transient failure. A write that timed
  *     out may still have happened; repeating it is how duplicate records are
  *     made. (Phase 1 exposes no writes at all.)
@@ -80,9 +84,18 @@ function refusal(cfg: KohaConfig): KohaError | null {
   return null;
 }
 
+/**
+ * A random positive 31-bit integer, as text. Random rather than a counter so
+ * two PTEC processes are unlikely to reuse an id in Koha's logs; 31 bits so it
+ * is an integer to every JSON Schema validator and to a signed 32-bit column.
+ */
+export function newKohaRequestId(): string {
+  return String((crypto.getRandomValues(new Uint32Array(1))[0] & 0x7fffffff) || 1);
+}
+
 export function createKohaClient(cfg: KohaConfig, deps: KohaClientDeps = {}): KohaClient {
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
-  const newRequestId = deps.newRequestId ?? (() => crypto.randomUUID());
+  const newRequestId = deps.newRequestId ?? newKohaRequestId;
   const refused = refusal(cfg);
 
   let baseUrl = "";

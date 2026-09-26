@@ -89,7 +89,11 @@ all pass. It never prints the secret.
   one-hour expiry, minted once for concurrent callers, and refreshed once on a
   401 before the credentials are reported as wrong.
 - **Bounded and traceable.** Every call has a timeout and an
-  `x-koha-request-id`.
+  `x-koha-request-id` — a positive **integer**: Koha 26.05 declares the
+  header `type: integer` and answers 400 to anything else on its list
+  endpoints (`/libraries`, `/biblios`, …). The mock enforces the same rule.
+  Verified against a live Koha 26.05.03 with the least-privilege API user
+  (`catalogue` only): `koha:check` passes all three steps.
 - **Retries** only for reads, only on transient failures (unreachable,
   timeout, 5xx, 429), twice, at 300 ms and 1 s. A write is never retried
   blindly: a timed-out write may have happened.
