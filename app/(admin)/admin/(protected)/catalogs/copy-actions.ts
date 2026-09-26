@@ -41,6 +41,8 @@ export interface CatalogCopy {
   copy_number?: number | null;
   accession_number?: string | null;
   condition?: string | null;
+  // Added by migration 0157 — the Koha itemnumber when the copy comes from Koha.
+  koha_item_id?: number | null;
 }
 
 export type CopyActionResult =

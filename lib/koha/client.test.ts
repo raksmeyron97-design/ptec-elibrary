@@ -107,6 +107,33 @@ describe("createKohaClient", () => {
     expect(calls).toHaveLength(2);
   });
 
+  it("a background read may take its own budget; interactive calls keep KOHA_TIMEOUT_MS", async () => {
+    // Every API answer arrives after 350 ms; the configured budget is 200 ms.
+    const slow = () => {
+      const seen: string[] = [];
+      const fetch: FetchLike = async (url, init) => {
+        if (url.endsWith("/api/v1/oauth/token")) return ok({ access_token: "t", expires_in: 3600 });
+        seen.push(url);
+        return new Promise<Response>((resolve, reject) => {
+          const t = setTimeout(() => resolve(ok(MOCK_KOHA_LIBRARIES)), 350);
+          init?.signal?.addEventListener("abort", () => { clearTimeout(t); reject(new DOMException("aborted", "AbortError")); });
+        });
+      };
+      return { client: createKohaClient(REAL, { fetch, sleep: async () => {}, newRequestId: () => "1" }), seen };
+    };
+    const bulk = slow();
+    await expect(bulk.client.get("/libraries", isKohaLibraryList, { timeoutMs: 2_000 })).resolves.toMatchObject({ data: MOCK_KOHA_LIBRARIES });
+    expect(bulk.seen).toHaveLength(1);
+
+    const interactive = slow();
+    await expect(interactive.client.get("/libraries", isKohaLibraryList)).rejects.toMatchObject({ kind: "timeout" });
+    expect(interactive.seen).toHaveLength(1 + RETRY_DELAYS_MS.length);
+
+    // Nonsense falls back to the configured budget rather than to "no limit".
+    const odd = slow();
+    await expect(odd.client.get("/libraries", isKohaLibraryList, { timeoutMs: Number.NaN })).rejects.toMatchObject({ kind: "timeout" });
+  });
+
   it("refreshes the token once on 401, then treats the credentials as wrong", async () => {
     const refreshed = scripted([new Response("{}", { status: 401 }), ok(MOCK_KOHA_LIBRARIES)]);
     await expect(refreshed.client.get("/libraries", isKohaLibraryList)).resolves.toMatchObject({ data: MOCK_KOHA_LIBRARIES });

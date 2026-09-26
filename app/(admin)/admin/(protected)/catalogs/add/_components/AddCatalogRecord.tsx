@@ -19,17 +19,30 @@ const EMPTY: CatalogPrefill = {
   title: "", author: "", isbn: "", publisher: "", year: "", language: "km", keywords: [], description: "", coverImportUrl: null,
 };
 
-export default function AddCatalogRecord({ categories }: { categories: string[] }) {
+export default function AddCatalogRecord({ categories, followsKoha = false }: {
+  categories: string[];
+  /** The first Koha build has been applied: new physical books belong in Koha (docs/KOHA-SYNC.md). */
+  followsKoha?: boolean;
+}) {
   const t = useTranslations("adminCatalog.isbn");
+  const tk = useTranslations("adminCatalog.koha");
   const [view, setView] = useState<"isbn" | "form">("isbn");
   // Kept across the switch, so "Back to ISBN results" returns to the same list.
   const [input, setInput] = useState("");
   const [result, setResult] = useState<IsbnLookupResponse | null>(null);
   const [chosen, setChosen] = useState<Chosen | null>(null);
 
+  const kohaNotice = followsKoha ? (
+    <p className="flex items-start gap-2 rounded-xl border border-warning-line bg-warning-soft px-3 py-2 text-xs leading-relaxed text-warning-text">
+      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span>{tk("addNotice")}</span>
+    </p>
+  ) : null;
+
   if (view === "isbn") {
     return (
       <AddByIsbnPanel
+        notice={kohaNotice}
         input={input}
         onInput={setInput}
         result={result}
@@ -58,11 +71,16 @@ export default function AddCatalogRecord({ categories }: { categories: string[] 
         </button>
       }
       notice={
-        chosen?.provider ? (
-          <p className="flex items-start gap-2 rounded-xl border border-info-line bg-info-soft px-3 py-2 text-xs leading-relaxed text-info-text">
-            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            <span>{t("prefilledFrom", { provider: t(`provider.${chosen.provider}`), isbn: chosen.prefill.isbn })}</span>
-          </p>
+        followsKoha || chosen?.provider ? (
+          <>
+            {kohaNotice}
+            {chosen?.provider && (
+              <p className="flex items-start gap-2 rounded-xl border border-info-line bg-info-soft px-3 py-2 text-xs leading-relaxed text-info-text">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span>{t("prefilledFrom", { provider: t(`provider.${chosen.provider}`), isbn: chosen.prefill.isbn })}</span>
+              </p>
+            )}
+          </>
         ) : undefined
       }
     />

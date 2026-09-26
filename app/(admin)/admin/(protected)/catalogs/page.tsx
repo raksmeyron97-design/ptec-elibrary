@@ -192,21 +192,34 @@ export default async function AdminCatalogsPage({
 
   return (
     <div className="w-full space-y-6">
-      {/* Bulk CSV import and "Add Book" both end in `catalog: write` actions. */}
-      {canCreate && (
-        <div className="mb-6 flex flex-wrap justify-end gap-3">
-          <CsvImportWizard />
-          <Link
-            href="/admin/catalogs/add"
-            className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand px-5 text-sm font-semibold text-white transition hover:bg-brand-hover"
-          >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden>
-              <path d="M12 5v14M5 12h14" strokeLinecap="round" />
-            </svg>
-            Add Book
-          </Link>
-        </div>
-      )}
+      {/* Koha sync opens on the same `catalog: read` as this page (it shows
+          state; starting a run is a write the page itself gates). Bulk CSV
+          import and "Add Book" both end in `catalog: write` actions. */}
+      <div className="mb-6 flex flex-wrap justify-end gap-3">
+        <Link
+          href="/admin/catalogs/koha-sync"
+          className="focus-field inline-flex h-10 items-center gap-2 rounded-lg border border-divider bg-bg-surface px-4 text-sm font-semibold text-text-body shadow-sm transition hover:bg-paper"
+        >
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+            <path d="M21 12a9 9 0 0 1-15.5 6.2M3 12a9 9 0 0 1 15.5-6.2M18.5 2v4h-4M5.5 22v-4h4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Koha sync
+        </Link>
+        {canCreate && (
+          <>
+            <CsvImportWizard />
+            <Link
+              href="/admin/catalogs/add"
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand px-5 text-sm font-semibold text-white transition hover:bg-brand-hover"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden>
+                <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+              </svg>
+              Add Book
+            </Link>
+          </>
+        )}
+      </div>
 
       {/* ── Stats row (always reflects ALL active books, derived from copy rows) ── */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">

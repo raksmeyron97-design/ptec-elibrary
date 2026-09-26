@@ -41,6 +41,8 @@ export type CatalogBook = {
   seo_title:        string | null;
   seo_description:  string | null;
   og_image:         string | null;
+  /** Koha biblionumber (0157) — set when the record comes from Koha. Absent before the migration. */
+  koha_biblio_id?:  number | null;
 };
 
 export type CopiesLogEntry = {

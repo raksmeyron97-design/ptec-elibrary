@@ -1,8 +1,9 @@
 # Koha integration
 
-**Status (2026-09-25): Phase 1 — foundation.** A server-only client, its
-configuration, error model and a mock Koha. It reads nothing from a real Koha
-yet and writes nothing at all. Off by default.
+**Status (2026-09-26): Phase 2 — read-only sync.** Phase 1 laid the
+server-only client, its configuration, error model and a mock Koha. Phase 2
+makes the Physical Library a read-only projection of a real Koha 26.05: see
+**[KOHA-SYNC.md](KOHA-SYNC.md)**. Nothing is written to Koha. Off by default.
 
 ## Who owns what
 
@@ -12,9 +13,12 @@ yet and writes nothing at all. Off by default.
 | Items: barcode, call number, location, status | Reader progress, bookmarks, notes, collections |
 | Patrons, checkouts, renewals, holds, due dates | Public catalogue pages (a projection of Koha) |
 
-Until Koha exists, the physical catalogue lives in PTEC's `catalog_books` /
-`catalog_copies` (the PMB import), its availability is not live, and the public
-pages say so (`CATALOG_AVAILABILITY_IS_LIVE` in `lib/catalog.ts`).
+The physical catalogue lives in PTEC's `catalog_books` / `catalog_copies`.
+Once the first Koha build is applied they are filled and kept current from
+Koha (`koha_biblio_id` / `koha_item_id` link each row to its Koha
+counterpart). Availability is not claimed as live — and the public pages say
+so (`CATALOG_AVAILABILITY_IS_LIVE` in `lib/catalog.ts`) — until the PMB loans
+have been re-issued in Koha.
 
 Circulation desk work stays in **Koha's staff interface**: Koha's REST API has
 no check-in endpoint in any release up to 26.05 (bug 24401 is not merged), and
@@ -39,7 +43,7 @@ section of `.env.example`.
 | `KOHA_BASE_URL` | Koha's **staff** interface origin; the API is `/api/v1` on it. On the box, the compose service name, e.g. `http://koha:8080`. |
 | `KOHA_CLIENT_ID`, `KOHA_CLIENT_SECRET` | The API key of a dedicated Koha staff patron (below). |
 | `KOHA_LIBRARY_ID` | Koha library code the integration acts for (`x-koha-library`). |
-| `KOHA_TIMEOUT_MS` | Per-call budget, default 8000. |
+| `KOHA_TIMEOUT_MS` | Per-call budget for interactive calls, default 8000. The sync's background page reads carry their own 60 s budget (KOHA-SYNC.md). |
 
 ## Setting up Koha 26.05 for the integration
 
@@ -50,7 +54,7 @@ Done once, in Koha's staff interface, by the Koha administrator:
    "Unimplemented grant type", and `koha:check` says exactly that.)
 2. **Create a dedicated API user.** A new patron (e.g. category *Staff*,
    surname `PTEC e-Library API`), not a person's account. Give it **only**
-   `catalogue` for now. Later phases add permissions one at a time (cataloguing
+   `catalogue` for now — the Phase 2 sync needs nothing more. Later phases add permissions one at a time (cataloguing
    writes need `editcatalogue`; patron lookup needs `borrowers:list_borrowers`).
    Never `superlibrarian`.
 3. **Generate its API key.** Open that patron › More › Manage API keys ›
@@ -106,8 +110,8 @@ all pass. It never prints the secret.
 
 ## Next
 
-Phase order agreed at Gate 2: **1** (this) → **4** Add by ISBN → **3** catalogue
-redesign → once a Koha instance is running: **2** read-only sync and the
-barcode-keyed reconciliation → **5** bibliographic writes → **6** items →
-**8** librarian-assisted patron linking → **7** read-only circulation in My
-Library → **9** unified discovery.
+Phase order agreed at Gate 2: **1** foundation → **4** Add by ISBN → **3**
+catalogue redesign → **2** read-only sync and the barcode-keyed reconciliation
+(this; Koha 26.05.03 running on the ZimaOS box since 2026-09-26) → **5**
+bibliographic writes → **6** items → **8** librarian-assisted patron linking →
+**7** read-only circulation in My Library → **9** unified discovery.

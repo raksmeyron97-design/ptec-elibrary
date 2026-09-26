@@ -21,6 +21,7 @@ export default function AddByIsbnPanel({
   onResult,
   onUse,
   onManual,
+  notice,
 }: {
   input: string;
   onInput: (v: string) => void;
@@ -29,6 +30,8 @@ export default function AddByIsbnPanel({
   onUse: (c: IsbnCandidate) => void;
   /** Leave for the blank form, optionally carrying the looked-up ISBN. */
   onManual: (isbn?: string) => void;
+  /** Shown above the lookup, e.g. that new books now belong in Koha. */
+  notice?: React.ReactNode;
 }) {
   const t = useTranslations("adminCatalog.isbn");
   const tf = useTranslations("adminCatalog.form");
@@ -73,6 +76,7 @@ export default function AddByIsbnPanel({
       }}
     >
       <div className="space-y-6">
+        {notice}
         {/* A barcode scanner types the digits and presses Enter, so the form
             submit is the scan path — no scanner-specific code. */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
