@@ -141,6 +141,23 @@ Everything below is a production step. Each needs approval at the Phase 2 gate.
    `/catalogs` should list 2,638 records.
 6. From then on the 15-minute and nightly jobs run by themselves.
 
+**If a build fails part-way** (2026-09-26, the first production build:
+`null value in column "author" … violates not-null constraint`): nothing needs
+undoing. Each batch of 200 records is one insert, so a batch with one bad row
+is refused whole while the others are created. The run is recorded as failed,
+nothing is marked built, and no cursor moves. Fix the cause, then **Preview
+again**: the records already created are matched by their Koha id, and the
+preview lists only what is still missing. Then Build.
+
+That failure was schema drift. Production's `catalog_books` refused NULL in
+`author` although the migration chain has always declared it nullable.
+Migration **0158** restates the chain's intent for the three columns the sync
+can leave empty (`author`, `category`, `created_by`); it is a no-op wherever the
+column is already nullable. Reconstructed from the same Koha data: 1 of 14
+batches was accepted, so production held 206 records / 564 copies after that
+run, and the recovery preview should show about **2,432 records and 12,865
+copies to create**.
+
 **`CATALOG_AVAILABILITY_IS_LIVE` stays `false`** until the PMB → Koha
 cut-over ("freeze and re-lend") is finished. Until every current PMB loan is
 re-issued in Koha, Koha calls those books available, and so would the public
