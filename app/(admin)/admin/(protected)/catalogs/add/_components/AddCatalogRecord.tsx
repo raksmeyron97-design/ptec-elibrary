@@ -19,10 +19,12 @@ const EMPTY: CatalogPrefill = {
   title: "", author: "", isbn: "", publisher: "", year: "", language: "km", keywords: [], description: "", coverImportUrl: null,
 };
 
-export default function AddCatalogRecord({ categories, followsKoha = false }: {
+export default function AddCatalogRecord({ categories, followsKoha = false, writesToKoha = false }: {
   categories: string[];
   /** The first Koha build has been applied: new physical books belong in Koha (docs/KOHA-SYNC.md). */
   followsKoha?: boolean;
+  /** KOHA_INTEGRATION=write: saving here creates the record in Koha first (docs/KOHA-WRITES.md). */
+  writesToKoha?: boolean;
 }) {
   const t = useTranslations("adminCatalog.isbn");
   const tk = useTranslations("adminCatalog.koha");
@@ -32,10 +34,10 @@ export default function AddCatalogRecord({ categories, followsKoha = false }: {
   const [result, setResult] = useState<IsbnLookupResponse | null>(null);
   const [chosen, setChosen] = useState<Chosen | null>(null);
 
-  const kohaNotice = followsKoha ? (
+  const kohaNotice = followsKoha || writesToKoha ? (
     <p className="flex items-start gap-2 rounded-xl border border-warning-line bg-warning-soft px-3 py-2 text-xs leading-relaxed text-warning-text">
       <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-      <span>{tk("addNotice")}</span>
+      <span>{writesToKoha ? tk("addNoticeWrite") : tk("addNotice")}</span>
     </p>
   ) : null;
 
@@ -65,6 +67,7 @@ export default function AddCatalogRecord({ categories, followsKoha = false }: {
       key={chosen?.key ?? "blank"}
       categories={categories}
       initial={chosen?.prefill}
+      writesToKoha={writesToKoha}
       headerActions={
         <button type="button" className={BTN_SECONDARY} onClick={() => setView("isbn")}>
           {result ? t("backToResults") : t("lookupByIsbn")}

@@ -64,12 +64,16 @@ export default function CopiesPanel({
   bookId,
   bookShelfLocation,
   initialCopies,
+  kohaOwned,
 }: {
   bookId: string;
   bookShelfLocation?: string | null;
   initialCopies: CatalogCopy[];
+  /** The record comes from Koha: its copies are added there (the add actions refuse it too). */
+  kohaOwned?: { biblioId: number; addItemUrl: string | null };
 }) {
   const t = useTranslations("adminCatalog.copies");
+  const tk = useTranslations("adminCatalog.koha");
   const tStatus = useTranslations("adminCatalog.copies.status");
   const [copies, setCopies] = useState<CatalogCopy[]>(initialCopies);
   const [showWithdrawn, setShowWithdrawn] = useState(false);
@@ -456,7 +460,19 @@ export default function CopiesPanel({
         )}
       </div>
 
-      {/* ── Add copies ── */}
+      {/* ── Add copies ── (a record Koha holds gets its copies in Koha — Phase 5) */}
+      {kohaOwned ? (
+        <div className="rounded-2xl border border-info-line bg-info-soft p-4 text-sm text-info-text">
+          <p>{tk("copiesInKohaBody", { id: kohaOwned.biblioId })}</p>
+          {kohaOwned.addItemUrl ? (
+            <a href={kohaOwned.addItemUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1.5 font-semibold underline underline-offset-2">
+              {tk("addItemInKoha")} ↗
+            </a>
+          ) : (
+            <p className="mt-1 text-xs">{tk("addItemNoLink", { id: kohaOwned.biblioId })}</p>
+          )}
+        </div>
+      ) : (
       <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">{t("addCopies")}</h3>
@@ -648,6 +664,7 @@ export default function CopiesPanel({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

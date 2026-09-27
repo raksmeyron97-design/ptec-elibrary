@@ -23,6 +23,7 @@ import {
   cleanText,
   findInternalDuplicates,
 } from "@/lib/catalog";
+import { kohaOwnsLinkedRecords } from "@/lib/koha/catalog-writes";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,20 @@ export type CopyActionResult =
   | { success: false; error: string };
 
 type ServiceClient = Awaited<ReturnType<typeof requirePermission>>["supabase"];
+
+/**
+ * A copy of a record Koha holds is added IN KOHA (Phase 5 decision, 2026-09-27;
+ * docs/KOHA-WRITES.md). A copy created only here has no Koha item, so it could
+ * never be lent, and every nightly sync would list it for review. Phase 6
+ * brings adding copies back into the e-Library, as Koha items.
+ */
+async function refuseKohaOwned(supabase: ServiceClient, bookId: string): Promise<string | null> {
+  if (!kohaOwnsLinkedRecords()) return null;
+  const { data } = await supabase.from("catalog_books").select("*").eq("id", bookId).maybeSingle();
+  return data?.koha_biblio_id != null
+    ? `This record comes from Koha (record ${data.koha_biblio_id}): add its copies in Koha, and they appear here within 15 minutes.`
+    : null;
+}
 
 // Columns that only exist after migration 0095. Writes retry without them when
 // PostgREST reports an unknown column (PGRST204). Remove after 0095 is applied.
@@ -223,6 +238,8 @@ export async function fetchCopiesForBook(bookId: string): Promise<CatalogCopy[]>
 // ── addCopy ────────────────────────────────────────────────────────────────────
 export async function addCopy(bookId: string, formData: FormData): Promise<CopyActionResult> {
   const { supabase, userId } = await requirePermission("catalog", "write");
+  const kohaOwned = await refuseKohaOwned(supabase, bookId);
+  if (kohaOwned) return { success: false, error: kohaOwned };
 
   const parsed = parseCopyForm(formData);
   if (!parsed.ok) return { success: false, error: parsed.error };
@@ -346,6 +363,8 @@ export async function deleteCopy(copyId: string): Promise<CopyActionResult> {
 // by the client but every field is re-validated here.
 export async function saveCopies(bookId: string, rows: GeneratedCopy[]): Promise<CopyActionResult> {
   const { supabase, userId } = await requirePermission("catalog", "write");
+  const kohaOwned = await refuseKohaOwned(supabase, bookId);
+  if (kohaOwned) return { success: false, error: kohaOwned };
 
   if (!Array.isArray(rows) || rows.length === 0) return { success: false, error: "No copies to save." };
   if (rows.length > 100) return { success: false, error: "You can create at most 100 copies at a time." };

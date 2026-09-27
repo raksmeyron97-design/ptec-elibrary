@@ -19,6 +19,7 @@ import AdminCatalogToolbar from "./_components/AdminCatalogToolbar";
 import Pagination from "@/components/ui/core/Pagination";
 import AdminCoverThumb from "@/components/admin/catalogs/AdminCoverThumb";
 import { requireRouteAccess } from "@/lib/admin/route-guard";
+import { kohaOwnsLinkedRecords } from "@/lib/koha/catalog-writes";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,7 @@ export default async function AdminCatalogsPage({
      Creating, importing and editing are separate write routes. */
   const { can } = await requireRouteAccess("catalog.manage");
   const canCreate = can("catalog.create");
+  const kohaOn = kohaOwnsLinkedRecords();
 
   /* The physical collection reads through the service client, so this guard is
      the whole access control for the route — there was none, and the sidebar's
@@ -348,7 +350,7 @@ export default async function AdminCatalogsPage({
                     </td>
                     {/* Actions */}
                     <td className="px-4 py-3">
-                      <CatalogAdminActions book={book} copyCount={stats.total} />
+                      <CatalogAdminActions book={book} copyCount={stats.total} kohaOwned={kohaOn && book.koha_biblio_id != null} />
                     </td>
                   </tr>
                 );

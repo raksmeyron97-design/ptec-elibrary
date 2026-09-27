@@ -2,10 +2,10 @@
 // app/admin/catalogs/add/AddBookWizard.tsx
 // Guided flow for new records: 1) bibliographic info → 2) physical copies.
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { addCatalogBook, checkCatalogSlugAvailable } from "../../actions";
+import { addCatalogBook, checkCatalogSlugAvailable, type KohaDuplicate } from "../../actions";
 import CopiesPanel from "../../_components/CopiesPanel";
 import TagInput from "@/components/ui/core/TagInput";
 import { Field, ERROR_CLASS } from "@/components/admin/kit/form";
@@ -53,6 +53,7 @@ export default function AddBookWizard({
   initial,
   headerActions,
   notice,
+  writesToKoha = false,
 }: {
   categories: string[];
   /**
@@ -63,8 +64,21 @@ export default function AddBookWizard({
   headerActions?: React.ReactNode;
   /** Shown above the fields — where the starting values came from. */
   notice?: React.ReactNode;
+  /** KOHA_INTEGRATION=write: the record is created in Koha first (Phase 5), and its copies are added there. */
+  writesToKoha?: boolean;
 }) {
   const t = useTranslations("adminCatalog.form");
+  const tk = useTranslations("adminCatalog.koha");
+  const formRef = useRef<HTMLFormElement>(null);
+  // Koha's duplicate check matched: shown until the librarian decides.
+  const [kohaDup, setKohaDup] = useState<KohaDuplicate | null>(null);
+  // "Create a new record anyway" — sent as x-confirm-not-duplicate, audited.
+  const [overrideDup, setOverrideDup] = useState(false);
+  // Koha created the record but this side failed: the next Save finishes it.
+  const [kohaCreatedId, setKohaCreatedId] = useState<number | null>(null);
+  // The last create's answer was lost: the next Save first looks for what it made.
+  const [kohaRecheck, setKohaRecheck] = useState(false);
+  const [kohaSaved, setKohaSaved] = useState<{ biblioId: number; addItemUrl: string | null; recordUrl: string | null } | null>(null);
   const [tab, setTab] = useState<Tab>("info");
   const [step, setStep] = useState<1 | 2>(1);
   const [book, setBook] = useState<BookData | null>(null);
@@ -85,7 +99,12 @@ export default function AddBookWizard({
 
     try {
       const result = await addCatalogBook(formData);
+      setOverrideDup(false);
       if (result.success) {
+        setKohaDup(null);
+        setKohaCreatedId(null);
+        setKohaRecheck(false);
+        setKohaSaved(result.koha ?? null);
         setBook({
           ...result.book,
           title: formData.get("title") as string,
@@ -95,6 +114,10 @@ export default function AddBookWizard({
       } else {
         setError(result.error || t("addFailed"));
         setFieldErrors(result.fieldErrors ?? {});
+        setKohaDup(result.kohaDuplicate ?? null);
+        if (result.kohaCreatedId) setKohaCreatedId(result.kohaCreatedId);
+        // Keep rechecking until a save gets a definite answer.
+        setKohaRecheck(Boolean(result.kohaAmbiguous) || (kohaRecheck && !result.kohaDuplicate));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : t("unexpectedError"));
@@ -107,6 +130,32 @@ export default function AddBookWizard({
   // <Field>. This file used to carry its own `labelCls`/`inputCls`/`errProps`
   // trio — byte-identical to the one in EditBookWizard — which is exactly the
   // duplication the admin form kit exists to remove.
+
+  if (step === 2 && book && kohaSaved) {
+    // Phase 5: the record is in Koha; its copies are added there (Phase 6 brings that here).
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-text-heading">{tk("savedTitle")}</h1>
+          <p className="mt-1 text-sm text-text-body">{book.title}{book.author ? ` · ${book.author}` : ""}</p>
+        </div>
+        <div className="rounded-2xl border border-info-line bg-info-soft p-5 text-sm text-info-text">
+          <p>{tk("savedBody", { id: kohaSaved.biblioId })}</p>
+          {kohaSaved.addItemUrl ? (
+            <a href={kohaSaved.addItemUrl} target="_blank" rel="noopener noreferrer" className={`${BTN_PRIMARY} mt-3`}>
+              {tk("addItemInKoha")} ↗
+            </a>
+          ) : (
+            <p className="mt-2 text-xs">{tk("addItemNoLink", { id: kohaSaved.biblioId })}</p>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <Link href={`/admin/catalogs/edit/${book.id}`} className={BTN_SECONDARY}>{tk("openRecord")}</Link>
+          <Link href="/admin/catalogs" className={BTN_PRIMARY}>{t("doneBackToCatalog")}</Link>
+        </div>
+      </div>
+    );
+  }
 
   if (step === 2 && book) {
     return (
@@ -158,9 +207,10 @@ export default function AddBookWizard({
       backHref="/admin/catalogs"
       backLabel={t("backToCatalog")}
       title={t("addBookTitle")}
-      description={t("step1Subtitle")}
+      description={writesToKoha ? tk("addSubtitleWrite") : t("step1Subtitle")}
       contentKey={tab}
       action={handleAddBook}
+      formRef={formRef}
       headerActions={headerActions}
       tabs={
         <FormTabs
@@ -183,7 +233,7 @@ export default function AddBookWizard({
           are still empty.
         */
         <ContextPanel title={t("addContextTitle")} icon={BookOpen} hint={t("addContextHint")}>
-          <p className="text-xs leading-[1.6] text-text-muted">{t("addContextBody")}</p>
+          <p className="text-xs leading-[1.6] text-text-muted">{writesToKoha ? tk("addContextWrite") : t("addContextBody")}</p>
         </ContextPanel>
       }
       actions={
@@ -203,7 +253,7 @@ export default function AddBookWizard({
             {t("cancel")}
           </Link>
           <button type="submit" disabled={loading} className={BTN_PRIMARY}>
-            {loading ? <ButtonBusy label={t("saving")} /> : t("saveAndAddCopies")}
+            {loading ? <ButtonBusy label={t("saving")} /> : writesToKoha ? tk("saveToKoha") : t("saveAndAddCopies")}
           </button>
         </StickyActionBar>
       }
@@ -217,6 +267,58 @@ export default function AddBookWizard({
         className="space-y-5 focus:outline-none"
       >
         {notice}
+
+        {/* Phase 5 decisions travel with the next submit. */}
+        {overrideDup && <input type="hidden" name="koha_confirm_not_duplicate" value="1" />}
+        {kohaCreatedId !== null && <input type="hidden" name="koha_adopt_biblio_id" value={kohaCreatedId} />}
+        {kohaRecheck && <input type="hidden" name="koha_recheck" value="1" />}
+        {kohaDup && (
+          <div role="alert" className="space-y-2 rounded-xl border border-warning-line bg-warning-soft px-4 py-3 text-sm text-warning-text">
+            <p className="font-semibold">{tk("dupTitle")}</p>
+            {kohaDup.possiblyOurs && <p>{tk("dupPossiblyOurs")}</p>}
+            <p>
+              {kohaDup.biblioId !== null ? tk("dupRecord", { id: kohaDup.biblioId }) : tk("dupNoId")}
+              {kohaDup.title && <> <span className="font-semibold">{kohaDup.title}</span></>}
+              {kohaDup.author && <> · {kohaDup.author}</>}
+            </p>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {kohaDup.existingBookId && (
+                <Link href={`/admin/catalogs/edit/${kohaDup.existingBookId}`} className={BTN_SECONDARY}>{tk("dupOpenElibrary")}</Link>
+              )}
+              {kohaDup.recordUrl && (
+                <a href={kohaDup.recordUrl} target="_blank" rel="noopener noreferrer" className={BTN_SECONDARY}>{tk("openInKoha")} ↗</a>
+              )}
+              {!kohaDup.existingBookId && kohaDup.biblioId !== null && (
+                <button
+                  type="button"
+                  disabled={loading}
+                  className={kohaDup.possiblyOurs ? BTN_PRIMARY : BTN_SECONDARY}
+                  onClick={() => {
+                    // Link this record to the Koha one: nothing new is created in Koha.
+                    setKohaCreatedId(kohaDup.biblioId);
+                    setKohaRecheck(false);
+                    requestAnimationFrame(() => formRef.current?.requestSubmit());
+                  }}
+                >
+                  {tk("dupUseKoha")}
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={loading}
+                className={BTN_SECONDARY}
+                onClick={() => {
+                  // The hidden field must be in the DOM before the form is read.
+                  setOverrideDup(true);
+                  requestAnimationFrame(() => formRef.current?.requestSubmit());
+                }}
+              >
+                {tk("dupCreateAnyway")}
+              </button>
+            </div>
+            <p className="text-xs">{tk("dupOverrideNote")}</p>
+          </div>
+        )}
 
         {/* ── Core info ── */}
         <div className="grid gap-4 sm:grid-cols-2">

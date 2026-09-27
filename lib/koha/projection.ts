@@ -74,7 +74,7 @@ export interface ProjectedBook {
   language: CatalogLanguageCode;
   /** 653$a — the shelf class label in the PMB records ("370 អប់រំ …"). */
   category: string | null;
-  /** 082$a — the Dewey class, used only when no item carries a call number. */
+  /** 082 $a (+ $b) — the Dewey number, used only when no item carries a call number. */
   ddcClass: string | null;
 }
 
@@ -86,7 +86,11 @@ export function biblioIdOf(rec: MarcInJson): number | null {
 
 function languageOf(rec: MarcInJson, title: string): CatalogLanguageCode {
   const code = (first(marcSubfields(rec, "041", "a")) ?? marcControl(rec, "008")?.slice(35, 38) ?? "").toLowerCase().trim();
-  if (code && code !== "und" && code !== "|||" && code !== "   ") return MARC_LANGUAGE[code] ?? "other";
+  // `und` is what the e-Library (and the PMB converter) write for "other" —
+  // read it back as "other", so a record written from the e-Library reads the
+  // same. No PMB record carries it (all 13,429 copies are km or en).
+  if (code === "und") return "other";
+  if (code && code !== "|||") return MARC_LANGUAGE[code] ?? "other";
   // No coded language: the title's script, exactly as the importer decides it.
   if (KHMER.test(title)) return "km";
   if (LATIN_LETTER.test(title)) return "en";
@@ -107,6 +111,16 @@ function yearOf(rec: MarcInJson, maxYear: number): number | null {
     }
   }
   return null;
+}
+
+/** The first 082: $a the class, $b the item number ("372.7" + "BIL"), as the e-Library writes them. */
+function ddcOf(rec: MarcInJson): string | null {
+  const f = fieldsOf(rec, "082").find((x): x is MarcDataField => typeof x !== "string");
+  if (!f) return null;
+  const a = first(f.subfields.flatMap((sf) => (typeof sf.a === "string" ? [sf.a] : [])));
+  if (!a) return null;
+  const b = first(f.subfields.flatMap((sf) => (typeof sf.b === "string" ? [sf.b] : [])));
+  return b ? `${a} ${b}` : a;
 }
 
 export function projectBiblio(rec: MarcInJson, opts: { maxYear?: number } = {}): ProjectedBook | null {
@@ -136,7 +150,7 @@ export function projectBiblio(rec: MarcInJson, opts: { maxYear?: number } = {}):
     year: yearOf(rec, opts.maxYear ?? new Date().getFullYear() + 1),
     language: languageOf(rec, title),
     category: first(marcSubfields(rec, "653", "a")),
-    ddcClass: first(marcSubfields(rec, "082", "a")),
+    ddcClass: ddcOf(rec),
   };
 }
 

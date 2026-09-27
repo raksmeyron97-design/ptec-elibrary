@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useTransition } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useWideContext } from "./use-wide-context";
@@ -76,6 +76,27 @@ export default function FormShell({
 }) {
   const wide = useWideContext();
   const panelRef = useRef<HTMLDivElement>(null);
+  const [, startTransition] = useTransition();
+
+  /*
+    `action` is called from onSubmit, NOT passed as <form action>. React 19
+    resets every uncontrolled field once a <form action> function settles —
+    success or not — so a save refused by the server (a taken slug, a Koha
+    duplicate or conflict) came back as an EMPTY add form, or an edit form
+    snapped back to the values it opened with, and "Create anyway" then sent
+    nothing. The wizards own their fields; what they typed must survive an
+    answer. The FormData is the same, submitter included.
+  */
+  const submitAction = action
+    ? (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const submitter = (e.nativeEvent as SubmitEvent).submitter;
+        const data = new FormData(e.currentTarget, submitter instanceof HTMLElement ? submitter : undefined);
+        startTransition(async () => {
+          await action(data);
+        });
+      }
+    : undefined;
 
   /*
     Restart the entrance animation without remounting the children. Removing the
@@ -142,8 +163,7 @@ export default function FormShell({
         {isForm ? (
           <form
             ref={formRef}
-            {...(onSubmit ? { onSubmit } : {})}
-            {...(action ? { action } : {})}
+            {...(onSubmit ? { onSubmit } : submitAction ? { onSubmit: submitAction } : {})}
             onChange={onFormChange}
             noValidate
             className={CARD_CLASS}

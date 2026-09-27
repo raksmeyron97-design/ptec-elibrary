@@ -27,6 +27,9 @@ function fakeClient(rows: unknown[], opts: { total?: boolean } = {}) {
       if (!validate(data)) throw new Error("fixture did not validate");
       return { data, total: opts.total === false ? null : rows.length, requestId: "1" };
     },
+    async write() {
+      throw new Error("reading Koha never writes");
+    },
   };
   return { client, calls };
 }

@@ -18,7 +18,11 @@
  *     else. A UUID passed every mock test and failed the first live Koha.
  *   • Only GET is retried, and only on a transient failure. A write that timed
  *     out may still have happened; repeating it is how duplicate records are
- *     made. (Phase 1 exposes no writes at all.)
+ *     made. So write() sends ONCE (a 401 aside: Koha refused it before doing
+ *     anything, so re-sending with a fresh token is safe).
+ *   • Writes (Phase 5) are narrower still: only in `write` mode (or the
+ *     in-process mock), only a MARC-in-JSON body, and only to the two record
+ *     paths — POST /biblios and PUT /biblios/{id}. Never DELETE, never items.
  *   • A 401 refreshes the token once — Koha may have restarted or expired it —
  *     and then reports the credentials as wrong rather than looping.
  *   • A 2xx body is checked against the shape the caller expects; a body that
@@ -62,9 +66,30 @@ export interface KohaGetOptions {
 /** The ceiling on a per-call budget: one stuck request must not hold a run for long. */
 export const KOHA_MAX_TIMEOUT_MS = 120_000;
 
+export interface KohaWriteOptions {
+  /** `x-confirm-not-duplicate`: create even though Koha's FindDuplicate matched (a librarian's explicit override). */
+  confirmNotDuplicate?: boolean;
+  signal?: AbortSignal;
+  /** Default KOHA_WRITE_TIMEOUT_MS; capped at KOHA_MAX_TIMEOUT_MS. */
+  timeoutMs?: number;
+}
+
+/**
+ * A librarian is waiting on a write, but a write that times out is ambiguous —
+ * it may have happened — so it gets a generous budget rather than the 8 s
+ * interactive default: fewer "we cannot tell whether it was saved" answers.
+ */
+export const KOHA_WRITE_TIMEOUT_MS = 30_000;
+
+/** The only writes: create a record, replace a record. */
+export type KohaWriteMethod = "POST" | "PUT";
+const WRITE_PATHS: Record<KohaWriteMethod, RegExp> = { POST: /^\/biblios$/, PUT: /^\/biblios\/[1-9]\d*$/ };
+
 export interface KohaClient {
   readonly mode: KohaMode;
   get<T>(path: string, validate: Validate<T>, opts?: KohaGetOptions): Promise<KohaResponse<T>>;
+  /** Send a MARC-in-JSON record. Refused unless the mode allows writes; never retried. */
+  write<T>(method: KohaWriteMethod, path: string, record: unknown, validate: Validate<T>, opts?: KohaWriteOptions): Promise<KohaResponse<T>>;
 }
 
 export interface KohaClientDeps {
@@ -139,7 +164,14 @@ export function createKohaClient(cfg: KohaConfig, deps: KohaClientDeps = {}): Ko
     }
   }
 
-  type SendExtra = { accept: KohaAccept; embed: string | null; timeoutMs: number };
+  type SendExtra = {
+    accept: KohaAccept;
+    embed: string | null;
+    timeoutMs: number;
+    method?: KohaWriteMethod;
+    body?: string;
+    confirmNotDuplicate?: boolean;
+  };
 
   async function send(url: string, token: string, requestId: string, outer: AbortSignal | undefined, extra: SendExtra): Promise<Response> {
     const timeout = AbortSignal.timeout(extra.timeoutMs);
@@ -151,8 +183,14 @@ export function createKohaClient(cfg: KohaConfig, deps: KohaClientDeps = {}): Ko
     };
     if (extra.embed) headers["x-koha-embed"] = extra.embed;
     if (cfg.libraryId) headers["x-koha-library"] = cfg.libraryId;
+    if (extra.method) {
+      headers["Content-Type"] = "application/marc-in-json";
+      if (extra.confirmNotDuplicate) headers["x-confirm-not-duplicate"] = "1";
+    }
     try {
-      return await doFetch(url, { method: "GET", headers, signal, cache: "no-store" });
+      return extra.method
+        ? await doFetch(url, { method: extra.method, headers, body: extra.body, signal, cache: "no-store" })
+        : await doFetch(url, { method: "GET", headers, signal, cache: "no-store" });
     } catch {
       if (outer?.aborted) throw new KohaError("timeout", "The Koha call was cancelled.", { requestId });
       if (timeout.aborted) throw new KohaError("timeout", `Koha did not answer within ${extra.timeoutMs} ms.`, { requestId });
@@ -212,6 +250,31 @@ export function createKohaClient(cfg: KohaConfig, deps: KohaClientDeps = {}): Ko
           if (!err.retryable || attempt >= RETRY_DELAYS_MS.length || opts.signal?.aborted) throw err;
           await sleep(RETRY_DELAYS_MS[attempt]);
         }
+      }
+    },
+
+    async write<T>(method: KohaWriteMethod, path: string, record: unknown, validate: Validate<T>, opts: KohaWriteOptions = {}) {
+      if (refused) throw refused;
+      if (cfg.mode !== "write" && cfg.mode !== "mock") {
+        throw new KohaError("config", "Writing to Koha needs KOHA_INTEGRATION=write.");
+      }
+      assertSafePath(path);
+      if (!WRITE_PATHS[method]?.test(path)) {
+        throw new KohaError("invalid_request", `Refused to send ${method} ${path}: the e-Library writes only records (POST /biblios, PUT /biblios/{id}).`);
+      }
+      const timeoutMs = opts.timeoutMs !== undefined && Number.isFinite(opts.timeoutMs) && opts.timeoutMs > 0
+        ? Math.min(opts.timeoutMs, KOHA_MAX_TIMEOUT_MS)
+        : KOHA_WRITE_TIMEOUT_MS;
+      const extra: SendExtra = {
+        accept: "application/json", embed: null, timeoutMs, method,
+        body: JSON.stringify(record), confirmNotDuplicate: opts.confirmNotDuplicate === true,
+      };
+      // ONE attempt. A timeout or a dropped connection is reported as such, and
+      // the caller must treat the outcome as unknown — never send it again blind.
+      try {
+        return await once(`${baseUrl}/api/v1${path}`, `${method} ${path}`, validate, opts.signal, extra);
+      } catch (e) {
+        throw e instanceof KohaError ? e : new KohaError("unreachable", `Koha call failed (${method} ${path}).`);
       }
     },
   };

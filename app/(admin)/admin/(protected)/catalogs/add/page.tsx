@@ -6,6 +6,7 @@ import { pagedScan } from "@/lib/db/paged-scan";
 import AddCatalogRecord from "./_components/AddCatalogRecord";
 import { requireRouteAccess } from "@/lib/admin/route-guard";
 import { kohaSyncInitialized } from "@/lib/koha/sync-server";
+import { kohaWritesRecords } from "@/lib/koha/catalog-writes";
 export default async function AddCatalogBookPage() {
   await requireRouteAccess("catalog.create");
 
@@ -40,5 +41,5 @@ export default async function AddCatalogBookPage() {
   const catRows = catScan.error || catScan.truncated ? [] : catScan.data;
   const categories = [...new Set(catRows.map((r) => r.category).filter(Boolean) as string[])].sort();
 
-  return <AddCatalogRecord categories={categories} followsKoha={followsKoha} />;
+  return <AddCatalogRecord categories={categories} followsKoha={followsKoha} writesToKoha={kohaWritesRecords()} />;
 }
