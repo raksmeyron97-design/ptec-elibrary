@@ -611,6 +611,9 @@ async function searchBooks(db: DB, rawQ: string, filters: Filters, limit: number
       fileUrl: pdf?.file_url ?? null,
     });
     const canDownload = access.canDownload;
+    // A catalogue-only book (0151) has a file and serves it to nobody, so it
+    // is a record, not a read-online book — and offers no Read action.
+    const readable = Boolean(pdf?.file_url) && access.canReadOnline;
     return {
       id: r.id,
       ref: r.slug,
@@ -632,10 +635,10 @@ async function searchBooks(db: DB, rawQ: string, filters: Filters, limit: number
       excerpt: makeExcerpt(r.description),
       keywords,
       format: pdf?.format ?? "PDF",
-      availability: digitalAvailability({ hasFile: Boolean(pdf?.file_url), canDownload }),
+      availability: digitalAvailability({ hasFile: readable, canDownload }),
       actions: {
         view: `/books/${r.slug}`,
-        read: pdf?.file_url ? `/books/${r.slug}/read` : undefined,
+        read: readable ? `/books/${r.slug}/read` : undefined,
         download: canDownload ? `/api/books/${r.id}/download` : undefined,
         cite: `/books/${r.slug}#cite`,
         save: `/books/${r.slug}#save`,

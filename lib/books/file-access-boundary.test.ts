@@ -160,3 +160,32 @@ describe("file_access is the only column any writer sets", () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe("no surface offers a reader the file route will refuse", () => {
+  // The byte routes above were gated, and the /read route too, while the book
+  // page still drew an embedded reader, a "Sign in to read" prompt and a Read
+  // jump-link for catalogue-only books, and search labelled them "Read online
+  // only" with a Read button — all keyed on "a file exists". Found against
+  // production 2026-09-24: 4 of 4 sampled "read online" results were
+  // catalogue-only. A file existing is not permission to read it.
+  const page = stripComments(read("app/[locale]/(public)/books/[slug]/page.tsx"));
+  const search = stripComments(read("app/api/search/native/route.ts"));
+
+  it("the book page derives `readable` from canReadOnline", () => {
+    expect(page).toMatch(/const readable\s*=[\s\S]{0,300}?\.canReadOnline;/);
+  });
+
+  it("the embedded reader, the quick-nav Read link and the resume banner are all gated on it", () => {
+    expect(page).toMatch(/\{readable && \(\s*<div id="reader"/);
+    expect(page).toMatch(/hasPdf=\{readable\}/);
+    expect(page).toMatch(/\{readable && book\.dbId && \(\s*<Suspense fallback=\{null\}>\s*<ResumeBanner/);
+  });
+
+  it("search derives a book's Read action and availability from canReadOnline, not from the file", () => {
+    expect(search).toMatch(/const readable = Boolean\(pdf\?\.file_url\) && access\.canReadOnline;/);
+    expect(search).toMatch(/digitalAvailability\(\{ hasFile: readable, canDownload \}\)/);
+    expect(search).toMatch(/read: readable \? `\/books\/\$\{r\.slug\}\/read` : undefined/);
+    expect(search).not.toMatch(/read: pdf\?\.file_url \?/);
+    expect(search).not.toMatch(/hasFile: Boolean\(pdf\?\.file_url\)/);
+  });
+});
