@@ -214,6 +214,7 @@ const nextConfig: NextConfig = {
     return [...subjectSlugRedirectRules(), ...legacyPublicationRedirectRules()];
   },
   async rewrites() {
+    const supabaseDestination = `${process.env.SUPABASE_INTERNAL_URL || "http://kong:8000"}/:path*`;
     return {
       beforeFiles: [
         // Allow Google Scholar to fetch PDFs from a .pdf-suffixed URL
@@ -222,6 +223,48 @@ const nextConfig: NextConfig = {
           source: "/api/theses/:id/file.pdf",
           destination: "/api/theses/:id/file",
         },
+        // Reverse-proxy supabase.library.ptec.edu.kh to Kong gateway
+        // (Enables seamless routing via Cloudflare Tunnel catch-all at $0)
+        {
+          source: "/:path*",
+          has: [
+            {
+              type: "host",
+              value: "supabase.library.ptec.edu.kh",
+            },
+          ],
+          destination: supabaseDestination,
+        },
+        {
+          source: "/:path*",
+          has: [
+            {
+              type: "host",
+              value: "supabase.library.ptec.edu.kh:13000",
+            },
+          ],
+          destination: supabaseDestination,
+        },
+        {
+          source: "/:path*",
+          has: [
+            {
+              type: "host",
+              value: "supabase.library.ptec.edu.kh:3000",
+            },
+          ],
+          destination: supabaseDestination,
+        },
+        {
+          source: "/:path*",
+          has: [
+            {
+              type: "host",
+              value: "supabase.storage-ptec.online",
+            },
+          ],
+          destination: supabaseDestination,
+        },
       ],
     };
   },
@@ -229,6 +272,12 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/(.*)",
+        missing: [
+          {
+            type: "host",
+            value: "supabase.library.ptec.edu.kh",
+          },
+        ],
         headers: securityHeaders,
       },
       // Non-production builds (previews, branch deploys, staging, local) are

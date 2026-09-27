@@ -60,6 +60,21 @@ const JOURNAL_GATE_PATTERNS: Partial<Record<string, RegExp>> = {
 };
 
 export async function middleware(request: NextRequest) {
+  // ── Subdomain passthrough for backend API proxy ────────────────────────
+  // Requests for supabase.library.ptec.edu.kh (or other backend subdomains)
+  // arrive here via Cloudflare Tunnel catch-all and are reverse-proxied to
+  // Kong via next.config.ts rewrites. Bypass all website middleware (CSP,
+  // locale routing, session auth check) so API requests stream through cleanly.
+  const rawHost = request.headers.get("host")?.toLowerCase() ?? "";
+  const hostname = (rawHost.startsWith("[") ? rawHost : (rawHost.split(":")[0] ?? rawHost)).trim();
+  if (
+    hostname.startsWith("supabase.") ||
+    hostname.startsWith("storage.") ||
+    hostname.startsWith("api.")
+  ) {
+    return NextResponse.next();
+  }
+
   // ── One host, always ───────────────────────────────────────────────────
   // The Cloudflare Tunnel publishes this same container on both the canonical
   // domain and the connector's fallback hostname. Collapse them here, before

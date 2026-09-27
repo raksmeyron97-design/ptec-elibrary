@@ -74,4 +74,12 @@ describe("canonicalHostRedirect", () => {
     expect(canonicalHostRedirect(null, PROD)).toBeNull();
     expect(canonicalHostRedirect("  ", PROD)).toBeNull();
   });
+
+  it("does not redirect API and backend subdomains", () => {
+    expect(canonicalHostRedirect("supabase.library.ptec.edu.kh", PROD)).toBeNull();
+    expect(canonicalHostRedirect("SUPABASE.LIBRARY.PTEC.EDU.KH:443", PROD)).toBeNull();
+    expect(canonicalHostRedirect("supabase.storage-ptec.online", PROD)).toBeNull();
+    expect(canonicalHostRedirect("storage.library.ptec.edu.kh", PROD)).toBeNull();
+    expect(canonicalHostRedirect("api.library.ptec.edu.kh", PROD)).toBeNull();
+  });
 });
