@@ -82,4 +82,11 @@ describe("canonicalHostRedirect", () => {
     expect(canonicalHostRedirect("storage.library.ptec.edu.kh", PROD)).toBeNull();
     expect(canonicalHostRedirect("api.library.ptec.edu.kh", PROD)).toBeNull();
   });
+
+  it("does not redirect the Koha OPAC subdomain", () => {
+    expect(canonicalHostRedirect("koha.ptec.edu.kh", PROD)).toBeNull();
+    expect(canonicalHostRedirect("KOHA.PTEC.EDU.KH", PROD)).toBeNull();
+    expect(canonicalHostRedirect("koha.ptec.edu.kh:3000", PROD)).toBeNull();
+    expect(canonicalHostRedirect("koha.storage-ptec.online", PROD)).toBeNull();
+  });
 });
