@@ -65,12 +65,14 @@ export async function middleware(request: NextRequest) {
   // arrive here via Cloudflare Tunnel catch-all and are reverse-proxied to
   // Kong via next.config.ts rewrites. Bypass all website middleware (CSP,
   // locale routing, session auth check) so API requests stream through cleanly.
+  // koha.ptec.edu.kh takes the same path to the Koha OPAC container.
   const rawHost = request.headers.get("host")?.toLowerCase() ?? "";
   const hostname = (rawHost.startsWith("[") ? rawHost : (rawHost.split(":")[0] ?? rawHost)).trim();
   if (
     hostname.startsWith("supabase.") ||
     hostname.startsWith("storage.") ||
-    hostname.startsWith("api.")
+    hostname.startsWith("api.") ||
+    hostname.startsWith("koha.")
   ) {
     return NextResponse.next();
   }

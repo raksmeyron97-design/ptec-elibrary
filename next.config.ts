@@ -215,6 +215,7 @@ const nextConfig: NextConfig = {
   },
   async rewrites() {
     const supabaseDestination = `${process.env.SUPABASE_INTERNAL_URL || "http://kong:8000"}/:path*`;
+    const kohaDestination = `${process.env.KOHA_OPAC_INTERNAL_URL || "http://10.1.1.146:8480"}/:path*`;
     return {
       beforeFiles: [
         // Allow Google Scholar to fetch PDFs from a .pdf-suffixed URL
@@ -265,6 +266,48 @@ const nextConfig: NextConfig = {
           ],
           destination: supabaseDestination,
         },
+        // Reverse-proxy koha.ptec.edu.kh to the Koha OPAC container
+        // (Cloudflare for SaaS → Tunnel catch-all, same path as Supabase above)
+        {
+          source: "/:path*",
+          has: [
+            {
+              type: "host",
+              value: "koha.ptec.edu.kh",
+            },
+          ],
+          destination: kohaDestination,
+        },
+        {
+          source: "/:path*",
+          has: [
+            {
+              type: "host",
+              value: "koha.ptec.edu.kh:13000",
+            },
+          ],
+          destination: kohaDestination,
+        },
+        {
+          source: "/:path*",
+          has: [
+            {
+              type: "host",
+              value: "koha.ptec.edu.kh:3000",
+            },
+          ],
+          destination: kohaDestination,
+        },
+        {
+          source: "/:path*",
+          has: [
+            {
+              type: "host",
+              value: "koha.storage-ptec.online",
+            },
+          ],
+          destination: kohaDestination,
+        },
       ],
     };
   },
@@ -276,6 +319,10 @@ const nextConfig: NextConfig = {
           {
             type: "host",
             value: "supabase.library.ptec.edu.kh",
+          },
+          {
+            type: "host",
+            value: "koha.ptec.edu.kh",
           },
         ],
         headers: securityHeaders,

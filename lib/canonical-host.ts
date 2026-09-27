@@ -48,7 +48,8 @@ function isApiSubdomain(hostname: string): boolean {
   return (
     hostname.startsWith("supabase.") ||
     hostname.startsWith("storage.") ||
-    hostname.startsWith("api.")
+    hostname.startsWith("api.") ||
+    hostname.startsWith("koha.")
   );
 }
 
