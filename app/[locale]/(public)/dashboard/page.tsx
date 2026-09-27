@@ -21,6 +21,8 @@ import RecommendedBooks from "@/components/ui/dashboard/RecommendedBooks";
 import UserRequests from "@/components/ui/dashboard/UserRequests";
 import RecentActivity from "@/components/ui/dashboard/RecentActivity";
 import LearningIntent from "@/components/ui/dashboard/LearningIntent";
+import LibraryLoans from "@/components/ui/dashboard/LibraryLoans";
+import { kohaReadsPatrons } from "@/lib/koha/patron-server";
 import { SectionHeading } from "@/components/ui/dashboard/primitives";
 import { LIBRARY_SECTION_ID } from "@/components/ui/dashboard/library-tab";
 import { mapRowToBook } from "@/lib/books";
@@ -225,6 +227,9 @@ export default async function DashboardPage() {
             }}
           />
         </div>
+
+        {/* ── Printed books on loan (Koha, read-only; loads after the page) ── */}
+        {kohaReadsPatrons() && <LibraryLoans />}
 
         <NewForYou alerts={subAlerts} />
 

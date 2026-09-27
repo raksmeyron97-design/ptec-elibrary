@@ -48,7 +48,7 @@ export interface KohaResponse<T> {
 /** Response formats a caller may ask for. JSON everywhere; MARC-in-JSON where Koha offers records as MARC (GET /biblios). */
 export type KohaAccept = "application/json" | "application/marc-in-json";
 /** `x-koha-embed` values a caller may send. A closed list, like the paths: nothing a caller passes becomes a header freely. */
-export const KOHA_EMBEDS = ["+strings"] as const;
+export const KOHA_EMBEDS = ["+strings", "item"] as const;
 export type KohaEmbed = (typeof KOHA_EMBEDS)[number];
 
 export interface KohaGetOptions {

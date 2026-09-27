@@ -20,6 +20,7 @@ import Pagination from "@/components/ui/core/Pagination";
 import AdminCoverThumb from "@/components/admin/catalogs/AdminCoverThumb";
 import { requireRouteAccess } from "@/lib/admin/route-guard";
 import { kohaOwnsLinkedRecords } from "@/lib/koha/catalog-writes";
+import { kohaReadsPatrons } from "@/lib/koha/patron-server";
 
 export const dynamic = "force-dynamic";
 
@@ -207,6 +208,14 @@ export default async function AdminCatalogsPage({
           </svg>
           Koha sync
         </Link>
+        {canCreate && kohaReadsPatrons() && (
+          <Link
+            href="/admin/catalogs/library-cards"
+            className="focus-field inline-flex h-10 items-center gap-2 rounded-lg border border-divider bg-bg-surface px-4 text-sm font-semibold text-text-body shadow-sm transition hover:bg-paper"
+          >
+            Library cards
+          </Link>
+        )}
         {canCreate && (
           <>
             <CsvImportWizard />

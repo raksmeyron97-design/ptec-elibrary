@@ -1,12 +1,10 @@
 # Koha integration
 
-**Status (2026-09-27): Phase 5 — record writes (built, not switched on).**
-Phase 1 laid the server-only client, its configuration, error model and a mock
-Koha. Phase 2 makes the Physical Library a read-only projection of a real Koha
-26.05 (**[KOHA-SYNC.md](KOHA-SYNC.md)**, live since 2026-09-26). Phase 5 lets the
-admin create and edit bibliographic records in Koha first
-(**[KOHA-WRITES.md](KOHA-WRITES.md)**), with `KOHA_INTEGRATION=write`. Off by
-default.
+**Status (2026-09-27):** Phase 2 (read-only sync, **[KOHA-SYNC.md](KOHA-SYNC.md)**),
+Phase 5 (record writes) and Phase 6 (copy writes, **[KOHA-WRITES.md](KOHA-WRITES.md)**)
+are live in production. Phases 8 + 7 — library cards linked at the desk and a
+reader's own loans and holds in My Library, read-only — are built, not switched
+on: **[KOHA-PATRONS.md](KOHA-PATRONS.md)**. Off by default.
 
 ## Who owns what
 
@@ -47,6 +45,8 @@ section of `.env.example`.
 | `KOHA_CLIENT_ID`, `KOHA_CLIENT_SECRET` | The API key of a dedicated Koha staff patron (below). |
 | `KOHA_LIBRARY_ID` | Koha library code the integration acts for (`x-koha-library`). |
 | `KOHA_TIMEOUT_MS` | Per-call budget for interactive calls, default 8000. The sync's background page reads carry their own 60 s budget (KOHA-SYNC.md); a record write, 30 s. |
+| `KOHA_WRITE_ITEMS` | `on`: copies are written to Koha first (Phase 6; KOHA-WRITES.md). |
+| `KOHA_READ_PATRONS` | `on`: library cards + My Library loans, read-only (Phases 8 + 7; KOHA-PATRONS.md). Needs `PTEC_API_LEVEL=patrons`. |
 | `KOHA_STAFF_URL` | Optional. Koha's staff interface as a librarian's browser reaches it (the box's LAN address). Used only for "Open in Koha" / "Add copies in Koha" links. |
 
 ## Setting up Koha 26.05 for the integration
@@ -116,5 +116,6 @@ all pass. It never prints the secret.
 
 Phase order agreed at Gate 2: **1** foundation → **4** Add by ISBN → **3**
 catalogue redesign → **2** read-only sync and the barcode-keyed reconciliation
-(live since 2026-09-26) → **5** bibliographic writes (this) → **6** items → **8** librarian-assisted patron linking →
+(live since 2026-09-26) → **5** bibliographic writes → **6** items (both live
+2026-09-27) → **8** + **7** library cards and read-only loans (this) → **8** librarian-assisted patron linking →
 **7** read-only circulation in My Library → **9** unified discovery.
