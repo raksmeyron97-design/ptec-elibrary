@@ -89,6 +89,14 @@ describe("Koha record writes", () => {
     expect(del.indexOf("before.koha_item_id != null")).toBeLessThan(del.indexOf(".delete()"));
   });
 
+  it("a copy row is built from the item as the SYNC sees it (with labels), or the next pass rewrites it", () => {
+    // Measured: rows built from a write's answer said "PTEC"/"REF" where the sync says "PTEC Library"/"Reference".
+    const glue = code("lib/koha/catalog-writes.ts");
+    expect(glue).toMatch(/return labelled\(await createItem\(/);
+    expect(glue).toMatch(/return labelled\(await updateItem\(/);
+    expect(glue).toMatch(/embed: \["\+strings"\]/);
+  });
+
   it("copy writes need their own switch: KOHA_WRITE_ITEMS=on AND KOHA_INTEGRATION=write", () => {
     const base = { KOHA_BASE_URL: "http://koha.test", KOHA_CLIENT_ID: "x", KOHA_CLIENT_SECRET: "y" };
     expect(kohaCanWriteItems(resolveKohaConfig({ ...base, KOHA_INTEGRATION: "write" }))).toBe(false);

@@ -60,12 +60,13 @@ type ShelfOption = { code: string; label: string };
 function ShelfField({ id, value, onChange, locations, placeholder, className }: {
   id: string; value: string; onChange: (v: string) => void; locations: ShelfOption[] | null; placeholder?: string; className: string;
 }) {
+  const tk = useTranslations("adminCatalog.koha");
   if (!locations) {
     return <input id={id} value={value} onChange={(e) => onChange(e.target.value)} className={className} placeholder={placeholder} />;
   }
   return (
     <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={className}>
-      <option value="">—</option>
+      <option value="">{tk("noShelf")}</option>
       {locations.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
     </select>
   );

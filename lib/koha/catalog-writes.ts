@@ -10,6 +10,8 @@ import { kohaCanRead, kohaCanWrite, kohaCanWriteItems, kohaStaffLinks } from "./
 import { createBiblio, readBiblioFields, updateBiblio } from "./biblio-write";
 import type { WritableBookFields } from "./marc-write";
 import { createItem, heldCopy, readLocations, updateItem, type KohaLocation, type WritableCopyFields } from "./item-write";
+import { kohaPath } from "./client";
+import { isKohaItem } from "./projection";
 import { KohaError } from "./errors";
 import type { KohaItem } from "./projection";
 
@@ -60,16 +62,34 @@ const noList = () => ({
   error: new KohaError("unreachable", "Koha's list of shelving locations could not be read, so the shelf was not saved. Try again in a moment."),
 });
 
+/**
+ * The item as the SYNC sees it — with labels (`+strings`). A write's answer
+ * carries codes only ("PTEC", "REF"), so a row built from it would say
+ * something the next sync rewrites ("PTEC Library", "Reference"): measured,
+ * every copy the admin wrote, and each quick-added copy inherited the code from
+ * the one above it. One extra read per copy; on failure the answer is kept.
+ */
+async function labelled<T extends { kind: string; item?: KohaItem }>(outcome: T): Promise<T> {
+  if (!outcome.item || (outcome.kind !== "created" && outcome.kind !== "updated" && outcome.kind !== "unchanged")) return outcome;
+  if (outcome.item._strings) return outcome;
+  try {
+    const r = await getKohaClient().get(kohaPath("/items/{id}", { id: outcome.item.item_id }), isKohaItem, { embed: ["+strings"] });
+    return { ...outcome, item: r.data };
+  } catch {
+    return outcome;
+  }
+}
+
 export async function createItemInKoha(biblioId: number, fields: WritableCopyFields) {
   const locations = await readKohaLocations();
   if (locations === null && fields.shelfLocation?.trim()) return noList();
-  return createItem(getKohaClient(), biblioId, fields, { libraryId: getKohaConfig().libraryId, locations: locations ?? [] });
+  return labelled(await createItem(getKohaClient(), biblioId, fields, { libraryId: getKohaConfig().libraryId, locations: locations ?? [] }));
 }
 
 export async function updateItemInKoha(biblioId: number, itemId: number, base: WritableCopyFields, next: WritableCopyFields) {
   const locations = await readKohaLocations();
   if (locations === null && (next.shelfLocation ?? "").trim() !== (base.shelfLocation ?? "").trim()) return noList();
-  return updateItem(getKohaClient(), biblioId, itemId, base, next, locations ?? []);
+  return labelled(await updateItem(getKohaClient(), biblioId, itemId, base, next, locations ?? []));
 }
 
 /**
