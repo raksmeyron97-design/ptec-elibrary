@@ -57,6 +57,25 @@ export type CopiesLogEntry = {
 
 // ── Copy statuses ─────────────────────────────────────────────────────────────
 
+/**
+ * The statuses a librarian may give a copy KOHA holds (Phase 6, PTEC decision
+ * 2026-09-27: everything but lending). "On loan" and "reserved" come only from
+ * Koha's circulation; "in repair" has no Koha equivalent (Koha's DAMAGED list
+ * has one value) and would read back as "damaged".
+ */
+export const KOHA_SETTABLE_COPY_STATUSES = [
+  "available",
+  "reference_only",
+  "processing",
+  "damaged",
+  "lost",
+  "missing",
+  "withdrawn",
+] as const;
+export type KohaSettableCopyStatus = (typeof KOHA_SETTABLE_COPY_STATUSES)[number];
+export const isKohaSettableStatus = (s: string): s is KohaSettableCopyStatus =>
+  (KOHA_SETTABLE_COPY_STATUSES as readonly string[]).includes(s);
+
 export const COPY_STATUS_VALUES = [
   "available",
   "on_loan",

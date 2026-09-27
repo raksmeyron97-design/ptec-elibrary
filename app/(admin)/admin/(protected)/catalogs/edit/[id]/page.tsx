@@ -7,7 +7,7 @@ import type { CatalogCopy } from "../../copy-actions";
 import { coverSourceFromUrl } from "@/lib/catalog-cover";
 import EditBookWizard from "./_components/EditBookWizard";
 import { requireRouteAccess } from "@/lib/admin/route-guard";
-import { kohaOwnsLinkedRecords, kohaStaffLinksFor, kohaWritesRecords } from "@/lib/koha/catalog-writes";
+import { kohaOwnsLinkedRecords, kohaStaffLinksFor, kohaWritesItems, kohaWritesRecords, readKohaLocations } from "@/lib/koha/catalog-writes";
 
 export default async function EditCatalogBookPage({
   params,
@@ -54,6 +54,9 @@ export default async function EditCatalogBookPage({
   const koha = {
     owned: kohaOwnsLinkedRecords(),
     writes: kohaWritesRecords(),
+    itemWrites: kohaWritesItems(),
+    // Koha's shelving locations, for the shelf of a Koha copy (null = could not be read).
+    locations: kohaId !== null && kohaWritesItems() ? await readKohaLocations() : null,
     recordUrl: links?.record ?? null,
     addItemUrl: links?.addItem ?? null,
   };

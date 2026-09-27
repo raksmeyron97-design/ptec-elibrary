@@ -13,7 +13,7 @@
  */
 import type { FetchLike } from "./auth";
 import type { KohaBiblioSummary, KohaLibrary, KohaVersion } from "./types";
-import type { MarcDataField, MarcInJson } from "./projection";
+import type { KohaItem, MarcDataField, MarcInJson } from "./projection";
 
 export const MOCK_KOHA_BASE_URL = "http://koha.mock";
 export const MOCK_KOHA_VERSION: KohaVersion = {
@@ -29,6 +29,9 @@ export const MOCK_KOHA_LIBRARIES: KohaLibrary[] = [{ library_id: "PTEC", name: "
 export const MOCK_KOHA_BIBLIOS: KohaBiblioSummary[] = [
   { biblio_id: 1, title: "Mock Koha record", author: "PTEC Test", isbn: "9780000000002 | 0000000000" },
 ];
+
+/** Koha's sample shelving locations (installer "auth_val"), as [code, label]. */
+export const MOCK_KOHA_LOCATIONS: [string, string][] = [["GEN", "General stacks"], ["REF", "Reference"], ["CART", "Book cart"], ["STAFF", "Staff office"]];
 
 /** Paths the mock serves that declare the integer request-id header in 26.05. */
 const REQUEST_ID_PATHS = new Set(["/api/v1/libraries", "/api/v1/biblios"]);
@@ -47,6 +50,8 @@ export interface MockKoha {
    * Koha meanwhile".
    */
   records: Map<number, MarcInJson>;
+  /** Items written through POST/PUT /biblios/{id}/items (Phase 6), by item id. Tests may edit one. */
+  items: Map<number, KohaItem>;
 }
 
 type Sf = Record<string, string>;
@@ -73,6 +78,8 @@ export function createMockKoha(
     canWrite?: boolean;
     /** Record ids Koha reports as locked (403 on update). */
     locked?: number[];
+    /** false = the API user lacks edit_items (Phase 6 writes answer 403). */
+    canWriteItems?: boolean;
   } = {},
 ): MockKoha {
   const libraries = opts.libraries ?? MOCK_KOHA_LIBRARIES;
@@ -80,7 +87,12 @@ export function createMockKoha(
   const version = opts.version === undefined ? MOCK_KOHA_VERSION : opts.version;
   const calls: MockKoha["calls"] = [];
   const records = new Map<number, MarcInJson>();
+  const items = new Map<number, KohaItem>();
   let nextBiblio = 1000;
+  let nextItem = 5000;
+  /** The API's item fields the e-Library may send (item.yaml: additionalProperties false). */
+  const ITEM_WRITABLE = new Set(["external_id", "callnumber", "location", "inventory_number", "item_type_id",
+    "home_library_id", "holding_library_id", "withdrawn", "lost_status", "damaged_status", "not_for_loan_status", "restricted_status"]);
   let issued = 0;
   const live = new Set<string>();
 
@@ -110,6 +122,60 @@ export function createMockKoha(
     const requestId = headers["x-koha-request-id"];
     if (REQUEST_ID_PATHS.has(url.pathname) && requestId !== undefined && !/^-?\d+$/.test(requestId)) {
       return json(400, { errors: [{ message: "Expected integer - got string.", path: "/x-koha-request-id" }], status: 400 });
+    }
+
+    // ── Phase 6: item writes, as Koha 26.05.03's Biblios#add_item / #update_item answer ──
+    const itemsOf = /^\/api\/v1\/biblios\/(\d+)\/items(?:\/(\d+))?$/.exec(url.pathname);
+    if (itemsOf && (method === "POST" || method === "PUT")) {
+      const need = opts.canWriteItems === false || opts.canWrite === false;
+      if (need) return json(403, { error: "Authorization failure. Missing required permission(s).", required_permissions: { editcatalogue: "edit_items" } });
+      const bid = Number(itemsOf[1]);
+      if (!records.has(bid) && !biblios.some((b) => b.biblio_id === bid)) return json(404, { error: "Bibliographic record not found", error_code: "not_found" });
+      let body: Record<string, unknown>;
+      try {
+        body = JSON.parse(String(init?.body ?? ""));
+        if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("not an object");
+      } catch {
+        return json(400, { errors: [{ message: "Expected object - got null.", path: "/body" }], status: 400 });
+      }
+      const extra = Object.keys(body).find((k) => !ITEM_WRITABLE.has(k));
+      if (extra) return json(400, { errors: [{ message: `Properties not allowed: ${extra}.`, path: "/body" }], status: 400 });
+      const barcode = typeof body.external_id === "string" ? body.external_id : null;
+      const iid = itemsOf[2] ? Number(itemsOf[2]) : null;
+      if (barcode && [...items.values()].some((it) => it.external_id === barcode && it.item_id !== iid)) {
+        return json(409, { error: "Duplicate barcode." });
+      }
+      if (iid === null) {
+        const id = nextItem++;
+        const item: KohaItem = {
+          item_id: id, biblio_id: bid, external_id: barcode, callnumber: null, home_library_id: null, holding_library_id: null,
+          location: null, collection_code: null, checked_out_date: null, not_for_loan_status: 0,
+          lost_status: 0, damaged_status: 0, withdrawn: 0, restricted_status: 0, inventory_number: null, timestamp: new Date().toISOString(),
+          ...(body as Partial<KohaItem>),
+        };
+        items.set(id, item);
+        return json(201, item, { Location: `/api/v1/items/${id}` });
+      }
+      const cur = items.get(iid);
+      if (!cur || cur.biblio_id !== bid) return json(404, { error: "Item not found", error_code: "not_found" });
+      // set_from_api: only the fields sent change.
+      const updated = { ...cur, ...(body as Partial<KohaItem>), timestamp: new Date().toISOString() };
+      items.set(iid, updated);
+      return json(200, updated);
+    }
+    if (method === "GET" && url.pathname === "/api/v1/authorised_value_categories/LOC/authorised_values") {
+      return json(200, MOCK_KOHA_LOCATIONS.map(([value, description]) => ({ category_name: "LOC", value, description, opac_description: null })));
+    }
+    const oneItem = /^\/api\/v1\/items\/(\d+)$/.exec(url.pathname);
+    if (method === "GET" && oneItem) {
+      const it = items.get(Number(oneItem[1]));
+      return it ? json(200, it) : json(404, { error: "Item not found", error_code: "not_found" });
+    }
+    if (method === "GET" && url.pathname === "/api/v1/items") {
+      const want = url.searchParams.get("external_id");
+      const exact = url.searchParams.get("_match") === "exact";
+      const hits = [...items.values()].filter((it) => want === null || (exact ? it.external_id === want : (it.external_id ?? "").includes(want)));
+      return json(200, hits, { "X-Total-Count": String(hits.length) });
     }
 
     // ── Phase 5: record writes, as Koha 26.05.03's Biblios#add / #update answer ──
@@ -186,5 +252,5 @@ export function createMockKoha(
     return json(404, { error: "Not found." });
   };
 
-  return { baseUrl: MOCK_KOHA_BASE_URL, fetch, calls, records };
+  return { baseUrl: MOCK_KOHA_BASE_URL, fetch, calls, records, items };
 }

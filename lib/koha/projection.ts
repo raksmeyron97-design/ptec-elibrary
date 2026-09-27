@@ -164,6 +164,7 @@ export interface KohaItem {
   callnumber: string | null;
   home_library_id: string | null;
   holding_library_id: string | null;
+  /** 952$c: a code from Koha's shelving-location list (authorised values LOC). */
   location: string | null;
   collection_code: string | null;
   /** items.onloan — non-null while the item is checked out. */

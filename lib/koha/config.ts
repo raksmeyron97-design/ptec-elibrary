@@ -36,6 +36,13 @@ export interface KohaConfig {
    * to link to Koha pages (a record, its "Add item" form). Null when unset.
    */
   staffUrl: string | null;
+  /**
+   * KOHA_WRITE_ITEMS=on (Phase 6): copies are created and edited in Koha from
+   * the admin. A switch of its own, not a mode, because production already runs
+   * `write` for records (Phase 5): deploying Phase 6 must change nothing until
+   * the Koha API user has edit_items (PTEC_API_LEVEL=items) and someone says so.
+   */
+  writeItems: boolean;
   /** Blocking: with any of these the client refuses to call Koha. */
   problems: string[];
   /** Advisory: the integration works, but someone should look. */
@@ -115,6 +122,9 @@ export function resolveKohaConfig(env: EnvSource): KohaConfig {
   }
   if (libraryId && libraryId.length > 10) problems.push("KOHA_LIBRARY_ID is longer than Koha's 10-character library code.");
 
+  const writeItems = ["on", "true", "1", "yes"].includes(env.KOHA_WRITE_ITEMS?.trim().toLowerCase() ?? "");
+  if (writeItems && m !== "write" && m !== "mock") warnings.push(`KOHA_WRITE_ITEMS=on does nothing unless KOHA_INTEGRATION=write (it is ${m}).`);
+
   let staffUrl: string | null = null;
   if (env.KOHA_STAFF_URL?.trim()) {
     const n = normalizeKohaBaseUrl(env.KOHA_STAFF_URL);
@@ -131,6 +141,7 @@ export function resolveKohaConfig(env: EnvSource): KohaConfig {
     libraryId,
     timeoutMs: positiveInt(env.KOHA_TIMEOUT_MS, KOHA_DEFAULT_TIMEOUT_MS),
     staffUrl,
+    writeItems,
     problems,
     warnings,
   };
@@ -147,6 +158,11 @@ export function kohaCanRead(cfg: KohaConfig): boolean {
  */
 export function kohaCanWrite(cfg: KohaConfig): boolean {
   return cfg.mode === "write" && cfg.problems.length === 0;
+}
+
+/** May the admin write COPIES to Koha (Phase 6)? Record writes on, and KOHA_WRITE_ITEMS=on. */
+export function kohaCanWriteItems(cfg: KohaConfig): boolean {
+  return kohaCanWrite(cfg) && cfg.writeItems;
 }
 
 /** Links into Koha's staff interface for one record, or null without KOHA_STAFF_URL. */

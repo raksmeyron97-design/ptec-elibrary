@@ -1,9 +1,10 @@
-# Koha record writes (Phase 5)
+# Koha writes: records (Phase 5) and copies (Phase 6)
 
-**Status (2026-09-27): built and tested against a local Koha 26.05.03 holding
-the full PMB catalogue. Not switched on in production.** It switches on with
-`KOHA_INTEGRATION=write` on the box and `PTEC_API_LEVEL=cataloguing` in Koha's
-deployment package, and not before.
+**Status (2026-09-27): Phase 5 (records) is live in production. Phase 6
+(copies, below) is built and tested against a local Koha 26.05.03 holding
+the full PMB catalogue, and not switched on.** Records switch on with
+`KOHA_INTEGRATION=write` + `PTEC_API_LEVEL=cataloguing`; copies additionally
+with `KOHA_WRITE_ITEMS=on` + `PTEC_API_LEVEL=items`.
 
 With it on, a librarian creates and edits **bibliographic records** in the
 e-Library's admin and they are written to Koha first. Koha stays the system of
@@ -12,14 +13,15 @@ Koha accepted, and the 15-minute sync keeps the two in step afterwards.
 
 Decisions (PTEC, 2026-09-27):
 
-- **Records only.** Copies (Koha items) are Phase 6. A record Koha holds gets its copies **in Koha**: after a save the e-Library links to Koha's "Add item" page, and the e-Library's own "add copies" is closed for Koha records (`refuseKohaOwned`, and the Copies tab shows the Koha link instead). A copy that exists only in the e-Library could never be lent.
+- **Records only.** Copies (Koha items) are Phase 6. Until Phase 6 is switched on, a record Koha holds gets its copies **in Koha**: after a save the e-Library links to Koha's "Add item" page, and the e-Library's own "add copies" is closed for Koha records (`copyOwnership` → `refuse`, and the Copies tab shows the Koha link instead). A copy that exists only in the e-Library could never be lent.
 - **One permission:** the Koha API user gains `editcatalogue → edit_catalogue`. Never items, delete, circulation or patrons. Set by `PTEC_API_LEVEL=cataloguing` in the deployment package's `.env` and `scripts/ptec-configure.sh`, which resets the account to exactly that level on every run.
 - **Duplicates:** Koha's own duplicate check decides what is a possible duplicate. The librarian sees the match (open it in the e-Library or in Koha) and may choose **Create a new record anyway**, which sends `x-confirm-not-duplicate` and writes a `koha_duplicate_override` audit row.
 
 Code: `lib/koha/marc-write.ts` (form ⇄ MARC, pure), `lib/koha/biblio-write.ts`
 (create / edit / conflicts, pure, client injected), `lib/koha/catalog-writes.ts`
 (server-only glue), the catalog actions (`addCatalogBook`, `updateCatalogBook`),
-and the client's `write()` (`lib/koha/client.ts`).
+and the client's `write()` (`lib/koha/client.ts`). Copies (Phase 6):
+`lib/koha/item-write.ts` (pure) and the copy actions (`copy-actions.ts`).
 
 ## What is written, and what is not
 
@@ -76,7 +78,8 @@ Koha record number and the fields written); an override also writes
 - **Deleting permanently.** The next sync would create the record again. The
   row action is not offered, and `hardDeleteCatalogBook` refuses. Unlisting
   still hides it; deleting is done in Koha.
-- **Adding copies** (above).
+- **Adding copies**, unless copy writes are on (Phase 6, below): then they are added here and written to Koha first.
+- **Deleting a copy** Koha holds: it is withdrawn instead.
 - **Editing call number and department**, which come from the copies.
 
 These follow the integration being ON (read or write), because the sync
@@ -102,9 +105,97 @@ overwrites them from Koha in either mode.
 e-Library only, as in Phase 2) and `PTEC_API_LEVEL=read` +
 `scripts/ptec-configure.sh` (the API user loses `edit_catalogue`).
 
+## Copies (Phase 6)
+
+With `KOHA_WRITE_ITEMS=on` (and `KOHA_INTEGRATION=write`), the Copies tab of
+a Koha record works again: librarians add copies (one, or a generated
+sequence), edit them and change their status, and each change goes to Koha
+first. It is a switch of its own because production already runs `write` for
+records: deploying Phase 6 changes nothing until the Koha API user has
+`edit_items` and someone turns it on.
+
+Decisions (PTEC, 2026-09-27): the API user gains `editcatalogue → edit_items`
+as a new level, `PTEC_API_LEVEL=items`; librarians may set **every status but
+lending**; a copy on loan keeps its status.
+
+Koha 26.05.03's contract (`Koha/REST/V1/Biblios.pm`, `Koha/Item.pm`):
+
+- Copies are written under their record: `POST /biblios/{id}/items` and
+  `PUT /biblios/{id}/items/{item}` (there is no `POST /items`).
+- **A barcode Koha already holds is refused with 409.** That makes a create
+  safe to repeat: a repeat of a create that did happen meets its own barcode,
+  finds the copy on the same record and takes it. A timed-out create is
+  settled at once the same way. So every copy in Koha needs a barcode.
+- An update changes only the fields sent (`set_from_api`), so the admin sends
+  only what the librarian changed, with the same three-way conflict check as
+  records.
+- Status changes go through Koha's own rules (`Koha::Item->store`), exactly
+  as in Koha's item editor: marking a lost copy found runs Koha's *found*
+  trigger, which can reverse lost-item charges.
+
+| e-Library | Koha item field |
+|---|---|
+| Barcode | `external_id` (952$p), unique, required |
+| Call number | `callnumber` (952$o) |
+| Shelf location | `location` (952$c): a choice from **Koha's own shelving-location list** (Administration › Authorised values › LOC), read live from Koha and cached five minutes. PTEC decision 2026-09-27. Koha has no free-text shelf field (952$j `shelving_control_number` is a NUMBER in the 26.05 API), and a free-text `location` would be blanked by Koha's item editor, so only codes on the list are written; a mark like "B-2-01" becomes a list entry a Koha administrator adds once. The e-Library shows the entry's label |
+| Accession number | `inventory_number` (952$i) |
+| Status | the four flags below |
+| Holding library | set to `KOHA_LIBRARY_ID` on create; read-only after |
+| Copy number, condition, notes | the e-Library's own; not sent |
+
+**One status, four flags.** The e-Library shows one status; Koha keeps
+`withdrawn`, `lost_status` (4 = missing), `damaged_status` and
+`not_for_loan_status` (−1 processing, > 0 reference). A status change sends
+only the flags that must change for the copy to read back as the new
+status, so a flag that does not decide it survives (a staff-collection
+code under "damaged", a "long overdue" lost value under "lost"). A property
+test checks every settable status against every combination of flags.
+
+| Settable | On loan / reserved / in repair |
+|---|---|
+| available, reference only, processing, damaged, lost, missing, withdrawn | decided by Koha's circulation: shown, not offered. A copy **on loan keeps its status** (its call number and shelf can still change); returns and renewals happen at Koha's desk |
+
+**A batch can partly succeed.** Koha has no batch endpoint, so a generated
+sequence is created one copy at a time. The copies Koha accepted are saved;
+those it refused (a barcode already used, say) stay pending on the form with
+the reason, and saving them again is safe.
+
+**Never deleted.** A copy Koha holds is withdrawn, not deleted: deleting only
+the e-Library's row would have the sync bring it back, and deleting in Koha
+loses its circulation history. The Delete button is not offered on Koha
+copies, and the action refuses.
+
+| What happens | Koha | e-Library | The librarian sees |
+|---|---|---|---|
+| Save succeeds | written | row saved from the item Koha returned | the copy |
+| Barcode already in Koha on another record | unchanged | unchanged | which record holds it |
+| Same barcode already on this record (a repeat) | unchanged | the existing Koha copy is taken | the copy, once |
+| Koha did not answer (create) | settled by the barcode at once | saved if Koha has it | the copy, or "saving again is safe" |
+| Koha did not answer (edit) | unknown | unchanged | reload in a minute |
+| Same field changed in Koha since the last sync | unchanged | unchanged | "Changed in Koha to …" |
+| Status change on a copy on loan | unchanged | unchanged | return it in Koha first |
+| Koha saved, the e-Library's row did not | written | missing / stale | the sync brings it within 15 minutes (the record is linked) |
+
+### Switching copies on (production)
+
+1. Merge; the box deploys it. Nothing changes yet.
+2. In the deployment package: `PTEC_API_LEVEL=items` in `.env`, then
+   `scripts/ptec-configure.sh`; `--check` →
+   `catalogue + edit_catalogue + edit_items`.
+3. In the e-Library's `.env`: `KOHA_WRITE_ITEMS=on`. Restart.
+4. `scripts/check-from-elibrary.sh` → `copy writes: permitted (probe answered
+   …; nothing was created)`. The probe asks to add an item to record 0, which
+   does not exist: Koha checks the permission first, so 403 means "not
+   allowed" and anything else "allowed", and nothing can be created.
+5. Add one copy to a real record, then lend and return it in Koha: its status
+   follows within 15 minutes.
+
+**Off again:** `KOHA_WRITE_ITEMS` unset (copies are added in Koha, as in
+Phase 5), and `PTEC_API_LEVEL=cataloguing` + `scripts/ptec-configure.sh`.
+
 ## Not in Phase 5
 
-Items (Phase 6), deleting records in Koha (never), patrons and circulation
+Deleting records or copies in Koha (never), patrons and circulation
 (Phases 7–8), the CSV importer (it still creates e-Library-only records,
 which the nightly sync lists for review), and Koha's MARC frameworks: new
 records use the default framework, as the PMB import did.

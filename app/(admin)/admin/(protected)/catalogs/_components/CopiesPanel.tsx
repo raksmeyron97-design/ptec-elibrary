@@ -20,6 +20,7 @@ import {
   generateCopies,
   normalizeCopyStatus,
   DEFAULT_HOLDING_LIBRARY,
+  isKohaSettableStatus,
 } from "@/lib/catalog";
 import {
   type CatalogCopy,
@@ -48,6 +49,29 @@ function clientId() {
 
 type PendingRow = GeneratedCopy & { clientId: string };
 
+type ShelfOption = { code: string; label: string };
+
+/**
+ * A shelf field. For a Koha copy (`locations` given) it is a choice from Koha's
+ * own shelving-location list and its value is the Koha CODE — Koha has no
+ * free-text shelf field, and a free-text location would be blanked by Koha's
+ * item editor. Otherwise it is the e-Library's free text, as before.
+ */
+function ShelfField({ id, value, onChange, locations, placeholder, className }: {
+  id: string; value: string; onChange: (v: string) => void; locations: ShelfOption[] | null; placeholder?: string; className: string;
+}) {
+  const tk = useTranslations("adminCatalog.koha");
+  if (!locations) {
+    return <input id={id} value={value} onChange={(e) => onChange(e.target.value)} className={className} placeholder={placeholder} />;
+  }
+  return (
+    <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={className}>
+      <option value="">{tk("noShelf")}</option>
+      {locations.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
+    </select>
+  );
+}
+
 function StatusBadge({ status }: { status: CopyStatus }) {
   const t = useTranslations("adminCatalog.copies.status");
   return (
@@ -69,11 +93,27 @@ export default function CopiesPanel({
   bookId: string;
   bookShelfLocation?: string | null;
   initialCopies: CatalogCopy[];
-  /** The record comes from Koha: its copies are added there (the add actions refuse it too). */
-  kohaOwned?: { biblioId: number; addItemUrl: string | null };
+  /**
+   * The record comes from Koha. `writes` (Phase 6, KOHA_WRITE_ITEMS=on): its
+   * copies are created and edited here and written to Koha first. Without it
+   * they are added in Koha (Phase 5); the actions enforce the same either way.
+   */
+  kohaOwned?: { biblioId: number; addItemUrl: string | null; writes?: boolean; locations?: ShelfOption[] | null };
 }) {
   const t = useTranslations("adminCatalog.copies");
   const tk = useTranslations("adminCatalog.koha");
+  const kohaWrites = !!kohaOwned?.writes;
+  // Koha copies choose their shelf from Koha's list; the rows hold its LABEL (what Koha shows).
+  const kohaLocations = kohaWrites ? kohaOwned?.locations ?? [] : null;
+  const shelfCode = (v: string | null | undefined) =>
+    !kohaLocations ? (v ?? "") : kohaLocations.find((l) => l.code === v)?.code ?? kohaLocations.find((l) => l.label === v)?.code ?? "";
+  /** A copy Koha holds: its statuses are the ones a librarian may set there, and it is never deleted. */
+  const isKohaCopy = (c: CatalogCopy) => !!kohaOwned && c.koha_item_id != null;
+  const SETTABLE_OPTIONS = COPY_STATUS_OPTIONS.filter((o) => isKohaSettableStatus(o.value));
+  const newCopyOptions = kohaWrites ? SETTABLE_OPTIONS : COPY_STATUS_OPTIONS;
+  const optionsFor = (c: CatalogCopy) => (isKohaCopy(c) ? SETTABLE_OPTIONS : COPY_STATUS_OPTIONS);
+  /** On loan / reserved / in repair on a Koha copy: Koha's circulation decides, so it is shown, not offered. */
+  const statusLockedFor = (c: CatalogCopy) => isKohaCopy(c) && !isKohaSettableStatus(normalizeCopyStatus(c.status));
   const tStatus = useTranslations("adminCatalog.copies.status");
   const [copies, setCopies] = useState<CatalogCopy[]>(initialCopies);
   const [showWithdrawn, setShowWithdrawn] = useState(false);
@@ -94,7 +134,7 @@ export default function CopiesPanel({
     accessionPrefix: "ACC-",
     accessionStart: "",
     callNumberBase: "",
-    shelfLocation: bookShelfLocation ?? "",
+    shelfLocation: kohaWrites ? "" : bookShelfLocation ?? "",
     status: "available" as CopyStatus,
     condition: "",
     notes: "",
@@ -150,7 +190,9 @@ export default function CopiesPanel({
       barcode: null,
       accession_number: null,
       call_number: null,
-      shelf_location: last?.shelf_location ?? lastSaved?.shelf_location ?? bookShelfLocation ?? null,
+      shelf_location: kohaLocations
+        ? (last?.shelf_location ?? shelfCode(lastSaved?.shelf_location)) || null
+        : last?.shelf_location ?? lastSaved?.shelf_location ?? bookShelfLocation ?? null,
       holding_library: last?.holding_library ?? lastSaved?.holding_library ?? DEFAULT_HOLDING_LIBRARY,
       status: "available",
       condition: null,
@@ -206,6 +248,12 @@ export default function CopiesPanel({
         setPending([]);
         await reload();
         flash("notice", `${res.added} ${res.added === 1 ? "copy" : "copies"} saved. Nothing is pending.`);
+      } else if (res.failed) {
+        // Saved to Koha one copy at a time: keep only the copies Koha refused.
+        const refused = new Set(res.failed.map((f) => f.barcode));
+        setPending((prev) => prev.filter((r) => refused.has(r.barcode ?? null)));
+        await reload();
+        flash("error", res.error);
       } else {
         flash("error", res.error);
       }
@@ -220,7 +268,7 @@ export default function CopiesPanel({
       barcode: copy.barcode ?? "",
       accession_number: copy.accession_number ?? "",
       call_number: copy.call_number ?? "",
-      shelf_location: copy.shelf_location ?? "",
+      shelf_location: isKohaCopy(copy) && kohaLocations ? shelfCode(copy.shelf_location) : copy.shelf_location ?? "",
       holding_library: copy.holding_library ?? DEFAULT_HOLDING_LIBRARY,
       status: normalizeCopyStatus(copy.status),
       condition: copy.condition ?? "",
@@ -359,6 +407,9 @@ export default function CopiesPanel({
                               onSave={() => handleSaveEdit(copy.id)}
                               onCancel={() => setEditingId(null)}
                               busy={isPending}
+                              statusOptions={optionsFor(copy)}
+                              statusLocked={statusLockedFor(copy)}
+                              shelfLocations={isKohaCopy(copy) ? kohaLocations : null}
                             />
                           </td>
                         ) : (
@@ -369,12 +420,12 @@ export default function CopiesPanel({
                             <td className="px-3 py-2.5 font-mono">{copy.call_number ?? <span className="text-text-muted">—</span>}</td>
                             <td className="px-3 py-2.5 font-mono">{copy.shelf_location ?? <span className="text-text-muted">—</span>}</td>
                             <td className="px-3 py-2.5">
-                              {status === "withdrawn" ? (
+                              {status === "withdrawn" || statusLockedFor(copy) ? (
                                 <StatusBadge status={status} />
                               ) : (
                                 <label className="sr-only" htmlFor={`status-${copy.id}`}>Change status of copy {copy.copy_number ?? copy.barcode ?? copy.id}</label>
                               )}
-                              {status !== "withdrawn" && (
+                              {status !== "withdrawn" && !statusLockedFor(copy) && (
                                 <select
                                   id={`status-${copy.id}`}
                                   value={status}
@@ -382,7 +433,7 @@ export default function CopiesPanel({
                                   disabled={isPending}
                                   className={`rounded-lg border px-2 py-1 text-[11px] font-semibold outline-none focus:ring-2 focus:ring-focus-ring/20 disabled:opacity-50 ${copyStatusBadgeClass(status)}`}
                                 >
-                                  {COPY_STATUS_OPTIONS.map((o) => (
+                                  {optionsFor(copy).map((o) => (
                                     <option key={o.value} value={o.value}>{o.label}</option>
                                   ))}
                                 </select>
@@ -400,6 +451,7 @@ export default function CopiesPanel({
                                 onEdit={() => startEdit(copy)}
                                 onConfirmed={handleConfirmedAction}
                                 busy={isPending}
+                                canDelete={!isKohaCopy(copy)}
                               />
                             </td>
                           </>
@@ -425,6 +477,9 @@ export default function CopiesPanel({
                         onSave={() => handleSaveEdit(copy.id)}
                         onCancel={() => setEditingId(null)}
                         busy={isPending}
+                        statusOptions={optionsFor(copy)}
+                        statusLocked={statusLockedFor(copy)}
+                        shelfLocations={isKohaCopy(copy) ? kohaLocations : null}
                       />
                     ) : (
                       <div className="space-y-2">
@@ -449,6 +504,7 @@ export default function CopiesPanel({
                           onEdit={() => startEdit(copy)}
                           onConfirmed={handleConfirmedAction}
                           busy={isPending}
+                          canDelete={!isKohaCopy(copy)}
                         />
                       </div>
                     )}
@@ -461,7 +517,10 @@ export default function CopiesPanel({
       </div>
 
       {/* ── Add copies ── (a record Koha holds gets its copies in Koha — Phase 5) */}
-      {kohaOwned ? (
+      {kohaOwned && kohaWrites && (
+        <p className="rounded-xl border border-info-line bg-info-soft px-3 py-2 text-xs leading-relaxed text-info-text">{tk("copiesWriteBody", { id: kohaOwned.biblioId })}</p>
+      )}
+      {kohaOwned && !kohaWrites ? (
         <div className="rounded-2xl border border-info-line bg-info-soft p-4 text-sm text-info-text">
           <p>{tk("copiesInKohaBody", { id: kohaOwned.biblioId })}</p>
           {kohaOwned.addItemUrl ? (
@@ -539,14 +598,14 @@ export default function CopiesPanel({
               </div>
               <div>
                 <label htmlFor="gen-shelf" className={labelCls}>{t("field.shelfLocation")}</label>
-                <input id="gen-shelf" value={gen.shelfLocation}
-                  onChange={(e) => setGen({ ...gen, shelfLocation: e.target.value })} className={inputCls} placeholder={bookShelfLocation ?? "B-2-01"} />
+                <ShelfField id="gen-shelf" value={gen.shelfLocation} locations={kohaLocations}
+                  onChange={(v) => setGen({ ...gen, shelfLocation: v })} className={inputCls} placeholder={bookShelfLocation ?? "B-2-01"} />
               </div>
               <div>
                 <label htmlFor="gen-status" className={labelCls}>{t("field.status")}</label>
                 <select id="gen-status" value={gen.status}
                   onChange={(e) => setGen({ ...gen, status: e.target.value as CopyStatus })} className={inputCls}>
-                  {COPY_STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{tStatus(o.value)}</option>)}
+                  {newCopyOptions.map((o) => <option key={o.value} value={o.value}>{tStatus(o.value)}</option>)}
                 </select>
               </div>
               <div>
@@ -621,14 +680,14 @@ export default function CopiesPanel({
                     </div>
                     <div>
                       <label htmlFor={`p-shelf-${row.clientId}`} className={labelCls}>{t("col.shelf")}</label>
-                      <input id={`p-shelf-${row.clientId}`} value={row.shelf_location ?? ""} className={inputCls}
-                        onChange={(e) => updatePendingRow(row.clientId, { shelf_location: e.target.value || null })} placeholder={t("shelfPlaceholder")} />
+                      <ShelfField id={`p-shelf-${row.clientId}`} value={row.shelf_location ?? ""} className={inputCls} locations={kohaLocations}
+                        onChange={(v) => updatePendingRow(row.clientId, { shelf_location: v || null })} placeholder={t("shelfPlaceholder")} />
                     </div>
                     <div>
                       <label htmlFor={`p-status-${row.clientId}`} className={labelCls}>{t("field.status")}</label>
                       <select id={`p-status-${row.clientId}`} value={row.status} className={inputCls}
                         onChange={(e) => updatePendingRow(row.clientId, { status: e.target.value as CopyStatus })}>
-                        {COPY_STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{tStatus(o.value)}</option>)}
+                        {newCopyOptions.map((o) => <option key={o.value} value={o.value}>{tStatus(o.value)}</option>)}
                       </select>
                     </div>
                     <div>
@@ -659,7 +718,7 @@ export default function CopiesPanel({
               </button>
             </div>
             <p className="text-right text-[10px] text-text-muted">
-              Saved together — if any copy is invalid (e.g. duplicate barcode), nothing is created.
+              {kohaWrites ? tk("batchKohaNote") : "Saved together — if any copy is invalid (e.g. duplicate barcode), nothing is created."}
             </p>
           </div>
         )}
@@ -679,6 +738,7 @@ function RowActions({
   onEdit,
   onConfirmed,
   busy,
+  canDelete = true,
 }: {
   copy: CatalogCopy;
   status: CopyStatus;
@@ -687,6 +747,8 @@ function RowActions({
   onEdit: () => void;
   onConfirmed: () => void;
   busy: boolean;
+  /** A copy Koha holds is withdrawn, never deleted. */
+  canDelete?: boolean;
 }) {
   const t = useTranslations("adminCatalog.copies");
   const confirming = confirm?.id === copy.id ? confirm : null;
@@ -722,11 +784,13 @@ function RowActions({
           Withdraw
         </button>
       )}
-      <button type="button" onClick={() => setConfirm({ kind: "delete", id: copy.id })}
-        title={t("deleteTitle")}
-        className="rounded-lg border border-divider px-2 py-1 text-[10px] font-semibold text-text-muted transition hover:border-red-300 hover:text-red-500">
-        Delete
-      </button>
+      {canDelete && (
+        <button type="button" onClick={() => setConfirm({ kind: "delete", id: copy.id })}
+          title={t("deleteTitle")}
+          className="rounded-lg border border-divider px-2 py-1 text-[10px] font-semibold text-text-muted transition hover:border-red-300 hover:text-red-500">
+          Delete
+        </button>
+      )}
     </div>
   );
 }
@@ -739,12 +803,20 @@ function EditCopyForm({
   onSave,
   onCancel,
   busy,
+  statusOptions = COPY_STATUS_OPTIONS,
+  statusLocked = false,
+  shelfLocations = null,
 }: {
   form: Record<string, string>;
   setForm: (f: Record<string, string>) => void;
   onSave: () => void;
   onCancel: () => void;
   busy: boolean;
+  statusOptions?: typeof COPY_STATUS_OPTIONS;
+  /** Koha's circulation decides this copy's status (on loan): shown, not offered. */
+  statusLocked?: boolean;
+  /** A Koha copy: its shelf is chosen from Koha's shelving-location list. */
+  shelfLocations?: ShelfOption[] | null;
 }) {
   const t = useTranslations("adminCatalog.copies");
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -771,7 +843,7 @@ function EditCopyForm({
         </div>
         <div>
           <label htmlFor="edit-shelf" className={labelCls}>{t("field.shelfLocation")}</label>
-          <input id="edit-shelf" value={form.shelf_location} onChange={set("shelf_location")} className={inputCls} placeholder={t("shelfPlaceholder")} />
+          <ShelfField id="edit-shelf" value={form.shelf_location} onChange={(v) => setForm({ ...form, shelf_location: v })} className={inputCls} locations={shelfLocations} placeholder={t("shelfPlaceholder")} />
         </div>
         <div>
           <label htmlFor="edit-library" className={labelCls}>{t("field.holdingLibrary")}</label>
@@ -779,8 +851,10 @@ function EditCopyForm({
         </div>
         <div>
           <label htmlFor="edit-status" className={labelCls}>{t("field.status")}</label>
-          <select id="edit-status" value={form.status} onChange={set("status")} className={inputCls}>
-            {COPY_STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{t(`status.${o.value}`)}</option>)}
+          <select id="edit-status" value={form.status} onChange={set("status")} className={inputCls} disabled={statusLocked}>
+            {(statusLocked ? COPY_STATUS_OPTIONS.filter((o) => o.value === form.status) : statusOptions).map((o) => (
+              <option key={o.value} value={o.value}>{t(`status.${o.value}`)}</option>
+            ))}
           </select>
         </div>
         <div>
