@@ -99,7 +99,10 @@ export default function EditBookWizard({
    * Koha first (Phase 5), and links into Koha's staff interface when
    * KOHA_STAFF_URL is set.
    */
-  koha?: { owned: boolean; writes: boolean; recordUrl: string | null; addItemUrl: string | null };
+  koha?: {
+    owned: boolean; writes: boolean; itemWrites?: boolean; recordUrl: string | null; addItemUrl: string | null;
+    locations?: { code: string; label: string }[] | null;
+  };
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -556,7 +559,8 @@ export default function EditBookWizard({
         hidden={tab !== "copies"}
         className="space-y-4 focus:outline-none"
       >
-        {kohaId !== null && <KohaNotice body={tk("copiesBody")} />}
+        {/* With copy writes on (Phase 6) the panel explains its own rules. */}
+        {kohaId !== null && !(kohaOwned && koha?.itemWrites) && <KohaNotice body={tk("copiesBody")} />}
         {/* Mounted only while open. CopiesPanel fetches and holds its own copy
             rows, so keeping it alive behind the other two tabs made every
             catalog edit pay for inventory state nobody had asked to see. */}
@@ -565,7 +569,9 @@ export default function EditBookWizard({
             bookId={book.id}
             bookShelfLocation={book.shelf_location}
             initialCopies={initialCopies}
-            kohaOwned={kohaOwned && kohaId !== null ? { biblioId: kohaId, addItemUrl: koha?.addItemUrl ?? null } : undefined}
+            kohaOwned={kohaOwned && kohaId !== null
+              ? { biblioId: kohaId, addItemUrl: koha?.addItemUrl ?? null, writes: !!koha?.itemWrites, locations: koha?.locations ?? null }
+              : undefined}
           />
         )}
       </div>

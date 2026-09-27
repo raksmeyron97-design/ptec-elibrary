@@ -8,6 +8,7 @@ import { describe, it, expect } from "vitest";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { kohaCanWriteItems, resolveKohaConfig } from "./config";
 
 const ROOT = process.cwd();
 const read = (f: string) => readFileSync(join(ROOT, f), "utf8");
@@ -31,15 +32,17 @@ const ACTIONS = "app/(admin)/admin/(protected)/catalogs/actions.ts";
 const COPIES = "app/(admin)/admin/(protected)/catalogs/copy-actions.ts";
 
 describe("Koha record writes", () => {
-  it("one module calls the client's write(): biblio-write.ts", () => {
+  it("two modules call the client's write(): biblio-write.ts (records) and item-write.ts (copies)", () => {
     const callers = gitGrep(["-l", "-E", "\\.write\\(\\s*\"(POST|PUT)\"", "--", "*.ts", "*.tsx", ":!*.test.ts"]);
-    expect(callers).toEqual(["lib/koha/biblio-write.ts"]);
+    expect(callers.sort()).toEqual(["lib/koha/biblio-write.ts", "lib/koha/item-write.ts"]);
   });
 
   it("the admin reaches it only through the server-only glue", () => {
     expect(read("lib/koha/catalog-writes.ts")).toMatch(/^import "server-only";/m);
     const importers = gitGrep(["-l", "-E", "from [\"']@/lib/koha/biblio-write[\"']", "--", "app", "components"]);
     for (const f of importers) expect(code(f), f).not.toMatch(/\b(createBiblio|updateBiblio)\(/);
+    const itemImporters = gitGrep(["-l", "-E", "from [\"']@/lib/koha/item-write[\"']", "--", "app", "components"]);
+    for (const f of itemImporters) expect(code(f), f).not.toMatch(/\b(createItem|updateItem)\(/);
   });
 
   it("create: Koha first, then the e-Library row; a duplicate is returned for a person, never overridden by the action", () => {
@@ -59,16 +62,39 @@ describe("Koha record writes", () => {
     expect(body).toMatch(/delete parsed\.fields\.ddc;\s*delete parsed\.fields\.department;/);
   });
 
-  it("a Koha record is not deleted here, and its copies are not created here", () => {
+  it("a Koha record is not deleted here; a copy of one is created in Koha first, or refused", () => {
     const purge = fn(code(ACTIONS), "hardDeleteCatalogBook");
     expect(purge.indexOf("kohaOwnsLinkedRecords()")).toBeGreaterThan(-1);
     expect(purge.indexOf("kohaOwnsLinkedRecords()")).toBeLessThan(purge.indexOf(".delete()"));
     const copies = code(COPIES);
     for (const name of ["addCopy", "saveCopies"]) {
       const body = fn(copies, name);
-      expect(body.indexOf("refuseKohaOwned("), name).toBeGreaterThan(-1);
-      expect(body.indexOf("refuseKohaOwned("), name).toBeLessThan(body.indexOf(".insert("));
+      const own = body.indexOf("copyOwnership(");
+      expect(own, name).toBeGreaterThan(-1);
+      expect(own, name).toBeLessThan(body.indexOf('if (own.kind === "refuse")'));
+      expect(body.indexOf("createItemInKoha("), name).toBeGreaterThan(-1);
+      expect(body.indexOf("createItemInKoha("), name).toBeLessThan(body.indexOf(".insert("));
     }
+  });
+
+  it("an edit of a Koha copy goes to Koha before the e-Library row; a Koha copy is never deleted", () => {
+    const copies = code(COPIES);
+    for (const name of ["updateCopy", "updateCopyStatus"]) {
+      const body = fn(copies, name);
+      expect(body.indexOf("updateItemInKoha("), name).toBeGreaterThan(-1);
+      expect(body.indexOf("updateItemInKoha("), name).toBeLessThan(body.indexOf(".update("));
+    }
+    const del = fn(copies, "deleteCopy");
+    expect(del.indexOf("before.koha_item_id != null")).toBeGreaterThan(-1);
+    expect(del.indexOf("before.koha_item_id != null")).toBeLessThan(del.indexOf(".delete()"));
+  });
+
+  it("copy writes need their own switch: KOHA_WRITE_ITEMS=on AND KOHA_INTEGRATION=write", () => {
+    const base = { KOHA_BASE_URL: "http://koha.test", KOHA_CLIENT_ID: "x", KOHA_CLIENT_SECRET: "y" };
+    expect(kohaCanWriteItems(resolveKohaConfig({ ...base, KOHA_INTEGRATION: "write" }))).toBe(false);
+    expect(kohaCanWriteItems(resolveKohaConfig({ ...base, KOHA_INTEGRATION: "read", KOHA_WRITE_ITEMS: "on" }))).toBe(false);
+    expect(kohaCanWriteItems(resolveKohaConfig({ ...base, KOHA_INTEGRATION: "write", KOHA_WRITE_ITEMS: "on" }))).toBe(true);
+    expect(read(".env.example")).toMatch(/^# KOHA_WRITE_ITEMS=/m);
   });
 
   it("KOHA_STAFF_URL is documented, and no Koha setting is NEXT_PUBLIC", () => {

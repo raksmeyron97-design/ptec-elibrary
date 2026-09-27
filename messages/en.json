@@ -7966,7 +7966,9 @@
       "dupUseKoha": "Use this Koha record",
       "dupPossiblyOurs": "Koha has a record with exactly this title — most likely the one your last save created before its answer was lost. Use it rather than creating a second one.",
       "addSubtitleWrite": "Bibliographic information. It is saved to Koha, and the book's copies are added in Koha afterwards.",
-      "addContextWrite": "Title, author and language are required. Everything else — cover, description, keywords, SEO — can be filled in later from the edit screen. Saving creates the record in Koha, then here."
+      "addContextWrite": "Title, author and language are required. Everything else — cover, description, keywords, SEO — can be filled in later from the edit screen. Saving creates the record in Koha, then here.",
+      "copiesWriteBody": "This record comes from Koha (record {id}). Copies you add or change here are saved to Koha first, and every copy in Koha needs a barcode. A copy on loan keeps its status: returns and renewals happen at Koha's desk. Copies are withdrawn, never deleted.",
+      "batchKohaNote": "Saved to Koha one copy at a time. A copy Koha refuses (for example, a barcode already in use) stays here with the reason; the others are saved. Saving again is safe."
     }
   },
   "adminUpload": {

@@ -23,7 +23,15 @@ import {
   cleanText,
   findInternalDuplicates,
 } from "@/lib/catalog";
-import { kohaOwnsLinkedRecords } from "@/lib/koha/catalog-writes";
+import {
+  copyColumnsFrom,
+  createItemInKoha,
+  kohaOwnsLinkedRecords,
+  kohaWritesItems,
+  updateItemInKoha,
+} from "@/lib/koha/catalog-writes";
+import type { CreateItemOutcome, UpdateItemOutcome, WritableCopyFields } from "@/lib/koha/item-write";
+import { isKohaSettableStatus } from "@/lib/catalog";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -48,22 +56,76 @@ export interface CatalogCopy {
 
 export type CopyActionResult =
   | { success: true; message?: string; added?: number }
-  | { success: false; error: string };
+  | {
+      success: false;
+      error: string;
+      /** A batch saved to Koha one copy at a time: how many made it, and which did not. */
+      added?: number;
+      failed?: { barcode: string | null; error: string }[];
+    };
 
 type ServiceClient = Awaited<ReturnType<typeof requirePermission>>["supabase"];
 
 /**
- * A copy of a record Koha holds is added IN KOHA (Phase 5 decision, 2026-09-27;
- * docs/KOHA-WRITES.md). A copy created only here has no Koha item, so it could
- * never be lent, and every nightly sync would list it for review. Phase 6
- * brings adding copies back into the e-Library, as Koha items.
+ * Who a record's copies belong to (docs/KOHA-WRITES.md):
+ *   local  — the e-Library's alone (no Koha link, or the integration is off);
+ *   koha   — Koha's, and copies are written to Koha FIRST (Phase 6,
+ *            KOHA_WRITE_ITEMS=on): the e-Library's row is saved from what
+ *            Koha holds;
+ *   refuse — Koha's, but copy writes are off: they are added IN KOHA (the
+ *            Phase 5 decision). A copy created only here has no Koha item, so
+ *            it could never be lent, and every nightly sync would list it.
  */
-async function refuseKohaOwned(supabase: ServiceClient, bookId: string): Promise<string | null> {
-  if (!kohaOwnsLinkedRecords()) return null;
+type CopyOwnership = { kind: "local" } | { kind: "koha"; biblioId: number } | { kind: "refuse"; message: string };
+
+async function copyOwnership(supabase: ServiceClient, bookId: string): Promise<CopyOwnership> {
+  if (!kohaOwnsLinkedRecords()) return { kind: "local" };
   const { data } = await supabase.from("catalog_books").select("*").eq("id", bookId).maybeSingle();
-  return data?.koha_biblio_id != null
-    ? `This record comes from Koha (record ${data.koha_biblio_id}): add its copies in Koha, and they appear here within 15 minutes.`
-    : null;
+  const biblioId = data?.koha_biblio_id;
+  if (!Number.isInteger(biblioId)) return { kind: "local" };
+  if (kohaWritesItems()) return { kind: "koha", biblioId };
+  return { kind: "refuse", message: `This record comes from Koha (record ${biblioId}): add its copies in Koha, and they appear here within 15 minutes.` };
+}
+
+const KOHA_COPY_FIELD_LABEL: Record<string, string> = {
+  barcode: "Barcode", callNumber: "Call number", shelfLocation: "Shelf location", accessionNumber: "Accession number", status: "Status",
+};
+
+/** The writable Koha fields of a copy row (or of a parsed form row). */
+function copyFieldsOf(row: Record<string, unknown>): WritableCopyFields {
+  return {
+    barcode: String(row.barcode ?? ""),
+    callNumber: (row.call_number as string | null) ?? null,
+    shelfLocation: (row.shelf_location as string | null) ?? null,
+    accessionNumber: (row.accession_number as string | null) ?? null,
+    status: normalizeCopyStatus(String(row.status ?? "available")),
+  };
+}
+
+function kohaCopyFailure(o: Exclude<CreateItemOutcome | UpdateItemOutcome, { kind: "created" | "updated" | "unchanged" }>, what: "create" | "save", barcode: string | null): string {
+  switch (o.kind) {
+    case "barcode_taken":
+      return `Barcode ${o.barcode} is already used by another copy in Koha${"biblioId" in o && o.biblioId ? ` (record ${o.biblioId})` : ""}.`;
+    case "gone":
+      return "This copy, or its record, is no longer in Koha. Nothing was saved; the next full sync updates this record.";
+    case "on_loan":
+      return "This copy is on loan, so its status is set by Koha's circulation. Return it in Koha first.";
+    case "conflict":
+      return `Not saved: ${o.conflicts.map((c) => `${KOHA_COPY_FIELD_LABEL[c.field]} changed in Koha to “${c.koha ?? "(empty)"}”`).join("; ")} since this page was loaded. Reload to see it.`;
+    case "failed":
+      if (o.error.kind === "forbidden") {
+        return "Koha refused: the e-Library's Koha account may not edit copies. The Koha administrator sets PTEC_API_LEVEL=items and runs scripts/ptec-configure.sh (docs/KOHA-WRITES.md).";
+      }
+      if (o.ambiguous) {
+        return what === "create"
+          ? `Koha did not answer in time. Saving again is safe: the barcode${barcode ? ` ${barcode}` : ""} stops Koha making a second copy.`
+          : "Koha did not answer in time, so the e-Library cannot tell whether your change reached it. Nothing was saved here. Reload in a minute to see what Koha has.";
+      }
+      if (["timeout", "unreachable", "server"].includes(o.error.kind)) {
+        return `Koha did not answer, and no copy with barcode ${barcode ?? "(none)"} exists there. Saving again is safe.`;
+      }
+      return `Koha did not accept the copy: ${o.error.kohaReason ?? o.error.message}`;
+  }
 }
 
 // Columns that only exist after migration 0095. Writes retry without them when
@@ -238,14 +300,31 @@ export async function fetchCopiesForBook(bookId: string): Promise<CatalogCopy[]>
 // ── addCopy ────────────────────────────────────────────────────────────────────
 export async function addCopy(bookId: string, formData: FormData): Promise<CopyActionResult> {
   const { supabase, userId } = await requirePermission("catalog", "write");
-  const kohaOwned = await refuseKohaOwned(supabase, bookId);
-  if (kohaOwned) return { success: false, error: kohaOwned };
+  const own = await copyOwnership(supabase, bookId);
+  if (own.kind === "refuse") return { success: false, error: own.message };
 
   const parsed = parseCopyForm(formData);
   if (!parsed.ok) return { success: false, error: parsed.error };
+  if (own.kind === "koha") {
+    if (!parsed.barcode) return { success: false, error: "A copy in Koha needs a barcode." };
+    if (!isKohaSettableStatus(String(parsed.row.status))) return { success: false, error: "That status is set by Koha's circulation, not here." };
+  }
 
   const dupError = await assertUnique(supabase, [{ barcode: parsed.barcode, accession: parsed.accession }]);
   if (dupError) return { success: false, error: dupError };
+
+  // ── Koha first (Phase 6) ──
+  let kohaColumns: ReturnType<typeof copyColumnsFrom> | null = null;
+  if (own.kind === "koha") {
+    const created = await createItemInKoha(own.biblioId, copyFieldsOf(parsed.row));
+    if (created.kind !== "created") return { success: false, error: kohaCopyFailure(created, "create", parsed.barcode) };
+    kohaColumns = copyColumnsFrom(created.item);
+    if (created.existed) {
+      // A repeated save: Koha already had it. Already here too? Then done.
+      const { data: here } = await supabase.from("catalog_copies").select("id").eq("koha_item_id", created.item.item_id).maybeSingle();
+      if (here) return { success: true, added: 0, message: "That copy is already saved in Koha and here." };
+    }
+  }
 
   // Auto-assign the next copy number when the librarian left it blank.
   if (parsed.row.copy_number == null) {
@@ -258,16 +337,21 @@ export async function addCopy(bookId: string, formData: FormData): Promise<CopyA
     parsed.row.copy_number = maxNo + 1;
   }
 
-  const fullRow = { catalog_book_id: bookId, ...parsed.row };
+  const fullRow = { catalog_book_id: bookId, ...parsed.row, ...(kohaColumns ?? {}) };
   let { data, error } = await supabase.from("catalog_copies").insert(fullRow).select("id").single();
   if (error && isMissingColumnError(error)) {
     // Pre-0095 fallback — retry without the new inventory columns.
     ({ data, error } = await supabase.from("catalog_copies").insert(stripPost0095(fullRow)).select("id").single());
   }
-  if (error) return { success: false, error: friendlyDbError(error) };
+  if (error) {
+    // Koha has the copy; the sync brings it here (its record is linked).
+    if (kohaColumns) return { success: false, error: `The copy is saved in Koha (barcode ${kohaColumns.barcode}), but the e-Library could not save its row: ${friendlyDbError(error)} The next sync (within 15 minutes) brings it here.` };
+    return { success: false, error: friendlyDbError(error) };
+  }
 
   await logAdminAction(userId, "addCatalogCopy", "catalog_copies", data!.id, {
     bookId, barcode: parsed.barcode, status: parsed.row.status,
+    ...(kohaColumns ? { kohaItemId: kohaColumns.koha_item_id } : {}),
   });
   await refreshCaches(supabase, bookId);
   return { success: true, added: 1, message: "Copy added." };
@@ -290,6 +374,15 @@ export async function updateCopy(copyId: string, formData: FormData): Promise<Co
     copyId,
   );
   if (dupError) return { success: false, error: dupError };
+
+  // ── Koha first (Phase 6): a copy Koha holds ──
+  const own = await copyOwnership(supabase, before.catalog_book_id);
+  if (own.kind === "koha" && Number.isInteger(before.koha_item_id)) {
+    const outcome = await updateItemInKoha(own.biblioId, before.koha_item_id, copyFieldsOf(before), copyFieldsOf(parsed.row));
+    if (outcome.kind !== "updated" && outcome.kind !== "unchanged") return { success: false, error: kohaCopyFailure(outcome, "save", parsed.barcode) };
+    // Koha decides its own columns; notes, condition and copy number stay the e-Library's.
+    Object.assign(parsed.row, copyColumnsFrom(outcome.item));
+  }
 
   let { error } = await supabase.from("catalog_copies").update(parsed.row).eq("id", copyId);
   if (error && isMissingColumnError(error)) {
@@ -315,11 +408,21 @@ export async function updateCopyStatus(copyId: string, status: CopyStatus, note?
   }
 
   const { data: before, error: fetchErr } = await supabase
-    .from("catalog_copies").select("id, catalog_book_id, status, notes").eq("id", copyId).single();
+    .from("catalog_copies").select("*").eq("id", copyId).single();
   if (fetchErr || !before) return { success: false, error: "Copy not found." };
 
   const patch: Record<string, unknown> = { status };
   if (note !== undefined) patch.notes = note.trim() || null;
+
+  // ── Koha first (Phase 6): a copy Koha holds ──
+  const own = await copyOwnership(supabase, before.catalog_book_id);
+  if (own.kind === "koha" && Number.isInteger(before.koha_item_id)) {
+    if (!isKohaSettableStatus(status)) return { success: false, error: "That status is set by Koha's circulation, not here." };
+    const base = copyFieldsOf(before);
+    const outcome = await updateItemInKoha(own.biblioId, before.koha_item_id, base, { ...base, status });
+    if (outcome.kind !== "updated" && outcome.kind !== "unchanged") return { success: false, error: kohaCopyFailure(outcome, "save", before.barcode) };
+    Object.assign(patch, copyColumnsFrom(outcome.item));
+  }
 
   const { error } = await supabase.from("catalog_copies").update(patch).eq("id", copyId);
   if (error) return { success: false, error: friendlyDbError(error) };
@@ -345,6 +448,11 @@ export async function deleteCopy(copyId: string): Promise<CopyActionResult> {
   const { data: before } = await supabase
     .from("catalog_copies").select("*").eq("id", copyId).single();
   if (!before) return { success: false, error: "Copy not found." };
+  // A copy Koha holds is never deleted: removing only this row would have the
+  // next sync bring it back, and deleting in Koha loses its circulation history.
+  if (before.koha_item_id != null && kohaOwnsLinkedRecords()) {
+    return { success: false, error: "This copy is in Koha, so it is not deleted: withdraw it instead." };
+  }
 
   const { error } = await supabase.from("catalog_copies").delete().eq("id", copyId);
   if (error) return { success: false, error: friendlyDbError(error) };
@@ -363,8 +471,8 @@ export async function deleteCopy(copyId: string): Promise<CopyActionResult> {
 // by the client but every field is re-validated here.
 export async function saveCopies(bookId: string, rows: GeneratedCopy[]): Promise<CopyActionResult> {
   const { supabase, userId } = await requirePermission("catalog", "write");
-  const kohaOwned = await refuseKohaOwned(supabase, bookId);
-  if (kohaOwned) return { success: false, error: kohaOwned };
+  const own = await copyOwnership(supabase, bookId);
+  if (own.kind === "refuse") return { success: false, error: own.message };
 
   if (!Array.isArray(rows) || rows.length === 0) return { success: false, error: "No copies to save." };
   if (rows.length > 100) return { success: false, error: "You can create at most 100 copies at a time." };
@@ -385,6 +493,10 @@ export async function saveCopies(bookId: string, rows: GeneratedCopy[]): Promise
     if (r.copy_number != null) fd.set("copy_number", String(r.copy_number));
     const parsed = parseCopyForm(fd);
     if (!parsed.ok) return { success: false, error: `Copy ${i + 1}: ${parsed.error}` };
+    if (own.kind === "koha") {
+      if (!parsed.barcode) return { success: false, error: `Copy ${i + 1}: a copy in Koha needs a barcode.` };
+      if (!isKohaSettableStatus(String(parsed.row.status))) return { success: false, error: `Copy ${i + 1}: that status is set by Koha's circulation, not here.` };
+    }
     validated.push({ barcode: parsed.barcode, accession: parsed.accession });
     records.push({ catalog_book_id: bookId, ...parsed.row });
   }
@@ -392,19 +504,59 @@ export async function saveCopies(bookId: string, rows: GeneratedCopy[]): Promise
   const dupError = await assertUnique(supabase, validated);
   if (dupError) return { success: false, error: dupError };
 
+  // ── Koha first (Phase 6): one item per copy, in order ──
+  // Koha has no batch endpoint, so a batch can partly succeed. Each copy's
+  // outcome is reported; the copies Koha refused stay pending on the form, and
+  // saving them again is safe — a barcode Koha already holds on this record is
+  // taken, not doubled.
+  const failed: { barcode: string | null; error: string }[] = [];
+  if (own.kind === "koha") {
+    const kept: Record<string, unknown>[] = [];
+    for (const rec of records) {
+      const created = await createItemInKoha(own.biblioId, copyFieldsOf(rec));
+      if (created.kind !== "created") {
+        failed.push({ barcode: (rec.barcode as string | null) ?? null, error: kohaCopyFailure(created, "create", rec.barcode as string | null) });
+        continue;
+      }
+      if (created.existed) {
+        const { data: here } = await supabase.from("catalog_copies").select("id").eq("koha_item_id", created.item.item_id).maybeSingle();
+        if (here) continue; // already saved in both places
+      }
+      kept.push({ ...rec, ...copyColumnsFrom(created.item) });
+    }
+    records.splice(0, records.length, ...kept);
+    if (!records.length) {
+      return failed.length
+        ? { success: false, error: `No copy was saved. ${failed.map((f) => `${f.barcode ?? "?"}: ${f.error}`).join(" ")}`, added: 0, failed }
+        : { success: true, added: 0, message: "Those copies are already saved in Koha and here." };
+    }
+  }
+
   let { data, error } = await supabase.from("catalog_copies").insert(records).select("id");
   if (error && isMissingColumnError(error)) {
     ({ data, error } = await supabase.from("catalog_copies").insert(records.map(stripPost0095)).select("id"));
   }
-  if (error) return { success: false, error: friendlyDbError(error) };
+  if (error) {
+    if (own.kind === "koha") {
+      return { success: false, error: `${records.length} ${records.length === 1 ? "copy is" : "copies are"} saved in Koha, but the e-Library could not save them: ${friendlyDbError(error)} The next sync (within 15 minutes) brings them here.` };
+    }
+    return { success: false, error: friendlyDbError(error) };
+  }
 
   const added = data?.length ?? 0;
   await logAdminAction(userId, "bulkAddCatalogCopies", "catalog_copies", undefined, {
     bookId, count: added,
-    barcodes: validated.map((v) => v.barcode).filter(Boolean).slice(0, 20),
+    barcodes: records.map((r) => r.barcode).filter(Boolean).slice(0, 20),
+    ...(own.kind === "koha" ? { kohaBiblioId: own.biblioId, kohaRefused: failed.length } : {}),
   });
   await refreshCaches(supabase, bookId);
-  return { success: true, added, message: `${added} ${added === 1 ? "copy" : "copies"} saved.` };
+  if (failed.length) {
+    return {
+      success: false, added, failed,
+      error: `${added} of ${added + failed.length} copies saved in Koha. Not saved: ${failed.map((f) => `${f.barcode ?? "?"} — ${f.error}`).join(" ")}`,
+    };
+  }
+  return { success: true, added, message: `${added} ${added === 1 ? "copy" : "copies"} saved${own.kind === "koha" ? " in Koha and here" : ""}.` };
 }
 
 // ── bulkAddCopies (legacy barcode-list API, kept for CSV import) ───────────────

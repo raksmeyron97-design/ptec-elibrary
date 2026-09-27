@@ -20,9 +20,11 @@
  *     out may still have happened; repeating it is how duplicate records are
  *     made. So write() sends ONCE (a 401 aside: Koha refused it before doing
  *     anything, so re-sending with a fresh token is safe).
- *   • Writes (Phase 5) are narrower still: only in `write` mode (or the
- *     in-process mock), only a MARC-in-JSON body, and only to the two record
- *     paths — POST /biblios and PUT /biblios/{id}. Never DELETE, never items.
+ *   • Writes are narrower still: only in `write` mode (or the in-process
+ *     mock), and only to four paths — a record (Phase 5: POST /biblios, PUT
+ *     /biblios/{id}, as MARC-in-JSON) and its items (Phase 6: POST
+ *     /biblios/{id}/items, PUT /biblios/{id}/items/{item}, as JSON). Never
+ *     DELETE, never PATCH, never anything else.
  *   • A 401 refreshes the token once — Koha may have restarted or expired it —
  *     and then reports the credentials as wrong rather than looping.
  *   • A 2xx body is checked against the shape the caller expects; a body that
@@ -81,9 +83,15 @@ export interface KohaWriteOptions {
  */
 export const KOHA_WRITE_TIMEOUT_MS = 30_000;
 
-/** The only writes: create a record, replace a record. */
+/** The only writes: create or replace a record; create or update one of its items. */
 export type KohaWriteMethod = "POST" | "PUT";
-const WRITE_PATHS: Record<KohaWriteMethod, RegExp> = { POST: /^\/biblios$/, PUT: /^\/biblios\/[1-9]\d*$/ };
+type WriteBody = "application/marc-in-json" | "application/json";
+const WRITE_ROUTES: { method: KohaWriteMethod; path: RegExp; body: WriteBody }[] = [
+  { method: "POST", path: /^\/biblios$/, body: "application/marc-in-json" },
+  { method: "PUT", path: /^\/biblios\/[1-9]\d*$/, body: "application/marc-in-json" },
+  { method: "POST", path: /^\/biblios\/[1-9]\d*\/items$/, body: "application/json" },
+  { method: "PUT", path: /^\/biblios\/[1-9]\d*\/items\/[1-9]\d*$/, body: "application/json" },
+];
 
 export interface KohaClient {
   readonly mode: KohaMode;
@@ -170,6 +178,7 @@ export function createKohaClient(cfg: KohaConfig, deps: KohaClientDeps = {}): Ko
     timeoutMs: number;
     method?: KohaWriteMethod;
     body?: string;
+    contentType?: WriteBody;
     confirmNotDuplicate?: boolean;
   };
 
@@ -184,7 +193,7 @@ export function createKohaClient(cfg: KohaConfig, deps: KohaClientDeps = {}): Ko
     if (extra.embed) headers["x-koha-embed"] = extra.embed;
     if (cfg.libraryId) headers["x-koha-library"] = cfg.libraryId;
     if (extra.method) {
-      headers["Content-Type"] = "application/marc-in-json";
+      headers["Content-Type"] = extra.contentType ?? "application/marc-in-json";
       if (extra.confirmNotDuplicate) headers["x-confirm-not-duplicate"] = "1";
     }
     try {
@@ -259,14 +268,15 @@ export function createKohaClient(cfg: KohaConfig, deps: KohaClientDeps = {}): Ko
         throw new KohaError("config", "Writing to Koha needs KOHA_INTEGRATION=write.");
       }
       assertSafePath(path);
-      if (!WRITE_PATHS[method]?.test(path)) {
-        throw new KohaError("invalid_request", `Refused to send ${method} ${path}: the e-Library writes only records (POST /biblios, PUT /biblios/{id}).`);
+      const route = WRITE_ROUTES.find((r) => r.method === method && r.path.test(path));
+      if (!route) {
+        throw new KohaError("invalid_request", `Refused to send ${method} ${path}: the e-Library writes only records and their items.`);
       }
       const timeoutMs = opts.timeoutMs !== undefined && Number.isFinite(opts.timeoutMs) && opts.timeoutMs > 0
         ? Math.min(opts.timeoutMs, KOHA_MAX_TIMEOUT_MS)
         : KOHA_WRITE_TIMEOUT_MS;
       const extra: SendExtra = {
-        accept: "application/json", embed: null, timeoutMs, method,
+        accept: "application/json", embed: null, timeoutMs, method, contentType: route.body,
         body: JSON.stringify(record), confirmNotDuplicate: opts.confirmNotDuplicate === true,
       };
       // ONE attempt. A timeout or a dropped connection is reported as such, and
