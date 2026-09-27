@@ -44,6 +44,14 @@ function isDebugHost(hostname: string): boolean {
   );
 }
 
+function isApiSubdomain(hostname: string): boolean {
+  return (
+    hostname.startsWith("supabase.") ||
+    hostname.startsWith("storage.") ||
+    hostname.startsWith("api.")
+  );
+}
+
 /**
  * @param host  the request's Host header (may include a port)
  * @returns the canonical hostname to redirect to, or null to serve as-is
@@ -68,7 +76,7 @@ export function canonicalHostRedirect(
   if (!raw) return null;
   // Strip the port; leave a bracketed IPv6 literal recognisable as a debug host.
   const hostname = (raw.startsWith("[") ? raw : (raw.split(":")[0] ?? raw)).toLowerCase();
-  if (!hostname || isDebugHost(hostname)) return null;
+  if (!hostname || isDebugHost(hostname) || isApiSubdomain(hostname)) return null;
 
   const siteUrl = env.siteUrl ?? process.env.NEXT_PUBLIC_SITE_URL;
   let canonical = PRODUCTION_SITE_HOST;
