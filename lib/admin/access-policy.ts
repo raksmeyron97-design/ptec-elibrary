@@ -173,6 +173,10 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   /* Koha sync (Phase 2): the page is READ — its state and exceptions are what
      a librarian needs to see; starting a preview or applying is WRITE. */
   { id: "catalog.koha-sync", route: "/admin/catalogs/koha-sync", requires: perm("catalog", "read"), backTo: "/admin/catalogs" },
+  // Koha Phase 7/8: link a reader's library card at the desk. `write`, not
+  // `read`, even to open it: the page shows readers' names and emails and Koha
+  // patron details, which only the people who may link should see.
+  { id: "catalog.library-cards", route: "/admin/catalogs/library-cards", requires: perm("catalog", "write"), backTo: "/admin/catalogs" },
 
   // ── Posts ─────────────────────────────────────────────────────────────────
   { id: "posts.manage", route: "/admin/posts", requires: perm("posts", "read"), navKey: "posts" },
@@ -366,6 +370,7 @@ export const ACTION_POLICIES: Readonly<Record<string, Requirement>> = {
   "catalog.copies.manage": perm("catalog", "write"),
   "catalog.koha-sync.preview": perm("catalog", "write"),
   "catalog.koha-sync.apply": perm("catalog", "write"),
+  "catalog.library-cards.manage": perm("catalog", "write"),
   // Content
   "posts.create": perm("posts", "write"),
   "posts.edit": perm("posts", "write"),

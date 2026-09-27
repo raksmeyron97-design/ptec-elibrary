@@ -80,6 +80,12 @@ export function createMockKoha(
     locked?: number[];
     /** false = the API user lacks edit_items (Phase 6 writes answer 403). */
     canWriteItems?: boolean;
+    /** false = the API user lacks the read-only borrowers permissions (Phase 7/8 reads answer 403). */
+    canReadPatrons?: boolean;
+    /** Patrons, their loans and holds, as Koha's API returns them (Phase 7/8). */
+    patrons?: Record<string, unknown>[];
+    checkouts?: Record<string, unknown>[];
+    holds?: Record<string, unknown>[];
   } = {},
 ): MockKoha {
   const libraries = opts.libraries ?? MOCK_KOHA_LIBRARIES;
@@ -122,6 +128,31 @@ export function createMockKoha(
     const requestId = headers["x-koha-request-id"];
     if (REQUEST_ID_PATHS.has(url.pathname) && requestId !== undefined && !/^-?\d+$/.test(requestId)) {
       return json(400, { errors: [{ message: "Expected integer - got string.", path: "/x-koha-request-id" }], status: 400 });
+    }
+
+    // ── Phase 7/8: patron reads (list_borrowers, view_checkout_history, view_holds_history) ──
+    const patronRead = /^\/api\/v1\/patrons(?:\/(\d+)\/(checkouts|holds))?$/.exec(url.pathname);
+    if (method === "GET" && patronRead) {
+      if (opts.canReadPatrons === false) {
+        const need = patronRead[2] === "checkouts" ? "view_checkout_history" : patronRead[2] === "holds" ? "view_holds_history" : "list_borrowers";
+        return json(403, { error: "Authorization failure. Missing required permission(s).", required_permissions: { borrowers: need } });
+      }
+      const all = opts.patrons ?? [];
+      if (!patronRead[1]) {
+        const card = url.searchParams.get("cardnumber");
+        const exact = url.searchParams.get("_match") === "exact";
+        const hits = all.filter((p) => card === null || (exact ? p.cardnumber === card : String(p.cardnumber ?? "").includes(card)));
+        return json(200, hits, { "X-Total-Count": String(hits.length) });
+      }
+      const pid = Number(patronRead[1]);
+      if (!all.some((p) => p.patron_id === pid)) return json(404, { error: "Patron not found", error_code: "not_found" });
+      if (patronRead[2] === "checkouts") {
+        const embedItem = (headers["x-koha-embed"] ?? "").split(",").includes("item");
+        const mine = (opts.checkouts ?? []).filter((c) => c.patron_id === pid)
+          .map((c) => (embedItem ? { ...c, item: items.get(c.item_id as number) ?? c.item ?? null } : c));
+        return json(200, mine);
+      }
+      return json(200, (opts.holds ?? []).filter((h) => h.patron_id === pid));
     }
 
     // ── Phase 6: item writes, as Koha 26.05.03's Biblios#add_item / #update_item answer ──

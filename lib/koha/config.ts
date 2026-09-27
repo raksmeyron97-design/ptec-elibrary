@@ -43,6 +43,12 @@ export interface KohaConfig {
    * the Koha API user has edit_items (PTEC_API_LEVEL=items) and someone says so.
    */
   writeItems: boolean;
+  /**
+   * KOHA_READ_PATRONS=on (Phase 7/8): librarians link a reader's library card
+   * and readers see their own loans and holds. Read-only, and a switch of its
+   * own: it needs the Koha API user at PTEC_API_LEVEL=patrons.
+   */
+  readPatrons: boolean;
   /** Blocking: with any of these the client refuses to call Koha. */
   problems: string[];
   /** Advisory: the integration works, but someone should look. */
@@ -123,6 +129,8 @@ export function resolveKohaConfig(env: EnvSource): KohaConfig {
   if (libraryId && libraryId.length > 10) problems.push("KOHA_LIBRARY_ID is longer than Koha's 10-character library code.");
 
   const writeItems = ["on", "true", "1", "yes"].includes(env.KOHA_WRITE_ITEMS?.trim().toLowerCase() ?? "");
+  const readPatrons = ["on", "true", "1", "yes"].includes(env.KOHA_READ_PATRONS?.trim().toLowerCase() ?? "");
+  if (readPatrons && m === "off") warnings.push("KOHA_READ_PATRONS=on does nothing while KOHA_INTEGRATION is off.");
   if (writeItems && m !== "write" && m !== "mock") warnings.push(`KOHA_WRITE_ITEMS=on does nothing unless KOHA_INTEGRATION=write (it is ${m}).`);
 
   let staffUrl: string | null = null;
@@ -142,6 +150,7 @@ export function resolveKohaConfig(env: EnvSource): KohaConfig {
     timeoutMs: positiveInt(env.KOHA_TIMEOUT_MS, KOHA_DEFAULT_TIMEOUT_MS),
     staffUrl,
     writeItems,
+    readPatrons,
     problems,
     warnings,
   };
@@ -158,6 +167,11 @@ export function kohaCanRead(cfg: KohaConfig): boolean {
  */
 export function kohaCanWrite(cfg: KohaConfig): boolean {
   return cfg.mode === "write" && cfg.problems.length === 0;
+}
+
+/** May the e-Library read patron data — card lookup, a reader's own loans and holds (Phase 7/8)? */
+export function kohaCanReadPatrons(cfg: KohaConfig): boolean {
+  return kohaCanRead(cfg) && cfg.readPatrons;
 }
 
 /** May the admin write COPIES to Koha (Phase 6)? Record writes on, and KOHA_WRITE_ITEMS=on. */
