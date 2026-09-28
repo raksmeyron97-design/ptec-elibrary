@@ -12,6 +12,9 @@ import {
   sanitizeOrTerm,
   sanitizeValueTerm,
 } from "@/lib/catalogs/search-scope";
+import { CATALOG_MATCH_FIELDS } from "./match-fields";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 describe("parseSearchScope", () => {
   it("accepts every published scope", () => {
@@ -57,11 +60,19 @@ describe("ISBN queries", () => {
 });
 
 describe("catalogSearchLegs", () => {
-  it("all fields: the historical .or() leg plus the DDC leg, dot intact", () => {
+  it("all fields: one .or() leg over the shared match fields, plus the DDC leg, dot intact", () => {
     expect(catalogSearchLegs("372.7", "all")).toEqual([
-      { kind: "or", filter: "title.ilike.%372 7%,author.ilike.%372 7%,isbn.ilike.%372 7%,accession_number.ilike.%372 7%" },
+      { kind: "or", filter: CATALOG_MATCH_FIELDS.map((f) => `${f}.ilike.%372 7%`).join(",") },
       { kind: "ilike", column: "ddc", pattern: "%372.7%" },
     ]);
+  });
+
+  it("looks in the same columns as /search's catalogue leg (Phase 9.1)", () => {
+    const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
+    // Both pages import the one list; neither spells its own.
+    expect(read("lib/catalogs/search-scope.ts")).toMatch(/CATALOG_MATCH_FIELDS\.map/);
+    expect(read("app/api/search/native/route.ts")).toMatch(/orFilter\(\[\.\.\.CATALOG_MATCH_FIELDS\], tokens\)/);
+    expect(CATALOG_MATCH_FIELDS).toEqual(expect.arrayContaining(["title", "author", "category", "ddc", "accession_number", "isbn"]));
   });
 
   it("all fields: a hyphenated ISBN also searches the stored digits", () => {
@@ -113,7 +124,7 @@ describe("catalogSearchLegs", () => {
           ? value.split(",").map((part) => part.replace(/^[a-z_]+\.ilike\.%/, "").replace(/%$/, ""))
           : [value.replace(/^%/, "").replace(/%$/, "")];
         for (const term of inner) expect(term).not.toMatch(/[%_*(),]/);
-        if (leg.kind === "or") expect(value.split(",")).toHaveLength(4);
+        if (leg.kind === "or") expect(value.split(",")).toHaveLength(CATALOG_MATCH_FIELDS.length);
       }
     }
   });

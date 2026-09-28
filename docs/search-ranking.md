@@ -25,9 +25,11 @@ the numbers below are copied from there.
 |---|---|---|
 | Exact title | 260 | `title` |
 | Exact ISBN (query is an ISBN, any form) | 250 | `isbn` |
+| Exact call number of a print book ("395.1 ឈូក"; Khmer digits fold to ASCII) | 250 | `callnumber` |
 | Title starts with the query | 190 | `title` |
 | Title contains the query | 145 | `title` |
 | Exact author | 125 | `author` |
+| A print book filed under the DDC class the query names ("621.38" → "621.38 DOB", not "621.381") | 120 | `callnumber` |
 | Exact subject / category / program | 100 | `subject` |
 | Author contains the query | 96 | `author` |
 | Subject contains the query | 74 | `subject` |
@@ -122,13 +124,16 @@ fact the row already carries — never inferred:
 | `downloadable` | file present AND the same download decision the gated route makes (`bookDownloadAllowed`, `resolveDownloadAccess`) |
 | `read_online` | file present, download refused by policy; posts and learning paths |
 | `metadata_only` | no file |
-| `physical_available` | `catalog_books.copies_total > 0` and `copies_available > 0` |
-| `physical_unavailable` | copies exist, none available |
+| `physical_available` | copies exist, `copies_available > 0`, and availability is live (`CATALOG_AVAILABILITY_LIVE=on`) |
+| `physical_unavailable` | copies exist, none available, availability live |
+| `physical_held` | copies exist and availability is NOT live — "In the library" (Phase 9.1) |
 | `physical_record` | no copy counters |
 
 Catalog results also carry `copiesAvailable`, `copiesTotal` and
 `shelfLocation`, and the card shows "N of M copies · Shelf X" only when the
-record states them. There is deliberately NO link between a digital book and
+record states them — and `copiesAvailable` only while availability is live;
+otherwise the card says "N copies in the library · Ask at the desk for
+availability" (docs/UNIFIED-DISCOVERY.md). There is deliberately NO link between a digital book and
 a physical catalog row: no such key exists in the schema, and a name match
 would put the wrong shelf under the wrong book. Old links and the advanced
 modal's umbrella `digital` map onto this vocabulary

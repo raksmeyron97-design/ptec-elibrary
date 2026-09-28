@@ -8,6 +8,10 @@ import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy, isExpensiveSearchDisabled } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 import { clientIp } from "@/lib/client-ip";
+import { withinBudget } from "@/lib/search/budgets";
+
+/** Per-lookup ceiling: a suggestion that arrives later than this is no longer useful. */
+const SUGGEST_LEG_BUDGET_MS = 2_500;
 
 const COVERS_URL = process.env.NEXT_PUBLIC_R2_COVERS_URL ?? "";
 
@@ -55,15 +59,61 @@ export async function GET(req: NextRequest) {
   const supabase = await createClient();
   const results: Suggestion[] = [];
 
-  // ── 1. Matching book titles (up to 4) ───────────────────────────────────────
-  const { data: books } = await supabase
-    .from("books")
-    .select("slug, title, cover_url, authors ( name )")
-    .eq("is_published", true)
-    .ilike("title", `%${q}%`)
-    .limit(4);
+  // All eight lookups at once, each inside its own budget. They used to run
+  // one after another — eight round trips before the first suggestion could
+  // show — and one slow table held the rest. A suggestion list is a
+  // nice-to-have: a lookup that fails or runs late simply contributes nothing.
+  const settle = <T,>(query: PromiseLike<{ data: T[] | null }>): Promise<T[]> =>
+    withinBudget(Promise.resolve(query).then((r) => r.data ?? []), SUGGEST_LEG_BUDGET_MS, [] as T[]).then((o) => o.value);
 
-  for (const b of books ?? []) {
+  const [books, authors, categories, reports, publications, catalog, paths, posts] = await Promise.all([
+    // ── 1. Matching book titles (up to 4)
+    settle<any>(supabase.from("books").select("slug, title, cover_url, authors ( name )").eq("is_published", true).ilike("title", `%${q}%`).limit(4)),
+    // ── 2. Matching author names (up to 3)
+    settle<any>(supabase.from("authors").select("name").ilike("name", `%${q}%`).limit(3)),
+    // ── 3. Matching category names (up to 2)
+    settle<any>(supabase.from("categories").select("name").ilike("name", `%${q}%`).limit(2)),
+    // ── 4. Matching published research report titles (up to 3)
+    settle<any>(
+      supabase
+        .from("research_reports")
+        .select("id, slug, title, author_names, cohort, academic_year, cover_url")
+        .eq("is_published", true)
+        .ilike("title", `%${q}%`)
+        .limit(3),
+    ),
+    // ── 5. Matching publication titles in English or Khmer (up to 3)
+    settle<any>(
+      supabase
+        .from("publications_with_stats")
+        .select("slug, title, title_km, author_names, journal_name, cover_url")
+        .eq("is_published", true)
+        .or(`title.ilike.%${q}%,title_km.ilike.%${q}%,author_names.ilike.%${q}%`)
+        .limit(3),
+    ),
+    // ── 6. Matching physical catalog records (up to 2)
+    settle<any>(
+      supabase
+        .from("catalog_books")
+        .select("slug, title, author, category, cover_url")
+        .eq("is_active", true)
+        .or(`title.ilike.%${q}%,author.ilike.%${q}%,category.ilike.%${q}%`)
+        .limit(2),
+    ),
+    // ── 7. Matching learning paths in English or Khmer (up to 2)
+    settle<any>(
+      supabase
+        .from("learning_paths")
+        .select("slug, title, title_km, audience")
+        .eq("is_published", true)
+        .or(`title.ilike.%${q}%,title_km.ilike.%${q}%,description.ilike.%${q}%,audience.ilike.%${q}%`)
+        .limit(2),
+    ),
+    // ── 8. Matching news/posts (up to 2)
+    settle<any>(supabase.from("posts").select("slug, title, category, cover_url").eq("is_published", true).ilike("title", `%${q}%`).limit(2)),
+  ]);
+
+  for (const b of books) {
     results.push({
       type:  "book",
       slug:  b.slug,
@@ -72,54 +122,16 @@ export async function GET(req: NextRequest) {
       coverUrl: coverUrlOf(b.cover_url),
     });
   }
-
-  // ── 2. Matching author names (up to 3) ───────────────────────────────────────
-  const { data: authors } = await supabase
-    .from("authors")
-    .select("name")
-    .ilike("name", `%${q}%`)
-    .limit(3);
-
-  for (const a of authors ?? []) {
-    results.push({ type: "author", label: a.name });
-  }
-
-  // ── 3. Matching category names (up to 2) ────────────────────────────────────
-  const { data: categories } = await supabase
-    .from("categories")
-    .select("name")
-    .ilike("name", `%${q}%`)
-    .limit(2);
-
-  for (const c of categories ?? []) {
-    results.push({ type: "category", label: c.name });
-  }
-
-  // ── 4. Matching published research report titles (up to 3) ───────────────────
-  const { data: reports } = await supabase
-    .from("research_reports")
-    .select("id, slug, title, author_names, cohort, academic_year, cover_url")
-    .eq("is_published", true)
-    .ilike("title", `%${q}%`)
-    .limit(3);
-
-  for (const r of reports ?? []) {
+  for (const a of authors) results.push({ type: "author", label: a.name });
+  for (const c of categories) results.push({ type: "category", label: c.name });
+  for (const r of reports) {
     const cohortYear = [r.cohort ? `C${r.cohort}` : null, r.academic_year]
       .filter(Boolean)
       .join(" · ");
     const sub: string = (r.author_names as string | null) ?? (cohortYear || "Thesis");
     results.push({ type: "research", id: r.id, slug: r.slug ?? null, label: r.title, sub, coverUrl: coverUrlOf(r.cover_url) });
   }
-
-  // ── 5. Matching publication titles in English or Khmer (up to 3) ────────────
-  const { data: publications } = await supabase
-    .from("publications_with_stats")
-    .select("slug, title, title_km, author_names, journal_name, cover_url")
-    .eq("is_published", true)
-    .or(`title.ilike.%${q}%,title_km.ilike.%${q}%,author_names.ilike.%${q}%`)
-    .limit(3);
-
-  for (const p of publications ?? []) {
+  for (const p of publications) {
     results.push({
       type: "publication",
       slug: p.slug,
@@ -128,16 +140,7 @@ export async function GET(req: NextRequest) {
       coverUrl: coverUrlOf(p.cover_url),
     });
   }
-
-  // ── 6. Matching physical catalog records (up to 2) ──────────────────────────
-  const { data: catalog } = await supabase
-    .from("catalog_books")
-    .select("slug, title, author, category, cover_url")
-    .eq("is_active", true)
-    .or(`title.ilike.%${q}%,author.ilike.%${q}%,category.ilike.%${q}%`)
-    .limit(2);
-
-  for (const c of catalog ?? []) {
+  for (const c of catalog) {
     results.push({
       type: "catalog",
       slug: c.slug,
@@ -146,16 +149,7 @@ export async function GET(req: NextRequest) {
       coverUrl: coverUrlOf(c.cover_url),
     });
   }
-
-  // ── 7. Matching learning paths in English or Khmer (up to 2) ────────────────
-  const { data: paths } = await supabase
-    .from("learning_paths")
-    .select("slug, title, title_km, audience")
-    .eq("is_published", true)
-    .or(`title.ilike.%${q}%,title_km.ilike.%${q}%,description.ilike.%${q}%,audience.ilike.%${q}%`)
-    .limit(2);
-
-  for (const p of paths ?? []) {
+  for (const p of paths) {
     results.push({
       type: "learning_path",
       slug: p.slug,
@@ -164,16 +158,7 @@ export async function GET(req: NextRequest) {
       coverUrl: null,
     });
   }
-
-  // ── 8. Matching news/posts (up to 2) ────────────────────────────────────────
-  const { data: posts } = await supabase
-    .from("posts")
-    .select("slug, title, category, cover_url")
-    .eq("is_published", true)
-    .ilike("title", `%${q}%`)
-    .limit(2);
-
-  for (const p of posts ?? []) {
+  for (const p of posts) {
     results.push({
       type: "post",
       slug: p.slug,
@@ -182,6 +167,5 @@ export async function GET(req: NextRequest) {
       coverUrl: coverUrlOf(p.cover_url),
     });
   }
-
   return NextResponse.json(results);
 }

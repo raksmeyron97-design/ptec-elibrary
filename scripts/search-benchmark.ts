@@ -3,6 +3,7 @@
 //   npx tsx scripts/search-benchmark.ts                       # table + JSON file
 //   npx tsx scripts/search-benchmark.ts --base http://host    # another server
 //   npx tsx scripts/search-benchmark.ts --category typo       # one category
+//   npx tsx scripts/search-benchmark.ts --category 'phys_*'   # every category with that prefix
 //   npx tsx scripts/search-benchmark.ts --verbose             # per-query rows
 //   npx tsx scripts/search-benchmark.ts --compare baseline.json
 //
@@ -519,7 +520,9 @@ function printTable(report: Report, baseline?: Report) {
 async function main() {
   const setPath = join(here, "search-benchmark", "queries.json");
   const set = JSON.parse(readFileSync(setPath, "utf8")) as QuerySet;
-  const queries = ONLY ? set.queries.filter((q) => q.category === ONLY) : set.queries;
+  const inScope = (category: string) =>
+    !ONLY || (ONLY.endsWith("*") ? category.startsWith(ONLY.slice(0, -1)) : category === ONLY);
+  const queries = set.queries.filter((q) => inScope(q.category));
   if (queries.length === 0) throw new Error(`No queries${ONLY ? ` in category ${ONLY}` : ""}.`);
 
   const outcomes: QueryOutcome[] = [];

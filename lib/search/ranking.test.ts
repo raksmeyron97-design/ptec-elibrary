@@ -95,6 +95,36 @@ describe("searchScore — field order", () => {
   });
 });
 
+describe("searchScore — a print book's call number is identity (Phase 9.1)", () => {
+  const book = (ddc: string, title: string) => candidate({ title, type: "catalog", ddc, url: "/catalogs/x" });
+
+  it("puts the book the reader named above every title containing its words", () => {
+    // Production, 2026-09-28: "395.1 ឈូក" ranked 11th behind books ABOUT lotuses.
+    const named = score(book("395.1 ឈូក", "សុភាវធម៌"), "395.1 ឈូក");
+    const aboutLotus = score(book("745.5 ក", "របៀបបត់ផ្កាឈូក"), "395.1 ឈូក");
+    expect(named.score!).toBeGreaterThan(aboutLotus.score!);
+    expect(named.matchedFields).toContain("callnumber");
+  });
+
+  it("credits a class to the books filed under it — on a boundary, not inside a longer class", () => {
+    const inClass = score(book("621.38 DOB", "Analog Circuit Design"), "621.38");
+    const longerClass = score(book("621.381 KIM", "Signals"), "621.38");
+    expect(inClass.matchedFields).toContain("callnumber");
+    expect(longerClass.matchedFields ?? []).not.toContain("callnumber");
+    expect(inClass.score!).toBeGreaterThan(longerClass.score!);
+  });
+
+  it("matches a call number typed with Khmer digits", () => {
+    expect(score(book("395.1 ឈូក", "សុភាវធម៌"), "៣៩៥.១ ឈូក").matchedFields).toContain("callnumber");
+  });
+
+  it("is an exact match as strong as an ISBN, and only for a query that starts with a class", () => {
+    expect(RANKING_WEIGHTS.callNumberExact).toBe(RANKING_WEIGHTS.isbnExact);
+    // "The 100 best books" is not a call number.
+    expect(score(book("100 BES", "The 100 best books"), "best 100").matchedFields ?? []).not.toContain("callnumber");
+  });
+});
+
 describe("searchScore — normalization", () => {
   it("matches a hyphenated title from a spaced query and vice versa", () => {
     expect(score(candidate({ title: "Competency-based Language Teaching" }), "competency based language teaching").matchedFields).toContain("title");

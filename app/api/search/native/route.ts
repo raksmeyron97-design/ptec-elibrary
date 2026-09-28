@@ -58,6 +58,7 @@ import {
   normalizeIsbn,
   normalizeSearchText,
   tokenizeSearchQuery,
+  poolTokens,
 } from "@/lib/search/normalize";
 import {
   canonicalAvailabilitySelection,
@@ -70,6 +71,12 @@ import {
 // answer.
 import { makeSnippet } from "@/lib/search/snippet";
 import { ServerTiming } from "@/lib/search/server-timing";
+import { SEARCH_LEG_BUDGET_MS, withinBudget, type SearchLeg } from "@/lib/search/budgets";
+import { catalogAvailabilityIsLive } from "@/lib/catalogs/availability-live";
+import { CATALOG_MATCH_FIELDS } from "@/lib/catalogs/match-fields";
+import { CATALOG_SCAN_CAP } from "@/lib/catalog";
+import { pagedScan } from "@/lib/db/paged-scan";
+import { clausesWithinBudget } from "@/lib/db/postgrest-url";
 import { clientIp } from "@/lib/client-ip";
 import { articlePath } from "@/lib/journals/urls";
 
@@ -134,6 +141,15 @@ export type NativeSearchResponse = {
   relatedSubjects?: string[];
   popularResources?: SearchResult[];
   sort: SearchSort;
+  /**
+   * Legs that FAILED — threw, errored or ran out of their budget
+   * (lib/search/budgets.ts). Absent when every leg answered. A partial answer
+   * is never cached and never logged as a zero-result query: "the Physical
+   * library could not be searched" is not "the library has no such book".
+   */
+  partial?: SearchLeg[];
+  /** What may be said about print copies (lib/catalogs/availability-live.ts). */
+  physical?: { availabilityLive: boolean; asOf: string | null };
 };
 
 type DB = ReturnType<typeof createServiceClient>;
@@ -155,7 +171,11 @@ type Filters = {
   minRating?: number;
 };
 
-type PerTypeSearch = { data: SearchResult[]; count: number; allCandidates: SearchResult[] };
+type PerTypeSearch = { data: SearchResult[]; count: number; allCandidates: SearchResult[]; failed?: true };
+
+/** A leg whose query errored. Not an empty result: the caller reports it in `partial`. */
+const legFailed = (): PerTypeSearch => ({ data: [], count: 0, allCandidates: [], failed: true });
+const isLegFailure = (r: PerTypeSearch) => r.failed === true;
 
 const responseCache = new Map<string, { expires: number; body: NativeSearchResponse }>();
 
@@ -190,14 +210,19 @@ function sanitize(raw: string): string {
     .slice(0, 240);
 }
 
+/**
+ * The broad pool's `.or()`: every word against every field, most valuable
+ * field first (title before description), inside the URL budget
+ * (lib/db/postgrest-url.ts) — a long Khmer title used to push this past
+ * Kong's 8 KB request line and the leg failed with 414. The whole-query token
+ * is left out when the query has words (poolTokens): it adds no row.
+ * `sanitize` caps a term at 240 characters, so the first clause always fits.
+ */
 function orFilter(fields: string[], tokens: string[]): string {
+  const words = poolTokens(tokens).map(sanitize).filter(Boolean);
   const clauses: string[] = [];
-  for (const tok of tokens) {
-    const safe = sanitize(tok);
-    if (!safe) continue;
-    for (const f of fields) clauses.push(`${f}.ilike.%${safe}%`);
-  }
-  return clauses.join(",");
+  for (const f of fields) for (const w of words) clauses.push(`${f}.ilike.%${w}%`);
+  return clausesWithinBudget(clauses).join(",");
 }
 
 /**
@@ -220,11 +245,13 @@ function isbnClauses(raw: string | null | undefined): string[] {
  *  reaches the scorer. */
 function phraseFilter(fields: string[], query: PreparedQuery, filters: Filters, withIsbn: boolean, seedIds: readonly string[] = []): string {
   const safe = sanitize(query.raw);
-  const clauses = safe ? fields.map((f) => `${f}.ilike.%${safe}%`) : [];
+  // Small, decisive clauses first — they are the ones the budget must keep.
+  const clauses: string[] = [];
+  if (seedIds.length) clauses.push(`id.in.(${seedIds.join(",")})`);
   if (withIsbn && query.isbn) clauses.push(...isbnClauses(query.raw));
   if (withIsbn && filters.isbn) clauses.push(...isbnClauses(filters.isbn));
-  if (seedIds.length) clauses.push(`id.in.(${seedIds.join(",")})`);
-  return clauses.join(",");
+  if (safe) clauses.push(...fields.map((f) => `${f}.ilike.%${safe}%`));
+  return clausesWithinBudget(clauses).join(",");
 }
 
 // Titles the trigram index thinks the query resembles (`search_library_fuzzy`,
@@ -590,7 +617,7 @@ async function searchBooks(db: DB, rawQ: string, filters: Filters, limit: number
 
   if (error) {
     console.error("[native-search/books]", error.message);
-    return { data: [], count: 0, allCandidates: [] };
+    return legFailed();
   }
 
   const candidates: Candidate[] = (data ?? []).map((r: any) => {
@@ -686,7 +713,7 @@ async function searchResearch(db: DB, rawQ: string, filters: Filters, limit: num
   );
   if (error) {
     console.error("[native-search/research]", error.message);
-    return { data: [], count: 0, allCandidates: [] };
+    return legFailed();
   }
 
   const candidates: Candidate[] = (data ?? []).map((r: any) => {
@@ -779,7 +806,7 @@ async function searchPublications(db: DB, rawQ: string, filters: Filters, limit:
   );
   if (error) {
     console.error("[native-search/publications]", error.message);
-    return { data: [], count: 0, allCandidates: [] };
+    return legFailed();
   }
 
   const candidates: Candidate[] = (data ?? []).map((p: any) => {
@@ -845,40 +872,73 @@ async function searchPublications(db: DB, rawQ: string, filters: Filters, limit:
   return rankCandidates(candidates, prepared, pageHitIds, sort, count, seedIds);
 }
 
-async function searchCatalog(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort, seedIds: string[] = []): Promise<PerTypeSearch> {
+/**
+ * Print availability can be stated as a fact about the shelf only once
+ * CATALOG_AVAILABILITY_LIVE=on; "as of" is the last successful Koha sync.
+ * Read at most once a minute, and only when live.
+ */
+let physicalAsOfMemo: { at: number; value: string | null } | null = null;
+async function physicalState(db: DB): Promise<{ availabilityLive: boolean; asOf: string | null }> {
+  const availabilityLive = catalogAvailabilityIsLive();
+  if (!availabilityLive) return { availabilityLive, asOf: null };
+  if (physicalAsOfMemo && Date.now() - physicalAsOfMemo.at < 60_000) return { availabilityLive, asOf: physicalAsOfMemo.value };
+  let value: string | null = null;
+  try {
+    const { data } = await db.from("koha_sync_state").select("last_success_at").eq("stream", "catalog").maybeSingle();
+    value = (data as { last_success_at?: string | null } | null)?.last_success_at ?? null;
+  } catch {
+    // Freshness is a label, never a dependency.
+  }
+  physicalAsOfMemo = { at: Date.now(), value };
+  return { availabilityLive, asOf: value };
+}
+
+const CATALOG_SEARCH_COLUMNS =
+  "id, slug, title, cover_url, author, description, category, department, language, isbn, publisher, year, keywords, copies_available, copies_total, ddc, shelf_location, accession_number";
+
+async function searchCatalog(db: DB, rawQ: string, filters: Filters, _limit: number, pageHitIds: Set<string>, sort: SearchSort, seedIds: string[] = []): Promise<PerTypeSearch> {
   const q = sanitize(rawQ);
   const prepared = prepareQuery(q);
   const tokens = tokenizeSearchQuery(q);
+  const live = catalogAvailabilityIsLive();
 
-  const build = (or: string, rowLimit: number) => {
-    let query: any = db
-      .from("catalog_books")
-      .select("id, slug, title, cover_url, author, description, category, department, language, isbn, publisher, year, keywords, copies_available, copies_total, ddc, shelf_location, created_at", { count: "exact" })
-      .eq("is_active", true);
-    if (or) query = query.or(or);
+  // Print has no PDF/HTML; any other format excludes the whole leg.
+  if (filters.format && normalizeSearchText(filters.format) !== "print") return { data: [], count: 0, allCandidates: [] };
 
+  const base = () => {
+    let query: any = db.from("catalog_books").select(CATALOG_SEARCH_COLUMNS).eq("is_active", true);
     if (filters.author) query = query.ilike("author", `%${filters.author}%`);
     if (filters.isbn) query = query.or([`isbn.ilike.%${sanitize(filters.isbn)}%`, ...isbnClauses(filters.isbn)].join(","));
     if (filters.publisher) query = query.ilike("publisher", `%${filters.publisher}%`);
-    if (filters.format && normalizeSearchText(filters.format) !== "print") query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
-
-    return query.order("title", { ascending: true }).limit(rowLimit);
+    return query;
   };
 
-  const { data, count, error } = await fetchPools(
-    build,
-    // `ddc` is in the token pool because a librarian searching "372.7" is
-    // searching for a class, and sanitize() keeps the dot.
-    orFilter(["title", "author", "description", "category", "department", "isbn", "publisher", "ddc"], tokens),
-    phraseFilter(["title", "author", "category"], prepared, filters, true, seedIds),
-    limit,
-  );
-  if (error) {
-    console.error("[native-search/catalog]", error.message);
-    return { data: [], count: 0, allCandidates: [] };
+  // The WHOLE matched set, not the first N by title. The other legs order a
+  // bounded pool by popularity; print has no popularity, and this leg used to
+  // order by `title` and keep 80 (260 on its tab) — so a relevant record whose
+  // title sorted late never reached the scorer. The catalogue is small (2,638
+  // records): its broadest single word, "the", matches 688, read in ~300 ms,
+  // the same as the bounded read it replaces. Same columns as /catalogs'
+  // "All fields" (lib/catalogs/match-fields.ts).
+  const broadOr = orFilter([...CATALOG_MATCH_FIELDS], tokens);
+  const phraseOr = phraseFilter(["title", "author", "category"], prepared, filters, true, seedIds);
+  const [broad, phrase] = await Promise.all([
+    broadOr
+      ? pagedScan<any>((from, to) => base().or(broadOr).order("id", { ascending: true }).range(from, to), CATALOG_SCAN_CAP)
+      : Promise.resolve({ data: [] as any[], error: null, truncated: false }),
+    // Whole-query and ISBN-key matches the word pool can miss (a hyphenated
+    // ISBN), and the trigram seeds a misspelling needs.
+    phraseOr ? base().or(phraseOr).order("id", { ascending: true }).limit(PHRASE_POOL_LIMIT) : Promise.resolve({ data: [] as any[], error: null }),
+  ]);
+  if (broad.error || broad.truncated) {
+    console.error("[native-search/catalog]", broad.error?.message ?? "scan cap reached");
+    return legFailed();
   }
+  const rows = new Map<string, any>();
+  for (const r of broad.data) rows.set(r.id, r);
+  if (!phrase.error) for (const r of (phrase.data ?? []) as any[]) if (!rows.has(r.id)) rows.set(r.id, r);
 
-  const candidates: Candidate[] = (data ?? []).map((r: any) => {
+  const candidates: Candidate[] = [...rows.values()].map((r: any) => {
     const keywords = cleanArray(r.keywords);
     const hasCopyCounters = r.copies_total != null;
     return {
@@ -889,7 +949,10 @@ async function searchCatalog(db: DB, rawQ: string, filters: Filters, limit: numb
       author: r.author ?? "Unknown",
       coverUrl: coverUrlOf(r.cover_url),
       url: `/catalogs/${r.slug ?? r.id}`,
-      year: r.year ?? yearOf(r.created_at),
+      // The record's own year or none. The PMB export carries no year, and the
+      // import date used to stand in for it — every print book was "2026" in the
+      // year facet, newest-first sorts and the recency boost.
+      year: r.year ?? null,
       department: r.department ?? null,
       language: canonicalLanguage(r.language),
       category: r.category ?? "Physical Book",
@@ -901,24 +964,25 @@ async function searchCatalog(db: DB, rawQ: string, filters: Filters, limit: numb
       excerpt: makeExcerpt(r.description),
       keywords,
       format: "Print",
-      availability: physicalAvailability({ copiesTotal: r.copies_total, copiesAvailable: r.copies_available }),
-      copiesAvailable: hasCopyCounters ? (r.copies_available ?? 0) : null,
+      availability: physicalAvailability({ copiesTotal: r.copies_total, copiesAvailable: r.copies_available, live }),
+      // How many copies are on the shelf is said only when it is known.
+      copiesAvailable: hasCopyCounters && live ? (r.copies_available ?? 0) : null,
       copiesTotal: hasCopyCounters ? r.copies_total : null,
       ddc: r.ddc?.trim() || null,
       shelfLocation: r.shelf_location?.trim() || null,
       actions: { view: `/catalogs/${r.slug ?? r.id}` },
-      searchableText: [r.title, r.author, r.category, r.department, r.description, r.isbn, r.publisher, r.ddc, keywords.join(" ")].filter(Boolean).join(" "),
+      searchableText: [r.title, r.author, r.category, r.department, r.description, r.isbn, r.publisher, r.ddc, r.shelf_location, r.accession_number, keywords.join(" ")].filter(Boolean).join(" "),
       titleText: r.title,
       authorText: r.author ?? "",
       subjectText: [r.category, r.department].filter(Boolean).join(" "),
       keywordText: keywords.join(" "),
       bodyText: r.description ?? "",
-      dateValue: r.year ?? yearOf(r.created_at) ?? 0,
-      popularityValue: r.copies_available ?? 0,
+      dateValue: r.year ?? 0,
+      popularityValue: 0,
     };
   }).filter((row: Candidate) => filterCommon(row, filters));
 
-  return rankCandidates(candidates, prepared, pageHitIds, sort, count, seedIds);
+  return rankCandidates(candidates, prepared, pageHitIds, sort, candidates.length, seedIds);
 }
 
 async function searchPosts(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort, seedIds: string[] = []): Promise<PerTypeSearch> {
@@ -944,7 +1008,7 @@ async function searchPosts(db: DB, rawQ: string, filters: Filters, limit: number
   );
   if (error) {
     console.error("[native-search/posts]", error.message);
-    return { data: [], count: 0, allCandidates: [] };
+    return legFailed();
   }
 
   const candidates: Candidate[] = (data ?? []).map((p: any) => {
@@ -1040,7 +1104,7 @@ async function searchLearningPaths(db: DB, rawQ: string, filters: Filters, limit
   );
   if (error) {
     console.error("[native-search/learning_paths]", error.message);
-    return { data: [], count: 0, allCandidates: [] };
+    return legFailed();
   }
 
   const candidates: Candidate[] = (data ?? []).map((p: any) => {
@@ -1207,7 +1271,9 @@ async function searchPageContent(
     return hits;
   } catch (err) {
     console.error("[native-search/pages]", err);
-    return [];
+    // Rethrown: the budgeted runner reports "pagehits" in `partial` rather
+    // than presenting a failed page-text search as "found inside: nothing".
+    throw err;
   }
 }
 
@@ -1375,10 +1441,23 @@ export async function GET(req: Request) {
 
   const db = createServiceClient();
 
+  // Every leg runs inside its budget (lib/search/budgets.ts) and is timed
+  // (Server-Timing). A leg that threw, errored or ran out of time is named in
+  // `partial` — never presented as zero results, never cached. Seeds and
+  // semantic passages are aids, not answers: their failure is silent.
+  const failedLegs = new Set<SearchLeg>();
+  const leg = async <T,>(name: SearchLeg, work: Promise<T>, fallback: T, isFailure?: (value: T) => boolean, label: string = name): Promise<T> => {
+    const out = await timing.time(label, withinBudget(work, SEARCH_LEG_BUDGET_MS[name], fallback, isFailure));
+    if (out.failed && name !== "seeds" && name !== "semantic") failedLegs.add(name);
+    return out.value;
+  };
+  const emptySeeds = (): Record<SearchResultType, string[]> => ({ book: [], research: [], publication: [], catalog: [], learning_path: [], post: [] });
+
   try {
-    const [pageHits, seeds] = await Promise.all([
-      timing.time("pagehits", searchPageContent(db, q)),
-      timing.time("seeds", fuzzyCandidateIds(db, q)),
+    const [pageHits, seeds, physical] = await Promise.all([
+      leg("pagehits", searchPageContent(db, q), [] as PageHit[]),
+      leg("seeds", fuzzyCandidateIds(db, q), emptySeeds()),
+      physicalState(db),
     ]);
     const pageHitIds = new Set(pageHits.map((hit) => pageHitKey(hit.recordType, hit.recordId)));
     const candidateLimit = type === "all" ? CANDIDATE_LIMIT_ALL : CANDIDATE_LIMIT_TYPE;
@@ -1400,13 +1479,13 @@ export async function GET(req: Request) {
       // Semantic passages ride along with the type searches (no added latency);
       // they don't feed pageHitIds scoring — only the rendered hit list.
       const [books, research, publications, catalog, learningPaths, posts, semantic] = await Promise.all([
-        timing.time("book", run.book()),
-        timing.time("research", run.research()),
-        timing.time("publication", run.publication()),
-        timing.time("catalog", run.catalog()),
-        timing.time("learning_path", run.learning_path()),
-        timing.time("post", run.post()),
-        timing.time("semantic", semanticPassages(db, q)),
+        leg("book", run.book(), legFailed(), isLegFailure),
+        leg("research", run.research(), legFailed(), isLegFailure),
+        leg("publication", run.publication(), legFailed(), isLegFailure),
+        leg("catalog", run.catalog(), legFailed(), isLegFailure),
+        leg("learning_path", run.learning_path(), legFailed(), isLegFailure),
+        leg("post", run.post(), legFailed(), isLegFailure),
+        leg("semantic", semanticPassages(db, q), [] as PageHit[]),
       ]);
       const mergedPageHits = mergePageHits(pageHits, semantic);
 
@@ -1454,16 +1533,18 @@ export async function GET(req: Request) {
         byType[t].allCandidates.filter((c) => matchesFacets(c, selections)).slice(0, PAGE_SIZE_ALL),
       );
 
-      if (counts.total === 0 && !hasFilters) {
+      // Zero results after a leg FAILED is not zero results: no synonym or
+      // fuzzy guess is offered in place of the collection that did not answer.
+      if (counts.total === 0 && !hasFilters && failedLegs.size === 0) {
         // Librarian-curated synonyms first (0087): a reviewed mapping beats a
         // fuzzy guess. Only fires on zero results, so normal ranking is
         // untouched. Logged with the recovered count — the term is no longer
         // "missing content", which keeps the acquisition report clean.
         for (const alt of await timing.time("synonyms", synonymAlternatives(db, q))) {
-          const [b2, r2, p2, c2, l2, s2] = await timing.time("synonym_rerun", Promise.all([
+          const rerun = await timing.time("synonym_rerun", withinBudget(Promise.all([
             run.book(alt), run.research(alt), run.publication(alt), run.catalog(alt), run.learning_path(alt), run.post(alt),
-          ]));
-          const altResults = [b2, r2, p2, c2, l2, s2].flatMap((t) => t.allCandidates.slice(0, PAGE_SIZE_ALL));
+          ]), SEARCH_LEG_BUDGET_MS.book, [] as PerTypeSearch[]));
+          const altResults = rerun.value.flatMap((t) => t.allCandidates.slice(0, PAGE_SIZE_ALL));
           if (altResults.length > 0) {
             response = {
               results: altResults,
@@ -1478,6 +1559,7 @@ export async function GET(req: Request) {
               relatedSubjects: facetsOf(altResults).subjects.slice(0, 8),
               popularResources: [],
               sort,
+              physical,
             };
             if (!skipLogging) logSearchQuery(db, q, altResults.length, type, sort, sessionHash);
             cacheSet(cacheKey, response);
@@ -1485,7 +1567,7 @@ export async function GET(req: Request) {
           }
         }
 
-        const fuzzy = await timing.time("fuzzy", fuzzySearch(db, q));
+        const fuzzy = (await timing.time("fuzzy", withinBudget(fuzzySearch(db, q), SEARCH_LEG_BUDGET_MS.seeds, [] as SearchResult[]))).value;
         if (fuzzy.length > 0) {
           response = {
             results: fuzzy,
@@ -1500,6 +1582,7 @@ export async function GET(req: Request) {
             relatedSubjects: facetsOf(fuzzy).subjects.slice(0, 8),
             popularResources: [],
             sort,
+            physical,
           };
           if (!skipLogging) logSearchQuery(db, q, 0, type, sort, sessionHash);
           cacheSet(cacheKey, response);
@@ -1522,10 +1605,11 @@ export async function GET(req: Request) {
         relatedSubjects: facetsOf(allCandidates).subjects.slice(0, 8),
         popularResources: allCandidates.slice(0, 5),
         sort,
+        physical,
       };
-      if (!skipLogging) logSearchQuery(db, q, preFacetTotal, type, sort, sessionHash);
+      if (!skipLogging && failedLegs.size === 0) logSearchQuery(db, q, preFacetTotal, type, sort, sessionHash);
     } else {
-      const result = await timing.time(type, run[type]());
+      const result = await leg(type, run[type](), legFailed(), isLegFailure);
       const sorted = result.allCandidates.sort((a, b) => compareBySort(a, b, sort));
       // On a type tab the `types` dimension is meaningless — the tab already
       // fixes the type — so it is excluded from both matching and counting.
@@ -1539,8 +1623,8 @@ export async function GET(req: Request) {
       let fuzzy = false;
       let didYouMean: string | null = null;
 
-      if (result.count === 0 && page === 1 && !hasFilters) {
-        const fuzzyMatches = await timing.time("fuzzy", fuzzySearch(db, q, type, PAGE_SIZE_TYPE));
+      if (result.count === 0 && page === 1 && !hasFilters && failedLegs.size === 0) {
+        const fuzzyMatches = (await timing.time("fuzzy", withinBudget(fuzzySearch(db, q, type, PAGE_SIZE_TYPE), SEARCH_LEG_BUDGET_MS.seeds, [] as SearchResult[]))).value;
         if (fuzzyMatches.length > 0) {
           pageResults = fuzzyMatches;
           fuzzy = true;
@@ -1554,7 +1638,7 @@ export async function GET(req: Request) {
       // them. Scoped to the tab's own type, so the Books tab spends its whole
       // row budget on books.
       const scopedPageHits =
-        page === 1 && isPageBearing(type) ? await timing.time("pagehits_tab", searchPageContent(db, q, 6, type)) : [];
+        page === 1 && isPageBearing(type) ? await leg("pagehits", searchPageContent(db, q, 6, type), [] as PageHit[], undefined, "pagehits_tab") : [];
 
       const counts: SearchCounts = {
         book: type === "book" ? effectiveCount : 0,
@@ -1579,11 +1663,16 @@ export async function GET(req: Request) {
         relatedSubjects: facetsOf(sorted).subjects.slice(0, 8),
         popularResources: sorted.slice(0, 5),
         sort,
+        physical,
       };
     }
 
-    cacheSet(cacheKey, response);
-    return Response.json(response, { headers: withTiming({ "Cache-Control": "public, s-maxage=45, stale-while-revalidate=120" }) });
+    const partial = [...failedLegs];
+    if (partial.length) response.partial = partial;
+    if (!partial.length) cacheSet(cacheKey, response);
+    return Response.json(response, {
+      headers: withTiming({ "Cache-Control": partial.length ? "no-store" : "public, s-maxage=45, stale-while-revalidate=120" }),
+    });
   } catch (err) {
     console.error("[native-search] error:", err);
     return Response.json({ error: "Search failed. Please try again." }, { status: 500, headers: withTiming() });

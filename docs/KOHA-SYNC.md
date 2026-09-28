@@ -158,10 +158,14 @@ batches was accepted, so production held 206 records / 564 copies after that
 run, and the recovery preview should show about **2,432 records and 12,865
 copies to create**.
 
-**`CATALOG_AVAILABILITY_IS_LIVE` stays `false`** until the PMB → Koha
-cut-over ("freeze and re-lend") is finished. Until every current PMB loan is
-re-issued in Koha, Koha calls those books available, and so would the public
-catalogue if it claimed to be live.
+**`CATALOG_AVAILABILITY_LIVE` stays off** until the PMB → Koha cut-over
+("freeze and re-lend") is finished. Until every current PMB loan is re-issued
+in Koha, Koha calls those books available, and so would the public catalogue
+if it claimed to be live. While it is off, `/catalogs` shows its notice and
+`/search` says "N copies in the library · Ask at the desk for availability".
+When the re-issuing is done, set `CATALOG_AVAILABILITY_LIVE=on` in the
+e-Library's `.env` and restart: `/search` changes at once, and cached
+`/catalogs` pages within the hour.
 
 **Undoing a build**, if it must be undone: restore the backup from step 3.
 Without one, the records the build created are exactly those with a

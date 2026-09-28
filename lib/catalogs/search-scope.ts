@@ -19,10 +19,20 @@
 // Both drop the ILIKE wildcards `%` and `_`, and `*`, which PostgREST reads as
 // `%` in a like/ilike pattern — a lone "*" would otherwise match every record.
 //
+// "All fields" looks in CATALOG_MATCH_FIELDS — the same columns /search's
+// catalogue leg uses (lib/catalogs/match-fields.ts, Phase 9.1), so the two
+// pages that search the physical library look in the same places.
+//
 // "subject" is the record's category (its DDC class name in the PMB data).
 // Keywords are deliberately not searched: the column is a text[] PostgREST
 // cannot substring-match without a migration, and widening search to them is
 // a product decision that was explicitly deferred (Gate 2).
+
+import { CATALOG_MATCH_FIELDS } from "./match-fields";
+import { clausesWithinBudget } from "@/lib/db/postgrest-url";
+
+/** Longer than any title a reader would type; keeps every single-column filter far under the URL ceiling. */
+const MAX_QUERY_LENGTH = 200;
 
 export const CATALOG_SEARCH_SCOPES = ["all", "title", "author", "subject", "isbn", "callnumber"] as const;
 export type CatalogSearchScope = (typeof CATALOG_SEARCH_SCOPES)[number];
@@ -77,7 +87,8 @@ export function looksLikeIsbn(raw: string): boolean {
  * An empty array means the query cannot match anything in this scope (an ISBN
  * search containing no digits) — the caller answers "no results", never "all".
  */
-export function catalogSearchLegs(rawQ: string, scope: CatalogSearchScope): CatalogSearchLeg[] {
+export function catalogSearchLegs(rawQuery: string, scope: CatalogSearchScope): CatalogSearchLeg[] {
+  const rawQ = rawQuery.slice(0, MAX_QUERY_LENGTH);
   const value = sanitizeValueTerm(rawQ);
   const ilike = (column: CatalogSearchColumn, term: string): CatalogSearchLeg => ({
     kind: "ilike",
@@ -108,12 +119,10 @@ export function catalogSearchLegs(rawQ: string, scope: CatalogSearchScope): Cata
     case "all": {
       const q = sanitizeOrTerm(rawQ);
       const legs: CatalogSearchLeg[] = [];
-      if (q) {
-        legs.push({
-          kind: "or",
-          filter: `title.ilike.%${q}%,author.ilike.%${q}%,isbn.ilike.%${q}%,accession_number.ilike.%${q}%`,
-        });
-      }
+      // Budgeted (lib/db/postgrest-url.ts): ten columns times a long Khmer
+      // phrase can outgrow the URL; the most valuable columns are kept.
+      const clauses = q ? clausesWithinBudget(CATALOG_MATCH_FIELDS.map((field) => `${field}.ilike.%${q}%`)) : [];
+      if (clauses.length) legs.push({ kind: "or", filter: clauses.join(",") });
       // The DDC leg keeps the dot the `.or()` sanitiser strips: "372.7"
       // arrives there as "372 7" and would match nothing.
       if (value) legs.push(ilike("ddc", value));
