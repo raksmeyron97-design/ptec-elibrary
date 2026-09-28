@@ -1,7 +1,7 @@
 {
-  "version": 3,
-  "collection": "PTEC e-Library public collection. Work/identifier/person labels were written against 270 published books (subject labels refreshed 2026-09-08); production held 1,916 on 2026-09-19, so a label naming 5 or more records is a SAMPLE and is scored label-free. The `negative` set names subjects the collection provably does not hold.",
-  "notes": "Subject labels refreshed 2026-09-08 by scripts/refresh-subject-labels.ts: a book is a correct answer to a subject query when its own title carries the term or it is filed under that category. Tags are deliberately excluded — see that script's header.",
+  "version": 4,
+  "collection": "PTEC e-Library public collection. Work/identifier/person labels were written against 270 published books (subject labels refreshed 2026-09-08); production held 1,916 on 2026-09-19, so a label naming 5 or more records is a SAMPLE and is scored label-free. The `negative` set names subjects the collection provably does not hold. Version 4 (2026-09-28) adds 26 PHYSICAL-library labels (categories phys_*), written against production's 2,638 active catalog_books records: every record with that exact title, author or call number is listed, so each is an enumeration (at most 4 records) and recall may be scored.",
+  "notes": "Subject labels refreshed 2026-09-08 by scripts/refresh-subject-labels.ts: a book is a correct answer to a subject query when its own title carries the term or it is filed under that category. Tags are deliberately excluded — see that script's header. The phys_* labels were drawn by a fixed rule with a seeded shuffle (seed 20260928): Khmer and English titles use the main title (before ' : ' / ' - ') of a record whose folded title, or its first words, match 1-4 records; authors have 1-4 records and a name of at least two parts (Latin parts of 3+ letters); call numbers are a DDC class plus cutter held by 1-4 records; typos swap two adjacent letters inside a word of 9+ letters of an English main title (the original is in `note`). The PMB export carries no ISBN, publisher or year, so none of those can be labelled for print.",
   "queries": [
     {
       "id": "title_en-001",
@@ -1975,6 +1975,304 @@
       "q": "ការចិញ្ចឹមត្រីបាឡែន",
       "expect": [],
       "note": "whale farming — nothing held; Khmer partial matches on ការចិញ្ចឹម ('farming') are legitimate"
+    },
+    {
+      "id": "phys_title_km-001",
+      "category": "phys_title_km",
+      "q": "សៀវភៅសិក្សាកុំព្យូទ័រ កម្មវិធីកុំព្យូទ័រភាសារខ្មែរ",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "សៀវភៅសិក្សាកុំព្យូទ័រ-កម្មវិធីកុំព្យូទ័រភាសារខ្មែរ"
+        }
+      ]
+    },
+    {
+      "id": "phys_title_km-002",
+      "category": "phys_title_km",
+      "q": "វិទ្យាសាស្ត្រ ថ្នាក់ទី៧",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "វិទ្យាសាស្ត្រ-ថ្នាក់ទី៧"
+        }
+      ]
+    },
+    {
+      "id": "phys_title_km-003",
+      "category": "phys_title_km",
+      "q": "សៀវភៅណែនាំសម្រាប់គ្រូបង្រៀនថ្នាក់ទី១",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "សៀវភៅណែនាំសម្រាប់គ្រូបង្រៀនថ្នាក់ទី១"
+        }
+      ]
+    },
+    {
+      "id": "phys_title_km-004",
+      "category": "phys_title_km",
+      "q": "ទស្សនៈអាជីវកម្ម គួជ ម៉េងលី",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "ទស្សនៈអាជីវកម្ម-គួជ-ម៉េងល"
+        }
+      ]
+    },
+    {
+      "id": "phys_title_km-005",
+      "category": "phys_title_km",
+      "q": "សៀវភៅណែនាំស្តីពីឧបករណ៍ពិសោធ មន្ទីពិសោធន៍វិទ្យាសាស្រ្ត",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "សៀវភៅណែនាំស្តីពីឧបករណ៍ពិសោធ-មន្ទីពិសោធន៍វិទ្យាសាស្រ្ត"
+        }
+      ]
+    },
+    {
+      "id": "phys_title_km-006",
+      "category": "phys_title_km",
+      "q": "ទស្សនវិជ្ជាខ្មែរ Philosophie Khmère",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "ទស្សនវិជ្ជាខ្មែរ-philosophie-khmere"
+        }
+      ]
+    },
+    {
+      "id": "phys_title_en-001",
+      "category": "phys_title_en",
+      "q": "Basic Grammar in use Workbook with answers",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "basic-grammar-in-use-workbook-with-answers-smalzer-william-r"
+        }
+      ]
+    },
+    {
+      "id": "phys_title_en-002",
+      "category": "phys_title_en",
+      "q": "the One world school house",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "the-one-world-school-house-education-reimagined-khan-salman"
+        }
+      ]
+    },
+    {
+      "id": "phys_title_en-003",
+      "category": "phys_title_en",
+      "q": "Input, interaction, and corrective feedback in L2 learning",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "input-interaction-and-corrective-feedback-in-l2-learning-mackey-alison"
+        }
+      ]
+    },
+    {
+      "id": "phys_title_en-004",
+      "category": "phys_title_en",
+      "q": "Education & National Development",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "education-national-development-fagerlind-ingemar"
+        }
+      ]
+    },
+    {
+      "id": "phys_title_en-005",
+      "category": "phys_title_en",
+      "q": "MY PALS ARE HERE! MATHS Enrichment 4B 2nd Edition",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "my-pals-are-here-maths-enrichment-4b-2nd-edition-fong-ho-kheong"
+        }
+      ]
+    },
+    {
+      "id": "phys_title_en-006",
+      "category": "phys_title_en",
+      "q": "The Dark Spell",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "the-dark-spell-mcnally-susan"
+        }
+      ]
+    },
+    {
+      "id": "phys_author-001",
+      "category": "phys_author",
+      "q": "ឈឹម ស៊ុមន៍",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "សង្ខេប-ទសជាតក"
+        },
+        {
+          "type": "catalog",
+          "slug": "ពុទ្ធប្បវត្តិកថ"
+        }
+      ]
+    },
+    {
+      "id": "phys_author-002",
+      "category": "phys_author",
+      "q": "ធឿន សុធា",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "ឪពុកខ្ញុំ-ជាវីរបុរស"
+        }
+      ]
+    },
+    {
+      "id": "phys_author-003",
+      "category": "phys_author",
+      "q": "ញឹម វ៉ាន់ចាន់កន",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "ឯកសារបំប៉នគ្រូបង្រៀនកម្រិតមូលដ្ឋាន-យេនឌ៍រ"
+        },
+        {
+          "type": "catalog",
+          "slug": "គរុកោសល្យ"
+        }
+      ]
+    },
+    {
+      "id": "phys_author-004",
+      "category": "phys_author",
+      "q": "COOLEY THOMAS",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "back-to-the-lake-a-reader-and-guide-cooley-thomas"
+        }
+      ]
+    },
+    {
+      "id": "phys_author-005",
+      "category": "phys_author",
+      "q": "Jeff Kingston",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "natural-disaster-and-nuclear-crisis-in-japan-jeff-kingston"
+        }
+      ]
+    },
+    {
+      "id": "phys_author-006",
+      "category": "phys_author",
+      "q": "Mark Teeuwen",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "a-social-history-of-the-ise-shrines-mark-teeuwen"
+        }
+      ]
+    },
+    {
+      "id": "phys_callno-001",
+      "category": "phys_callno",
+      "q": "658 តាន់",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "ស្វែងយល់ពីបដិវត្តន៍ឧស្សាហកម្មទី៤-understanding-fourth-industrial-revolution"
+        }
+      ]
+    },
+    {
+      "id": "phys_callno-002",
+      "category": "phys_callno",
+      "q": "621.38 DOB",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "analong-circuit-design-donkin-bob"
+        }
+      ]
+    },
+    {
+      "id": "phys_callno-003",
+      "category": "phys_callno",
+      "q": "395.1 ឈូក",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "សុភាវធម"
+        }
+      ]
+    },
+    {
+      "id": "phys_callno-004",
+      "category": "phys_callno",
+      "q": "658.3 ULR",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "the-hr-value-proposition-ulrich-david"
+        }
+      ]
+    },
+    {
+      "id": "phys_typo-001",
+      "category": "phys_typo",
+      "q": "Breaking into Informatoin Security",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "breaking-into-information-security-more-josh"
+        }
+      ],
+      "note": "typo of: Breaking into Information Security"
+    },
+    {
+      "id": "phys_typo-002",
+      "category": "phys_typo",
+      "q": "MathART Projects and Activtiies",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "mathart-projects-and-activities-brunetto-carolyn-ford"
+        }
+      ],
+      "note": "typo of: MathART Projects and Activities"
+    },
+    {
+      "id": "phys_typo-003",
+      "category": "phys_typo",
+      "q": "Winning invsetors over",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "winning-investors-over-surprising-truths-about-honesty-earnings-guidance-and-other-ways-to-boost-you-lev-baruch"
+        }
+      ],
+      "note": "typo of: Winning investors over"
+    },
+    {
+      "id": "phys_typo-004",
+      "category": "phys_typo",
+      "q": "Primary ICT across the curirculum",
+      "expect": [
+        {
+          "type": "catalog",
+          "slug": "primary-ict-across-the-curriculum-simpson-debbie"
+        }
+      ],
+      "note": "typo of: Primary ICT across the curriculum"
     }
   ]
 }

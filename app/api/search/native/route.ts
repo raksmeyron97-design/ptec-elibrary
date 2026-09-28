@@ -69,6 +69,7 @@ import {
 // evidence layer so a page hit reads the same in a result card and under an
 // answer.
 import { makeSnippet } from "@/lib/search/snippet";
+import { ServerTiming } from "@/lib/search/server-timing";
 import { clientIp } from "@/lib/client-ip";
 import { articlePath } from "@/lib/journals/urls";
 
@@ -1286,6 +1287,10 @@ function numberParam(searchParams: URLSearchParams, key: string): number | undef
 }
 
 export async function GET(req: Request) {
+  // Per-leg durations as a Server-Timing header (lib/search/server-timing.ts):
+  // what the per-leg budgets of Phase 9.1 are set from.
+  const timing = new ServerTiming();
+  const withTiming = (headers: Record<string, string> = {}) => ({ ...headers, "Server-Timing": timing.header() });
   const ip = getClientIP(req);
   const { limit: rlLimit, windowMs } = ratePolicy("searchNative");
   if (!(await rateLimit(ip, rlLimit, windowMs)).success) {
@@ -1364,13 +1369,17 @@ export async function GET(req: Request) {
       const dbForLog = createServiceClient();
       logSearchQuery(dbForLog, q, cached.counts.total, type, sort, sessionHash);
     }
-    return Response.json(cached, { headers: { "Cache-Control": "public, s-maxage=45, stale-while-revalidate=120" } });
+    timing.note("cache", "hit");
+    return Response.json(cached, { headers: withTiming({ "Cache-Control": "public, s-maxage=45, stale-while-revalidate=120" }) });
   }
 
   const db = createServiceClient();
 
   try {
-    const [pageHits, seeds] = await Promise.all([searchPageContent(db, q), fuzzyCandidateIds(db, q)]);
+    const [pageHits, seeds] = await Promise.all([
+      timing.time("pagehits", searchPageContent(db, q)),
+      timing.time("seeds", fuzzyCandidateIds(db, q)),
+    ]);
     const pageHitIds = new Set(pageHits.map((hit) => pageHitKey(hit.recordType, hit.recordId)));
     const candidateLimit = type === "all" ? CANDIDATE_LIMIT_ALL : CANDIDATE_LIMIT_TYPE;
 
@@ -1391,13 +1400,13 @@ export async function GET(req: Request) {
       // Semantic passages ride along with the type searches (no added latency);
       // they don't feed pageHitIds scoring — only the rendered hit list.
       const [books, research, publications, catalog, learningPaths, posts, semantic] = await Promise.all([
-        run.book(),
-        run.research(),
-        run.publication(),
-        run.catalog(),
-        run.learning_path(),
-        run.post(),
-        semanticPassages(db, q),
+        timing.time("book", run.book()),
+        timing.time("research", run.research()),
+        timing.time("publication", run.publication()),
+        timing.time("catalog", run.catalog()),
+        timing.time("learning_path", run.learning_path()),
+        timing.time("post", run.post()),
+        timing.time("semantic", semanticPassages(db, q)),
       ]);
       const mergedPageHits = mergePageHits(pageHits, semantic);
 
@@ -1450,10 +1459,10 @@ export async function GET(req: Request) {
         // fuzzy guess. Only fires on zero results, so normal ranking is
         // untouched. Logged with the recovered count — the term is no longer
         // "missing content", which keeps the acquisition report clean.
-        for (const alt of await synonymAlternatives(db, q)) {
-          const [b2, r2, p2, c2, l2, s2] = await Promise.all([
+        for (const alt of await timing.time("synonyms", synonymAlternatives(db, q))) {
+          const [b2, r2, p2, c2, l2, s2] = await timing.time("synonym_rerun", Promise.all([
             run.book(alt), run.research(alt), run.publication(alt), run.catalog(alt), run.learning_path(alt), run.post(alt),
-          ]);
+          ]));
           const altResults = [b2, r2, p2, c2, l2, s2].flatMap((t) => t.allCandidates.slice(0, PAGE_SIZE_ALL));
           if (altResults.length > 0) {
             response = {
@@ -1472,11 +1481,11 @@ export async function GET(req: Request) {
             };
             if (!skipLogging) logSearchQuery(db, q, altResults.length, type, sort, sessionHash);
             cacheSet(cacheKey, response);
-            return Response.json(response);
+            return Response.json(response, { headers: withTiming() });
           }
         }
 
-        const fuzzy = await fuzzySearch(db, q);
+        const fuzzy = await timing.time("fuzzy", fuzzySearch(db, q));
         if (fuzzy.length > 0) {
           response = {
             results: fuzzy,
@@ -1494,13 +1503,13 @@ export async function GET(req: Request) {
           };
           if (!skipLogging) logSearchQuery(db, q, 0, type, sort, sessionHash);
           cacheSet(cacheKey, response);
-          return Response.json(response);
+          return Response.json(response, { headers: withTiming() });
         }
       }
 
       // Curated pins (0087): librarian-selected results render first for
       // this exact term; organic duplicates of the same URL are dropped.
-      const curated = page === 1 && !hasFilters ? await curatedResultsFor(db, q) : [];
+      const curated = page === 1 && !hasFilters ? await timing.time("curated", curatedResultsFor(db, q)) : [];
 
       response = {
         results: withCurated(curated, results),
@@ -1516,7 +1525,7 @@ export async function GET(req: Request) {
       };
       if (!skipLogging) logSearchQuery(db, q, preFacetTotal, type, sort, sessionHash);
     } else {
-      const result = await run[type]();
+      const result = await timing.time(type, run[type]());
       const sorted = result.allCandidates.sort((a, b) => compareBySort(a, b, sort));
       // On a type tab the `types` dimension is meaningless — the tab already
       // fixes the type — so it is excluded from both matching and counting.
@@ -1531,7 +1540,7 @@ export async function GET(req: Request) {
       let didYouMean: string | null = null;
 
       if (result.count === 0 && page === 1 && !hasFilters) {
-        const fuzzyMatches = await fuzzySearch(db, q, type, PAGE_SIZE_TYPE);
+        const fuzzyMatches = await timing.time("fuzzy", fuzzySearch(db, q, type, PAGE_SIZE_TYPE));
         if (fuzzyMatches.length > 0) {
           pageResults = fuzzyMatches;
           fuzzy = true;
@@ -1545,7 +1554,7 @@ export async function GET(req: Request) {
       // them. Scoped to the tab's own type, so the Books tab spends its whole
       // row budget on books.
       const scopedPageHits =
-        page === 1 && isPageBearing(type) ? await searchPageContent(db, q, 6, type) : [];
+        page === 1 && isPageBearing(type) ? await timing.time("pagehits_tab", searchPageContent(db, q, 6, type)) : [];
 
       const counts: SearchCounts = {
         book: type === "book" ? effectiveCount : 0,
@@ -1574,9 +1583,9 @@ export async function GET(req: Request) {
     }
 
     cacheSet(cacheKey, response);
-    return Response.json(response, { headers: { "Cache-Control": "public, s-maxage=45, stale-while-revalidate=120" } });
+    return Response.json(response, { headers: withTiming({ "Cache-Control": "public, s-maxage=45, stale-while-revalidate=120" }) });
   } catch (err) {
     console.error("[native-search] error:", err);
-    return Response.json({ error: "Search failed. Please try again." }, { status: 500 });
+    return Response.json({ error: "Search failed. Please try again." }, { status: 500, headers: withTiming() });
   }
 }
