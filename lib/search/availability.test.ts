@@ -10,7 +10,7 @@ import {
 } from "./availability";
 
 describe("availability vocabulary", () => {
-  it("is exactly three digital and three physical values", () => {
+  it("is exactly three digital and four physical values", () => {
     expect([...DIGITAL_AVAILABILITY, ...PHYSICAL_AVAILABILITY].sort()).toEqual([...AVAILABILITY_VALUES].sort());
   });
 });
@@ -24,18 +24,25 @@ describe("digitalAvailability", () => {
 });
 
 describe("physicalAvailability", () => {
-  it("reads copy counters and never invents a count", () => {
-    expect(physicalAvailability({ copiesTotal: 2, copiesAvailable: 2 })).toBe("physical_available");
-    expect(physicalAvailability({ copiesTotal: 2, copiesAvailable: 0 })).toBe("physical_unavailable");
-    expect(physicalAvailability({ copiesTotal: 0, copiesAvailable: 0 })).toBe("physical_record");
-    expect(physicalAvailability({ copiesTotal: null, copiesAvailable: null })).toBe("physical_record");
+  it("reads copy counters and never invents a count, once availability is live", () => {
+    expect(physicalAvailability({ copiesTotal: 2, copiesAvailable: 2, live: true })).toBe("physical_available");
+    expect(physicalAvailability({ copiesTotal: 2, copiesAvailable: 0, live: true })).toBe("physical_unavailable");
+    expect(physicalAvailability({ copiesTotal: 0, copiesAvailable: 0, live: true })).toBe("physical_record");
+    expect(physicalAvailability({ copiesTotal: null, copiesAvailable: null, live: true })).toBe("physical_record");
+  });
+
+  it("never says 'on the shelf' — or 'all out' — while availability is not live", () => {
+    // Every PMB copy reads available until the loans are re-issued in Koha.
+    expect(physicalAvailability({ copiesTotal: 3, copiesAvailable: 3, live: false })).toBe("physical_held");
+    expect(physicalAvailability({ copiesTotal: 3, copiesAvailable: 0, live: false })).toBe("physical_held");
+    expect(physicalAvailability({ copiesTotal: 0, copiesAvailable: 0, live: false })).toBe("physical_record");
   });
 });
 
 describe("canonicalAvailabilitySelection", () => {
   it("maps legacy chips and passes canonical values through", () => {
     expect(canonicalAvailabilitySelection(["Digital"])).toEqual(["downloadable", "read_online"]);
-    expect(canonicalAvailabilitySelection(["downloadable", "Available"])).toEqual(["downloadable", "physical_available"]);
+    expect(canonicalAvailabilitySelection(["downloadable", "Available"])).toEqual(["downloadable", "physical_available", "physical_held"]);
     expect(canonicalAvailabilitySelection(["On shelf record"])).toEqual(["physical_unavailable", "physical_record"]);
     expect(canonicalAvailabilitySelection(["read_online", "read_online"])).toEqual(["read_online"]);
   });

@@ -1,6 +1,6 @@
 // What a searcher can DO with a result, as one facet value per row.
 //
-// Six values, three digital and three physical, replacing the per-type
+// Seven values, three digital and four physical, replacing the per-type
 // free text the route used to emit ("Digital" / "Metadata only" /
 // "Available" / "On shelf record" / "Guided path"), which meant a "Digital"
 // chip could never match a catalog row and the raw strings reached the
@@ -17,12 +17,13 @@ export const AVAILABILITY_VALUES = [
   "physical_available",
   "physical_unavailable",
   "physical_record",
+  "physical_held",
 ] as const;
 
 export type Availability = (typeof AVAILABILITY_VALUES)[number];
 
 export const DIGITAL_AVAILABILITY: readonly Availability[] = ["downloadable", "read_online", "metadata_only"];
-export const PHYSICAL_AVAILABILITY: readonly Availability[] = ["physical_available", "physical_unavailable", "physical_record"];
+export const PHYSICAL_AVAILABILITY: readonly Availability[] = ["physical_available", "physical_unavailable", "physical_record", "physical_held"];
 
 export function isAvailability(value: string | null | undefined): value is Availability {
   return (AVAILABILITY_VALUES as readonly string[]).includes(value ?? "");
@@ -41,10 +42,23 @@ export function digitalAvailability(input: { hasFile: boolean; canDownload: bool
  * Physical catalog records, from the denormalised copy counters. A record
  * with no copy data at all is a shelf record, not "unavailable" — the
  * library has not said either way.
+ *
+ * `live` is catalogAvailabilityIsLive() (lib/catalogs/availability-live.ts),
+ * and it is REQUIRED so no caller can forget it. While it is false the copy
+ * counters say how many copies the library holds, not how many are on the
+ * shelf — every copy reads `available` until the PMB loans are re-issued in
+ * Koha — so a held record is `physical_held` ("In the library — ask at the
+ * desk"), never "On the shelf now". Phase 9.1: /search used to say "On the
+ * shelf now" for all 2,638 records while /catalogs said the opposite.
  */
-export function physicalAvailability(input: { copiesTotal: number | null | undefined; copiesAvailable: number | null | undefined }): Availability {
+export function physicalAvailability(input: {
+  copiesTotal: number | null | undefined;
+  copiesAvailable: number | null | undefined;
+  live: boolean;
+}): Availability {
   const total = input.copiesTotal ?? 0;
   if (total <= 0) return "physical_record";
+  if (!input.live) return "physical_held";
   return (input.copiesAvailable ?? 0) > 0 ? "physical_available" : "physical_unavailable";
 }
 
@@ -56,8 +70,10 @@ const LEGACY_AVAILABILITY: Record<string, Availability[]> = {
   digital: ["downloadable", "read_online"],
   downloadable: ["downloadable"],
   "metadata only": ["metadata_only"],
-  available: ["physical_available"],
-  "available on shelf": ["physical_available"],
+  // "Available" from an old link still finds the print records while
+  // availability is not live — they are `physical_held` then.
+  available: ["physical_available", "physical_held"],
+  "available on shelf": ["physical_available", "physical_held"],
   "on shelf record": ["physical_unavailable", "physical_record"],
 };
 

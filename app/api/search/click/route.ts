@@ -7,7 +7,9 @@ import { clientIp } from "@/lib/client-ip";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const VALID_TYPES = new Set(["book", "research", "publication", "catalog", "post"]);
+// Every type the search page can show — learning paths were missing, so their
+// clicks were refused (400) and never reached the click-through report.
+const VALID_TYPES = new Set(["book", "research", "publication", "catalog", "learning_path", "post"]);
 const VALID_ACTIONS = new Set(["cover", "title", "view", "read", "download", "cite", "save", "no-results-popular"]);
 
 function getClientIP(req: NextRequest): string {

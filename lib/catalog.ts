@@ -426,17 +426,8 @@ export const DEFAULT_HOLDING_LIBRARY = "PTEC Library";
  */
 export const CATALOG_SCAN_CAP = 50_000;
 
-/**
- * Whether copy availability on the public catalogue reflects live circulation.
- *
- * It does not, yet. Loans are still recorded in PMB, and the PMB export carries
- * no loan state, so every imported copy starts as `available` and stays that
- * way until someone edits it by hand. The public pages therefore say so, and
- * point readers to the desk. The Koha integration — which makes item state
- * come from the system that actually records the loan — is what turns this on;
- * nothing else should.
- */
-export const CATALOG_AVAILABILITY_IS_LIVE = false;
+// Whether copy availability is live is an .env switch since Phase 9.1:
+// catalogAvailabilityIsLive() in lib/catalogs/availability-live.ts.
 
 /** Deterministic generation shared by the client preview and the server action. */
 export function generateCopies(spec: BulkCopySpec): GeneratedCopy[] {

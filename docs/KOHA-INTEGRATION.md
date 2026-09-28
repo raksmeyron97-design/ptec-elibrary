@@ -18,8 +18,9 @@ The physical catalogue lives in PTEC's `catalog_books` / `catalog_copies`.
 Once the first Koha build is applied they are filled and kept current from
 Koha (`koha_biblio_id` / `koha_item_id` link each row to its Koha
 counterpart). Availability is not claimed as live — and the public pages say
-so (`CATALOG_AVAILABILITY_IS_LIVE` in `lib/catalog.ts`) — until the PMB loans
-have been re-issued in Koha.
+so — until the PMB loans have been re-issued in Koha; the administrator then
+sets `CATALOG_AVAILABILITY_LIVE=on` (`lib/catalogs/availability-live.ts`; a
+code constant until Phase 9.1).
 
 Circulation desk work stays in **Koha's staff interface**: Koha's REST API has
 no check-in endpoint in any release up to 26.05 (bug 24401 is not merged), and

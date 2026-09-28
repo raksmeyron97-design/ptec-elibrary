@@ -4,7 +4,7 @@
 //
 // The model, strongest signal first (docs/search-ranking.md):
 //
-//   exact title > exact ISBN > title prefix > title contains
+//   exact title > exact ISBN = exact call number > title prefix > title contains
 //   > exact author > author contains > exact subject > subject contains
 //   > keywords > abstract/body > PDF page text > per-term partial matches
 //   > popularity (views, downloads, rating) > recency
@@ -52,7 +52,8 @@ export type MatchedField =
   | "abstract"
   | "pdf"
   | "text"
-  | "curated";
+  | "curated"
+  | "callnumber";
 
 export type SearchResult = {
   id: string;
@@ -114,6 +115,14 @@ export type Candidate = SearchResult & {
 export const RANKING_WEIGHTS = {
   titleExact: 260,
   isbnExact: 250,
+  /**
+   * A print book's call number, typed as printed on the spine ("395.1 ឈូក").
+   * Identity, like an ISBN: before Phase 9.1 it scored only as "any text" (8),
+   * so every title containing ឈូក outranked the one book the reader named.
+   */
+  callNumberExact: 250,
+  /** A DDC class a call number is filed under ("621.38" → "621.38 DOB", not "621.381 X"). */
+  callNumberClass: 120,
   titlePrefix: 190,
   titleContains: 145,
   authorExact: 125,
@@ -157,6 +166,14 @@ export function prepareQuery(raw: string): PreparedQuery {
   return { raw, normalized, terms: Array.from(new Set(terms)), isbn: queryIsbn(raw) };
 }
 
+/** Khmer digits to ASCII: call numbers are stored with ASCII digits, and a reader may type ៣៩៥.១. */
+function foldDigits(value: string): string {
+  return value.replace(/[០-៩]/g, (d) => String(d.charCodeAt(0) - 0x17e0));
+}
+
+/** A query that starts with a DDC class — three digits — can be a call number. */
+const CALL_NUMBER_QUERY = /^\d{3}(?: |$)/;
+
 export function pageHitKey(type: string, id: string): string {
   return `${type}:${id}`;
 }
@@ -188,6 +205,13 @@ export function searchScore(row: Candidate, query: PreparedQuery, pageHitIds: Re
     else if (termMatches(title, q)) bump(RANKING_WEIGHTS.titleContains, "title");
 
     if (query.isbn && isbnEquals(row.isbn, query.isbn)) bump(RANKING_WEIGHTS.isbnExact, "isbn");
+
+    const callQuery = foldDigits(q);
+    if (CALL_NUMBER_QUERY.test(callQuery) && (row.ddc || row.shelfLocation)) {
+      const callNumbers = [row.ddc, row.shelfLocation].filter(Boolean).map((c) => foldDigits(normalizeSearchText(c)));
+      if (callNumbers.includes(callQuery)) bump(RANKING_WEIGHTS.callNumberExact, "callnumber");
+      else if (callNumbers.some((c) => c.startsWith(`${callQuery} `))) bump(RANKING_WEIGHTS.callNumberClass, "callnumber");
+    }
 
     if (author === q) bump(RANKING_WEIGHTS.authorExact, "author");
     else if (termMatches(author, q)) bump(RANKING_WEIGHTS.authorContains, "author");

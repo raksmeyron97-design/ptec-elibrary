@@ -40,6 +40,18 @@ export function normalizeSearchText(raw: string | null | undefined): string {
  * list feeds both the database `ilike` filter, which runs against stored
  * text, and the scorer, which normalizes each side itself.
  */
+/**
+ * The terms a database pool is built from: the query's words when it has
+ * any, else the query itself. Any row containing the whole query contains each
+ * of its words, so the whole-query token adds no row to an `ilike` pool — and
+ * it is the longest clause in the URL, which has a ceiling
+ * (lib/db/postgrest-url.ts). The scorer still sees the whole query.
+ */
+export function poolTokens(tokens: readonly string[]): string[] {
+  const words = tokens.filter((t) => !/\s/.test(t.trim()));
+  return words.length ? words : [...tokens];
+}
+
 export function tokenizeSearchQuery(q: string): string[] {
   const words = q.split(/\s+/).filter((w) => w.length >= 2);
   return Array.from(new Set([q, ...words])).slice(0, MAX_QUERY_TOKENS);

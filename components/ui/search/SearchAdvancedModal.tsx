@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/core/Button";
 import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
 
 interface Props {
+  /** Whether print availability is live (the route's `physical.availabilityLive`). */
+  physicalAvailabilityLive?: boolean;
   currentQ: string;
   currentAuthor: string;
   currentAdvisor: string;
@@ -84,6 +86,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export default function SearchAdvancedModal({
+  physicalAvailabilityLive = false,
   currentQ,
   currentAuthor,
   currentAdvisor,
@@ -366,7 +369,13 @@ export default function SearchAdvancedModal({
                     <option value="digital">{t("availabilityDigital")}</option>
                     <option value="downloadable">{t("availabilityValue.downloadable")}</option>
                     <option value="read_online">{t("availabilityValue.read_online")}</option>
-                    <option value="physical_available">{t("availabilityValue.physical_available")}</option>
+                    {/* "On the shelf now" only once it can be known (CATALOG_AVAILABILITY_LIVE);
+                        until then the print filter is "In the library". */}
+                    {physicalAvailabilityLive ? (
+                      <option value="physical_available">{t("availabilityValue.physical_available")}</option>
+                    ) : (
+                      <option value="physical_held">{t("availabilityValue.physical_held")}</option>
+                    )}
                   </select>
                 </Field>
 

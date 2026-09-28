@@ -154,6 +154,17 @@ function trackSearchClick(result: SearchResult, query: string, action: string) {
 //           [      | actions]   as before
 // Measured on production at 390px, five 32px buttons wrapping to two rows plus
 // up to five match chips made each result ~270px — two and a half per screen.
+/** Which words name a leg the route could not search (`partial`). */
+const PARTIAL_LABEL: Record<string, string> = {
+  book: "tabBooks",
+  research: "tabTheses",
+  publication: "tabPublications",
+  catalog: "tabCatalog",
+  learning_path: "tabLearningPaths",
+  post: "tabPosts",
+  pagehits: "partialPageText",
+};
+
 function ResultCard({ result, query }: { result: SearchResult; query: string }) {
   const t = useTranslations("search");
   const badge = TYPE_BADGE[result.type];
@@ -263,7 +274,7 @@ function ResultCard({ result, query }: { result: SearchResult; query: string }) 
                 className="shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-medium"
                 style={{ background: "var(--ptec-bg-body)", color: "var(--ptec-text-muted)" }}
               >
-                {t("matchedField", { field })}
+                {t("matchedField", { field: t.has(`matchedFieldName.${field}`) ? t(`matchedFieldName.${field}`) : field })}
               </span>
             ))}
             {result.format && (
@@ -283,9 +294,16 @@ function ResultCard({ result, query }: { result: SearchResult; query: string }) 
         {result.type === "catalog" && (result.copiesTotal != null || result.shelfLocation || result.ddc) && (
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] font-medium" style={{ color: "var(--ptec-text-muted)" }}>
             {result.copiesTotal != null && (
-              <span>{t("copiesAvailable", { available: result.copiesAvailable ?? 0, total: result.copiesTotal })}</span>
+              // The route sends a shelf count only once availability is live
+              // (CATALOG_AVAILABILITY_LIVE); until then every copy reads
+              // "available" and the honest answer is the desk.
+              result.copiesAvailable != null ? (
+                <span>{t("copiesAvailable", { available: result.copiesAvailable, total: result.copiesTotal })}</span>
+              ) : (
+                <span>{t("copiesHeld", { total: result.copiesTotal })} · {t("askAtDesk")}</span>
+              )
             )}
-            {result.ddc && <span>· {t("ddc", { code: result.ddc })}</span>}
+            {result.ddc && <span>· {t("callNumber", { code: result.ddc })}</span>}
             {result.shelfLocation && <span>· {t("shelf", { location: result.shelfLocation })}</span>}
           </div>
         )}
@@ -440,6 +458,9 @@ export default function SearchPageClient({ departments, languages, categories }:
   const [fuzzy, setFuzzy] = useState(false);
   const [pageHits, setPageHits] = useState<PageHit[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // Legs the route could not search (lib/search/budgets.ts) — said, never shown as zero.
+  const [partial, setPartial] = useState<string[]>([]);
+  const [physicalLive, setPhysicalLive] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [trending, setTrending] = useState<string[]>([]);
   const [popularSearches, setPopularSearches] = useState<string[]>([]);
@@ -554,6 +575,7 @@ export default function SearchPageClient({ departments, languages, categories }:
         setPageHits([]);
         setRelatedSubjects([]);
         setPopularResources([]);
+        setPartial([]);
         setLoading(false);
         return;
       }
@@ -585,6 +607,8 @@ export default function SearchPageClient({ departments, languages, categories }:
         setPageHits(data.pageHits ?? []);
         setRelatedSubjects(data.relatedSubjects ?? []);
         setPopularResources(data.popularResources ?? []);
+        setPartial(Array.isArray(data.partial) ? data.partial : []);
+        setPhysicalLive(data.physical?.availabilityLive === true);
         setLoading(false);
       } catch (err: unknown) {
         if ((err as Error)?.name === "AbortError") return;
@@ -1045,6 +1069,7 @@ export default function SearchPageClient({ departments, languages, categories }:
           </button>
         )}
         <SearchAdvancedModal
+          physicalAvailabilityLive={physicalLive}
           currentQ={q}
           currentAuthor={filterAuthor}
           currentAdvisor={filterAdvisor}
@@ -1276,6 +1301,13 @@ export default function SearchPageClient({ departments, languages, categories }:
             </div>
           ))}
         </div>
+      )}
+
+      {/* ── Partial: a collection that could not be searched is SAID ──── */}
+      {partial.length > 0 && !loading && !error && (
+        <p role="status" className="mb-4 rounded-[14px] border border-warning-line bg-warning-soft px-4 py-3 text-[13px] text-warning-text">
+          {t("partialNotice", { collections: partial.map((leg) => t(PARTIAL_LABEL[leg] ?? "partialPageText")).join(", ") })}
+        </p>
       )}
 
       {/* ── Error ─────────────────────────────────────────────────────── */}
