@@ -9,7 +9,7 @@ import {
   type FacetSelections,
 } from "./facets";
 
-const none: FacetSelections = { types: [], subjects: [], langs: [], years: [], availability: [] };
+const none: FacetSelections = { types: [], classes: [], subjects: [], langs: [], years: [], availability: [] };
 
 function sel(partial: Partial<FacetSelections>): FacetSelections {
   return { ...none, ...partial };
@@ -128,5 +128,30 @@ describe("toggleListParam", () => {
     expect(toggleListParam("a", "b")).toBe("a,b");
     expect(toggleListParam("a,b", "A")).toBe("b");
     expect(toggleListParam("b", "b")).toBeNull();
+  });
+});
+
+describe("the Subject filter is one DDC class vocabulary over both libraries (Phase 9.2)", () => {
+  const mixed = [
+    { type: "book", subjectClass: "370", subject: "គរុកោសល្យ", language: "Khmer" },
+    { type: "catalog", subjectClass: "370", subject: "370 អប់រំ និងគរុកោសល្យ", language: "Khmer" },
+    { type: "catalog", subjectClass: "500", subject: "500 វិទ្យាសាស្ត្រធម្មជាតិ និងគណិតវិទ្យា", language: "English" },
+    { type: "book", subjectClass: null, subject: "ស្រាវជ្រាវ", language: "English" },
+  ];
+
+  it("reads ?class= and matches a digital and a print record under one value", () => {
+    const s = parseFacetSelections((k) => (k === "class" ? "370" : null));
+    expect(s.classes).toEqual(["370"]);
+    expect(mixed.filter((r) => matchesFacets(r, s)).map((r) => r.type)).toEqual(["book", "catalog"]);
+  });
+
+  it("counts classes in DDC order, and a record without a class under none", () => {
+    const counts = buildFacetCounts(mixed, none);
+    expect(counts.classes.map((c) => [c.value, c.count])).toEqual([["370", 2], ["500", 1]]);
+  });
+
+  it("keeps the old ?subject= (category name) working beside it", () => {
+    const s = parseFacetSelections((k) => (k === "subject" ? "ស្រាវជ្រាវ" : null));
+    expect(mixed.filter((r) => matchesFacets(r, s))).toHaveLength(1);
   });
 });

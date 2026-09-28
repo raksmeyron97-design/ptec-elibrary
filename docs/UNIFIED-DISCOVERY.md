@@ -1,7 +1,8 @@
 # Unified discovery (Koha Phase 9)
 
-**Status (2026-09-28): Stages 9.0 (#265) and 9.1 (#266) are live in production
-and verified; 9.2 and 9.3 to come.** Design agreed with PTEC on 2026-09-28; stages 9.0 → 9.1
+**Status (2026-09-28): Stages 9.0 (#265), 9.1 (#266) and its budget
+calibration (#267) are live in production and verified; 9.2 (the unified UI)
+is built; 9.3 to come.** Design agreed with PTEC on 2026-09-28; stages 9.0 → 9.1
 → 9.2 → 9.3, one pull request each.
 
 One search surface for everything the library holds: e-books, theses, journal
@@ -68,7 +69,11 @@ What production held on 2026-09-28 (public columns, read one request at a time):
   long Khmer title over ten columns used to reach 10 KB and fail.
 - Search reads Koha's projection only — never Koha — and no search payload
   carries a barcode.
-- Old URLs (`type=catalog`, `format=Print`, `types=`) keep working.
+- Old URLs (`type=catalog`, `format=Print`, `types=`, `subject=`) keep working.
+- The Subject filter is ONE DDC class vocabulary over both libraries, 370
+  Education on its own; print records take their class from the call number,
+  digital books only from a CONFIRMED category mapping
+  (`lib/search/subject-class.ts`).
 
 ## Baseline (production, 2026-09-28, before any Phase 9 change)
 
@@ -189,3 +194,66 @@ and a partial answer is never cached — more load exactly when there is too
 much. At these budgets nothing production actually answered is cut, and a hung
 leg ends within seconds instead of holding the request for minutes.
 `lib/search/budgets.test.ts` pins that every budget clears these measurements.
+
+## Stage 9.2 — the unified UI (2026-09-28)
+
+- **Scope.** All · Digital library · Physical library, as `scope=` in the URL
+  (the Physical library IS the catalogue leg, so an old `type=catalog` link
+  lands there). Under All and Digital, the type chips (Books, Theses,
+  Journals, Learning Paths, News) narrow the Digital library, as `type=`. A
+  scope's count is shown only on a blended answer, which runs every leg.
+- **One blended list** in All and Digital, 20 per page, ordered by
+  `compareAcrossCollections`: a record the reader NAMED (exact title, ISBN or
+  call number) leads whichever library holds it; then relevance ALONE; an
+  exact tie puts the e-book first (it can be read now). "Load more" appends.
+- **Format badges** on every card — "E-book · PDF" only when a file is there,
+  "Print book", "Thesis", "Journal article", "Learning Path", "News" — and
+  the raw "Print"/"PDF" chip (English on the Khmer page) is gone. A print
+  book's first action is **Where to find it** (`/catalogs/<slug>#where`, the
+  card with its call number and availability); its meta line reads "Call no.
+  510 GOL · 35 copies in the library · Ask at the desk for availability".
+- **Filters:** Format (`types`), Subject (`class`, the DDC classes),
+  Language, Availability, Year (hidden in the Physical library — print carries
+  no year). The category-name `subject=` still filters for old links and the
+  advanced search, but is no longer listed. In the Digital library the
+  filters count digital records only.
+- **Entry points:** the homepage hero's scope menu offers the Physical
+  library; a print suggestion shows its call number beside the author.
+- The Khmer name of the catalogue scope is now បណ្ណាល័យរូបវន្ត (it read
+  "សៀវភៅក្រុមក្ដារ").
+
+### The subject crosswalk: confirmed, and awaiting review
+
+21 of production's 35 digital categories are mapped (confirmed with PTEC,
+2026-09-28). The 14 below map to NOTHING until decided — a book in one of them
+is simply under no Subject value, never under a guess:
+
+| Category | Candidate classes |
+|---|---|
+| ទស្សនវិជ្ជាអប់រំ (philosophy of education) | 370 or 100 |
+| បច្ចេកវិទ្យាព័ត៌មាន (information technology) | 000 (DDC puts computing in 004) or 600 |
+| វប្បធម៌ (culture) | 300 or 900 |
+| សុខភាព (health) | 600 or 300 |
+| ស្រាវជ្រាវប្រតិបត្តិ (action research) | 370 or 300 |
+| បំណិនជីវិត (life skills) | 600 or 370 |
+| វិញ្ញាសាប្រឡង (exam papers) | 370 |
+| វិធីសាស្ត្របង្រៀនរូបវិទ្យា (physics teaching methods) | 370 or 500 |
+| ស្ថិតិ និងវិភាគទិន្នន័យ (statistics and data analysis) | 500 or 300 |
+| ស្រាវជ្រាវ (research) | 000, 300 or 370 |
+| ស្រាវជ្រាវបែបគុណភាព (qualitative research) | 300, 000 or 370 |
+| អំណានកុមារ (children's reading) | 800 or 370 |
+| អប់រំកាយ និងកីឡា (physical education and sport) | 700 or 370 |
+| អប់រំសិល្បៈ (arts education) | 700 or 370 |
+
+A decision is one line: move the entry from `CATEGORIES_AWAITING_REVIEW` to
+`CATEGORY_SUBJECT_CLASS` in `lib/search/subject-class.ts`.
+
+### Measured
+
+Locally (production's catalogue; the 26 physical labels resolve there), the
+blended "All" view: physical R@1 **65% → 100%** (English print titles 0% →
+100%, misspelt titles 25% → 100%). Latency could not be judged locally — the
+machine was at load average 87 during the run — and 9.2 adds no database work
+(the class, the blend and the page are computed in memory), so its latency is
+measured on production after deploy.
+

@@ -95,7 +95,7 @@ export async function GET(req: NextRequest) {
     settle<any>(
       supabase
         .from("catalog_books")
-        .select("slug, title, author, category, cover_url")
+        .select("slug, title, author, category, ddc, cover_url")
         .eq("is_active", true)
         .or(`title.ilike.%${q}%,author.ilike.%${q}%,category.ilike.%${q}%`)
         .limit(2),
@@ -145,7 +145,8 @@ export async function GET(req: NextRequest) {
       type: "catalog",
       slug: c.slug,
       label: c.title,
-      sub: c.author ?? c.category ?? "Physical book",
+      // The call number is how a reader finds a print book on the shelf.
+      sub: [c.author, c.ddc].filter(Boolean).join(" · ") || c.category || "Physical book",
       coverUrl: coverUrlOf(c.cover_url),
     });
   }
