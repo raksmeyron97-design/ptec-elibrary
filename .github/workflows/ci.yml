@@ -141,7 +141,12 @@ jobs:
   # public pages need. No hosted credentials are involved.
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # A backstop for a HUNG run, not a budget for a slow one. 45 was set in
+    # July for a suite a fraction of today's 690 tests; by 2026-09-28 the ten
+    # most recent green runs took 36:51–44:04 of it, and #270 (four new tests)
+    # was cut off ~20 s from the end of a run that had not failed anything.
+    # This job also gates docker-publish.yml, so a timeout here blocks a deploy.
+    timeout-minutes: 60
     steps:
     - uses: actions/checkout@v4
 

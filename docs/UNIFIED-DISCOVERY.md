@@ -1,8 +1,8 @@
 # Unified discovery (Koha Phase 9)
 
-**Status (2026-09-28): Stages 9.0 (#265), 9.1 (#266) and its budget
-calibration (#267) are live in production and verified; 9.2 (the unified UI)
-is built; 9.3 to come.** Design agreed with PTEC on 2026-09-28; stages 9.0 → 9.1
+**Status (2026-09-28): Stages 9.0 (#265), 9.1 (#266), its budget
+calibration (#267) and 9.2 (#268, the unified UI) are live in production;
+9.3 (the server-rendered first page) is built.** Design agreed with PTEC on 2026-09-28; stages 9.0 → 9.1
 → 9.2 → 9.3, one pull request each.
 
 One search surface for everything the library holds: e-books, theses, journal
@@ -70,6 +70,10 @@ What production held on 2026-09-28 (public columns, read one request at a time):
 - Search reads Koha's projection only — never Koha — and no search payload
   carries a barcode.
 - Old URLs (`type=catalog`, `format=Print`, `types=`, `subject=`) keep working.
+- A search is metered, classified and logged the same whichever door it came
+  through — the JSON route or the page's server render
+  (`lib/search/serve-search.ts`) — and the client never searches again for a
+  page the server already rendered.
 - The Subject filter is ONE DDC class vocabulary over both libraries, 370
   Education on its own; print records take their class from the call number,
   digital books only from a CONFIRMED category mapping
@@ -256,4 +260,100 @@ blended "All" view: physical R@1 **65% → 100%** (English print titles 0% →
 machine was at load average 87 during the run — and 9.2 adds no database work
 (the class, the blend and the page are computed in memory), so its latency is
 measured on production after deploy.
+
+**Production, after deploy (2026-09-28, one request at a time, no audit
+running; against the 9.1 live run):**
+
+| View | Physical R@1 | Digital R@1 | All R@1 | Wall p50 / p95 | Server p50 / p95 |
+|---|---|---|---|---|---|
+| Blended ("All") | 27% → **96%** | 89% → 88% | 73% → **91%** | 692 → 597 ms / 2,224 → 1,375 ms | 344 / 582 ms |
+| Depth (type tab) | 100% (=) | 90% (=) | 93% (=) | 761 → 519 ms / 2,909 → 1,399 ms | 297 / 576 ms |
+
+The one digital label that moved is "Effective School Management" (1 → 3 in
+the blended view): the library also holds it in PRINT under exactly that title
+(two catalogue records), while the e-book's title carries its edition, so the
+print records lead under the approved rule that a record the reader named
+leads whichever library holds it. The label was written before the physical
+library was searchable; it is not a ranking defect. Results:
+`scripts/search-benchmark/results/production-phase9-9.2-live*-2026-09-28.json`.
+
+## Stage 9.3 — the first page is server-rendered (2026-09-28)
+
+A **document load** of `/search?q=…` — a link from anywhere, a refresh, a
+shared URL, the search form submitted without JavaScript — now arrives with its
+first page of results in the HTML. A phone paints them without first
+downloading the app bundle, hydrating, and then fetching; a reader whose bundle
+is slow or never arrives still gets them.
+
+- **One door, two ways in.** The search core moved out of the route into
+  `lib/search/native-search.ts` (checked identical on the 126-query benchmark:
+  124/126 answers byte-equal, the two others a transient failure and a leg
+  that took 12 s under machine load). Metering, injection-signature logging
+  and the query log live in `serveNativeSearch()`
+  (`lib/search/serve-search.ts`), which both `GET /api/search/native` and the
+  page call: the same `searchNative` bucket per client address (a page load
+  spends the unit the fetch it replaces would have spent), the same bot
+  exclusion, the same rule for what is logged.
+- **Only a document load.** Everything the page does after it has loaded —
+  a new query, a scope, a facet, Back — is a client-side navigation, and the
+  client searches through `/api/search/native` exactly as before; running the
+  search in the server render as well would do every search twice. Next 16.3
+  hides the flight headers (`rsc`, `next-router-prefetch`) from `headers()`,
+  so the page asks the browser's own `Sec-Fetch-Dest` instead: a navigation is
+  `document`, the router's fetch is `empty`, and page script can set neither.
+  When the header is absent — an older browser, a plain-http LAN address, curl,
+  a crawler — the page renders the results: that direction can only cost a
+  duplicate search, never a reader an empty page.
+- **Streaming, in the right order.** The heading and the search field go out
+  in the first flush; the results and the advanced-search lists stream in
+  behind one Suspense boundary whose fallback is the same client component in
+  a `pending` state (the field already holds the query, the result skeleton
+  stands where the results land, and it never fetches). On a client-side
+  navigation that boundary resolves at once to the same component in the same
+  place, so its state survives — an open filter sheet stays open while a facet
+  is toggled.
+- **The client does not search twice.** Every piece of result state starts
+  from the served answer, so the hydration render IS the server render; the
+  served search is skipped until the search changes, and not a render longer
+  (Back to that URL later fetches, because the list on screen by then belongs
+  to whatever came in between). A served `?page=N` is where Load more
+  continues from.
+- **What works without the app bundle:** the results; the scope switch and
+  the type chips (links, `aria-current`, no longer `aria-pressed` buttons);
+  Load more (a link to `?page=N+1` — with JavaScript the click is taken over
+  and the page appends in place with no navigation); the search field (a GET
+  form that keeps the scope, the filters and the sort, never the page number;
+  its button is not disabled before hydration, because nothing would ever
+  enable it and a disabled default button also blocks Enter). **What still
+  needs it:** the facets, the sort menu, advanced search, suggestions and
+  "Ask the library". With JavaScript disabled outright the page shows its
+  skeleton forever, like every public route — the swap from skeleton to
+  content is itself an inline script.
+- **No layout jump.** Server-rendered facets cannot wait for a media query, so
+  until hydration the sidebar markup is shown from `lg` by a breakpoint and
+  the phone's sheet takes over once the viewport is known
+  (`useFacetPlacement()`, one store for "hydrated" and "which placement").
+  The route's `loading.tsx` is now shaped like the page
+  (`SearchPageSkeleton`): the page is dynamic, so its fallback paints on every
+  document load, and the generic six-card grid it replaced made every search
+  open on one layout and jump to another. Measured: the skeleton's field and
+  the page's stand at the same position (226 px on a 390 px phone, 328 px on
+  desktop).
+- **The cache-safety invariant** gains one narrow exemption
+  (`SERVER_METERED` in `lib/cache/cache-safety.test.ts`): `/search` may read
+  `headers()` — the client address and `Sec-Fetch-Dest`, nothing about who is
+  asking — and stays forbidden every session read. The page is dynamic by its
+  own address (`searchParams`) anyway; the test fails if that ever stops being
+  true.
+
+### Verified (locally, dev server over production's catalogue)
+
+| Check | Result |
+|---|---|
+| Document load, JavaScript on | 20 results in the HTML; **0** calls to `/api/search/native` on load; no hydration warnings (desktop and phone) |
+| Scope switch / Back | one API call each; Back to the served URL refetches |
+| Load more after a served load | appends 20 → 40 in place, address unchanged; a served `?page=2` continues at page 3 |
+| Phone filter sheet | stays open across a facet toggle after a served load |
+| App bundle blocked (21 files) | 20 results; the Physical library link, Load more (`?page=2`) and the search form all work; 0 API calls |
+| e2e | `unified-discovery.spec.ts` + `search-facets.spec.ts`, 22/22 on desktop and phone; the two new server-render tests each fail when their behaviour is removed |
 

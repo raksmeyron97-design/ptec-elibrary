@@ -3,7 +3,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SEARCH_LEG_BUDGET_MS, withinBudget } from "./budgets";
 
-const route = () => readFileSync(join(process.cwd(), "app/api/search/native/route.ts"), "utf8");
+// The legs live in the search core; the HTTP headers in the route.
+const route = () => readFileSync(join(process.cwd(), "lib/search/native-search.ts"), "utf8");
+const httpRoute = () => readFileSync(join(process.cwd(), "app/api/search/native/route.ts"), "utf8");
 
 describe("a search leg inside its budget", () => {
   it("passes an answer through", async () => {
@@ -69,7 +71,8 @@ describe("the native route keeps its legs inside budgets", () => {
   it("never caches, or logs as a zero-result query, an answer that is partial", () => {
     const src = route();
     expect(src).toMatch(/if \(!partial\.length\) cacheSet\(/);
-    expect(src).toMatch(/"Cache-Control": partial\.length \? "no-store"/);
+    expect(src).toMatch(/logTotal: partial\.length \? null : logTotal/);
+    expect(httpRoute()).toMatch(/"Cache-Control": served\.outcome\.partial\.length \? "no-store"/);
   });
 
   it("reports a leg's database error as a failure, not as an empty result", () => {

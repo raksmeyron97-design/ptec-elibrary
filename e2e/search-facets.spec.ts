@@ -1,10 +1,16 @@
 import { test, expect, type Page } from '@playwright/test';
+import { searchFromTheField } from './utils/search';
 
 // Faceted search on /search: checking a facet narrows results, updates counts,
 // writes the URL (shareable), survives refresh, and the back button undoes it.
 // /api/search/native is mocked so the test is deterministic and independent of
 // what happens to be in the database; the server-side filtering itself is
 // covered by lib/search/facets.test.ts.
+//
+// Since Phase 9.3 a document load of /search?q=… is rendered on the server
+// from the seeded database, which the mock never sees — so each test enters
+// its query through the field, and a refresh is asserted by what the ADDRESS
+// keeps rather than by the mock's counts.
 
 type Fixture = ReturnType<typeof buildFixture>;
 
@@ -64,7 +70,7 @@ async function openFacetsIfCollapsed(page: Page) {
 test.describe('Search facets', () => {
   test('filtering narrows results, updates counts, survives refresh, back undoes it', async ({ page }) => {
     await mockSearchApi(page);
-    await page.goto('/search?q=education');
+    await searchFromTheField(page, 'education');
 
     // Unfiltered: all three mocked results render.
     await expect(page.locator('article')).toHaveCount(3);
@@ -86,22 +92,24 @@ test.describe('Search facets', () => {
     await expect(page.locator('article')).toContainText('Khmer Education Handbook');
     await expect(khmerBox).toBeChecked();
 
-    // State survives a refresh (same URL is shareable).
+    // State survives a refresh (same URL is shareable). The refresh is a
+    // document load, answered by the server from the database, so what is
+    // pinned is that the address still carries the query and the filter.
     await page.reload();
     await expect(page).toHaveURL(/lang=Khmer/);
-    await expect(page.locator('article')).toHaveCount(1);
-    await openFacetsIfCollapsed(page);
-    await expect(page.locator('[data-facet-dim="langs"][data-facet-value="Khmer"]')).toBeChecked();
+    await expect(page.locator('input[name="q"]')).toHaveValue('education');
 
     // Back button undoes the filter.
     await page.goBack();
     await expect(page).not.toHaveURL(/lang=Khmer/);
-    await expect(page.locator('article')).toHaveCount(3);
+    await expect(page).toHaveURL(/q=education/);
   });
 
   test('a shared filtered URL loads pre-filtered', async ({ page }) => {
     await mockSearchApi(page);
-    await page.goto('/search?q=education&lang=Khmer');
+    // The filter is in the address before the query is: the search the field
+    // starts keeps it (the mock filters on the lang it is sent).
+    await searchFromTheField(page, 'education', '/search?lang=Khmer');
 
     await expect(page.locator('article')).toHaveCount(1);
     await openFacetsIfCollapsed(page);
@@ -156,7 +164,7 @@ test.describe('Search — Learning Paths', () => {
 
   test('a learning path appears in All results with its badge and metadata', async ({ page }) => {
     await mockPathSearch(page);
-    await page.goto('/search?q=mathematics');
+    await searchFromTheField(page, 'mathematics');
 
     const pathCard = page.locator('article', { hasText: 'Foundation of Mathematics' });
     await expect(pathCard).toBeVisible();
@@ -173,10 +181,12 @@ test.describe('Search — Learning Paths', () => {
 
   test('the Learning Paths tab filters to ?type=learning_path', async ({ page }) => {
     await mockPathSearch(page);
-    await page.goto('/search?q=mathematics');
+    await searchFromTheField(page, 'mathematics');
     await expect(page.locator('article')).toHaveCount(2);
 
-    await page.getByRole('button', { name: /Learning Paths/ }).click();
+    // The type chips are links since 9.3 (they work without JavaScript); the
+    // site header links to Learning Paths too, so find the chip by its target.
+    await page.locator('a[href*="type=learning_path"]').first().click();
     await expect(page).toHaveURL(/type=learning_path/);
     await expect(page.locator('article')).toHaveCount(1);
     await expect(page.locator('article')).toContainText('Foundation of Mathematics');

@@ -71,7 +71,7 @@ describe("catalogSearchLegs", () => {
     const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
     // Both pages import the one list; neither spells its own.
     expect(read("lib/catalogs/search-scope.ts")).toMatch(/CATALOG_MATCH_FIELDS\.map/);
-    expect(read("app/api/search/native/route.ts")).toMatch(/orFilter\(\[\.\.\.CATALOG_MATCH_FIELDS\], tokens\)/);
+    expect(read("lib/search/native-search.ts")).toMatch(/orFilter\(\[\.\.\.CATALOG_MATCH_FIELDS\], tokens\)/);
     expect(CATALOG_MATCH_FIELDS).toEqual(expect.arrayContaining(["title", "author", "category", "ddc", "accession_number", "isbn"]));
   });
 

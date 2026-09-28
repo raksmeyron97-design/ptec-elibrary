@@ -1,9 +1,16 @@
 import { test, expect, type Page } from '@playwright/test';
+import { searchFromTheField } from './utils/search';
 
 // Phase 9.2 — one search over the digital and the physical library
 // (docs/UNIFIED-DISCOVERY.md). /api/search/native is mocked so the test pins
 // what the PAGE does with an answer; the ranking and scope rules themselves are
 // unit-tested (lib/search/ranking.test.ts, lib/search/facets.test.ts).
+//
+// Phase 9.3 — a DOCUMENT load of /search?q=… renders its first page on the
+// server, from the seeded database, which the mock never sees. So the mocked
+// tests enter their query through the field (a client-side navigation, which
+// searches through the API as it always has), and the last two tests pin the
+// server render itself.
 
 const ebook = {
   id: 'e1', ref: 'e1', type: 'book', title: 'Teaching Mathematics', author: 'A. Author', coverUrl: null,
@@ -63,11 +70,14 @@ async function openFacetsIfCollapsed(page: Page) {
   }
 }
 
+const scopeLink = (page: Page, name: RegExp) =>
+  page.getByRole('navigation', { name: 'Search in' }).getByRole('link', { name });
+
 test.describe('Unified discovery — one search over both libraries', () => {
   test('All blends both libraries with format badges; a print card sends the reader to the desk', async ({ page }) => {
     const seen: Seen = [];
     await mockApi(page, seen);
-    await page.goto('/search?q=mathematics');
+    await searchFromTheField(page, 'mathematics');
 
     await expect(page.locator('article')).toHaveCount(2);
     const printCard = page.locator('article', { hasText: 'Teaching Mathematics (print)' });
@@ -82,41 +92,47 @@ test.describe('Unified discovery — one search over both libraries', () => {
   test('the Physical library scope asks for print only and survives a refresh', async ({ page }) => {
     const seen: Seen = [];
     await mockApi(page, seen);
-    await page.goto('/search?q=mathematics');
+    await searchFromTheField(page, 'mathematics');
     await expect(page.locator('article')).toHaveCount(2);
 
-    await page.getByRole('group', { name: 'Search in' }).getByRole('button', { name: /Physical library/ }).click();
+    await scopeLink(page, /Physical library/).click();
     await expect(page).toHaveURL(/scope=physical/);
-    await expect(page.getByRole('button', { name: /Physical library/ }).first()).toHaveAttribute('aria-pressed', 'true');
+    await expect(scopeLink(page, /Physical library/)).toHaveAttribute('aria-current', 'true');
     await expect(page.locator('article')).toHaveCount(2);
     expect(seen.at(-1)).toMatchObject({ type: 'catalog' });
 
+    // A refresh is a document load: the server renders the same scope.
     await page.reload();
-    await expect(page.getByRole('group', { name: 'Search in' }).getByRole('button', { name: /Physical library/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(scopeLink(page, /Physical library/)).toHaveAttribute('aria-current', 'true');
   });
 
   test('an old ?type=catalog link lands in the Physical library', async ({ page }) => {
     await mockApi(page, []);
     await page.goto('/search?q=mathematics&type=catalog');
-    await expect(page.getByRole('group', { name: 'Search in' }).getByRole('button', { name: /Physical library/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(scopeLink(page, /Physical library/)).toHaveAttribute('aria-current', 'true');
   });
 
-  test('Load more APPENDS the next page', async ({ page }) => {
+  test('Load more APPENDS the next page, without a navigation', async ({ page }) => {
     const seen: Seen = [];
     await mockApi(page, seen);
-    await page.goto('/search?q=mathematics');
+    await searchFromTheField(page, 'mathematics');
     await expect(page.locator('article')).toHaveCount(2);
 
-    await page.getByRole('button', { name: 'Load more' }).click();
+    const loadMore = page.getByRole('link', { name: 'Load more' });
+    // Its address is the next page, for a reader without JavaScript…
+    await expect(loadMore).toHaveAttribute('href', /[?&]page=2(&|$)/);
+    await loadMore.click();
+    // …but with it, the page appends in place and the address stays put.
     await expect(page.locator('article')).toHaveCount(4);
     await expect(page.locator('article').first()).toContainText('Teaching Mathematics (print)');
     expect(seen.some((s) => s.page === '2')).toBe(true);
+    await expect(page).not.toHaveURL(/[?&]page=/);
   });
 
   test('Subject is one DDC class filter over both libraries', async ({ page }) => {
     const seen: Seen = [];
     await mockApi(page, seen);
-    await page.goto('/search?q=mathematics');
+    await searchFromTheField(page, 'mathematics');
     // The phone's Filter button appears with the first answer.
     await expect(page.locator('article')).toHaveCount(2);
     await openFacetsIfCollapsed(page);
@@ -126,5 +142,43 @@ test.describe('Unified discovery — one search over both libraries', () => {
     await box.click();
     await expect(page).toHaveURL(/class=370/);
     expect(seen.at(-1)?.class).toBe('370');
+  });
+});
+
+// Phase 9.3 — the first page is rendered on the server. These run against the
+// seeded database, so they assert what is true of any answer.
+test.describe('Unified discovery — the first page is server-rendered', () => {
+  test('a document load arrives with results, and the client does not search it again', async ({ page }) => {
+    const seen: Seen = [];
+    await mockApi(page, seen);
+    await page.goto('/search?q=mathematics');
+    await expect(page.locator('article').first()).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    // Hydrated and idle, and the API was never asked: the page it would have
+    // fetched is the one already on screen.
+    expect(seen).toHaveLength(0);
+  });
+
+  test('without the app bundle: results, the scope switch and the search form all work', async ({ page }) => {
+    const seen: Seen = [];
+    await mockApi(page, seen);
+    await page.route('**/_next/static/**/*.js', (route) => route.abort());
+
+    await page.goto('/search?q=mathematics');
+    await expect(page.locator('article').first()).toBeVisible();
+
+    // The scope switch is a link: a document load with the scope in it.
+    await scopeLink(page, /Physical library/).click();
+    await expect(page).toHaveURL(/scope=physical/);
+    await expect(scopeLink(page, /Physical library/)).toHaveAttribute('aria-current', 'true');
+
+    // The field is a GET form, and it keeps the scope.
+    const field = page.locator('input[name="q"]');
+    await field.fill('teaching');
+    await field.press('Enter');
+    await expect(page).toHaveURL(/[?&]q=teaching/);
+    await expect(page).toHaveURL(/scope=physical/);
+
+    expect(seen).toHaveLength(0);
   });
 });

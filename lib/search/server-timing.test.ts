@@ -37,9 +37,9 @@ describe("Server-Timing for the search route", () => {
     // Source scan: each Response.json that carries search results must carry the header,
     // or the benchmark reads a leg as missing rather than as slow.
     const src = readFileSync(join(process.cwd(), "app/api/search/native/route.ts"), "utf8");
-    const answers = src.slice(src.indexOf("const cacheKey = JSON.stringify"));
+    const answers = src.slice(src.indexOf("serveNativeSearch("));
     const responses = answers.match(/Response\.json\([^;]*;/g) ?? [];
-    expect(responses.length).toBeGreaterThanOrEqual(5);
+    expect(responses.length).toBeGreaterThanOrEqual(4);
     for (const r of responses) expect(r).toMatch(/"Server-Timing"|withTiming\(/);
   });
 });

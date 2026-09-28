@@ -84,8 +84,9 @@ const URL_FIELD_ASSIGNMENT =
  * | `lib/publish-readiness.ts` | admin-only | `validateThesisPublish()`, server-side validation only |
  * | `lib/indexing/reconcile.ts` | cron, server-to-server | the indexer must hold real URLs — that IS the job |
  * | `lib/metadata-exports/works.ts` | **PUBLIC** (`/api/export/*`, OAI-PMH) | a false positive of the span regex: the VALUE is a proxy URL (`/api/theses/<id>/download`), and `file_url` appears only in the condition. Verified live — the production OAI feed contains zero `storage-ptec.online` strings. |
+ * | `lib/search/native-search.ts` | **PUBLIC** (`/api/search/native`, and since Phase 9.3 the `/search` HTML) | a false positive of the span regex: `fileUrl: pdf?.file_url` is an ARGUMENT to `resolveBookDownloadAccess()`, and no result field carries it — a book result's `read`/`download` are `/books/<slug>/read` and `/api/books/<id>/download`. The line lived in the route handler until 9.3 moved the core out, where the route exemption below covered it. Verified 2026-09-28: a server-rendered `/search?q=mathematics` holds no storage address beyond the root layout's `preconnect` hint, which the query-less page carries too. |
  *
- * Four of the five are theses or publications, which hold `file_url` on their
+ * Four of the first five are theses or publications, which hold `file_url` on their
  * own tables behind their own routes. Giving those the book treatment
  * (`hasFile` at the client boundary) is a worthwhile follow-up and is NOT
  * part of the 0151 pass.
@@ -96,6 +97,7 @@ const SERVER_ONLY_HOLDERS = [
   "lib/publish-readiness.ts",
   "lib/indexing/reconcile.ts",
   "lib/metadata-exports/works.ts",
+  "lib/search/native-search.ts",
 ];
 
 /**

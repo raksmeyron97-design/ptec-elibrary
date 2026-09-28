@@ -151,7 +151,7 @@ describe("the route drops what the model said nothing about", () => {
     const { readFileSync } = await import("node:fs");
     const { join } = await import("node:path");
     const source = readFileSync(
-      join(__dirname, "..", "..", "app", "api", "search", "native", "route.ts"),
+      join(__dirname, "native-search.ts"),
       "utf8",
     );
     const fn = source.slice(source.indexOf("function rankCandidates("));
