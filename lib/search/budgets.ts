@@ -16,9 +16,9 @@
 // answer is never cached or logged as a zero-result query.
 //
 // The numbers are per-leg wall-clock ceilings, set from the per-leg
-// `Server-Timing` measurements of Phase 9.0 (docs/UNIFIED-DISCOVERY.md) —
-// not guesses: too tight and a slow-but-correct leg is cut off on every
-// author query, too loose and a stuck catalogue query still holds the page.
+// `Server-Timing` measurements of Phase 9.0 in production (see the constant
+// below) — not guesses: too tight and a slow-but-correct leg is cut off under
+// load, too loose and a stuck catalogue query still holds the page.
 // A leg that times out keeps running on the server; its answer is simply no
 // longer waited for.
 //
@@ -35,17 +35,37 @@ export type SearchLeg =
   | "semantic"
   | "seeds";
 
-/** Per-leg ceilings in ms. PROVISIONAL until 9.0's production timings are in — see the header. */
+/**
+ * Per-leg ceilings in ms, measured on production 2026-09-28 (Server-Timing,
+ * query set v4, 252 requests one at a time; docs/UNIFIED-DISCOVERY.md).
+ *
+ * In a quiet run every leg answered within about a second (p95 ≤ 0.37 s, max
+ * 1.03 s). The ceilings are set instead from a run taken while production was
+ * OVERLOADED by concurrent audits (Lighthouse + entity verification), because
+ * that is when they bite: the slowest answer each leg still COMPLETED there,
+ * rounded up to the next second — book 5.9 s → 6 s; page text 3.6 s → 4 s;
+ * trigram seeds 3.6 s → 4 s. So no answer production actually gave is cut,
+ * even under load, while a hung leg — one query in that window never answered
+ * for 11 minutes — now ends within seconds. Cutting at the quiet tail (~1.5 s)
+ * would make every loaded answer partial, and a partial answer is never
+ * cached: more load exactly when there is too much.
+ *
+ * The six collection legs share one number (they run against the same
+ * database; books is the heaviest). Seeds and page text run BEFORE them, so a
+ * search's worst case is about 4 s + 6 s. Re-measure before changing:
+ * `npx tsx scripts/search-benchmark.ts --base https://library.ptec.edu.kh`.
+ */
 export const SEARCH_LEG_BUDGET_MS: Record<SearchLeg, number> = {
-  book: 8_000,
-  research: 8_000,
-  publication: 8_000,
-  catalog: 8_000,
-  learning_path: 8_000,
-  post: 8_000,
-  pagehits: 8_000,
-  semantic: 5_000,
-  seeds: 3_000,
+  book: 6_000,
+  research: 6_000,
+  publication: 6_000,
+  catalog: 6_000,
+  learning_path: 6_000,
+  post: 6_000,
+  pagehits: 4_000,
+  // The query embedding: an external API call (quiet max 0.33 s).
+  semantic: 3_000,
+  seeds: 4_000,
 };
 
 export type LegOutcome<T> = { value: T; failed: boolean };

@@ -1,7 +1,7 @@
 # Unified discovery (Koha Phase 9)
 
-**Status (2026-09-28): Stage 9.0 (measurement) and Stage 9.1 (backend) built;
-9.2 and 9.3 to come.** Design agreed with PTEC on 2026-09-28; stages 9.0 → 9.1
+**Status (2026-09-28): Stages 9.0 (#265) and 9.1 (#266) are live in production
+and verified; 9.2 and 9.3 to come.** Design agreed with PTEC on 2026-09-28; stages 9.0 → 9.1
 → 9.2 → 9.3, one pull request each.
 
 One search surface for everything the library holds: e-books, theses, journal
@@ -126,8 +126,7 @@ answers 502 under about six concurrent requests). The table prints a
   which part of the library could not be searched, and the answer is sent
   `no-store`, never cached and never logged as a zero-result query. No
   synonym or typo guess is offered in place of a collection that did not
-  answer. **The budget numbers are provisional** until 9.0's `Server-Timing`
-  has been measured in production.
+  answer. The budgets were set from production's `Server-Timing` (below).
 - **URL budget.** The broad pool drops the whole-query token when the query
   has words (it adds no row), orders clauses field by field, and keeps the
   `.or()` under 6,000 encoded characters; `/catalogs` caps its query at 200
@@ -155,3 +154,38 @@ view (R@1 0%): that is the blended list of 9.2, not a 9.1 defect.
 Found for 9.2: the Khmer Catalog tab label reads "សៀវភៅក្រុមក្ដារ"; the
 format chip prints "Print" in English on the Khmer page; the call-number line
 can start with a stray "·" when it wraps.
+
+## Production verification and budgets (2026-09-28)
+
+9.0 went live at 15:03 (Phnom Penh), 9.1 about an hour later. Measured on
+production with 9.1 live, both modes, 252 requests one at a time, all answered
+(`scripts/search-benchmark/results/production-phase9-9.1-live{,-depth}-2026-09-28.json`):
+
+| | Baseline (morning) | 9.1 live |
+|---|---|---|
+| Physical R@1, Catalog tab | 88% | **100%** |
+| Call numbers R@1, Catalog tab / "All" | 25% / 25% | **100% / 100%** |
+| Digital R@1 (both modes) | 90% | 90% (unchanged) |
+| Server time per search, p50 / p95 / max | — | 0.30–0.35 s / 0.55–0.61 s / 2.2 s |
+
+Per-leg server time in that quiet run: every leg's p95 ≤ 0.37 s, max 1.03 s
+(page text). The budgets are NOT set from those numbers but from a run taken an
+hour earlier while production was overloaded by concurrent audits (Lighthouse
+and entity verification running against it; 43 requests got no answer, one
+query hung for 11 minutes, and the entity-verification job itself timed out).
+The slowest answer each leg still COMPLETED there, rounded up to the next
+second, is its budget:
+
+| Leg | Quiet p95 / max | Slowest completed under load | Budget |
+|---|---|---|---|
+| book (and the other five collections) | 0.32 / 0.42 s | 5.9 s | **6 s** |
+| catalog | 0.37 / 0.49 s | 0.47 s | 6 s (shares the collections' number) |
+| page text | 0.17 / 1.03 s | 3.6 s | **4 s** |
+| trigram seeds | 0.17 / 0.24 s | 3.6 s | **4 s** |
+| semantic (query embedding) | 0.27 / 0.33 s | 0.32 s | **3 s** |
+
+Cutting at the quiet tail (~1.5 s) would have made every loaded answer partial,
+and a partial answer is never cached — more load exactly when there is too
+much. At these budgets nothing production actually answered is cut, and a hung
+leg ends within seconds instead of holding the request for minutes.
+`lib/search/budgets.test.ts` pins that every budget clears these measurements.

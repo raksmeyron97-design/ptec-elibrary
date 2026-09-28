@@ -43,6 +43,17 @@ describe("a search leg inside its budget", () => {
   it("has a budget for every leg, and none so short it would cut a normal answer", () => {
     for (const ms of Object.values(SEARCH_LEG_BUDGET_MS)) expect(ms).toBeGreaterThanOrEqual(1_000);
   });
+
+  it("clears the slowest answer each leg still COMPLETED on production under load (2026-09-28)", () => {
+    // Server-Timing, measured while Lighthouse and entity verification were
+    // also hitting production. Lower a budget below these only after
+    // re-measuring: a cut answer is a partial one, and partial answers are
+    // never cached — more load exactly when there is too much.
+    const slowestCompleted = { book: 5_862, catalog: 487, pagehits: 3_571, seeds: 3_566, semantic: 333 } as const;
+    for (const [leg, ms] of Object.entries(slowestCompleted)) {
+      expect(SEARCH_LEG_BUDGET_MS[leg as keyof typeof slowestCompleted]).toBeGreaterThan(ms);
+    }
+  });
 });
 
 describe("the native route keeps its legs inside budgets", () => {
