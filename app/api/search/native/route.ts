@@ -40,6 +40,7 @@ import {
 // Scoring, sorting and query normalization live in lib/search — the route
 // only builds candidates. See docs/search-ranking.md.
 import {
+  compareAcrossCollections,
   compareBySort,
   pageHitKey,
   parseSort,
@@ -70,6 +71,7 @@ import {
 // evidence layer so a page hit reads the same in a result card and under an
 // answer.
 import { makeSnippet } from "@/lib/search/snippet";
+import { subjectClassOfCallNumber, subjectClassOfCategory } from "@/lib/search/subject-class";
 import { ServerTiming } from "@/lib/search/server-timing";
 import { SEARCH_LEG_BUDGET_MS, withinBudget, type SearchLeg } from "@/lib/search/budgets";
 import { catalogAvailabilityIsLive } from "@/lib/catalogs/availability-live";
@@ -86,6 +88,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE_ALL = 4;
+/** One page of the blended list (Phase 9.2): every collection in one ranked list. */
+const PAGE_SIZE_BLEND = 20;
 const PAGE_SIZE_TYPE = 10;
 const CANDIDATE_LIMIT_ALL = 80;
 const CANDIDATE_LIMIT_TYPE = 260;
@@ -150,7 +154,16 @@ export type NativeSearchResponse = {
   partial?: SearchLeg[];
   /** What may be said about print copies (lib/catalogs/availability-live.ts). */
   physical?: { availabilityLive: boolean; asOf: string | null };
+  /** Which library the list covers (Phase 9.2). */
+  scope?: SearchScope;
 };
+
+/** "all" = both libraries, "digital" = the e-library, "physical" = the shelves Koha catalogues. */
+export type SearchScope = "all" | "digital" | "physical";
+
+function parseScope(value: string | null): SearchScope {
+  return value === "digital" || value === "physical" ? value : "all";
+}
 
 type DB = ReturnType<typeof createServiceClient>;
 
@@ -652,6 +665,7 @@ async function searchBooks(db: DB, rawQ: string, filters: Filters, limit: number
       language: canonicalLanguage(r.language),
       category,
       subject: category ?? dept,
+      subjectClass: subjectClassOfCategory(category),
       isbn: r.isbn ?? null,
       publisher: r.publisher ?? null,
       rating: (r.reviews?.[0]?.count ?? 0) > 0 && r.rating ? Number(r.rating) : null,
@@ -957,6 +971,8 @@ async function searchCatalog(db: DB, rawQ: string, filters: Filters, _limit: num
       language: canonicalLanguage(r.language),
       category: r.category ?? "Physical Book",
       subject: r.category ?? r.department ?? "Physical Book",
+      // From the call number, which every print record has — not the label.
+      subjectClass: subjectClassOfCallNumber(r.ddc),
       isbn: r.isbn ?? null,
       publisher: r.publisher ?? null,
       views: 0,
@@ -1402,7 +1418,11 @@ export async function GET(req: Request) {
     });
   }
 
-  const type = parseType(searchParams.get("resourceType") ?? searchParams.get("type"));
+  const scope = parseScope(searchParams.get("scope"));
+  // The Physical library IS the catalogue tab (type=catalog), and an old
+  // `type=catalog` link is the Physical library.
+  const requestedType = parseType(searchParams.get("resourceType") ?? searchParams.get("type"));
+  const type: ActiveSearchType = scope === "physical" && requestedType === "all" ? "catalog" : requestedType;
   const sort = parseSort(searchParams.get("sort"));
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
   const filters: Filters = {
@@ -1426,7 +1446,7 @@ export async function GET(req: Request) {
   const hasFilters =
     Object.values(filters).some((value) => value !== undefined && value !== "") || hasAnySelection(selections);
 
-  const cacheKey = JSON.stringify({ q, type, sort, page, filters, selections });
+  const cacheKey = JSON.stringify({ q, scope, type, sort, page, filters, selections });
   const cached = cacheGet(cacheKey);
   if (cached) {
     // With facets active, cached counts.total is post-filter — not the "does
@@ -1498,7 +1518,11 @@ export async function GET(req: Request) {
         post: posts,
       };
       const typeIds = Object.keys(byType) as SearchResultType[];
-      const unionCandidates = typeIds.flatMap((t) => byType[t].allCandidates);
+      // Every leg still runs (the scope buttons show both libraries' counts);
+      // the LIST and its facets cover the scope's collections — the Digital
+      // library's Format filter must not offer "Physical library".
+      const scopeTypes = scope === "digital" ? typeIds.filter((t) => t !== "catalog") : typeIds;
+      const unionCandidates = scopeTypes.flatMap((t) => byType[t].allCandidates);
       const allCandidates = [...unionCandidates].sort((a, b) => compareBySort(a, b, sort));
 
       // Facet counts come from the candidate pool already in hand — grouped in
@@ -1513,8 +1537,8 @@ export async function GET(req: Request) {
           ? byType[t].allCandidates.filter((c) => matchesFacets(c, selections, "types")).length
           : byType[t].count;
       const activeTypes = selections.types.length
-        ? typeIds.filter((t) => selections.types.some((v) => v.toLowerCase() === t))
-        : typeIds;
+        ? scopeTypes.filter((t) => selections.types.some((v) => v.toLowerCase() === t))
+        : scopeTypes;
       // Demand signal for the zero-result report: "does the library have
       // anything for this term at all", independent of active facets.
       const preFacetTotal = typeIds.reduce((sum, t) => sum + byType[t].count, 0);
@@ -1529,9 +1553,14 @@ export async function GET(req: Request) {
         total: activeTypes.reduce((sum, t) => sum + typeCountOf(t), 0),
       };
 
-      const results = activeTypes.flatMap((t) =>
-        byType[t].allCandidates.filter((c) => matchesFacets(c, selections)).slice(0, PAGE_SIZE_ALL),
-      );
+      // ONE ranked list across collections (Phase 9.2): a record the reader
+      // named leads whichever library holds it, then relevance alone —
+      // popularity never reorders across collections (compareAcrossCollections).
+      const blended = activeTypes
+        .flatMap((t) => byType[t].allCandidates.filter((c) => matchesFacets(c, selections)))
+        .sort((a, b) => compareAcrossCollections(a, b, sort));
+      const blendFrom = (page - 1) * PAGE_SIZE_BLEND;
+      const results = blended.slice(blendFrom, blendFrom + PAGE_SIZE_BLEND);
 
       // Zero results after a leg FAILED is not zero results: no synonym or
       // fuzzy guess is offered in place of the collection that did not answer.
@@ -1544,7 +1573,9 @@ export async function GET(req: Request) {
           const rerun = await timing.time("synonym_rerun", withinBudget(Promise.all([
             run.book(alt), run.research(alt), run.publication(alt), run.catalog(alt), run.learning_path(alt), run.post(alt),
           ]), SEARCH_LEG_BUDGET_MS.book, [] as PerTypeSearch[]));
-          const altResults = rerun.value.flatMap((t) => t.allCandidates.slice(0, PAGE_SIZE_ALL));
+          const altResults = rerun.value
+            .flatMap((t) => t.allCandidates.slice(0, PAGE_SIZE_ALL))
+            .sort((a, b) => compareAcrossCollections(a, b, sort));
           if (altResults.length > 0) {
             response = {
               results: altResults,
@@ -1595,10 +1626,10 @@ export async function GET(req: Request) {
       const curated = page === 1 && !hasFilters ? await timing.time("curated", curatedResultsFor(db, q)) : [];
 
       response = {
-        results: withCurated(curated, results),
+        results: page === 1 ? withCurated(curated, results) : results,
         counts,
-        page: 1,
-        hasMore: false,
+        page,
+        hasMore: blended.length > blendFrom + PAGE_SIZE_BLEND,
         pageHits: mergedPageHits,
         facets: facetsOf(allCandidates),
         facetCounts,
@@ -1606,8 +1637,9 @@ export async function GET(req: Request) {
         popularResources: allCandidates.slice(0, 5),
         sort,
         physical,
+        scope,
       };
-      if (!skipLogging && failedLegs.size === 0) logSearchQuery(db, q, preFacetTotal, type, sort, sessionHash);
+      if (!skipLogging && failedLegs.size === 0 && page === 1) logSearchQuery(db, q, preFacetTotal, type, sort, sessionHash);
     } else {
       const result = await leg(type, run[type](), legFailed(), isLegFailure);
       const sorted = result.allCandidates.sort((a, b) => compareBySort(a, b, sort));
@@ -1664,6 +1696,7 @@ export async function GET(req: Request) {
         popularResources: sorted.slice(0, 5),
         sort,
         physical,
+        scope: type === "catalog" ? "physical" : "digital",
       };
     }
 

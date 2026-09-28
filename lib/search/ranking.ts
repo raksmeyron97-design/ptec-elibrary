@@ -84,7 +84,13 @@ export type SearchResult = {
   shelfLocation?: string | null;
   /** Physical catalog only: Dewey Decimal class of the work (migration 0140). */
   ddc?: string | null;
+  /** DDC subject class for the Subject filter (lib/search/subject-class.ts). */
+  subjectClass?: string | null;
   score?: number;
+  /** The score WITHOUT the popularity/recency boost — what ranks across collections. */
+  relevance?: number;
+  /** An exact title, ISBN or call number: the reader named this record. */
+  identity?: boolean;
   matchedFields?: string[];
   /** Learning-path variant only: total steps, module count, and estimated minutes. */
   pathSteps?: number;
@@ -187,6 +193,7 @@ export function searchScore(row: Candidate, query: PreparedQuery, pageHitIds: Re
   const q = query.normalized;
   const matched = new Set<MatchedField>();
   let relevance = 0;
+  let identity = false;
 
   const title = normalizeSearchText(row.titleText);
   const author = normalizeSearchText(row.authorText);
@@ -200,16 +207,16 @@ export function searchScore(row: Candidate, query: PreparedQuery, pageHitIds: Re
   };
 
   if (q) {
-    if (title === q) bump(RANKING_WEIGHTS.titleExact, "title");
+    if (title === q) { bump(RANKING_WEIGHTS.titleExact, "title"); identity = true; }
     else if (title.startsWith(q)) bump(RANKING_WEIGHTS.titlePrefix, "title");
     else if (termMatches(title, q)) bump(RANKING_WEIGHTS.titleContains, "title");
 
-    if (query.isbn && isbnEquals(row.isbn, query.isbn)) bump(RANKING_WEIGHTS.isbnExact, "isbn");
+    if (query.isbn && isbnEquals(row.isbn, query.isbn)) { bump(RANKING_WEIGHTS.isbnExact, "isbn"); identity = true; }
 
     const callQuery = foldDigits(q);
     if (CALL_NUMBER_QUERY.test(callQuery) && (row.ddc || row.shelfLocation)) {
       const callNumbers = [row.ddc, row.shelfLocation].filter(Boolean).map((c) => foldDigits(normalizeSearchText(c)));
-      if (callNumbers.includes(callQuery)) bump(RANKING_WEIGHTS.callNumberExact, "callnumber");
+      if (callNumbers.includes(callQuery)) { bump(RANKING_WEIGHTS.callNumberExact, "callnumber"); identity = true; }
       else if (callNumbers.some((c) => c.startsWith(`${callQuery} `))) bump(RANKING_WEIGHTS.callNumberClass, "callnumber");
     }
 
@@ -260,6 +267,8 @@ export function searchScore(row: Candidate, query: PreparedQuery, pageHitIds: Re
   return {
     ...row,
     score,
+    relevance: Math.round(relevance * 100) / 100,
+    identity,
     matchedFields: Array.from(matched),
     searchableText: undefined,
     titleText: undefined,
@@ -297,6 +306,32 @@ export function compareBySort(a: SearchResult, b: SearchResult, sort: SearchSort
     default:
       return byScore(a, b) || (b.views ?? 0) - (a.views ?? 0) || byId(a, b);
   }
+}
+
+/**
+ * The order of a list that mixes collections — the blended "All" list
+ * (Phase 9.2, docs/UNIFIED-DISCOVERY.md).
+ *
+ * A record the reader NAMED — exact title, ISBN or call number — leads,
+ * whichever library holds it. After that only RELEVANCE counts: popularity and
+ * recency may reorder results within one collection (compareBySort), never
+ * across them. Print has no views, downloads or ratings by construction, so a
+ * popularity boost across collections would place every e-book above the
+ * equally relevant book on the shelf. Other sort modes (newest, title, …) are
+ * the reader's explicit choice and apply as they do everywhere.
+ *
+ * An EXACT tie — the same title held as an e-book and on the shelf, both named,
+ * equally relevant — puts the digital copy first: it can be read this minute.
+ * That decides ties only, never an order relevance has already decided.
+ */
+export function compareAcrossCollections(a: SearchResult, b: SearchResult, sort: SearchSort): number {
+  if (sort !== "relevance") return compareBySort(a, b, sort);
+  return (
+    Number(Boolean(b.identity)) - Number(Boolean(a.identity)) ||
+    (b.relevance ?? b.score ?? 0) - (a.relevance ?? a.score ?? 0) ||
+    Number(a.type === "catalog") - Number(b.type === "catalog") ||
+    byId(a, b)
+  );
 }
 
 export function parseSort(value: string | null): SearchSort {

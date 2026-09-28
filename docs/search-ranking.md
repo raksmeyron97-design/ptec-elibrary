@@ -146,8 +146,16 @@ and "khmer".
 `lib/search/facets.ts` is unchanged in shape: AND across dimensions, OR within
 one, computed in memory over the candidate pool already fetched (no extra
 queries), with a dimension's own counts ignoring its own selection. Wire
-format: comma-separated values in `types`, `subject` (legacy alias
-`category`), `lang`, `year`, `availability`.
+format: comma-separated values in `types`, `class` (the DDC subject class,
+Phase 9.2), `subject` (the category name; legacy alias `category`), `lang`,
+`year`, `availability`.
+
+**The blended list** (Phase 9.2, `docs/UNIFIED-DISCOVERY.md`): in the All and
+Digital scopes the route returns ONE list across collections, 20 per page,
+ordered by `compareAcrossCollections` — identity (exact title, ISBN or call
+number) first, then relevance WITHOUT the popularity/recency boost, then the
+e-book before the print copy on an exact tie, then id. `compareBySort` still
+orders each single-type tab.
 
 ## Related resources
 

@@ -7,8 +7,16 @@
 // (`subject=Math,Science&lang=km`), so old single-value links keep working.
 // A value that itself contains a comma cannot round-trip; it simply becomes
 // a selected chip with count 0 rather than an error.
+//
+// `classes` (param `class`) is the Subject filter since Phase 9.2: one DDC
+// class vocabulary over the digital and the physical library
+// (lib/search/subject-class.ts). `subjects` — the category NAME — stays
+// parseable and countable so old links and the advanced search keep working;
+// the sidebar simply no longer lists it.
 
-export const FACET_DIMENSIONS = ["types", "subjects", "langs", "years", "availability"] as const;
+import { compareSubjectClass } from "./subject-class";
+
+export const FACET_DIMENSIONS = ["types", "classes", "subjects", "langs", "years", "availability"] as const;
 export type FacetDimension = (typeof FACET_DIMENSIONS)[number];
 
 export type FacetSelections = Record<FacetDimension, string[]>;
@@ -18,6 +26,8 @@ export type SearchFacetCounts = Record<FacetDimension, FacetCount[]>;
 
 export type FacetableRow = {
   type: string;
+  /** DDC class (lib/search/subject-class.ts); null when the record has none. */
+  subjectClass?: string | null;
   subject?: string | null;
   category?: string | null;
   language?: string | null;
@@ -28,6 +38,7 @@ export type FacetableRow = {
 /** URL param name for each dimension (also the API query-param contract). */
 export const FACET_PARAM_KEYS: Record<FacetDimension, string> = {
   types: "types",
+  classes: "class",
   subjects: "subject",
   langs: "lang",
   years: "year",
@@ -37,6 +48,7 @@ export const FACET_PARAM_KEYS: Record<FacetDimension, string> = {
 const MAX_SELECTED_PER_DIMENSION = 8;
 const MAX_LISTED: Record<FacetDimension, number> = {
   types: 7,
+  classes: 11,
   subjects: 20,
   langs: 10,
   years: 15,
@@ -69,6 +81,7 @@ export function parseListParam(raw: string | null | undefined): string[] {
 export function parseFacetSelections(get: (key: string) => string | null): FacetSelections {
   return {
     types: parseListParam(get("types")),
+    classes: parseListParam(get("class")),
     // `category` is the legacy alias for subject kept by older links/chips.
     subjects: parseListParam(get("subject") ?? get("category")),
     langs: parseListParam(get("lang")),
@@ -89,6 +102,8 @@ export function facetValueOf(row: FacetableRow, dim: FacetDimension): string | n
   switch (dim) {
     case "types":
       return row.type || null;
+    case "classes":
+      return row.subjectClass ?? null;
     case "subjects":
       return row.subject ?? row.category ?? null;
     case "langs":
@@ -146,6 +161,7 @@ export function buildFacetCounts(
       selected: selectedKeys.has(norm(c.value)),
     }));
     if (dim === "years") list.sort((a, b) => Number(b.value) - Number(a.value));
+    else if (dim === "classes") list.sort((a, b) => compareSubjectClass(a.value, b.value));
     else list.sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
     const cap = MAX_LISTED[dim];
     if (list.length > cap) {

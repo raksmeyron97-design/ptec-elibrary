@@ -50,6 +50,9 @@ const SCOPES = [
   { id: "research", labelKey: "tabTheses" },
   { id: "publication", labelKey: "tabPublications" },
   { id: "learning_path", labelKey: "tabLearningPaths" },
+  // The Physical library (Phase 9.2): `type=catalog` is what /search reads
+  // as that scope, so the chooser needs no second vocabulary.
+  { id: "catalog", labelKey: "tabCatalog" },
 ] as const;
 
 type ScopeId = (typeof SCOPES)[number]["id"];

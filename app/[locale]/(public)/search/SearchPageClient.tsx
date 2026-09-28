@@ -94,6 +94,20 @@ const TAB_LABEL_KEY: Record<ActiveType, "tabAll" | "tabBooks" | "tabTheses" | "t
   post:     "tabPosts",
 };
 
+/**
+ * Which library a search covers (Phase 9.2, docs/UNIFIED-DISCOVERY.md). The
+ * Physical library IS the catalogue tab (`type=catalog`), so an old link to it
+ * lands in the right place; the type chips narrow the Digital library.
+ */
+type Scope = "all" | "digital" | "physical";
+const SCOPE_IDS: Scope[] = ["all", "digital", "physical"];
+const SCOPE_LABEL_KEY: Record<Scope, "tabAll" | "scopeDigital" | "scopePhysical"> = {
+  all: "tabAll",
+  digital: "scopeDigital",
+  physical: "scopePhysical",
+};
+const DIGITAL_TYPE_IDS: SearchResultType[] = ["book", "research", "publication", "learning_path", "post"];
+
 const TYPE_BADGE: Record<SearchResultType, { labelKey: "badgeBook" | "badgeThesis" | "badgePublication" | "badgeCatalog" | "badgeLearningPath" | "badgePost"; className: string }> = {
   book:     { labelKey: "badgeBook",   className: "bg-blue-500/15 text-blue-700 border-blue-500/25 dark:bg-blue-400/10 dark:text-blue-300 dark:border-blue-400/25" },
   research: { labelKey: "badgeThesis", className: "bg-green-600/15 text-green-800 border-green-600/25 dark:bg-green-400/10 dark:text-green-300 dark:border-green-400/25" },
@@ -176,9 +190,18 @@ function ResultCard({ result, query }: { result: SearchResult; query: string }) 
   const primaryActionClass =
     "max-sm:border-brand max-sm:bg-brand max-sm:text-brand-contrast max-sm:hover:text-brand-contrast";
 
+  // A print book's first action is where it stands (Phase 9.2): the detail
+  // page's `#where` card holds the call number and what can be said about
+  // availability. A digital record's is Read.
+  const printBook = result.type === "catalog";
+  const viewHref = result.actions?.view ?? result.url;
   const actions = [
     result.actions?.read ? { key: "read", href: result.actions.read, label: t("actionRead"), icon: "pdf" as const } : null,
-    result.actions?.view ?? result.url ? { key: "view", href: result.actions?.view ?? result.url, label: t("actionView"), icon: "eye" as const } : null,
+    viewHref
+      ? printBook
+        ? { key: "where", href: `${viewHref}#where`, label: t("actionWhere"), icon: "map-pin" as const }
+        : { key: "view", href: viewHref, label: t("actionView"), icon: "eye" as const }
+      : null,
     result.actions?.download ? { key: "download", href: result.actions.download, label: t("actionDownload"), icon: "download" as const } : null,
     result.actions?.cite ? { key: "cite", href: result.actions.cite, label: t("actionCite"), icon: "bookmark" as const } : null,
     result.actions?.save ? { key: "save", href: result.actions.save, label: t("actionSave"), icon: "bookmark-plus" as const } : null,
@@ -212,10 +235,14 @@ function ResultCard({ result, query }: { result: SearchResult; query: string }) 
       {/* Body */}
       <div className="min-w-0">
         <div className="mb-1 flex flex-wrap items-center gap-1.5">
+          {/* The format badge: what this record IS, in the reader's language —
+              "E-book · PDF" only when a file is actually there. */}
           <span
             className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badge.className}`}
           >
-            {t(badge.labelKey)}
+            {result.type === "book" && result.format === "PDF" && result.availability !== "metadata_only"
+              ? t("badgeBookPdf")
+              : t(badge.labelKey)}
           </span>
           {result.department && (
             <span className="text-[10px] font-medium" style={{ color: "var(--ptec-text-muted)" }}>
@@ -266,7 +293,7 @@ function ResultCard({ result, query }: { result: SearchResult; query: string }) 
 
         {/* Match evidence: one line on phones (the tail fades rather than
             wrapping to a second row of chips), wrapping from sm as before. */}
-        {(result.matchedFields?.length || result.availability || result.format) && (
+        {(result.matchedFields?.length || result.availability) && (
           <div className="mt-2 flex gap-1.5 max-sm:flex-nowrap max-sm:overflow-hidden max-sm:[mask-image:linear-gradient(to_right,#000_82%,transparent)] sm:flex-wrap">
             {result.matchedFields?.slice(0, 4).map((field) => (
               <span
@@ -277,11 +304,6 @@ function ResultCard({ result, query }: { result: SearchResult; query: string }) 
                 {t("matchedField", { field: t.has(`matchedFieldName.${field}`) ? t(`matchedFieldName.${field}`) : field })}
               </span>
             ))}
-            {result.format && (
-              <span className="shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-medium" style={{ background: "var(--ptec-bg-body)", color: "var(--ptec-text-muted)" }}>
-                {result.format}
-              </span>
-            )}
             {result.availability && (
               <span className="shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-medium" style={{ background: "var(--ptec-bg-body)", color: "var(--ptec-text-muted)" }}>
                 {isAvailability(result.availability) ? t(`availabilityValue.${result.availability}`) : result.availability}
@@ -290,22 +312,26 @@ function ResultCard({ result, query }: { result: SearchResult; query: string }) 
           </div>
         )}
 
-        {/* Physical copies: only what the catalog record itself states. */}
-        {result.type === "catalog" && (result.copiesTotal != null || result.shelfLocation || result.ddc) && (
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] font-medium" style={{ color: "var(--ptec-text-muted)" }}>
-            {result.copiesTotal != null && (
-              // The route sends a shelf count only once availability is live
-              // (CATALOG_AVAILABILITY_LIVE); until then every copy reads
-              // "available" and the honest answer is the desk.
-              result.copiesAvailable != null ? (
-                <span>{t("copiesAvailable", { available: result.copiesAvailable, total: result.copiesTotal })}</span>
-              ) : (
-                <span>{t("copiesHeld", { total: result.copiesTotal })} · {t("askAtDesk")}</span>
-              )
-            )}
-            {result.ddc && <span>· {t("callNumber", { code: result.ddc })}</span>}
-            {result.shelfLocation && <span>· {t("shelf", { location: result.shelfLocation })}</span>}
-          </div>
+        {/* Physical copies: only what the catalog record itself states, call
+            number first — it is how a reader finds the book. One line of text
+            joined here, so a wrap never starts with a stray "·". */}
+        {printBook && (result.copiesTotal != null || result.shelfLocation || result.ddc) && (
+          <p className="mt-1.5 text-[11.5px] font-medium leading-[1.6]" style={{ color: "var(--ptec-text-muted)" }}>
+            {[
+              result.ddc ? t("callNumber", { code: result.ddc }) : null,
+              result.shelfLocation ? t("shelf", { location: result.shelfLocation }) : null,
+              result.copiesTotal == null
+                ? null
+                : // The route sends a shelf count only once availability is live
+                  // (CATALOG_AVAILABILITY_LIVE); until then every copy reads
+                  // "available" and the honest answer is the desk.
+                  result.copiesAvailable != null
+                  ? t("copiesAvailable", { available: result.copiesAvailable, total: result.copiesTotal })
+                  : `${t("copiesHeld", { total: result.copiesTotal })} · ${t("askAtDesk")}`,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
         )}
 
         {/* Rating for books */}
@@ -388,32 +414,6 @@ function AskLibraryCard({ query }: { query: string }) {
   );
 }
 
-// ── Section heading inside "all" view ─────────────────────────────────────────
-function SectionHeading({ label, count, onSeeAll }: {
-  label: string;
-  count: number;
-  onSeeAll: () => void;
-}) {
-  const t = useTranslations("search");
-  return (
-    <div className="mb-2 flex items-center justify-between">
-      <h3 className="text-[12px] font-bold uppercase tracking-[0.08em]" style={{ color: "var(--ptec-text-muted)" }}>
-        {label} <span style={{ color: "var(--ptec-brand)" }}>({count})</span>
-      </h3>
-      {count > 4 && (
-        <button
-          type="button"
-          onClick={onSeeAll}
-          className="text-[11px] font-semibold hover:underline underline-offset-2 cursor-pointer"
-          style={{ color: "var(--ptec-brand)" }}
-        >
-          {t("seeAll")}
-        </button>
-      )}
-    </div>
-  );
-}
-
 type SearchPageClientProps = {
   departments: string[];
   languages: string[];
@@ -448,6 +448,7 @@ export default function SearchPageClient({ departments, languages, categories }:
 
   const [focused, setFocused] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [counts, setCounts] = useState<SearchCounts | null>(null);
   const [facetCounts, setFacetCounts] = useState<SearchFacetCounts | null>(null);
@@ -475,6 +476,20 @@ export default function SearchPageClient({ departments, languages, categories }:
   // The type tab lives in the URL (shareable, back-button safe), like q and the facets.
   const typeParam = params.get("type") ?? "all";
   const activeType: ActiveType = (TAB_IDS as string[]).includes(typeParam) ? (typeParam as ActiveType) : "all";
+  const scopeParam = params.get("scope");
+  const activeScope: Scope =
+    activeType === "catalog" || scopeParam === "physical"
+      ? "physical"
+      : activeType !== "all" || scopeParam === "digital"
+        ? "digital"
+        : "all";
+  // What the API is asked for: the Physical library is the catalogue tab.
+  const effectiveType: ActiveType = activeScope === "physical" ? "catalog" : activeType;
+  // "Load more" APPENDS the next page — it used to replace the list with it.
+  // A deeper page is only ever appended to the list it continues: if anything
+  // else changed (query, filters, back/forward) the search starts over at 1.
+  const paramsKey = params.toString();
+  const listKeyRef = useRef<string | null>(null);
 
   // Sync input with URL param (e.g. back/forward navigation, recent-chip clicks)
   useEffect(() => { setInput(q); }, [q, setInput]);
@@ -567,6 +582,13 @@ export default function SearchPageClient({ departments, languages, categories }:
   // Run search whenever q, activeType, page, or the URL filter state changes
   const runSearch = useCallback(
     async (query: string, type: ActiveType, pg: number) => {
+      const listKey = `${query}|${type}|${paramsKey}`;
+      const appending = pg > 1 && listKeyRef.current === listKey;
+      if (pg > 1 && !appending) {
+        setPage(1); // the effect runs again for page 1
+        return;
+      }
+      listKeyRef.current = listKey;
       if (!query) {
         setResults(null);
         setCounts(null);
@@ -583,7 +605,8 @@ export default function SearchPageClient({ departments, languages, categories }:
       abortRef.current?.abort();
       abortRef.current = new AbortController();
 
-      setLoading(true);
+      if (appending) setLoadingMore(true);
+      else setLoading(true);
       setError(null);
 
       try {
@@ -599,7 +622,12 @@ export default function SearchPageClient({ departments, languages, categories }:
         if (!res.ok) throw new Error("Search failed");
 
         const data = await res.json();
-        setResults(data.results ?? []);
+        const incoming: SearchResult[] = data.results ?? [];
+        setResults((previous) => {
+          if (!appending || !previous) return incoming;
+          const seen = new Set(previous.map((r) => `${r.type}:${r.id}`));
+          return [...previous, ...incoming.filter((r) => !seen.has(`${r.type}:${r.id}`))];
+        });
         setCounts(data.counts ?? null);
         setFacetCounts(data.facetCounts ?? null);
         setHasMore(data.hasMore ?? false);
@@ -610,18 +638,20 @@ export default function SearchPageClient({ departments, languages, categories }:
         setPartial(Array.isArray(data.partial) ? data.partial : []);
         setPhysicalLive(data.physical?.availabilityLive === true);
         setLoading(false);
+        setLoadingMore(false);
       } catch (err: unknown) {
         if ((err as Error)?.name === "AbortError") return;
         setError(t("errorGeneric"));
         setLoading(false);
+        setLoadingMore(false);
       }
     },
-    [t, params],
+    [t, params, paramsKey],
   );
 
   useEffect(() => {
-    runSearch(q, activeType, page);
-  }, [q, activeType, page, runSearch]);
+    runSearch(q, effectiveType, page);
+  }, [q, effectiveType, page, runSearch]);
 
   const toggleFacet = (dim: FacetDimension, value: string) => {
     const key = FACET_PARAM_KEYS[dim];
@@ -694,10 +724,23 @@ export default function SearchPageClient({ departments, languages, categories }:
     }
   };
 
+  /** A type chip narrows the Digital library; pressing the active chip widens it again. */
   const handleTypeChange = (type: ActiveType) => {
     const next = new URLSearchParams(params.toString());
-    if (type === "all") next.delete("type");
-    else next.set("type", type);
+    if (type === "all" || type === activeType) next.delete("type");
+    else {
+      next.set("type", type);
+      next.set("scope", "digital");
+    }
+    setPage(1);
+    router.push(`/search?${next.toString()}`);
+  };
+
+  const handleScopeChange = (scope: Scope) => {
+    const next = new URLSearchParams(params.toString());
+    next.delete("type");
+    if (scope === "all") next.delete("scope");
+    else next.set("scope", scope);
     setPage(1);
     router.push(`/search?${next.toString()}`);
   };
@@ -712,14 +755,18 @@ export default function SearchPageClient({ departments, languages, categories }:
 
   const clearInput = () => { setInput(""); setSuggestOpen(true); inputRef.current?.focus(); };
 
-  // Grouped results for "all" view
-  const byType = (type: SearchResultType) => (results ?? []).filter((r) => r.type === type);
-
-  // Tab count badge
+  // Chip count badge
   const countFor = (type: ActiveType): number => {
     if (!counts) return 0;
     if (type === "all") return counts.total;
     return counts[type] ?? 0;
+  };
+
+  /** A scope's count — known only from a blended answer, which runs every leg. */
+  const scopeCount = (scope: Scope): number | null => {
+    if (!counts || effectiveType !== "all") return null;
+    const digital = DIGITAL_TYPE_IDS.reduce((sum, type) => sum + (counts[type] ?? 0), 0);
+    return scope === "physical" ? counts.catalog ?? 0 : scope === "digital" ? digital : digital + (counts.catalog ?? 0);
   };
 
   const hasResults = results !== null && results.length > 0;
@@ -737,7 +784,7 @@ export default function SearchPageClient({ departments, languages, categories }:
   // fetch, and a tab added here without the server change renders nothing.
   // Theses and publications are supported server-side and can join by being
   // listed here.
-  const showsPageHits = activeType === "all" || activeType === "book";
+  const showsPageHits = effectiveType === "all" || effectiveType === "book";
 
   const onlyInside =
     results !== null && results.length === 0 && pageHits.length > 0 && !loading && showsPageHits;
@@ -797,7 +844,9 @@ export default function SearchPageClient({ departments, languages, categories }:
 
 
   const hasFacetValues =
-    facetCounts !== null && FACET_DIMENSIONS.some((dim) => facetCounts[dim].length > 0);
+    // `?.`: an answer from before a dimension existed (a cached one, a test
+    // fixture) does not carry it, and must not take the page down.
+    facetCounts !== null && FACET_DIMENSIONS.some((dim) => (facetCounts[dim]?.length ?? 0) > 0);
 
   return (
     <>
@@ -1184,7 +1233,8 @@ export default function SearchPageClient({ departments, languages, categories }:
         <aside className="lg:sticky lg:top-24" aria-label={t("filter")}>
           <SearchFacets
             facetCounts={facetCounts}
-            showTypes={activeType === "all"}
+            showTypes={effectiveType === "all"}
+            showYears={activeScope !== "physical"}
             selectedCount={selectedFacetCount}
             onToggle={toggleFacet}
             onClearAll={clearFilters}
@@ -1219,7 +1269,8 @@ export default function SearchPageClient({ departments, languages, categories }:
         >
           <SearchFacets
             facetCounts={facetCounts}
-            showTypes={activeType === "all"}
+            showTypes={effectiveType === "all"}
+            showYears={activeScope !== "physical"}
             selectedCount={selectedFacetCount}
             onToggle={toggleFacet}
             onClearAll={clearFilters}
@@ -1229,18 +1280,57 @@ export default function SearchPageClient({ departments, languages, categories }:
       )}
       <div className="min-w-0">
 
-      {/* ── Type filter tabs (only when there are results or loading) ──── */}
-      {q && (hasResults || loading) && (
+      {/* ── Scope: which library (Phase 9.2) ────────────────────────────
+          All · Digital library · Physical library: a fieldset (the native
+          group) of buttons with aria-pressed,
+          like the chips below: each one re-queries rather than showing a
+          panel, so they are not a tablist. A count is shown only when the
+          answer ran every leg (a blended one); on a narrowed answer the other
+          scopes' counts are unknown, and a blank is honest where a 0 is not. */}
+      {q && (hasResults || loading || activeScope !== "all" || partial.length > 0) && (
+        <fieldset className="mb-3 min-w-0 border-0 p-0">
+          <legend className="sr-only">{t("scopeLabel")}</legend>
+          <div className="flex flex-wrap gap-2">
+          {SCOPE_IDS.map((scope) => {
+            const isActive = scope === activeScope;
+            const cnt = scopeCount(scope);
+            return (
+              <button
+                key={scope}
+                type="button"
+                onClick={() => handleScopeChange(scope)}
+                aria-pressed={isActive}
+                className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-[13px] font-semibold transition-colors ${
+                  isActive
+                    ? "border-brand bg-brand text-brand-contrast"
+                    : "border-divider bg-bg-surface text-text-body hover:border-brand/40 hover:text-brand"
+                }`}
+              >
+                {t(SCOPE_LABEL_KEY[scope])}
+                {!loading && cnt != null && cnt > 0 && (
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10.5px] font-bold tabular-nums ${isActive ? "bg-white/20" : "bg-bg-body text-text-muted"}`}>
+                    {cnt > 999 ? "999+" : cnt}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+          </div>
+        </fieldset>
+      )}
+
+      {/* ── Type chips: narrow the Digital library ──────────────────────── */}
+      {q && activeScope !== "physical" && (hasResults || loading) && (
         <div
           className="mb-6 flex items-center gap-1 overflow-x-auto pb-1"
           style={{ borderBottom: "1px solid var(--ptec-border)" }}
         >
-          {TAB_IDS.map((tabId) => {
+          {DIGITAL_TYPE_IDS.map((tabId) => {
             const isActive = tabId === activeType;
             const cnt = countFor(tabId);
-            // Keep the active tab visible even at 0 (a facet may have zeroed
+            // Keep the active chip visible even at 0 (a facet may have zeroed
             // it) so the user can still switch away from it.
-            if (!loading && cnt === 0 && tabId !== "all" && !isActive) return null;
+            if (!loading && cnt === 0 && !isActive) return null;
             return (
               <button
                 key={tabId}
@@ -1426,53 +1516,23 @@ export default function SearchPageClient({ departments, languages, categories }:
       {/* ── Results ───────────────────────────────────────────────────── */}
       {!loading && hasResults && (
         <>
-          {activeType === "all" ? (
-            // Grouped "All" view
-            <div className="space-y-8">
-              {(["book", "research", "publication", "catalog", "learning_path", "post"] as SearchResultType[]).map((type) => {
-                const group = byType(type);
-                if (group.length === 0) return null;
-                const totalForType = counts?.[type] ?? group.length;
-                const groupLabelKey: Record<SearchResultType, "groupBooks" | "groupTheses" | "groupPublications" | "groupCatalog" | "groupLearningPaths" | "groupPosts"> = {
-                  book:     "groupBooks",
-                  research: "groupTheses",
-                  publication: "groupPublications",
-                  catalog:  "groupCatalog",
-                  learning_path: "groupLearningPaths",
-                  post:     "groupPosts",
-                };
-                return (
-                  <div key={type}>
-                    <SectionHeading
-                      label={t(groupLabelKey[type])}
-                      count={totalForType}
-                      onSeeAll={() => handleTypeChange(type)}
-                    />
-                    <div className="space-y-2.5">
-                      {group.map((r) => (
-                        <ResultCard key={r.id} result={r} query={q} />
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            // Flat type-specific view
-            <div className="space-y-2.5">
-              {results!.map((r) => (
-                <ResultCard key={r.id} result={r} query={q} />
-              ))}
-            </div>
-          )}
+          {/* ONE list, whatever the scope: across collections it is ranked
+              by relevance alone, with a record the reader named first
+              (compareAcrossCollections); each card's badge says what it is. */}
+          <div className="space-y-2.5">
+            {results!.map((r) => (
+              <ResultCard key={`${r.type}-${r.id}`} result={r} query={q} />
+            ))}
+          </div>
 
-          {/* Load more (type-specific tabs only) */}
-          {activeType !== "all" && hasMore && (
+          {hasMore && (
             <div className="mt-6 flex justify-center">
               <button
                 type="button"
                 onClick={() => setPage((p) => p + 1)}
-                className="rounded-xl border px-6 py-2.5 text-[13px] font-semibold transition-all cursor-pointer hover:opacity-80"
+                disabled={loadingMore}
+                aria-busy={loadingMore}
+                className="rounded-xl border px-6 py-2.5 text-[13px] font-semibold transition-all cursor-pointer hover:opacity-80 disabled:cursor-wait disabled:opacity-60"
                 style={{
                   background: "var(--ptec-bg-surface)",
                   borderColor: "var(--ptec-border)",

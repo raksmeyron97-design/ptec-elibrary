@@ -63,7 +63,7 @@ describe("/search states print availability only when it is live", () => {
 
   it("the result card says 'ask at the desk' when the count was not sent", () => {
     const card = read("app/[locale]/(public)/search/SearchPageClient.tsx");
-    expect(card).toMatch(/result\.copiesAvailable != null \?/);
+    expect(card).toMatch(/result\.copiesAvailable != null\s*\?/);
     expect(card).toMatch(/t\("askAtDesk"\)/);
   });
 });

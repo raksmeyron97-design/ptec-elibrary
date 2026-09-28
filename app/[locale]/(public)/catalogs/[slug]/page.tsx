@@ -358,8 +358,9 @@ export default async function CatalogBookPage({
               </div>
             </div>
 
-            {/* Availability card */}
-            <div className={`w-full rounded-2xl border p-5 ${TONE_SURFACE[tone]}`}>
+            {/* Availability card — `#where` is where /search's "Where to find
+                it" lands: call number, shelf and what is known of availability. */}
+            <div id="where" className={`w-full scroll-mt-24 rounded-2xl border p-5 ${TONE_SURFACE[tone]}`}>
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <span aria-hidden className={`h-2.5 w-2.5 rounded-full ${TONE_DOT[tone]} ring-2 ring-white/40 ring-offset-1`} />

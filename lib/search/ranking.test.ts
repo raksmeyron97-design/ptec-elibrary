@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import {
   POPULARITY_CAP_RATIO,
   RANKING_WEIGHTS,
+  compareAcrossCollections,
   compareBySort,
   pageHitKey,
   parseSort,
@@ -122,6 +123,58 @@ describe("searchScore — a print book's call number is identity (Phase 9.1)", (
     expect(RANKING_WEIGHTS.callNumberExact).toBe(RANKING_WEIGHTS.isbnExact);
     // "The 100 best books" is not a call number.
     expect(score(book("100 BES", "The 100 best books"), "best 100").matchedFields ?? []).not.toContain("callnumber");
+  });
+});
+
+describe("compareAcrossCollections — the blended list (Phase 9.2)", () => {
+  const sortAcross = (rows: ReturnType<typeof score>[]) => [...rows].sort((a, b) => compareAcrossCollections(a, b, "relevance"));
+
+  it("popularity reorders WITHIN a collection, never across", () => {
+    // The shelf copy is MORE relevant; the e-book's popularity boost is larger
+    // than the gap. Within one collection the boost decides …
+    const print = { id: "p", ref: "p", type: "catalog", title: "t", author: "", coverUrl: null, url: "/catalogs/p", relevance: 100, score: 100 } as SearchResult;
+    const ebook = { id: "e", ref: "e", type: "book", title: "t", author: "", coverUrl: null, url: "/books/e", relevance: 95, score: 118.75 } as SearchResult;
+    expect([print, ebook].sort((a, b) => compareBySort(a, b, "relevance")).map((r) => r.id)).toEqual(["e", "p"]);
+    // … across collections it cannot: print has no views or downloads by construction.
+    expect(sortAcross([ebook, print]).map((r) => r.id)).toEqual(["p", "e"]);
+    // And the boost is real on scored rows: the same title, a much-read e-book.
+    const popular = score(candidate({ title: "Teaching Mathematics", views: 1200, downloadCount: 800, rating: 5 }), "teaching mathematics");
+    const shelf = score(candidate({ title: "Teaching Mathematics", type: "catalog", url: "/catalogs/x" }), "teaching mathematics");
+    expect(popular.score!).toBeGreaterThan(shelf.score!);
+    expect(popular.relevance).toBe(shelf.relevance);
+  });
+
+  it("a record the reader NAMED leads, whichever library holds it", () => {
+    const named = score(candidate({ id: "z-print", title: "Effective Teaching", type: "catalog", url: "/catalogs/y" }), "Effective Teaching");
+    // Contains the words in title, author and subject: more relevance, no identity.
+    const broad = score(
+      candidate({ id: "a-ebook", title: "Effective Teaching in Schools", authorText: "Effective Teaching Group", subjectText: "Effective Teaching" }),
+      "Effective Teaching",
+    );
+    expect(broad.relevance!).toBeGreaterThan(named.relevance!);
+    expect(named.identity).toBe(true);
+    expect(sortAcross([broad, named]).map((r) => r.id)).toEqual(["z-print", "a-ebook"]);
+  });
+
+  it("on an EXACT tie the e-book comes first — it can be read now — and a tie is all that decides", () => {
+    const shelf = score(candidate({ id: "a-print", title: "Practical Research Methods", type: "catalog", url: "/catalogs/p" }), "Practical Research Methods");
+    const ebook = score(candidate({ id: "z-ebook", title: "Practical Research Methods" }), "Practical Research Methods");
+    expect(shelf.relevance).toBe(ebook.relevance);
+    expect(sortAcross([shelf, ebook]).map((r) => r.id)).toEqual(["z-ebook", "a-print"]);
+    // Not a tie: the more relevant print record still leads.
+    const printExact = score(candidate({ id: "p2", title: "Research", type: "catalog", url: "/catalogs/q" }), "Research");
+    const ebookContains = score(candidate({ id: "e2", title: "Doing Research Well" }), "Research");
+    expect(sortAcross([ebookContains, printExact]).map((r) => r.id)).toEqual(["p2", "e2"]);
+  });
+
+  it("an exact call number or ISBN is also identity", () => {
+    expect(score(candidate({ title: "សុភាវធម៌", type: "catalog", ddc: "395.1 ឈូក", url: "/catalogs/z" }), "395.1 ឈូក").identity).toBe(true);
+  });
+
+  it("an explicit sort mode applies across collections as it does everywhere", () => {
+    const older = score(candidate({ id: "x1", title: "Research", year: 2001 }), "research");
+    const newer = score(candidate({ id: "x2", title: "Research methods", year: 2024, type: "catalog", url: "/catalogs/w" }), "research");
+    expect([older, newer].sort((a, b) => compareAcrossCollections(a, b, "newest")).map((r) => r.id)).toEqual(["x2", "x1"]);
   });
 });
 

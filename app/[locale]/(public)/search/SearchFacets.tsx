@@ -9,6 +9,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import type { FacetCount, FacetDimension, SearchFacetCounts } from "@/lib/search/facets";
 import { AVAILABILITY_VALUES, isAvailability } from "@/lib/search/availability";
+import { isSubjectClass } from "@/lib/search/subject-class";
 
 const COLLAPSED_LIMIT = 6;
 
@@ -74,7 +75,9 @@ function FacetGroup({ dim, title, items, labelOf, onToggle, touch }: FacetGroupP
               data-facet-value={item.value}
               className={`shrink-0 cursor-pointer accent-[var(--ptec-brand)] ${touch ? "h-[18px] w-[18px]" : "h-3.5 w-3.5"}`}
             />
-            <span className="min-w-0 flex-1 truncate font-medium">
+            {/* Two lines, never one: a DDC class name ("370 អប់រំ និងគរុកោសល្យ")
+                cut at the sidebar's width loses the words that say what it is. */}
+            <span className="line-clamp-2 min-w-0 flex-1 break-words font-medium leading-snug">
               {labelOf ? labelOf(item.value) : item.value}
             </span>
             <span
@@ -103,8 +106,10 @@ function FacetGroup({ dim, title, items, labelOf, onToggle, touch }: FacetGroupP
 
 type SearchFacetsProps = {
   facetCounts: SearchFacetCounts;
-  /** Hide the type group on single-type tabs — the tab already fixes it. */
+  /** Hide the Format group on single-type tabs — the tab already fixes it. */
   showTypes: boolean;
+  /** Print records carry no year (the PMB export had none), so the Physical library hides Year. */
+  showYears?: boolean;
   selectedCount: number;
   onToggle: (dim: FacetDimension, value: string) => void;
   onClearAll: () => void;
@@ -116,6 +121,7 @@ type SearchFacetsProps = {
 export default function SearchFacets({
   facetCounts,
   showTypes,
+  showYears = true,
   selectedCount,
   onToggle,
   onClearAll,
@@ -134,9 +140,17 @@ export default function SearchFacets({
           },
         }]
       : []),
-    { dim: "subjects", title: t("advFieldSubject") },
+    // Subject = one DDC class vocabulary over both libraries (Phase 9.2,
+    // lib/search/subject-class.ts), 370 Education on its own. The category-NAME
+    // dimension (`subjects`, ?subject=) still filters for old links and the
+    // advanced search, but is no longer listed here.
+    {
+      dim: "classes",
+      title: t("advFieldSubject"),
+      labelOf: (value: string) => (isSubjectClass(value) ? t(`subjectClass.${value}`) : value),
+    },
     { dim: "langs", title: t("advFieldLanguage") },
-    { dim: "years", title: t("advFieldYear") },
+    ...(showYears ? [{ dim: "years" as const, title: t("advFieldYear") }] : []),
     {
       dim: "availability",
       title: t("advFieldAvailability"),
@@ -144,7 +158,9 @@ export default function SearchFacets({
     },
   ];
 
-  const hasAnyValues = groups.some((g) => facetCounts[g.dim].length > 0);
+  // A dimension an older (or cached) answer does not carry is simply empty.
+  const itemsOf = (dim: FacetDimension) => facetCounts[dim] ?? [];
+  const hasAnyValues = groups.some((g) => itemsOf(g.dim).length > 0);
   if (!hasAnyValues) return null;
 
   const sheet = variant === "sheet";
@@ -175,7 +191,7 @@ export default function SearchFacets({
           key={group.dim}
           dim={group.dim}
           title={group.title}
-          items={group.dim === "availability" ? orderAvailability(facetCounts[group.dim]) : facetCounts[group.dim]}
+          items={group.dim === "availability" ? orderAvailability(itemsOf(group.dim)) : itemsOf(group.dim)}
           labelOf={group.labelOf}
           onToggle={onToggle}
           touch={sheet}
