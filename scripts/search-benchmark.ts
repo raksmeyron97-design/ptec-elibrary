@@ -23,9 +23,17 @@
 //
 // WHAT IT DOES NOT MEASURE
 // ────────────────────────
-// Answer quality of the AI assistant (see scripts/ai-benchmark.ts) and server
-// time split (the route sets no timing header — latency here is wall-clock at
-// the client, including the network).
+// Answer quality of the AI assistant (see scripts/ai-benchmark.ts). Latency is
+// wall-clock at the client, including the network; where the route sends a
+// `Server-Timing` header (Phase 9.0) the per-leg server time is recorded too,
+// so a slow query can be attributed to the collection that made it slow.
+//
+// PHYSICAL LABELS (query set v4): the `phys_*` categories expect `catalog`
+// records. In the default blended mode the route lists each type's top four in
+// a fixed order with the catalogue after the digital types, so a physical
+// record ranks behind up to twelve digital rows — that is the landing view as
+// a reader sees it, and the number Phase 9.2's blended list exists to move.
+// `--depth` scores the Catalog tab itself.
 //
 // A `pdf_text` query counts as found when its record appears either in
 // `results` or in `pageHits`: the route lists a page-text hit whose parent
@@ -122,6 +130,8 @@ type QueryOutcome = {
    */
   topicalPrecision: number | null;
   top: string[];
+  /** Server-side ms per leg from `Server-Timing`, or null when the route sent none. */
+  serverTiming: Record<string, number> | null;
 };
 
 type Metrics = {
@@ -141,13 +151,20 @@ type Metrics = {
   p95Ms: number;
 };
 
+type LegTiming = { n: number; p50Ms: number; p95Ms: number; maxMs: number };
+
 type Report = {
   generatedAt: string;
   base: string;
   collection: string;
   querySetVersion: number;
+  mode: "blended" | "depth";
   overall: Metrics;
   byCategory: Record<string, Metrics>;
+  /** Physical (`phys_*`) and digital subtotals, when the run has both. */
+  byCollection?: Record<string, Metrics>;
+  /** Server time per leg across the run; absent when the route sent no Server-Timing. */
+  legs?: Record<string, LegTiming>;
   queries: QueryOutcome[];
 };
 
@@ -166,6 +183,21 @@ const DELAY_MS = Number(flag("delay") ?? 2_100);
 /** Ask for the type-scoped page (10 rows) so ranks 5..10 are measurable. */
 const DEPTH = process.argv.includes("--depth");
 const USER_AGENT = "ptec-search-benchmark/1.0 (bot; retrieval-quality run)";
+
+/** `Server-Timing` → `{ name: ms }`. Kept here, not imported: this file is a black-box client. */
+function parseServerTiming(value: string | null): Record<string, number> | null {
+  if (!value) return null;
+  const out: Record<string, number> = {};
+  for (const metric of value.split(",")) {
+    const [name, ...params] = metric.split(";").map((p) => p.trim());
+    const dur = params.find((p) => p.toLowerCase().startsWith("dur="));
+    const ms = dur ? Number(dur.slice(4)) : NaN;
+    if (name && Number.isFinite(ms)) out[name] = ms;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+const isPhysical = (category: string) => category.startsWith("phys_");
 
 function slugOfUrl(url: string): string {
   const clean = url.split("#")[0].split("?")[0];
@@ -292,9 +324,11 @@ async function runQuery(query: Query): Promise<QueryOutcome> {
   const started = performance.now();
   let status = 0;
   let body: ApiResponse = {};
+  let serverTiming: Record<string, number> | null = null;
   try {
     const res = await fetch(url, { headers: { "user-agent": USER_AGENT, accept: "application/json" } });
     status = res.status;
+    serverTiming = parseServerTiming(res.headers.get("server-timing"));
     body = (await res.json()) as ApiResponse;
   } catch (err) {
     body = { error: err instanceof Error ? err.message : String(err) };
@@ -324,7 +358,29 @@ async function runQuery(query: Query): Promise<QueryOutcome> {
     scope: scopeOf(query),
     topicalPrecision: topicalPrecisionOf(query, results),
     top: results.slice(0, 10).map((r) => `${r.type}:${r.ref ?? slugOfUrl(r.url)}`),
+    serverTiming,
   };
+}
+
+function legTimings(rows: QueryOutcome[]): Record<string, LegTiming> | undefined {
+  const byLeg = new Map<string, number[]>();
+  for (const r of rows) {
+    for (const [leg, ms] of Object.entries(r.serverTiming ?? {})) {
+      if (!byLeg.has(leg)) byLeg.set(leg, []);
+      byLeg.get(leg)!.push(ms);
+    }
+  }
+  if (byLeg.size === 0) return undefined;
+  const out: Record<string, LegTiming> = {};
+  for (const [leg, values] of [...byLeg].sort(([a], [b]) => a.localeCompare(b))) {
+    out[leg] = {
+      n: values.length,
+      p50Ms: Math.round(percentile(values, 50)),
+      p95Ms: Math.round(percentile(values, 95)),
+      maxMs: Math.round(Math.max(...values)),
+    };
+  }
+  return out;
 }
 
 function percentile(values: number[], p: number): number {
@@ -405,6 +461,9 @@ const num = (v: number | null, b: number | null | undefined) => {
 function printTable(report: Report, baseline?: Report) {
   const rows: [string, Metrics, Metrics | undefined][] = [
     ...Object.entries(report.byCategory).map(([k, m]) => [k, m, baseline?.byCategory[k]] as [string, Metrics, Metrics | undefined]),
+    ...Object.entries(report.byCollection ?? {}).map(
+      ([k, m]) => [`(${k})`, m, baseline?.byCollection?.[k]] as [string, Metrics, Metrics | undefined],
+    ),
     ["ALL", report.overall, baseline?.overall],
   ];
   const header = ["category", "n", "lab", "R@1", "R@5", "R@10", "MRR", "topical", "zero", "fuzzy", "p50", "p95"];
@@ -444,6 +503,17 @@ function printTable(report: Report, baseline?: Report) {
       `presented with no reason, so 1 - topical is the false-match rate.`,
   );
   if (baseline) console.log(`\nDeltas are against ${flag("compare")} (${baseline.generatedAt}).`);
+  if (report.legs) {
+    console.log("\nServer time per leg (Server-Timing; n = answers that ran the leg):");
+    const legRows = Object.entries(report.legs).map(([leg, t]) => [leg, String(t.n), `${t.p50Ms}ms`, `${t.p95Ms}ms`, `${t.maxMs}ms`]);
+    const head = ["leg", "n", "p50", "p95", "max"];
+    const w = head.map((h, i) => Math.max(h.length, ...legRows.map((r) => r[i].length)));
+    const f = (cells: string[]) => cells.map((c, i) => c.padEnd(w[i])).join("  ");
+    console.log(f(head));
+    for (const r of legRows) console.log(f(r));
+  } else {
+    console.log("\nNo Server-Timing from this server — per-leg time was not measured.");
+  }
 }
 
 async function main() {
@@ -479,13 +549,18 @@ async function main() {
   for (const cat of [...new Set(outcomes.map((o) => o.category))]) {
     byCategory[cat] = metricsOf(outcomes.filter((o) => o.category === cat));
   }
+  const physical = outcomes.filter((o) => isPhysical(o.category));
+  const digital = outcomes.filter((o) => !isPhysical(o.category));
   const report: Report = {
     generatedAt: new Date().toISOString(),
     base: BASE,
     collection: set.collection,
     querySetVersion: set.version,
+    mode: DEPTH ? "depth" : "blended",
     overall: metricsOf(outcomes),
     byCategory,
+    byCollection: physical.length && digital.length ? { physical: metricsOf(physical), digital: metricsOf(digital) } : undefined,
+    legs: legTimings(outcomes),
     queries: outcomes,
   };
 
