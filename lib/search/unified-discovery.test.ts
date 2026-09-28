@@ -6,7 +6,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
-const route = () => read("app/api/search/native/route.ts");
+// The search core serves both the JSON route and the server-rendered page (9.3).
+const route = () => read("lib/search/native-search.ts");
 
 describe("unified discovery in the native search route", () => {
   it("orders the blended list across collections by relevance, never by popularity", () => {
@@ -35,7 +36,7 @@ describe("unified discovery in the native search route", () => {
   it("pages the blended list and never logs a deeper page as a new query", () => {
     const src = route();
     expect(src).toMatch(/hasMore: blended\.length > blendFrom \+ PAGE_SIZE_BLEND/);
-    expect(src).toMatch(/failedLegs\.size === 0 && page === 1\) logSearchQuery/);
+    expect(src).toMatch(/logTotal = failedLegs\.size === 0 && page === 1 \? preFacetTotal : null;/);
   });
 });
 

@@ -49,7 +49,8 @@ describe("catalogue availability notice", () => {
 });
 
 describe("/search states print availability only when it is live", () => {
-  const route = () => read("app/api/search/native/route.ts");
+  // The search core (lib/search/native-search.ts) serves the API and the page alike.
+  const route = () => read("lib/search/native-search.ts");
 
   it("passes the switch into every physical availability decision", () => {
     const calls = route().match(/physicalAvailability\(\{[^}]*\}\)/g) ?? [];

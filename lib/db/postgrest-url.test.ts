@@ -32,7 +32,7 @@ describe("an .or() filter built from a reader's words stays inside the URL budge
 
   it("is used wherever search builds an .or() from a reader's words", () => {
     const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
-    expect(read("app/api/search/native/route.ts")).toMatch(/clausesWithinBudget\(/);
+    expect(read("lib/search/native-search.ts")).toMatch(/clausesWithinBudget\(/);
     expect(read("lib/catalogs/search-scope.ts")).toMatch(/clausesWithinBudget\(/);
   });
 });

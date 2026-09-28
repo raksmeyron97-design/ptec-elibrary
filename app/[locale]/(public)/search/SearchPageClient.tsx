@@ -1,16 +1,15 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from "react";
 import { Link, useRouter } from "@/i18n/navigation";
 import Image from "next/image";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import Icon from "@/components/ui/core/Icon";
 import { SlidersHorizontal, Sparkles } from "lucide-react";
 import GlassSheet from "@/components/ui/glass/GlassSheet";
-import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
 import { openLibraryAssistant } from "@/lib/ask/open";
-import type { SearchResult, SearchCounts, SearchResultType, PageHit } from "@/app/api/search/native/route";
+import type { NativeSearchResponse, SearchResult, SearchCounts, SearchResultType, PageHit } from "@/app/api/search/native/route";
 import type { Suggestion } from "@/app/api/books/suggestions/route";
 import { useBookSuggestions } from "@/components/ui/search/useBookSuggestions";
 import SearchAdvancedModal from "@/components/ui/search/SearchAdvancedModal";
@@ -414,22 +413,71 @@ function AskLibraryCard({ query }: { query: string }) {
   );
 }
 
+/**
+ * What the server already did about the first page (Phase 9.3,
+ * docs/UNIFIED-DISCOVERY.md; the page's `firstPage()`):
+ *  • `pending` — this instance is the Suspense fallback while the server
+ *    searches; it shows the search running and never fetches.
+ *  • `served` — the first page, rendered into the HTML; the client does not
+ *    fetch it again.
+ *  • `failed` — the server tried and could not (rate limit, invalid query, an
+ *    error); the reader is told so, exactly as a failed fetch would.
+ * `null` is every other case — no query, or a client-side navigation — and
+ * the client searches through /api/search/native as it always has.
+ */
+export type InitialSearch =
+  | { state: "pending" }
+  | { state: "served"; response: NativeSearchResponse }
+  | { state: "failed" };
+
 type SearchPageClientProps = {
   departments: string[];
   languages: string[];
   categories: string[];
+  initial?: InitialSearch | null;
 };
 
+const searchHref = (next: URLSearchParams) => `/search?${next.toString()}`;
+
+const DESKTOP_QUERY = "(min-width: 1024px)";
+const subscribeDesktop = (onChange: () => void) => {
+  const list = window.matchMedia(DESKTOP_QUERY);
+  list.addEventListener("change", onChange);
+  return () => list.removeEventListener("change", onChange);
+};
+
+/**
+ * Where the facets render: a sidebar from lg, a bottom sheet below it — and,
+ * in the server HTML and the hydration render, "css": the sidebar markup,
+ * shown from lg by a breakpoint. Server-rendered facets (9.3) cannot wait for
+ * a media query, or the results would stand in the sidebar's 240px column
+ * until hydration. ONE store for both answers, so "hydrated" and "which
+ * placement" can never be read from two different renders.
+ */
+function useFacetPlacement(): "css" | "sidebar" | "sheet" {
+  return useSyncExternalStore(
+    subscribeDesktop,
+    () => (window.matchMedia(DESKTOP_QUERY).matches ? "sidebar" : "sheet"),
+    () => "css",
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
-export default function SearchPageClient({ departments, languages, categories }: SearchPageClientProps) {
+export default function SearchPageClient({ departments, languages, categories, initial = null }: SearchPageClientProps) {
   const t = useTranslations("search");
   const tNav = useTranslations("nav");
+  const locale = useLocale();
   // Where the facets live: a sidebar from lg (the grid's own breakpoint), a
   // bottom sheet below it. See the results region.
-  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const facetPlacement = useFacetPlacement();
+  const hydrated = facetPlacement !== "css";
   const params = useSearchParams();
   const router = useRouter();
   const q = params.get("q") ?? "";
+  // The first page, when the server rendered it (9.3). Every piece of state
+  // below starts from it, so the hydration render IS the server render.
+  const served = initial?.state === "served" ? initial.response : null;
+  const pendingOnServer = initial?.state === "pending";
 
   const {
     query: input,
@@ -447,26 +495,28 @@ export default function SearchPageClient({ departments, languages, categories }:
   } = useBookSuggestions({ initialQuery: q, basePath: "/search" });
 
   const [focused, setFocused] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(pendingOnServer && q.trim() !== "");
   const [loadingMore, setLoadingMore] = useState(false);
-  const [results, setResults] = useState<SearchResult[] | null>(null);
-  const [counts, setCounts] = useState<SearchCounts | null>(null);
-  const [facetCounts, setFacetCounts] = useState<SearchFacetCounts | null>(null);
+  const [results, setResults] = useState<SearchResult[] | null>(served?.results ?? null);
+  const [counts, setCounts] = useState<SearchCounts | null>(served?.counts ?? null);
+  const [facetCounts, setFacetCounts] = useState<SearchFacetCounts | null>(served?.facetCounts ?? null);
   const [mobileFacetsOpen, setMobileFacetsOpen] = useState(false);
   const closeFacets = useCallback(() => setMobileFacetsOpen(false), []);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
-  const [fuzzy, setFuzzy] = useState(false);
-  const [pageHits, setPageHits] = useState<PageHit[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  // A served ?page=N (a reader without JavaScript following Load more) is
+  // where Load more continues from.
+  const [page, setPage] = useState(served?.page ?? 1);
+  const [hasMore, setHasMore] = useState(served?.hasMore ?? false);
+  const [fuzzy, setFuzzy] = useState(served?.fuzzy ?? false);
+  const [pageHits, setPageHits] = useState<PageHit[]>(served?.pageHits ?? []);
+  const [error, setError] = useState<string | null>(initial?.state === "failed" ? t("errorGeneric") : null);
   // Legs the route could not search (lib/search/budgets.ts) — said, never shown as zero.
-  const [partial, setPartial] = useState<string[]>([]);
-  const [physicalLive, setPhysicalLive] = useState(false);
+  const [partial, setPartial] = useState<string[]>(served?.partial ?? []);
+  const [physicalLive, setPhysicalLive] = useState(served?.physical?.availabilityLive === true);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [trending, setTrending] = useState<string[]>([]);
   const [popularSearches, setPopularSearches] = useState<string[]>([]);
-  const [relatedSubjects, setRelatedSubjects] = useState<string[]>([]);
-  const [popularResources, setPopularResources] = useState<SearchResult[]>([]);
+  const [relatedSubjects, setRelatedSubjects] = useState<string[]>(served?.relatedSubjects ?? []);
+  const [popularResources, setPopularResources] = useState<SearchResult[]>(served?.popularResources ?? []);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -489,13 +539,20 @@ export default function SearchPageClient({ departments, languages, categories }:
   // A deeper page is only ever appended to the list it continues: if anything
   // else changed (query, filters, back/forward) the search starts over at 1.
   const paramsKey = params.toString();
-  const listKeyRef = useRef<string | null>(null);
+  const listKeyRef = useRef<string | null>(served ? `${q}|${effectiveType}|${paramsKey}` : null);
+  // The one search the server already answered (served or failed), keyed like
+  // the effect below. It stands until the search changes, and not a render
+  // longer: Back to this URL later must fetch, because by then the list on
+  // screen belongs to whatever came in between.
+  const servedKeyRef = useRef<string | null>(
+    initial && !pendingOnServer ? `${q}|${effectiveType}|${paramsKey}#${served?.page ?? 1}` : null,
+  );
 
   // Sync input with URL param (e.g. back/forward navigation, recent-chip clicks)
   useEffect(() => { setInput(q); }, [q, setInput]);
 
-  // Reset pagination when the query changes
-  useEffect(() => { setPage(1); }, [q]);
+  // A new query needs no pagination reset of its own: runSearch() starts any
+  // search that is not continuing the list on screen over at page 1.
 
   // Persist to recent searches only when the committed query (URL param)
   // changes — not on every tab/page/filter refetch, which polluted recents
@@ -650,30 +707,47 @@ export default function SearchPageClient({ departments, languages, categories }:
   );
 
   useEffect(() => {
+    // The fallback shown while the server searches never fetches: the real
+    // page replaces it with the answer.
+    if (pendingOnServer) return;
+    const key = `${q}|${effectiveType}|${paramsKey}#${page}`;
+    if (servedKeyRef.current === key) return;
+    servedKeyRef.current = null;
     runSearch(q, effectiveType, page);
-  }, [q, effectiveType, page, runSearch]);
+  }, [q, effectiveType, page, paramsKey, pendingOnServer, runSearch]);
 
+  /**
+   * The URL a control leads to: the current search with one change, back at
+   * its first page. A `page` in the address only ever comes from a reader
+   * without JavaScript following Load more; carried into a new search it
+   * would start that search deep in its results.
+   */
+  const nextParams = () => {
+    const next = new URLSearchParams(paramsKey);
+    next.delete("page");
+    return next;
+  };
   const toggleFacet = (dim: FacetDimension, value: string) => {
     const key = FACET_PARAM_KEYS[dim];
-    const next = new URLSearchParams(params.toString());
+    const next = nextParams();
     const current = dim === "subjects" ? (next.get("subject") ?? next.get("category")) : next.get(key);
     const merged = toggleListParam(current, value);
     if (merged) next.set(key, merged);
     else next.delete(key);
     if (dim === "subjects") next.delete("category");
     setPage(1);
-    router.push(`/search?${next.toString()}`);
+    router.push(searchHref(next));
   };
 
   const removeFilter = (key: string) => {
-    const next = new URLSearchParams(params.toString());
+    const next = nextParams();
     next.delete(key);
     setPage(1);
-    router.push(`/search?${next.toString()}`);
+    router.push(searchHref(next));
   };
 
   const clearFilters = () => {
-    const next = new URLSearchParams(params.toString());
+    const next = nextParams();
     for (const key of [
       "types", "lang", "subject", "category", "dept", "author", "advisor", "program",
       "cohort", "year", "format", "availability", "views", "downloads", "rating",
@@ -682,7 +756,7 @@ export default function SearchPageClient({ departments, languages, categories }:
       next.delete(key);
     }
     setPage(1);
-    router.push(`/search?${next.toString()}`);
+    router.push(searchHref(next));
   };
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
@@ -724,33 +798,38 @@ export default function SearchPageClient({ departments, languages, categories }:
     }
   };
 
-  /** A type chip narrows the Digital library; pressing the active chip widens it again. */
-  const handleTypeChange = (type: ActiveType) => {
-    const next = new URLSearchParams(params.toString());
+  /** A type chip narrows the Digital library; the active chip widens it again. */
+  const typeHref = (type: ActiveType) => {
+    const next = nextParams();
     if (type === "all" || type === activeType) next.delete("type");
     else {
       next.set("type", type);
       next.set("scope", "digital");
     }
-    setPage(1);
-    router.push(`/search?${next.toString()}`);
+    return searchHref(next);
   };
 
-  const handleScopeChange = (scope: Scope) => {
-    const next = new URLSearchParams(params.toString());
+  const scopeHref = (scope: Scope) => {
+    const next = nextParams();
     next.delete("type");
     if (scope === "all") next.delete("scope");
     else next.set("scope", scope);
-    setPage(1);
-    router.push(`/search?${next.toString()}`);
+    return searchHref(next);
+  };
+
+  /** Load more's address: what a reader without JavaScript follows. */
+  const nextPageHref = () => {
+    const next = nextParams();
+    next.set("page", String(page + 1));
+    return searchHref(next);
   };
 
   const handleSortChange = (value: string) => {
-    const next = new URLSearchParams(params.toString());
+    const next = nextParams();
     if (value === "relevance") next.delete("sort");
     else next.set("sort", value);
     setPage(1);
-    router.push(`/search?${next.toString()}`);
+    router.push(searchHref(next));
   };
 
   const clearInput = () => { setInput(""); setSuggestOpen(true); inputRef.current?.focus(); };
@@ -852,7 +931,15 @@ export default function SearchPageClient({ departments, languages, categories }:
     <>
       <div className="mx-auto max-w-3xl">
       {/* ── Search bar ────────────────────────────────────────────────────── */}
-      <form onSubmit={handleSearch} className="mb-8">
+      {/* A real GET form (9.3): without JavaScript it submits itself, taking
+          the rest of the search (scope, filters, sort) with it but never the
+          page number; with it, onSubmit takes over as before. */}
+      <form action={locale === "km" ? "/km/search" : "/search"} method="get" onSubmit={handleSearch} className="mb-8">
+        {[...params.entries()]
+          .filter(([key]) => key !== "q" && key !== "page")
+          .map(([key, value]) => (
+            <input key={`${key}=${value}`} type="hidden" name={key} value={value} />
+          ))}
         <div
           className="relative flex items-center h-[52px] rounded-2xl overflow-hidden transition-all duration-200"
           style={{
@@ -874,6 +961,7 @@ export default function SearchPageClient({ departments, languages, categories }:
           <input
             ref={inputRef}
             type="text"
+            name="q"
             value={input}
             onChange={(e) => { setInput(e.target.value); setSuggestOpen(true); }}
             onFocus={() => { setFocused(true); setSuggestOpen(true); }}
@@ -920,7 +1008,10 @@ export default function SearchPageClient({ departments, languages, categories }:
 
           <button
             type="submit"
-            disabled={!input.trim()}
+            // Not disabled until hydrated: without JavaScript nothing would
+            // ever enable it, and a disabled default button also blocks
+            // submitting with Enter.
+            disabled={hydrated && !input.trim()}
             aria-label={t("searchButton")}
             className="flex-shrink-0 flex items-center gap-1.5 h-[40px] px-3.5 sm:px-4 mx-1.5 rounded-xl text-[13px] font-semibold transition-all duration-150 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed hover:opacity-90 active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-focus-ring focus:ring-offset-1"
             style={{ background: "var(--ptec-brand)", color: "var(--ptec-brand-contrast)" }}
@@ -1224,13 +1315,15 @@ export default function SearchPageClient({ departments, languages, categories }:
       {/* Facets: a sidebar from lg, a bottom sheet below it — and only ever
           ONE SearchFacets instance, chosen by media query rather than hidden
           by CSS, so each checkbox exists once (the e2e spec addresses them by
-          data-facet-* and a second copy would make that ambiguous). Facets
-          arrive with the first client fetch, so there is no server markup for
-          the query to disagree with. The sheet stays open while facets are
-          toggled — they are multi-select — and says live how many results
-          the choice leaves. */}
-      {hasFacetValues && facetCounts && isDesktop && (
-        <aside className="lg:sticky lg:top-24" aria-label={t("filter")}>
+          data-facet-* and a second copy would make that ambiguous). The one
+          exception is the server HTML and the hydration render, which cannot
+          know the viewport (useFacetPlacement): there the sidebar markup is
+          shown from lg by a breakpoint, and on a phone the sheet takes over
+          once hydrated. The sheet stays open while facets are toggled — they
+          are multi-select — and says live how many results the choice
+          leaves. */}
+      {hasFacetValues && facetCounts && facetPlacement !== "sheet" && (
+        <aside className={`${facetPlacement === "css" ? "hidden lg:block " : ""}lg:sticky lg:top-24`} aria-label={t("filter")}>
           <SearchFacets
             facetCounts={facetCounts}
             showTypes={effectiveType === "all"}
@@ -1241,7 +1334,7 @@ export default function SearchPageClient({ departments, languages, categories }:
           />
         </aside>
       )}
-      {hasFacetValues && facetCounts && !isDesktop && (
+      {hasFacetValues && facetCounts && facetPlacement === "sheet" && (
         <GlassSheet
           open={mobileFacetsOpen}
           onClose={closeFacets}
@@ -1281,25 +1374,24 @@ export default function SearchPageClient({ departments, languages, categories }:
       <div className="min-w-0">
 
       {/* ── Scope: which library (Phase 9.2) ────────────────────────────
-          All · Digital library · Physical library: a fieldset (the native
-          group) of buttons with aria-pressed,
-          like the chips below: each one re-queries rather than showing a
-          panel, so they are not a tablist. A count is shown only when the
-          answer ran every leg (a blended one); on a narrowed answer the other
-          scopes' counts are unknown, and a blank is honest where a 0 is not. */}
+          All · Digital library · Physical library: links, like the chips
+          below — each is a different search with its own address, so it is
+          not a tablist, and (9.3) it works without JavaScript; the current
+          one is aria-current. A count is shown only when the answer ran every
+          leg (a blended one); on a narrowed answer the other scopes' counts
+          are unknown, and a blank is honest where a 0 is not. */}
       {q && (hasResults || loading || activeScope !== "all" || partial.length > 0) && (
-        <fieldset className="mb-3 min-w-0 border-0 p-0">
-          <legend className="sr-only">{t("scopeLabel")}</legend>
+        <nav aria-label={t("scopeLabel")} className="mb-3">
           <div className="flex flex-wrap gap-2">
           {SCOPE_IDS.map((scope) => {
             const isActive = scope === activeScope;
             const cnt = scopeCount(scope);
             return (
-              <button
+              <Link
                 key={scope}
-                type="button"
-                onClick={() => handleScopeChange(scope)}
-                aria-pressed={isActive}
+                href={scopeHref(scope)}
+                prefetch={false}
+                aria-current={isActive ? "true" : undefined}
                 className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-[13px] font-semibold transition-colors ${
                   isActive
                     ? "border-brand bg-brand text-brand-contrast"
@@ -1312,11 +1404,11 @@ export default function SearchPageClient({ departments, languages, categories }:
                     {cnt > 999 ? "999+" : cnt}
                   </span>
                 )}
-              </button>
+              </Link>
             );
           })}
           </div>
-        </fieldset>
+        </nav>
       )}
 
       {/* ── Type chips: narrow the Digital library ──────────────────────── */}
@@ -1332,11 +1424,11 @@ export default function SearchPageClient({ departments, languages, categories }:
             // it) so the user can still switch away from it.
             if (!loading && cnt === 0 && !isActive) return null;
             return (
-              <button
+              <Link
                 key={tabId}
-                type="button"
-                onClick={() => handleTypeChange(tabId)}
-                aria-pressed={isActive}
+                href={typeHref(tabId)}
+                prefetch={false}
+                aria-current={isActive ? "true" : undefined}
                 className="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-2 text-[13px] font-semibold transition-all duration-150 cursor-pointer"
                 style={{
                   color: isActive ? "var(--ptec-brand)" : "var(--ptec-text-muted)",
@@ -1358,7 +1450,7 @@ export default function SearchPageClient({ departments, languages, categories }:
                     {cnt > 99 ? "99+" : cnt}
                   </span>
                 )}
-              </button>
+              </Link>
             );
           })}
         </div>
@@ -1452,15 +1544,15 @@ export default function SearchPageClient({ departments, languages, categories }:
           {(relatedSubjects.length > 0 || popularSearches.length > 0) && (
             <div className="mt-5 flex flex-wrap justify-center gap-2">
               {(relatedSubjects.length > 0 ? relatedSubjects : popularSearches).slice(0, 6).map((term) => (
-                <button
+                <Link
                   key={term}
-                  type="button"
-                  onClick={() => router.push(`/search?q=${encodeURIComponent(term)}`)}
+                  href={`/search?q=${encodeURIComponent(term)}`}
+                  prefetch={false}
                   className="rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors hover:border-brand/40 hover:text-brand"
                   style={{ borderColor: "var(--ptec-border)", color: "var(--ptec-text-body)" }}
                 >
                   {term}
-                </button>
+                </Link>
               ))}
             </div>
           )}
@@ -1525,14 +1617,21 @@ export default function SearchPageClient({ departments, languages, categories }:
             ))}
           </div>
 
+          {/* A link to the next page, so a reader without JavaScript can
+              follow it (9.3); with JavaScript the click is taken over and
+              the page APPENDS in place, without a navigation. */}
           {hasMore && (
             <div className="mt-6 flex justify-center">
-              <button
-                type="button"
-                onClick={() => setPage((p) => p + 1)}
-                disabled={loadingMore}
+              <Link
+                href={nextPageHref()}
+                prefetch={false}
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (!loadingMore) setPage((p) => p + 1);
+                }}
+                aria-disabled={loadingMore || undefined}
                 aria-busy={loadingMore}
-                className="rounded-xl border px-6 py-2.5 text-[13px] font-semibold transition-all cursor-pointer hover:opacity-80 disabled:cursor-wait disabled:opacity-60"
+                className="rounded-xl border px-6 py-2.5 text-[13px] font-semibold transition-all cursor-pointer hover:opacity-80 aria-disabled:cursor-wait aria-disabled:opacity-60"
                 style={{
                   background: "var(--ptec-bg-surface)",
                   borderColor: "var(--ptec-border)",
@@ -1540,7 +1639,7 @@ export default function SearchPageClient({ departments, languages, categories }:
                 }}
               >
                 {t("loadMore")}
-              </button>
+              </Link>
             </div>
           )}
 
@@ -1656,10 +1755,10 @@ export default function SearchPageClient({ departments, languages, categories }:
               </p>
               <div className="flex flex-wrap gap-2 justify-center">
                 {(popularSearches.length > 0 ? popularSearches : SUGGESTIONS).map((s) => (
-                  <button
+                  <Link
                     key={s}
-                    type="button"
-                    onClick={() => router.push(`/search?q=${encodeURIComponent(s)}`)}
+                    href={`/search?q=${encodeURIComponent(s)}`}
+                    prefetch={false}
                     className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full text-[12.5px] font-medium transition-all duration-150 cursor-pointer active:scale-95"
                     style={{
                       background: "color-mix(in srgb, var(--ptec-brand) 7%, transparent)",
@@ -1675,7 +1774,7 @@ export default function SearchPageClient({ departments, languages, categories }:
                   >
                     <Icon name="search" className="text-[10px] opacity-60" />
                     {s}
-                  </button>
+                  </Link>
                 ))}
               </div>
             </div>

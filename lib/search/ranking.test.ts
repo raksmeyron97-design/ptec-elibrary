@@ -303,10 +303,13 @@ describe("compareBySort — total order", () => {
 
 describe("the route delegates to this module", () => {
   it("defines no scorer, sorter or normalizer of its own", () => {
-    const src = readFileSync(join(process.cwd(), "app/api/search/native/route.ts"), "utf8");
-    for (const banned of ["function searchScore(", "function compareBySort(", "function normalize(", "function tokenize(", "function parseSort("]) {
-      expect(src, banned).not.toContain(banned);
+    // The route is a thin HTTP face since 9.3; the candidates are built in the core.
+    for (const file of ["app/api/search/native/route.ts", "lib/search/native-search.ts"]) {
+      const src = readFileSync(join(process.cwd(), file), "utf8");
+      for (const banned of ["function searchScore(", "function compareBySort(", "function normalize(", "function tokenize(", "function parseSort("]) {
+        expect(src, `${file}: ${banned}`).not.toContain(banned);
+      }
     }
-    expect(src).toContain('from "@/lib/search/ranking"');
+    expect(readFileSync(join(process.cwd(), "lib/search/native-search.ts"), "utf8")).toContain('from "@/lib/search/ranking"');
   });
 });

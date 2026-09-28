@@ -69,6 +69,20 @@ const SERVER_PERSONALISED = [
  */
 const SERVER_PERSONALISED_EXACT = new Set(["/journals"]);
 
+/**
+ * Routes that read request HEADERS on the server — and nothing about the
+ * viewer. /search renders the first page of results for the query in its own
+ * address (Phase 9.3, docs/UNIFIED-DISCOVERY.md), so it is per-request by its
+ * URL and was never going to be shared-cached with results in it. It reads
+ * headers() for two things that say nothing about who is asking: the client
+ * address its rate limit meters, and Sec-Fetch-Dest (a document load or the
+ * router's fetch). Every other read stays forbidden — an answer to a query is
+ * the same for everyone, and a session read here would make it personal.
+ */
+const SERVER_METERED: Record<string, readonly string[]> = {
+  "/search": ["headers()"],
+};
+
 const AUTH_READS = [
   ["cookies()", /\bcookies\s*\(\s*\)/],
   ["headers()", /\bheaders\s*\(\s*\)/],
@@ -100,7 +114,9 @@ describe("public cache safety", () => {
     "%s reads no per-request auth state",
     (rel) => {
       const src = code(path.join(ROOT, rel));
+      const allowed = SERVER_METERED[routeOf(path.join(ROOT, rel))] ?? [];
       for (const [name, re] of AUTH_READS) {
+        if (allowed.includes(name)) continue;
         expect(
           re.test(src),
           `${rel} uses ${name}. This page is prerendered and shared-cached: its ` +
@@ -113,6 +129,16 @@ describe("public cache safety", () => {
       }
     },
   );
+
+  // A metered route is exempt from ONE read because it is dynamic by its own
+  // address anyway. If it ever stopped reading searchParams, the headers()
+  // read would be the only thing keeping it off the CDN — the exemption would
+  // then be costing a prerender, which is exactly what it may not do.
+  it.each(Object.keys(SERVER_METERED))("%s is dynamic by its own URL, not by the headers it reads", (route) => {
+    const src = code(path.join(PUBLIC_TREE, route, "page.tsx"));
+    expect(src).toMatch(/searchParams/);
+    expect(src).toMatch(/\bheaders\s*\(\s*\)/);
+  });
 
   // The other half of the same invariant: the pages that DO read the viewer
   // server-side must stay out of the shared cache.
