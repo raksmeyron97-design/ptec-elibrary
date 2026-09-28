@@ -5,6 +5,7 @@ import withNextIntl from 'next-intl/plugin';
 import { isIndexableEnvironment, NOINDEX_HEADER_VALUE } from "./lib/seo/indexing";
 import { subjectSlugRedirectRules } from "./lib/seo/subject-slug-redirects";
 import { legacyPublicationRedirectRules } from "./lib/journals/urls";
+import { KOHA_OPAC_PUBLIC_HOST, kohaOpacRedirectRules, kohaOpacRewriteRules } from "./lib/koha/opac-proxy";
 
 const withNextIntlPlugin = withNextIntl('./i18n/request.ts');
 
@@ -211,7 +212,7 @@ const nextConfig: NextConfig = {
   // in lib/journals/urls.ts — one 301 hop from every locale form, including
   // /en/…, straight to the final URL.
   async redirects() {
-    return [...subjectSlugRedirectRules(), ...legacyPublicationRedirectRules()];
+    return [...subjectSlugRedirectRules(), ...legacyPublicationRedirectRules(), ...kohaOpacRedirectRules()];
   },
   async rewrites() {
     const supabaseDestination = `${process.env.SUPABASE_INTERNAL_URL || "http://kong:8000"}/:path*`;
@@ -266,48 +267,11 @@ const nextConfig: NextConfig = {
           ],
           destination: supabaseDestination,
         },
-        // Reverse-proxy koha.ptec.edu.kh to the Koha OPAC container
-        // (Cloudflare for SaaS → Tunnel catch-all, same path as Supabase above)
-        {
-          source: "/:path*",
-          has: [
-            {
-              type: "host",
-              value: "koha.ptec.edu.kh",
-            },
-          ],
-          destination: kohaDestination,
-        },
-        {
-          source: "/:path*",
-          has: [
-            {
-              type: "host",
-              value: "koha.ptec.edu.kh:13000",
-            },
-          ],
-          destination: kohaDestination,
-        },
-        {
-          source: "/:path*",
-          has: [
-            {
-              type: "host",
-              value: "koha.ptec.edu.kh:3000",
-            },
-          ],
-          destination: kohaDestination,
-        },
-        {
-          source: "/:path*",
-          has: [
-            {
-              type: "host",
-              value: "koha.storage-ptec.online",
-            },
-          ],
-          destination: kohaDestination,
-        },
+        // Reverse-proxy the public Koha OPAC name to the OPAC container
+        // (Cloudflare for SaaS → Tunnel catch-all, same path as Supabase above).
+        // Its retired second name is a redirect, in redirects() — see
+        // lib/koha/opac-proxy.ts for why it is not proxied.
+        ...kohaOpacRewriteRules(kohaDestination),
       ],
     };
   },
@@ -322,7 +286,7 @@ const nextConfig: NextConfig = {
           },
           {
             type: "host",
-            value: "koha.ptec.edu.kh",
+            value: KOHA_OPAC_PUBLIC_HOST,
           },
         ],
         headers: securityHeaders,
