@@ -195,6 +195,18 @@ export function computeCopyStats(copies: CopyStatusRow[] | null | undefined): Co
 }
 
 /**
+ * May a reader be offered "Place a hold" on this title (Koha Phase 10.2)?
+ * Only when NO copy is on the shelf — a copy on the shelf is borrowed at the
+ * desk (PTEC's rule, 2026-09-29) — and at least one copy is somewhere it will
+ * come back from: on loan, on another reader's hold shelf, or being
+ * processed. A title whose only copies are reference-only or lost would take a
+ * hold that is never filled. A hint for the page: Koha decides at the press.
+ */
+export function titleMayBeHeld(stats: CopyStats): boolean {
+  return stats.available === 0 && stats.onLoan + stats.reserved + stats.processing > 0;
+}
+
+/**
  * Reader-level summary for a whole record. Priority: something borrowable →
  * in-library use → on loan/reserved → processing → unavailable. `no_copies`
  * means the record has no (non-withdrawn) copy rows at all.

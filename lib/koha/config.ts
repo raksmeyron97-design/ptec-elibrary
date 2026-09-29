@@ -55,6 +55,15 @@ export interface KohaConfig {
    * Koha API user at PTEC_API_LEVEL=renewals (docs/KOHA-READER-SERVICES.md).
    */
   readerRenewals: boolean;
+  /**
+   * KOHA_READER_HOLDS=on (Phase 10.2): readers place holds from the Physical
+   * Library and cancel them from the dashboard, through the plugin. Needs
+   * PTEC_API_LEVEL=holds — and is inert until CATALOG_AVAILABILITY_LIVE is on
+   * (approved 2026-09-29: until the desk has re-issued the PMB loans, Koha
+   * does not know which copies are really out). That second gate is applied
+   * where the switch is read (patron-server.ts), since it is not Koha's config.
+   */
+  readerHolds: boolean;
   /** Blocking: with any of these the client refuses to call Koha. */
   problems: string[];
   /** Advisory: the integration works, but someone should look. */
@@ -137,10 +146,13 @@ export function resolveKohaConfig(env: EnvSource): KohaConfig {
   const writeItems = ["on", "true", "1", "yes"].includes(env.KOHA_WRITE_ITEMS?.trim().toLowerCase() ?? "");
   const readPatrons = ["on", "true", "1", "yes"].includes(env.KOHA_READ_PATRONS?.trim().toLowerCase() ?? "");
   const readerRenewals = ["on", "true", "1", "yes"].includes(env.KOHA_READER_RENEWALS?.trim().toLowerCase() ?? "");
+  const readerHolds = ["on", "true", "1", "yes"].includes(env.KOHA_READER_HOLDS?.trim().toLowerCase() ?? "");
   if (readPatrons && m === "off") warnings.push("KOHA_READ_PATRONS=on does nothing while KOHA_INTEGRATION is off.");
   if (writeItems && m !== "write" && m !== "mock") warnings.push(`KOHA_WRITE_ITEMS=on does nothing unless KOHA_INTEGRATION=write (it is ${m}).`);
   if (readerRenewals && m !== "write" && m !== "mock") warnings.push(`KOHA_READER_RENEWALS=on does nothing unless KOHA_INTEGRATION=write (it is ${m}).`);
   if (readerRenewals && !readPatrons) warnings.push("KOHA_READER_RENEWALS=on does nothing without KOHA_READ_PATRONS=on: a reader must see their loans to renew one.");
+  if (readerHolds && m !== "write" && m !== "mock") warnings.push(`KOHA_READER_HOLDS=on does nothing unless KOHA_INTEGRATION=write (it is ${m}).`);
+  if (readerHolds && !readPatrons) warnings.push("KOHA_READER_HOLDS=on does nothing without KOHA_READ_PATRONS=on: a reader must see their holds to cancel one.");
 
   let staffUrl: string | null = null;
   if (env.KOHA_STAFF_URL?.trim()) {
@@ -161,6 +173,7 @@ export function resolveKohaConfig(env: EnvSource): KohaConfig {
     writeItems,
     readPatrons,
     readerRenewals,
+    readerHolds,
     problems,
     warnings,
   };
@@ -197,6 +210,15 @@ export function kohaCanWriteItems(cfg: KohaConfig): boolean {
  */
 export function kohaCanRenewForReaders(cfg: KohaConfig): boolean {
   return (cfg.mode === "write" || cfg.mode === "mock") && cfg.problems.length === 0 && cfg.readPatrons && cfg.readerRenewals;
+}
+
+/**
+ * May readers place and cancel their own holds (Phase 10.2)? The renewal
+ * conditions, with KOHA_READER_HOLDS=on instead. The caller must ALSO require
+ * CATALOG_AVAILABILITY_LIVE — see readerHolds above.
+ */
+export function kohaCanHoldForReaders(cfg: KohaConfig): boolean {
+  return (cfg.mode === "write" || cfg.mode === "mock") && cfg.problems.length === 0 && cfg.readPatrons && cfg.readerHolds;
 }
 
 /** Links into Koha's staff interface for one record, or null without KOHA_STAFF_URL. */

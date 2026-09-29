@@ -94,6 +94,15 @@ export function createMockKoha(
      * lost), "not_applied" before. What a timeout looks like from outside.
      */
     renewalFault?: "applied" | "not_applied";
+    /**
+     * Phase 10.2: what the plugin decides for a hold on each record, by biblio
+     * id — "out" places one (no copy on the shelf), "on_shelf" refuses with
+     * copy_on_shelf, any other string is refused with that code. A record not
+     * named is Koha's biblio_not_found.
+     */
+    holdable?: Record<number, string>;
+    /** A place or cancel answered 502 — "applied" after Koha did it, "not_applied" before. */
+    holdFault?: "applied" | "not_applied";
     /** Patrons, their loans and holds, as Koha's API returns them (Phase 7/8). */
     patrons?: Record<string, unknown>[];
     checkouts?: Record<string, unknown>[];
@@ -113,6 +122,12 @@ export function createMockKoha(
     "home_library_id", "holding_library_id", "withdrawn", "lost_status", "damaged_status", "not_for_loan_status", "restricted_status"]);
   let issued = 0;
   const live = new Set<string>();
+  // Holds are shared by the patron read and the plugin's routes, so a hold
+  // placed or cancelled here is what the next read returns. Mock-only field
+  // on a hold: `cancellation_requestable` (default true) — the rule that lets
+  // a reader ask to cancel a WAITING hold.
+  const holds: Record<string, unknown>[] = opts.holds ?? [];
+  let nextHold = 9000;
 
   const fetch: FetchLike = async (input, init) => {
     const url = new URL(input);
@@ -164,7 +179,58 @@ export function createMockKoha(
           .map((c) => (embedItem ? { ...c, item: items.get(c.item_id as number) ?? c.item ?? null } : c));
         return json(200, mine);
       }
-      return json(200, (opts.holds ?? []).filter((h) => h.patron_id === pid));
+      // cancellation_requested is an embed: Koha sends it only when asked.
+      const embedCancel = (headers["x-koha-embed"] ?? "").split(",").includes("cancellation_requested");
+      return json(200, holds.filter((h) => h.patron_id === pid).map((h) => {
+        const out: Record<string, unknown> = { ...h };
+        delete out.cancellation_requestable; // mock-only: the rule, not a field Koha sends
+        if (embedCancel) out.cancellation_requested = h.cancellation_requested === true;
+        else delete out.cancellation_requested;
+        return out;
+      }));
+    }
+
+    // ── Phase 10.2: the plugin's hold routes, as its Controller.pm answers ──
+    const holdRoute = /^\/api\/v1\/contrib\/ptec\/patrons\/(\d+)\/holds(?:\/(\d+))?$/.exec(url.pathname);
+    if (holdRoute && ((method === "POST" && !holdRoute[2]) || (method === "DELETE" && holdRoute[2]))) {
+      if (!opts.readerServices) return json(404, { error: "Not found." });
+      if (opts.readerServices === "forbidden") {
+        return json(403, { error: "Authorization failure. Missing required permission(s).", required_permissions: { reserveforothers: "alter_hold_targets" } });
+      }
+      const pid = Number(holdRoute[1]);
+      if (!(opts.patrons ?? []).some((p) => p.patron_id === pid)) return json(404, { error: "Refused: patron_not_found", error_code: "patron_not_found" });
+      if (opts.holdFault === "not_applied") return json(502, { error: "Bad gateway" });
+
+      if (method === "POST") {
+        const body = JSON.parse(String(init?.body ?? "{}")) as { biblio_id?: unknown };
+        const bid = Number(body.biblio_id);
+        const verdict = opts.holdable?.[bid];
+        if (!verdict) return json(404, { error: "Refused: biblio_not_found", error_code: "biblio_not_found" });
+        const code = verdict === "out" ? null : verdict === "on_shelf" ? "copy_on_shelf" : verdict;
+        if (code) return json(403, { error: `Refused: ${code}`, error_code: code });
+        const priority = holds.filter((h) => h.biblio_id === bid && !h.status).length + 1;
+        const hold = { hold_id: ++nextHold, patron_id: pid, biblio_id: bid, item_id: null, status: null, suspended: false, priority, hold_date: "2026-09-29", pickup_library_id: "PTEC" };
+        holds.push(hold);
+        if (opts.holdFault === "applied") return json(502, { error: "Bad gateway" });
+        return json(201, { hold_id: hold.hold_id, biblio_id: bid, priority, pickup_library_id: "PTEC" });
+      }
+
+      const hid = Number(holdRoute[2]);
+      const at = holds.findIndex((h) => h.hold_id === hid && h.patron_id === pid);
+      if (at < 0) return json(404, { error: "Refused: hold_not_found", error_code: "hold_not_found" });
+      const hold = holds[at];
+      if (!hold.status) {
+        holds.splice(at, 1);
+        if (opts.holdFault === "applied") return json(502, { error: "Bad gateway" });
+        return json(200, { hold_id: hid, outcome: "cancelled" });
+      }
+      if (hold.status === "W") {
+        if (hold.cancellation_requestable === false) return json(403, { error: "Refused: waiting_cancel_not_allowed", error_code: "waiting_cancel_not_allowed" });
+        hold.cancellation_requested = true;
+        if (opts.holdFault === "applied") return json(502, { error: "Bad gateway" });
+        return json(202, { hold_id: hid, outcome: "cancellation_requested" });
+      }
+      return json(403, { error: "Refused: not_cancellable_online", error_code: "not_cancellable_online" });
     }
 
     // ── Phase 10: the PTEC Reader Services plugin, as its Controller.pm answers ──

@@ -36,6 +36,7 @@ import {
   type RangePreset,
   type DenialReason,
   type TimelineBucket,
+  type CirculationAction,
   resolveRange,
   tabForEvent,
   pickTimelineBucket,
@@ -44,6 +45,12 @@ import {
   BUCKET_MS,
   RESOURCE_TYPES,
 } from "./activity-log-shared";
+
+/** A circulation row's action (Koha Phase 10). Unknown or missing reads as null, never as a guess. */
+function circulationActionOf(action: unknown, outcome: unknown): CirculationAction | null {
+  if (action === "hold_cancel") return outcome === "cancellation_requested" ? "hold_cancel_request" : "hold_cancel";
+  return action === "renew" || action === "hold_place" ? action : null;
+}
 
 /** Hard cap per source table so a runaway range can never load unbounded rows. */
 const SOURCE_CAP = 5000;
@@ -177,7 +184,7 @@ export async function queryActivity(filters: ActivityFilters): Promise<ActivityR
     // activity_events may not exist yet (0094 pending) — never let it throw.
     db
       .from("activity_events")
-      .select("id, event_type, event_status, resource_type, resource_id, user_id, permission_source, permission_reason, rank_at_event, institution_type_snapshot, role_snapshot, purpose_snapshot, locale, occurred_at, user:profiles(email, full_name, avatar_url)")
+      .select("id, event_type, event_status, resource_type, resource_id, user_id, permission_source, permission_reason, rank_at_event, institution_type_snapshot, role_snapshot, purpose_snapshot, locale, occurred_at, circulation_action:metadata->>action, circulation_outcome:metadata->>outcome, user:profiles(email, full_name, avatar_url)")
       .gte("occurred_at", start)
       .lte("occurred_at", end)
       .order("occurred_at", { ascending: false })
@@ -264,6 +271,7 @@ export async function queryActivity(filters: ActivityFilters): Promise<ActivityR
       permissionSource: r.permission_source ?? null,
       denialReason: (r.permission_reason ?? null) as DenialReason | null,
       locale: r.locale ?? null,
+      ...(r.event_type === "circulation" ? { circulationAction: circulationActionOf(r.circulation_action, r.circulation_outcome) } : {}),
     }));
   }
 

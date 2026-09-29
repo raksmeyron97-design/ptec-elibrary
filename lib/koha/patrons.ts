@@ -97,6 +97,8 @@ export interface HoldView {
   /** While waiting: the last day it is kept for pickup. */
   expirationDate: string | null;
   pickupLibraryId: string | null;
+  /** A cancellation request is waiting for the desk (x-koha-embed: cancellation_requested; Phase 10.2). */
+  cancellationRequested: boolean;
 }
 
 const isCheckoutList = (v: unknown): v is Record<string, unknown>[] =>
@@ -136,6 +138,7 @@ export function projectHold(h: Record<string, unknown>): HoldView {
     waitingDate: str(h.waiting_date),
     expirationDate: str(h.expiration_date),
     pickupLibraryId: str(h.pickup_library_id),
+    cancellationRequested: h.cancellation_requested === true,
   };
 }
 
@@ -151,7 +154,7 @@ export async function readLoans(koha: KohaClient, patronId: number, now = new Da
 
 /** A reader's current holds: waiting for pickup first, then in transit, then the queue. */
 export async function readHolds(koha: KohaClient, patronId: number, signal?: AbortSignal): Promise<HoldView[]> {
-  const r = await koha.get(kohaPath("/patrons/{id}/holds", { id: patronId }), isHoldList, { query: { _per_page: 200 }, signal });
+  const r = await koha.get(kohaPath("/patrons/{id}/holds", { id: patronId }), isHoldList, { query: { _per_page: 200 }, embed: ["cancellation_requested"], signal });
   const order: Record<HoldState, number> = { waiting: 0, in_transit: 1, processing: 2, pending: 3 };
   return r.data.map(projectHold).sort((a, b) => order[a.state] - order[b.state] || (a.priority ?? 999) - (b.priority ?? 999));
 }

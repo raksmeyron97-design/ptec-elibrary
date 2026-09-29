@@ -47,19 +47,27 @@ describe("Koha integration boundary", () => {
     }
   });
 
-  it("the client writes records, their items and a reader's own renewal only, never DELETE or PATCH, and retries nothing but GET", () => {
+  it("the client writes records, their items and a reader's own renewals and holds only, DELETE for the hold route alone, never PATCH, and retries nothing but GET", () => {
     const src = code("lib/koha/client.ts");
-    expect(src).not.toMatch(/"(DELETE|PATCH)"/);
-    expect(src).toMatch(/type KohaWriteMethod = "POST" \| "PUT";/);
+    expect(src).not.toMatch(/"PATCH"/);
+    expect(src).toMatch(/type KohaWriteMethod = "POST" \| "PUT" \| "DELETE";/);
     const routes = src.slice(src.indexOf("const WRITE_ROUTES"), src.indexOf("];", src.indexOf("const WRITE_ROUTES")));
-    expect(routes.match(/\{ method: "/g)).toHaveLength(5);
+    expect(routes.match(/\{ method: "/g)).toHaveLength(7);
     for (const p of ["\\/biblios$", "\\/biblios\\/[1-9]\\d*$", "\\/biblios\\/[1-9]\\d*\\/items$", "\\/biblios\\/[1-9]\\d*\\/items\\/[1-9]\\d*$",
-      // Phase 10.1: the PTEC Reader Services plugin's renewal — never Koha's own
-      // /checkouts routes, whose permission also checks out and edits lending rules.
-      "\\/contrib\\/ptec\\/patrons\\/[1-9]\\d*\\/checkouts\\/[1-9]\\d*\\/renewal$"]) {
+      // Phase 10.1/10.2: the PTEC Reader Services plugin's routes — never Koha's
+      // own /checkouts or /holds, whose permissions also check out, edit lending
+      // rules, and list and cancel every patron's holds.
+      "\\/contrib\\/ptec\\/patrons\\/[1-9]\\d*\\/checkouts\\/[1-9]\\d*\\/renewal$",
+      "\\/contrib\\/ptec\\/patrons\\/[1-9]\\d*\\/holds$",
+      "\\/contrib\\/ptec\\/patrons\\/[1-9]\\d*\\/holds\\/[1-9]\\d*$"]) {
       expect(routes).toContain(p);
     }
     expect(routes).not.toMatch(/path: \/\^\\\/(checkouts|circulation_rules|holds|patrons)/);
+    // DELETE reaches exactly one route: cancelling the reader's own hold, through the plugin.
+    const deletes = routes.split("\n").filter((l) => l.includes('method: "DELETE"'));
+    expect(deletes).toHaveLength(1);
+    expect(deletes[0]).toContain("\\/contrib\\/ptec\\/patrons\\/[1-9]\\d*\\/holds\\/[1-9]\\d*$");
+    expect(src.match(/"DELETE"/g)).toHaveLength(2); // the type and that route
     // write() sends once: the retry loop lives in get() alone.
     const write = src.slice(src.indexOf("async write<T>("));
     expect(write).not.toMatch(/RETRY_DELAYS_MS|sleep\(/);

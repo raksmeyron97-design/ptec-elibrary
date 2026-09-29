@@ -90,7 +90,15 @@ export interface ActivityEvent {
   denialReason: DenialReason | null;
   locale: string | null;
   occurredAt: string; // ISO timestamp
+  /** Circulation rows only (Koha Phase 10): what the reader did — metadata.action. */
+  circulationAction?: CirculationAction | null;
 }
+
+/**
+ * What a reader did at the library through the e-Library: metadata.action,
+ * with a cancel that became a request for the desk told apart (metadata.outcome).
+ */
+export type CirculationAction = "renew" | "hold_place" | "hold_cancel" | "hold_cancel_request";
 
 // ── Tab classification ───────────────────────────────────────────────────────
 
