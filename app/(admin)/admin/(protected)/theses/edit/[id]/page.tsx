@@ -14,6 +14,7 @@ import { BTN_SECONDARY } from "@/components/admin/kit/form";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { evaluateQuality } from "@/lib/metadata-quality";
 import { requireRouteAccess } from "@/lib/admin/route-guard";
+import { sanitizeContents } from "@/lib/theses/contents";
 
 export default async function EditThesisPage({ params }: { params: Promise<{ id: string }> }) {
   await requireRouteAccess("theses.edit");
@@ -91,6 +92,12 @@ export default async function EditThesisPage({ params }: { params: Promise<{ id:
     seoTitle: report.seo_title ?? null,
     seoDescription: report.seo_description ?? null,
     ogImage: report.og_image ?? null,
+    // 0160. Absent before the migration (the row is `select *`), which reads
+    // as "none recorded" — and the form then leaves the columns out of its
+    // save, so editing still works on a database the migration has not reached.
+    titleKm: report.title_km ?? null,
+    abstractKm: report.abstract_km ?? null,
+    tableOfContents: sanitizeContents(report.table_of_contents) ?? [],
   };
 
   const t = await getTranslations("adminThesisForm");

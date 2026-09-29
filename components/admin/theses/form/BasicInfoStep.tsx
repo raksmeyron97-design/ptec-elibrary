@@ -23,8 +23,11 @@ import { checkThesisSlugAvailable } from "@/app/actions/theses";
  * The split also makes the required marks legible: everything required lives in
  * Identity plus Type/Language, and nothing in Identity is a dropdown.
  */
+const KHMER_RE = /[ក-៿]/u;
+
 export default function BasicInfoStep({
   title, onTitleChange,
+  titleKm, onTitleKmChange,
   slug, onSlugChange,
   thesisId,
   doi, onDoiChange,
@@ -37,6 +40,7 @@ export default function BasicInfoStep({
   submitAttempted,
 }: {
   title: string; onTitleChange: (v: string) => void;
+  titleKm: string; onTitleKmChange: (v: string) => void;
   slug: string; onSlugChange: (v: string) => void;
   thesisId?: string;
   doi: string; onDoiChange: (v: string) => void;
@@ -76,6 +80,27 @@ export default function BasicInfoStep({
               onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
               disabled={disabled}
               placeholder={tr("titlePlaceholder")}
+            />
+          )}
+        </Field>
+
+        {/* The Khmer title (0160), directly under the title it translates.
+            Mirrors publications' "Title (KH)": lang="km" so the input renders
+            in the Khmer face, and a note when the text has no Khmer in it —
+            the commonest mistake is pasting the English title twice. */}
+        <Field
+          label={tr("titleKm")}
+          hint={titleKm.trim() && !KHMER_RE.test(titleKm) ? tr("titleKmNotKhmer") : tr("titleKmHint")}
+        >
+          {(p) => (
+            <input
+              {...p}
+              lang="km"
+              value={titleKm}
+              onChange={(e) => onTitleKmChange(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
+              disabled={disabled}
+              placeholder={tr("titleKmPlaceholder")}
             />
           )}
         </Field>

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Sparkles, Undo2, Info } from "lucide-react";
 import TagInput from "@/components/ui/core/TagInput";
+import { Field, TEXTAREA_CLASS } from "@/components/admin/kit/form";
 
 const KHMER_RE = /[ក-៿]/;
 
@@ -23,10 +24,12 @@ function cleanAbstractText(value: string): string {
 
 export default function AbstractKeywordsStep({
   abstract, onAbstractChange,
+  abstractKm, onAbstractKmChange,
   keywords, onKeywordsChange,
   disabled,
 }: {
   abstract: string; onAbstractChange: (v: string) => void;
+  abstractKm: string; onAbstractKmChange: (v: string) => void;
   keywords: string[]; onKeywordsChange: (v: string[]) => void;
   disabled?: boolean;
 }) {
@@ -98,6 +101,27 @@ export default function AbstractKeywordsStep({
           <p>{t("recommendedHint")}</p>
         </div>
       </div>
+
+      {/* The Khmer abstract (0160). Readers switch between the two on the
+          thesis page, so this is a translation of the abstract above, not a
+          second summary. */}
+      <Field
+        label={t("abstractKmLabel")}
+        hint={abstractKm.trim() && !KHMER_RE.test(abstractKm) ? t("abstractKmNotKhmer") : t("abstractKmHint")}
+      >
+        {(p) => (
+          <textarea
+            {...p}
+            lang="km"
+            value={abstractKm}
+            onChange={(e) => onAbstractKmChange(e.target.value)}
+            disabled={disabled}
+            rows={6}
+            className={`${TEXTAREA_CLASS} leading-[1.9]`}
+            placeholder={t("abstractKmPlaceholder")}
+          />
+        )}
+      </Field>
 
       <div>
         <label className="mb-1.5 block text-sm font-semibold text-text-body">{t("keywordsLabel")}</label>

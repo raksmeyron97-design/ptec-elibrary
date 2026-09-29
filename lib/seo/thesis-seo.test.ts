@@ -132,6 +132,21 @@ describe("thesisJsonLd", () => {
   });
 });
 
+describe("thesisJsonLd — the parallel title (0160)", () => {
+  it("publishes the Khmer title as alternativeHeadline", () => {
+    const schema = thesisJsonLd({ slug: "x", title: "Play-Based Learning", alternativeTitle: "ការរៀនតាមរយៈការលេង" }, "en");
+    expect(schema.headline).toBe("Play-Based Learning");
+    expect(schema.alternativeHeadline).toBe("ការរៀនតាមរយៈការលេង");
+  });
+
+  it("omits it when absent, blank, or only a repeat of the title", () => {
+    for (const alternativeTitle of [undefined, null, "  ", "Play-Based Learning"]) {
+      const schema = thesisJsonLd({ slug: "x", title: "Play-Based Learning", alternativeTitle }, "en");
+      expect(schema.alternativeHeadline).toBeUndefined();
+    }
+  });
+});
+
 describe("thesesCollectionJsonLd", () => {
   it("uses locale-correct schema + item URLs and absolute positions", () => {
     const schema = thesesCollectionJsonLd({

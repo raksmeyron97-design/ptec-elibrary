@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createElement } from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup as cleanupRender, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 
 import enMessages from "@/messages/en.json";
@@ -174,3 +174,34 @@ describe("ThesisAbstractReader fullscreen reader", () => {
     expect(dialog.querySelectorAll("main article p")).toHaveLength(2);
   });
 });
+
+describe("ThesisAbstractReader — the Khmer abstract (0160)", () => {
+  it("offers both languages, each named in its own, and switches the text", () => {
+    renderReader("en", { abstractKm: khmerAbstract });
+    const group = screen.getByRole("group", { name: "Abstract language" });
+    const english = within(group).getByRole("button", { name: "English" });
+    const khmer = within(group).getByRole("button", { name: "ខ្មែរ" });
+    expect(english).toHaveAttribute("aria-pressed", "true");
+    expect(inlineCopy()).toHaveAttribute("lang", "en");
+
+    fireEvent.click(khmer);
+    expect(khmer).toHaveAttribute("aria-pressed", "true");
+    expect(inlineCopy()).toHaveAttribute("lang", "km");
+    expect(inlineCopy().textContent).toContain("សារណានេះសិក្សា");
+  });
+
+  it("starts on the Khmer abstract for a reader on /km", () => {
+    renderReader("km", { abstractKm: khmerAbstract });
+    expect(inlineCopy()).toHaveAttribute("lang", "km");
+  });
+
+  it("offers no switch when there is no second language to switch to", () => {
+    renderReader("en");
+    expect(screen.queryByRole("group", { name: "Abstract language" })).toBeNull();
+    cleanupRender();
+    // A Khmer abstract stored in both fields is one abstract, not two.
+    renderReader("en", { abstract: khmerAbstract, abstractKm: khmerAbstract });
+    expect(screen.queryByRole("group", { name: "Abstract language" })).toBeNull();
+  });
+});
+

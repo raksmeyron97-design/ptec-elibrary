@@ -19,6 +19,7 @@ type SP = {
   academicYear?: string;
   fileStatus?: string;
   metadataQuality?: string;
+  backfill?: string;
   sort?: string;
   page?: string;
 };
@@ -43,6 +44,7 @@ export default async function AdminThesesPage({
       academicYear: sp.academicYear,
       fileStatus: sp.fileStatus,
       metadataQuality: sp.metadataQuality,
+      backfill: sp.backfill,
       sort: sp.sort,
       page,
       pageSize: PAGE_SIZE,
@@ -53,7 +55,7 @@ export default async function AdminThesesPage({
 
   const totalPages = Math.max(1, Math.ceil(thesesResult.total / PAGE_SIZE));
   const hasActiveFilters = Boolean(
-    sp.q || sp.status || sp.program || sp.cohort || sp.academicYear || sp.fileStatus || sp.metadataQuality,
+    sp.q || sp.status || sp.program || sp.cohort || sp.academicYear || sp.fileStatus || sp.metadataQuality || sp.backfill,
   );
 
   return (
@@ -72,6 +74,7 @@ export default async function AdminThesesPage({
           academicYear: sp.academicYear ?? "",
           fileStatus: sp.fileStatus ?? "",
           metadataQuality: sp.metadataQuality ?? "",
+          backfill: sp.backfill ?? "",
           sort: sp.sort ?? "newest",
         }}
         programs={filterOptions.programs}
