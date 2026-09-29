@@ -2,11 +2,12 @@ import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/admin/kit";
 import Pagination from "@/components/ui/core/Pagination";
 import ThesisStats from "@/components/admin/theses/ThesisStats";
+import BackfillCoverage from "@/components/admin/theses/BackfillCoverage";
 import ThesisToolbar from "@/components/admin/theses/ThesisToolbar";
 import ThesisFilters from "@/components/admin/theses/ThesisFilters";
 import ThesesListClient from "@/components/admin/theses/ThesesListClient";
 import ThesisErrorState from "@/components/admin/theses/states/ThesisErrorState";
-import { getTheses, getThesesSummary, getThesisFilterOptions } from "@/lib/admin/theses";
+import { getBackfillCoverage, getTheses, getThesesSummary, getThesisFilterOptions } from "@/lib/admin/theses";
 import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 const PAGE_SIZE = 20;
@@ -34,7 +35,7 @@ export default async function AdminThesesPage({
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? "1") || 1);
 
-  const [t, thesesResult, summary, filterOptions] = await Promise.all([
+  const [t, thesesResult, summary, filterOptions, coverage] = await Promise.all([
     getTranslations("adminTheses"),
     getTheses({
       q: sp.q,
@@ -51,6 +52,7 @@ export default async function AdminThesesPage({
     }),
     getThesesSummary(),
     getThesisFilterOptions(),
+    getBackfillCoverage(),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(thesesResult.total / PAGE_SIZE));
@@ -63,6 +65,8 @@ export default async function AdminThesesPage({
       <PageHeader title={t("title")} description={t("description")} className="mb-0" />
 
       <ThesisStats summary={summary} />
+
+      <BackfillCoverage coverage={coverage} />
 
       <ThesisToolbar totalItems={thesesResult.total} />
 

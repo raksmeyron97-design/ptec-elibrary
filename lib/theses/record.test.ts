@@ -76,6 +76,13 @@ describe("buildThesisRecord — one fact, one place", () => {
     }
   });
 
+  it("formats a cohort number, and never doubles a cohort that is already a label", () => {
+    expect(buildThesisRecord(input({}, { cohort: "12" })).institution.cohort).toBe("cohortNumber(number=12)");
+    expect(buildThesisRecord(input({}, { cohort: "១២" })).institution.cohort).toBe("cohortNumber(number=១២)");
+    expect(buildThesisRecord(input({}, { cohort: "Cohort 2023" })).institution.cohort).toBe("Cohort 2023");
+    expect(buildThesisRecord(input({}, { cohort: null })).institution.cohort).toBeNull();
+  });
+
   it("drops the department when it is only the faculty under another name", () => {
     expect(r.facts.some((f) => f.id === "department")).toBe(false);
     const other = buildThesisRecord(input({}, { departments: { name: "Mathematics" } }));
