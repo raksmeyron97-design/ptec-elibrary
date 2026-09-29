@@ -1,8 +1,8 @@
 # Unified discovery (Koha Phase 9)
 
-**Status (2026-09-28): Stages 9.0 (#265), 9.1 (#266), its budget
-calibration (#267) and 9.2 (#268, the unified UI) are live in production;
-9.3 (the server-rendered first page) is built.** Design agreed with PTEC on 2026-09-28; stages 9.0 → 9.1
+**Status (2026-09-29): all four stages are live in production and measured
+there — 9.0 (#265), 9.1 (#266) with its budget calibration (#267), 9.2
+(#268, the unified UI) and 9.3 (#270, the server-rendered first page).** Design agreed with PTEC on 2026-09-28; stages 9.0 → 9.1
 → 9.2 → 9.3, one pull request each.
 
 One search surface for everything the library holds: e-books, theses, journal
@@ -357,3 +357,50 @@ is slow or never arrives still gets them.
 | App bundle blocked (21 files) | 20 results; the Physical library link, Load more (`?page=2`) and the search form all work; 0 API calls |
 | e2e | `unified-discovery.spec.ts` + `search-facets.spec.ts`, 22/22 on desktop and phone; the two new server-render tests each fail when their behaviour is removed |
 
+### Measured on production (2026-09-29, after deploy)
+
+One request at a time, bot user agent (nothing entered the query log), no
+audit workflow running.
+
+**Document loads** of `/search?q=…` (32 queries, every fourth of the
+benchmark set — Khmer, mixed-language, physical and full-text included): 32/32
+answered 200 and every one carried its answer in the HTML (31 with result
+cards; the 32nd, "Sophisticated Poll Watcher", matches only text inside a PDF,
+and its "found inside" hit is a link, not a card).
+
+| | p50 | p95 |
+|---|---|---|
+| Time to first byte | 164 ms | 675 ms |
+| Heading in the stream | 189 ms | 819 ms |
+| **First result card in the stream** | **526 ms** | 1,469 ms |
+| Whole document | 532 ms | 1,471 ms |
+| (for scale) `/search` with no query, TTFB | 168 ms | 404 ms |
+
+The server-rendered page is 84 KB on the wire against 69 KB for the same page
+without results (+14 KB, about 70 ms on slow 4G).
+
+**On a throttled phone** (Pixel 5, 4× CPU, 150 ms RTT, 1.6 Mbps, cold cache;
+four queries × two rounds, one page at a time), same deploy, server render ON
+against SKIPPED — the pre-9.3 path, in which the page arrives without results,
+the app loads, and then fetches them:
+
+| Median of 8 | Server render | Skipped (pre-9.3 path) |
+|---|---|---|
+| **Results visible** | **3.9 s** | 6.5 s |
+| Calls to `/api/search/native` | 0 | 8 (one per load) |
+
+Faster in all 8 pairs, by 2.1–6.1 s. Chromium will not let a page's own
+request carry an overridden `Sec-Fetch-Dest` (a first attempt measured the
+server render twice), so the document was fetched outside the browser in both
+modes and handed over after a modelled slow-4G transfer of its compressed
+size. That buffering costs the server render its streaming head start, so the
+figure is conservative: the real streamed page, measured unmodelled on the same
+profile, showed results at a median **3.1 s** with first paint at 2.1 s. The
+model's first-paint numbers are not quoted here for the same reason — buffering
+delays the server render's first paint and not the smaller skipped page's.
+
+**Nothing else moved.** The API benchmark after deploy, against 9.2's
+production run: every recall metric identical (All R@1 91%, physical 96%,
+digital 88%), wall p50 597 → 526 ms and p95 1,375 → 1,183 ms, server p50 /
+p95 324 / 624 ms. Results:
+`scripts/search-benchmark/results/production-phase9-9.3-live-2026-09-29.json`.

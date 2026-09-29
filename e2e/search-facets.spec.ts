@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { searchFromTheField } from './utils/search';
+import { searchField, searchFromTheField } from './utils/search';
 
 // Faceted search on /search: checking a facet narrows results, updates counts,
 // writes the URL (shareable), survives refresh, and the back button undoes it.
@@ -97,7 +97,7 @@ test.describe('Search facets', () => {
     // pinned is that the address still carries the query and the filter.
     await page.reload();
     await expect(page).toHaveURL(/lang=Khmer/);
-    await expect(page.locator('input[name="q"]')).toHaveValue('education');
+    await expect(searchField(page)).toHaveValue('education');
 
     // Back button undoes the filter.
     await page.goBack();

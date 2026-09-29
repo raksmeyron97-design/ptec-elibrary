@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { searchFromTheField } from './utils/search';
+import { searchField, searchFromTheField } from './utils/search';
 
 // Phase 9.2 — one search over the digital and the physical library
 // (docs/UNIFIED-DISCOVERY.md). /api/search/native is mocked so the test pins
@@ -173,7 +173,7 @@ test.describe('Unified discovery — the first page is server-rendered', () => {
     await expect(scopeLink(page, /Physical library/)).toHaveAttribute('aria-current', 'true');
 
     // The field is a GET form, and it keeps the scope.
-    const field = page.locator('input[name="q"]');
+    const field = searchField(page);
     await field.fill('teaching');
     await field.press('Enter');
     await expect(page).toHaveURL(/[?&]q=teaching/);
