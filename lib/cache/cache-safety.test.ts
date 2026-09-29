@@ -56,7 +56,9 @@ const SERVER_PERSONALISED = [
   // entry from exempting them by prefix.
   "/journals",
   "/journals/articles/[slug]",
-  "/theses/[slug]",
+  // /theses/[slug] left this list in the record redesign: its access panel
+  // and staff Edit link read /api/theses/[id]/download-status in the
+  // browser, so the page is the same for every visitor.
   "/posts/[slug]",
   "/paths/[slug]",
 ];

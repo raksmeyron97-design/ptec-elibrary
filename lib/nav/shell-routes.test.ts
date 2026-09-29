@@ -121,7 +121,8 @@ describe("assistantFabHidden", () => {
 
 describe("assistantFabHiddenOnPhone", () => {
   // Pages whose phone dock carries the assistant, so the FAB would otherwise
-  // be a second floating control in the same corner.
+  // be a second floating control in the same corner. A thesis record docks
+  // "Ask about this thesis"; the theses summary listing does not.
   it.each([
     ["/books/x", true],
     ["/km/books/x/", true],
@@ -134,7 +135,10 @@ describe("assistantFabHiddenOnPhone", () => {
     ["/journals/articles", false],
     ["/journals/cambodian-journal-of-teacher-education", false],
     ["/journals/cambodian-journal-of-teacher-education/issues/vol-7-issue-2", false],
-    ["/theses/y", false],
+    ["/theses/y", true],
+    ["/km/theses/y", true],
+    ["/theses", false],
+    ["/theses/summary", false],
   ])("%s → %s", (pathname, hidden) => {
     expect(assistantFabHiddenOnPhone(pathname)).toBe(hidden);
   });

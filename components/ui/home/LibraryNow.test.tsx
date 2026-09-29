@@ -8,7 +8,7 @@ import LibraryNow from "./LibraryNow";
 
 // LibraryNow renders <Link> from the locale-aware navigation wrapper, which
 // needs app-router/routing context this test doesn't set up — swap in a
-// plain anchor, same pattern as ThesisAbstractReader.test.tsx.
+// plain anchor, same pattern as components/ui/theses/record/AbstractBlock.test.tsx.
 vi.mock("@/i18n/navigation", () => ({
   Link: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) =>
     createElement("a", { href, ...rest }, children),

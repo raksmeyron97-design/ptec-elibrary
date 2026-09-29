@@ -5,7 +5,7 @@ import { NextIntlClientProvider } from "next-intl";
 
 import enMessages from "@/messages/en.json";
 import kmMessages from "@/messages/km.json";
-import ThesisAbstractReader from "./ThesisAbstractReader";
+import AbstractBlock from "./AbstractBlock";
 import { READER_TEXT_SIZE_STORAGE_KEY } from "@/components/ui/reader/useReaderPreferences";
 
 // KeywordList links via next-intl navigation; render a plain anchor in tests.
@@ -46,15 +46,14 @@ afterEach(() => {
 
 function renderReader(
   locale: "en" | "km" = "en",
-  props: Partial<Parameters<typeof ThesisAbstractReader>[0]> = {},
+  props: Partial<Parameters<typeof AbstractBlock>[0]> = {},
 ) {
   const messages = locale === "km" ? kmMessages : enMessages;
   return render(
     <NextIntlClientProvider locale={locale} messages={messages}>
-      <ThesisAbstractReader
+      <AbstractBlock
         abstract={englishAbstract}
         keywords={["Pedagogy", "Assessment"]}
-        basePath="/theses"
         title="A Study of Teacher Education"
         locale={locale}
         {...props}
@@ -71,7 +70,7 @@ function inlineCopy(): HTMLElement {
   return copy;
 }
 
-describe("ThesisAbstractReader inline controls", () => {
+describe("AbstractBlock inline controls", () => {
   it("renders localized touch-sized controls and scales only the abstract", () => {
     renderReader();
 
@@ -125,21 +124,20 @@ describe("ThesisAbstractReader inline controls", () => {
 
     rerender(
       <NextIntlClientProvider locale="km" messages={kmMessages}>
-        <ThesisAbstractReader
+        <AbstractBlock
           abstract={khmerAbstract}
           keywords={[]}
-          basePath="/theses"
           title="ការសិក្សា"
           locale="km"
         />
       </NextIntlClientProvider>,
     );
     expect(inlineCopy()).toHaveAttribute("lang", "km");
-    expect(inlineCopy()).toHaveClass("font-khmer-serif");
+    expect(inlineCopy()).toHaveClass("font-kh");
   });
 });
 
-describe("ThesisAbstractReader fullscreen reader", () => {
+describe("AbstractBlock fullscreen reader", () => {
   it("opens a labelled dialog, traps focus, and restores focus on Escape", async () => {
     renderReader();
     const trigger = screen.getByRole("button", { name: "Open abstract reader" });
@@ -175,7 +173,7 @@ describe("ThesisAbstractReader fullscreen reader", () => {
   });
 });
 
-describe("ThesisAbstractReader — the Khmer abstract (0160)", () => {
+describe("AbstractBlock — the Khmer abstract (0160)", () => {
   it("offers both languages, each named in its own, and switches the text", () => {
     renderReader("en", { abstractKm: khmerAbstract });
     const group = screen.getByRole("group", { name: "Abstract language" });
