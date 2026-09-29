@@ -36,11 +36,9 @@ const ACCESS: Record<Exclude<ThesisAccessState, "unavailable">, ThesisAccess> = 
 
 function withIntl(node: React.ReactNode, locale: "en" | "km" = "en") {
   return render(
-    createElement(NextIntlClientProvider, {
-      locale,
-      messages: locale === "km" ? kmMessages : enMessages,
-      children: node,
-    }),
+    <NextIntlClientProvider locale={locale} messages={locale === "km" ? kmMessages : enMessages}>
+      {node}
+    </NextIntlClientProvider>,
   );
 }
 
