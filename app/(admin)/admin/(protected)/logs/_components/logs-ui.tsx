@@ -91,6 +91,10 @@ export function actionKey(e: Pick<ActivityEvent, "eventType" | "eventStatus">): 
     return "downloaded";
   }
   if (e.eventType === "view") return "viewed";
+  if (e.eventType === "circulation") {
+    if (e.eventStatus === "success") return "renewed";
+    return e.eventStatus === "denied" ? "renewalRefused" : "renewalFailed";
+  }
   if (e.eventType === "admin") return "admin";
   if (e.eventType === "security") return "security";
   return "account";

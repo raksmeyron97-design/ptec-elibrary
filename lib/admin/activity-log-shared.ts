@@ -29,8 +29,13 @@ export const RESOURCE_TYPES: ResourceType[] = [
   "system",
 ];
 
-/** Coarse event family used for tabs + summary cards. */
-export type EventType = "view" | "download" | "account" | "admin" | "security";
+/**
+ * Coarse event family used for tabs + summary cards. `circulation` is a
+ * reader acting on their own library loans from the e-Library (Koha Phase
+ * 10, docs/KOHA-READER-SERVICES.md) — shown under Account: it is the reader's
+ * own account activity, not a download or an admin act.
+ */
+export type EventType = "view" | "download" | "account" | "admin" | "security" | "circulation";
 
 /**
  * Precise download lifecycle status. A "successful download" for metrics is

@@ -18,12 +18,16 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getKohaClient, getKohaConfig } from "./index";
-import { kohaCanReadPatrons } from "./config";
+import { kohaCanReadPatrons, kohaCanRenewForReaders } from "./config";
 import { findPatronByCard, readHolds, readLoans, type HoldView, type LoanView, type PatronSummary } from "./patrons";
-import type { MyLibrary } from "@/lib/dashboard/library-loans";
+import { renewabilityForLoans } from "./renewals";
+import type { MyLibrary, RenewalView } from "@/lib/dashboard/library-loans";
 
 /** Card lookup, links and My Library loans are on: KOHA_READ_PATRONS=on with a working integration. */
 export const kohaReadsPatrons = () => kohaCanReadPatrons(getKohaConfig());
+
+/** Readers may renew their own loans online (Phase 10.1): KOHA_READER_RENEWALS=on as well. */
+export const kohaRenewsForReaders = () => kohaCanRenewForReaders(getKohaConfig());
 
 /** The whole budget of one interactive Koha read, retries included. */
 export const PATRON_READ_BUDGET_MS = 10_000;
@@ -35,24 +39,53 @@ export type { MyHold, MyLibrary, MyLoan } from "@/lib/dashboard/library-loans";
 
 const TTL_MS = 60_000;
 const MAX_ENTRIES = 5_000;
-const cache = new Map<number, { at: number; loans: LoanView[]; holds: HoldView[] }>();
+type Entry = { at: number; loans: LoanView[]; holds: HoldView[]; renewability: Map<number, RenewalView | null> | null };
+// One cache per PROCESS, not per module instance. A route handler and a
+// server action can each load their own copy of this module (measured on
+// the dev server, 2026-09-29: a renewal's forgetPatron() cleared the action's
+// copy, and the loans route kept serving the pre-renewal due date for up to a
+// minute). Every copy shares globalThis, so a forget reaches every reader.
+const shared = globalThis as typeof globalThis & { __ptecKohaPatronCache?: Map<number, Entry> };
+const cache = (shared.__ptecKohaPatronCache ??= new Map<number, Entry>());
 
-async function koha(patronId: number): Promise<{ at: number; loans: LoanView[]; holds: HoldView[] }> {
+async function koha(patronId: number): Promise<Entry> {
   const hit = cache.get(patronId);
   if (hit && Date.now() - hit.at < TTL_MS) return hit;
   const client = getKohaClient();
   const budget = AbortSignal.timeout(PATRON_READ_BUDGET_MS);
   const [loans, holds] = await Promise.all([readLoans(client, patronId, new Date(), budget), readHolds(client, patronId, budget)]);
-  const entry = { at: Date.now(), loans, holds };
+  // Whether each loan can be renewed online, asked only while renewals are on.
+  // Its own budget: the verdicts are extra, and a slow answer costs a verdict
+  // (the loan shows without one), never the loans.
+  const renewability = kohaRenewsForReaders() && loans.length
+    ? await renewabilityForLoans(client, patronId, loans.map((l) => l.checkoutId), AbortSignal.timeout(PATRON_READ_BUDGET_MS))
+    : null;
+  const entry: Entry = { at: Date.now(), loans, holds, renewability };
   if (cache.size >= MAX_ENTRIES) cache.delete(cache.keys().next().value as number);
   cache.set(patronId, entry);
   return entry;
 }
 
-/** Forget a patron's cached loans — after a link or unlink, so the next view is fresh. */
+/** Forget a patron's cached loans — after a link or unlink, or a renewal, so the next view is fresh. */
 export function forgetPatron(patronId: number): void {
   cache.delete(patronId);
 }
+
+/**
+ * The Koha patron linked to this reader. `null` = no link; "unavailable" =
+ * we could not tell (no table before 0159 counts as no link).
+ */
+export async function linkedPatron(profileId: string): Promise<{ patronId: number; cardHint: string } | null | "unavailable"> {
+  const db = createServiceClient();
+  const { data: link, error } = await db
+    .from("koha_patron_links").select("koha_patron_id, card_hint").eq("profile_id", profileId).maybeSingle();
+  if (error) return error.code === "42P01" || /koha_patron_links/.test(error.message ?? "") ? null : "unavailable";
+  return link ? { patronId: link.koha_patron_id, cardHint: link.card_hint } : null;
+}
+
+/** A reader's loans read NOW, past the cache — what a renewal is checked against. */
+export const freshLoans = (patronId: number): Promise<LoanView[]> =>
+  readLoans(getKohaClient(), patronId, new Date(), AbortSignal.timeout(PATRON_READ_BUDGET_MS));
 
 export async function myLibrary(profileId: string): Promise<MyLibrary> {
   if (!kohaReadsPatrons()) return { state: "off" };
@@ -96,10 +129,14 @@ export async function myLibrary(profileId: string): Promise<MyLibrary> {
     state: "ok",
     cardHint: link.card_hint,
     asOf: new Date(data.at).toISOString(),
+    renewalsOnline: kohaRenewsForReaders(),
     loans: data.loans.map((l) => {
       const bookId = bookIdByItem.get(l.itemId);
       const b = (bookId ? books.get(bookId) : undefined) ?? (l.biblioId !== null ? bookByBiblio.get(l.biblioId) : undefined);
-      return { id: l.checkoutId, ...show(b), barcode: l.barcode, checkoutDate: l.checkoutDate, dueDate: l.dueDate, renewals: l.renewals, overdue: l.overdue };
+      return {
+        id: l.checkoutId, ...show(b), barcode: l.barcode, checkoutDate: l.checkoutDate, dueDate: l.dueDate, renewals: l.renewals, overdue: l.overdue,
+        ...(data.renewability ? { renewal: data.renewability.get(l.checkoutId) ?? null } : {}),
+      };
     }),
     holds: data.holds.map((h) => ({
       id: h.holdId,

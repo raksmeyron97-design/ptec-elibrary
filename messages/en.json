@@ -1531,7 +1531,29 @@
     "holdPending": "In the queue",
     "holdQueue": "Position {n} in the queue",
     "holdSuspended": "Paused",
-    "loansDeskNote": "Renewals and returns happen at the library desk."
+    "loansDeskNote": "Renewals and returns happen at the library desk.",
+    "loansDeskNoteReturns": "Returns happen at the library desk.",
+    "renewButton": "Renew",
+    "renewing": "Renewing…",
+    "renewAria": "Renew {title}",
+    "renewedTo": "Renewed — now due {date}",
+    "renewCount": "Renewed {n} of {max}",
+    "renewTooMany": "Renewal limit reached.",
+    "renewOnReserve": "Someone is waiting for this book, so it can't be renewed.",
+    "renewTooSoon": "Too early to renew — you can renew from {date}.",
+    "renewTooSoonNoDate": "It's too early to renew this.",
+    "renewOverdue": "Overdue loans are renewed at the library desk.",
+    "renewFines": "Please settle your fines at the library desk to renew.",
+    "renewRestricted": "Your card has a restriction — please ask at the library desk.",
+    "renewCardExpired": "Your library card has expired — please renew it at the library desk.",
+    "renewDisabled": "Online renewals are switched off — please ask at the library desk.",
+    "renewNotAllowed": "This loan can't be renewed online.",
+    "renewRefused": "The library's rules don't allow renewing this online — please ask at the library desk.",
+    "renewUnconfirmed": "We couldn't confirm the renewal. Check again in a minute before trying again.",
+    "renewCheckAgain": "Check again",
+    "renewGone": "This loan is no longer on your card.",
+    "renewUnavailable": "Renewals can't be done right now — try again later.",
+    "renewRateLimited": "Too many renewals in a short time — try again later."
   },
   "metrics": {
     "views": "{count, plural, one {# view} other {# views}}",
@@ -3722,7 +3744,10 @@
       "failed": "Failed",
       "account": "Account activity",
       "admin": "Admin action",
-      "security": "Security event"
+      "security": "Security event",
+      "renewed": "Loan renewed",
+      "renewalRefused": "Renewal refused",
+      "renewalFailed": "Renewal failed"
     },
     "headline": {
       "download_authorized": "Download authorized",
@@ -3732,7 +3757,8 @@
       "view": "Resource viewed",
       "account": "Account activity",
       "admin": "Administrative action",
-      "security": "Security event"
+      "security": "Security event",
+      "circulation": "Library loan activity"
     },
     "resource": {
       "book": "Book",

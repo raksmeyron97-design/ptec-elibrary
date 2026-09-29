@@ -153,7 +153,7 @@ test checks every settable status against every combination of flags.
 
 | Settable | On loan / reserved / in repair |
 |---|---|
-| available, reference only, processing, damaged, lost, missing, withdrawn | decided by Koha's circulation: shown, not offered. A copy **on loan keeps its status** (its call number and shelf can still change); returns and renewals happen at Koha's desk |
+| available, reference only, processing, damaged, lost, missing, withdrawn | decided by Koha's circulation: shown, not offered. A copy **on loan keeps its status** (its call number and shelf can still change); returns happen at Koha's desk, and renewals there or online (Phase 10.1) |
 
 **A batch can partly succeed.** Koha has no batch endpoint, so a generated
 sequence is created one copy at a time. The copies Koha accepted are saved;

@@ -83,20 +83,26 @@ export interface KohaWriteOptions {
  */
 export const KOHA_WRITE_TIMEOUT_MS = 30_000;
 
-/** The only writes: create or replace a record; create or update one of its items. */
+/**
+ * The only writes: create or replace a record; create or update one of its
+ * items; and renew a reader's own loan through the PTEC Reader Services plugin
+ * (Phase 10.1) — never Koha's own renewal route, whose permission also checks
+ * books out and rewrites the lending rules (docs/KOHA-READER-SERVICES.md).
+ */
 export type KohaWriteMethod = "POST" | "PUT";
-type WriteBody = "application/marc-in-json" | "application/json";
+type WriteBody = "application/marc-in-json" | "application/json" | "none";
 const WRITE_ROUTES: { method: KohaWriteMethod; path: RegExp; body: WriteBody }[] = [
   { method: "POST", path: /^\/biblios$/, body: "application/marc-in-json" },
   { method: "PUT", path: /^\/biblios\/[1-9]\d*$/, body: "application/marc-in-json" },
   { method: "POST", path: /^\/biblios\/[1-9]\d*\/items$/, body: "application/json" },
   { method: "PUT", path: /^\/biblios\/[1-9]\d*\/items\/[1-9]\d*$/, body: "application/json" },
+  { method: "POST", path: /^\/contrib\/ptec\/patrons\/[1-9]\d*\/checkouts\/[1-9]\d*\/renewal$/, body: "none" },
 ];
 
 export interface KohaClient {
   readonly mode: KohaMode;
   get<T>(path: string, validate: Validate<T>, opts?: KohaGetOptions): Promise<KohaResponse<T>>;
-  /** Send a MARC-in-JSON record. Refused unless the mode allows writes; never retried. */
+  /** Send one write on the allow-list (WRITE_ROUTES). Refused unless the mode allows writes; never retried. */
   write<T>(method: KohaWriteMethod, path: string, record: unknown, validate: Validate<T>, opts?: KohaWriteOptions): Promise<KohaResponse<T>>;
 }
 
@@ -193,7 +199,7 @@ export function createKohaClient(cfg: KohaConfig, deps: KohaClientDeps = {}): Ko
     if (extra.embed) headers["x-koha-embed"] = extra.embed;
     if (cfg.libraryId) headers["x-koha-library"] = cfg.libraryId;
     if (extra.method) {
-      headers["Content-Type"] = extra.contentType ?? "application/marc-in-json";
+      if (extra.contentType !== "none") headers["Content-Type"] = extra.contentType ?? "application/marc-in-json";
       if (extra.confirmNotDuplicate) headers["x-confirm-not-duplicate"] = "1";
     }
     try {
@@ -270,14 +276,14 @@ export function createKohaClient(cfg: KohaConfig, deps: KohaClientDeps = {}): Ko
       assertSafePath(path);
       const route = WRITE_ROUTES.find((r) => r.method === method && r.path.test(path));
       if (!route) {
-        throw new KohaError("invalid_request", `Refused to send ${method} ${path}: the e-Library writes only records and their items.`);
+        throw new KohaError("invalid_request", `Refused to send ${method} ${path}: the e-Library writes only records, their items, and a reader's own renewal.`);
       }
       const timeoutMs = opts.timeoutMs !== undefined && Number.isFinite(opts.timeoutMs) && opts.timeoutMs > 0
         ? Math.min(opts.timeoutMs, KOHA_MAX_TIMEOUT_MS)
         : KOHA_WRITE_TIMEOUT_MS;
       const extra: SendExtra = {
         accept: "application/json", embed: null, timeoutMs, method, contentType: route.body,
-        body: JSON.stringify(record), confirmNotDuplicate: opts.confirmNotDuplicate === true,
+        body: route.body === "none" ? undefined : JSON.stringify(record), confirmNotDuplicate: opts.confirmNotDuplicate === true,
       };
       // ONE attempt. A timeout or a dropped connection is reported as such, and
       // the caller must treat the outcome as unknown — never send it again blind.
