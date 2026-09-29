@@ -47,6 +47,38 @@ export const SORT_OPTIONS = [
 export type ThesisSort = (typeof SORT_OPTIONS)[number];
 
 export const FILE_STATUS_OPTIONS = ["has_pdf", "missing_pdf", "has_cover", "missing_cover"] as const;
+
+/**
+ * The bilingual/contents backfill queue (0160). Sorted by most viewed, `any`
+ * is the librarians' worklist: the most-read theses still missing a Khmer
+ * title or abstract, or their table of contents.
+ */
+export const BACKFILL_OPTIONS = ["any", "khmer", "contents"] as const;
+export type BackfillFilter = (typeof BACKFILL_OPTIONS)[number];
+
+/** Theses whose title and abstract are not already Khmer: English, bilingual,
+ *  or not yet labelled. A Khmer-language thesis's `title` IS its Khmer title,
+ *  so it is never "missing" one. */
+const KHMER_CANDIDATE = "language.is.null,language.in.(en,km_en)";
+const KHMER_MISSING = "title_km.is.null,abstract_km.is.null";
+
+/**
+ * Narrow a PostgREST query to one backfill queue. Pure: it only calls the
+ * builder's own filter methods, so it is tested against a recording fake.
+ * Two `.or()` calls AND together (PostgREST repeats the param). An unknown
+ * value filters nothing — a stale bookmark must not empty the list.
+ */
+export function applyBackfillFilter<Q extends { or(filters: string): Q; is(column: string, value: null): Q }>(
+  query: Q,
+  backfill: string | undefined,
+): Q {
+  if (backfill === "khmer") return query.or(KHMER_CANDIDATE).or(KHMER_MISSING);
+  if (backfill === "contents") return query.is("table_of_contents", null);
+  if (backfill === "any") {
+    return query.or(`table_of_contents.is.null,and(or(${KHMER_CANDIDATE}),or(${KHMER_MISSING}))`);
+  }
+  return query;
+}
 export type FileStatusFilter = (typeof FILE_STATUS_OPTIONS)[number];
 
 export const METADATA_QUALITY_OPTIONS = ["complete", "good", "needs_review", "incomplete"] as const;
@@ -171,6 +203,7 @@ export type ThesesQueryParams = {
   academicYear?: string;
   fileStatus?: string;
   metadataQuality?: string;
+  backfill?: string;
   sort?: string;
   page: number;
   pageSize: number;

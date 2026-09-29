@@ -36,6 +36,8 @@ import CiteThis from "@/components/ui/theses/CiteThis";
 import BackToTopButton from "@/components/ui/detail/BackToTopButton";
 import ThesisAbstractReader from "@/components/ui/theses/ThesisAbstractReader";
 import AuthorCard from "@/components/ui/theses/detail/AuthorCard";
+import ThesisContents from "@/components/ui/theses/detail/ThesisContents";
+import { sanitizeContents } from "@/lib/theses/contents";
 import { getTranslations } from "next-intl/server";
 import JsonLd from "@/components/seo/JsonLd";
 import ResourceConnections from "@/components/seo/ResourceConnections";
@@ -347,9 +349,16 @@ export default async function ThesisDetailPage({ params }: PageProps) {
   // it. A section that has no content for this thesis is not listed, so the
   // index never points at an empty heading.
   const hasReferences = references.length > 0;
+  // The librarian-confirmed contents (0160). Re-shaped on the way out as on
+  // the way in: the column is jsonb, and a hand-edited row must not be able
+  // to break the page. Absent before the migration, which reads as none.
+  const contents = sanitizeContents(report.table_of_contents) ?? [];
   const sections: RecordSection[] = [
     { id: "abstract", label: tDetail("sectionAbstract") },
     ...(keywords.length > 0 ? [{ id: "keywords", label: tDetail("sectionKeywords") }] : []),
+    ...(contents.length > 0
+      ? [{ id: "contents", label: tDetail("sectionContents"), meta: String(contents.length) }]
+      : []),
     { id: "full-text", label: tDetail("sectionFullText") },
     { id: "publication-details", label: tDetail("sectionPublication") },
     { id: "references", label: tDetail("sectionReferences"), meta: String(references.length) },
@@ -362,6 +371,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
     {
       slug: canonicalSlug,
       title: report.title,
+      alternativeTitle: report.title_km ?? null,
       abstract: report.abstract,
       authors: canonicalAuthors.length > 0 ? canonicalAuthors : splitAuthors(displayReport.author_names),
       contributors: contributorRead.contributors,
@@ -487,12 +497,25 @@ export default async function ThesisDetailPage({ params }: PageProps) {
               <section id="abstract" className="scroll-mt-28 p-5 sm:p-7">
                 <ThesisAbstractReader
                   abstract={report.abstract || ""}
+                  abstractKm={report.abstract_km ?? null}
                   keywords={keywords}
                   basePath="/theses"
                   title={report.title}
                   locale={locale}
                 />
               </section>
+
+              {contents.length > 0 && (
+                <section id="contents" className="scroll-mt-28 p-5 sm:p-7">
+                  <h2 className="text-[20px] font-bold tracking-[-0.01em] text-text-heading sm:text-[22px]">
+                    {tDetail("sectionContents")}
+                    <span className="ml-2 text-[15px] font-medium tabular-nums text-text-muted">
+                      ({contents.length})
+                    </span>
+                  </h2>
+                  <ThesisContents entries={contents} />
+                </section>
+              )}
 
               <section id="full-text" className="scroll-mt-28 p-5 sm:p-7">
                 <h2 className="text-[20px] font-bold tracking-[-0.01em] text-text-heading sm:text-[22px]">

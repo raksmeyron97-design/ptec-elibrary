@@ -60,6 +60,8 @@ export default function ThesisHero({
   secondaryActions: React.ReactNode;
 }) {
   const t = useTranslations("thesisDetail");
+  const rawTitleKm = typeof report.title_km === "string" ? report.title_km.trim() : "";
+  const titleKm = rawTitleKm && rawTitleKm !== String(report.title ?? "").trim() ? rawTitleKm : null;
   return (
     <header className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-12">
       <div className="flex min-w-0 flex-col">
@@ -79,6 +81,20 @@ export default function ThesisHero({
         <h1 className="order-2 mt-5 max-w-[24ch] text-balance font-khmer-serif text-[clamp(28px,3.2vw,48px)] font-bold leading-[1.22] tracking-[-0.01em] text-text-heading">
           {report.title}
         </h1>
+
+        {/* The parallel title (0160 `title_km`), as a thesis's own title page
+            prints it: the second language directly under the first, quieter.
+            A paragraph, not a second heading — the record has one title. It
+            carries lang="km" so it is spoken and set as Khmer on either
+            locale, and it is omitted when it merely repeats the title. */}
+        {titleKm && (
+          <p
+            lang="km"
+            className="order-2 mt-2 max-w-[40ch] text-balance font-kh text-[clamp(18px,1.9vw,24px)] leading-[1.6] text-text-body"
+          >
+            {titleKm}
+          </p>
+        )}
 
         {lead && (
           <p className="order-3 mt-4 max-w-[62ch] text-[15px] leading-[1.65] text-text-body sm:text-[16px]">

@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getTopThesisRanks, TOP_N_PROTECTED } from "@/lib/theses/download-permission";
 import { scoreMetadataQuality } from "@/lib/admin/thesis-metadata-quality";
 import {
+  applyBackfillFilter,
   normalizeStatus,
   type ThesisListRow,
   type ThesesQueryParams,
@@ -96,6 +97,8 @@ async function applyFilters(supabase: ServiceClient, base: any, params: ThesesQu
   if (params.fileStatus === "missing_pdf") query = query.is("file_url", null);
   if (params.fileStatus === "has_cover") query = query.not("cover_url", "is", null);
   if (params.fileStatus === "missing_cover") query = query.is("cover_url", null);
+
+  query = applyBackfillFilter(query, params.backfill);
 
   const term = sanitizeSearchTerm(params.q ?? "");
   if (term) {

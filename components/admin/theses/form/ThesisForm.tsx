@@ -25,6 +25,8 @@ import ReferencesStep from "./ReferencesStep";
 import FilesStep, { type PendingSupplementaryFile } from "./FilesStep";
 import ReviewPublishStep from "./ReviewPublishStep";
 import ThesisPreview from "./ThesisPreview";
+import ContentsEditor from "./ContentsEditor";
+import { sanitizeContents, type ContentsEntry } from "@/lib/theses/contents";
 import type { CascadeValues } from "@/app/(admin)/admin/(protected)/theses/_components/ProgramCohortFields";
 
 type Phase = "idle" | "uploading" | "saving";
@@ -62,6 +64,10 @@ export type ThesisInitial = {
   seoTitle: string | null;
   seoDescription: string | null;
   ogImage: string | null;
+  /** 0160 — the Khmer title and abstract, and the printed table of contents. */
+  titleKm: string | null;
+  abstractKm: string | null;
+  tableOfContents: ContentsEntry[];
 };
 
 const NEW_THESIS_DRAFT_KEY_STORAGE = "thesis-draft-key:new";
@@ -125,6 +131,7 @@ export default function ThesisForm({
 
   // ── Basic Info ──────────────────────────────────────────────────────────
   const [title, setTitle] = useState(initial?.title ?? "");
+  const [titleKm, setTitleKm] = useState(initial?.titleKm ?? "");
   const [slug, setSlug] = useState(initial?.slug ?? "");
   const [doi, setDoi] = useState(initial?.doi ?? "");
   const [thesisType, setThesisType] = useState<ThesisType>((initial?.thesisType as ThesisType) ?? "thesis");
@@ -161,7 +168,9 @@ export default function ThesisForm({
 
   // ── Abstract & Keywords ──────────────────────────────────────────────────
   const [abstract, setAbstract] = useState(initial?.abstract ?? "");
+  const [abstractKm, setAbstractKm] = useState(initial?.abstractKm ?? "");
   const [keywords, setKeywords] = useState<string[]>(initial?.keywords ?? []);
+  const [contents, setContents] = useState<ContentsEntry[]>(initial?.tableOfContents ?? []);
 
   // ── References ───────────────────────────────────────────────────────────
   const [references, setReferences] = useState<string[]>(() => {
@@ -279,7 +288,7 @@ export default function ThesisForm({
     basic: Boolean(title.trim()),
     classification: Boolean(programFields.program && programFields.cohort && programFields.academicYear),
     people: Boolean(authorNamesJoined.trim()),
-    abstract: Boolean(abstract.trim()) || keywords.length > 0,
+    abstract: Boolean(abstract.trim()) || keywords.length > 0 || Boolean(abstractKm.trim()) || contents.length > 0,
     references: referencesJoined.trim().length > 0,
     files: Boolean(effectiveFileUrl),
     review: false,
@@ -387,7 +396,7 @@ export default function ThesisForm({
     payloadRef.current = {
       title, slug, doi, thesisType, language, license, programFields, authors, advisorName, coAdvisorName,
       publishedAt, defenseDate, submittedDate, abstract, keywords, references, coverAltText,
-      status, scheduledAt, seoTitle, seoDescription, ogImage,
+      status, scheduledAt, seoTitle, seoDescription, ogImage, titleKm, abstractKm, contents,
     };
   });
 
@@ -421,7 +430,7 @@ export default function ThesisForm({
     debounceTimerRef.current = setTimeout(() => performSave(), 2000);
     return () => { if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, slug, doi, thesisType, language, license, programFields, authors, advisorName, coAdvisorName, publishedAt, defenseDate, submittedDate, abstract, keywords, references, coverAltText, status, scheduledAt, seoTitle, seoDescription, ogImage, draftTargetKey]);
+  }, [title, slug, doi, thesisType, language, license, programFields, authors, advisorName, coAdvisorName, publishedAt, defenseDate, submittedDate, abstract, keywords, references, coverAltText, status, scheduledAt, seoTitle, seoDescription, ogImage, titleKm, abstractKm, contents, draftTargetKey]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -464,6 +473,11 @@ export default function ThesisForm({
     if (typeof p.seoTitle === "string") setSeoTitle(p.seoTitle);
     if (typeof p.seoDescription === "string") setSeoDescription(p.seoDescription);
     if (typeof p.ogImage === "string") setOgImage(p.ogImage);
+    if (typeof p.titleKm === "string") setTitleKm(p.titleKm);
+    if (typeof p.abstractKm === "string") setAbstractKm(p.abstractKm);
+    // A draft saved by an older build has no contents; one saved by this build
+    // is re-shaped like anything else the form is about to send.
+    if (Array.isArray(p.contents)) setContents(sanitizeContents(p.contents) ?? []);
     setAvailableDraft(null);
   }
   function discardDraft() {
@@ -625,6 +639,17 @@ export default function ThesisForm({
         seo_title: seoTitle.trim() || null,
         seo_description: seoDescription.trim() || null,
         og_image: ogImage.trim() || null,
+        // 0160's columns are sent only when there is something to say about
+        // them — a value typed now, or one the record already had (so that
+        // clearing it is saved too). An untouched record's save therefore
+        // never names them, and keeps working against a database the
+        // migration has not reached yet; a value typed there fails loudly
+        // rather than being dropped.
+        ...(titleKm.trim() || initial?.titleKm ? { title_km: titleKm.trim() || null } : {}),
+        ...(abstractKm.trim() || initial?.abstractKm ? { abstract_km: abstractKm.trim() || null } : {}),
+        ...(contents.length > 0 || (initial?.tableOfContents.length ?? 0) > 0
+          ? { table_of_contents: sanitizeContents(contents) }
+          : {}),
       };
 
       if (draftTarget) discardThesisDraft(draftTarget).catch(() => {});
@@ -768,6 +793,7 @@ export default function ThesisForm({
           {activeStep === "basic" && (
             <BasicInfoStep
               title={title} onTitleChange={setTitle}
+              titleKm={titleKm} onTitleKmChange={setTitleKm}
               slug={slug} onSlugChange={setSlug}
               thesisId={initial?.id}
               doi={doi} onDoiChange={setDoi}
@@ -802,7 +828,23 @@ export default function ThesisForm({
             />
           )}
           {activeStep === "abstract" && (
-            <AbstractKeywordsStep abstract={abstract} onAbstractChange={setAbstract} keywords={keywords} onKeywordsChange={setKeywords} disabled={busy} />
+            <div className="space-y-8">
+              <AbstractKeywordsStep
+                abstract={abstract} onAbstractChange={setAbstract}
+                abstractKm={abstractKm} onAbstractKmChange={setAbstractKm}
+                keywords={keywords} onKeywordsChange={setKeywords}
+                disabled={busy}
+              />
+              <ContentsEditor
+                entries={contents}
+                onChange={setContents}
+                thesisId={initial?.id}
+                // The draft reads what the indexer extracted from the SAVED
+                // PDF; a PDF staged in this session has not been indexed yet.
+                canDraft={Boolean(isEdit && initial?.fileUrl && !pdfFile)}
+                disabled={busy}
+              />
+            </div>
           )}
           {activeStep === "references" && (
             <ReferencesStep references={references} onReferencesChange={setReferences} disabled={busy} />

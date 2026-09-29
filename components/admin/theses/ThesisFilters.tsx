@@ -12,6 +12,7 @@ import {
   SORT_OPTIONS,
   FILE_STATUS_OPTIONS,
   METADATA_QUALITY_OPTIONS,
+  BACKFILL_OPTIONS,
   type ThesisProgramOption,
   type ThesisTextOption,
 } from "@/lib/admin/theses-shared";
@@ -33,6 +34,7 @@ export type ThesisFiltersValue = {
   academicYear: string;
   fileStatus: string;
   metadataQuality: string;
+  backfill: string;
   sort: string;
 };
 
@@ -56,6 +58,7 @@ export default function ThesisFilters({
   const tSort = useTranslations("adminTheses.sort");
   const tFile = useTranslations("adminTheses.fileStatus");
   const tQuality = useTranslations("adminEbooks.quality");
+  const tBackfill = useTranslations("adminTheses.backfill");
   const [moreOpen, setMoreOpen] = useState(false);
 
   const setParam = (key: string, v: string) => {
@@ -68,6 +71,7 @@ export default function ThesisFilters({
   if (value.cohort && value.cohort !== "all") chips.push({ key: "cohort", label: t("cohortChip", { label: cohorts.find((c) => c.value === value.cohort)?.label ?? value.cohort }) });
   if (value.academicYear && value.academicYear !== "all") chips.push({ key: "academicYear", label: t("yearChip", { label: value.academicYear }) });
   if (value.fileStatus && value.fileStatus !== "all") chips.push({ key: "fileStatus", label: FILE_STATUS_LABELS[value.fileStatus as keyof typeof FILE_STATUS_LABELS] ? tFile(value.fileStatus) : value.fileStatus });
+  if ((BACKFILL_OPTIONS as readonly string[]).includes(value.backfill)) chips.push({ key: "backfill", label: tBackfill(value.backfill) });
   if (value.metadataQuality && value.metadataQuality !== "all") chips.push({ key: "metadataQuality", label: t("metadataChip", { label: METADATA_TIER_LABELS[value.metadataQuality as MetadataQualityTier] ? tQuality(value.metadataQuality) : value.metadataQuality }) });
 
   return (
@@ -165,6 +169,7 @@ function MoreFiltersButton({
   const t = useTranslations("adminTheses.filters");
   const tFile = useTranslations("adminTheses.fileStatus");
   const tQuality = useTranslations("adminEbooks.quality");
+  const tBackfill = useTranslations("adminTheses.backfill");
   const headingId = "thesis-filters-heading";
   const triggerRef = useRef<HTMLButtonElement>(null);
   const firstFieldRef = useRef<HTMLButtonElement>(null);
@@ -173,6 +178,7 @@ function MoreFiltersButton({
   const [academicYear, setAcademicYear] = useState(value.academicYear);
   const [fileStatus, setFileStatus] = useState(value.fileStatus);
   const [metadataQuality, setMetadataQuality] = useState(value.metadataQuality);
+  const [backfill, setBackfill] = useState(value.backfill);
 
   useEffect(() => {
     if (!open) return;
@@ -180,6 +186,7 @@ function MoreFiltersButton({
     setAcademicYear(value.academicYear);
     setFileStatus(value.fileStatus);
     setMetadataQuality(value.metadataQuality);
+    setBackfill(value.backfill);
     document.body.style.overflow = "hidden";
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -198,7 +205,7 @@ function MoreFiltersButton({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const activeExtra = [value.cohort, value.academicYear, value.fileStatus, value.metadataQuality].some((v) => v && v !== "all");
+  const activeExtra = [value.cohort, value.academicYear, value.fileStatus, value.metadataQuality, value.backfill].some((v) => v && v !== "all");
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -208,6 +215,7 @@ function MoreFiltersButton({
       academicYear: academicYear || null,
       fileStatus: fileStatus || null,
       metadataQuality: metadataQuality || null,
+      backfill: backfill && backfill !== "all" ? backfill : null,
     }));
   }
 
@@ -308,12 +316,24 @@ function MoreFiltersButton({
                   options={[{ value: "all", label: t("anyQuality") }, ...METADATA_QUALITY_OPTIONS.map((q) => ({ value: q, label: tQuality(q) }))]}
                 />
               </label>
+
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-semibold text-text-body">{t("backfillLabel")}</span>
+                <SearchableSelect
+                  name="backfill-filter"
+                  ariaLabel={t("backfillLabel")}
+                  value={backfill || "all"}
+                  onChange={setBackfill}
+                  options={[{ value: "all", label: t("anyBackfill") }, ...BACKFILL_OPTIONS.map((b) => ({ value: b, label: tBackfill(b) }))]}
+                />
+                <span className="mt-1.5 block text-xs text-text-muted">{t("backfillHint")}</span>
+              </label>
             </div>
 
             <div className="mt-auto flex items-center gap-3 border-t border-divider pt-5">
               <button
                 type="button"
-                onClick={() => { setCohort(""); setAcademicYear(""); setFileStatus(""); setMetadataQuality(""); }}
+                onClick={() => { setCohort(""); setAcademicYear(""); setFileStatus(""); setMetadataQuality(""); setBackfill(""); }}
                 className="focus-field rounded-lg px-1 text-[13px] font-semibold text-text-muted hover:text-brand"
               >
                 {t("clearThese")}

@@ -97,6 +97,9 @@ export function thesesCollectionUrl(locale: string, page = 1): string {
 export type ThesisSeoInput = {
   slug: string;
   title: string;
+  /** The title in its other language (0160 `title_km`) — schema.org
+   *  `alternativeHeadline`. Omitted when it only repeats `title`. */
+  alternativeTitle?: string | null;
   abstract?: string | null;
   authors?: string[];
   /**
@@ -265,6 +268,10 @@ export function thesisJsonLd(
     "@type": "ScholarlyArticle",
     "@id": `${url}#thesis`,
     headline: thesis.title,
+    alternativeHeadline:
+      clean(thesis.alternativeTitle) && clean(thesis.alternativeTitle) !== clean(thesis.title)
+        ? clean(thesis.alternativeTitle)
+        : undefined,
     name: thesis.title,
     url,
     mainEntityOfPage: url,

@@ -16,6 +16,13 @@ import { canActorVerifyInPlace } from "@/lib/content-status";
 import { evaluateQuality } from "@/lib/metadata-quality";
 import { logContentView } from "@/lib/analytics/events";
 import { clientIpOrUndefined } from "@/lib/client-ip";
+import {
+  CONTENTS_SEARCH_FIRST_PAGES,
+  draftContents,
+  sanitizeContents,
+  type ContentsDraft,
+  type ContentsEntry,
+} from "@/lib/theses/contents";
 
 
 // Admin-side paths only; public tags/paths/counters are handled by the
@@ -72,7 +79,7 @@ const THESIS_FIELDS = [
   "supplementary_files", "license", "is_published", "status", "scheduled_at",
   "keywords", "doi", "published_at", "defense_date", "submitted_date",
   "references", "thesis_type", "language", "seo_title", "seo_description",
-  "og_image",
+  "og_image", "title_km", "abstract_km", "table_of_contents",
 ] as const satisfies readonly (keyof ThesisData)[];
 
 function sanitizeThesisData(formData: ThesisData, { requireCore = false } = {}): { data?: Partial<ThesisData>; error?: string } {
@@ -91,6 +98,13 @@ function sanitizeThesisData(formData: ThesisData, { requireCore = false } = {}):
     }
   }
   if (typeof data.status === "string") data.status = normalizeStatus(data.status);
+  // The Khmer fields (0160): blank is "none recorded", never an empty string
+  // the page would have to second-guess. The contents are re-shaped entry by
+  // entry — the form sends what a librarian typed, a request can send anything.
+  for (const key of ["title_km", "abstract_km"] as const) {
+    if (key in data) data[key] = typeof data[key] === "string" ? (data[key] as string).trim() || null : null;
+  }
+  if ("table_of_contents" in data) data.table_of_contents = sanitizeContents(data.table_of_contents);
   return { data: data as Partial<ThesisData> };
 }
 
@@ -161,6 +175,11 @@ export interface ThesisData {
   seo_title?: string | null;
   seo_description?: string | null;
   og_image?: string | null;
+  /** 0160. Omitted from a payload that never touched them, so a save still
+   *  works against a database the migration has not reached yet. */
+  title_km?: string | null;
+  abstract_km?: string | null;
+  table_of_contents?: ContentsEntry[] | null;
 }
 
 export interface ThesisCohort {
@@ -588,6 +607,42 @@ async function setThesisStatus(id: string, status: ThesisStatus, extra?: Record<
   await logAdminAction(admin.user.id, actionMap[status], "research_reports", id, { title: row.title, ...meta });
 
   revalidateAllTheses();
+}
+
+
+const THESIS_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Draft a thesis's table of contents from its PDF's indexed text.
+ *
+ * Reads `book_pages` (service-role only — the table is RLS-closed) for the
+ * thesis's front matter and hands it to the pure `draftContents()`. WRITES
+ * NOTHING: the draft goes back to the form, where a librarian checks it
+ * against the PDF and saving it is theirs. The guard is the edit page's own
+ * (`theses.edit` → research: write), since only an editor can use the result.
+ */
+export async function draftThesisContents(
+  id: string,
+): Promise<ContentsDraft | { ok: false; reason: "failed"; error: string }> {
+  try {
+    await requirePermission("research", "write");
+  } catch (error) {
+    return { ok: false, reason: "failed", error: errorMessage(error) };
+  }
+  if (!THESIS_ID_RE.test(id)) return { ok: false, reason: "failed", error: "Invalid thesis id" };
+
+  const { data, error } = await createServiceClient()
+    .from("book_pages")
+    .select("page_no, content")
+    .eq("record_type", "research")
+    .eq("record_id", id)
+    .lte("page_no", CONTENTS_SEARCH_FIRST_PAGES)
+    .order("page_no", { ascending: true });
+  if (error) return { ok: false, reason: "failed", error: error.message };
+
+  return draftContents(
+    (data ?? []).map((r) => ({ pageNo: r.page_no as number, content: String(r.content ?? "") })),
+  );
 }
 
 export async function archiveThesis(id: string) {

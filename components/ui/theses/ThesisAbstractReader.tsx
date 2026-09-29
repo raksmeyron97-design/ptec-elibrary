@@ -1,9 +1,14 @@
 "use client";
 
 // Thesis abstract with the shared reader controls (text zoom + distraction-free
-// fullscreen reader). Thesis abstracts are plain single-language text with no
-// inline citations, so the body is simple paragraphs — the zoom, fullscreen
-// dialog, focus management, and i18n all come from components/ui/reader/*.
+// fullscreen reader). Thesis abstracts are plain text with no inline
+// citations, so the body is simple paragraphs — the zoom, fullscreen dialog,
+// focus management, and i18n all come from components/ui/reader/*.
+//
+// A thesis may also carry its abstract in Khmer (`abstract_km`, 0160). Then a
+// two-button switch offers both, each named in its own language, and a reader
+// on /km starts on the Khmer one. The switch is offered only when the two are
+// genuinely different languages: a Khmer abstract stored twice is one abstract.
 
 import { useRef, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
@@ -48,12 +53,15 @@ function AbstractBody({ paragraphs }: { paragraphs: string[] }) {
 
 export default function ThesisAbstractReader({
   abstract,
+  abstractKm,
   keywords,
   basePath,
   title,
   locale = "en",
 }: {
   abstract: string;
+  /** The Khmer abstract, when the record has one (0160). */
+  abstractKm?: string | null;
   keywords: string[];
   basePath: string;
   title: string;
@@ -72,8 +80,14 @@ export default function ThesisAbstractReader({
     canIncrease,
   } = useReaderPreferences();
 
-  const trimmed = abstract.trim();
-  const paragraphs = toParagraphs(abstract);
+  const primary = abstract.trim();
+  const km = abstractKm?.trim() ?? "";
+  const bilingual = Boolean(km) && km !== primary && !isKhmerDominant(primary) && isKhmerDominant(km);
+  const [showKm, setShowKm] = useState(bilingual && locale === "km");
+  const current = bilingual && showKm ? km : abstract;
+
+  const trimmed = current.trim();
+  const paragraphs = toParagraphs(current);
   const words = trimmed ? trimmed.split(/\s+/).filter(Boolean).length : 0;
   const readingMinutes = words > 0 ? Math.max(1, Math.round(words / WORDS_PER_MINUTE)) : 0;
   const khmer = trimmed ? isKhmerDominant(trimmed) : false;
@@ -117,6 +131,31 @@ export default function ThesisAbstractReader({
             </p>
           )}
         </div>
+        {bilingual && (
+          <div
+            role="group"
+            aria-label={t("languageAria")}
+            className="inline-flex rounded-lg border border-divider bg-bg-surface p-0.5"
+          >
+            {([
+              [false, t("languageEn"), "en"],
+              [true, t("languageKm"), "km"],
+            ] as const).map(([isKm, label, lang]) => (
+              <button
+                key={lang}
+                type="button"
+                lang={lang}
+                aria-pressed={showKm === isKm}
+                onClick={() => setShowKm(isKm)}
+                className={`min-h-[32px] rounded-md px-3 text-[12.5px] font-semibold transition-colors duration-150 ${
+                  showKm === isKm ? "bg-brand text-brand-contrast" : "text-text-muted hover:text-text-heading"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
         <ReaderToolbar
           textSize={textSize}
           canDecrease={canDecrease}

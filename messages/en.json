@@ -14,7 +14,10 @@
     "wordCount": "{count, plural, one {# word} other {# words}}",
     "none": "No abstract provided.",
     "keywordsHeading": "Keywords",
-    "textSize": "Text size"
+    "textSize": "Text size",
+    "languageAria": "Abstract language",
+    "languageEn": "English",
+    "languageKm": "ខ្មែរ"
   },
   "reader": {
     "readOnline": "Read online",
@@ -6818,7 +6821,10 @@
       "metadataQuality": "Metadata quality",
       "anyQuality": "Any quality",
       "clearThese": "Clear these",
-      "apply": "Apply"
+      "apply": "Apply",
+      "backfillLabel": "Khmer & contents",
+      "anyBackfill": "Any",
+      "backfillHint": "Sort by Most viewed to work through the most-read theses first."
     },
     "table": {
       "caption": "Theses list",
@@ -6937,6 +6943,11 @@
       "clearFilters": "Clear filters",
       "loadFailed": "Could not load theses.",
       "retry": "Retry"
+    },
+    "backfill": {
+      "any": "Missing Khmer or contents",
+      "khmer": "Missing Khmer title or abstract",
+      "contents": "Missing table of contents"
     }
   },
   "adminPosts": {
@@ -7309,7 +7320,7 @@
       "basic": "Basic Info",
       "classification": "Classification",
       "people": "People",
-      "abstract": "Abstract",
+      "abstract": "Abstract & contents",
       "references": "References",
       "files": "Files",
       "review": "Review",
@@ -7352,7 +7363,11 @@
       "doiHint": "Optional. Leave blank if the thesis has not been assigned one.",
       "licenseHint": "Defaults to All Rights Reserved.",
       "copyLink": "Copy link",
-      "copied": "Copied"
+      "copied": "Copied",
+      "titleKm": "Khmer title",
+      "titleKmPlaceholder": "ចំណងជើងជាភាសាខ្មែរ",
+      "titleKmHint": "The title in Khmer, when the title above is in English. Leave blank if the thesis has no Khmer title.",
+      "titleKmNotKhmer": "This has no Khmer characters — is it in the right field?"
     },
     "classification": {
       "intro": "Classification controls how this thesis appears on the public thesis page and summary index.",
@@ -7405,7 +7420,11 @@
       "keywordsHint": "Press Enter or , to add a tag — max 10, Khmer and English both allowed.",
       "tooShort": "Shorter than the recommended 150–300 words.",
       "tooLong": "Longer than the recommended 150–300 words.",
-      "goodLength": "Within the recommended length."
+      "goodLength": "Within the recommended length.",
+      "abstractKmLabel": "Khmer abstract",
+      "abstractKmPlaceholder": "សេចក្ដីសង្ខេបជាភាសាខ្មែរ — សរសេរនៅទីនេះ…",
+      "abstractKmHint": "The abstract in Khmer, when the abstract above is in English. Readers can switch between the two on the thesis page. Leave blank if the abstract above is already in Khmer.",
+      "abstractKmNotKhmer": "This has no Khmer characters — is it in the right field?"
     },
     "references": {
       "label": "References / Bibliography (Optional)",
@@ -7615,6 +7634,43 @@
       "keywords": "Keywords",
       "references": "References",
       "nothingOutstanding": "Nothing outstanding — every required field is filled in."
+    },
+    "contents": {
+      "heading": "Table of contents",
+      "intro": "The thesis's chapters as printed. Readers see this list on the thesis page.",
+      "count": "{count, plural, one {# entry} other {# entries}}",
+      "draft": "Draft from the PDF",
+      "drafting": "Reading the PDF…",
+      "drafted": "Drafted from PDF {count, plural, one {page} other {pages}} {pages}. Check every line against the PDF before saving.",
+      "draftUnavailable": "Draft from the PDF becomes available once this thesis is saved with its PDF.",
+      "replaceTitle": "Replace the current contents?",
+      "replaceBody": "The draft replaces the {count, plural, one {# entry} other {# entries}} below. Nothing is stored until you save the thesis.",
+      "replaceConfirm": "Replace with draft",
+      "cancel": "Cancel",
+      "emptyTitle": "No contents yet",
+      "emptyBody": "Draft it from the PDF, or add the chapters one by one.",
+      "colLevel": "Level",
+      "colNumber": "No.",
+      "colLabel": "Title",
+      "colPage": "Page",
+      "levelChapter": "Chapter",
+      "levelSection": "Section",
+      "labelPlaceholder": "e.g. Introduction",
+      "levelAria": "Entry {n} level",
+      "numberAria": "Entry {n} number",
+      "labelAria": "Entry {n} title",
+      "pageAria": "Entry {n} page, as printed",
+      "add": "Add entry",
+      "moveUp": "Move entry {n} up",
+      "moveDown": "Move entry {n} down",
+      "remove": "Remove entry {n}",
+      "pageHint": "Page numbers as printed in the thesis (i, iv, 27), not PDF page numbers.",
+      "reason": {
+        "no_pages": "This PDF has no indexed text yet — it may be a scan, or indexing has not run. Add the entries by hand.",
+        "no_contents_page": "No contents page was found in the first 40 pages of the PDF. Add the entries by hand.",
+        "unparseable": "A contents page was found, but it could not be read reliably. Add the entries by hand.",
+        "failed": "The draft could not be made: {error}"
+      }
     }
   },
   "adminCatalog": {
@@ -9498,6 +9554,9 @@
       "en": "English",
       "km_en": "Khmer + English"
     },
-    "readerLoadHint": "The reader loads only when you open it, keeping this page fast."
+    "readerLoadHint": "The reader loads only when you open it, keeping this page fast.",
+    "sectionContents": "Contents",
+    "contentsPage": "p. {page}",
+    "contentsPrinted": "Page numbers are as printed in the thesis."
   }
 }
