@@ -32,9 +32,9 @@ const ACTIONS = "app/(admin)/admin/(protected)/catalogs/actions.ts";
 const COPIES = "app/(admin)/admin/(protected)/catalogs/copy-actions.ts";
 
 describe("Koha record writes", () => {
-  it("two modules call the client's write(): biblio-write.ts (records) and item-write.ts (copies)", () => {
+  it("three modules call the client's write(): biblio-write.ts (records), item-write.ts (copies), renewals.ts (a reader's own renewal)", () => {
     const callers = gitGrep(["-l", "-E", "\\.write\\(\\s*\"(POST|PUT)\"", "--", "*.ts", "*.tsx", ":!*.test.ts"]);
-    expect(callers.sort()).toEqual(["lib/koha/biblio-write.ts", "lib/koha/item-write.ts"]);
+    expect(callers.sort()).toEqual(["lib/koha/biblio-write.ts", "lib/koha/item-write.ts", "lib/koha/renewals.ts"]);
   });
 
   it("the admin reaches it only through the server-only glue", () => {

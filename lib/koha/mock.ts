@@ -82,6 +82,18 @@ export function createMockKoha(
     canWriteItems?: boolean;
     /** false = the API user lacks the read-only borrowers permissions (Phase 7/8 reads answer 403). */
     canReadPatrons?: boolean;
+    /**
+     * The PTEC Reader Services plugin (Phase 10). Absent = not installed, so its
+     * routes are Koha's plain 404; "forbidden" = installed, but the API user
+     * lacks its permission (403 with no error_code). Checkouts may carry the
+     * mock-only fields `max_renewals` (default 2) and `on_reserve`.
+     */
+    readerServices?: "on" | "forbidden";
+    /**
+     * A renewal answered 502 — "applied" after Koha renewed it (the answer was
+     * lost), "not_applied" before. What a timeout looks like from outside.
+     */
+    renewalFault?: "applied" | "not_applied";
     /** Patrons, their loans and holds, as Koha's API returns them (Phase 7/8). */
     patrons?: Record<string, unknown>[];
     checkouts?: Record<string, unknown>[];
@@ -153,6 +165,33 @@ export function createMockKoha(
         return json(200, mine);
       }
       return json(200, (opts.holds ?? []).filter((h) => h.patron_id === pid));
+    }
+
+    // ── Phase 10: the PTEC Reader Services plugin, as its Controller.pm answers ──
+    const reader = /^\/api\/v1\/contrib\/ptec\/patrons\/(\d+)\/checkouts\/(\d+)\/(renewability|renewal)$/.exec(url.pathname);
+    if (reader && ((reader[3] === "renewability" && method === "GET") || (reader[3] === "renewal" && method === "POST"))) {
+      if (!opts.readerServices) return json(404, { error: "Not found." });
+      if (opts.readerServices === "forbidden") {
+        return json(403, { error: "Authorization failure. Missing required permission(s).", required_permissions: { circulate: "override_renewals" } });
+      }
+      const pid = Number(reader[1]);
+      const cid = Number(reader[2]);
+      if (!(opts.patrons ?? []).some((p) => p.patron_id === pid)) return json(404, { error: "Refused: patron_not_found", error_code: "patron_not_found" });
+      const co = (opts.checkouts ?? []).find((c) => c.checkout_id === cid && c.patron_id === pid);
+      if (!co) return json(404, { error: "Refused: checkout_not_found", error_code: "checkout_not_found" });
+      const max = Number.isInteger(co.max_renewals) ? (co.max_renewals as number) : 2;
+      const count = Number.isInteger(co.renewals_count) ? (co.renewals_count as number) : 0;
+      const code = co.on_reserve === true ? "on_reserve" : count >= max ? "too_many" : null;
+      if (reader[3] === "renewability") {
+        return json(200, { checkout_id: cid, allows_renewal: code === null, error_code: code, renewals_count: count, max_renewals: max, soonest_renew_date: null, due_date: co.due_date ?? null });
+      }
+      if (opts.renewalFault === "not_applied") return json(502, { error: "Bad gateway" });
+      if (code) return json(403, { error: `Refused: ${code}`, error_code: code });
+      const due = new Date(Date.parse(String(co.due_date ?? new Date().toISOString())) + 14 * 86_400_000).toISOString();
+      co.renewals_count = count + 1;
+      co.due_date = due;
+      if (opts.renewalFault === "applied") return json(502, { error: "Bad gateway" });
+      return json(201, { checkout_id: cid, due_date: due, renewals_count: count + 1 });
     }
 
     // ── Phase 6: item writes, as Koha 26.05.03's Biblios#add_item / #update_item answer ──

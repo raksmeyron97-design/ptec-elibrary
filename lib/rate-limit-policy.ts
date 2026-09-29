@@ -233,6 +233,16 @@ const POLICIES = {
     limit: envInt("RL_COVER_PREVIEW_PER_10MIN", 120),
     windowMs: 10 * 60_000,
   }),
+  /**
+   * Online renewals (Phase 10.1) — per reader. Each press is one write to
+   * Koha; a reader with a full shelf renews a handful at a time, so 20 an hour
+   * is generous for people and a wall for a script. Koha's own renewal limit
+   * is the real policy; this only protects Koha's two Plack workers.
+   */
+  kohaRenew: () => ({
+    limit: strictDiv(envInt("RL_KOHA_RENEW_PER_HOUR", 20)),
+    windowMs: 60 * 60_000,
+  }),
 } as const;
 
 export type PolicyName = keyof typeof POLICIES;

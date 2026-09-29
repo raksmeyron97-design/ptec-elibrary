@@ -47,15 +47,19 @@ describe("Koha integration boundary", () => {
     }
   });
 
-  it("the client writes records and their items only, never DELETE or PATCH, and retries nothing but GET", () => {
+  it("the client writes records, their items and a reader's own renewal only, never DELETE or PATCH, and retries nothing but GET", () => {
     const src = code("lib/koha/client.ts");
     expect(src).not.toMatch(/"(DELETE|PATCH)"/);
     expect(src).toMatch(/type KohaWriteMethod = "POST" \| "PUT";/);
     const routes = src.slice(src.indexOf("const WRITE_ROUTES"), src.indexOf("];", src.indexOf("const WRITE_ROUTES")));
-    expect(routes.match(/\{ method: "/g)).toHaveLength(4);
-    for (const p of ["\\/biblios$", "\\/biblios\\/[1-9]\\d*$", "\\/biblios\\/[1-9]\\d*\\/items$", "\\/biblios\\/[1-9]\\d*\\/items\\/[1-9]\\d*$"]) {
+    expect(routes.match(/\{ method: "/g)).toHaveLength(5);
+    for (const p of ["\\/biblios$", "\\/biblios\\/[1-9]\\d*$", "\\/biblios\\/[1-9]\\d*\\/items$", "\\/biblios\\/[1-9]\\d*\\/items\\/[1-9]\\d*$",
+      // Phase 10.1: the PTEC Reader Services plugin's renewal — never Koha's own
+      // /checkouts routes, whose permission also checks out and edits lending rules.
+      "\\/contrib\\/ptec\\/patrons\\/[1-9]\\d*\\/checkouts\\/[1-9]\\d*\\/renewal$"]) {
       expect(routes).toContain(p);
     }
+    expect(routes).not.toMatch(/path: \/\^\\\/(checkouts|circulation_rules|holds|patrons)/);
     // write() sends once: the retry loop lives in get() alone.
     const write = src.slice(src.indexOf("async write<T>("));
     expect(write).not.toMatch(/RETRY_DELAYS_MS|sleep\(/);

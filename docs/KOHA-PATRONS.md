@@ -8,8 +8,9 @@ Koha deployment package.
 A librarian links a reader's e-Library account to their Koha library card at
 the desk; the reader then sees their own **loans** (due dates, overdue,
 renewals) and **holds** (waiting for pickup, in transit, in the queue) in the
-"Library loans" panel of My Library (`/dashboard`). Everything is
-**read-only**: renewals, returns and holds stay at Koha's desk.
+"Library loans" panel of My Library (`/dashboard`). This part is
+**read-only**; renewing online is Phase 10.1 ([Reader services](KOHA-READER-SERVICES.md)),
+and returns stay at Koha's desk.
 
 Decisions (PTEC, 2026-09-27): the Koha API user gains three read-only
 permissions as a new level `patrons`; **librarians** (catalog write) link
@@ -130,8 +131,10 @@ Test patrons, loans and holds were made in Koha by a test-only helper
 
 ## Not in this phase
 
-Renewals, returns, placing or cancelling holds (they need circulation or
-hold permissions that can change Koha), fines and payments, loan history,
+Renewals (now Phase 10.1, [Reader services](KOHA-READER-SERVICES.md)) and
+placing or cancelling holds (Phase 10.2) — both through a PTEC Koha plugin,
+because Koha's own routes need permissions that can change far more — returns,
+fines and payments, loan history,
 patron creation or edits, self-service linking with a card + OPAC password
 (`api_validate_password`, and rate limiting against guessing), and due-date
 reminders.

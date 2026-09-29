@@ -49,6 +49,12 @@ export interface KohaConfig {
    * own: it needs the Koha API user at PTEC_API_LEVEL=patrons.
    */
   readPatrons: boolean;
+  /**
+   * KOHA_READER_RENEWALS=on (Phase 10.1): readers renew their own loans from
+   * the dashboard, through the PTEC Reader Services Koha plugin. It needs the
+   * Koha API user at PTEC_API_LEVEL=renewals (docs/KOHA-READER-SERVICES.md).
+   */
+  readerRenewals: boolean;
   /** Blocking: with any of these the client refuses to call Koha. */
   problems: string[];
   /** Advisory: the integration works, but someone should look. */
@@ -130,8 +136,11 @@ export function resolveKohaConfig(env: EnvSource): KohaConfig {
 
   const writeItems = ["on", "true", "1", "yes"].includes(env.KOHA_WRITE_ITEMS?.trim().toLowerCase() ?? "");
   const readPatrons = ["on", "true", "1", "yes"].includes(env.KOHA_READ_PATRONS?.trim().toLowerCase() ?? "");
+  const readerRenewals = ["on", "true", "1", "yes"].includes(env.KOHA_READER_RENEWALS?.trim().toLowerCase() ?? "");
   if (readPatrons && m === "off") warnings.push("KOHA_READ_PATRONS=on does nothing while KOHA_INTEGRATION is off.");
   if (writeItems && m !== "write" && m !== "mock") warnings.push(`KOHA_WRITE_ITEMS=on does nothing unless KOHA_INTEGRATION=write (it is ${m}).`);
+  if (readerRenewals && m !== "write" && m !== "mock") warnings.push(`KOHA_READER_RENEWALS=on does nothing unless KOHA_INTEGRATION=write (it is ${m}).`);
+  if (readerRenewals && !readPatrons) warnings.push("KOHA_READER_RENEWALS=on does nothing without KOHA_READ_PATRONS=on: a reader must see their loans to renew one.");
 
   let staffUrl: string | null = null;
   if (env.KOHA_STAFF_URL?.trim()) {
@@ -151,6 +160,7 @@ export function resolveKohaConfig(env: EnvSource): KohaConfig {
     staffUrl,
     writeItems,
     readPatrons,
+    readerRenewals,
     problems,
     warnings,
   };
@@ -177,6 +187,16 @@ export function kohaCanReadPatrons(cfg: KohaConfig): boolean {
 /** May the admin write COPIES to Koha (Phase 6)? Record writes on, and KOHA_WRITE_ITEMS=on. */
 export function kohaCanWriteItems(cfg: KohaConfig): boolean {
   return kohaCanWrite(cfg) && cfg.writeItems;
+}
+
+/**
+ * May readers renew their own loans from the e-Library (Phase 10.1)? A write
+ * to Koha, so `write` mode — or `mock`, where nothing reaches a real Koha —
+ * with patron reads on (a reader renews a loan they can see) and
+ * KOHA_READER_RENEWALS=on.
+ */
+export function kohaCanRenewForReaders(cfg: KohaConfig): boolean {
+  return (cfg.mode === "write" || cfg.mode === "mock") && cfg.problems.length === 0 && cfg.readPatrons && cfg.readerRenewals;
 }
 
 /** Links into Koha's staff interface for one record, or null without KOHA_STAFF_URL. */
