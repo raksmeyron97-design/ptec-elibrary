@@ -5,6 +5,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { evaluateThesisDownload, type ThesisPolicyRow } from "@/lib/theses/download-permission";
+import { resolveThesisAccess } from "@/lib/theses/access";
 
 const NO_STORE = "private, no-cache, no-store, max-age=0, must-revalidate";
 
@@ -36,10 +37,22 @@ export async function GET(
     userId: user?.id ?? null,
   });
 
+  // What the reader may do, from the same projection the file route refuses
+  // by — so a client that opens the reader on `canRead` is never answered 403.
+  const access = resolveThesisAccess({
+    decision,
+    hasFile: !!report.file_url,
+    authenticated: !!user,
+  });
+
   // Never expose internal admin notes or the storage URL — only the fields the
   // UI needs to render a state and the correct next action.
   return NextResponse.json(
     {
+      state: access.state,
+      canRead: access.canRead,
+      canDownload: access.canDownload,
+      blockedBy: access.blockedBy,
       allowed: decision.allowed,
       reason: decision.reason,
       rank: decision.rank,

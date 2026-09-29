@@ -3,12 +3,13 @@ import { useLocale, useTranslations } from "next-intl";
 import {
   formatPublicationDate,
   getDoi,
-  getLanguageLabel,
+  getLanguageKey,
   getDefenseDate,
   getSubmittedDate,
-  getThesisTypeLabel,
+  getThesisTypeKey,
   type ResearchReport,
 } from "@/lib/theses/report-fields";
+import { thesisLicense } from "@/lib/theses/license";
 
 // Publication details — the CATALOGUING record.
 //
@@ -54,18 +55,36 @@ function Row({ label, value }: { label: string; value: ReactNode }) {
 
 export default function PublicationMetadata({ report }: { report: ResearchReport }) {
   const t = useTranslations("thesisDetail");
-  const publishedOn = formatPublicationDate(report, useLocale());
+  const tTrust = useTranslations("trust");
+  const locale = useLocale();
+  const publishedOn = formatPublicationDate(report, locale);
   const doi = getDoi(report);
-  const language = getLanguageLabel(report);
-  const defendedOn = getDefenseDate(report);
-  const submittedOn = getSubmittedDate(report);
-  const typeLabel = getThesisTypeLabel(report);
-  // "unknown" / "none" are the placeholders the importer writes when a deposit
-  // arrives without a licence. Printing one as if it were a licence is worse
-  // than printing nothing: a reader deciding whether they may reuse the work
-  // reads "unknown" as a stated answer rather than as a missing field.
-  const rawLicence = (report.license ?? "").trim();
-  const licence = /^(unknown|none|n\/a|-{1,2})$/i.test(rawLicence) ? null : rawLicence || null;
+  const languageKey = getLanguageKey(report);
+  const language = languageKey ? t(`language.${languageKey}`) : null;
+  const defendedOn = getDefenseDate(report, locale);
+  const submittedOn = getSubmittedDate(report, locale);
+  const typeLabel = t(`type.${getThesisTypeKey(report)}`);
+  // The licence is stored as a code ("cc_by_nc") and used to be printed as
+  // one. It now reads as the same translated sentence <LicenseBadge> uses,
+  // linked to the licence's own terms where it has them. "unknown" and any
+  // importer placeholder resolve to null — a reader deciding whether they may
+  // reuse the work reads "not specified" as a stated answer rather than as a
+  // missing field, so the row is omitted instead.
+  const licenceInfo = thesisLicense(report.license);
+  const licence = licenceInfo
+    ? licenceInfo.url
+      ? (
+          <a
+            href={licenceInfo.url}
+            target="_blank"
+            rel="noopener noreferrer license"
+            className="rounded-sm text-brand underline decoration-brand/30 underline-offset-2 transition-colors hover:decoration-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+          >
+            {tTrust(`license.${licenceInfo.code}`)}
+          </a>
+        )
+      : tTrust(`license.${licenceInfo.code}`)
+    : null;
 
   const rows: Array<{ label: string; value: ReactNode } | null> = [
     typeLabel ? { label: t("pubRecordType"), value: typeLabel } : null,

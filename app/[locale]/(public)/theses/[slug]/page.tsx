@@ -8,7 +8,14 @@ import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import type { Metadata } from "next";
 import { getThesisById, getThesisBySlug, getThesisPrograms, getThesisFaculties } from "@/app/actions/theses";
-import { getThesisRank, TOP_N_PROTECTED } from "@/lib/theses/download-permission";
+import {
+  evaluateThesisDownload,
+  resolveDownloadPolicy,
+  TOP_N_PROTECTED,
+  type ThesisDownloadDecision,
+  type ThesisPolicyRow,
+} from "@/lib/theses/download-permission";
+import { resolveThesisAccess } from "@/lib/theses/access";
 import ThesisViewPing from "@/components/ui/theses/ThesisViewPing";
 import FullTextSection from "@/components/ui/theses/detail/FullTextSection";
 import RelatedTheses from "@/components/ui/theses/RelatedTheses";
@@ -39,12 +46,13 @@ import { citationNames } from "@/lib/resources/contributor-identity";
 import {
   formatPublicationDate,
   getCoAdvisor,
-  getThesisTypeLabel,
   getKeywords,
   getReferences,
   getDoi,
   getDepartment,
   getLanguageLabel,
+  getLanguageKey,
+  getThesisTypeKey,
 } from "@/lib/theses/report-fields";
 import { SITE_URL } from "@/lib/seo/site";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
@@ -202,12 +210,12 @@ export default async function ThesisDetailPage({ params }: PageProps) {
   // reader is signed in, which gates inline full-text viewing (the file API
   // requires auth).
   let isAdmin = false;
-  let isLoggedIn = false;
+  let userId: string | null = null;
   try {
     const authClient = await createClient();
     const { data: { user } } = await authClient.auth.getUser();
     if (user) {
-      isLoggedIn = true;
+      userId = user.id;
       const { data: profile } = await authClient
         .from("profiles")
         .select("role")
@@ -228,13 +236,39 @@ export default async function ThesisDetailPage({ params }: PageProps) {
   // gated download flow (validated by safeReturnTo before use).
   const thesisPath = locale === "km" ? `/km/theses/${canonicalSlug}` : `/theses/${canonicalSlug}`;
 
-  // Global Top-N rank (service-role read of the ranking view). Drives the
-  // subtle "Top 10 · Most Downloaded" badge; the actual download gate is
-  // enforced server-side by the permission engine, never by this badge.
-  let thesisRank: number | null = null;
+  // What THIS reader may do with the full text — the same engine the file and
+  // download routes enforce, read through the same projection
+  // (lib/theses/access.ts). Every read control on the page is drawn from it,
+  // so none can offer what the file route will refuse: the old rule drew a
+  // solid "Preview PDF" for any record with a file, and a Top-10 thesis
+  // answered it with 403. The evaluation also yields the global rank that
+  // drives the "Top 10" badge.
+  //
+  // The evaluation's own reads already degrade rather than throw (an
+  // unreadable rank is "unranked", an unreadable profile "incomplete"). If it
+  // throws anyway — no service credentials — the SAME pure engine decides with
+  // exactly that degradation, never a hand-built answer, and the file route
+  // re-decides every request regardless.
+  const isLoggedIn = userId != null;
+  let decision: ThesisDownloadDecision;
   try {
-    thesisRank = await getThesisRank(createServiceClient(), id);
-  } catch { /* non-fatal — badge simply hidden */ }
+    decision = await evaluateThesisDownload({
+      service: createServiceClient(),
+      report: report as ThesisPolicyRow,
+      userId,
+    });
+  } catch {
+    decision = resolveDownloadPolicy({
+      isPublished: true,
+      hasFile: !!report.file_url,
+      override: report.download_override,
+      rank: null,
+      authenticated: isLoggedIn,
+      profileComplete: false,
+    });
+  }
+  const access = resolveThesisAccess({ decision, hasFile: !!report.file_url, authenticated: isLoggedIn });
+  const thesisRank = access.rank;
   const isTopTen = thesisRank != null && thesisRank <= TOP_N_PROTECTED;
 
   // ── Display labels ────────────────────────────────────────────────────────
@@ -246,11 +280,16 @@ export default async function ThesisDetailPage({ params }: PageProps) {
     getSiteConfig(),
     getOrgIdentity(),
   ]);
+  // Khmer names on /km: both tables carry `name_km`, and the page used to show
+  // the English name on both locales. A blank Khmer name falls back to the
+  // English one rather than to nothing.
+  const localName = (row?: { name_en?: string | null; name_km?: string | null } | null) =>
+    (locale === "km" ? row?.name_km?.trim() || row?.name_en : row?.name_en) ?? null;
   const programLabel =
-    programs?.find((p) => p.code === report.program)?.name_en ?? report.program ?? null;
-  const facultyLabel =
-    faculties?.find((f) => f.program_code === report.program && f.code === report.faculty)
-      ?.name_en ?? null;
+    localName(programs?.find((p) => p.code === report.program)) ?? report.program ?? null;
+  const facultyLabel = localName(
+    faculties?.find((f) => f.program_code === report.program && f.code === report.faculty),
+  );
   // Department is the messiest field on this table. `getDepartment()` falls
   // back to the raw faculty CODE when no distinct department record exists, so
   // a record whose faculty is "Primary Education" was showing "primary" in a
@@ -285,6 +324,21 @@ export default async function ThesisDetailPage({ params }: PageProps) {
   const cohortLine = [report.cohort ? tSearch("cohortNumber", { number: report.cohort }) : null, report.academic_year]
     .filter(Boolean)
     .join(" · ");
+
+  // Reader-facing labels are translations of the stored codes. The English
+  // getThesisTypeLabel/getLanguageLabel stay for the citation and JSON-LD.
+  const typeLabel = tDetail(`type.${getThesisTypeKey(report)}`);
+  const languageKey = getLanguageKey(report);
+  const languageLabel = languageKey ? tDetail(`language.${languageKey}`) : null;
+
+  // Where a protected record sends a reader who wants the full text. The
+  // subject is for library staff, so it stays in English like the corrections
+  // link in <RecordStatusCard>; it is clamped to the contact form's max.
+  const contactHref = `${locale === "km" ? "/km" : ""}/contact?${new URLSearchParams({
+    subject: `Thesis full-text access: ${report.title}`.slice(0, 200),
+    category: "other",
+  }).toString()}`;
+  const signInHref = `/auth/login?callbackUrl=${encodeURIComponent(thesisPath)}`;
 
   // ── The reading column's sections ─────────────────────────────────────────
   // The tab strip this replaced hid the full text and the reference list
@@ -372,13 +426,15 @@ export default async function ThesisDetailPage({ params }: PageProps) {
 
         <ThesisHero
           report={displayReport}
-          typeLabel={getThesisTypeLabel(report)}
+          typeLabel={typeLabel}
           rank={isTopTen ? thesisRank : null}
           lead={lead}
           cohortLine={cohortLine || null}
           primaryActions={
             <ThesisPrimaryActions
-              hasFile={!!report.file_url}
+              access={access}
+              signInHref={signInHref}
+              contactHref={contactHref}
               downloadSlot={
                 <ThesisDownloadButton
                   reportId={id}
@@ -403,7 +459,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
             faculty={facultyLabel}
             department={departmentLabel}
             academicYear={report.academic_year}
-            language={getLanguageLabel(report)}
+            language={languageLabel}
             publishedOn={formatPublicationDate(report, locale)}
           />
         </div>
@@ -449,8 +505,9 @@ export default async function ThesisDetailPage({ params }: PageProps) {
                       title={report.title}
                       fileHref={fileHref}
                       reportEmail={siteConfig.email}
-                      language={getLanguageLabel(report)}
-                      isLoggedIn={isLoggedIn}
+                      language={languageLabel}
+                      access={access}
+                      contactHref={contactHref}
                     />
                   ) : (
                     <div className="flex items-start gap-3 rounded-2xl bg-bg-app p-5">
@@ -479,7 +536,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
 
               <section id="references" className="scroll-mt-28 p-5 sm:p-7">
                 <h2 className="text-[20px] font-bold tracking-[-0.01em] text-text-heading sm:text-[22px]">
-                  References
+                  {tDetail("sectionReferences")}
                   {hasReferences && (
                     <span className="ml-2 text-[15px] font-medium tabular-nums text-text-muted">
                       ({references.length})
@@ -534,7 +591,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
             )}
 
             <div className="hidden lg:block">
-              <BackToTopButton />
+              <BackToTopButton label={tDetail("backToTop")} />
             </div>
           </aside>
         </div>
@@ -550,9 +607,10 @@ export default async function ThesisDetailPage({ params }: PageProps) {
 
         <RelatedTheses
           currentId={id}
+          program={report.program}
           cohort={report.cohort}
+          faculty={report.faculty}
           academicYear={report.academic_year}
-          department={department ?? undefined}
         />
       </div>
     </article>

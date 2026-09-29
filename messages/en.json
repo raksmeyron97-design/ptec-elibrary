@@ -9444,7 +9444,7 @@
     "relatedEmpty": "No related theses are available yet — the collection is still growing.",
     "relatedExplore": "Explore all theses",
     "reasonCohort": "Same Cohort",
-    "reasonDepartment": "Same Department",
+    "reasonFaculty": "Same Faculty",
     "reasonYear": "Same Year",
     "reasonPopular": "Popular",
     "moreFromAuthor": "More From This Author",
@@ -9472,6 +9472,32 @@
     "badgeVerified": "Verified",
     "badgeUnverified": "Unverified",
     "badgeNoDoi": "No DOI assigned",
-    "onThisPage": "On this page"
+    "onThisPage": "On this page",
+    "accessSignInHint": "Reading and downloading are free — sign in first.",
+    "accessProtectedTitle": "Not available to read online",
+    "accessProtectedTopTen": "This is one of the {count} most-downloaded theses (#{rank}), so its full text is not shared online. Ask at the library desk for the print copy.",
+    "accessProtectedAdmin": "The library has restricted online access to this thesis. Ask at the library desk or contact us for a copy.",
+    "accessContact": "Contact the library",
+    "fullTextAvailable": "The complete thesis is available as a PDF",
+    "coverAlt": "Cover of {title}",
+    "rankBadge": "Top {count} · #{rank}",
+    "downloadsCount": "{count, plural, one {# download} other {# downloads}}",
+    "referencesEmpty": "No structured reference list has been recorded for this thesis yet. Library staff add references while verifying a record.",
+    "copyReference": "Copy reference",
+    "referenceCopied": "Reference copied",
+    "backToTop": "Back to top",
+    "type": {
+      "thesis": "Thesis",
+      "research_report": "Research Report",
+      "capstone": "Capstone Project",
+      "action_research": "Action Research",
+      "other": "Other"
+    },
+    "language": {
+      "km": "Khmer",
+      "en": "English",
+      "km_en": "Khmer + English"
+    },
+    "readerLoadHint": "The reader loads only when you open it, keeping this page fast."
   }
 }

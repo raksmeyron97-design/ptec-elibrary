@@ -18,9 +18,13 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getDownloadProfileStatus } from "@/lib/profile/download-profile";
 import type { DownloadProfileField } from "@/lib/profile/download-profile-shared";
+import { TOP_N_PROTECTED } from "@/lib/theses/access";
 
-/** How many top-ranked published theses are protected by default. */
-export const TOP_N_PROTECTED = 10;
+/** How many top-ranked published theses are protected by default. One
+ *  definition, in the client-safe projection module (the record page's client
+ *  components need it too); re-exported here so the engine's callers are
+ *  unchanged. */
+export { TOP_N_PROTECTED };
 
 export type DownloadOverride = "inherit" | "allow" | "block";
 

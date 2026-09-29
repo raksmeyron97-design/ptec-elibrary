@@ -2,6 +2,7 @@
 
 import { Fragment, useState } from "react";
 import { Check, Copy } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 /** Turn bare URLs and doi.org links inside a reference string into anchors. */
 function linkify(text: string) {
@@ -24,6 +25,7 @@ function linkify(text: string) {
 }
 
 function ReferenceRow({ index, reference }: { index: number; reference: string }) {
+  const t = useTranslations("thesisDetail");
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -54,7 +56,7 @@ function ReferenceRow({ index, reference }: { index: number; reference: string }
       <button
         type="button"
         onClick={copy}
-        aria-label={copied ? "Reference copied" : "Copy reference"}
+        aria-label={copied ? t("referenceCopied") : t("copyReference")}
         className="shrink-0 cursor-pointer rounded-md p-1.5 text-text-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:text-brand focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
       >
         {copied ? (
@@ -68,6 +70,7 @@ function ReferenceRow({ index, reference }: { index: number; reference: string }
 }
 
 export default function ReferenceList({ references }: { references: string[] }) {
+  const t = useTranslations("thesisDetail");
   if (!references.length) {
     // An empty state, not an error: most student deposits arrive without a
     // structured reference list, and library staff add one during
@@ -75,8 +78,7 @@ export default function ReferenceList({ references }: { references: string[] }) 
     // routine absence gives it more weight than it deserves.
     return (
       <p className="rounded-xl border border-dashed border-divider px-4 py-5 text-[13.5px] leading-[1.6] text-text-muted">
-        No structured reference list has been recorded for this thesis yet.
-        Library staff add references while verifying a record.
+        {t("referencesEmpty")}
       </p>
     );
   }

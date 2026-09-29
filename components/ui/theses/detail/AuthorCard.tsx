@@ -89,7 +89,7 @@ export default async function AuthorCard({
                 <span className="mt-1 block text-[11.5px] text-text-muted">
                   {[
                     w.academic_year ?? (w.published_at ? new Date(w.published_at).getFullYear() : null),
-                    typeof w.download_count === "number" ? `${w.download_count} downloads` : null,
+                    typeof w.download_count === "number" ? t("downloadsCount", { count: w.download_count }) : null,
                   ]
                     .filter(Boolean)
                     .join(" · ")}

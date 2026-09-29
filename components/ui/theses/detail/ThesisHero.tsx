@@ -124,7 +124,9 @@ function ThesisCover({ report, className = "" }: { report: any; className?: stri
       {report.cover_url ? (
         <Image
           src={report.cover_url}
-          alt={`Cover of ${report.title}`}
+          // The librarian's own description (0076 `cover_alt_text`) when there
+          // is one; otherwise a translated "Cover of …", never English on /km.
+          alt={(report.cover_alt_text as string | null)?.trim() || t("coverAlt", { title: report.title })}
           fill
           priority
           // The cover is the page's LCP candidate on mobile. Two sizes, not a

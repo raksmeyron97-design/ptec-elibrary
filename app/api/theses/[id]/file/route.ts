@@ -10,6 +10,7 @@ import { clientIp } from "@/lib/client-ip";
 import { isVerifiedGoogleCrawler } from "@/lib/security/crawler";
 import { lockdownResponse } from "@/lib/security/lockdown";
 import { evaluateThesisDownload, type ThesisPolicyRow } from "@/lib/theses/download-permission";
+import { resolveThesisAccess } from "@/lib/theses/access";
 
 // Legacy R2 client — kept for backward compat with bare-key records in the DB.
 const s3 = new S3Client({
@@ -113,17 +114,25 @@ export async function GET(
     return new NextResponse("Not found", { status: 404 });
   }
 
-  // Re-evaluate the shared permission engine server-side. Block viewing when the
-  // thesis is unpublished, or content-restricted (Top-10 / admin-block).
+  // Re-evaluate the shared permission engine server-side, and read it through
+  // the same projection the record page draws its buttons from
+  // (lib/theses/access.ts), so the page can never offer a reader this route
+  // then refuses. Block viewing when the thesis is unpublished, or
+  // content-restricted (Top-10 / admin-block).
   const decision = await evaluateThesisDownload({
     service: supabase,
     report: report as ThesisPolicyRow,
     userId: user?.id ?? null,
   });
-  if (decision.reason === "THESIS_UNPUBLISHED") {
+  // `authenticated` is false for a verified crawler, which the projection
+  // reads as "sign in" — that is correct for a person and irrelevant here:
+  // the gate above has already let the crawler through, and the two states
+  // this route refuses (unavailable, protected) do not depend on it.
+  const access = resolveThesisAccess({ decision, hasFile: true, authenticated: !!user });
+  if (access.state === "unavailable") {
     return new NextResponse("Not found", { status: 404 });
   }
-  if (decision.effectivePolicy === "blocked") {
+  if (access.state === "protected") {
     logSecurityEvent({ type: "auth_forbidden", where: "/api/theses/[id]/file", userId: user?.id });
     return new NextResponse("This thesis is restricted", { status: 403 });
   }

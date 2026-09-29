@@ -1,5 +1,6 @@
 import { Award, BadgeCheck, FileText, Hash, ShieldQuestion } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { TOP_N_PROTECTED } from "@/lib/theses/access";
 
 // The record's status line, as four badges with four different jobs.
 //
@@ -53,7 +54,7 @@ export default function ThesisBadges({
         >
           <Award className="h-3.5 w-3.5" aria-hidden="true" />
           <span className="sr-only">{t("rankSr", { rank })} </span>
-          Top 10 · #{rank}
+          {t("rankBadge", { count: TOP_N_PROTECTED, rank })}
         </span>
       )}
 
