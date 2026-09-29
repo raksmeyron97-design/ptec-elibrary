@@ -111,24 +111,45 @@ export function getLanguageLabel(report: ResearchReport): string | null {
   return (l && THESIS_LANGUAGE_LABELS[l]) || null;
 }
 
+// The two label helpers above are ENGLISH by construction — they feed the
+// citation formats and JSON-LD, which are English on both locales. A reader-
+// facing label is a translation instead: these return the CODE, same fallback
+// rules, and the page looks it up under `thesisDetail.type.*` /
+// `thesisDetail.language.*`, so /km no longer shows "Research Report".
+
+/** The `thesis_type` code — "thesis" for legacy rows with none, or an unknown value. */
+export function getThesisTypeKey(report: ResearchReport): ThesisType {
+  const t = report.thesis_type as ThesisType | null | undefined;
+  return t && t in THESIS_TYPE_LABELS ? t : "thesis";
+}
+
+/** The `language` code — null (not shown) for legacy rows with none, or an unknown value. */
+export function getLanguageKey(report: ResearchReport): ThesisLanguage | null {
+  const l = report.language as ThesisLanguage | null | undefined;
+  return l && l in THESIS_LANGUAGE_LABELS ? l : null;
+}
+
 export function getCoAdvisor(report: ResearchReport): string | null {
   return (report.co_advisor_name as string) || null;
 }
 
-/** Human date like "12 June 2026" for an arbitrary date column; null on missing/unparseable input. */
-function formatDate(value: unknown): string | null {
+/** Human date like "12 June 2026" for an arbitrary date column; null on missing/unparseable input.
+ *  `locale` follows formatPublicationDate: Khmer on /km, en-GB otherwise — the
+ *  record page used to print the published date in Khmer and the defence date
+ *  beside it in English. */
+function formatDate(value: unknown, locale?: string): string | null {
   if (!value) return null;
   const date = new Date(value as string);
   if (isNaN(date.getTime())) return null;
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  return date.toLocaleDateString(locale === "km" ? "km-KH" : "en-GB", { day: "numeric", month: "long", year: "numeric" });
 }
 
-export function getDefenseDate(report: ResearchReport): string | null {
-  return formatDate(report.defense_date);
+export function getDefenseDate(report: ResearchReport, locale?: string): string | null {
+  return formatDate(report.defense_date, locale);
 }
 
-export function getSubmittedDate(report: ResearchReport): string | null {
-  return formatDate(report.submitted_date);
+export function getSubmittedDate(report: ResearchReport, locale?: string): string | null {
+  return formatDate(report.submitted_date, locale);
 }
 
 /** A short "source" line, ACS-style: "Cohort 12 · 2023–2024 · Faculty of Science". */

@@ -7,9 +7,13 @@ import { createServiceClient } from "@/lib/supabase/server";
 
 interface RelatedThesesProps {
   currentId: string;
-  cohort?: string;
-  academicYear?: string;
-  department?: string;
+  /** Program CODE. Scopes the cohort and faculty legs: cohort numbers and
+   *  faculty codes are both per program (research_cohorts, research_faculties
+   *  are keyed on program_code), so "Cohort 12" alone matched two programs. */
+  program?: string | null;
+  cohort?: string | null;
+  faculty?: string | null;
+  academicYear?: string | null;
   /**
    * "section" (default) is the full-width shelf of cards. "rail" is the
    * compact list the Modernist record page puts in its right column: title,
@@ -24,16 +28,19 @@ interface RelatedThesesProps {
 
 const REASON_KEY = {
   cohort: "reasonCohort",
-  department: "reasonDepartment",
+  faculty: "reasonFaculty",
   academic_year: "reasonYear",
   popular: "reasonPopular",
 } as const;
 
+type Reason = keyof typeof REASON_KEY;
+
 export default async function RelatedTheses({
   currentId,
+  program,
   cohort,
+  faculty,
   academicYear,
-  department,
   variant = "section",
   railHeading: railHeadingProp,
 }: RelatedThesesProps) {
@@ -46,11 +53,13 @@ export default async function RelatedTheses({
   const railHeading = railHeadingProp ?? t("relatedRail");
   const seen = new Set<string>([currentId]);
   const collected: any[] = [];
-  const reasons = new Map<string, string>();
+  const reasons = new Map<string, Reason>();
 
-  // Pull a batch matching an optional equality filter, de-duped, until we hit TARGET.
-  async function pull(column?: string, value?: string) {
-    if (collected.length >= TARGET || (column && !value)) return;
+  // Pull a batch matching every equality in `filter`, de-duped, until we hit
+  // TARGET. A leg whose defining value is missing is skipped rather than run
+  // unfiltered — `filter` is `null` for that case.
+  async function pull(reason: Reason, filter: Record<string, string> | null) {
+    if (collected.length >= TARGET || filter === null) return;
     try {
       let q = supabase
         .from("research_reports")
@@ -59,7 +68,7 @@ export default async function RelatedTheses({
         .neq("id", currentId)
         .order("view_count", { ascending: false })
         .limit(12);
-      if (column && value) q = q.eq(column, value);
+      for (const [column, value] of Object.entries(filter)) q = q.eq(column, value);
 
       const { data } = await q;
       for (const r of data ?? []) {
@@ -67,18 +76,22 @@ export default async function RelatedTheses({
         if (seen.has(r.id)) continue;
         seen.add(r.id);
         collected.push(r);
-        reasons.set(r.id, column ?? "popular");
+        reasons.set(r.id, reason);
       }
     } catch {
-      /* unknown column or query error — skip this relatedness signal */
+      /* query error — skip this relatedness signal */
     }
   }
 
-  // Relatedness, strongest signal first.
-  await pull("cohort", cohort);
-  await pull("department", department);
-  await pull("academic_year", academicYear);
-  await pull(); // fill remaining slots with most-viewed theses
+  // Relatedness, strongest signal first. Every leg filters on a column
+  // `research_reports` actually has: the old second leg filtered on
+  // `department`, which the table does not have (only `department_id`), so
+  // PostgREST refused it and the leg silently contributed nothing — while the
+  // intro promised "the same cohort, faculty and year".
+  await pull("cohort", cohort ? { ...(program ? { program } : {}), cohort } : null);
+  await pull("faculty", faculty ? { ...(program ? { program } : {}), faculty } : null);
+  await pull("academic_year", academicYear ? { academic_year: academicYear } : null);
+  await pull("popular", {}); // fill remaining slots with most-viewed theses
 
   if (variant === "rail") {
     if (collected.length === 0) return null;
@@ -154,7 +167,7 @@ export default async function RelatedTheses({
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {collected.slice(0, 3).map((report) => {
             const reason = reasons.get(report.id);
-            const label = reason && reason in REASON_KEY ? t(REASON_KEY[reason as keyof typeof REASON_KEY]) : undefined;
+            const label = reason ? t(REASON_KEY[reason]) : undefined;
             return (
               <li key={report.id}>
                 <Link

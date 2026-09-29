@@ -14,6 +14,11 @@
 // reader-bus.ts: that button scrolls here and fires the event this component
 // listens for, so one control opens one reader wherever it is pressed.
 //
+// Who may open it is `access.canRead` (lib/theses/access.ts) — the projection
+// the file route refuses by. It used to be `isLoggedIn`, which let a signed-in
+// reader mount the viewer on a Top-10 or admin-blocked thesis and watch the
+// file route answer 403; a protected record now says so instead.
+//
 // Analytics note: `recordReaderOpen` is called with "research_report", the
 // content type this table actually is. <PDFReaderLauncher> — the equivalent
 // component on the books side — hard-codes "book", which is why this is a
@@ -22,10 +27,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { BookOpen, FileText, Loader2 } from "lucide-react";
+import { BookOpen, FileText, Loader2, Lock } from "lucide-react";
 import PDFViewer from "@/components/ui/reader/PDFViewerClient";
 import { recordReaderOpen } from "@/app/actions/reader-events";
 import { onThesisReaderOpen } from "@/lib/theses/reader-bus";
+import { TOP_N_PROTECTED, type ThesisAccess } from "@/lib/theses/access";
 
 export default function FullTextSection({
   reportId,
@@ -33,25 +39,30 @@ export default function FullTextSection({
   fileHref,
   reportEmail,
   language,
-  isLoggedIn = false,
+  access,
+  contactHref,
 }: {
   reportId: string;
   title: string;
   fileHref: string;
   reportEmail?: string | null;
   language?: string | null;
-  /** Inline viewing now requires auth (the file API is gated). When the reader
-   *  is anonymous, prompt sign-in instead of mounting a viewer that would 401. */
-  isLoggedIn?: boolean;
+  /** What this reader may do. The viewer mounts only when `canRead` — never a
+   *  viewer the file route would answer with 401 or 403. */
+  access: ThesisAccess;
+  /** Where a protected record sends a reader who wants the full text. */
+  contactHref: string;
 }) {
   const t = useTranslations("reader");
+  const tDetail = useTranslations("thesisDetail");
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const canRead = access.canRead;
 
   const openReader = useCallback(() => {
-    // Gated: an anonymous reader can't fetch the file. Don't mount a viewer that
-    // would 401 (this also fires from the header "Preview PDF" bus event).
-    if (!isLoggedIn) return;
+    // Gated: only a reader the file route will serve. Don't mount a viewer that
+    // would 401/403 (this also fires from the header "Preview PDF" bus event).
+    if (!canRead) return;
     setOpen(true);
     // One "reader opened" event per thesis per tab session, matching the
     // funnel the books reader records.
@@ -63,7 +74,7 @@ export default function FullTextSection({
       // Private mode — ping anyway.
     }
     recordReaderOpen("research_report", reportId).catch(() => {});
-  }, [reportId, isLoggedIn]);
+  }, [reportId, canRead]);
 
   useEffect(() => onThesisReaderOpen(openReader), [openReader]);
 
@@ -88,6 +99,35 @@ export default function FullTextSection({
     );
   }
 
+  if (access.state === "protected") {
+    return (
+      <div className="flex flex-col items-start gap-4 rounded-2xl bg-bg-app p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-6">
+        <span
+          aria-hidden="true"
+          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-bg-surface text-text-muted shadow-sm"
+        >
+          <Lock className="h-6 w-6" strokeWidth={1.5} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[15px] font-semibold text-text-heading">
+            {tDetail("accessProtectedTitle")}
+          </p>
+          <p className="mt-1 text-[13.5px] leading-[1.6] text-text-muted">
+            {access.blockedBy === "top_ten" && access.rank != null
+              ? tDetail("accessProtectedTopTen", { count: TOP_N_PROTECTED, rank: access.rank })
+              : tDetail("accessProtectedAdmin")}
+          </p>
+        </div>
+        <a
+          href={contactHref}
+          className="inline-flex min-h-[44px] shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-divider bg-bg-surface px-5 text-[14px] font-bold text-text-heading transition-colors duration-150 hover:border-brand hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
+        >
+          {tDetail("accessContact")}
+        </a>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col items-start gap-4 rounded-2xl bg-bg-app p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-6">
       {/* A document mark, not a page thumbnail. Rendering real thumbnails
@@ -100,14 +140,14 @@ export default function FullTextSection({
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-[15px] font-semibold text-text-heading">
-          The complete document is available as a PDF
+          {tDetail("fullTextAvailable")}
           {language ? <span className="font-normal text-text-muted"> · {language}</span> : null}
         </p>
         <p className="mt-1 text-[13.5px] leading-[1.6] text-text-muted">
-          {isLoggedIn ? t("readerLoadHint") : t("signInToReadHint")}
+          {canRead ? tDetail("readerLoadHint") : t("signInToReadHint")}
         </p>
       </div>
-      {isLoggedIn ? (
+      {canRead ? (
         <button
           type="button"
           onClick={openReader}

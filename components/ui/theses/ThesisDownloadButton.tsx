@@ -105,12 +105,11 @@ export default function ThesisDownloadButton({
 
   // ── One shape for all five states ──
   // Every state of this control is the OUTLINED sibling of the record page's
-  // solid "Preview PDF" button, including the one where download is allowed.
-  // That is deliberate: preview works for every visitor, download is gated
-  // behind sign-in on protected Top-10 records, and the button that always
-  // opens should be the one carrying the solid fill. The states differ by
-  // label, icon and note — never by suddenly promoting themselves to the
-  // page's strongest treatment.
+  // solid primary action (Preview PDF for a reader who may read), including
+  // the one where download is allowed. Reading asks less of the reader than
+  // downloading (no Download Access Profile), so the verb more readers can
+  // use carries the solid fill. The states differ by label, icon and note —
+  // never by suddenly promoting themselves to the page's strongest treatment.
   //
   // `w-full sm:w-auto` on the full variant: on a phone these stack, and a
   // 44px-tall button that spans only its label is a small target next to one
@@ -159,17 +158,16 @@ export default function ThesisDownloadButton({
           {downloading ? <Loader2 className={`${iconSize} animate-spin`} /> : <Download className={iconSize} />}
           {downloading ? t("state.preparing") : t("state.download")}
         </button>
-        {error && <p role="alert" className="mt-1.5 text-[12px] text-red-600">{error}</p>}
+        {error && <p role="alert" className="mt-1.5 text-[12px] text-danger">{error}</p>}
       </div>
     );
   }
 
   // State A — not authenticated
   if (status.reason === "AUTHENTICATION_REQUIRED") {
-    const callback = `${locale === "km" ? "" : ""}${thesisPath}`;
     return (
       <div className={compact ? "" : "w-full space-y-1 sm:w-auto"}>
-        <a href={`/auth/login?callbackUrl=${encodeURIComponent(callback)}`} className={linkCls}>
+        <a href={`/auth/login?callbackUrl=${encodeURIComponent(thesisPath)}`} className={linkCls}>
           <UserPlus className={iconSize} />
           {t("state.signIn")}
         </a>
