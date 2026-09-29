@@ -71,19 +71,20 @@ type ServiceClient = Awaited<ReturnType<typeof requirePermission>>["supabase"];
  *   local  — the e-Library's alone (no Koha link, or the integration is off);
  *   koha   — Koha's, and copies are written to Koha FIRST (Phase 6,
  *            KOHA_WRITE_ITEMS=on): the e-Library's row is saved from what
- *            Koha holds;
+ *            Koha holds. The record's language travels with it: it decides a
+ *            new copy's item type (lib/koha/item-types.ts);
  *   refuse — Koha's, but copy writes are off: they are added IN KOHA (the
  *            Phase 5 decision). A copy created only here has no Koha item, so
  *            it could never be lent, and every nightly sync would list it.
  */
-type CopyOwnership = { kind: "local" } | { kind: "koha"; biblioId: number } | { kind: "refuse"; message: string };
+type CopyOwnership = { kind: "local" } | { kind: "koha"; biblioId: number; language: string | null } | { kind: "refuse"; message: string };
 
 async function copyOwnership(supabase: ServiceClient, bookId: string): Promise<CopyOwnership> {
   if (!kohaOwnsLinkedRecords()) return { kind: "local" };
   const { data } = await supabase.from("catalog_books").select("*").eq("id", bookId).maybeSingle();
   const biblioId = data?.koha_biblio_id;
   if (!Number.isInteger(biblioId)) return { kind: "local" };
-  if (kohaWritesItems()) return { kind: "koha", biblioId };
+  if (kohaWritesItems()) return { kind: "koha", biblioId, language: (data?.language as string | null) ?? null };
   return { kind: "refuse", message: `This record comes from Koha (record ${biblioId}): add its copies in Koha, and they appear here within 15 minutes.` };
 }
 
@@ -316,7 +317,7 @@ export async function addCopy(bookId: string, formData: FormData): Promise<CopyA
   // ── Koha first (Phase 6) ──
   let kohaColumns: ReturnType<typeof copyColumnsFrom> | null = null;
   if (own.kind === "koha") {
-    const created = await createItemInKoha(own.biblioId, copyFieldsOf(parsed.row));
+    const created = await createItemInKoha(own.biblioId, copyFieldsOf(parsed.row), own.language);
     if (created.kind !== "created") return { success: false, error: kohaCopyFailure(created, "create", parsed.barcode) };
     kohaColumns = copyColumnsFrom(created.item);
     if (created.existed) {
@@ -513,7 +514,7 @@ export async function saveCopies(bookId: string, rows: GeneratedCopy[]): Promise
   if (own.kind === "koha") {
     const kept: Record<string, unknown>[] = [];
     for (const rec of records) {
-      const created = await createItemInKoha(own.biblioId, copyFieldsOf(rec));
+      const created = await createItemInKoha(own.biblioId, copyFieldsOf(rec), own.language);
       if (created.kind !== "created") {
         failed.push({ barcode: (rec.barcode as string | null) ?? null, error: kohaCopyFailure(created, "create", rec.barcode as string | null) });
         continue;

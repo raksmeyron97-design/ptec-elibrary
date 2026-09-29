@@ -35,7 +35,22 @@ and the client's `write()` (`lib/koha/client.ts`). Copies (Phase 6):
 | Category | the first 653 $a | yes |
 | Call number | the copies' 952 $o; a new record's Dewey number goes to 082 $a/$b | on create only; read-only afterwards |
 | Department | the copies' collection, 952 $8 | no: read-only, from the copies in Koha |
+| Item type | 942 $c on a new record; a new copy's item type (952 $y) | on create only, from the language: Khmer → `BK`, any other language → `BKEN` (below) |
 | Description, cover, keywords, web address, SEO | — | the e-Library's own; never sent to Koha |
+
+**The item type follows the language.** PTEC lends by language (*Library
+rules* v1.0): a student teacher keeps a Khmer book 14 days and an English one
+7. Koha sets loan periods per item type, so PTEC's Koha has two book types
+(ptec-koha-deployment, docs/10, Phase 1, 2026-09-29): `BK` Khmer book and
+`BKEN` foreign-language book, which covers English and every other language
+(`other` included, by PTEC's decision). `lib/koha/item-types.ts` decides it
+for a new record's 942 $c and for each new copy, from the record's language;
+a copy's call site must pass that language, so none falls back to `BK` by
+forgetting it. A row with no language keeps `BK`, the old default. An edit
+that changes a record's language does not change its item type or its
+copies' (942 goes back as Koha had it): Koha's saved report 1, *PTEC check:
+copies whose item type does not match their language*, lists them, and the
+librarians fix them with Koha's batch tools.
 
 **An edit is never a rebuild.** Koha's `PUT /biblios/{id}` replaces the whole
 record (`C4::Biblio::ModBiblio`), and the e-Library understands a handful of
