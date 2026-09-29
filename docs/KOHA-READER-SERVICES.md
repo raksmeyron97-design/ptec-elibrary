@@ -1,8 +1,8 @@
-# Reader services: online renewals (Koha Phase 10.1)
+# Reader services: online renewals and holds (Koha Phase 10)
 
-**Status (2026-09-29): built, and verified live against a local Koha 26.05.03
-with the PTEC Reader Services plugin. Off until switched on.** Holds (10.2)
-come next and stay off until print availability is live.
+**Status (2026-09-29): renewals (10.1) and holds (10.2) built, and verified
+live against a local Koha 26.05.03 with the PTEC Reader Services plugin. Off
+until switched on — and holds stay off until print availability is live.**
 
 A reader whose library card is linked (docs/KOHA-PATRONS.md) sees a **Renew**
 button on each loan Koha would renew online, in the *Library loans* panel of
@@ -10,9 +10,16 @@ My Library (`/dashboard`). A loan Koha would not renew shows Koha's reason
 instead — the renewal limit, someone waiting for the book, a fine, an expired
 card, too early — in English or Khmer. Returns stay at the desk.
 
-Decisions (PTEC, 2026-09-29): renew through a PTEC Koha plugin, not Koha's own
-API (Option B); audit the profile, Koha's ids, the action and Koha's code — no
-titles; renewals first, holds after the desk has re-issued the PMB loans.
+With holds on, a Physical Library title with **no copy on the shelf** offers
+*Place a hold* (`/catalogs/[slug]`), and the dashboard lists the reader's holds
+with **Cancel hold** — or, for a hold already waiting on the hold shelf, **Ask
+to cancel**, which the desk confirms. Check-outs and returns stay at the desk.
+
+Decisions (PTEC, 2026-09-29): renew and hold through a PTEC Koha plugin, not
+Koha's own API (Option B); a waiting hold becomes a cancellation REQUEST, never
+a silent cancel; a hold only when no copy is on the shelf, and holds only once
+the desk has re-issued the PMB loans (`CATALOG_AVAILABILITY_LIVE`); audit the
+profile, Koha's ids, the action and Koha's code — no titles.
 
 ## How a renewal travels
 
@@ -110,8 +117,131 @@ is "unconfirmed" — sent once either way. Boundary tests
 (`lib/koha/reader-services-boundary.test.ts`, `boundary.test.ts`,
 `write-boundary.test.ts`), each negative-controlled.
 
+## Holds (10.2)
+
+```
+Place a hold (browser, /catalogs/[slug])
+  → placeLibraryHold(slug)                   app/actions/library-loans.ts
+      switch AND live availability? · signed in? · 20 an hour per reader (places + cancels)
+  → placeHoldForReader(profile, slug)        lib/koha/reader-services.ts (server-only)
+      the slug → a listed record the sync linked to Koha (holdableRecord)
+      the reader's linked Koha patron · their holds read NOW — one hold per title
+  → placeHold(client, patron, record, before)   lib/koha/holds.ts (pure)
+      POST /api/v1/contrib/ptec/patrons/{patron}/holds {biblio_id}   — sent ONCE
+  → PTEC Reader Services plugin (in Koha)
+      OPACHoldRequests · the patron may place holds · pickup = their own library
+      Koha's CanBookBeReserved · NO copy that could be borrowed off the shelf
+      → AddReserve
+  → one activity_events row, the cached holds forgotten, the answer shown
+
+Cancel hold / Ask to cancel (browser, /dashboard)
+  → cancelLibraryHold(holdId) → cancelHoldForReader(profile, holdId)
+      the hold must be in the reader's OWN holds read NOW, or "not found"
+  → cancelHold(...) → DELETE …/patrons/{patron}/holds/{hold}         — sent ONCE
+  → the plugin: not yet found → cancelled (200)
+                waiting on the hold shelf → a cancellation REQUEST (202), if the
+                library's rule allows one; else waiting_cancel_not_allowed
+                in transit / being processed → not_cancellable_online (the desk)
+```
+
+Why the plugin: Koha's own `POST /holds` needs the whole `reserveforothers`
+module, and `place_holds` alone lets the API user list every patron's holds
+and cancel any of them — including one waiting on the shelf — without asking
+whose it is. `WRITE_ROUTES` adds only the plugin's two hold routes, and the
+second is the **only DELETE** the e-Library's Koha client can send.
+
+- **Only when no copy is on the shelf.** The page offers the button only when
+  the catalogue shows no copy available and at least one that will come back
+  — on loan, on another reader's hold shelf, or being processed
+  (`titleMayBeHeld`). The page can be minutes old; the plugin decides again,
+  and a copy back on the shelf is refused with `copy_on_shelf`: "A copy is on
+  the shelf now — borrow it at the library desk." (measured live).
+- **Only with live availability.** `kohaHoldsForReaders()` is
+  `KOHA_READER_HOLDS` AND `CATALOG_AVAILABILITY_LIVE`: until the desk has
+  re-issued the PMB loans, "no copy on the shelf" would be a statement about a
+  database, not a shelf. With either off, the page shows no card, the
+  dashboard no Cancel buttons, and both actions answer `off` without asking
+  Koha.
+- **The record comes from the server.** The browser sends a slug; the Koha
+  record id is the listed catalogue row's `koha_biblio_id`. A hold number must
+  be in the reader's holds read at the press.
+- **One hold per reader per title**, whatever the lending rule would allow: a
+  second press or a second tab is refused as `already_held` before Koha is
+  asked.
+- **A waiting hold is never silently cancelled.** The copy was already pulled
+  for the reader, so the plugin records a cancellation request and the desk
+  confirms it. The dashboard shows "Cancellation requested — the library desk
+  will confirm it." from then on, read back from Koha (the
+  `cancellation_requested` embed on the holds read), and offers no second
+  request.
+- **Sent once, settled by reading.** A lost answer to a place is settled by
+  looking for a hold on that record that was NOT among the reader's holds read
+  just before — an older hold on the same record never reads as the new one.
+  A lost answer to a cancel is settled by whether the hold is gone (or now
+  carries a request). Otherwise: "couldn't confirm", and **Check again**
+  re-reads; it never sends again.
+- **One rate bucket for placing and cancelling** (`RL_KOHA_HOLD_PER_HOUR`,
+  default 20): every place and cancel reorders the queue behind it, so a
+  place/cancel loop is the thing to stop.
+- **Audited like renewals**: `event_type = circulation`, `metadata.action`
+  `hold_place` or `hold_cancel` (with `outcome` `cancelled` or
+  `cancellation_requested`), Koha's patron, hold and record ids and Koha's
+  code. Never the title, the slug or the card. `/admin/logs` labels each row:
+  *Hold placed / refused / failed*, *Hold cancelled*, *Hold cancellation
+  requested / refused / failed*.
+- **The page stays prerendered.** What THIS reader may do — sign in, link a
+  card at the desk, already holds it (and where in the queue), has it on loan,
+  or place a hold — comes from `GET /api/me/library-hold?slug=` after the page
+  loads (`private, no-store`), answering `off` before reading a session when
+  holds are off.
+
+### Switching holds on
+
+1. The desk has re-issued the PMB loans in Koha and
+   `CATALOG_AVAILABILITY_LIVE=on` is set (docs/KOHA-SYNC.md).
+2. In Koha (ptec-koha-deployment, docs/08-READER-SERVICES.md): the librarians
+   check *OPACHoldRequests*, the hold rules, and — if readers may ask to cancel
+   a hold already waiting — the *waiting hold cancellation* rule; then
+   `PTEC_API_LEVEL=holds`, `scripts/ptec-configure.sh`, `--check`.
+3. In the e-Library's `.env`: `KOHA_READER_HOLDS=on` (with
+   `KOHA_INTEGRATION=write` and `KOHA_READ_PATRONS=on`). Restart. Cached
+   `/catalogs` pages pick it up within five minutes.
+
+Off again: remove `KOHA_READER_HOLDS`, restart.
+
+### Holds verified live (2026-09-29)
+
+The dev server against the local Koha 26.05.03 (`PTEC_API_LEVEL=holds`, plugin
+1.0.0), local Supabase, `CATALOG_AVAILABILITY_LIVE=on`; fresh Koha readers and
+records for the run (`p10/fixtures-holds.pl`): every copy out, a copy back on
+the shelf that the e-Library still showed as out, a hold waiting on the shelf,
+a hold in the queue, a title on loan to the reader, and another reader's hold.
+**29/29** in English at 1280 px, **12/12** in Khmer on a 390 px phone.
+
+| Check | Result |
+|---|---|
+| Signed out | "Sign in to place a hold on this book." — Sign in returns to the page |
+| `/api/me/library-hold` | may place; waiting; queued at position 2; on loan with its due day |
+| A title with a copy on the shelf | no card |
+| Place a hold | "Hold placed — you're number 2 in the queue."; in Koha, the hold for THIS patron, priority 2, pickup PTEC; one `success` audit row with Koha's ids and no title or slug |
+| Reload | "You have a hold on this book — number 2 in the queue.", no second button |
+| A stale page (copy back on the shelf) | "A copy is on the shelf now — borrow it at the library desk."; no hold in Koha; audited `denied` / `copy_on_shelf` |
+| Dashboard | `holdsOnline: true`; another reader's hold not listed |
+| Cancel hold | asks first ("You'll lose your place in the queue"); *Keep hold* sends nothing; then "Hold cancelled." and the hold gone from Koha; audited `outcome: cancelled` |
+| Ask to cancel, rule off | "This book is already waiting for you — ask at the library desk to cancel."; Koha: still `W`, no request; audited `denied` / `waiting_cancel_not_allowed` |
+| Ask to cancel, rule on | "Cancellation requested — the library desk will confirm it."; Koha: still `W`, one cancellation request; audited `outcome: cancellation_requested`; after reload read back from Koha, no second button |
+| Khmer, 390 px | card and panel in Khmer, links `/km/…`, a 44 px *Place a hold*, a 40 px *Cancel hold*, no horizontal scroll with the confirmation open |
+| No card linked | "To place holds online, ask at the library desk to link your library card…", no button |
+
+Unit tests (`lib/koha/holds.test.ts`, the real client against the mock): sent
+once, through the plugin only; Koha's codes passed through; a missing plugin
+or permission is unavailable; lost answers settled by reading, and an older
+hold on the same record never mistaken for the new one (negative-controlled).
+Boundary tests in `reader-services-boundary.test.ts`, `boundary.test.ts` and
+`write-boundary.test.ts`, each negative-controlled.
+
 ## Not in this phase
 
-Holds (10.2: placing on the Physical Library page, cancelling on the
-dashboard), returns, fines and payments, renewing on someone else's behalf,
-and renewal reminders.
+Returns, fines and payments, renewing or holding on someone else's behalf,
+item-level holds, choosing a pickup library, pausing a hold, and renewal or
+hold-ready reminders (Koha's own notices send those).

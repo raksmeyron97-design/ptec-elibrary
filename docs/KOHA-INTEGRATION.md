@@ -26,8 +26,9 @@ Circulation desk work stays in **Koha's staff interface**: Koha's REST API has
 no check-in endpoint in any release up to 26.05 (bug 24401 is not merged), and
 a desk that can check out but not check in is half a tool. PTEC shows
 circulation read-only — except that readers may **renew** their own loans
-(Phase 10.1, [Reader services](KOHA-READER-SERVICES.md)) through a PTEC Koha
-plugin that can do nothing else; checking out and in stay at the desk.
+and **place and cancel** their own holds (Phase 10.1/10.2,
+[Reader services](KOHA-READER-SERVICES.md)) through a PTEC Koha plugin that
+can do nothing else; checking out and in stay at the desk.
 
 ## Modes — `KOHA_INTEGRATION`
 

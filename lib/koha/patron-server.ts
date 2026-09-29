@@ -18,16 +18,26 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getKohaClient, getKohaConfig } from "./index";
-import { kohaCanReadPatrons, kohaCanRenewForReaders } from "./config";
+import { kohaCanHoldForReaders, kohaCanReadPatrons, kohaCanRenewForReaders } from "./config";
+import { catalogAvailabilityIsLive } from "@/lib/catalogs/availability-live";
 import { findPatronByCard, readHolds, readLoans, type HoldView, type LoanView, type PatronSummary } from "./patrons";
 import { renewabilityForLoans } from "./renewals";
-import type { MyLibrary, RenewalView } from "@/lib/dashboard/library-loans";
+import type { MyLibrary, RenewalView, TitleHoldStatus } from "@/lib/dashboard/library-loans";
 
 /** Card lookup, links and My Library loans are on: KOHA_READ_PATRONS=on with a working integration. */
 export const kohaReadsPatrons = () => kohaCanReadPatrons(getKohaConfig());
 
 /** Readers may renew their own loans online (Phase 10.1): KOHA_READER_RENEWALS=on as well. */
 export const kohaRenewsForReaders = () => kohaCanRenewForReaders(getKohaConfig());
+
+/**
+ * Readers may place and cancel their own holds online (Phase 10.2):
+ * KOHA_READER_HOLDS=on, AND print availability live. Until the desk has
+ * re-issued the PMB loans Koha does not know which copies are really out, so
+ * "no copy on the shelf — place a hold" would be a claim about a database,
+ * not a shelf (approved 2026-09-29).
+ */
+export const kohaHoldsForReaders = () => kohaCanHoldForReaders(getKohaConfig()) && catalogAvailabilityIsLive();
 
 /** The whole budget of one interactive Koha read, retries included. */
 export const PATRON_READ_BUDGET_MS = 10_000;
@@ -66,7 +76,7 @@ async function koha(patronId: number): Promise<Entry> {
   return entry;
 }
 
-/** Forget a patron's cached loans — after a link or unlink, or a renewal, so the next view is fresh. */
+/** Forget a patron's cached loans — after a link or unlink, a renewal or a hold, so the next view is fresh. */
 export function forgetPatron(patronId: number): void {
   cache.delete(patronId);
 }
@@ -86,6 +96,49 @@ export async function linkedPatron(profileId: string): Promise<{ patronId: numbe
 /** A reader's loans read NOW, past the cache — what a renewal is checked against. */
 export const freshLoans = (patronId: number): Promise<LoanView[]> =>
   readLoans(getKohaClient(), patronId, new Date(), AbortSignal.timeout(PATRON_READ_BUDGET_MS));
+
+/** A reader's holds read NOW, past the cache — what a hold is placed and cancelled against. */
+export const freshHolds = (patronId: number): Promise<HoldView[]> =>
+  readHolds(getKohaClient(), patronId, AbortSignal.timeout(PATRON_READ_BUDGET_MS));
+
+/**
+ * The Koha record behind a Physical Library slug, if a reader may hold it:
+ * listed, and linked to Koha by the sync. `null` = not holdable; "unavailable"
+ * = the database did not answer.
+ */
+export async function holdableRecord(slug: string): Promise<{ biblioId: number } | null | "unavailable"> {
+  const { data, error } = await createServiceClient()
+    .from("catalog_books").select("koha_biblio_id").eq("slug", slug).eq("is_active", true).maybeSingle();
+  if (error) return "unavailable";
+  return data && Number.isSafeInteger(data.koha_biblio_id) && data.koha_biblio_id > 0 ? { biblioId: data.koha_biblio_id } : null;
+}
+
+/**
+ * What the Physical Library page shows THIS reader about THIS title: whether
+ * they already hold it or have it on loan (from the minute-cached read the
+ * dashboard shares), so the page offers "Place a hold" only to a reader who
+ * could place one. A hint — Koha decides again when the button is pressed.
+ */
+export async function titleHoldStatus(profileId: string, slug: string): Promise<TitleHoldStatus> {
+  if (!kohaHoldsForReaders()) return { state: "off" };
+  const record = await holdableRecord(slug);
+  if (record === "unavailable") return { state: "unavailable" };
+  if (!record) return { state: "off" };
+  const link = await linkedPatron(profileId);
+  if (link === "unavailable") return { state: "unavailable" };
+  if (!link) return { state: "unlinked" };
+  let data: Entry;
+  try {
+    data = await koha(link.patronId);
+  } catch {
+    return { state: "unavailable" };
+  }
+  const hold = data.holds.find((h) => h.biblioId === record.biblioId);
+  if (hold) return { state: "ok", existing: { kind: "hold", holdState: hold.state, priority: hold.priority } };
+  const loan = data.loans.find((l) => l.biblioId === record.biblioId);
+  if (loan) return { state: "ok", existing: { kind: "loan", dueDate: loan.dueDate } };
+  return { state: "ok", existing: null };
+}
 
 export async function myLibrary(profileId: string): Promise<MyLibrary> {
   if (!kohaReadsPatrons()) return { state: "off" };
@@ -130,6 +183,7 @@ export async function myLibrary(profileId: string): Promise<MyLibrary> {
     cardHint: link.card_hint,
     asOf: new Date(data.at).toISOString(),
     renewalsOnline: kohaRenewsForReaders(),
+    holdsOnline: kohaHoldsForReaders(),
     loans: data.loans.map((l) => {
       const bookId = bookIdByItem.get(l.itemId);
       const b = (bookId ? books.get(bookId) : undefined) ?? (l.biblioId !== null ? bookByBiblio.get(l.biblioId) : undefined);
@@ -143,6 +197,7 @@ export async function myLibrary(profileId: string): Promise<MyLibrary> {
       ...show(h.biblioId !== null ? bookByBiblio.get(h.biblioId) : undefined),
       state: h.state, suspended: h.suspended, priority: h.priority,
       holdDate: h.holdDate, waitingDate: h.waitingDate, expirationDate: h.expirationDate,
+      cancellationRequested: h.cancellationRequested,
     })),
   };
 }

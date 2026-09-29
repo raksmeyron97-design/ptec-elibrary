@@ -23,6 +23,7 @@ import {
   getCatalogAvailability,
   normalizeCopyStatus,
   formatIsbn,
+  titleMayBeHeld,
   AVAILABILITY_KEY,
   AVAILABILITY_TONE,
   COPY_STATUS,
@@ -33,6 +34,8 @@ import {
 import { getCategoryCoverTheme } from "@/lib/cover-theme";
 import SmartBookCover from "@/components/ui/books/SmartBookCover";
 import CatalogAvailabilityNotice from "@/components/ui/books/CatalogAvailabilityNotice";
+import CatalogHoldAction from "@/components/ui/books/CatalogHoldAction";
+import { kohaHoldsForReaders } from "@/lib/koha/patron-server";
 import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
 
 export const revalidate = 300;
@@ -228,6 +231,9 @@ export default async function CatalogBookPage({
 
   const stats = computeCopyStats(copies);
   const availability = getCatalogAvailability(stats);
+  // Koha Phase 10.2: "Place a hold" only on a Koha title with no copy on the
+  // shelf, and only while holds are on (which needs live availability).
+  const offerHold = b.koha_biblio_id != null && titleMayBeHeld(stats) && kohaHoldsForReaders();
   const tone = AVAILABILITY_TONE[availability];
 
   const sortedCopies = [
@@ -407,6 +413,8 @@ export default async function CatalogBookPage({
                 </div>
               )}
             </div>
+
+            {offerHold && <CatalogHoldAction slug={b.slug} />}
 
             {/* Contact CTA */}
             <Link

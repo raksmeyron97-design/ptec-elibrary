@@ -243,6 +243,16 @@ const POLICIES = {
     limit: strictDiv(envInt("RL_KOHA_RENEW_PER_HOUR", 20)),
     windowMs: 60 * 60_000,
   }),
+  /**
+   * Online holds (Phase 10.2) — per reader, placing AND cancelling in ONE
+   * bucket, so a place/cancel loop cannot churn a title's queue (every place
+   * and cancel reorders everyone behind it). 20 an hour is more holds than a
+   * reader keeps; Koha's hold limits are the real policy.
+   */
+  kohaHold: () => ({
+    limit: strictDiv(envInt("RL_KOHA_HOLD_PER_HOUR", 20)),
+    windowMs: 60 * 60_000,
+  }),
 } as const;
 
 export type PolicyName = keyof typeof POLICIES;

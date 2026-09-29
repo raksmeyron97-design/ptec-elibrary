@@ -84,7 +84,7 @@ export const SERIES_INK = {
  * as the raw `eventType`. "Download / denied" across two columns makes an
  * administrator assemble the sentence; "Blocked" states it.
  */
-export function actionKey(e: Pick<ActivityEvent, "eventType" | "eventStatus">): string {
+export function actionKey(e: Pick<ActivityEvent, "eventType" | "eventStatus" | "circulationAction">): string {
   if (e.eventType === "download") {
     if (e.eventStatus === "denied") return "blocked";
     if (e.eventStatus === "failed") return "failed";
@@ -92,6 +92,14 @@ export function actionKey(e: Pick<ActivityEvent, "eventType" | "eventStatus">): 
   }
   if (e.eventType === "view") return "viewed";
   if (e.eventType === "circulation") {
+    // Koha Phase 10: a renewal, or a hold placed or cancelled. A row with no
+    // recorded action predates holds, so it is a renewal.
+    const a = e.circulationAction ?? "renew";
+    if (a === "hold_place") return e.eventStatus === "success" ? "holdPlaced" : e.eventStatus === "denied" ? "holdRefused" : "holdFailed";
+    if (a === "hold_cancel" || a === "hold_cancel_request") {
+      if (e.eventStatus === "success") return a === "hold_cancel" ? "holdCancelled" : "holdCancelRequested";
+      return e.eventStatus === "denied" ? "holdCancelRefused" : "holdCancelFailed";
+    }
     if (e.eventStatus === "success") return "renewed";
     return e.eventStatus === "denied" ? "renewalRefused" : "renewalFailed";
   }

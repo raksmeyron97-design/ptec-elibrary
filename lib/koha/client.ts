@@ -48,7 +48,7 @@ export interface KohaResponse<T> {
 /** Response formats a caller may ask for. JSON everywhere; MARC-in-JSON where Koha offers records as MARC (GET /biblios). */
 export type KohaAccept = "application/json" | "application/marc-in-json";
 /** `x-koha-embed` values a caller may send. A closed list, like the paths: nothing a caller passes becomes a header freely. */
-export const KOHA_EMBEDS = ["+strings", "item"] as const;
+export const KOHA_EMBEDS = ["+strings", "item", "cancellation_requested"] as const;
 export type KohaEmbed = (typeof KOHA_EMBEDS)[number];
 
 export interface KohaGetOptions {
@@ -85,11 +85,13 @@ export const KOHA_WRITE_TIMEOUT_MS = 30_000;
 
 /**
  * The only writes: create or replace a record; create or update one of its
- * items; and renew a reader's own loan through the PTEC Reader Services plugin
- * (Phase 10.1) — never Koha's own renewal route, whose permission also checks
- * books out and rewrites the lending rules (docs/KOHA-READER-SERVICES.md).
+ * items; and, through the PTEC Reader Services plugin, renew a reader's own
+ * loan (Phase 10.1) and place or cancel their own hold (Phase 10.2) — never
+ * Koha's own /checkouts or /holds routes, whose permissions also check books
+ * out, rewrite the lending rules, or list and cancel every patron's holds
+ * (docs/KOHA-READER-SERVICES.md). DELETE exists for the hold route alone.
  */
-export type KohaWriteMethod = "POST" | "PUT";
+export type KohaWriteMethod = "POST" | "PUT" | "DELETE";
 type WriteBody = "application/marc-in-json" | "application/json" | "none";
 const WRITE_ROUTES: { method: KohaWriteMethod; path: RegExp; body: WriteBody }[] = [
   { method: "POST", path: /^\/biblios$/, body: "application/marc-in-json" },
@@ -97,6 +99,8 @@ const WRITE_ROUTES: { method: KohaWriteMethod; path: RegExp; body: WriteBody }[]
   { method: "POST", path: /^\/biblios\/[1-9]\d*\/items$/, body: "application/json" },
   { method: "PUT", path: /^\/biblios\/[1-9]\d*\/items\/[1-9]\d*$/, body: "application/json" },
   { method: "POST", path: /^\/contrib\/ptec\/patrons\/[1-9]\d*\/checkouts\/[1-9]\d*\/renewal$/, body: "none" },
+  { method: "POST", path: /^\/contrib\/ptec\/patrons\/[1-9]\d*\/holds$/, body: "application/json" },
+  { method: "DELETE", path: /^\/contrib\/ptec\/patrons\/[1-9]\d*\/holds\/[1-9]\d*$/, body: "none" },
 ];
 
 export interface KohaClient {
@@ -276,7 +280,7 @@ export function createKohaClient(cfg: KohaConfig, deps: KohaClientDeps = {}): Ko
       assertSafePath(path);
       const route = WRITE_ROUTES.find((r) => r.method === method && r.path.test(path));
       if (!route) {
-        throw new KohaError("invalid_request", `Refused to send ${method} ${path}: the e-Library writes only records, their items, and a reader's own renewal.`);
+        throw new KohaError("invalid_request", `Refused to send ${method} ${path}: the e-Library writes only records, their items, and a reader's own renewals and holds.`);
       }
       const timeoutMs = opts.timeoutMs !== undefined && Number.isFinite(opts.timeoutMs) && opts.timeoutMs > 0
         ? Math.min(opts.timeoutMs, KOHA_MAX_TIMEOUT_MS)

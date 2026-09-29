@@ -21,6 +21,7 @@ import kmMessages from "@/messages/km.json";
 import type { ActivityResult } from "@/lib/admin/activity-log";
 import type { ActivityEvent } from "@/lib/admin/activity-log-shared";
 import SecurityLogsClient, { type ClientFilters } from "./SecurityLogsClient";
+import { actionKey } from "./logs-ui";
 
 // Per-file test timeout: this file's slowest test measures 711 ms on an idle
 // machine against Vitest's 5,000 ms default, and it renders the whole
@@ -275,5 +276,22 @@ describe("Activity & Security console", () => {
     const security = screen.getByRole("tab", { name: /Security/ });
     expect(security).toHaveAttribute("aria-selected", "false");
     expect(security).toHaveTextContent("4");
+  });
+});
+
+describe("circulation rows (Koha Phase 10)", () => {
+  it("every action × outcome a reader can produce has its own label, in both locales", () => {
+    const seen = new Set<string>();
+    for (const circulationAction of [undefined, null, "renew", "hold_place", "hold_cancel", "hold_cancel_request"] as const) {
+      for (const eventStatus of ["success", "denied", "failed"] as const) {
+        const key = actionKey({ eventType: "circulation", eventStatus, circulationAction });
+        expect(enMessages.adminLogs.action, key).toHaveProperty(key);
+        expect(kmMessages.adminLogs.action, key).toHaveProperty(key);
+        seen.add(key);
+      }
+    }
+    // A renewal, a hold placed, a hold cancelled and a cancellation request never share a label.
+    expect(seen.size).toBe(3 + 3 + 4);
+    expect(actionKey({ eventType: "circulation", eventStatus: "success", circulationAction: undefined })).toBe("renewed");
   });
 });

@@ -6,15 +6,22 @@
 // "nothing on loan". With online renewals on (Phase 10.1,
 // docs/KOHA-READER-SERVICES.md) a loan Koha would renew carries a Renew
 // button, and one it would not carries Koha's reason instead; returns stay at
-// the desk.
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+// the desk. With online holds on (Phase 10.2) a hold not yet found can be
+// cancelled, and one waiting on the hold shelf can be ASKED to be cancelled —
+// the desk confirms, because the copy was already pulled for this reader.
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { BookMarked, Library } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { Badge } from "@/components/ui/core/Badge";
 import { CARD, CardHeader, EmptyState } from "@/components/ui/dashboard/primitives";
-import { renewalMessageKey, type HoldState, type MyHold, type MyLibrary, type MyLoan, type RenewResult } from "@/lib/dashboard/library-loans";
-import { renewLibraryLoan } from "@/app/actions/library-loans";
+import {
+  holdMessageKey, renewalMessageKey, type HoldResult, type HoldState, type MyHold, type MyLibrary, type MyLoan, type RenewResult,
+} from "@/lib/dashboard/library-loans";
+import { cancelLibraryHold, renewLibraryLoan } from "@/app/actions/library-loans";
+
+/** Where one hold's cancellation stands on this screen: asking "are you sure?", sending, or answered. */
+type HoldUi = { phase: "confirm" } | { phase: "sending" } | { phase: "done"; result: HoldResult };
 
 const HOLD_VARIANT: Record<HoldState, "success" | "info" | "warning"> = {
   waiting: "success", in_transit: "info", processing: "info", pending: "warning",
@@ -28,16 +35,37 @@ function ItemTitle({ item, untitled }: { item: Pick<MyLoan, "title" | "slug">; u
   );
 }
 
-const ACTION_CLASS =
-  "inline-flex min-h-10 shrink-0 items-center rounded-xl border border-divider bg-bg-surface px-3 text-[12.5px] font-semibold text-text-body transition-colors hover:border-brand/40 hover:text-brand disabled:cursor-wait disabled:opacity-60 sm:min-h-8 sm:rounded-lg";
+const ACTION_BASE =
+  "inline-flex min-h-10 shrink-0 items-center rounded-xl border px-3 text-[12.5px] font-semibold transition-colors disabled:cursor-wait disabled:opacity-60 sm:min-h-8 sm:rounded-lg";
+const ACTION_CLASS = `${ACTION_BASE} border-divider bg-bg-surface text-text-body hover:border-brand/40 hover:text-brand`;
+const DANGER_ACTION_CLASS = `${ACTION_BASE} border-danger-line bg-danger-soft text-danger-text`;
 
 export default function LibraryLoans() {
   const t = useTranslations("dashboard");
   const locale = useLocale();
   const [data, setData] = useState<MyLibrary | "loading">("loading");
-  // What pressing Renew did, per loan — shown in place of the button.
-  const [renewed, setRenewed] = useState<Record<number, RenewResult>>({});
-  const [pendingId, setPendingId] = useState<number | null>(null);
+  // Per loan: being sent, or what pressing Renew did — shown in place of the button.
+  const [renewUi, setRenewUi] = useState<Record<number, "sending" | RenewResult>>({});
+  const setRenew = (id: number, ui: "sending" | RenewResult | null) =>
+    setRenewUi((all) => {
+      const next = { ...all };
+      if (ui) next[id] = ui;
+      else delete next[id];
+      return next;
+    });
+  // Holds: one state per hold, so "asking", "sending" and "answered" can never disagree.
+  const [holdUi, setHoldUi] = useState<Record<number, HoldUi>>({});
+  // Where focus goes when the "are you sure?" opens (its safe answer) and when it closes (the button that opened it).
+  const holdTriggerMap = useRef<Map<number, HTMLButtonElement> | null>(null);
+  const holdTriggers = () => (holdTriggerMap.current ??= new Map<number, HTMLButtonElement>());
+  const keepRef = useRef<HTMLButtonElement>(null);
+  const setHold = (id: number, ui: HoldUi | null) =>
+    setHoldUi((all) => {
+      const next = { ...all };
+      if (ui) next[id] = ui;
+      else delete next[id];
+      return next;
+    });
   const [, startTransition] = useTransition();
 
   const load = useCallback(() => {
@@ -51,7 +79,7 @@ export default function LibraryLoans() {
   useEffect(load, [load]);
 
   const renew = (loan: MyLoan) => {
-    setPendingId(loan.id);
+    setRenew(loan.id, "sending");
     startTransition(async () => {
       let result: RenewResult;
       try {
@@ -59,19 +87,52 @@ export default function LibraryLoans() {
       } catch {
         result = { status: "unavailable" };
       }
-      setRenewed((r) => ({ ...r, [loan.id]: result }));
+      setRenew(loan.id, result);
       if (result.status === "renewed") {
         setData((d) => d !== "loading" && d.state === "ok"
           ? { ...d, loans: d.loans.map((l) => (l.id === loan.id ? { ...l, dueDate: result.dueDate, renewals: result.renewals, overdue: false } : l)) }
           : d);
       }
-      setPendingId(null);
     });
+  };
+
+  /** "Are you sure?" for one hold at a time. The button pressed leaves the page, so focus moves to the safe answer. */
+  const askCancel = (id: number) => {
+    setHoldUi((all) => ({ ...Object.fromEntries(Object.entries(all).filter(([, u]) => u.phase !== "confirm")), [id]: { phase: "confirm" } }));
+    requestAnimationFrame(() => keepRef.current?.focus());
+  };
+  const keepHold = (id: number) => {
+    setHold(id, null);
+    requestAnimationFrame(() => holdTriggers().get(id)?.focus());
+  };
+
+  const cancelHold = (hold: MyHold) => {
+    setHold(hold.id, { phase: "sending" });
+    startTransition(async () => {
+      let result: HoldResult;
+      try {
+        result = await cancelLibraryHold(hold.id);
+      } catch {
+        result = { status: "unavailable" };
+      }
+      setHold(hold.id, { phase: "done", result });
+      if (result.status === "cancellation_requested") {
+        setData((d) => d !== "loading" && d.state === "ok"
+          ? { ...d, holds: d.holds.map((h) => (h.id === hold.id ? { ...h, cancellationRequested: true } : h)) }
+          : d);
+      }
+    });
+  };
+
+  /** "Couldn't confirm" a hold cancellation: read again, never send again blind. */
+  const checkHoldAgain = (holdId: number) => {
+    setHold(holdId, null);
+    load();
   };
 
   /** "Couldn't confirm": read again — never press Renew again blind. */
   const checkAgain = (loanId: number) => {
-    setRenewed((r) => { const next = { ...r }; delete next[loanId]; return next; });
+    setRenew(loanId, null);
     load();
   };
 
@@ -95,7 +156,8 @@ export default function LibraryLoans() {
 
   /** The right-hand side of a loan row: its state, or what can be done about it. */
   const loanAction = (l: MyLoan, online: boolean) => {
-    const done = renewed[l.id];
+    const ui = renewUi[l.id];
+    const done = ui && ui !== "sending" ? ui : null;
     if (done) {
       const msg = done.status === "renewed" ? t("renewedTo", { date: day(done.dueDate) })
         : done.status === "refused" ? reasonFor(done.code, null)
@@ -127,11 +189,66 @@ export default function LibraryLoans() {
         <button
           type="button"
           onClick={() => renew(l)}
-          disabled={pendingId === l.id}
+          disabled={ui === "sending"}
           aria-label={t("renewAria", { title: l.title ?? t("loanUntitled") })}
           className={ACTION_CLASS}
         >
-          {pendingId === l.id ? t("renewing") : t("renewButton")}
+          {ui === "sending" ? t("renewing") : t("renewButton")}
+        </button>
+      </div>
+    );
+  };
+
+  /** Below a hold: what cancelling did, the "are you sure?", or the button — only while holds are online. */
+  const holdAction = (h: MyHold, online: boolean) => {
+    const ui = holdUi[h.id];
+    const done = ui?.phase === "done" ? ui.result : null;
+    if (done && done.status !== "cancellation_requested") {
+      const msg = done.status === "cancelled" ? t("holdCancelled")
+        : done.status === "refused" ? t(holdMessageKey(done.code))
+        : done.status === "unconfirmed" ? t("holdCancelUnconfirmed")
+        : done.status === "not_found" ? t("holdCancelGone")
+        : done.status === "rate_limited" ? t("holdRateLimited")
+        : t("holdCancelUnavailable");
+      return (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <p role="status" className={`text-[12px] ${done.status === "cancelled" ? "text-success-text" : "text-text-muted"}`}>{msg}</p>
+          {done.status === "unconfirmed" && (
+            <button type="button" onClick={() => checkHoldAgain(h.id)} className={ACTION_CLASS}>{t("renewCheckAgain")}</button>
+          )}
+        </div>
+      );
+    }
+    if (h.cancellationRequested) {
+      return <p role={done ? "status" : undefined} className="mt-1 text-[12px] text-text-muted">{t("holdCancelRequested")}</p>;
+    }
+    // In transit or being processed: nothing the reader can do online (the desk note says where).
+    if (!online || (h.state !== "pending" && h.state !== "waiting")) return null;
+    const waiting = h.state === "waiting";
+    if (ui?.phase === "confirm") {
+      return (
+        <div className="mt-2 rounded-xl border border-divider bg-paper px-3 py-2.5">
+          <p className="text-[12.5px] text-text-body">{waiting ? t("holdAskCancelConfirm") : t("holdCancelConfirm")}</p>
+          <div className="mt-2 flex flex-wrap justify-end gap-2">
+            <button ref={keepRef} type="button" onClick={() => keepHold(h.id)} className={ACTION_CLASS}>{t("holdKeep")}</button>
+            <button type="button" onClick={() => cancelHold(h)} className={DANGER_ACTION_CLASS}>
+              {waiting ? t("holdAskCancelButton") : t("holdCancelButton")}
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="mt-2">
+        <button
+          type="button"
+          ref={(el) => { if (el) holdTriggers().set(h.id, el); else holdTriggers().delete(h.id); }}
+          onClick={() => askCancel(h.id)}
+          disabled={ui?.phase === "sending"}
+          aria-label={t(waiting ? "holdAskCancelAria" : "holdCancelAria", { title: h.title ?? t("loanUntitled") })}
+          className={ACTION_CLASS}
+        >
+          {ui?.phase === "sending" ? t("holdCancelling") : waiting ? t("holdAskCancelButton") : t("holdCancelButton")}
         </button>
       </div>
     );
@@ -184,16 +301,19 @@ export default function LibraryLoans() {
               <h3 className="border-t border-divider px-5 pt-3 text-[12px] font-semibold uppercase tracking-wide text-text-muted">{t("holdsHeading")}</h3>
               <ul className="divide-y divide-divider">
                 {data.holds.map((h) => (
-                  <li key={h.id} className="flex items-center justify-between gap-3 px-5 py-3">
-                    <div className="min-w-0" dir="auto">
-                      <ItemTitle item={h} untitled={t("loanUntitled")} />
-                      <p className="mt-0.5 truncate text-[12px] text-text-muted">
-                        {h.state === "waiting" && h.expirationDate ? t("holdCollectBy", { date: day(h.expirationDate) })
-                          : h.state === "pending" && h.priority ? t("holdQueue", { n: h.priority })
-                          : day(h.holdDate)}
-                      </p>
+                  <li key={h.id} className="px-5 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0" dir="auto">
+                        <ItemTitle item={h} untitled={t("loanUntitled")} />
+                        <p className="mt-0.5 truncate text-[12px] text-text-muted">
+                          {h.state === "waiting" && h.expirationDate ? t("holdCollectBy", { date: day(h.expirationDate) })
+                            : h.state === "pending" && h.priority ? t("holdQueue", { n: h.priority })
+                            : day(h.holdDate)}
+                        </p>
+                      </div>
+                      <Badge variant={h.suspended ? "warning" : HOLD_VARIANT[h.state]} className="shrink-0">{holdLabel(h)}</Badge>
                     </div>
-                    <Badge variant={h.suspended ? "warning" : HOLD_VARIANT[h.state]} className="shrink-0">{holdLabel(h)}</Badge>
+                    {holdAction(h, data.holdsOnline === true)}
                   </li>
                 ))}
               </ul>
