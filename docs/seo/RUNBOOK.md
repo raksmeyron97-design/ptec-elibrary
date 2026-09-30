@@ -108,3 +108,32 @@ decision first (see the Phase 2 report).
   with 3+ works or an approved biography remain (D2).
 - `curl -s "https://library.ptec.edu.kh/subjects/%E1%9E%82%E1%9E%8E%E1%9E%B7%E1%9E%8F%E1%9E%9C%E1%9E%B7%E1%9E%91%E1%9F%92%E1%9E%99%E1%9E%B6?page=2" | grep -o '<link rel="canonical"[^>]*>'`
   — page 2 of Mathematics is self-canonical.
+
+## Phase 3: research, open access and Google Scholar
+
+**Opening a thesis's full text** (a librarian's decision; nothing is open by
+default, D4). Admin → Theses → edit → "Public full text": record the licence in
+the form, tick that the authors consented, tick "Publish the full text openly",
+save. The database refuses `open` without both (0163). Then, read-only:
+`curl -sI https://library.ptec.edu.kh/theses/<slug>/fulltext.pdf` should answer
+`200` with `content-type: application/pdf`. Every other thesis answers `403`.
+
+**Before opening one, check Scholar will take it.** On the box, with the
+service key (the text-layer column needs it):
+`NEXT_PUBLIC_SUPABASE_URL=… NEXT_PUBLIC_SUPABASE_ANON_KEY=… SUPABASE_SERVICE_ROLE_KEY=… npx tsx scripts/seo-scholar-pdf-report.ts`
+— a PDF over 5 MB or without a text layer (a scan, or Khmer in a legacy
+non-Unicode font) is refused by Google Scholar as full text; re-export it first.
+
+**Research that should move into the theses collection.** Librarians mark the
+`decision` column of `docs/seo/research-migration.csv` (33 `/books` candidates,
+six old Google Site items). A confirmed move ships as its own change with a 301
+from the old `/books/<slug>` and a test per redirect; the Google Site items are
+created as new thesis records with librarian-checked metadata.
+
+**Google Scholar has no submission form.** It crawls pages that carry
+`citation_*` tags. After deploy, sequential and read-only:
+- `curl -s https://library.ptec.edu.kh/theses/<slug> | grep -c 'name="citation_'`
+  on the page in the work's own language, and `0` on the other one.
+- `npx tsx scripts/seo-check.ts --base https://library.ptec.edu.kh --phase 3 --delay 1500`.
+Inclusion takes weeks; check with a `site:library.ptec.edu.kh` search on
+scholar.google.com, not before a month.
