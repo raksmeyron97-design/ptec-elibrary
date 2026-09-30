@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { asciiSlug, isValidSlug, unicodeSlug } from "./slug";
+import { asciiSlug, isValidSlug, unicodeSlug, capSlug, newRecordSlug, NEW_SLUG_MAX_CHARS } from "./slug";
 
 describe("asciiSlug", () => {
   it("keeps the historical Latin behavior", () => {
@@ -59,5 +59,31 @@ describe("isValidSlug", () => {
     for (const bad of ["Not A Slug", "trailing-", "-leading", "double--hyphen", "has space", "", "Uppercase"]) {
       expect(isValidSlug(bad)).toBe(false);
     }
+  });
+});
+
+describe("capSlug / newRecordSlug (SEO Phase 2.8)", () => {
+  it("keeps the first eight words of a long Latin title", () => {
+    expect(
+      newRecordSlug("The Effect of Cooperative Learning on Grade Nine Students' Achievement in Mathematics at Two Schools"),
+    ).toBe("the-effect-of-cooperative-learning-on-grade-nine");
+  });
+  it("leaves a short slug exactly as unicodeSlug made it", () => {
+    expect(newRecordSlug("Foundations of Education")).toBe(unicodeSlug("Foundations of Education"));
+  });
+  it("counts Khmer words, which have no spaces, and never splits a cluster", () => {
+    const title = "ការសិក្សាអំពីឥទ្ធិពលនៃការរៀនសូត្រសហការលើលទ្ធផលសិក្សារបស់សិស្សថ្នាក់ទីប្រាំបួនក្នុងមុខវិជ្ជាគណិតវិទ្យា";
+    const slug = newRecordSlug(title);
+    expect(slug.length).toBeLessThanOrEqual(NEW_SLUG_MAX_CHARS);
+    expect(slug.length).toBeLessThan(title.length);
+    expect(title.startsWith(slug)).toBe(true);
+    expect(/[ា-៓]$/u.test(slug) || /[ក-ឳ]$/u.test(slug)).toBe(true);
+    expect(slug.endsWith("្")).toBe(false); // never ends on a coeng
+  });
+  it("caps characters when one word is longer than the ceiling", () => {
+    expect([...capSlug("a".repeat(200))].length).toBe(NEW_SLUG_MAX_CHARS);
+  });
+  it("never ends on a hyphen", () => {
+    expect(capSlug("one-two-three-four", { maxWords: 2 })).toBe("one-two");
   });
 });

@@ -20,6 +20,7 @@ import { normalizeTaxonomyValue } from "@/lib/books/duplicate-detection/normaliz
 import { getSession, transition } from "@/lib/uploads/session";
 import { ensureAuthorSlug } from "@/lib/authors/slug";
 import { uploadLog } from "@/lib/uploads/log";
+import { capSlug } from "@/lib/slug";
 
 /** Parse comma-separated tag string from FormData into a clean string[] */
 function parseTags(fd: FormData, field: "tags" | "keywords"): string[] {
@@ -430,7 +431,9 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
   const fileSizeKb = Number(input.fileSizeKb) || 0;
   const coverUrl   = input.coverUrl?.trim() || null;
 
-  let slug       = slugify(title);
+  // A NEW book's slug is capped to its first words (SEO Phase 2.8, D8);
+  // existing slugs are never recomputed.
+  let slug       = capSlug(slugify(title));
   const coverColor = pickCoverColor(title);
 
   let slugIsUnique = false;

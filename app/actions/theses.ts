@@ -23,6 +23,7 @@ import {
   type ContentsDraft,
   type ContentsEntry,
 } from "@/lib/theses/contents";
+import { capSlug } from "@/lib/slug";
 
 
 // Admin-side paths only; public tags/paths/counters are handled by the
@@ -432,7 +433,10 @@ export async function createThesis(formData: ThesisData) {
     return { success: false, error: sanitized.error ?? "Invalid thesis data" };
   }
 
-  const slugBase = slugify(formData.slug || formData.title);
+  // A slug the librarian gave is kept; one derived from the title is capped
+  // to its first words (SEO Phase 2.8, D8). Create only — edits never
+  // recompute a slug.
+  const slugBase = formData.slug ? slugify(formData.slug) : capSlug(slugify(formData.title));
   const slug = await uniqueThesisSlug(supabase, slugBase);
   sanitized.data.slug = slug;
 
