@@ -136,16 +136,22 @@ export function isCohortLabel(name: string): boolean {
 }
 
 /**
- * The page locale a thesis's Scholar tags belong on (Phase 3.3): Google
- * Scholar should see ONE record per work, so `citation_*` go on the page in
- * the work's own language and nowhere else. A bilingual work is filed under
- * Khmer. With no language recorded, the title's script decides.
+ * The page locale a work's Scholar tags belong on (Phase 3.3): Google Scholar
+ * should see ONE record per work, so `citation_*` go on the page in the work's
+ * own language and nowhere else. Khmer — as a code ("km"), a name ("Khmer")
+ * or bilingual ("km_en") — is the /km page; any other language is the English
+ * page, the site's default; with no language recorded, the title's script
+ * decides. One rule for theses, books and journal articles.
  */
+export function citationLocale(language: string | null | undefined, title?: string | null): "km" | "en" {
+  const value = language?.trim().toLowerCase() ?? "";
+  if (value) return /^(km|khm|khmer)/.test(value) ? "km" : "en";
+  return /[\u1780-\u17FF]/u.test(title ?? "") ? "km" : "en";
+}
+
+/** citationLocale for a thesis row. */
 export function thesisCitationLocale(row: Pick<ThesisCitationRow, "language" | "title">): "km" | "en" {
-  const language = row.language?.trim().toLowerCase();
-  if (language === "km" || language === "km_en") return "km";
-  if (language === "en") return "en";
-  return /[\u1780-\u17FF]/u.test(row.title ?? "") ? "km" : "en";
+  return citationLocale(row.language, row.title);
 }
 
 export type ThesisScholarOptions = {

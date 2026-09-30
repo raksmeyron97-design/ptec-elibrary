@@ -3,6 +3,7 @@ import {
   bookScholarMeta,
   thesisScholarMeta,
   thesisCitationLocale,
+  citationLocale,
   isCohortLabel,
   publicationScholarMeta,
   formatScholarDate,
@@ -262,5 +263,16 @@ describe("publicationScholarMeta", () => {
       subjects: ["Overlap", "Science Education"],
     });
     expect(meta.citation_keywords).toBe("Chemistry Education; Overlap; Science Education");
+  });
+});
+
+describe("citationLocale", () => {
+  it("files Khmer — code, name or bilingual — under /km and every other language under English", () => {
+    for (const km of ["km", "Khmer", "khm", "km_en"]) expect(citationLocale(km)).toBe("km");
+    for (const en of ["en", "English", "fr", "French"]) expect(citationLocale(en)).toBe("en");
+  });
+  it("with no language, the title's script decides", () => {
+    expect(citationLocale(null, "ការស្រាវជ្រាវ")).toBe("km");
+    expect(citationLocale("", "Research")).toBe("en");
   });
 });

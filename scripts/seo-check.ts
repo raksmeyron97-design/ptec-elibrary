@@ -705,7 +705,9 @@ async function checkUrl(entry: UrlEntry): Promise<void> {
     if (date) record(label, "citation-date-precision", /^\d{4}[/-]0?1[/-]0?1$/.test(date) ? "warn" : "ok", `date="${date}"`);
     const lang = (page.citations.get("citation_language")?.[0] ?? "").toLowerCase();
     if (lang) {
-      const workLocale = /^(km|khm|khmer)/.test(lang) ? "km" : /^(en|eng|english)/.test(lang) ? "en" : lang;
+      // Khmer works on /km, every other language on the English page — the
+      // one rule lib/seo/citation.ts citationLocale() applies.
+      const workLocale = /^(km|khm|khmer)/.test(lang) ? "km" : "en";
       judge(label, "citation-locale", workLocale === locale, `citation_language="${lang}" on the ${locale} page`);
     }
     const pdf = page.citations.get("citation_pdf_url")?.[0];

@@ -59,7 +59,7 @@ import { breadcrumbSchema } from "@/lib/seo/schema";
 // nothing personal is ever baked into a shared cache.
 
 import { SITE_URL } from "@/lib/seo/site";
-import { bookScholarMeta } from "@/lib/seo/citation";
+import { bookScholarMeta, citationLocale } from "@/lib/seo/citation";
 import { bookToCitationWork, hasCitableMetadata } from "@/lib/books/citation";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
@@ -181,7 +181,9 @@ export async function generateMetadata({
       // Google Scholar citation_* meta tags — see lib/seo/citation.ts.
       // citation_publisher / dc.publisher only when the record names a real
       // publisher; PTEC is the providing library, not the publisher.
-      ...bookScholarMeta(book, authorNames),
+      // …and only on the page in the book's own language, so Scholar sees one
+      // record per work (SEO Phase 3.3; lib/seo/citation.ts citationLocale).
+      ...(citationLocale(book.language, book.title) === locale ? bookScholarMeta(book, authorNames) : {}),
       "dc.type": "Book",
       ...(book.publisher ? { "dc.publisher": book.publisher } : {}),
     },
