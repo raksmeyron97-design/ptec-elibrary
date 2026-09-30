@@ -1,0 +1,151 @@
+# NOTE (added after the run, 2026-09-30): two columns in the "F2, F5, F10" block
+# below are artefacts of the §7 commands as written, not facts about the site.
+#  - hreflang=[] : the grep was case-sensitive and React writes `hrefLang`. The
+#    page heads DO carry en, km and x-default (seo-check: 51/51 indexable URLs,
+#    reciprocal). Fixed in scripts/seo-live-checks.sh (grep -i).
+#  - ldjson=4/6 : counted the string "application/ld+json", which also appears in
+#    the hydration payload. The real <script> counts are 2-3 (seo-check).
+# Everything else below is as captured.
+# seo-live-checks  base=https://library.ptec.edu.kh  started=2026-09-30T10:12:33Z
+
+## F1: 20 sequential requests per UA to /books (total | footer marker | cache headers)
+== UA: Mozilla/5.0
+1 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a432733718739cea-SIN 
+2 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a432733eadbf852a-HKG 
+3 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a432734748cd04ab-HKG 
+4 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43273501f3674bd-HKG 
+5 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a4327358097ec4af-SIN 
+6 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a432735eeee83fd4-SIN 
+7 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43273665acffd81-SIN 
+8 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a432736dfd9c86e2-HKG 
+9 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43273757c7bfd29-SIN 
+10 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a432737cad5409fc-HKG 
+11 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43273845f15b486-SIN 
+12 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a432738b4a19fd1c-SIN 
+13 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a432739298eace73-SIN 
+14 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a432739a8cbea110-SIN 
+15 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43273a32f3911e1-HKG 
+16 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43273ac0c492100-HKG 
+17 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43273b48f023fbc-SIN 
+18 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43273bc2b7584ab-HKG 
+19 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43273c47f7884ac-HKG 
+20 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43273cccbf10965-HKG 
+== UA: Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)
+1 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43273d64f35aeb9-SIN 
+2 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43273dd9ceafdb3-SIN 
+3 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43273e52c19e0af-HKG 
+4 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43273ed5f5840d9-SIN 
+5 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43273f549923e3d-SIN 
+6 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43273fc4c3aef6e-SIN 
+7 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43274053c451ecc-SIN 
+8 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a432740c4d8cfdc1-SIN 
+9 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a4327413ce0f3030-HKG 
+10 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a432741c099ec6f3-SIN 
+11 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43274267e6b0f18-HKG 
+12 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a4327431480ce8d4-HKG 
+13 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43274391c599c59-SIN 
+14 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43274591af41053-HKG 
+15 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a432746c9a2d9cb6-SIN 
+16 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43274751ccf5df8-HKG 
+17 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a432747e7b4ff8d4-SIN 
+18 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a432748a7d9608e9-HKG 
+19 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43274979e2cf8e2-SIN 
+20 status=200 total=[of 1,956] footer=[Get help,] | cache-control: private, no-cache, no-store, max-age=0, must-revalidate cf-cache-status: DYNAMIC cf-ray: a43274a08f019958-SIN 
+
+## F1: cache headers and totals for the three versions of the book list
+== /books
+date: Wed, 30 Sep 2026 10:13:34 GMT
+cache-control: private, no-cache, no-store, max-age=0, must-revalidate
+vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept-Encoding
+cf-cache-status: DYNAMIC
+total: of 1,956
+== /books?page=1
+date: Wed, 30 Sep 2026 10:13:36 GMT
+cache-control: private, no-cache, no-store, max-age=0, must-revalidate
+vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept-Encoding
+cf-cache-status: DYNAMIC
+total: of 1,956
+== /km/books
+date: Wed, 30 Sep 2026 10:13:46 GMT
+cache-control: private, no-cache, no-store, max-age=0, must-revalidate
+vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept-Encoding
+cf-cache-status: DYNAMIC
+total: នៃ 1,956
+== /km/books?page=1
+date: Wed, 30 Sep 2026 10:13:50 GMT
+cache-control: private, no-cache, no-store, max-age=0, must-revalidate
+vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept-Encoding
+cf-cache-status: DYNAMIC
+total: នៃ 1,956
+
+## F6: sitemap size, sections and lastmod values
+bytes: 1429400
+root element: <urlset
+<loc> count: 2395
+1957 books
+ 362 authors
+  31 subjects
+  19 about
+  10 paths
+   5 journals
+   3 theses
+   3 posts
+   1 privacy
+   1 policy
+   1 contact
+   1 catalogs
+   1 (home)
+-- top lastmod values
+ 847 <lastmod>2026-09-24T08:42:18.669919+00:00
+ 280 <lastmod>2026-09-16T10:13:34.48438+00:00
+ 111 <lastmod>2026-09-14T03:35:25.171631+00:00
+  11 <lastmod>2026-09-22T04:40:41.094926+00:00
+   3 <lastmod>2026-09-29T15:29:31.673208+00:00
+   3 <lastmod>2026-09-14T16:02:27.424211+00:00
+   3 <lastmod>2026-09-12T10:53:52.269105+00:00
+   1 <lastmod>2026-09-25T08:15:49.536816+00:00
+-- hreflang values in sitemap
+2395 hreflang="en"
+2395 hreflang="km"
+-- raw (non-ASCII) <loc> count: 1851
+-- percent-encoded <loc> count: 0
+
+## F2, F5, F10: H1 count, html lang, hreflang and JSON-LD per template
+/                                                                      h1=1 lang="en" hreflang=[] ldjson=4
+/km                                                                    h1=1 lang="km" hreflang=[] ldjson=4
+/books                                                                 h1=1 lang="en" hreflang=[] ldjson=4
+/km/books                                                              h1=1 lang="km" hreflang=[] ldjson=4
+/subjects                                                              h1=1 lang="en" hreflang=[] ldjson=6
+/authors                                                               h1=1 lang="en" hreflang=[] ldjson=6
+/theses                                                                h1=1 lang="en" hreflang=[] ldjson=4
+/theses/summary                                                        h1=1 lang="en" hreflang=[] ldjson=6
+/posts                                                                 h1=1 lang="en" hreflang=[] ldjson=6
+/journals                                                              h1=1 lang="en" hreflang=[] ldjson=4
+/paths                                                                 h1=1 lang="en" hreflang=[] ldjson=6
+/paths/early-grade-reading                                             h1=1 lang="en" hreflang=[] ldjson=6
+/books/introduction-to-qualitative-research-methods-4th-edition        h1=1 lang="en" hreflang=[] ldjson=6
+/km/books/introduction-to-qualitative-research-methods-4th-edition     h1=1 lang="km" hreflang=[] ldjson=6
+/books/%E1%9E%9A%E1%9E%9B%E1%9E%80                                     h1=1 lang="en" hreflang=[] ldjson=6
+/subjects/%E1%9E%82%E1%9E%8E%E1%9E%B7%E1%9E%8F%E1%9E%9C%E1%9E%B7%E1%9E%91%E1%9F%92%E1%9E%99%E1%9E%B6 h1=1 lang="en" hreflang=[] ldjson=6
+/authors/a-michael-huberman                                            h1=1 lang="en" hreflang=[] ldjson=6
+/catalogs/teacher-noticing-bridging-and-broadening-perspectives-contexts-and-frameworks-schack-edna-o h1=1 lang="en" hreflang=[] ldjson=6
+/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole h1=1 lang="en" hreflang=[] ldjson=6
+
+## F4: where citation_pdf_url points, and what robots.txt says about /api
+<meta name="citation_pdf_url" content="https://library.ptec.edu.kh/api/publications/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole/file"/>
+11:Disallow: /api$
+12:Disallow: /api/
+13:Disallow: /km/api$
+14:Disallow: /km/api/
+79:Disallow: /api$
+80:Disallow: /api/
+81:Disallow: /km/api$
+82:Disallow: /km/api/
+
+## Protect: missing slugs must stay real 404s
+/books/this-page-should-not-exist-xyz-12345                  404
+/km/books/this-page-should-not-exist-xyz-12345               404
+/subjects/no-such-subject-xyz                                404
+/authors/no-such-author-xyz-12345                            404
+
+# finished=2026-09-30T10:14:46Z

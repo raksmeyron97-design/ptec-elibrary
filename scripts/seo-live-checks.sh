@@ -57,6 +57,9 @@ echo "-- percent-encoded <loc> count: $(printf '%s' "$SM" | grep -oE '<loc>[^<]+
 sleep "$PAUSE"
 
 echo; echo "## F2, F5, F10: H1 count, html lang, hreflang and JSON-LD per template"
+# React writes the attribute as hrefLang, so the hreflang grep is case-insensitive;
+# JSON-LD is counted as <script> tags, since the bare string also appears in the
+# hydration payload. The master prompt's §7 versions of both undercount/overcount.
 for u in / /km /books /km/books /subjects /authors /theses /theses/summary /posts /journals /paths /paths/early-grade-reading \
          /books/introduction-to-qualitative-research-methods-4th-edition /km/books/introduction-to-qualitative-research-methods-4th-edition \
          /books/%E1%9E%9A%E1%9E%9B%E1%9E%80 /subjects/%E1%9E%82%E1%9E%8E%E1%9E%B7%E1%9E%8F%E1%9E%9C%E1%9E%B7%E1%9E%91%E1%9F%92%E1%9E%99%E1%9E%B6 \
@@ -66,8 +69,8 @@ for u in / /km /books /km/books /subjects /authors /theses /theses/summary /post
   printf '%-70s h1=%s %s hreflang=[%s] ldjson=%s\n' "$u" \
     "$(grep -o '<h1' <<<"$html" | wc -l | tr -d ' ')" \
     "$(grep -oE '<html[^>]*lang="[^"]*"' <<<"$html" | grep -oE 'lang="[^"]*"')" \
-    "$(grep -oE 'hreflang="[^"]*"' <<<"$html" | sort -u | tr '\n' ' ')" \
-    "$(grep -o 'application/ld+json' <<<"$html" | wc -l | tr -d ' ')"
+    "$(grep -oiE 'hreflang="[^"]*"' <<<"$html" | sort -u | tr '\n' ' ')" \
+    "$(grep -o '<script type="application/ld+json"' <<<"$html" | wc -l | tr -d ' ')"
   sleep "$PAUSE"
 done
 
