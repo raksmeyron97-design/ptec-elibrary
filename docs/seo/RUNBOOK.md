@@ -65,3 +65,46 @@ this time for real. Any such rule must set an explicit Edge TTL and
 **ignore** the origin's `stale-while-revalidate`, and `/books`, `/search` and
 every other `private, no-store` page must stay excluded. Purge on deploy
 (Phase 7.4).
+
+## Phase 2: publishing reviewed introductions and names
+
+Nothing in these files reaches a page until a librarian marks it approved.
+
+**Subject introductions and English names** (`content/drafts/subject-intros.json`).
+1. For each subject: edit `intro_en` to 80–150 words (32 of the 35 drafts are
+   shorter — the database holds no more facts; add what a librarian knows),
+   have a Khmer reader correct `intro_km` and clear `km_review`, check
+   `name_en.value` and set `name_en.status` to `"approved"` if it is right,
+   then set `status` to `"approved"`. Two entries carry a Khmer spelling
+   question in `notes`.
+2. Dry run on a machine that can reach the target database:
+   `NEXT_PUBLIC_SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… npx tsx scripts/seo-import-subject-intros.ts`
+   — it prints the target host and what it would write, and refuses an
+   approved entry that breaks a rule.
+3. The same command with `--apply`. Pages change within an hour (the
+   subject reads are cached under the `categories` tag), or at once after
+   any category save in the admin.
+
+**Hub introductions** (`content/drafts/hub-intros.json` → `content/hub-intros.json`).
+Copy an approved hub's `en` and `km` into `content/hub-intros.json` under its
+key with `"status": "approved"`, in a pull request. `lib/seo/hub-intros.test.ts`
+refuses the PR if an entry is not approved, still carries a review marker, or
+runs outside 60–120 English words.
+
+**Author biographies** (Phase 2.6). A journal author's biography counts as
+approved once their profile is published (Admin → Journals → Authors). A book
+author's biography needs `authors.bio_status = 'approved'`; there is no admin
+control for it yet, so it is a one-row SQL update on the box. The "PTEC staff"
+switch is on the journal-author form.
+
+**Catalogue twins** (`docs/seo/catalogue-twin-candidates.csv`). 40 print/e-book
+pairs share a title but name different authors, so the site does not link
+them. Mark `same_work` for the librarians' record; linking them needs a
+decision first (see the Phase 2 report).
+
+**After deploy**, sequential, read-only:
+- `curl -s https://library.ptec.edu.kh/sitemaps/authors.xml | grep -c '<loc>'`
+  — today's single sitemap lists 361 author URLs; after deploy only authors
+  with 3+ works or an approved biography remain (D2).
+- `curl -s "https://library.ptec.edu.kh/subjects/%E1%9E%82%E1%9E%8E%E1%9E%B7%E1%9E%8F%E1%9E%9C%E1%9E%B7%E1%9E%91%E1%9F%92%E1%9E%99%E1%9E%B6?page=2" | grep -o '<link rel="canonical"[^>]*>'`
+  — page 2 of Mathematics is self-canonical.
