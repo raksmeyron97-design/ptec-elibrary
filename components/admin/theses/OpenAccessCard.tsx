@@ -62,7 +62,7 @@ export default function OpenAccessCard({
     <section className="overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
       <div className="border-b border-divider px-6 pb-4 pt-5">
         <h2 className="flex items-center gap-2 text-base font-bold text-text-heading">
-          <Globe className="h-4 w-4 text-brand" />
+          <Globe className="size-4 text-brand" />
           Public full text
         </h2>
         <p className="mt-1 text-sm text-text-muted">
@@ -81,7 +81,7 @@ export default function OpenAccessCard({
           }`}
         >
           <p className="flex items-center gap-2 font-semibold">
-            {effectivePublic ? <Globe className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+            {effectivePublic ? <Globe className="size-4" /> : <Lock className="size-4" />}
             {effectivePublic ? "Open: the full text is public" : "Restricted: the full text is not public"}
           </p>
           {effectivePublic && publicPath && (
@@ -108,7 +108,7 @@ export default function OpenAccessCard({
             checked={consented}
             disabled={Boolean(consentAt)}
             onChange={(e) => setConsented(e.target.checked)}
-            className="mt-0.5 h-4 w-4 text-brand focus:ring-brand"
+            className="mt-0.5 size-4 text-brand focus:ring-brand"
           />
           <span>
             The authors have consented to their full text being public.
@@ -125,7 +125,7 @@ export default function OpenAccessCard({
             type="checkbox"
             checked={open}
             onChange={(e) => setOpen(e.target.checked)}
-            className="mt-0.5 h-4 w-4 text-brand focus:ring-brand"
+            className="mt-0.5 size-4 text-brand focus:ring-brand"
           />
           <span>Publish the full text openly</span>
         </label>
@@ -146,7 +146,7 @@ export default function OpenAccessCard({
         )}
         {saved && !dirty && (
           <span className="inline-flex items-center gap-1 text-sm text-success-text">
-            <Check className="h-4 w-4" /> Saved
+            <Check className="size-4" /> Saved
           </span>
         )}
         <button
@@ -155,7 +155,7 @@ export default function OpenAccessCard({
           disabled={pending || !dirty || (open && blockers.length > 0)}
           className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand px-5 text-sm font-semibold text-white transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {pending && <Loader2 className="h-4 w-4 animate-spin" />}
+          {pending && <Loader2 className="size-4 animate-spin" />}
           Save public access
         </button>
       </div>
