@@ -47,12 +47,16 @@ describe("assessCatalogIndexability", () => {
     }
   });
 
-  it("indexes a record that leads to full text, whatever else it carries", () => {
-    // A page that is an entry point rather than a terminus is a useful
-    // result even with no description of its own.
-    const v = assessCatalogIndexability({ digitalBookSlug: "a-digital-book" });
-    expect(v.visibility).toBe("index");
-    expect(v.reason).toBe("links-to-full-text");
+  it("never indexes a record whose work is an e-book here, however well described", () => {
+    // SEO Phase 2.7: the e-book page is the same work with its full text, and
+    // the record links to it. Two pages for one work compete for one query.
+    const v = assessCatalogIndexability({
+      digitalBookSlug: "a-digital-book",
+      description: "A long, genuinely informative description of what this book teaches and to whom.",
+      title: "A Book",
+    });
+    expect(v.visibility).toBe("noindex");
+    expect(v.reason).toBe("has-digital-twin");
   });
 
   it("treats a blank digital link as no link", () => {

@@ -24,15 +24,6 @@ type BookRow = {
   departments: JoinedName;
 };
 
-type CatalogRow = {
-  title: string | null;
-  slug: string | null;
-  author: string | null;
-  category: string | null;
-  language: string | null;
-  year: number | null;
-};
-
 type ThesisRow = {
   id: string | null;
   slug: string | null;
@@ -71,7 +62,6 @@ const getLlmsSnapshot = unstable_cache(
     const [
       stats,
       { data: books },
-      { data: catalogs },
       { data: theses },
     ] = await Promise.all([
       getCollectionStats(),
@@ -79,12 +69,6 @@ const getLlmsSnapshot = unstable_cache(
         .from("books")
         .select("title, slug, language, department, authors(name), categories(name), departments(name)")
         .eq("is_published", true)
-        .order("created_at", { ascending: false })
-        .limit(MAX_ITEMS),
-      supabase
-        .from("catalog_books")
-        .select("title, slug, author, category, language, year")
-        .eq("is_active", true)
         .order("created_at", { ascending: false })
         .limit(MAX_ITEMS),
       supabase
@@ -98,12 +82,13 @@ const getLlmsSnapshot = unstable_cache(
     return {
       stats,
       books: (books ?? []) as BookRow[],
-      catalogs: (catalogs ?? []) as CatalogRow[],
       theses: (theses ?? []) as ThesisRow[],
     };
   },
-  ["llms-txt-snapshot"],
-  { revalidate: 3600, tags: ["books", "catalog_books", "research_reports"] },
+  // v2: the snapshot no longer carries catalogue records (SEO Phase 2.7 —
+  // they are noindex, so listing them pointed crawlers at non-results).
+  ["llms-txt-snapshot-v2"],
+  { revalidate: 3600, tags: ["books", "research_reports"] },
 );
 
 /** The collection snapshot block. Every figure is the shared counting rule
@@ -155,15 +140,6 @@ function buildLlmsText(
       ])}`;
     });
 
-  const catalogLines = snapshot.catalogs
-    .filter((book) => book.title && book.slug)
-    .map((book) => `${markdownLink(clean(book.title), `${SITE_URL}/catalogs/${book.slug}`)} - ${detail([
-      book.author || "Unknown author",
-      book.category || "Physical catalog item",
-      book.language,
-      book.year,
-    ])}`);
-
   const thesisLines = snapshot.theses
     .filter((thesis) => thesis.title && thesis.id)
     .map((thesis) => `${markdownLink(clean(thesis.title), `${SITE_URL}/theses/${thesis.slug ?? thesis.id}`)} - ${detail([
@@ -192,7 +168,7 @@ The ${org.siteName} preserves, organizes, and shares teaching and research mater
 ## Public Resource Types
 
 - Digital books: ${SITE_URL}/books - online teaching resources, textbooks, and education materials that can be read through the public library interface.
-- Physical library catalog: ${SITE_URL}/catalogs - bibliographic records for print books and holdings in the ${org.abbreviation} library collection.
+- Physical library catalog: ${SITE_URL}/catalogs - bibliographic records for print books and holdings in the ${org.abbreviation} library collection. Individual catalogue records are finding aids, not search results (they answer \`noindex, follow\` and are not in the sitemap); a record whose work is also a digital book links to that book, which is the page to cite.
 - Student theses and research reports: ${SITE_URL}/theses - scholarly student research from ${org.abbreviation} programs, cohorts, departments, and academic years.
 - Scholarly journals and journal articles: ${SITE_URL}/journals - journals held by the library, each with its issues, and journal articles, each with a bibliographic landing page, references, and citation metadata. Article URLs are ${SITE_URL}/journals/articles/<slug>.
 - ${org.abbreviation}'s own official publications are on the college website, not in the library: ${PTEC_PUBLICATIONS_URL}
@@ -203,8 +179,10 @@ ${collectionSnapshot(snapshot.stats)}
 
 The library is fully bilingual (English and Khmer). Every public section has an
 English URL and a Khmer equivalent under the /km prefix, with reciprocal
-hreflang annotations. The English URL is canonical; the Khmer URL carries the
-same content with a localized interface.
+hreflang annotations. Each language version is its own canonical URL: an
+English page names its English URL as canonical and a Khmer page its /km URL,
+and the two are declared alternates of each other. Cite the version in the
+language you are quoting.
 
 - English books: ${SITE_URL}/books
 - Khmer books: ${SITE_URL}/km/books
@@ -229,7 +207,6 @@ same content with a localized interface.
 - ${SITE_URL}/about
 
 ${resourceList("Recent Digital Books", bookLines)}
-${resourceList("Recent Catalog Records", catalogLines)}
 ${resourceList("Recent Theses And Research Reports", thesisLines)}
 ## Provider vs Publisher
 
@@ -259,9 +236,10 @@ articles: the metadata (title, authors, journal, DOI) is public, but the full te
 may be paywalled at the publisher and is not necessarily redistributable here.
 
 Only trust an open-access / free-redistribution claim when a specific verified license is
-present in that item's structured data (schema.org \`license\` + \`isAccessibleForFree\`);
-when no verified license is present, treat the item as citation-only and link to the
-official DOI for the full text. Academic identifiers (DOI, ORCID, ISSN) are validated
+present in that item's structured data (schema.org \`license\`). Today only journal
+articles carry one, and only when a verified open licence is recorded for them; books
+and theses carry no \`license\` at all. Treat any item without one as citation-only
+and link to the official DOI, when there is one, for the full text. Academic identifiers (DOI, ORCID, ISSN) are validated
 before publication, so any identifier present in the structured data is well-formed.
 
 ## Citation Guidance

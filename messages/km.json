@@ -785,6 +785,8 @@
       "home": "ទំព័រដើម",
       "library": "សៀវភៅក្នុងបណ្ណាល័យ",
       "descriptionHeading": "ការពិពណ៌នា",
+      "digitalTwinLabel": "មានក្នុងបណ្ណាល័យឌីជីថលផងដែរ",
+      "digitalTwinCta": "អានសៀវភៅអេឡិចត្រូនិក",
       "detailsHeading": "ព័ត៌មានលម្អិតអំពីសៀវភៅ",
       "copiesHeading": "ច្បាប់ចម្លងនៅបណ្ណាល័យ",
       "availableCount": "ទំនេរ {available}",

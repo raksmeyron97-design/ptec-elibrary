@@ -13,6 +13,8 @@ built from words the site already publishes, but the combination is new.
 | 2 | `/km/subjects/<slug>` `<title>` (`subjects.hubPageTitle`) | `<subject> — សៀវភៅអប់រំ និងធនធានបង្រៀន (<n> សៀវភៅឥតគិតថ្លៃ)` | "<subject> — education books and teaching resources (<n> free books)" | `សៀវភៅអប់រំ និងធនធានបង្រៀន` (the /books H1 `books.h1`), `ឥតគិតថ្លៃ` from the same H1, `សៀវភៅ` after the count |
 | 2 | the same, for a subject with no books (`subjects.hubPageTitleNoBooks`) | `<subject> — សៀវភៅអប់រំ និងធនធានបង្រៀន` | "<subject> — education books and teaching resources" | as above |
 | 2 | `/km/authors/<slug>` heading over a staff member's advised theses (`authors.advisedHeading`) | `និក្ខេបបទដែលបានណែនាំ` | "Theses advised" | `និក្ខេបបទ` (thesis) + `ណែនាំ` from `theses.advisorLabel` "សាស្ត្រាចារ្យណែនាំ" |
+| 2 | `/km/catalogs/<slug>`, label before the e-book link (`catalogs.detail.digitalTwinLabel`) | `មានក្នុងបណ្ណាល័យឌីជីថលផងដែរ` | "Also in the digital library" | `បណ្ណាល័យឌីជីថល` (`home.seoTitle`), `ផងដែរ` (used 8 times in km.json) |
+| 2 | the same, link text (`catalogs.detail.digitalTwinCta`) | `អានសៀវភៅអេឡិចត្រូនិក` | "Read the e-book" | `អាន` + `សៀវភៅអេឡិចត្រូនិក` (`subjects.groupBook`) |
 
 Approved keys reused as-is (no review needed): `about.eyebrow` (the /about
 title), `thesisSummary.title` / `thesisSummary.description` (the theses

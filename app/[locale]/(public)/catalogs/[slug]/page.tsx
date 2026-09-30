@@ -40,6 +40,7 @@ import CatalogAvailabilityNotice from "@/components/ui/books/CatalogAvailability
 import CatalogHoldAction from "@/components/ui/books/CatalogHoldAction";
 import { kohaHoldsForReaders } from "@/lib/koha/patron-server";
 import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
+import { digitalTwinSlug } from "@/lib/catalogs/digital-twin-index";
 
 export const revalidate = 300;
 
@@ -181,6 +182,9 @@ export async function generateMetadata({
     // them is not neutral — the gate would then have nothing to compare
     // against and answers `noindex` rather than crediting a template.
     robots: catalogRobots({
+      // A record whose work is an e-book here is noindex; the e-book ranks
+      // and this page links to it (Phase 2.7).
+      digitalBookSlug: await digitalTwinSlug({ isbn: book.isbn, title: book.title, author: book.author }),
       description: book.description,
       title: book.title,
       author: book.author,
@@ -241,6 +245,9 @@ export default async function CatalogBookPage({
   if (!record) notFound();
   const { book: b, copies: allCopies } = record;
   const displayTitle = catalogDisplayTitle(b.title);
+  // The same work in the digital library, when the ISBN or the title and
+  // author identify exactly one e-book (lib/catalogs/digital-twin.ts).
+  const twinSlug = await digitalTwinSlug({ isbn: b.isbn, title: b.title, author: b.author });
 
   // Withdrawn copies are internal history — never shown to readers.
   const copies = allCopies
@@ -483,6 +490,17 @@ export default async function CatalogBookPage({
                   </svg>
                   {authorDisplay}
                   {b.year ? <span className="text-text-muted">· {b.year}</span> : null}
+                </p>
+              )}
+              {twinSlug && (
+                <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px]">
+                  <span className="text-text-muted">{t("detail.digitalTwinLabel")}</span>
+                  <Link
+                    href={`/books/${twinSlug}`}
+                    className="focus-field rounded-sm font-semibold text-brand underline-offset-2 hover:underline"
+                  >
+                    {t("detail.digitalTwinCta")} →
+                  </Link>
                 </p>
               )}
             </div>
