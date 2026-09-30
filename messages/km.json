@@ -9598,6 +9598,8 @@
     "editThesis": "កែសម្រួលសារណា",
     "sectionAbstract": "សេចក្ដីសង្ខេប",
     "sectionFullText": "អត្ថបទពេញ",
+    "fulltextNotPublic": "អត្ថបទពេញនេះមិនទាន់ផ្សព្វផ្សាយជាសាធារណៈនៅឡើយទេ។",
+    "fulltextSeeRecord": "កំណត់ត្រានេះពន្យល់ពីរបៀបអាន៖ {title}",
     "sectionReferences": "ឯកសារយោង",
     "noPdf": "មិនទាន់មានឯកសារ PDF ដាក់តម្កល់នៅឡើយទេ",
     "rankTitle": "ចំណាត់ថ្នាក់ទី {rank} តាមចំនួនទាញយក",

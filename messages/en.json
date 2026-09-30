@@ -9593,6 +9593,8 @@
     "editThesis": "Edit thesis",
     "sectionAbstract": "Abstract",
     "sectionFullText": "Full text",
+    "fulltextNotPublic": "This full text is not published openly.",
+    "fulltextSeeRecord": "The record explains how to read it: {title}",
     "sectionReferences": "References",
     "noPdf": "No PDF deposited yet",
     "rankTitle": "Ranked #{rank} by downloads",

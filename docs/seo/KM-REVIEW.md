@@ -16,6 +16,8 @@ built from words the site already publishes, but the combination is new.
 | 2 | `/km/catalogs/<slug>`, label before the e-book link (`catalogs.detail.digitalTwinLabel`) | `មានក្នុងបណ្ណាល័យឌីជីថលផងដែរ` | "Also in the digital library" | `បណ្ណាល័យឌីជីថល` (`home.seoTitle`), `ផងដែរ` (used 8 times in km.json) |
 | 2 | the same, link text (`catalogs.detail.digitalTwinCta`) | `អានសៀវភៅអេឡិចត្រូនិក` | "Read the e-book" | `អាន` + `សៀវភៅអេឡិចត្រូនិក` (`subjects.groupBook`) |
 | 2 | `/km/authors` `<title>` (`authors.hubSeoTitle`, changed so the title and the H1 say the same thing — N5) | `អ្នកនិពន្ធ — បុគ្គល និងស្ថាប័ននៅពីក្រោយបណ្ដុំឯកសារ` | "Authors — People & organizations behind the collection" | `authors.breadcrumbAuthors` + `authors.hubSubtitle` (the H1), verbatim |
+| 3 | 403 page of `/km/theses/<slug>/fulltext.pdf` (`thesisDetail.fulltextNotPublic`) | `អត្ថបទពេញនេះមិនទាន់ផ្សព្វផ្សាយជាសាធារណៈនៅឡើយទេ។` | "This full text is not published openly." | `អត្ថបទពេញ` (`thesisDetail.sectionFullText`), `ផ្សព្វផ្សាយ`, `សាធារណៈ` (site copy) |
+| 3 | the same page, link to the record (`thesisDetail.fulltextSeeRecord`) | `កំណត់ត្រានេះពន្យល់ពីរបៀបអាន៖ {title}` | "The record explains how to read it: {title}" | `កំណត់ត្រា`, `អាន` (site copy) |
 
 Approved keys reused as-is (no review needed): `about.eyebrow` (the /about
 title), `thesisSummary.title` / `thesisSummary.description` (the theses
