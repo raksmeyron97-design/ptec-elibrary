@@ -85,10 +85,9 @@ export default async function TeamPage({
 
   const t = await getTranslations("about");
   const tt = await getTranslations("about.team");
-  const [{ members, sections }, cfg, org] = await Promise.all([
+  const [{ members, sections }, cfg] = await Promise.all([
     getPublicTeamData(),
     getSiteConfig(),
-    getOrgIdentity(),
   ]);
 
   const sectionsWithMembers = sections.filter((s) => members.some((m) => m.section_id === s.id));
