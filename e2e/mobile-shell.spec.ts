@@ -403,8 +403,15 @@ test.describe("tab bar: tapping the current tab goes to the top", () => {
   test("Home on Home scrolls to the top, with no navigation", async ({ page, isMobile }) => {
     await onHomeScrolled(page);
     const requests: string[] = [];
+    // A navigation to the page you are on: a document load, or an RSC request
+    // for `/`. Prefetches of OTHER pages are not that — the smooth scroll to
+    // the top passes links the jump to 1600 px skipped, and each is prefetched
+    // the first time it is seen. Since the route-level loading boundaries went
+    // (SEO Phase 1, D9) those prefetches are `?_rsc=` requests, and counting
+    // them here measured the prefetcher, not this rule.
     page.on("request", (r) => {
-      if (r.resourceType() === "document" || r.url().includes("_rsc=")) requests.push(r.url());
+      const { pathname } = new URL(r.url());
+      if (r.resourceType() === "document" || (r.url().includes("_rsc=") && pathname === "/")) requests.push(r.url());
     });
     await tapHome(page, isMobile);
     await expect.poll(() => page.evaluate(() => window.scrollY), { timeout: 5_000 }).toBe(0);
