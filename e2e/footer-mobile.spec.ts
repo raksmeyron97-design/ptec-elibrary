@@ -224,8 +224,20 @@ test.describe("phone footer without JavaScript", () => {
     // automatic "scroll into view if needed" parks the summary at the very
     // bottom edge — under the fixed tab bar, like any control scrolled only
     // just into view — and the tap goes to the bar instead.
-    await page.keyboard.press("End");
-    await page.waitForTimeout(500);
+    //
+    // End is pressed until the page stops growing. Since SEO Phase 1 the
+    // homepage's real content renders without JavaScript (it used to stay a
+    // skeleton — docs/seo/AUDIT-VERIFICATION.md F2), and its
+    // content-visibility:auto bands take their real height only once they are
+    // scrolled past, so one End lands short of the bottom. A reader presses
+    // End again; so does this.
+    for (let i = 0; i < 4; i++) {
+      const before = await page.evaluate(() => document.documentElement.scrollHeight).catch(() => null);
+      await page.keyboard.press("End");
+      await page.waitForTimeout(500);
+      const after = await page.evaluate(() => document.documentElement.scrollHeight).catch(() => null);
+      if (before === null || after === before) break;
+    }
     await footer.locator("details.footer-more > summary").click();
     await expect(subjects).toBeVisible();
   });
