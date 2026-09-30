@@ -140,14 +140,18 @@ export default async function LearningPathsPage({
         <header className="mb-8 border-b border-divider pb-7">
           <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)] lg:gap-12">
             <div>
-              <span className="inline-flex items-center gap-2 rounded-full border border-brand/25 bg-brand/8 px-3.5 py-1.5 text-[11.5px] font-bold uppercase tracking-[0.16em] text-brand">
+              {/* The H1 is the pill: it names the page ("Teacher Learning
+                  Paths", the same words as the <title>), while the slogan
+                  below keeps its display size as a paragraph (SEO N5). Same
+                  look as before; only the elements swapped. */}
+              <h1 className="m-0 inline-flex items-center gap-2 rounded-full border border-brand/25 bg-brand/8 px-3.5 py-1.5 text-[11.5px] font-bold uppercase tracking-[0.16em] text-brand">
                 <GraduationCap className="h-4 w-4" aria-hidden="true" />
                 {t("eyebrow")}
-              </span>
-
-              <h1 className="mt-4 font-khmer-serif text-[clamp(26px,4.2vw,38px)] font-bold leading-[1.18] text-text-heading">
-                {t("h1")}
               </h1>
+
+              <p className="mt-4 font-khmer-serif text-[clamp(26px,4.2vw,38px)] font-bold leading-[1.18] text-text-heading">
+                {t("h1")}
+              </p>
 
               <p className="mt-3 max-w-[58ch] text-[15.5px] leading-[1.7] text-text-body">
                 {t("heroValueProp")}

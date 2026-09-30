@@ -7,7 +7,7 @@ import km from '../messages/km.json';
 test.describe('Learning Paths — public catalogue', () => {
   test('renders the hero and breadcrumbs on server render', async ({ page }) => {
     await page.goto('/paths');
-    // paths.h1 — the page's single level-1 heading.
+    // paths.eyebrow ("Teacher Learning Paths") — the page's single level-1 heading (SEO N5).
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     // Eyebrow is server-rendered (discoverable without JS).
     await expect(page.getByText(/Teacher Learning Paths/i).first()).toBeVisible();
