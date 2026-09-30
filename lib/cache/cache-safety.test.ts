@@ -85,6 +85,33 @@ const SERVER_METERED: Record<string, readonly string[]> = {
   "/search": ["headers()"],
 };
 
+/**
+ * Dynamic-segment pages that export `revalidate` but DO NOT opt into runtime
+ * ISR, so they are rendered on every request despite reading nothing personal.
+ *
+ * In Next 16 `revalidate` alone does not cache a `[param]` path. The page must
+ * also return a list (an empty one builds nothing and caches each path on its
+ * first visit) from generateStaticParams, or set dynamic = "force-static".
+ * See node_modules/next/dist/docs/01-app/03-api-reference/04-functions/
+ * generate-static-params.md, "All paths at runtime".
+ *
+ * Measured against production on 2026-09-30: these answer
+ * `Cache-Control: private, no-store`. /theses/[slug] was on this list and left
+ * it when it gained generateStaticParams.
+ *
+ * Removing an entry is the win. Adding one is a regression.
+ */
+const REVALIDATE_WITHOUT_RUNTIME_ISR = [
+  "/authors/[slug]",
+  "/catalogs/[slug]",
+  "/journals/[slug]",
+  "/journals/[slug]/issues",
+  "/journals/[slug]/issues/[issue]",
+  "/subjects/[slug]",
+];
+
+const RUNTIME_ISR_OPT_IN = /export (async )?function generateStaticParams\b|export const dynamic\s*=\s*["']force-static["']/;
+
 const AUTH_READS = [
   ["cookies()", /\bcookies\s*\(\s*\)/],
   ["headers()", /\bheaders\s*\(\s*\)/],
@@ -131,6 +158,37 @@ describe("public cache safety", () => {
       }
     },
   );
+
+  // Reading no session is necessary but not sufficient: a `[param]` page is
+  // only cached if it also opts into runtime ISR. /theses/[slug] shipped with
+  // `revalidate = 3600`, read nothing personal, and still answered
+  // `private, no-store` in production for exactly this reason.
+  const isrClaims = sharedCached.filter(
+    (f) => f.endsWith("page.tsx") && routeOf(f).includes("[") && /^export const revalidate\s*=/m.test(code(f)),
+  );
+
+  it("finds the dynamic-segment pages that claim revalidation", () => {
+    expect(isrClaims.map(routeOf)).toContain("/theses/[slug]");
+  });
+
+  it.each(isrClaims.map((f) => routeOf(f)))("%s opts into runtime ISR, or is listed as not yet doing so", (route) => {
+    const optedIn = RUNTIME_ISR_OPT_IN.test(code(path.join(PUBLIC_TREE, route, "page.tsx")));
+    if (REVALIDATE_WITHOUT_RUNTIME_ISR.includes(route)) {
+      expect(optedIn, `${route} now opts into runtime ISR: remove it from REVALIDATE_WITHOUT_RUNTIME_ISR.`).toBe(false);
+    } else {
+      expect(
+        optedIn,
+        `${route} exports revalidate but neither generateStaticParams nor dynamic = "force-static", so ` +
+          `Next renders it on every request. Add \`export function generateStaticParams() { return []; }\`.`,
+      ).toBe(true);
+    }
+  });
+
+  it("the thesis record is cached at runtime", () => {
+    const src = code(path.join(PUBLIC_TREE, "theses/[slug]", "page.tsx"));
+    expect(src).toMatch(/export function generateStaticParams\(\)\s*\{\s*return \[\];\s*\}/);
+    expect(REVALIDATE_WITHOUT_RUNTIME_ISR).not.toContain("/theses/[slug]");
+  });
 
   // A metered route is exempt from ONE read because it is dynamic by its own
   // address anyway. If it ever stopped reading searchParams, the headers()

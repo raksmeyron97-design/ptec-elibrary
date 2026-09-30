@@ -35,6 +35,16 @@ const splitAuthors = citationNames;
 // /api/theses/[id]/download-status (components/ui/theses/record/useThesisAccess).
 export const revalidate = 3600;
 
+// `revalidate` alone does not cache a dynamic segment: Next 16 renders such a
+// path per request unless the page opts into runtime ISR, either with
+// generateStaticParams (an empty list builds nothing and caches each thesis
+// on its first visit) or with force-static. Without this the page answered
+// `private, no-store` in production. An admin edit still reaches it: the row
+// read is tagged TAGS.theses, which revalidateThesis() fires.
+export function generateStaticParams() {
+  return [];
+}
+
 type PageProps = { params: Promise<{ slug: string; locale: string }> };
 
 // Legacy /theses/[uuid] URLs. Middleware already issues the 301 for these;
