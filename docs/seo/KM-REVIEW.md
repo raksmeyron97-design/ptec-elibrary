@@ -18,3 +18,13 @@ title), `thesisSummary.title` / `thesisSummary.description` (the theses
 index), `reader.readOnline` (the reader title), `about.breadcrumb.home` /
 `about.breadcrumb.about` (About breadcrumb JSON-LD), `libraryName.km` from
 System Settings (the /km title suffix and `og:site_name`).
+
+## Drafts in files (Phase 2)
+
+- `content/drafts/subject-intros.json` — a Khmer introduction (`intro_km`)
+  for each of the 35 subjects, built from the phrases above plus
+  `home.heroMostDownloaded` ("សៀវភៅដែលទាញយកច្រើនបំផុត"), `subjects.subtopicsHeading`
+  ("ប្រធានបទរង") and `nav.learningPaths` ("ផ្លូវសិក្សា"). Each entry carries
+  `km_review: "TODO(km-review)"`; the importer refuses a Khmer intro until a
+  reviewer clears it. Two category names are flagged for a spelling check in
+  their `notes` (កញ្ជប់គណិតវិទ្យា, វិទ្យសាស្ត្រ); nothing renames them.

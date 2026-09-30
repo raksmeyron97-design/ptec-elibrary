@@ -1,0 +1,1141 @@
+{
+  "about": "DRAFT subject introductions for librarian review (SEO Phase 2.2). Built only from database facts; nothing here is published. To publish an entry: edit intro_en/intro_km (80–150 words), set name_en.status to \"approved\" if the English name is right, clear km_review once a Khmer reader has approved intro_km, set status to \"approved\", then run scripts/seo-import-subject-intros.ts.",
+  "generated_at": "2026-09-30T13:44:34.032Z",
+  "source": "supabase.storage-ptec.online (anon, read-only)",
+  "subjects": [
+    {
+      "slug": "កញ្ជប់គណិតវិទ្យា",
+      "name_km": "កញ្ជប់គណិតវិទ្យា",
+      "name_en": {
+        "value": "Mathematics Kits",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 21,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "សៀវភៅលំហាត់ គណិតវិទ្យា ថ្នាក់ទី២ ន២",
+          "សៀវភៅសិស្សអក្ខរកម្មឌីជីថល សម្រាប់បឋមសិក្សា",
+          "សៀវភៅលំហាត់ គណិតវិទ្យា ថ្នាក់ទី៣ ប១"
+        ],
+        "subtopics": [],
+        "parent": "គណិតវិទ្យា",
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Mathematics Kits (កញ្ជប់គណិតវិទ្យា). The collection holds 21 free e-books. The most downloaded e-books are “សៀវភៅលំហាត់ គណិតវិទ្យា ថ្នាក់ទី២ ន២”, “សៀវភៅសិស្សអក្ខរកម្មឌីជីថល សម្រាប់បឋមសិក្សា” and “សៀវភៅលំហាត់ គណិតវិទ្យា ថ្នាក់ទី៣ ប១”. It is a subtopic of Mathematics (គណិតវិទ្យា).",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា កញ្ជប់គណិតវិទ្យា។ បណ្ណាល័យមាន 21 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «សៀវភៅលំហាត់ គណិតវិទ្យា ថ្នាក់ទី២ ន២» «សៀវភៅសិស្សអក្ខរកម្មឌីជីថល សម្រាប់បឋមសិក្សា» និង «សៀវភៅលំហាត់ គណិតវិទ្យា ថ្នាក់ទី៣ ប១»។ ប្រធានបទរងនៃ គណិតវិទ្យា។",
+      "words_en": 51,
+      "words_km": 49,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 51 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving.",
+        "Spelling: the learning paths write កញ្ចប់ (package), this category កញ្ជប់. Confirm which is intended."
+      ]
+    },
+    {
+      "slug": "កម្មវិធី-pisa",
+      "name_km": "កម្មវិធី PISA",
+      "name_en": {
+        "value": "PISA Programme",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 8,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "PISA for Development: Results in Focus",
+          "PISA 2022 Results: Creative Minds (Volume III)",
+          "PISA 2022 Results: Learning During Disruption (Volume II)"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on PISA Programme (កម្មវិធី PISA). The collection holds 8 free e-books. The most downloaded e-books are “PISA for Development: Results in Focus”, “PISA 2022 Results: Creative Minds (Volume III)” and “PISA 2022 Results: Learning During Disruption (Volume II)”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា កម្មវិធី PISA។ បណ្ណាល័យមាន 8 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «PISA for Development: Results in Focus» «PISA 2022 Results: Creative Minds (Volume III)» និង «PISA 2022 Results: Learning During Disruption (Volume II)»។",
+      "words_en": 47,
+      "words_km": 48,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 47 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "កម្មវិធីសិក្សា",
+      "name_km": "កម្មវិធីសិក្សា",
+      "name_en": {
+        "value": "Curriculum",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 66,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "កម្មវិធីសិក្សាថ្នាក់ទី5",
+          "របាយការស្រាវជ្រាវលើប្រធានបទស្ដីពីវិធីសាស្ត្របង្រៀនមុខវិជ្ជា​ICT ន",
+          "កម្មវិធីសិក្សាថ្នាក់ទី6"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Curriculum (កម្មវិធីសិក្សា). The collection holds 66 free e-books. The most downloaded e-books are “កម្មវិធីសិក្សាថ្នាក់ទី5”, “របាយការស្រាវជ្រាវលើប្រធានបទស្ដីពីវិធីសាស្ត្របង្រៀនមុខវិជ្ជា​ICT ន” and “កម្មវិធីសិក្សាថ្នាក់ទី6”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា កម្មវិធីសិក្សា។ បណ្ណាល័យមាន 66 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «កម្មវិធីសិក្សាថ្នាក់ទី5» «របាយការស្រាវជ្រាវលើប្រធានបទស្ដីពីវិធីសាស្ត្របង្រៀនមុខវិជ្ជា​ICT ន» និង «កម្មវិធីសិក្សាថ្នាក់ទី6»។",
+      "words_en": 43,
+      "words_km": 45,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 43 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "គណិតវិទ្យា",
+      "name_km": "គណិតវិទ្យា",
+      "name_en": {
+        "value": "Mathematics",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 440,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 489,
+        "top_books": [
+          "សៀវភៅណែនាំគ្រូបង្រៀន គណិតវិទ្យា ថ្នាក់ទី៨ (STEPSAM3)",
+          "គណិតវិទ្យា ថ្នាក់ទី៣ សៀវភៅលំហាត់ ភាគ១",
+          "ឯកសារជំនួយស្មារតីតេស្ត PISA-D គណិតវិទ្យា"
+        ],
+        "subtopics": [
+          "កញ្ជប់គណិតវិទ្យា"
+        ],
+        "parent": null,
+        "learning_paths": [
+          "early-grade-mathematics-grade-1-curriculum-manipulatives",
+          "early-grade-learning-package",
+          "early-grade-math",
+          "early-grade-math-grade-2",
+          "early-grade-math-grade-3"
+        ]
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Mathematics (គណិតវិទ្យា). The collection holds 440 free e-books and 489 printed books held in the library. The most downloaded e-books are “សៀវភៅណែនាំគ្រូបង្រៀន គណិតវិទ្យា ថ្នាក់ទី៨ (STEPSAM3)”, “គណិតវិទ្យា ថ្នាក់ទី៣ សៀវភៅលំហាត់ ភាគ១” and “ឯកសារជំនួយស្មារតីតេស្ត PISA-D គណិតវិទ្យា”. Its subtopics are Mathematics Kits (កញ្ជប់គណិតវិទ្យា). The learning paths “Early Grade Mathematics: Grade 1 Curriculum & Manipulatives”, “Early Grade Learning: MoEYS Reading & Mathematics Curriculum (Grades 1–3)”, “Early Grade Mathematics: Complete Primary Curriculum (Grades 1–3)”, “Early Grade Mathematics: Grade 2 Curriculum & Manipulatives” and “Early Grade Mathematics: Grade 3 Curriculum & Advanced Foundations” draw on this subject.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា គណិតវិទ្យា។ បណ្ណាល័យមាន 440 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ និង 489 សៀវភៅរូបវន្ត។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «សៀវភៅណែនាំគ្រូបង្រៀន គណិតវិទ្យា ថ្នាក់ទី៨ (STEPSAM3)» «គណិតវិទ្យា ថ្នាក់ទី៣ សៀវភៅលំហាត់ ភាគ១» និង «ឯកសារជំនួយស្មារតីតេស្ត PISA-D គណិតវិទ្យា»។ ប្រធានបទរង៖ កញ្ជប់គណិតវិទ្យា។ ផ្លូវសិក្សា «កញ្ចប់គណិតវិទ្យាថ្នាក់ដំបូង ថ្នាក់ទី១៖ វិធីសាស្ត្របង្រៀន និងកម្រងលំហាត់» «កញ្ចប់សិក្សាថ្នាក់ដំបូង៖ អំណាន និងគណិតវិទ្យា (ថ្នាក់ទី១ ដល់ទី៣)» «កញ្ចប់គណិតវិទ្យាថ្នាក់ដំបូង (ថ្នាក់ទី១ ទី២ និងទី៣)» «កញ្ចប់គណិតវិទ្យាថ្នាក់ដំបូង ថ្នាក់ទី២៖ វិធីសាស្ត្របង្រៀន និងកម្រងលំហាត់» និង «កញ្ចប់គណិតវិទ្យាថ្នាក់ដំបូង ថ្នាក់ទី៣៖ វិធីសាស្ត្របង្រៀន និងកម្រងលំហាត់» ប្រើធនធានពីមុខវិជ្ជានេះ។",
+      "words_en": 108,
+      "words_km": 109,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": []
+    },
+    {
+      "slug": "គរុកោសល្យ",
+      "name_km": "គរុកោសល្យ",
+      "name_en": {
+        "value": "Pedagogy",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 106,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 496,
+        "top_books": [
+          "កម្មវិធីសិក្សាលម្អិត មុខវិជ្ជាគរុកោសល្យនិងការបង្រៀន (BA+1)",
+          "កម្មវិធីសិក្សាលម្អិត ផ្នែកកម្មសិក្សាគរុកោសល្យ (BA+1)",
+          "ការបង្រៀនតាមវិធីសម្តែងតួ"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Pedagogy (គរុកោសល្យ). The collection holds 106 free e-books and 496 printed books held in the library. The most downloaded e-books are “កម្មវិធីសិក្សាលម្អិត មុខវិជ្ជាគរុកោសល្យនិងការបង្រៀន (BA+1)”, “កម្មវិធីសិក្សាលម្អិត ផ្នែកកម្មសិក្សាគរុកោសល្យ (BA+1)” and “ការបង្រៀនតាមវិធីសម្តែងតួ”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា គរុកោសល្យ។ បណ្ណាល័យមាន 106 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ និង 496 សៀវភៅរូបវន្ត។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «កម្មវិធីសិក្សាលម្អិត មុខវិជ្ជាគរុកោសល្យនិងការបង្រៀន (BA+1)» «កម្មវិធីសិក្សាលម្អិត ផ្នែកកម្មសិក្សាគរុកោសល្យ (BA+1)» និង «ការបង្រៀនតាមវិធីសម្តែងតួ»។",
+      "words_en": 55,
+      "words_km": 53,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 55 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "គីមីវិទ្យា",
+      "name_km": "គីមីវិទ្យា",
+      "name_en": {
+        "value": "Chemistry",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 119,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "សៀវភៅពិសោធគីមីវិទ្យា ភាគ២",
+          "សទ្ទានុក្រមវិទ្យាសាស្ត្រ និងបច្ចេកវិទ្យា ខ្មែរ-អង់គ្លេស-បារំាង",
+          "គីមីវិទ្យា បណ្តុំវិទ្យាសាស្ត្រ"
+        ],
+        "subtopics": [],
+        "parent": "វិទ្យសាស្ត្រ",
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Chemistry (គីមីវិទ្យា). The collection holds 119 free e-books. The most downloaded e-books are “សៀវភៅពិសោធគីមីវិទ្យា ភាគ២”, “សទ្ទានុក្រមវិទ្យាសាស្ត្រ និងបច្ចេកវិទ្យា ខ្មែរ-អង់គ្លេស-បារំាង” and “គីមីវិទ្យា បណ្តុំវិទ្យាសាស្ត្រ”. It is a subtopic of Science (វិទ្យសាស្ត្រ).",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា គីមីវិទ្យា។ បណ្ណាល័យមាន 119 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «សៀវភៅពិសោធគីមីវិទ្យា ភាគ២» «សទ្ទានុក្រមវិទ្យាសាស្ត្រ និងបច្ចេកវិទ្យា ខ្មែរ-អង់គ្លេស-បារំាង» និង «គីមីវិទ្យា បណ្តុំវិទ្យាសាស្ត្រ»។ ប្រធានបទរងនៃ វិទ្យសាស្ត្រ។",
+      "words_en": 47,
+      "words_km": 46,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 47 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "ចំណេះដឹងទូទៅ",
+      "name_km": "ចំណេះដឹងទូទៅ",
+      "name_en": {
+        "value": "General Knowledge",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 7,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 92,
+        "top_books": [
+          "ឧបសម្ព័ន្ធស្តីពីសញ្ញាចរាចរណ៍ផ្លូវគោក ភាគ១៖ ទូទៅ",
+          "Introduction to Insurance",
+          "អំណាន ជាអំណាច"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on General Knowledge (ចំណេះដឹងទូទៅ). The collection holds 7 free e-books and 92 printed books held in the library. The most downloaded e-books are “ឧបសម្ព័ន្ធស្តីពីសញ្ញាចរាចរណ៍ផ្លូវគោក ភាគ១៖ ទូទៅ”, “Introduction to Insurance” and “អំណាន ជាអំណាច”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា ចំណេះដឹងទូទៅ។ បណ្ណាល័យមាន 7 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ និង 92 សៀវភៅរូបវន្ត។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «ឧបសម្ព័ន្ធស្តីពីសញ្ញាចរាចរណ៍ផ្លូវគោក ភាគ១៖ ទូទៅ» «Introduction to Insurance» និង «អំណាន ជាអំណាច»។",
+      "words_en": 49,
+      "words_km": 46,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 49 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "ច្បាប់",
+      "name_km": "ច្បាប់",
+      "name_en": {
+        "value": "Law",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 5,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "ទស្សនទានស្តីពីវិវាទព្រំដែនសមុទ្រកម្ពុជា-ថៃ",
+          "នីតិអន្តរជាតិឯកជន",
+          "នីតិរដ្ឋបាលទូទៅ (4th Edition)"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Law (ច្បាប់). The collection holds 5 free e-books. The most downloaded e-books are “ទស្សនទានស្តីពីវិវាទព្រំដែនសមុទ្រកម្ពុជា-ថៃ”, “នីតិអន្តរជាតិឯកជន” and “នីតិរដ្ឋបាលទូទៅ (4th Edition)”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា ច្បាប់។ បណ្ណាល័យមាន 5 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «ទស្សនទានស្តីពីវិវាទព្រំដែនសមុទ្រកម្ពុជា-ថៃ» «នីតិអន្តរជាតិឯកជន» និង «នីតិរដ្ឋបាលទូទៅ (4th Edition)»។",
+      "words_en": 39,
+      "words_km": 41,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 39 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "ជីវវិទ្យា",
+      "name_km": "ជីវវិទ្យា",
+      "name_en": {
+        "value": "Biology",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 81,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "ជីវវិទ្យា ថ្នាក់ទី៧ មេរៀនទី ២៖ ផ្នែកផ្សេងៗនៃប្រដាប់រំលាយអាហារ",
+          "ជីវវិទ្យា",
+          "ជីវវិទ្យា ថ្នាក់ទី​១២ ៖ មេរៀន​សង្ខេប និង​លំហាត់​គំរូ​សម្រាប់​ជា​ជ"
+        ],
+        "subtopics": [],
+        "parent": "វិទ្យសាស្ត្រ",
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Biology (ជីវវិទ្យា). The collection holds 81 free e-books. The most downloaded e-books are “ជីវវិទ្យា ថ្នាក់ទី៧ មេរៀនទី ២៖ ផ្នែកផ្សេងៗនៃប្រដាប់រំលាយអាហារ”, “ជីវវិទ្យា” and “ជីវវិទ្យា ថ្នាក់ទី​១២ ៖ មេរៀន​សង្ខេប និង​លំហាត់​គំរូ​សម្រាប់​ជា​ជ”. It is a subtopic of Science (វិទ្យសាស្ត្រ).",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា ជីវវិទ្យា។ បណ្ណាល័យមាន 81 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «ជីវវិទ្យា ថ្នាក់ទី៧ មេរៀនទី ២៖ ផ្នែកផ្សេងៗនៃប្រដាប់រំលាយអាហារ» «ជីវវិទ្យា» និង «ជីវវិទ្យា ថ្នាក់ទី​១២ ៖ មេរៀន​សង្ខេប និង​លំហាត់​គំរូ​សម្រាប់​ជា​ជ»។ ប្រធានបទរងនៃ វិទ្យសាស្ត្រ។",
+      "words_en": 57,
+      "words_km": 56,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 57 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "ទស្សនវិជ្ជា",
+      "name_km": "ទស្សនវិជ្ជា",
+      "name_en": {
+        "value": "Philosophy",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 7,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 189,
+        "top_books": [
+          "ព្រះពុទ្ធសាសនា និង បរិស្ថាន (1st Edition)",
+          "សកលចិន្តា ធម្មបាល",
+          "កម្ម អ្នកសាងលោកពិត"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Philosophy (ទស្សនវិជ្ជា). The collection holds 7 free e-books and 189 printed books held in the library. The most downloaded e-books are “ព្រះពុទ្ធសាសនា និង បរិស្ថាន (1st Edition)”, “សកលចិន្តា ធម្មបាល” and “កម្ម អ្នកសាងលោកពិត”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា ទស្សនវិជ្ជា។ បណ្ណាល័យមាន 7 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ និង 189 សៀវភៅរូបវន្ត។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «ព្រះពុទ្ធសាសនា និង បរិស្ថាន (1st Edition)» «សកលចិន្តា ធម្មបាល» និង «កម្ម អ្នកសាងលោកពិត»។",
+      "words_en": 45,
+      "words_km": 43,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 45 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "ទស្សនវិជ្ជាអប់រំ",
+      "name_km": "ទស្សនវិជ្ជាអប់រំ",
+      "name_en": {
+        "value": "Philosophy of Education",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 8,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "ចន ឡុក (John Locke)",
+          "សាំង អូហ្គូស្ទីន (Saint Augustine)",
+          "អេពីគួរ (Epicurus)"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Philosophy of Education (ទស្សនវិជ្ជាអប់រំ). The collection holds 8 free e-books. The most downloaded e-books are “ចន ឡុក (John Locke)”, “សាំង អូហ្គូស្ទីន (Saint Augustine)” and “អេពីគួរ (Epicurus)”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា ទស្សនវិជ្ជាអប់រំ។ បណ្ណាល័យមាន 8 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «ចន ឡុក (John Locke)» «សាំង អូហ្គូស្ទីន (Saint Augustine)» និង «អេពីគួរ (Epicurus)»។",
+      "words_en": 40,
+      "words_km": 40,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 40 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "បច្ចេកវិទ្យា",
+      "name_km": "បច្ចេកវិទ្យា",
+      "name_en": {
+        "value": "Technology",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 7,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 227,
+        "top_books": [
+          "ថ្នាលអភិវឌ្ឍសមត្ថភាព CDP",
+          "អេឡិចត្រូនិចសម្រាប់ថ្នាក់ទី៧-៨-៩ (ស្ទែម)",
+          "ការអប់រំព័ត៌មានវិទ្យា"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Technology (បច្ចេកវិទ្យា). The collection holds 7 free e-books and 227 printed books held in the library. The most downloaded e-books are “ថ្នាលអភិវឌ្ឍសមត្ថភាព CDP”, “អេឡិចត្រូនិចសម្រាប់ថ្នាក់ទី៧-៨-៩ (ស្ទែម)” and “ការអប់រំព័ត៌មានវិទ្យា”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា បច្ចេកវិទ្យា។ បណ្ណាល័យមាន 7 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ និង 227 សៀវភៅរូបវន្ត។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «ថ្នាលអភិវឌ្ឍសមត្ថភាព CDP» «អេឡិចត្រូនិចសម្រាប់ថ្នាក់ទី៧-៨-៩ (ស្ទែម)» និង «ការអប់រំព័ត៌មានវិទ្យា»។",
+      "words_en": 50,
+      "words_km": 48,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 50 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "បច្ចេកវិទ្យាព័ត៌មាន",
+      "name_km": "បច្ចេកវិទ្យាព័ត៌មាន",
+      "name_en": {
+        "value": "Information Technology",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 34,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "Sala Digital Education (Slides)",
+          "បច្ចេកវិទ្យាគមនាគមន៍និងព័ត៌មាន",
+          "ឯកសារណែនាំសម្រាប់គ្រូបណ្ដុះបណ្ដាល កម្មវិធីសិក្សាអក្ខរកម្មឌីជីថលខ្មែរ"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Information Technology (បច្ចេកវិទ្យាព័ត៌មាន). The collection holds 34 free e-books. The most downloaded e-books are “Sala Digital Education (Slides)”, “បច្ចេកវិទ្យាគមនាគមន៍និងព័ត៌មាន” and “ឯកសារណែនាំសម្រាប់គ្រូបណ្ដុះបណ្ដាល កម្មវិធីសិក្សាអក្ខរកម្មឌីជីថលខ្មែរ”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា បច្ចេកវិទ្យាព័ត៌មាន។ បណ្ណាល័យមាន 34 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «Sala Digital Education (Slides)» «បច្ចេកវិទ្យាគមនាគមន៍និងព័ត៌មាន» និង «ឯកសារណែនាំសម្រាប់គ្រូបណ្ដុះបណ្ដាល កម្មវិធីសិក្សាអក្ខរកម្មឌីជីថលខ្មែរ»។",
+      "words_en": 44,
+      "words_km": 45,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 44 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "បំណិនជីវិត",
+      "name_km": "បំណិនជីវិត",
+      "name_en": {
+        "value": "Life Skills",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 1,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "កម្មវិធីសិក្សាលម្អិត បំណិនជីវិត ថ្នាក់ទី១-៦"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Life Skills (បំណិនជីវិត). The collection holds 1 free e-book. The most downloaded e-book is “កម្មវិធីសិក្សាលម្អិត បំណិនជីវិត ថ្នាក់ទី១-៦”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា បំណិនជីវិត។ បណ្ណាល័យមាន 1 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «កម្មវិធីសិក្សាលម្អិត បំណិនជីវិត ថ្នាក់ទី១-៦»។",
+      "words_en": 33,
+      "words_km": 34,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 33 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "ប្រវត្តិសាស្ត្រ",
+      "name_km": "ប្រវត្តិសាស្ត្រ",
+      "name_en": {
+        "value": "History",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 9,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 180,
+        "top_books": [
+          "កំណត់ហេតុរបស់ជីវតាក្វាន់ (3rd Edition)",
+          "ប្រវត្តិវិទ្យា ថ្នាក់ទី១២",
+          "សង្គ្រាមត្រជាក់ ១៩៤៧-១៩៩១"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on History (ប្រវត្តិសាស្ត្រ). The collection holds 9 free e-books and 180 printed books held in the library. The most downloaded e-books are “កំណត់ហេតុរបស់ជីវតាក្វាន់ (3rd Edition)”, “ប្រវត្តិវិទ្យា ថ្នាក់ទី១២” and “សង្គ្រាមត្រជាក់ ១៩៤៧-១៩៩១”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា ប្រវត្តិសាស្ត្រ។ បណ្ណាល័យមាន 9 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ និង 180 សៀវភៅរូបវន្ត។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «កំណត់ហេតុរបស់ជីវតាក្វាន់ (3rd Edition)» «ប្រវត្តិវិទ្យា ថ្នាក់ទី១២» និង «សង្គ្រាមត្រជាក់ ១៩៤៧-១៩៩១»។",
+      "words_en": 46,
+      "words_km": 44,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 46 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "ភាសា",
+      "name_km": "ភាសា",
+      "name_en": {
+        "value": "Languages",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 4,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 167,
+        "top_books": [
+          "ឯកសារជំនួយស្មារតីតេស្ត PISA-D អំណាន",
+          "សទ្ទានុក្រមពាក្យផ្ទុយ",
+          "សន្ទានុក្រមពាក្យថ្មី"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": [
+          "early-grade-reading",
+          "early-grade-reading-grade-1",
+          "early-grade-reading-grade-2",
+          "early-grade-reading-grade-3"
+        ]
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Languages (ភាសា). The collection holds 4 free e-books and 167 printed books held in the library. The most downloaded e-books are “ឯកសារជំនួយស្មារតីតេស្ត PISA-D អំណាន”, “សទ្ទានុក្រមពាក្យផ្ទុយ” and “សន្ទានុក្រមពាក្យថ្មី”. The learning paths “Early Grade Reading: Complete Khmer Literacy Curriculum (Grades 1–3)”, “Early Grade Reading: Grade 1 Literacy & Phonics Curriculum”, “Early Grade Reading: Grade 2 Reading Fluency & Writing Curriculum” and “Early Grade Reading: Grade 3 Comprehension, Grammar & Homework Curriculum” draw on this subject.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា ភាសា។ បណ្ណាល័យមាន 4 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ និង 167 សៀវភៅរូបវន្ត។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «ឯកសារជំនួយស្មារតីតេស្ត PISA-D អំណាន» «សទ្ទានុក្រមពាក្យផ្ទុយ» និង «សន្ទានុក្រមពាក្យថ្មី»។ ផ្លូវសិក្សា «កញ្ចប់អំណានថ្នាក់ដំបូង ភាសាខ្មែរ (ថ្នាក់ទី១ ទី២ និងទី៣)» «កញ្ចប់អំណានថ្នាក់ដំបូង ថ្នាក់ទី១៖ វិធីសាស្ត្របង្រៀន និងកម្រងអំណាន» «កញ្ចប់អំណានថ្នាក់ដំបូង ថ្នាក់ទី២៖ វិធីសាស្ត្របង្រៀន និងកម្រងអំណាន» និង «កញ្ចប់អំណានថ្នាក់ដំបូង ថ្នាក់ទី៣៖ វិធីសាស្ត្របង្រៀន និងកម្រងអំណាន» ប្រើធនធានពីមុខវិជ្ជានេះ។",
+      "words_en": 89,
+      "words_km": 90,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": []
+    },
+    {
+      "slug": "ភាសាខ្មែរ",
+      "name_km": "ភាសាខ្មែរ",
+      "name_en": {
+        "value": "Khmer Language",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 41,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "សៀវភៅបង្រៀនភាសាខ្មែរនៅផ្ទះសម្រាប់ថ្នាក់ទី១ ឆមាសទី២",
+          "កម្រងកិច្ចការផ្ទះភាសាខ្មែរថ្នាក់ទី៥ សម្រាប់១ឆ្នាំ",
+          "កម្រងកិច្ចការផ្ទះភាសាខ្មែរថ្នាក់ទី៣ សម្រាប់១ឆ្នាំ"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": [
+          "early-grade-reading",
+          "early-grade-reading-grade-1",
+          "early-grade-reading-grade-2",
+          "early-grade-reading-grade-3"
+        ]
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Khmer Language (ភាសាខ្មែរ). The collection holds 41 free e-books. The most downloaded e-books are “សៀវភៅបង្រៀនភាសាខ្មែរនៅផ្ទះសម្រាប់ថ្នាក់ទី១ ឆមាសទី២”, “កម្រងកិច្ចការផ្ទះភាសាខ្មែរថ្នាក់ទី៥ សម្រាប់១ឆ្នាំ” and “កម្រងកិច្ចការផ្ទះភាសាខ្មែរថ្នាក់ទី៣ សម្រាប់១ឆ្នាំ”. The learning paths “Early Grade Reading: Complete Khmer Literacy Curriculum (Grades 1–3)”, “Early Grade Reading: Grade 1 Literacy & Phonics Curriculum”, “Early Grade Reading: Grade 2 Reading Fluency & Writing Curriculum” and “Early Grade Reading: Grade 3 Comprehension, Grammar & Homework Curriculum” draw on this subject.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា ភាសាខ្មែរ។ បណ្ណាល័យមាន 41 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «សៀវភៅបង្រៀនភាសាខ្មែរនៅផ្ទះសម្រាប់ថ្នាក់ទី១ ឆមាសទី២» «កម្រងកិច្ចការផ្ទះភាសាខ្មែរថ្នាក់ទី៥ សម្រាប់១ឆ្នាំ» និង «កម្រងកិច្ចការផ្ទះភាសាខ្មែរថ្នាក់ទី៣ សម្រាប់១ឆ្នាំ»។ ផ្លូវសិក្សា «កញ្ចប់អំណានថ្នាក់ដំបូង ភាសាខ្មែរ (ថ្នាក់ទី១ ទី២ និងទី៣)» «កញ្ចប់អំណានថ្នាក់ដំបូង ថ្នាក់ទី១៖ វិធីសាស្ត្របង្រៀន និងកម្រងអំណាន» «កញ្ចប់អំណានថ្នាក់ដំបូង ថ្នាក់ទី២៖ វិធីសាស្ត្របង្រៀន និងកម្រងអំណាន» និង «កញ្ចប់អំណានថ្នាក់ដំបូង ថ្នាក់ទី៣៖ វិធីសាស្ត្របង្រៀន និងកម្រងអំណាន» ប្រើធនធានពីមុខវិជ្ជានេះ។",
+      "words_en": 92,
+      "words_km": 96,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": []
+    },
+    {
+      "slug": "ភាសាបារាំង",
+      "name_km": "ភាសាបារាំង",
+      "name_en": {
+        "value": "French",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 1,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "កម្មវិធីសិក្សាលម្អិត ភាសាបារាំង ថ្នាក់ទី១-៦"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on French (ភាសាបារាំង). The collection holds 1 free e-book. The most downloaded e-book is “កម្មវិធីសិក្សាលម្អិត ភាសាបារាំង ថ្នាក់ទី១-៦”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា ភាសាបារាំង។ បណ្ណាល័យមាន 1 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «កម្មវិធីសិក្សាលម្អិត ភាសាបារាំង ថ្នាក់ទី១-៦»។",
+      "words_en": 32,
+      "words_km": 34,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 32 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "ភាសាអង់គ្លេសសិក្សា",
+      "name_km": "ភាសាអង់គ្លេសសិក្សា",
+      "name_en": {
+        "value": "English Studies",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 38,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "ថ្នាក់ទី៨៖ English Grade 8",
+          "ថ្នាក់ទី៧៖ English is Fun Book 2",
+          "ថ្នាក់ទី៧៖ English is Fun Book 1"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on English Studies (ភាសាអង់គ្លេសសិក្សា). The collection holds 38 free e-books. The most downloaded e-books are “ថ្នាក់ទី៨៖ English Grade 8”, “ថ្នាក់ទី៧៖ English is Fun Book 2” and “ថ្នាក់ទី៧៖ English is Fun Book 1”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា ភាសាអង់គ្លេសសិក្សា។ បណ្ណាល័យមាន 38 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «ថ្នាក់ទី៨៖ English Grade 8» «ថ្នាក់ទី៧៖ English is Fun Book 2» និង «ថ្នាក់ទី៧៖ English is Fun Book 1»។",
+      "words_en": 45,
+      "words_km": 46,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 45 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "រូបវិទ្យា",
+      "name_km": "រូបវិទ្យា",
+      "name_en": {
+        "value": "Physics",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 101,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "រលក",
+          "អន្តរកម្មសម្រាប់វិទ្យាសាស្ត្ររូបវិទ្យា សៀវភៅសម្រាប់សិស្ស ភាគ៣",
+          "ការអនុវត្តវិធីសាស្ត្របង្រៀនតាមបែបប្លូមតាកសូណូមី និងវិធីបង្រៀនតាមក"
+        ],
+        "subtopics": [],
+        "parent": "វិទ្យសាស្ត្រ",
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Physics (រូបវិទ្យា). The collection holds 101 free e-books. The most downloaded e-books are “រលក”, “អន្តរកម្មសម្រាប់វិទ្យាសាស្ត្ររូបវិទ្យា សៀវភៅសម្រាប់សិស្ស ភាគ៣” and “ការអនុវត្តវិធីសាស្ត្របង្រៀនតាមបែបប្លូមតាកសូណូមី និងវិធីបង្រៀនតាមក”. It is a subtopic of Science (វិទ្យសាស្ត្រ).",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា រូបវិទ្យា។ បណ្ណាល័យមាន 101 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «រលក» «អន្តរកម្មសម្រាប់វិទ្យាសាស្ត្ររូបវិទ្យា សៀវភៅសម្រាប់សិស្ស ភាគ៣» និង «ការអនុវត្តវិធីសាស្ត្របង្រៀនតាមបែបប្លូមតាកសូណូមី និងវិធីបង្រៀនតាមក»។ ប្រធានបទរងនៃ វិទ្យសាស្ត្រ។",
+      "words_en": 57,
+      "words_km": 56,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 57 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "វប្បធម៌",
+      "name_km": "វប្បធម៌",
+      "name_en": {
+        "value": "Culture",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 3,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "វប្បធម៌ អារ្យធម៌ខ្មែរ",
+          "អត្តសញ្ញាណប្រទេសកម្ពុជា",
+          "ជំនឿផ្សេងៗនៃជនជាតិខ្មែរ"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Culture (វប្បធម៌). The collection holds 3 free e-books. The most downloaded e-books are “វប្បធម៌ អារ្យធម៌ខ្មែរ”, “អត្តសញ្ញាណប្រទេសកម្ពុជា” and “ជំនឿផ្សេងៗនៃជនជាតិខ្មែរ”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា វប្បធម៌។ បណ្ណាល័យមាន 3 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «វប្បធម៌ អារ្យធម៌ខ្មែរ» «អត្តសញ្ញាណប្រទេសកម្ពុជា» និង «ជំនឿផ្សេងៗនៃជនជាតិខ្មែរ»។",
+      "words_en": 36,
+      "words_km": 38,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 36 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "វិញ្ញាសាប្រឡង",
+      "name_km": "វិញ្ញាសាប្រឡង",
+      "name_en": {
+        "value": "Exam Papers",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 8,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "តេស្ត SEA-PLM ២០២៤ កម្រងសំណួរមាតាបិតា",
+          "តេស្ត SEA-PLM ២០២៤ កម្រងសំណួរសិស្ស",
+          "តេស្តចុងឆ្នាំបឋមសិក្សា ថ្នាក់ទី១ ដល់ថ្នាក់ទី៦"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Exam Papers (វិញ្ញាសាប្រឡង). The collection holds 8 free e-books. The most downloaded e-books are “តេស្ត SEA-PLM ២០២៤ កម្រងសំណួរមាតាបិតា”, “តេស្ត SEA-PLM ២០២៤ កម្រងសំណួរសិស្ស” and “តេស្តចុងឆ្នាំបឋមសិក្សា ថ្នាក់ទី១ ដល់ថ្នាក់ទី៦”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា វិញ្ញាសាប្រឡង។ បណ្ណាល័យមាន 8 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «តេស្ត SEA-PLM ២០២៤ កម្រងសំណួរមាតាបិតា» «តេស្ត SEA-PLM ២០២៤ កម្រងសំណួរសិស្ស» និង «តេស្តចុងឆ្នាំបឋមសិក្សា ថ្នាក់ទី១ ដល់ថ្នាក់ទី៦»។",
+      "words_en": 51,
+      "words_km": 52,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 51 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "វិទ្យសាស្ត្រ",
+      "name_km": "វិទ្យសាស្ត្រ",
+      "name_en": {
+        "value": "Science",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 401,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "ថ្នាក់ទី៦៖ វិទ្យាសាស្ត្រ",
+          "ថ្នាក់ទី៨៖ វិទ្យាសាស្ត្រ",
+          "ថ្នាក់ទី៧៖ វិទ្យាសាស្ត្រ"
+        ],
+        "subtopics": [
+          "រូបវិទ្យា",
+          "គីមីវិទ្យា",
+          "ជីវវិទ្យា"
+        ],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Science (វិទ្យសាស្ត្រ). The collection holds 401 free e-books. The most downloaded e-books are “ថ្នាក់ទី៦៖ វិទ្យាសាស្ត្រ”, “ថ្នាក់ទី៨៖ វិទ្យាសាស្ត្រ” and “ថ្នាក់ទី៧៖ វិទ្យាសាស្ត្រ”. Its subtopics are Physics (រូបវិទ្យា), Chemistry (គីមីវិទ្យា) and Biology (ជីវវិទ្យា).",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា វិទ្យសាស្ត្រ។ បណ្ណាល័យមាន 401 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «ថ្នាក់ទី៦៖ វិទ្យាសាស្ត្រ» «ថ្នាក់ទី៨៖ វិទ្យាសាស្ត្រ» និង «ថ្នាក់ទី៧៖ វិទ្យាសាស្ត្រ»។ ប្រធានបទរង៖ រូបវិទ្យា គីមីវិទ្យា និង ជីវវិទ្យា។",
+      "words_en": 44,
+      "words_km": 42,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 44 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving.",
+        "Spelling: the usual form is វិទ្យាសាស្ត្រ (with ា). Confirm which is intended."
+      ]
+    },
+    {
+      "slug": "វិធីសាស្ត្របង្រៀនរូបវិទ្យា",
+      "name_km": "វិធីសាស្ត្របង្រៀនរូបវិទ្យា",
+      "name_en": {
+        "value": "Physics Teaching Methods",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 1,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "កម្មវិធីសិក្សាលម្អិត សម្រាប់កម្មវិធីអប់រំគ្រូបង្រៀនអនុវិទ្យាល័យតាមប្រព័ន្ធ បរិញ្ញាបត្រ+១ មុខវិជ្ជា៖វិធីសាស្ត្រ១ ឯកទេស៖រូបវិទ្យា"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Physics Teaching Methods (វិធីសាស្ត្របង្រៀនរូបវិទ្យា). The collection holds 1 free e-book. The most downloaded e-book is “កម្មវិធីសិក្សាលម្អិត សម្រាប់កម្មវិធីអប់រំគ្រូបង្រៀនអនុវិទ្យាល័យតាមប្រព័ន្ធ បរិញ្ញាបត្រ+១ មុខវិជ្ជា៖វិធីសាស្ត្រ១ ឯកទេស៖រូបវិទ្យា”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា វិធីសាស្ត្របង្រៀនរូបវិទ្យា។ បណ្ណាល័យមាន 1 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «កម្មវិធីសិក្សាលម្អិត សម្រាប់កម្មវិធីអប់រំគ្រូបង្រៀនអនុវិទ្យាល័យតាមប្រព័ន្ធ បរិញ្ញាបត្រ+១ មុខវិជ្ជា៖វិធីសាស្ត្រ១ ឯកទេស៖រូបវិទ្យា»។",
+      "words_en": 43,
+      "words_km": 43,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 43 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "សិក្សាសង្គម",
+      "name_km": "សិក្សាសង្គម",
+      "name_en": {
+        "value": "Social Studies",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 26,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "ថ្នាក់ទី៤៖ សិក្សាសង្គម",
+          "ថ្នាក់ទី៩៖ សិក្សាសង្គម",
+          "ថ្នាក់ទី១០៖ សិក្សាសង្គម"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Social Studies (សិក្សាសង្គម). The collection holds 26 free e-books. The most downloaded e-books are “ថ្នាក់ទី៤៖ សិក្សាសង្គម”, “ថ្នាក់ទី៩៖ សិក្សាសង្គម” and “ថ្នាក់ទី១០៖ សិក្សាសង្គម”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា សិក្សាសង្គម។ បណ្ណាល័យមាន 26 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «ថ្នាក់ទី៤៖ សិក្សាសង្គម» «ថ្នាក់ទី៩៖ សិក្សាសង្គម» និង «ថ្នាក់ទី១០៖ សិក្សាសង្គម»។",
+      "words_en": 38,
+      "words_km": 39,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 38 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "សុខភាព",
+      "name_km": "សុខភាព",
+      "name_en": {
+        "value": "Health",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 68,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "វិធីសាស្ត្របង្រៀន ការអប់រំសុខភាពសម្រាប់គ្រូឧទ្ទេស",
+          "អប់រំសុខភាព ថ្នាក់ទី១",
+          "អប់រំសុខភាព ថ្នាក់ទី២ (សៀវភៅគ្រូ)"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Health (សុខភាព). The collection holds 68 free e-books. The most downloaded e-books are “វិធីសាស្ត្របង្រៀន ការអប់រំសុខភាពសម្រាប់គ្រូឧទ្ទេស”, “អប់រំសុខភាព ថ្នាក់ទី១” and “អប់រំសុខភាព ថ្នាក់ទី២ (សៀវភៅគ្រូ)”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា សុខភាព។ បណ្ណាល័យមាន 68 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «វិធីសាស្ត្របង្រៀន ការអប់រំសុខភាពសម្រាប់គ្រូឧទ្ទេស» «អប់រំសុខភាព ថ្នាក់ទី១» និង «អប់រំសុខភាព ថ្នាក់ទី២ (សៀវភៅគ្រូ)»។",
+      "words_en": 40,
+      "words_km": 42,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 40 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "ស្ថិតិ-និងវិភាគទិន្នន័យ",
+      "name_km": "ស្ថិតិ និងវិភាគទិន្នន័យ",
+      "name_en": {
+        "value": "Statistics and Data Analysis",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 40,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "Student Statistics: Challenges in Collection and Validity",
+          "Research Methods and Statistics: A Critical Thinking Approach (3rd Edition)",
+          "SPSS Explained"
+        ],
+        "subtopics": [],
+        "parent": "ស្រាវជ្រាវ",
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Statistics and Data Analysis (ស្ថិតិ និងវិភាគទិន្នន័យ). The collection holds 40 free e-books. The most downloaded e-books are “Student Statistics: Challenges in Collection and Validity”, “Research Methods and Statistics: A Critical Thinking Approach (3rd Edition)” and “SPSS Explained”. It is a subtopic of Research (ស្រាវជ្រាវ).",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា ស្ថិតិ និងវិភាគទិន្នន័យ។ បណ្ណាល័យមាន 40 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «Student Statistics: Challenges in Collection and Validity» «Research Methods and Statistics: A Critical Thinking Approach (3rd Edition)» និង «SPSS Explained»។ ប្រធានបទរងនៃ ស្រាវជ្រាវ។",
+      "words_en": 56,
+      "words_km": 52,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 56 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "ស្រាវជ្រាវ",
+      "name_km": "ស្រាវជ្រាវ",
+      "name_en": {
+        "value": "Research",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 109,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "កម្មវិធីសិក្សាលម្អិត មុខវិជ្ជាការស្រាវជ្រាវអប់រំ (BA+1)",
+          "ស្រាវជ្រាវលើសម្ភារឧបទេស និងវិធីសាស្ត្របង្រៀន ICT",
+          "វិធីសាស្ត្រសម្រាប់ការរៀបចំសរសេរសារណាបញ្ចប់ថ្នាក់បរិញ្ញាបត្រ"
+        ],
+        "subtopics": [
+          "ស្ថិតិ និងវិភាគទិន្នន័យ",
+          "ស្រាវជ្រាវបែបគុណភាព",
+          "ស្រាវជ្រាវប្រតិបត្តិ"
+        ],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Research (ស្រាវជ្រាវ). The collection holds 109 free e-books. The most downloaded e-books are “កម្មវិធីសិក្សាលម្អិត មុខវិជ្ជាការស្រាវជ្រាវអប់រំ (BA+1)”, “ស្រាវជ្រាវលើសម្ភារឧបទេស និងវិធីសាស្ត្របង្រៀន ICT” and “វិធីសាស្ត្រសម្រាប់ការរៀបចំសរសេរសារណាបញ្ចប់ថ្នាក់បរិញ្ញាបត្រ”. Its subtopics are Statistics and Data Analysis (ស្ថិតិ និងវិភាគទិន្នន័យ), Qualitative Research (ស្រាវជ្រាវបែបគុណភាព) and Action Research (ស្រាវជ្រាវប្រតិបត្តិ).",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា ស្រាវជ្រាវ។ បណ្ណាល័យមាន 109 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «កម្មវិធីសិក្សាលម្អិត មុខវិជ្ជាការស្រាវជ្រាវអប់រំ (BA+1)» «ស្រាវជ្រាវលើសម្ភារឧបទេស និងវិធីសាស្ត្របង្រៀន ICT» និង «វិធីសាស្ត្រសម្រាប់ការរៀបចំសរសេរសារណាបញ្ចប់ថ្នាក់បរិញ្ញាបត្រ»។ ប្រធានបទរង៖ ស្ថិតិ និងវិភាគទិន្នន័យ ស្រាវជ្រាវបែបគុណភាព និង ស្រាវជ្រាវប្រតិបត្តិ។",
+      "words_en": 69,
+      "words_km": 62,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 69 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "ស្រាវជ្រាវបែបគុណភាព",
+      "name_km": "ស្រាវជ្រាវបែបគុណភាព",
+      "name_en": {
+        "value": "Qualitative Research",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 20,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "Qualitative Inquiry and Research Design (4th Edition)",
+          "Qualitative Research: An Introduction to Methods and Designs",
+          "Research Design: Qualitative, Quantitative, and Mixed Methods Approaches"
+        ],
+        "subtopics": [],
+        "parent": "ស្រាវជ្រាវ",
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Qualitative Research (ស្រាវជ្រាវបែបគុណភាព). The collection holds 20 free e-books. The most downloaded e-books are “Qualitative Inquiry and Research Design (4th Edition)”, “Qualitative Research: An Introduction to Methods and Designs” and “Research Design: Qualitative, Quantitative, and Mixed Methods Approaches”. It is a subtopic of Research (ស្រាវជ្រាវ).",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា ស្រាវជ្រាវបែបគុណភាព។ បណ្ណាល័យមាន 20 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «Qualitative Inquiry and Research Design (4th Edition)» «Qualitative Research: An Introduction to Methods and Designs» និង «Research Design: Qualitative, Quantitative, and Mixed Methods Approaches»។ ប្រធានបទរងនៃ ស្រាវជ្រាវ។",
+      "words_en": 57,
+      "words_km": 55,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 57 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "ស្រាវជ្រាវប្រតិបត្តិ",
+      "name_km": "ស្រាវជ្រាវប្រតិបត្តិ",
+      "name_en": {
+        "value": "Action Research",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 18,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "The Action Research Planner: Doing Critical Participatory Action Research",
+          "The Action Research Guidebook (CDPF III)",
+          "Action Research: A Guide for the Teacher Researcher (5th Edition)"
+        ],
+        "subtopics": [],
+        "parent": "ស្រាវជ្រាវ",
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Action Research (ស្រាវជ្រាវប្រតិបត្តិ). The collection holds 18 free e-books. The most downloaded e-books are “The Action Research Planner: Doing Critical Participatory Action Research”, “The Action Research Guidebook (CDPF III)” and “Action Research: A Guide for the Teacher Researcher (5th Edition)”. It is a subtopic of Research (ស្រាវជ្រាវ).",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា ស្រាវជ្រាវប្រតិបត្តិ។ បណ្ណាល័យមាន 18 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «The Action Research Planner: Doing Critical Participatory Action Research» «The Action Research Guidebook (CDPF III)» និង «Action Research: A Guide for the Teacher Researcher (5th Edition)»។ ប្រធានបទរងនៃ ស្រាវជ្រាវ។",
+      "words_en": 58,
+      "words_km": 56,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 58 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "អក្សរសិល្ប៍",
+      "name_km": "អក្សរសិល្ប៍",
+      "name_en": {
+        "value": "Literature",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 8,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 105,
+        "top_books": [
+          "អាថ៌កំបាំងមនុស្សបុរាណនៅសម័យនគរ",
+          "ជីវិតម៉ែ",
+          "ពាក្យសំដីមាស (Les Paroles d'Or)"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Literature (អក្សរសិល្ប៍). The collection holds 8 free e-books and 105 printed books held in the library. The most downloaded e-books are “អាថ៌កំបាំងមនុស្សបុរាណនៅសម័យនគរ”, “ជីវិតម៉ែ” and “ពាក្យសំដីមាស (Les Paroles d'Or)”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា អក្សរសិល្ប៍។ បណ្ណាល័យមាន 8 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ និង 105 សៀវភៅរូបវន្ត។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «អាថ៌កំបាំងមនុស្សបុរាណនៅសម័យនគរ» «ជីវិតម៉ែ» និង «ពាក្យសំដីមាស (Les Paroles d'Or)»។",
+      "words_en": 45,
+      "words_km": 43,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 45 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "អំណានកុមារ",
+      "name_km": "អំណានកុមារ",
+      "name_en": {
+        "value": "Children's Reading",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 128,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "ថ្នាក់ទី១៖ ដា និងសាចង់ទៅលេង",
+          "ថ្នាក់ទី១៖ លោកគ្រូសួរ",
+          "ថ្នាក់ទី១៖ ក្មួយៗ"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Children's Reading (អំណានកុមារ). The collection holds 128 free e-books. The most downloaded e-books are “ថ្នាក់ទី១៖ ដា និងសាចង់ទៅលេង”, “ថ្នាក់ទី១៖ លោកគ្រូសួរ” and “ថ្នាក់ទី១៖ ក្មួយៗ”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា អំណានកុមារ។ បណ្ណាល័យមាន 128 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «ថ្នាក់ទី១៖ ដា និងសាចង់ទៅលេង» «ថ្នាក់ទី១៖ លោកគ្រូសួរ» និង «ថ្នាក់ទី១៖ ក្មួយៗ»។",
+      "words_en": 41,
+      "words_km": 42,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 41 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "អប់រំ",
+      "name_km": "អប់រំ",
+      "name_en": {
+        "value": "Education",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 9,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 496,
+        "top_books": [
+          "បំណិនជីវិតតាមមូលដ្ឋាន សៀវភៅណែនាំអនុវត្ត",
+          "សៀវភៅយោងសម្រាប់បំណិនជីវិតតាមមូលដ្ឋាន",
+          "កំណែទម្រង់សាលារៀននៅកម្ពុជា"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Education (អប់រំ). The collection holds 9 free e-books and 496 printed books held in the library. The most downloaded e-books are “បំណិនជីវិតតាមមូលដ្ឋាន សៀវភៅណែនាំអនុវត្ត”, “សៀវភៅយោងសម្រាប់បំណិនជីវិតតាមមូលដ្ឋាន” and “កំណែទម្រង់សាលារៀននៅកម្ពុជា”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា អប់រំ។ បណ្ណាល័យមាន 9 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ និង 496 សៀវភៅរូបវន្ត។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «បំណិនជីវិតតាមមូលដ្ឋាន សៀវភៅណែនាំអនុវត្ត» «សៀវភៅយោងសម្រាប់បំណិនជីវិតតាមមូលដ្ឋាន» និង «កំណែទម្រង់សាលារៀននៅកម្ពុជា»។",
+      "words_en": 50,
+      "words_km": 48,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 50 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "អប់រំកាយ-និងកីឡា",
+      "name_km": "អប់រំកាយ និងកីឡា",
+      "name_en": {
+        "value": "Physical Education and Sport",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 12,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "Physical Education & Sport — Teacher's Book Grade 1",
+          "អប់រំកាយ និងកីឡា ថ្នាក់ទី១២",
+          "Physical Education & Sport — Teacher's Book Grade 6"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Physical Education and Sport (អប់រំកាយ និងកីឡា). The collection holds 12 free e-books. The most downloaded e-books are “Physical Education & Sport — Teacher's Book Grade 1”, “អប់រំកាយ និងកីឡា ថ្នាក់ទី១២” and “Physical Education & Sport — Teacher's Book Grade 6”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា អប់រំកាយ និងកីឡា។ បណ្ណាល័យមាន 12 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «Physical Education & Sport — Teacher's Book Grade 1» «អប់រំកាយ និងកីឡា ថ្នាក់ទី១២» និង «Physical Education & Sport — Teacher's Book Grade 6»។",
+      "words_en": 46,
+      "words_km": 45,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 46 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    },
+    {
+      "slug": "អប់រំសិល្បៈ",
+      "name_km": "អប់រំសិល្បៈ",
+      "name_en": {
+        "value": "Arts Education",
+        "status": "needs_review",
+        "source": "suggested translation"
+      },
+      "facts": {
+        "books": 1,
+        "theses": 0,
+        "journal_articles": 0,
+        "print_titles": 0,
+        "top_books": [
+          "កម្មវិធីសិក្សាលម្អិត អប់រំសិល្បះ ថ្នាក់ទី១-៦"
+        ],
+        "subtopics": [],
+        "parent": null,
+        "learning_paths": []
+      },
+      "intro_en": "This page gathers everything PTEC Library holds on Arts Education (អប់រំសិល្បៈ). The collection holds 1 free e-book. The most downloaded e-book is “កម្មវិធីសិក្សាលម្អិត អប់រំសិល្បះ ថ្នាក់ទី១-៦”.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា អប់រំសិល្បៈ។ បណ្ណាល័យមាន 1 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «កម្មវិធីសិក្សាលម្អិត អប់រំសិល្បះ ថ្នាក់ទី១-៦»។",
+      "words_en": 34,
+      "words_km": 35,
+      "km_review": "TODO(km-review)",
+      "status": "needs_review",
+      "notes": [
+        "English draft is 34 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
+      ]
+    }
+  ]
+}
