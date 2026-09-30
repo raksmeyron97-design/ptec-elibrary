@@ -9171,6 +9171,8 @@
     "hubCountSubjects": "{count, plural, =1 {# subject} other {# subjects}}",
     "hubCountResources": "{count, plural, =1 {# resource} other {# resources}}",
     "metaTitle": "{subject}",
+    "hubPageTitle": "{subject} Books & Teaching Resources ({count, plural, =1 {1 free e-book} other {# free e-books}})",
+    "hubPageTitleNoBooks": "{subject} Books & Teaching Resources",
     "metaDescription": "{breakdown} about {subject} in the PTEC Library.",
     "metaDescriptionEmpty": "{subject} in the PTEC Library.",
     "intro": "Everything the library holds on this subject.",

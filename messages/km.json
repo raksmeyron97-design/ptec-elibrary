@@ -9176,6 +9176,8 @@
     "hubCountSubjects": "{count} មុខវិជ្ជា",
     "hubCountResources": "{count} ធនធាន",
     "metaTitle": "{subject}",
+    "hubPageTitle": "{subject} — សៀវភៅអប់រំ និងធនធានបង្រៀន ({count} សៀវភៅឥតគិតថ្លៃ)",
+    "hubPageTitleNoBooks": "{subject} — សៀវភៅអប់រំ និងធនធានបង្រៀន",
     "metaDescription": "{breakdown} អំពី {subject} ក្នុងបណ្ណាល័យ វ.គ.ភ។",
     "metaDescriptionEmpty": "{subject} ក្នុងបណ្ណាល័យ វ.គ.ភ។",
     "intro": "អ្វីៗទាំងអស់ដែលបណ្ណាល័យមានលើមុខវិជ្ជានេះ។",

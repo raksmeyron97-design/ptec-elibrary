@@ -600,7 +600,13 @@ async function checkUrl(entry: UrlEntry): Promise<void> {
   // The item's full name, or its full translated title where the page shows
   // one under the H1 (a bilingual header): what must not happen is a CUT.
   if (tpl.record && h1) {
-    const whole = norm(title).includes(norm(h1.text)) || (h1.translated !== null && norm(title).includes(norm(h1.translated)));
+    // An English hub may follow its name with the Khmer one in parentheses
+    // ("Mathematics (គណិតវិទ្យា)", Phase 2.1); the name before it is the item.
+    const bare = h1.text.replace(/\s*\([\u1780-\u17FF\u19E0-\u19FF\s]+\)\s*$/u, "");
+    const whole =
+      norm(title).includes(norm(h1.text)) ||
+      (bare !== h1.text && bare.trim() !== "" && norm(title).includes(norm(bare))) ||
+      (h1.translated !== null && norm(title).includes(norm(h1.translated)));
     judge(label, "title-contains-item", whole, `title "${title}" vs H1 "${h1.text}"${h1.translated ? ` / "${h1.translated}"` : ""}`);
   }
   const tlen = graphemes(title);

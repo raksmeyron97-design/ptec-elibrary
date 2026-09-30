@@ -19,8 +19,10 @@ import { decodeSlugParam } from "@/lib/slug";
 import {
   buildSubjectBreadcrumbs,
   buildSubjectHierarchySchema,
+  getSubjectBooksPage,
   getSubjectDetail,
   otherSubjects,
+  SUBJECT_BOOKS_PAGE_SIZE,
   subjectVisibility,
   subjectBreakdown,
   subjectTypeKey,
@@ -28,21 +30,23 @@ import {
   type SubjectItem,
   type SubjectResourceType,
 } from "@/lib/subjects";
+import { approvedIntro, subjectNames } from "@/lib/subjects/display";
+import Pagination from "@/components/ui/core/Pagination";
+import { parsePageParam } from "@/lib/seo/listing-metadata";
 import { JOURNALS_PATH } from "@/lib/journals/urls";
 import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
-import { libraryNameFor } from "@/lib/seo/brand";
-import { fitDescription } from "@/lib/seo/text-fit";
+import { brandSuffixFor, libraryNameFor } from "@/lib/seo/brand";
+import { fitDescription, fitTitle } from "@/lib/seo/text-fit";
 
-export const revalidate = 3600;
+// Rendered per request since Phase 2.1: the page lists EVERY book of the
+// subject, paginated with ?page=N, and reading searchParams makes the route
+// dynamic — the same trade /books makes. The data behind it stays cached
+// (lib/subjects/index.ts), so a render is the cost, not the queries.
 
-// `revalidate` alone does not cache a dynamic segment: Next 16 renders it per
-// request unless the page opts into runtime ISR. An empty list builds nothing
-// and caches each path on its first visit (see theses/[slug]/page.tsx).
-export function generateStaticParams() {
-  return [];
-}
-
-type PageProps = { params: Promise<{ slug: string; locale: string }> };
+type PageProps = {
+  params: Promise<{ slug: string; locale: string }>;
+  searchParams: Promise<{ page?: string }>;
+};
 
 /** Where "browse all" sends a visitor for each resource type. */
 const LISTING_PATH: Record<SubjectResourceType, string> = {
@@ -66,8 +70,9 @@ function excerpt(text: string, max: number, locale: string): string {
   return cut.length < whole.length ? `${cut}…` : cut;
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { slug: rawSlug, locale } = await params;
+export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
+  const [{ slug: rawSlug, locale }, sp] = await Promise.all([params, searchParams]);
+  const page = parsePageParam(sp.page);
 
   // All three are independent, so they run together rather than stacking three
   // round trips onto the metadata path. getSubjectDetail is React-cached and
@@ -76,9 +81,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   //
   // Next delivers non-ASCII segments percent-encoded to the page body and
   // decoded to generateMetadata — Khmer subject slugs never match otherwise.
-  const [subject, t, org] = await Promise.all([
+  const [subject, t, tBooks, org] = await Promise.all([
     getSubjectDetail(decodeSlugParam(rawSlug), locale),
     getTranslations({ locale, namespace: "subjects" }),
+    getTranslations({ locale, namespace: "books" }),
     getOrgIdentity(),
   ]);
 
@@ -87,12 +93,29 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const parts = subjectBreakdown(subject.counts, t);
-  const title = t("metaTitle", { subject: subject.name });
-  const description =
-    parts.length > 0
-      ? truncate(t("metaDescription", { subject: subject.name, breakdown: parts.join(", ") }), 155, locale)
-      : truncate(t("metaDescriptionEmpty", { subject: subject.name }), 155, locale);
-  const alternates = localeAlternates(`/subjects/${subject.slug}`, locale);
+  const names = subjectNames(subject, locale);
+  // "{Subject} Books & Teaching Resources ({n} free e-books)" (Phase 2.1):
+  // what the page is and how much it holds, in the page's language. Page N of
+  // the book list says so, as every paginated listing does.
+  const books = subject.counts.book;
+  const baseTitle =
+    books > 0
+      ? t("hubPageTitle", { subject: names.short, count: books })
+      : t("hubPageTitleNoBooks", { subject: names.short });
+  const pageCount = Math.max(1, Math.ceil(books / SUBJECT_BOOKS_PAGE_SIZE));
+  const outOfRange = page > pageCount;
+  const title = page > 1 ? `${baseTitle} — ${tBooks("pageLabel")} ${page}` : baseTitle;
+  // The approved introduction when a librarian wrote one; the counts otherwise.
+  const intro = approvedIntro(subject, locale);
+  const description = intro
+    ? truncate(intro, 155, locale)
+    : parts.length > 0
+      ? truncate(t("metaDescription", { subject: names.short, breakdown: parts.join(", ") }), 155, locale)
+      : truncate(t("metaDescriptionEmpty", { subject: names.short }), 155, locale);
+  const alternates = localeAlternates(
+    page > 1 ? `/subjects/${subject.slug}?page=${page}` : `/subjects/${subject.slug}`,
+    locale,
+  );
   const socialTitle = `${title} | ${libraryNameFor(org, locale)}`;
   const openGraph = buildOpenGraph({
     locale,
@@ -104,7 +127,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   });
 
   return dropHreflangWhenNoindex({
-    title,
+    title: fitTitle(title, { locale, brandSuffix: brandSuffixFor(org, locale) }),
     description,
     alternates,
     // The §5 depth gate, from the SAME function the sitemap filters with
@@ -117,7 +140,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     // to EMPTY subjects (ten were live and in sitemap.xml — F-1); 3.3 applies
     // it to thin ones, one of which held a single 23-page book and was
     // advertised exactly like the 65-book research collection.
-    ...(subjectVisibility(subject.counts, subject.fullText) === "index"
+    //
+    // A ?page past the last page of books is noindex too, as on every listing
+    // (lib/seo/listing-metadata.ts isPageOutOfRange).
+    ...(subjectVisibility(subject.counts, subject.fullText) === "index" && !outOfRange
       ? {}
       : { robots: { index: false, follow: true } }),
     openGraph,
@@ -132,26 +158,36 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   });
 }
 
-export default async function SubjectPage({ params }: PageProps) {
-  const { slug: rawSlug, locale } = await params;
+export default async function SubjectPage({ params, searchParams }: PageProps) {
+  const [{ slug: rawSlug, locale }, sp] = await Promise.all([params, searchParams]);
+  const page = parsePageParam(sp.page);
   const subject = await getSubjectDetail(decodeSlugParam(rawSlug), locale);
   if (!subject) notFound();
 
-  const [t, org, fallbackSubjects] = await Promise.all([
+  const [t, org, fallbackSubjects, booksPage] = await Promise.all([
     getTranslations({ locale, namespace: "subjects" }),
     getOrgIdentity(),
     subject.related.length === 0 ? otherSubjects(subject.slug) : Promise.resolve([]),
+    subject.counts.book > 0 ? getSubjectBooksPage(subject.id, page) : Promise.resolve(null),
   ]);
+  const names = subjectNames(subject, locale);
+  const intro = approvedIntro(subject, locale);
+  const subjectPath = `${locale === "km" ? "/km" : ""}/subjects/${subject.slug}`;
 
   const prefix = locale === "km" ? `${SITE_URL}/km` : SITE_URL;
   const subjectUrl = `${prefix}/subjects/${subject.slug}`;
 
   // Grouped by type, in a stable order, so the page reads as a small catalogue
   // rather than one undifferentiated grid of mixed things.
+  //
+  // Books are the one group listed IN FULL: every published book of the
+  // subject, most-read first, paginated (Phase 2.1). The other types stay
+  // capped with a link onward — they are a few records each.
   const groups = SUBJECT_RESOURCE_TYPES.flatMap((type) => {
-    const items = subject.items.filter((i) => i.type === type);
+    const items = type === "book" ? (booksPage?.items ?? []) : subject.items.filter((i) => i.type === type);
     return items.length > 0 ? [{ type, items }] : [];
   });
+  const listedItems = groups.flatMap((g) => g.items);
 
   // Hierarchical breadcrumbs: 4 levels for child topics (Home → Subjects → Parent → Child)
   // and 3 levels for parent / flat topics (Home → Subjects → Topic).
@@ -183,12 +219,12 @@ export default async function SubjectPage({ params }: PageProps) {
     // The items actually rendered, in the order rendered. numberOfItems is the
     // full match count, which may exceed the listed items (each type is capped)
     // — that is what ItemList's numberOfItems means.
-    ...(subject.items.length > 0
+    ...(listedItems.length > 0
       ? {
           mainEntity: {
             "@type": "ItemList",
             numberOfItems: subject.counts.total,
-            itemListElement: subject.items.map((item, i) => ({
+            itemListElement: listedItems.map((item, i) => ({
               "@type": "ListItem",
               position: i + 1,
               name: item.title,
@@ -251,9 +287,11 @@ export default async function SubjectPage({ params }: PageProps) {
             {t("eyebrow")}
           </p>
           <h1 className="mt-2 text-[clamp(26px,4.5vw,38px)] font-bold leading-[1.2] tracking-tight text-text-heading [text-wrap:balance]">
-            {subject.name}
+            {names.heading}
           </h1>
-          <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-text-muted">{t("intro")}</p>
+          {/* A librarian-approved introduction when there is one (0161); the
+              generic line otherwise. A draft never reaches this page. */}
+          <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-text-muted">{intro ?? t("intro")}</p>
 
           {/* Breakdown statistic cards/pills strip */}
           <div className="mt-6 flex flex-wrap gap-2.5 sm:gap-3 border-t border-divider pt-5">
@@ -350,14 +388,16 @@ export default async function SubjectPage({ params }: PageProps) {
                       ({subject.counts[group.type]})
                     </span>
                   </h2>
-                  {/* Present whenever the group is capped OR simply as the way
-                      onward — the collection listing is where the rest lives. */}
-                  <Link
-                    href={LISTING_PATH[group.type]}
-                    className="focus-field rounded-sm text-[13px] font-semibold text-brand transition-colors hover:underline"
-                  >
-                    {t(`browseAll${subjectTypeKey(group.type)}` as "browseAllBook")} →
-                  </Link>
+                  {/* The way onward for a capped group. Books need none: the
+                      whole subject is listed below, page by page. */}
+                  {group.type !== "book" && (
+                    <Link
+                      href={LISTING_PATH[group.type]}
+                      className="focus-field rounded-sm text-[13px] font-semibold text-brand transition-colors hover:underline"
+                    >
+                      {t(`browseAll${subjectTypeKey(group.type)}` as "browseAllBook")} →
+                    </Link>
+                  )}
                 </div>
                 <ul className="grid gap-3 sm:grid-cols-2">
                   {group.items.map((item) => (
@@ -369,6 +409,18 @@ export default async function SubjectPage({ params }: PageProps) {
                     </li>
                   ))}
                 </ul>
+                {group.type === "book" && booksPage && booksPage.total > booksPage.pageSize && (
+                  <div className="mt-5">
+                    <Pagination
+                      currentPage={booksPage.page}
+                      totalPages={Math.ceil(booksPage.total / booksPage.pageSize)}
+                      totalItems={booksPage.total}
+                      pageSize={booksPage.pageSize}
+                      searchParams={{}}
+                      basePath={subjectPath}
+                    />
+                  </div>
+                )}
               </section>
             ))}
           </div>

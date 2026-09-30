@@ -74,7 +74,7 @@
         "CollectionPage"
       ],
       "cardLinks": "^/(km/)?books/[^/]+$",
-      "cacheable": true
+      "cacheable": false
     },
     "authors-hub": {
       "robots": "index",
@@ -293,7 +293,7 @@
         "BreadcrumbList",
         "CollectionPage"
       ],
-      "cacheable": true
+      "cacheable": false
     },
     "catalog-record-described": {
       "robots": "index",
@@ -305,6 +305,14 @@
       ],
       "ogType": "book",
       "cacheable": true
+    },
+    "subject-out-of-range": {
+      "robots": "noindex",
+      "record": true,
+      "jsonld": [
+        "BreadcrumbList",
+        "CollectionPage"
+      ]
     }
   },
   "urls": [
@@ -379,6 +387,12 @@
     {
       "path": "/km/subjects/mathematics",
       "template": "subject-thin"
+    },
+    {
+      "path": "/subjects/mathematics?page=999",
+      "template": "subject-out-of-range",
+      "canonical": "/subjects/mathematics?page=999",
+      "note": "past the last page of books: noindex, like every listing"
     },
     {
       "path": "/authors",
