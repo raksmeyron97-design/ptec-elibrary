@@ -64,3 +64,17 @@ describe("the thesis full-text route", () => {
     expect(re.test("/pdf/pdf.worker.min.mjs")).toBe(false);
   });
 });
+
+describe("the journal-article full-text route", () => {
+  const route = readFileSync(path.join(ROOT, "app/[locale]/(public)/journals/articles/[slug]/fulltext.pdf/route.ts"), "utf8");
+  it("decides openness with the article rule before any byte is served", () => {
+    const gate = route.indexOf("articleIsOpenAccess(pub)");
+    expect(gate).toBeGreaterThan(-1);
+    expect(route.indexOf("servePublicPdf(")).toBeGreaterThan(gate);
+  });
+  it("the article page names a PDF only through the same rule", () => {
+    const page = readFileSync(path.join(ROOT, "app/[locale]/(public)/journals/articles/[slug]/page.tsx"), "utf8");
+    expect(page).toMatch(/articleIsOpenAccess\(pub\)/);
+    expect(page).not.toMatch(/\/api\/publications\/[^"'`]*\/file[^"'`]*citation/);
+  });
+});

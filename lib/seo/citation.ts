@@ -5,8 +5,6 @@
 // a database. Browser-safe — no server-only imports.
 
 import { scholarDateAtPrecision } from "@/lib/seo/dates";
-import { SITE_URL } from "@/lib/seo/site";
-import { resolveBookDownloadAccess } from "@/lib/books/access";
 import {
   resolveOrgIdentity,
   type OrgIdentity,
@@ -76,12 +74,13 @@ export interface BookCitationRow {
   file_access?: string | null;
 }
 
-/** citation_pdf_url points at /api/books/[id]/file, which serves
- * Content-Type: application/pdf directly — no presigned-URL redirect — and is
- * readable by a DNS-verified Google crawler without a session so Scholar can
- * index the full text.
- *
- * It is OMITTED for a read-online-only book (0131) and for a catalogue-only
+/** No citation_pdf_url for a book (SEO Phase 3.7, D12). A book's PDF is
+ * served only to a signed-in reader, from /api/books/[id]/file — a path
+ * robots.txt disallows and that answers 401 anonymously — so the tag named a
+ * URL Google Scholar could not fetch. Only a PUBLIC full text is named: an
+ * open-access thesis or an openly licensed article (their own fulltext.pdf
+ * routes). The rest of this note records why, even before, it was
+ * OMITTED for a read-online-only book (0131) and for a catalogue-only
  * one (0151). The tag exists to tell a crawler "here is the file, take it",
  * and Scholar then hosts a cached copy of what it fetches — which is the one
  * thing both settings say not to do. The landing page, and every other
@@ -94,16 +93,6 @@ export interface BookCitationRow {
  * factual misattribution. */
 export function bookScholarMeta(book: BookCitationRow, authors: string[]): ScholarMeta {
   const tags: ScholarMeta = { citation_title: book.title };
-  // One resolver decides, so a drawn button, a served stream and a crawler
-  // hint cannot disagree about the same book.
-  const access = resolveBookDownloadAccess({
-    file_access: book.file_access,
-    allow_download: book.allow_download,
-    fileUrl: "present",
-  });
-  if (access.canAdvertiseFile) {
-    tags.citation_pdf_url = `${SITE_URL}/api/books/${book.id}/file`;
-  }
   const publisher = book.publisher?.trim();
   if (publisher) tags.citation_publisher = publisher;
   if (authors.length > 0) tags.citation_author = authors;
@@ -209,15 +198,18 @@ export function thesisScholarMeta(
 
 // ── Publications (journal articles) ─────────────────────────────────────
 
-/** citation_pdf_url points at /api/publications/[slug]/file, which is
- * anonymously readable and serves Content-Type: application/pdf directly. */
-export function publicationScholarMeta(pub: Publication): ScholarMeta {
+/** citation_pdf_url names the article's PUBLIC full text,
+ * /journals/articles/<slug>/fulltext.pdf, and only when its licence allows it
+ * to be redistributed (`options.pdfUrl`, decided by the caller through
+ * lib/publications/access.ts). It used to name /api/publications/<slug>/file
+ * for every article — a robots-blocked path, emitted even with no PDF. */
+export function publicationScholarMeta(pub: Publication, options: { pdfUrl?: string | null } = {}): ScholarMeta {
   const authors = authorList(pub);
   const tags: ScholarMeta = {
     citation_title: pub.title,
-    citation_pdf_url: `${SITE_URL}/api/publications/${pub.slug}/file`,
     citation_language: pub.language,
   };
+  if (options.pdfUrl) tags.citation_pdf_url = options.pdfUrl;
   const date = formatScholarDate(pub.publication_date, pub.published_at, pub.created_at);
   if (date) tags.citation_publication_date = date;
   if (authors.length > 0) tags.citation_author = authors;

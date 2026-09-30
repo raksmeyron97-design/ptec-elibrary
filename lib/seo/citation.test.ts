@@ -76,11 +76,8 @@ describe("bookScholarMeta", () => {
       citation_language: "English",
       citation_keywords: "Assessment; PISA",
     });
-    // Must point at the anonymously-readable file route, not a download
-    // endpoint that would redirect or require auth for a crawler.
-    expect(meta.citation_pdf_url).toBe(
-      "https://library.ptec.edu.kh/api/books/163f853f-e68c-4ae9-a23f-1f18ffa3e8b7/file",
-    );
+    // Phase 3.7: a book's PDF needs a sign-in, so no PDF is named to Scholar.
+    expect(meta.citation_pdf_url).toBeUndefined();
   });
 
   it("does NOT assert PTEC as citation_publisher (PTEC is the provider)", () => {
@@ -240,9 +237,10 @@ describe("publicationScholarMeta", () => {
       citation_publisher: "PTEC Press",
       citation_abstract: "An evaluation of inquiry-based chemistry instruction.",
     });
-    expect(meta.citation_pdf_url).toBe(
-      "https://library.ptec.edu.kh/api/publications/journal-of-chemical-education/file",
-    );
+    // Phase 3.7: no PDF unless the caller hands over a public full text.
+    expect(meta.citation_pdf_url).toBeUndefined();
+    const pdfUrl = "https://library.ptec.edu.kh/journals/articles/journal-of-chemical-education/fulltext.pdf";
+    expect(publicationScholarMeta(samplePub, { pdfUrl }).citation_pdf_url).toBe(pdfUrl);
   });
 
   it("emits a validated ISSN, never a reviewed-book ISBN, and drops a bad DOI", () => {

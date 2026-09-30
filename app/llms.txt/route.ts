@@ -229,7 +229,9 @@ file URL receives HTTP 401 rather than the document.
 Some titles are held as a CATALOGUE RECORD ONLY: the bibliographic metadata is
 public and accurate, but ${org.abbreviation} distributes no file for them, their contents must
 not be quoted or treated as available full text, and no file URL is published for
-them at all. A record with no \`citation_pdf_url\` is one of these.
+them at all. \`citation_pdf_url\` is published only for a full text anyone may
+fetch without an account — an open-access thesis or an openly licensed journal
+article, at its own /fulltext.pdf URL — so its absence says nothing more.
 
 Some journal articles are bibliographic landing pages for third-party © journal
 articles: the metadata (title, authors, journal, DOI) is public, but the full text

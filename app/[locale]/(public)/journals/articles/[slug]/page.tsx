@@ -9,6 +9,7 @@ import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import { getPublicationBySlug, getPublicationFigures } from "@/app/actions/publications";
 import { resolveDownloadAccess } from "@/lib/publications/access";
+import { articleIsOpenAccess } from "@/lib/journals/open-access";
 import type { PublicationAffiliation } from "@/lib/publications";
 import { toCitationLine, citationYear, authorList } from "@/lib/citations";
 import PublicationViewPing from "@/components/ui/publications/PublicationViewPing";
@@ -166,7 +167,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     { seoTitle: pub.seo_title, seoDescription: pub.seo_description, ogImage: pub.og_image },
     metaOrg,
   );
-  return { ...base, other: publicationScholarMeta(pub) };
+  // A PDF is named to Google Scholar only when the article's licence lets
+  // anyone have it (SEO Phase 3.7) — then at its own public full-text URL, in
+  // this page's directory. Otherwise no citation_pdf_url at all.
+  const canonical = typeof base.alternates?.canonical === "string" ? base.alternates.canonical : null;
+  const publicPdf = canonical && articleIsOpenAccess(pub) ? `${canonical}/fulltext.pdf` : null;
+  return { ...base, other: publicationScholarMeta(pub, { pdfUrl: publicPdf }) };
 }
 
 /** Two strings that say the same thing, once trimmed and case-folded. */
