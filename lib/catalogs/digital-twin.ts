@@ -33,19 +33,20 @@ export type TwinIndex = {
 };
 
 /**
- * Every key a byline can be matched on. A catalogue byline may list several
- * people ("A; B") and write a name surname-first ("Martin, Ann M."), which
- * the PMB import did for about a thousand records, so both orders are keys.
+ * Every key a byline can be matched on: one per person, as the SET of their
+ * name parts. A catalogue byline may list several people ("A; B") and writes
+ * names surname-first — "Martin, Ann M." and, from the PMB import, "Pallant
+ * Julie" with no comma at all (measured on production 2026-09-30) — so word
+ * order cannot be part of the key. Every part must still agree: "J. Smith"
+ * is not "John Smith", the rule the author picker uses.
  */
 export function authorKeys(byline: string | null | undefined): string[] {
   const keys = new Set<string>();
   for (const part of (byline ?? "").split(/\s*[;/]\s*|\s+&\s+|\s+and\s+/)) {
     if (!isMeaningfulAuthor(part)) continue;
-    keys.add(personNameKey(part));
-    const inverted = part.match(/^\s*([^,]+),\s*([^,]+)\s*$/);
-    if (inverted) keys.add(personNameKey(`${inverted[2]} ${inverted[1]}`));
+    const key = personNameKey(part.replace(/,/g, " ")).split(" ").filter(Boolean).sort().join(" ");
+    if (key) keys.add(key);
   }
-  keys.delete("");
   return [...keys];
 }
 

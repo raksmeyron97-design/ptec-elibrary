@@ -34,10 +34,17 @@ describe("findDigitalTwin", () => {
       "research-methods-8",
     );
   });
-  it("ignores placeholder authors", () => {
+  it("ignores placeholder authors and splits several people", () => {
     expect(authorKeys("Unknown")).toEqual([]);
-    expect(authorKeys("Martin, Ann M.; Doe, Jane")).toEqual(
-      expect.arrayContaining(["martin ann m", "ann m martin", "doe jane", "jane doe"]),
-    );
+    expect(authorKeys("Martin, Ann M.; Doe, Jane")).toEqual(["ann m martin", "doe jane"]);
+  });
+  it("matches a surname-first byline with no comma, as the PMB import writes them", () => {
+    const pallant = buildTwinIndex([{ slug: "spss", title: "SPSS Survival Manual", authors: ["Julie Pallant"] }]);
+    expect(findDigitalTwin(pallant, { title: "SPSS Survival Manual", author: "Pallant Julie" })).toBe("spss");
+  });
+  it("still refuses a name that shares only some of its parts", () => {
+    const smith = buildTwinIndex([{ slug: "s", title: "Teaching", authors: ["John Smith"] }]);
+    expect(findDigitalTwin(smith, { title: "Teaching", author: "J. Smith" })).toBeNull();
+    expect(findDigitalTwin(smith, { title: "Teaching", author: "John A. Smith" })).toBeNull();
   });
 });
