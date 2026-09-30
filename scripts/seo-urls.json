@@ -85,7 +85,8 @@
         "ItemList"
       ],
       "cardLinks": "^/(km/)?authors/[^/]+$",
-      "cacheable": true
+      "cacheable": true,
+      "hubTitleH1": true
     },
     "author": {
       "robots": "index",
@@ -214,7 +215,8 @@
         "CollectionPage",
         "ItemList",
         "BreadcrumbList"
-      ]
+      ],
+      "hubTitleH1": true
     },
     "path": {
       "robots": "index",

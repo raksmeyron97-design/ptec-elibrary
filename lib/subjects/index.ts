@@ -668,9 +668,22 @@ async function loadSubjectBooksPage(
     .order("download_count", { ascending: false })
     .order("id", { ascending: true })
     .range(from, from + pageSize - 1);
-  // A failed read THROWS: returned as an empty page it would be cached for an
-  // hour as "this subject has no books" (the rule every cached reader here
-  // follows). The page's error boundary shows the reader what happened.
+  // A page past the end is not a failure: PostgREST answers 416 (PGRST103)
+  // for an offset beyond the last row. The page renders with no books and
+  // `noindex` (the out-of-range rule every listing follows), so it needs only
+  // the true total, from a count that reads no rows.
+  if (error?.code === "PGRST103") {
+    const { count: total, error: countError } = await supabase
+      .from("books")
+      .select("id", { count: "exact", head: true })
+      .eq("is_published", true)
+      .eq("category_id", categoryId);
+    if (countError) throw new Error(`subject books count: ${countError.message}`);
+    return { items: [], total: total ?? 0, page: Math.max(1, page), pageSize };
+  }
+  // Any other failed read THROWS: returned as an empty page it would be cached
+  // for an hour as "this subject has no books" (the rule every cached reader
+  // here follows). The page's error boundary shows the reader what happened.
   if (error) throw new Error(`subject books page: ${error.message}`);
   type Row = { slug: string; title: string; description: string | null; authors: { name: string | null } | null };
   const items: SubjectItem[] = ((data ?? []) as unknown as Row[])

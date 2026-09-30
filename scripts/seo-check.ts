@@ -125,6 +125,7 @@ const CHECKS: Record<string, CheckDef> = {
   "title-no-ellipsis": { phase: 1, finding: "F7", about: "no trailing … or ... unless the item title has one" },
   "title-contains-item": { phase: 1, finding: "F7", about: "a record's <title> contains its full item title (the H1)" },
   "title-length": { phase: 1, finding: "F7", warnOnly: true, about: "title ≤ 70 graphemes" },
+  "hub-title-h1": { phase: 2, finding: "N5", about: "a hub's <title> names what its H1 says" },
   "title-km-brand": { phase: 1, finding: "F9", about: "a /km title does not end in the Latin brand" },
   "desc-present": { phase: 0, about: "exactly one non-empty meta description" },
   "desc-no-ellipsis": { phase: 1, finding: "F7", about: "no trailing … or ... (a cut mid-word or mid-sentence)" },
@@ -541,6 +542,8 @@ type Template = {
   robotsPhase?: number;
   hreflang?: boolean;
   record?: boolean;
+  /** Phase 2 (N5): the hub's <title> must contain its H1. */
+  hubTitleH1?: boolean;
   scholarly?: boolean;
   jsonld?: string[];
   jsonldTarget?: string[];
@@ -608,6 +611,9 @@ async function checkUrl(entry: UrlEntry): Promise<void> {
       (bare !== h1.text && bare.trim() !== "" && norm(title).includes(norm(bare))) ||
       (h1.translated !== null && norm(title).includes(norm(h1.translated)));
     judge(label, "title-contains-item", whole, `title "${title}" vs H1 "${h1.text}"${h1.translated ? ` / "${h1.translated}"` : ""}`);
+  }
+  if (tpl.hubTitleH1 && h1) {
+    judge(label, "hub-title-h1", norm(title).includes(norm(h1.text)), `title "${title}" vs H1 "${h1.text}"`);
   }
   const tlen = graphemes(title);
   record(label, "title-length", tlen <= 70 ? "ok" : "warn", `${tlen} graphemes`);
