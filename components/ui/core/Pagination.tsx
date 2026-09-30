@@ -184,7 +184,10 @@ export default function Pagination({
             label={t("rowsPerPage")}
           />
         )}
-        <p className="text-[13.5px] text-text-muted tabular-nums" aria-live="polite">
+        {/* data-results-total: the listing's count as a machine-readable fact,
+            so a stale copy of a listing can be told from a fresh one without
+            parsing the sentence (scripts/seo-check.ts, AUDIT F1). */}
+        <p className="text-[13.5px] text-text-muted tabular-nums" aria-live="polite" data-results-total={totalItems}>
           {t("showing", { from, to, total: totalItems })}
         </p>
       </div>
