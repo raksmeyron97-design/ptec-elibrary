@@ -116,6 +116,9 @@ export function pruneEmpty(value: unknown): unknown {
       const pruned = pruneEmpty(v);
       if (!isEmpty(pruned)) out[k] = pruned;
     }
+    // A list with no items states nothing (an out-of-range page of a listing
+    // builds one): it goes, and so does the property that held it.
+    if (out["@type"] === "ItemList" && !out.itemListElement) return {};
     return out;
   }
   return value;

@@ -499,11 +499,11 @@
       "template": "paths-hub"
     },
     {
-      "path": "/paths/early-grade-reading",
+      "path": "/paths/early-grade-learning-package",
       "template": "path"
     },
     {
-      "path": "/km/paths/early-grade-reading",
+      "path": "/km/paths/early-grade-learning-package",
       "template": "path"
     },
     {

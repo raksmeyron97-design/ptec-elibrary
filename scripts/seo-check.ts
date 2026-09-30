@@ -694,13 +694,17 @@ async function checkUrl(entry: UrlEntry): Promise<void> {
   const badBlocks = page.jsonldBlocks.filter((b) => !b.ok);
   judge(label, "jsonld-parse", badBlocks.length === 0, badBlocks.length ? badBlocks.map((b) => b.error).join("; ") : `${page.jsonldBlocks.length} block(s)`);
   const types = page.jsonldTypes;
-  const wantNow = [...urlFile.sitewideJsonld, ...(tpl.jsonld ?? [])];
+  // A noindex page may carry no structured data at all (the reader, search,
+  // the offline shell): markup on a page crawlers are told not to index
+  // describes nothing anyone will see. What it carries must still be sound.
+  const optionalGraph = tpl.robots === "noindex" && page.jsonldBlocks.length === 0;
+  const wantNow = optionalGraph ? [] : [...urlFile.sitewideJsonld, ...(tpl.jsonld ?? [])];
   const missingNow = wantNow.filter((t) => !types.has(t));
   judge(label, "jsonld-types", missingNow.length === 0, missingNow.length ? `missing ${missingNow.join(", ")}; has ${[...types].join(", ")}` : [...types].join(", "));
-  const wantTarget = [...urlFile.sitewideJsonldTarget, ...(tpl.jsonldTarget ?? [])];
+  const wantTarget = optionalGraph ? [] : [...urlFile.sitewideJsonldTarget, ...(tpl.jsonldTarget ?? [])];
   const missingTarget = wantTarget.filter((t) => !types.has(t));
   judge(label, "jsonld-target-types", missingTarget.length === 0, missingTarget.length ? `missing ${missingTarget.join(", ")}` : "all present");
-  judge(label, "jsonld-single-block", page.jsonldBlocks.length === 1, `${page.jsonldBlocks.length} blocks (${page.jsonldBlocks.filter((b) => b.inHead).length} in head)`);
+  judge(label, "jsonld-single-block", page.jsonldBlocks.length === 1 || optionalGraph, `${page.jsonldBlocks.length} blocks (${page.jsonldBlocks.filter((b) => b.inHead).length} in head)`);
   judge(label, "jsonld-no-searchaction", !types.has("SearchAction"), types.has("SearchAction") ? "SearchAction present" : "none");
   const empties = page.jsonldBlocks.flatMap((b) => (b.ok ? emptyValuePaths(b.data) : []));
   judge(label, "jsonld-empty-values", empties.length === 0, empties.slice(0, 4).join("; ") + (empties.length > 4 ? ` (+${empties.length - 4})` : ""));

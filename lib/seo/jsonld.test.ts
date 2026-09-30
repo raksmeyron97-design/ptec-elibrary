@@ -63,6 +63,11 @@ describe("pageGraph", () => {
     const g = pageGraph(cfg, [{ "@type": "Library", "@id": LIBRARY_ID, name: "Other" }]);
     expect((g["@graph"] as unknown[]).length).toBe(3);
   });
+  it("drops a list that has no items, and the property holding it", () => {
+    const g = pageGraph(cfg, [{ "@type": "CollectionPage", name: "Books", mainEntity: { "@type": "ItemList", numberOfItems: 0, itemListElement: [] } }]);
+    expect((g["@graph"] as Record<string, unknown>[])[3]).toEqual({ "@type": "CollectionPage", name: "Books" });
+  });
+
   it("prunes empty values at any depth", () => {
     expect(JSON.stringify(graph)).not.toContain('"author"');
     expect(pruneEmpty({ a: "", b: null, c: [], d: { e: undefined }, f: "undefined", g: 0, h: false, i: ["", "x"] })).toEqual({
