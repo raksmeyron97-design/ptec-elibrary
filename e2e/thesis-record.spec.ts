@@ -152,6 +152,11 @@ test.describe("thesis record: every drawn action is one the server honours", () 
     await expect(panel(page).getByRole("link", { name: "Request a copy" })).toHaveAttribute("href", /\/contact\?/);
     await expect(page.locator("#full-text")).toHaveCount(0);
     await expect(page.getByRole("navigation", { name: "On this page" }).getByRole("link", { name: /Full text/ })).toHaveCount(0);
+    // The file route asks for a reader before it looks the record up, so an
+    // anonymous caller learns nothing from it — and the page offers it no read
+    // control to be refused. A signed-in reader gets the honest answer.
+    expect(await routeStatus(page, NO_FILE.id, "file")).toBe(401);
+    await signIn(page, "student2@ptec.local");
     expect(await routeStatus(page, NO_FILE.id, "file")).toBe(404);
   });
 });
