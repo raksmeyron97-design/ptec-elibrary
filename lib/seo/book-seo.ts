@@ -21,7 +21,8 @@ import type { ResourceContributorView } from "@/lib/resources/contributor-view";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { buildOpenGraph, buildTwitter, OG_FALLBACK_IMAGE } from "@/lib/seo/open-graph";
 import { libraryNode } from "@/lib/seo/org-nodes";
-import { fitDescription, fitTitle } from "@/lib/seo/text-fit";
+import { fitDescription, fitTitle, type FittedTitle } from "@/lib/seo/text-fit";
+import { bookGrade, composeRecordTitle } from "@/lib/seo/record-title";
 import { brandSuffixFor } from "@/lib/seo/brand";
 import { isoDateAtPrecision } from "@/lib/seo/dates";
 import {
@@ -73,6 +74,12 @@ export type BookSeoInput = {
   department?: string | null;
   category?: string | null;
   tags?: string[] | null;
+  /**
+   * The book's subject as the <title> should name it, in the page's language
+   * (Phase 2.4): the approved English name on English pages, the Khmer name on
+   * Khmer ones. The caller resolves it; absent or null leaves it out.
+   */
+  titleSubject?: string | null;
 };
 
 // ── Language codes ───────────────────────────────────────────────────────────
@@ -173,17 +180,33 @@ const PDF_SUFFIX = "(PDF)";
  *   - there is no admin `seo_title`. A librarian who wrote a title meant
  *     that title, and appending to it would quietly edit their words.
  */
-function pageTitleFor(
+function formatCueFor(book: BookSeoInput, override: string | null, pdfTitleSuffix: boolean): string | null {
+  if (!pdfTitleSuffix) return null;
+  if (override) return null;
+  if (book.downloadable !== true) return null;
+  return PDF_SUFFIX;
+}
+
+/**
+ * The fitted <title> (Phase 2.4): `{title} — {subject}{, Grade N}{ (PDF)}`,
+ * each part only when the record has it, dropped brand-first when long
+ * (lib/seo/record-title.ts). A librarian's `seo_title` is taken as written —
+ * no subject or grade is appended to words someone chose.
+ */
+function bookPageTitle(
   title: string,
   book: BookSeoInput,
   override: string | null,
   pdfTitleSuffix: boolean,
-): string {
-  if (!pdfTitleSuffix) return title;
-  if (override) return title;
-  if (book.downloadable !== true) return title;
-  if (title.includes(PDF_SUFFIX)) return title;
-  return `${title} ${PDF_SUFFIX}`;
+  locale: string,
+  brandSuffix: string,
+): FittedTitle {
+  const format = formatCueFor(book, override, pdfTitleSuffix);
+  if (override) return fitTitle(title, { locale, brandSuffix });
+  return composeRecordTitle(
+    { title, subject: book.titleSubject ?? null, grade: bookGrade(book), format },
+    { locale, brandSuffix },
+  );
 }
 
 export function buildBookMetadata(
@@ -198,7 +221,6 @@ export function buildBookMetadata(
   // values so an empty field never blanks the tag.
   const seoTitleOverride = clean(overrides?.seoTitle) || null;
   const title = seoTitleOverride || book.title;
-  const pageTitle = pageTitleFor(title, book, seoTitleOverride, options?.pdfTitleSuffix === true);
   const isbn = clean(book.isbn);
   const releaseDate = isoDateAtPrecision(book.publishedAt);
   const description = clean(overrides?.seoDescription) || bookMetaDescription(book, locale);
@@ -238,7 +260,14 @@ export function buildBookMetadata(
     // The `<title>` may carry the format cue; `openGraph.title` and
     // `twitter.title` above deliberately do not. The item name is never cut:
     // when it and the brand do not fit, the brand is dropped (text-fit.ts).
-    title: fitTitle(pageTitle, { locale, brandSuffix: brandSuffixFor(org, locale) }),
+    title: bookPageTitle(
+      title,
+      book,
+      seoTitleOverride,
+      options?.pdfTitleSuffix === true,
+      locale,
+      brandSuffixFor(org, locale),
+    ),
     description,
     keywords: tags.length > 0 ? tags : undefined,
     authors: authors.length > 0 ? authors.map((name) => ({ name })) : undefined,

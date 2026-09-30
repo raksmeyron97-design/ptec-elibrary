@@ -33,3 +33,26 @@ export function approvedIntro(subject: Pick<SubjectNaming, "intro">, locale: str
   const text = locale === "km" ? subject.intro?.km : subject.intro?.en;
   return text?.trim() ? text.trim() : null;
 }
+
+/** A subject's name in the page's language: its approved English name on an
+ *  English page when it has one, its Khmer name otherwise. */
+export function subjectLabel(subject: { name: string; nameEn?: string | null }, locale: string): string {
+  const en = subject.nameEn?.trim();
+  return locale !== "km" && en ? en : subject.name;
+}
+
+/**
+ * Labels for subjects known only by slug and Khmer name (the hierarchy's
+ * parent/child refs), looked up in the subject index, which carries the
+ * approved English names.
+ */
+export function labelsBySlug(
+  index: readonly { slug: string; name: string; nameEn?: string | null }[],
+  locale: string,
+): (ref: { slug: string; name: string }) => string {
+  const bySlug = new Map(index.map((s) => [s.slug, s]));
+  return (ref) => {
+    const known = bySlug.get(ref.slug);
+    return known ? subjectLabel(known, locale) : ref.name;
+  };
+}

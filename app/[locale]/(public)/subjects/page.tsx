@@ -18,10 +18,10 @@ import {
   getSubjectHierarchy,
   subjectBreakdown,
   type SubjectSummary,
-  type SubjectHierarchyRef,
 } from "@/lib/subjects";
 import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
 import { libraryNameFor } from "@/lib/seo/brand";
+import { labelsBySlug, subjectLabel } from "@/lib/subjects/display";
 
 // ISR. The hub renders taxonomy + counts, both invalidated by the tags on
 // getSubjectIndex(), so publishing a book moves the numbers without a redeploy.
@@ -97,6 +97,9 @@ export default async function SubjectsHubPage({ params }: PageProps) {
     (a, b) => b.counts.total - a.counts.total || a.name.localeCompare(b.name),
   );
   const totalResources = sorted.reduce((sum, s) => sum + s.counts.total, 0);
+  // A subtopic's parent is a hierarchy ref (slug + Khmer name); its English
+  // name, when approved, is on the subject index.
+  const parentLabel = labelsBySlug(subjects, locale);
   const hubUrl = locale === "km" ? `${SITE_URL}/km/subjects` : `${SITE_URL}/subjects`;
 
   const breadcrumbs = breadcrumbSchema([
@@ -123,7 +126,7 @@ export default async function SubjectsHubPage({ params }: PageProps) {
       itemListElement: sorted.map((s, i) => ({
         "@type": "ListItem",
         position: i + 1,
-        name: s.name,
+        name: subjectLabel(s, locale),
         url:
           locale === "km"
             ? `${SITE_URL}/km/subjects/${s.slug}`
@@ -190,12 +193,13 @@ export default async function SubjectsHubPage({ params }: PageProps) {
                 return (
                   <li
                     key={subject.slug}
-                    data-subject-key={`${subject.name} ${subject.slug} ${parent?.name ?? ""}`}
+                    data-subject-key={`${subject.name} ${subject.nameEn ?? ""} ${subject.slug} ${parent?.name ?? ""}`}
                     className="h-full"
                   >
                     <SubjectTile
                       subject={subject}
-                      parent={parent}
+                      label={subjectLabel(subject, locale)}
+                      parentLabel={parent ? parentLabel(parent) : null}
                       childrenCount={childrenCount}
                       t={t}
                     />
@@ -212,12 +216,14 @@ export default async function SubjectsHubPage({ params }: PageProps) {
 
 function SubjectTile({
   subject,
-  parent,
+  label,
+  parentLabel,
   childrenCount,
   t,
 }: {
   subject: SubjectSummary;
-  parent: SubjectHierarchyRef | null;
+  label: string;
+  parentLabel: string | null;
   childrenCount: number;
   t: Awaited<ReturnType<typeof getTranslations>>;
 }) {
@@ -231,13 +237,13 @@ function SubjectTile({
       <div>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            {parent && (
+            {parentLabel && (
               <p className="text-[11.5px] font-medium text-text-muted">
-                {t("subtopicOf", { parent: parent.name })}
+                {t("subtopicOf", { parent: parentLabel })}
               </p>
             )}
             <h2 className="text-[16px] font-bold leading-snug tracking-tight text-text-heading transition-colors group-hover:text-brand [text-wrap:balance]">
-              {subject.name}
+              {label}
             </h2>
           </div>
           <ArrowUpRight

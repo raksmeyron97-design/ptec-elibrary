@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
-import { resolveAuthorLinks, resolveSubjectLinks } from "@/lib/resources/connections";
+import { hubLinkLabel, resolveAuthorLinks, resolveSubjectLinks } from "@/lib/resources/connections";
 
 /**
  * The "what is this connected to" block on a resource detail page: the subject
@@ -63,7 +63,7 @@ export default async function ResourceConnections({
           <ConnectionChip
             key={subject.href}
             href={subject.href}
-            label={subject.name}
+            label={hubLinkLabel(subject, locale)}
             kind={t("eyebrow")}
           />
         ))}

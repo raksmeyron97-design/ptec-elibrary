@@ -21,6 +21,7 @@ import {
   buildSubjectHierarchySchema,
   getSubjectBooksPage,
   getSubjectDetail,
+  getSubjectIndex,
   otherSubjects,
   SUBJECT_BOOKS_PAGE_SIZE,
   subjectVisibility,
@@ -30,7 +31,7 @@ import {
   type SubjectItem,
   type SubjectResourceType,
 } from "@/lib/subjects";
-import { approvedIntro, subjectNames } from "@/lib/subjects/display";
+import { approvedIntro, labelsBySlug, subjectNames } from "@/lib/subjects/display";
 import Pagination from "@/components/ui/core/Pagination";
 import { parsePageParam } from "@/lib/seo/listing-metadata";
 import { JOURNALS_PATH } from "@/lib/journals/urls";
@@ -164,13 +165,17 @@ export default async function SubjectPage({ params, searchParams }: PageProps) {
   const subject = await getSubjectDetail(decodeSlugParam(rawSlug), locale);
   if (!subject) notFound();
 
-  const [t, org, fallbackSubjects, booksPage] = await Promise.all([
+  const [t, org, fallbackSubjects, booksPage, index] = await Promise.all([
     getTranslations({ locale, namespace: "subjects" }),
     getOrgIdentity(),
     subject.related.length === 0 ? otherSubjects(subject.slug) : Promise.resolve([]),
     subject.counts.book > 0 ? getSubjectBooksPage(subject.id, page) : Promise.resolve(null),
+    getSubjectIndex(),
   ]);
   const names = subjectNames(subject, locale);
+  // Parent, children and related subjects in the page's language too.
+  const label = labelsBySlug(index, locale);
+  const parent = subject.parent ? { ...subject.parent, name: label(subject.parent) } : null;
   const intro = approvedIntro(subject, locale);
   const subjectPath = `${locale === "km" ? "/km" : ""}/subjects/${subject.slug}`;
 
@@ -191,16 +196,16 @@ export default async function SubjectPage({ params, searchParams }: PageProps) {
 
   // Hierarchical breadcrumbs: 4 levels for child topics (Home → Subjects → Parent → Child)
   // and 3 levels for parent / flat topics (Home → Subjects → Topic).
-  const crumbs = buildSubjectBreadcrumbs(subject, subject.parent, t);
+  const crumbs = buildSubjectBreadcrumbs({ name: names.short, slug: subject.slug }, parent, t);
   const breadcrumbs = breadcrumbSchema(crumbs, { locale, pageUrl: subjectUrl });
 
   // Schema.org CollectionPage hierarchy markup (SEO 3.3 Phase B Item 6)
   const hierarchySchema = buildSubjectHierarchySchema({
     subjectSlug: subject.slug,
-    subjectName: subject.name,
+    subjectName: names.short,
     locale,
-    parent: subject.parent,
-    children: subject.children,
+    parent,
+    children: subject.children.map((c) => ({ ...c, name: label(c) })),
     hubSeoTitle: t("hubSeoTitle"),
   });
 
@@ -208,7 +213,7 @@ export default async function SubjectPage({ params, searchParams }: PageProps) {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
     "@id": `${subjectUrl}#collection`,
-    name: subject.name,
+    name: names.short,
     url: subjectUrl,
     inLanguage: locale === "km" ? "km" : "en",
     isAccessibleForFree: true,
@@ -261,13 +266,13 @@ export default async function SubjectPage({ params, searchParams }: PageProps) {
                 href={`/subjects/${subject.parent.slug}`}
                 className="focus-field rounded-sm transition-colors hover:text-brand"
               >
-                {subject.parent.name}
+                {parent?.name}
               </Link>
             </>
           )}
           <Icon name="chevron-right" className="text-[16px] text-divider" />
           <span className="max-w-[220px] truncate font-semibold text-text-heading sm:max-w-none">
-            {subject.name}
+            {names.short}
           </span>
         </BreadcrumbNav>
 
@@ -279,7 +284,7 @@ export default async function SubjectPage({ params, searchParams }: PageProps) {
                 className="focus-field inline-flex items-center gap-1.5 rounded-full border border-brand/25 bg-brand/5 px-3 py-1 text-[12px] font-semibold text-brand transition-colors hover:border-brand/40"
               >
                 <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-                {t("subtopicOf", { parent: subject.parent.name })}
+                {t("subtopicOf", { parent: parent?.name ?? subject.parent.name })}
               </Link>
             </div>
           )}
@@ -344,7 +349,7 @@ export default async function SubjectPage({ params, searchParams }: PageProps) {
                     className="group focus-field flex items-center justify-between rounded-xl border border-divider bg-bg-body p-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-xs"
                   >
                     <span className="font-semibold text-[14px] text-text-heading transition-colors group-hover:text-brand">
-                      {c.name}
+                      {label(c)}
                     </span>
                     <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-brand/10 px-2.5 py-0.5 text-[11.5px] font-bold text-brand tabular-nums">
                       {c.counts.total}
@@ -444,7 +449,7 @@ export default async function SubjectPage({ params, searchParams }: PageProps) {
                     href={`/subjects/${s.slug}`}
                     className="focus-field inline-flex items-center gap-2 rounded-full border border-divider bg-bg-surface px-3.5 py-1.5 text-[13px] font-semibold text-text-body transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/40 hover:text-brand hover:shadow-xs"
                   >
-                    {s.name}
+                    {label(s)}
                     <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[11.5px] font-bold text-brand tabular-nums">
                       {s.counts.total}
                     </span>

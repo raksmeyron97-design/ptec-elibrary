@@ -30,7 +30,15 @@ export type HubLink = {
   name: string;
   /** Locale-agnostic path, e.g. "/subjects/pedagogy". */
   href: string;
+  /** A subject's approved English name (0161), when it has one. */
+  nameEn?: string | null;
 };
+
+/** A hub link's label in the page's language: an English page uses the
+ *  approved English name when there is one, never a guessed translation. */
+export function hubLinkLabel(link: HubLink, locale: string): string {
+  return locale !== "km" && link.nameEn ? link.nameEn : link.name;
+}
 
 /** Case-folded comparison key, shared by both resolvers. */
 function key(value: string | null | undefined): string {
@@ -56,7 +64,7 @@ export async function resolveSubjectLinks(
     if (!k || seen.has(k)) continue;
     seen.add(k);
     const match = index.find((s) => key(s.name) === k && s.counts.total > 0);
-    if (match) out.push({ name: match.name, href: `/subjects/${match.slug}` });
+    if (match) out.push({ name: match.name, href: `/subjects/${match.slug}`, nameEn: match.nameEn ?? null });
   }
   return out;
 }

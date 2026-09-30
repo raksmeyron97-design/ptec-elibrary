@@ -41,7 +41,7 @@ import { buildBookMetadata, bookCanonicalUrl, bookJsonLd, type BookSeoInput } fr
 import { pdfTitleSuffixEnabled } from "@/lib/seo/seo-flags";
 import ResourceConnections from "@/components/seo/ResourceConnections";
 import BookTopics from "@/components/ui/books/BookTopics";
-import { resolveSubjectLinks } from "@/lib/resources/connections";
+import { hubLinkLabel, resolveSubjectLinks } from "@/lib/resources/connections";
 import RelatedBooks from "@/components/ui/books/RelatedBooks";
 import MobileReadDock from "@/components/ui/books/MobileReadDock";
 import CiteBook from "@/components/ui/books/CiteBook";
@@ -124,6 +124,17 @@ export async function generateMetadata({
   }
 
   const authorNames = authorNamesFromRelation(book.authors);
+  // The subject the <title> names (Phase 2.4) is the one the breadcrumb links
+  // to, in the page's language: an English page names it only once a
+  // librarian has approved an English name (0161).
+  const category = (book.categories as { name?: string | null } | null)?.name ?? null;
+  const department = (book.departments as { name?: string | null } | null)?.name || book.department;
+  const [titleSubjectLink] = await resolveSubjectLinks([category, department]);
+  const titleSubject = titleSubjectLink
+    ? locale === "km"
+      ? titleSubjectLink.name
+      : (titleSubjectLink.nameEn ?? null)
+    : null;
   const seoInput: BookSeoInput = {
     slug,
     title: book.title,
@@ -137,6 +148,7 @@ export async function generateMetadata({
     department: (book.departments as any)?.name || book.department,
     category: (book.categories as any)?.name,
     tags: Array.isArray(book.tags) ? book.tags : [],
+    titleSubject,
     // 0151. generateMetadata reads the RAW row here, not the mapped Book.
     fileAccess: (book as { file_access?: string | null }).file_access,
     // SEO5-03: the fallback description promised "download the PDF" on every
@@ -354,7 +366,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
     [
       { name: t("home"), path: "/" },
       { name: t("books"), path: "/books" },
-      ...(subjectCrumb ? [{ name: subjectCrumb.name, path: subjectCrumb.href }] : []),
+      ...(subjectCrumb ? [{ name: hubLinkLabel(subjectCrumb, locale), path: subjectCrumb.href }] : []),
       { name: book.title },
     ],
     { locale, pageUrl: canonicalUrl },
@@ -379,17 +391,19 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
           <Icon name="chevron-right" className="text-[16px] text-divider" />
           <Link href="/books" className="hover:text-brand transition-colors">{t("books")}</Link>
           <Icon name="chevron-right" className="text-[16px] text-divider" />
-          {/* Same target as the JSON-LD crumb whenever a subject resolves, so the
-              visible trail and the structured data cannot disagree. The
-              department filter stays as the fallback: it has no landing page to
-              link to, but it is still a useful affordance for a reader. */}
-          <Link
-            href={subjectCrumb ? subjectCrumb.href : `/books?dept=${encodeURIComponent(book.department)}`}
-            className="whitespace-nowrap hover:text-brand transition-colors"
-          >
-            {subjectCrumb ? subjectCrumb.name : book.department}
-          </Link>
-          <Icon name="chevron-right" className="text-[16px] text-divider" />
+          {/* The same crumbs as the BreadcrumbList above, item for item (SEO
+              Phase 2.5): Home › Books › Subject › Title. A book whose category
+              resolves to no subject hub has no third crumb in either — the
+              department filter it used to fall back to is a noindex URL the
+              structured data could not name, so the two trails disagreed. */}
+          {subjectCrumb && (
+            <>
+              <Link href={subjectCrumb.href} className="whitespace-nowrap hover:text-brand transition-colors">
+                {hubLinkLabel(subjectCrumb, locale)}
+              </Link>
+              <Icon name="chevron-right" className="text-[16px] text-divider" />
+            </>
+          )}
           <span className="max-w-[200px] truncate font-semibold text-text-heading sm:max-w-[300px]" title={book.title}>
             {book.title}
           </span>

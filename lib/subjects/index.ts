@@ -87,6 +87,9 @@ export type SubjectSummary = {
    *  answer as zero and must never demote a subject on its own; see
    *  {@link subjectVisibility}. */
   fullText: number | null;
+  /** The librarian-approved English name (0161), or null. Optional so a
+   *  summary built without it (tests, older cache entries) reads as "none". */
+  nameEn?: string | null;
 };
 
 export type SubjectItem = {
@@ -154,7 +157,7 @@ const INDEXABLE_RECORD_TYPES = new Set(["book", "research", "publication"]);
 
 // ── Subject index (all subjects + their public resource counts) ──────────────
 
-type CategoryRow = { id: string; name: string; slug: string; created_at: string | null };
+type CategoryRow = { id: string; name: string; slug: string; created_at: string | null; name_en?: string | null };
 
 /**
  * Ceiling on how far one of these scans will PAGE.
@@ -207,7 +210,18 @@ async function loadSubjectIndex(): Promise<SubjectSummary[]> {
   // is indistinguishable from a book that is not in the subject.
   const [categories, bookScan, thesisScan, publicationScan, catalogScan, indexScan] =
     await Promise.all([
-      supabase.from("categories").select("id, name, slug, created_at").order("name"),
+      // `name_en` (0161) first, the old select as the retry: naming a column
+      // the database does not have yet fails the whole read, and an empty
+      // subject index hides every hub.
+      supabase
+        .from("categories")
+        .select("id, name, slug, created_at, name_en")
+        .order("name")
+        .then(async (withName) =>
+          withName.error
+            ? await supabase.from("categories").select("id, name, slug, created_at").order("name")
+            : withName,
+        ),
       pagedScan<{ id: string; category_id: string | null }>(
         (from, to) =>
           supabase
@@ -331,7 +345,7 @@ async function loadSubjectIndex(): Promise<SubjectSummary[]> {
           : [...bookIds, ...thesisIds, ...publicationIds].filter((id) => fullTextIds.has(id))
               .length;
 
-      return { id: c.id, name: c.name, slug: c.slug, counts, fullText };
+      return { id: c.id, name: c.name, slug: c.slug, counts, fullText, nameEn: c.name_en?.trim() || null };
     });
 }
 
@@ -346,7 +360,7 @@ async function loadSubjectIndex(): Promise<SubjectSummary[]> {
  * — a v1 entry would carry `undefined` there and read as "criterion 2 not
  * evaluated" for as long as it lived.
  */
-const cachedSubjectIndex = unstable_cache(loadSubjectIndex, ["subject-index-v2"], {
+const cachedSubjectIndex = unstable_cache(loadSubjectIndex, ["subject-index-v3"], {
   revalidate: 3600,
   tags: [
     TAGS.categories,
