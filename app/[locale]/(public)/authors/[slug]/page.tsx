@@ -280,6 +280,9 @@ export default async function AuthorPage({ params }: PageProps) {
             // was harmless as an identifier but read as a contradiction in
             // the one place a reader looks to check the type.
             "@id": `${canonical}#${entityNode["@type"] === "Organization" ? "organization" : "person"}`,
+            // The name in its other script, when the profile records one
+            // (SEO Phase 4) — how the same person is written on a Khmer page.
+            ...(author.nameKm && author.nameKm !== author.name ? { alternateName: author.nameKm } : {}),
             ...(author.bio ? { description: truncate(author.bio, "en", 300) } : {}),
             ...(author.photoUrl ? { image: author.photoUrl } : {}),
             // jobTitle and affiliation describe a human; an organisation has
