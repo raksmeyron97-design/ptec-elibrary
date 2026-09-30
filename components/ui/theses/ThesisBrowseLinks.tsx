@@ -10,13 +10,9 @@ import { getThesisProgramGroups, getThesisYearGroups, programName } from "@/lib/
  */
 export default async function ThesisBrowseLinks({ locale, show = true }: { locale: string; show?: boolean }) {
   if (!show) return null;
-  let years: Awaited<ReturnType<typeof getThesisYearGroups>> = [];
-  let programs: Awaited<ReturnType<typeof getThesisProgramGroups>> = [];
-  try {
-    [years, programs] = await Promise.all([getThesisYearGroups(), getThesisProgramGroups()]);
-  } catch {
-    return null;
-  }
+  const loaded = await Promise.all([getThesisYearGroups(), getThesisProgramGroups()]).catch(() => null);
+  if (!loaded) return null;
+  const [years, programs] = loaded;
   if (years.length === 0 && programs.length === 0) return null;
   const [t, names] = await Promise.all([
     getTranslations({ locale, namespace: "theses" }),

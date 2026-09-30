@@ -25,8 +25,8 @@ export default function ThesisBrowseView({
 }) {
   return (
     <main className="min-h-screen bg-bg-body px-4 py-8 md:px-12">
-      {jsonLd.map((data, i) => (
-        <JsonLd key={i} data={data} />
+      {jsonLd.map((data) => (
+        <JsonLd key={String(data["@type"])} data={data} />
       ))}
       <div className="mx-auto max-w-[960px]">
         <BreadcrumbNav className="mb-6 flex flex-wrap items-center gap-1.5 text-[13px] font-medium text-text-muted sm:gap-2">
