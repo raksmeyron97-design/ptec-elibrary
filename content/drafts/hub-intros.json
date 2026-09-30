@@ -1,0 +1,86 @@
+{
+  "about": "DRAFT hub introductions for review (SEO Phase 2.3). No page reads this file. English: 60–120 words, stating what the hub holds, who it is for and how to contribute, built only from copy the site already publishes. Khmer: composed from existing Khmer strings (listed in built_from), shorter than the English where no approved Khmer phrase exists for a sentence — TODO(km-review). To publish, copy an approved hub's en and km into content/hub-intros.json with \"status\": \"approved\".",
+  "hubs": {
+    "books": {
+      "en": "Free educational books and teaching resources for teachers in Cambodia: textbooks, teacher's guides, research methods, pedagogy, and materials in Khmer and English, all in one place. The collection serves PTEC's student teachers and lecturers, and any teacher who needs a reliable copy of a text. Searching and browsing need no account; reading a book online or downloading it needs a free one. Narrow the list by department, format or language, or open a subject page to see everything the library holds on one topic. If a book you need is missing, request it, and a librarian will try to source it or find an open-access alternative.",
+      "km": "សៀវភៅអប់រំ និងធនធានបង្រៀនឥតគិតថ្លៃ សម្រាប់គ្រូបង្រៀន — សៀវភៅសិក្សា ការស្រាវជ្រាវ និងសម្ភារៈបង្រៀន ជាភាសាខ្មែរ និងអង់គ្លេស នៅក្នុងទីតាំងតែមួយ។ មិនចាំបាច់មានគណនី ដើម្បីស្វែងរក និងរកមើលទេ។ ការអានតាមអ៊ីនធឺណិត និងការទាញយក ត្រូវការគណនីឥតគិតថ្លៃ។ មុខវិជ្ជានីមួយៗប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យមានលើប្រធានបទតែមួយ។ កំពុងស្វែងរកអ្វីដែលបណ្ណាល័យមិនទាន់មាន? ប្រាប់យើងពីចំណងជើង និងហេតុផល ហើយយើងនឹងព្យាយាមរកវា ឬរកជម្រើសបើកចំហជំនួស។",
+      "status": "needs_review",
+      "km_review": "TODO(km-review)",
+      "built_from": [
+        "books.h1",
+        "books.subtitle",
+        "books.seoDescription",
+        "home.seoTitle",
+        "home.faqA3",
+        "subjects.hubIntro",
+        "home.growRequestBody",
+        "the /books filters (department, format, language)"
+      ]
+    },
+    "theses": {
+      "en": "Theses and research reports written by student teachers at Phnom Penh Teacher Education College. Search them by programme, cohort, academic year, author, advisor or keyword, or browse the complete index by year. Each record names the authors and advisors, the programme and the year, and gives a ready-made citation, so the work can be found, cited and built on. They are here so that each cohort can start where the last one stopped. Finished a thesis or a research report? Deposit it in the library: you keep the copyright, and the library handles cataloguing, a permanent link and a citation.",
+      "km": "និក្ខេបបទ និងរបាយការណ៍ស្រាវជ្រាវរបស់និស្សិត ពីវិទ្យាល័យគរុកោសល្យភ្នំពេញ។ ស្វែងរកតាមកម្មវិធីសិក្សា វគ្គ ឆ្នាំសិក្សា អ្នកនិពន្ធ អ្នកណែនាំ និងពាក្យគន្លឹះ។ បានបញ្ចប់និក្ខេបបទ ឬរបាយការណ៍ស្រាវជ្រាវហើយឬ? ដាក់វាក្នុងបណ្ណាល័យ ដើម្បីឲ្យជំនាន់ក្រោយអាចបន្តពីវា។ អ្នករក្សាសិទ្ធិអ្នកនិពន្ធ ហើយយើងរៀបចំកាតាឡុក តំណភ្ជាប់អចិន្ត្រៃយ៍ និងទម្រង់ដកស្រង់។",
+      "status": "needs_review",
+      "km_review": "TODO(km-review)",
+      "built_from": [
+        "theses.collectionDescription",
+        "theses.seoDescription",
+        "thesisSummary.description",
+        "home.growDepositBody"
+      ]
+    },
+    "journals": {
+      "en": "Scholarly journal articles held in the PTEC Library, arranged the way journals publish them: each journal, its volumes and issues, and the articles in each issue. Every article has its own page with its authors, its place in the issue and a ready-made citation. The collection is for lecturers, student teachers and researchers who need published research on teaching and learning. The college's own publications are listed on the PTEC website. If you edit a journal and would like its issues held here, contact the library.",
+      "km": "អត្ថបទទស្សនាវដ្ដីក្នុងបណ្ណាល័យ វ.គ.ភ រៀបចំតាមទស្សនាវដ្ដី ភាគ និងលេខផ្សាយ។ អត្ថបទនីមួយៗមានទំព័រផ្ទាល់ខ្លួន ជាមួយអ្នកនិពន្ធ និងទម្រង់ដកស្រង់។ សម្រាប់និស្សិត គរុនិស្សិត សាស្ត្រាចារ្យ និងអ្នកស្រាវជ្រាវ។ សូមទាក់ទងបណ្ណាល័យ។",
+      "status": "needs_review",
+      "km_review": "TODO(km-review)",
+      "built_from": [
+        "subjects.countPublication",
+        "journals.volumeHeading",
+        "journals.breadcrumbIssues",
+        "home.growDepositBody (ទម្រង់ដកស្រង់)",
+        "posts.metaDescription (audience)",
+        "reader.fileUnavailable (សូមទាក់ទងបណ្ណាល័យ)",
+        "the Publications ↗ nav link"
+      ]
+    },
+    "posts": {
+      "en": "Announcements, events, academic updates and library news from PTEC Library at Phnom Penh Teacher Education College. Posts are written by the library team for students, teacher trainees, lecturers and the public, and the newest appear first. Read them to find out what is happening in the library and at the college, and what has been added to the collection. If you have news the library should share with its readers, such as an event or a new resource for teachers, contact the library team.",
+      "km": "ព័ត៌មាន សេចក្តីប្រកាស និងព្រឹត្តិការណ៍ ពីបណ្ណាល័យ វ.គ.ភ — សម្រាប់និស្សិត គរុនិស្សិត សាស្ត្រាចារ្យ និងសាធារណជន។ ដំណឹង សេចក្តីប្រកាស និងសកម្មភាពថ្មីៗ ពីបណ្ណាល័យ វ.គ.ភ.។ សូមទាក់ទងបណ្ណាល័យ។",
+      "status": "needs_review",
+      "km_review": "TODO(km-review)",
+      "built_from": [
+        "posts.metaDescription",
+        "posts.pageDescription",
+        "posts.subtitle",
+        "reader.fileUnavailable (សូមទាក់ទងបណ្ណាល័យ)"
+      ]
+    },
+    "authors": {
+      "en": "Every author whose work the PTEC Library holds: the people and organisations behind its e-books, student theses, journal articles and printed books. Each profile gathers one author's works in one place, so you can move from a book you found to everything else the library has by the same writer. Some are PTEC's own student teachers, whose theses are here; others wrote the textbooks, guides and research books on the shelves. A profile lists only what the library holds. If your profile is missing a work or shows your name wrongly, contact the library and a librarian will correct it.",
+      "km": "អ្នកនិពន្ធទាំងអស់ដែលមានស្នាដៃក្នុងបណ្ណាល័យ វ.គ.ភ៖ សៀវភៅអេឡិចត្រូនិក និក្ខេបបទនិស្សិត អត្ថបទទស្សនាវដ្ដី និងសៀវភៅរូបវន្ត ចាត់តាមបុគ្គលដែលបាននិពន្ធ។ ប្រវត្តិរូបនីមួយៗប្រមូលសៀវភៅអេឡិចត្រូនិក និក្ខេបបទ និងអត្ថបទទស្សនាវដ្ដីរបស់បុគ្គលនោះនៅកន្លែងតែមួយ។ ប្រសិនបើអ្នកគិតថានេះជាកំហុស សូមទាក់ទងបណ្ណាល័យ។",
+      "status": "needs_review",
+      "km_review": "TODO(km-review)",
+      "built_from": [
+        "authors.hubSeoDescription",
+        "authors.hubIntro",
+        "authors.hubSubtitle",
+        "reader.errorPermissionBody"
+      ]
+    },
+    "catalogs": {
+      "en": "The catalogue of printed books on the shelves of PTEC Library at Phnom Penh Teacher Education College. Search it by title, author, subject, ISBN or call number; each record lists the library's copies and the shelf where they are kept. Copy availability shown here is not yet updated in real time, so confirm it with a librarian. To borrow a book, visit the library desk during opening hours. Looking for something the library does not hold yet? Request it, and a librarian will try to source it.",
+      "km": "រកមើលសៀវភៅបោះពុម្ពដែលមាននៅបណ្ណាល័យ វ.គ.ភ។ ស្វែងរកតាមចំណងជើង អ្នកនិពន្ធ ISBN ឬលេខហៅសៀវភៅ។ ស្ថានភាពច្បាប់ចម្លងដែលបង្ហាញនៅទីនេះ មិនទាន់ធ្វើបច្ចុប្បន្នភាពភ្លាមៗនៅឡើយទេ។ អញ្ជើញមកកាន់តុបណ្ណារក្ស ក្នុងម៉ោងបើកដំណើរការ។ កំពុងស្វែងរកអ្វីដែលបណ្ណាល័យមិនទាន់មាន? ប្រាប់យើងពីចំណងជើង និងហេតុផល ហើយយើងនឹងព្យាយាមរកវា។",
+      "status": "needs_review",
+      "km_review": "TODO(km-review)",
+      "built_from": [
+        "catalogs.subtitle",
+        "catalogs.metaDescription",
+        "catalogs.searchPlaceholder",
+        "catalogs.availabilityNotice",
+        "home.faqA4",
+        "home.growRequestBody"
+      ]
+    }
+  }
+}

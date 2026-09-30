@@ -33,6 +33,7 @@ import { getPublicJournals, type JournalSummary } from "@/lib/journals/data";
 import { JOURNALS_PATH, PTEC_PUBLICATIONS_URL } from "@/lib/journals/urls";
 import { ExternalLink } from "lucide-react";
 import JournalShelf from "@/components/ui/journals/JournalShelf";
+import HubIntro from "@/components/seo/HubIntro";
 
 export const dynamic = "force-dynamic";
 
@@ -353,6 +354,7 @@ export default async function PublicationsPage({
             }
             formAction={basePath}
           />
+          <HubIntro hub="journals" locale={locale} show={!hasFilters && page === 1} className="mb-6" />
 
           {/* Every public journal, each a link to its own page. This is what
               makes /journals/<journal> reachable from the collection hub —

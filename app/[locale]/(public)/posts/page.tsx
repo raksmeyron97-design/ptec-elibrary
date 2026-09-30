@@ -29,6 +29,7 @@ import PostsMobileFilters from "@/components/ui/posts/PostsMobileFilters";
 import PostsEmptyState from "@/components/ui/posts/PostsEmptyState";
 import { CloseIcon } from "@/components/ui/posts/icons";
 import { getOrgIdentity } from "@/lib/system-settings/config";
+import HubIntro from "@/components/seo/HubIntro";
 
 type SearchParams = {
   q?: string;
@@ -200,6 +201,7 @@ export default async function PostsPage({
                 <p className="mt-3 text-[15px] leading-[1.75] text-text-body">
                   {t("pageDescription")}
                 </p>
+                <HubIntro hub="posts" locale={locale} show={cleanView && requestedPage === 1} className="mt-3" />
               </div>
               <div className="w-full lg:max-w-sm">
                 <PostsSearch

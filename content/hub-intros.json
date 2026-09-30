@@ -1,0 +1,4 @@
+{
+  "about": "APPROVED hub introductions only (SEO Phase 2.3). The hub pages render what is here and nothing else. Drafts live in content/drafts/hub-intros.json; to publish one, copy its en and km text here under its hub key with \"status\": \"approved\" once a librarian has approved the English and a Khmer reader the Khmer. lib/seo/hub-intros.test.ts refuses an entry that is not approved, carries a review marker, or runs outside 60–120 English words.",
+  "hubs": {}
+}

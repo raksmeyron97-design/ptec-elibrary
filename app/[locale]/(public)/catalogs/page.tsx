@@ -36,6 +36,7 @@ import {
   type FacetSelection,
   type FacetSourceRow,
 } from "@/lib/catalogs/facets";
+import HubIntro from "@/components/seo/HubIntro";
 
 export const revalidate = 3600;
 
@@ -412,6 +413,7 @@ export default async function CatalogsPage({
               <p className="mt-0.5 text-sm text-text-muted">
                 {t('subtitle')}
               </p>
+              <HubIntro hub="catalogs" locale={locale} show={!hasFilters && page === 1} className="mt-3" />
             </div>
             {/* "0 books" with no context reads as broken — the empty state
                 below explains the situation instead. */}

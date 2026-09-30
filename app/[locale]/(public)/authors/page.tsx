@@ -18,6 +18,7 @@ import AuthorDirectoryFilter from "@/components/ui/authors/AuthorDirectoryFilter
 import { CollectionHeader, CollectionEmptyState, EntityBadge } from "@/components/ui/collection";
 import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
 import { libraryNameFor } from "@/lib/seo/brand";
+import HubIntro from "@/components/seo/HubIntro";
 
 export const revalidate = 3600;
 
@@ -149,6 +150,7 @@ export default async function AuthorsHubPage({ params }: PageProps) {
             ) : null
           }
         />
+        <HubIntro hub="authors" locale={locale} className="mb-6" />
 
         {authors.length === 0 ? (
           <CollectionEmptyState

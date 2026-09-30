@@ -28,3 +28,10 @@ System Settings (the /km title suffix and `og:site_name`).
   `km_review: "TODO(km-review)"`; the importer refuses a Khmer intro until a
   reviewer clears it. Two category names are flagged for a spelling check in
   their `notes` (កញ្ជប់គណិតវិទ្យា, វិទ្យសាស្ត្រ); nothing renames them.
+- `content/drafts/hub-intros.json` — Khmer introductions for the six
+  collection hubs (/books, /theses, /journals, /posts, /authors, /catalogs),
+  each assembled from the existing strings listed in its `built_from`. Where
+  no approved Khmer phrase exists for an English sentence, the Khmer draft
+  leaves it out rather than inventing one, so the Khmer drafts are shorter.
+  No page reads this file; an approved pair is copied into
+  `content/hub-intros.json`.
