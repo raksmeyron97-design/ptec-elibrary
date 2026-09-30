@@ -11,13 +11,29 @@ import {
   readThesisContributors,
 } from "@/lib/theses/record.server";
 import { buildThesisRecord, type RecordLocale, type Translate } from "@/lib/theses/record";
-import { contributorNames } from "@/lib/resources/contributor-view";
+import {
+  authorRoleContributors,
+  contributorNames,
+  type ResourceContributorView,
+} from "@/lib/resources/contributor-view";
 import { citationNames } from "@/lib/resources/contributor-identity";
 import { getKeywords, getReferences, getDoi, getDepartment, getLanguageLabel } from "@/lib/theses/report-fields";
 import { SITE_URL } from "@/lib/seo/site";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import { breadcrumbSchema } from "@/lib/seo/schema";
-import { thesisScholarMeta, type ThesisCitationRow } from "@/lib/seo/citation";
+import { isCohortLabel, thesisScholarMeta, type ThesisCitationRow } from "@/lib/seo/citation";
+import { thesisIsOpenAccess } from "@/lib/theses/open-access";
+
+/**
+ * A thesis's AUTHORS (SEO Phase 3.3): author-role credits, without a cohort
+ * label that rode in on the byline. The 0105 backfill credited the advisor
+ * and every comma-separated piece of the byline, so the unfiltered list put
+ * advisors and "គរុនិស្សិត ១២+៤ ជំនាន់ទី២" in the byline, the JSON-LD and
+ * Google Scholar's citation_author.
+ */
+function thesisAuthorCredits(views: readonly ResourceContributorView[]): ResourceContributorView[] {
+  return authorRoleContributors(views).filter((v) => !isCohortLabel(v.name));
+}
 import { buildThesisMetadata, thesisJsonLd, type ThesisSeoInput } from "@/lib/seo/thesis-seo";
 import JsonLd from "@/components/seo/JsonLd";
 import ResourceConnections from "@/components/seo/ResourceConnections";
@@ -74,7 +90,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   // Canonical credits feed the citation_* meta tags + JSON-LD, consistent with
   // the visible page — the same request-cached read the page makes.
   const metaContributors = await readThesisContributors(report.id, report.author_names ?? null);
-  const metaAuthorNames = contributorNames(metaContributors.contributors);
+  // AUTHORS only (Phase 3.3): the 0105 backfill credited the advisor and
+  // every comma-separated piece of the byline, so the full list carried the
+  // advisors and a cohort label into citation_author and the JSON-LD author.
+  const authorCredits = thesisAuthorCredits(metaContributors.contributors);
+  const metaAuthorNames = contributorNames(authorCredits);
   const reportForMeta =
     metaAuthorNames.length > 0 ? { ...report, author_names: metaAuthorNames.join(", ") } : report;
 
@@ -83,7 +103,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: report.title,
     abstract: report.abstract,
     authors: metaAuthorNames.length > 0 ? metaAuthorNames : splitAuthors(reportForMeta.author_names),
-    contributors: metaContributors.contributors,
+    contributors: authorCredits,
     coverUrl: report.cover_url,
     // published_at is the academic publication date; the website deposit time
     // (created_at) is NOT used as datePublished. verified_at/updated_at is the
@@ -105,11 +125,21 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     org,
   );
 
+  // Google Scholar sees one record per work: the tags go on the page in the
+  // work's language only, name this page as the abstract, and name a PDF
+  // only when its full text is public (lib/theses/open-access.ts).
+  const abstractUrl = typeof base.alternates?.canonical === "string" ? base.alternates.canonical : undefined;
+  const scholar = thesisScholarMeta(reportForMeta as ThesisCitationRow, org, {
+    locale,
+    abstractUrl,
+    pdfUrl: abstractUrl && thesisIsOpenAccess(report) ? `${abstractUrl}/fulltext.pdf` : null,
+  });
+
   return {
     ...base,
     // Google Scholar citation_* meta tags — see lib/seo/citation.ts
     other: {
-      ...thesisScholarMeta(reportForMeta as ThesisCitationRow, org),
+      ...scholar,
       "dc.publisher": org.institutionName,
       "dc.type": "ScholarlyArticle",
     },
@@ -146,7 +176,10 @@ export default async function ThesisDetailPage({ params }: PageProps) {
 
   // Canonical credits (migrations 0104–0109) replace the free-text byline when
   // the graph has them; otherwise the byline is shown as stored.
-  const canonicalAuthors = contributorNames(contributorRead.contributors);
+  // Authors only — the same rule as the metadata above (Phase 3.3); the
+  // advisors have their own line in the title block.
+  const authorCredits = thesisAuthorCredits(contributorRead.contributors);
+  const canonicalAuthors = contributorNames(authorCredits);
   const byline = typeof report.author_names === "string" ? report.author_names.trim() : "";
   const displayAuthorNames = canonicalAuthors.length > 0 ? canonicalAuthors.join(", ") : byline;
 
@@ -175,7 +208,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
       alternativeTitle: report.title_km ?? null,
       abstract: report.abstract,
       authors: canonicalAuthors.length > 0 ? canonicalAuthors : splitAuthors(displayAuthorNames),
-      contributors: contributorRead.contributors,
+      contributors: authorCredits,
       coverUrl: report.cover_url,
       datePublished: report.published_at,
       dateModified: report.verified_at ?? report.updated_at ?? null,

@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   bookScholarMeta,
   thesisScholarMeta,
+  thesisCitationLocale,
+  isCohortLabel,
   publicationScholarMeta,
   formatScholarDate,
   splitAuthorNames,
@@ -132,12 +134,41 @@ describe("thesisScholarMeta", () => {
     expect(meta.citation_doi).toBeUndefined();
   });
 
-  it("points citation_pdf_url at /file (not /file.pdf, which 404s)", () => {
-    const meta = thesisScholarMeta(sampleRow);
-    expect(meta.citation_pdf_url).toBe(
-      "https://library.ptec.edu.kh/api/theses/0338d7db-1b27-41bf-a0ab-dfc4d15efcb3/file",
-    );
-    expect(meta.citation_pdf_url).not.toMatch(/\.pdf$/);
+  it("names a PDF only when the caller hands it a public full text", () => {
+    // Phase 3.4: the old /api/theses/<id>/file answered 401 anonymously and
+    // sits under a robots-blocked path — never a URL Scholar could fetch.
+    expect(thesisScholarMeta(sampleRow).citation_pdf_url).toBeUndefined();
+    const pdfUrl = "https://library.ptec.edu.kh/theses/my-thesis/fulltext.pdf";
+    expect(thesisScholarMeta(sampleRow, undefined, { pdfUrl }).citation_pdf_url).toBe(pdfUrl);
+  });
+
+  it("never lists a cohort label as an author", () => {
+    const meta = thesisScholarMeta({ ...sampleRow, author_names: "គរុនិស្សិត ១២+៤ ជំនាន់ទី២, Sok San" });
+    expect(meta.citation_author).toEqual(["Sok San"]);
+    expect(isCohortLabel("Cohort 2023")).toBe(true);
+    expect(isCohortLabel("Sok Dara")).toBe(false);
+  });
+
+  it("emits tags only on the page in the work's language", () => {
+    const km = { ...sampleRow, language: "km" };
+    expect(thesisScholarMeta(km, undefined, { locale: "en" })).toEqual({});
+    expect(thesisScholarMeta(km, undefined, { locale: "km" }).citation_title).toBe(sampleRow.title);
+    expect(thesisScholarMeta(km, undefined, { locale: "km" }).citation_language).toBe("km");
+    expect(thesisCitationLocale({ language: "km_en", title: "x" })).toBe("km");
+    expect(thesisCitationLocale({ language: null, title: "ការស្រាវជ្រាវ" })).toBe("km");
+    expect(thesisCitationLocale({ language: null, title: "Research" })).toBe("en");
+  });
+
+  it("a research report carries the technical-report tags instead of the dissertation tag", () => {
+    const meta = thesisScholarMeta({ ...sampleRow, thesis_type: "research_report", report_number: "PTEC-RR-2024-03" });
+    expect(meta.citation_dissertation_institution).toBeUndefined();
+    expect(meta.citation_technical_report_institution).toBe("Phnom Penh Teacher Education College");
+    expect(meta.citation_technical_report_number).toBe("PTEC-RR-2024-03");
+  });
+
+  it("names the abstract page it sits on", () => {
+    const abstractUrl = "https://library.ptec.edu.kh/theses/my-thesis";
+    expect(thesisScholarMeta(sampleRow, undefined, { abstractUrl }).citation_abstract_html_url).toBe(abstractUrl);
   });
 
   it("falls back to created_at when published_at is missing", () => {

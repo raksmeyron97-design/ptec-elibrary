@@ -127,33 +127,83 @@ export interface ThesisCitationRow {
   doi?: string | null;
   published_at?: string | null;
   created_at?: string | null;
+  /** 'km' | 'en' | 'km_en' — research_reports.language, set by a librarian. */
+  language?: string | null;
+  /** 'research_report' gets the technical-report tags; anything else is a thesis. */
+  thesis_type?: string | null;
+  /** 0163: the report's own number, for citation_technical_report_number. */
+  report_number?: string | null;
 }
 
-/** citation_pdf_url points at /api/theses/[id]/file (NOT /file.pdf — that
- * route segment doesn't exist and 404s). Anonymously readable, serves
- * Content-Type: application/pdf directly. */
+/**
+ * A credit that names a GROUP, not a person: the cohort label a byline
+ * sometimes opens with ("គរុនិស្សិត ១២+៤ ជំនាន់ទី២" — student teachers,
+ * 12+4, cohort 2 — was production's first `citation_author` on 2026-09-30).
+ * Narrow on purpose: it looks for the words a cohort label is made of, so a
+ * person's name is never dropped for resembling one.
+ */
+export function isCohortLabel(name: string): boolean {
+  return /ជំនាន់|គរុនិស្សិត|\bcohort\b|\bbatch\b|\bclass of\b|\bgeneration\b/iu.test(name);
+}
+
+/**
+ * The page locale a thesis's Scholar tags belong on (Phase 3.3): Google
+ * Scholar should see ONE record per work, so `citation_*` go on the page in
+ * the work's own language and nowhere else. A bilingual work is filed under
+ * Khmer. With no language recorded, the title's script decides.
+ */
+export function thesisCitationLocale(row: Pick<ThesisCitationRow, "language" | "title">): "km" | "en" {
+  const language = row.language?.trim().toLowerCase();
+  if (language === "km" || language === "km_en") return "km";
+  if (language === "en") return "en";
+  return /[\u1780-\u17FF]/u.test(row.title ?? "") ? "km" : "en";
+}
+
+export type ThesisScholarOptions = {
+  /** The page's locale. When given, tags are emitted only if it is the work's. */
+  locale?: string;
+  /** This page's canonical URL — citation_abstract_html_url. */
+  abstractUrl?: string;
+  /** The PUBLIC full text (lib/theses/open-access.ts), or null/absent: then
+   *  no citation_pdf_url at all — a PDF behind a sign-in is not one Scholar
+   *  can fetch, and pointing it at one teaches it the site's PDFs fail. */
+  pdfUrl?: string | null;
+};
+
 export function thesisScholarMeta(
   report: ThesisCitationRow,
   orgArg?: OrgIdentity,
+  options: ThesisScholarOptions = {},
 ): ScholarMeta {
+  if (options.locale && options.locale !== thesisCitationLocale(report)) return {};
   const org = resolveOrgIdentity(orgArg);
-  const authors = splitAuthorNames(report.author_names);
+  // Authors only: the caller passes author-role credits, and a cohort label
+  // that rode in on the byline is still not a person.
+  const authors = splitAuthorNames(report.author_names).filter((name) => !isCohortLabel(name));
   const keywords = normalizeKeywords(report.keywords);
-  const tags: ScholarMeta = {
-    citation_title: report.title,
-    // Dissertation tag (not citation_technical_report_institution) is the
-    // semantically correct Highwire tag for a student thesis/dissertation.
-    citation_dissertation_institution: org.institutionName,
-    citation_pdf_url: `${SITE_URL}/api/theses/${report.id}/file`,
-  };
+  const tags: ScholarMeta = { citation_title: report.title };
+  if (report.thesis_type === "research_report") {
+    tags.citation_technical_report_institution = org.institutionName;
+    const number = report.report_number?.trim();
+    if (number) tags.citation_technical_report_number = number;
+  } else {
+    // The dissertation tag is the semantically correct Highwire tag for a
+    // student thesis.
+    tags.citation_dissertation_institution = org.institutionName;
+  }
   const date = formatScholarDate(report.published_at, report.created_at);
   if (date) tags.citation_publication_date = date;
   if (authors.length > 0) tags.citation_author = authors;
+  const language = report.language?.trim().toLowerCase();
+  if (language === "km" || language === "en") tags.citation_language = language;
+  else if (language === "km_en") tags.citation_language = "km";
   if (report.abstract) tags.citation_abstract = report.abstract;
   if (keywords.length > 0) tags.citation_keywords = keywords.join("; ");
   // Only a structurally-valid, non-placeholder DOI reaches Google Scholar.
   const doi = normalizeDoi(report.doi);
   if (doi) tags.citation_doi = doi;
+  if (options.abstractUrl) tags.citation_abstract_html_url = options.abstractUrl;
+  if (options.pdfUrl) tags.citation_pdf_url = options.pdfUrl;
   return tags;
 }
 
