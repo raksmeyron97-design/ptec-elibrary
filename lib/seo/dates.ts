@@ -61,3 +61,21 @@ export function scholarDateAtPrecision(...candidates: Array<string | null | unde
   }
   return undefined;
 }
+
+/**
+ * A moment as Phnom Penh local time with its offset — "2026-10-05T09:00:00+07:00"
+ * (SEO Phase 4). An event's start is stored as an instant (UTC); schema.org
+ * wants the local wall-clock time a visitor would read on the poster, and an
+ * explicit offset so no consumer has to guess the zone. Cambodia keeps +07:00
+ * all year (no daylight saving), so the offset is a constant. A date-only or
+ * unparseable value is returned as given.
+ */
+export function phnomPenhIso(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (!/T\d{2}:\d{2}/.test(value)) return value;
+  const time = Date.parse(value);
+  if (Number.isNaN(time)) return value;
+  const local = new Date(time + 7 * 60 * 60 * 1000).toISOString().slice(0, 19);
+  return `${local}+07:00`;
+}
+

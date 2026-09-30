@@ -346,7 +346,6 @@ export function bookJsonLd(
     datePublished: isoDateAtPrecision(book.publishedAt),
     about: subjects.length > 0 ? subjects : undefined,
     keywords: tags.length > 0 ? tags.join(", ") : undefined,
-    bookFormat: "https://schema.org/EBook",
     // A catalogue-record-only book (0151) is one the library holds a record
     // for and distributes no file for, so BOTH of these claims would be
     // false: it cannot be read here, free or otherwise.
@@ -359,6 +358,9 @@ export function bookJsonLd(
     // indexed as metadata.
     ...(readableOnline
       ? {
+          // An e-book only when there is a file to read (SEO Phase 4); a
+          // catalogue-only record is a book the library describes, not holds.
+          bookFormat: "https://schema.org/EBook",
           isAccessibleForFree: true,
           potentialAction: {
             "@type": "ReadAction",
