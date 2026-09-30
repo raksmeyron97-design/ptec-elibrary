@@ -60,6 +60,7 @@ export async function policyFaqNode(locale: string) {
  * Server component; only each disclosure row is a client island.
  */
 export default async function PolicyFaq({ locale }: { locale: string }) {
+  const t = await getTranslations({ locale, namespace: "policy.faq" });
   const km = locale === "km";
 
   const entries = await policyFaqEntries(locale);
