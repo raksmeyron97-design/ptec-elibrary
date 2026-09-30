@@ -40,6 +40,13 @@ import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
 
 export const revalidate = 300;
 
+// `revalidate` alone does not cache a dynamic segment: Next 16 renders it per
+// request unless the page opts into runtime ISR. An empty list builds nothing
+// and caches each path on its first visit (see theses/[slug]/page.tsx).
+export function generateStaticParams() {
+  return [];
+}
+
 // ── Cached data access (public client → safe inside unstable_cache) ───────────
 
 // No barcode: it identifies a copy to the circulation desk, not to a reader,
