@@ -15,8 +15,11 @@ import {
   resolveOrgIdentity,
   type OrgIdentity,
 } from "@/lib/system-settings/org-identity";
-import { localeAlternates } from "@/lib/seo/alternates";
+import { localeAlternates, dropHreflangWhenNoindex } from "@/lib/seo/alternates";
 import { buildOpenGraph, buildTwitter, OG_FALLBACK_IMAGE } from "@/lib/seo/open-graph";
+import { libraryNameFor } from "@/lib/seo/brand";
+import { fitDescription, fitTitle } from "@/lib/seo/text-fit";
+import { brandSuffixFor } from "@/lib/seo/brand";
 
 /** Re-exported so existing importers keep one constant, not a second copy. */
 export const FALLBACK_OG_IMAGE = OG_FALLBACK_IMAGE;
@@ -93,7 +96,9 @@ export function buildPathMetadata(
   const alternates = localeAlternates(`/paths/${path.slug}`, locale);
   const canonicalUrl = alternates.canonical;
   const title = pathLocalizedTitle(path, locale);
-  const description = pathLocalizedDescription(path, locale);
+  // A curriculum description is long-form prose; the meta tag had no cap at
+  // all (259 and 329 characters measured live). Fitted, never cut mid-word.
+  const description = fitDescription(pathLocalizedDescription(path, locale), locale);
   const imageAlt = locale === "km" ? `ផ្លូវសិក្សា៖ ${title}` : `Learning path: ${title}`;
 
   const openGraph = {
@@ -113,7 +118,7 @@ export function buildPathMetadata(
   };
 
   return {
-    title,
+    title: fitTitle(title, { locale, brandSuffix: brandSuffixFor(org, locale) }),
     description,
     alternates,
     openGraph,
@@ -137,6 +142,11 @@ export function buildPathMetadata(
  *    the table held zero rows. Same rule as empty subjects and empty entity
  *    hubs: `noindex, follow`, so the links are still crawled but the empty page
  *    is not indexed.
+ *
+ *  * `hasFilters`. Filtered and sorted views (?level=, ?q=, ?sort=) are the
+ *    same near-duplicate permutations every other listing keeps out of the
+ *    index; /paths was the one hub whose filtered views answered `index`
+ *    (docs/seo/AUDIT-VERIFICATION.md F13/N4).
  */
 export function buildPathsListingMetadata(
   locale: string,
@@ -144,12 +154,13 @@ export function buildPathsListingMetadata(
     title,
     description,
     isEmpty = false,
-  }: { title: string; description: string; isEmpty?: boolean },
+    hasFilters = false,
+  }: { title: string; description: string; isEmpty?: boolean; hasFilters?: boolean },
   orgArg?: OrgIdentity,
 ): Metadata {
   const org = resolveOrgIdentity(orgArg);
   const alternates = localeAlternates("/paths", locale);
-  const socialTitle = `${title} | ${org.libraryName}`;
+  const socialTitle = `${title} | ${libraryNameFor(org, locale)}`;
   const openGraph = buildOpenGraph({
     locale,
     org,
@@ -158,11 +169,11 @@ export function buildPathsListingMetadata(
     type: "website" as const,
     url: alternates.canonical,
   });
-  return {
+  return dropHreflangWhenNoindex({
     title,
     description,
     alternates,
-    ...(isEmpty ? { robots: { index: false, follow: true } } : {}),
+    ...(isEmpty || hasFilters ? { robots: { index: false, follow: true } } : {}),
     openGraph,
     twitter: buildTwitter({
       card: "summary_large_image",
@@ -170,7 +181,7 @@ export function buildPathsListingMetadata(
       description,
       images: openGraph.images,
     }),
-  };
+  });
 }
 
 // ── JSON-LD ──────────────────────────────────────────────────────────────────

@@ -31,6 +31,8 @@ import DateBlock from "@/components/ui/posts/DateBlock";
 import { categoryBadge } from "@/components/ui/posts/postStyles";
 import { getTranslations } from "next-intl/server";
 import { getOrgIdentity } from "@/lib/system-settings/config";
+import { fitDescription, fitTitle } from "@/lib/seo/text-fit";
+import { brandSuffixFor } from "@/lib/seo/brand";
 
 // ── Row shapes ──────────────────────────────────────────────────────────────
 // The detail SELECT is assembled at runtime (the event_* columns only exist
@@ -132,11 +134,7 @@ export async function generateMetadata({
 
   if (!post) return { title: t("notFoundTitle") };
 
-  const desc = post.excerpt
-    ? post.excerpt.length > 157
-      ? `${post.excerpt.substring(0, 157)}...`
-      : post.excerpt
-    : t("detailMetaFallback");
+  const desc = post.excerpt ? fitDescription(post.excerpt, locale) : t("detailMetaFallback");
 
   const alternates = localeAlternates(`/posts/${slug}`, locale);
   const canonicalUrl = alternates.canonical;
@@ -162,7 +160,8 @@ export async function generateMetadata({
   };
 
   return {
-    title: post.title,
+    // Never cut the post's name; drop the brand if both do not fit (text-fit.ts).
+    title: fitTitle(post.title, { locale, brandSuffix: brandSuffixFor(org, locale) }),
     description: desc,
     alternates,
     openGraph,

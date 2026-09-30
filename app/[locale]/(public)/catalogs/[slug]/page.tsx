@@ -3,6 +3,9 @@ import { Link } from "@/i18n/navigation";
 import { decodeSlugParam } from "@/lib/slug";
 import { catalogRobots } from "@/lib/catalogs/indexability";
 import { displayAuthorName } from "@/lib/catalogs/author-name";
+import { catalogDisplayTitle } from "@/lib/catalogs/display-title";
+import { fitDescription, fitTitle } from "@/lib/seo/text-fit";
+import { brandSuffixFor, libraryNameFor } from "@/lib/seo/brand";
 import { languageLabelKey } from "@/lib/catalogs/facets";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -15,7 +18,7 @@ import { breadcrumbSchema } from "@/lib/seo/schema";
 import { contributorNodes } from "@/lib/seo/contributor";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { SITE_URL } from "@/lib/seo/site";
-import { localeAlternates } from "@/lib/seo/alternates";
+import { localeAlternates, dropHreflangWhenNoindex } from "@/lib/seo/alternates";
 import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 import type { CatalogBook } from "@/lib/catalog";
 import {
@@ -128,14 +131,19 @@ export async function generateMetadata({
   const seoDescription = book.seo_description?.trim();
   const ogImage = book.og_image?.trim() || book.cover_url;
 
-  const title = seoTitle || (book.author ? `${book.title} by ${book.author}` : book.title);
+  // Display title (ISBD " : " → ": ") and a byline in the page's language:
+  // /km pages said "by" (docs/seo/AUDIT-VERIFICATION.md F9, N2). The author is
+  // shown as catalogued — inverted names are a librarian's call, never ours.
+  const displayTitle = catalogDisplayTitle(book.title);
+  const byline = book.author ? (locale === "km" ? ` ដោយ ${book.author}` : ` by ${book.author}`) : "";
+  const title = seoTitle || `${displayTitle}${byline}`;
   const desc =
     seoDescription ||
     (book.description
-      ? book.description.length > 157
-        ? book.description.slice(0, 157) + "..."
-        : book.description
-      : `Find ${book.title}${book.author ? ` by ${book.author}` : ""} at PTEC Library. View publication details, ISBN, call number, shelf location and current availability of physical copies.`);
+      ? fitDescription(book.description, locale)
+      : locale === "km"
+        ? `${displayTitle}${byline} — សៀវភៅក្នុង${libraryNameFor(org, locale)}។`
+        : `Find ${displayTitle}${byline} at ${libraryNameFor(org, locale)}. View publication details, ISBN, call number, shelf location and current availability of physical copies.`);
 
   const alternates = localeAlternates(`/catalogs/${slug}`, locale);
   const canonicalUrl = alternates.canonical;
@@ -152,11 +160,13 @@ export async function generateMetadata({
     type: "book" as const,
     url: canonicalUrl,
     image: ogImage,
-    imageAlt: book.title,
+    imageAlt: displayTitle,
   });
 
-  return {
-    title,
+  return dropHreflangWhenNoindex({
+    // "Title: Subtitle by Author" often exceeds a result line; the brand goes
+    // first, never the title (lib/seo/text-fit.ts).
+    title: fitTitle(title, { locale, brandSuffix: brandSuffixFor(org, locale) }),
     description: desc,
     alternates,
     // A record carrying nothing but title, author and a call number is a
@@ -187,7 +197,7 @@ export async function generateMetadata({
       description: desc,
       images: openGraph.images,
     }),
-  };
+  });
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -230,6 +240,7 @@ export default async function CatalogBookPage({
 
   if (!record) notFound();
   const { book: b, copies: allCopies } = record;
+  const displayTitle = catalogDisplayTitle(b.title);
 
   // Withdrawn copies are internal history — never shown to readers.
   const copies = allCopies
@@ -269,7 +280,7 @@ export default async function CatalogBookPage({
   const bookSchema: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Book",
-    name: b.title,
+    name: displayTitle,
     url: `${SITE_URL}/catalogs/${b.slug}`,
     inLanguage: b.language || undefined,
     author: contributorNodes(authorDisplay, org).length > 0
@@ -302,7 +313,7 @@ export default async function CatalogBookPage({
   const catalogBreadcrumbSchema = breadcrumbSchema([
     { name: t("detail.home"), path: "/" },
     { name: t("title"), path: "/catalogs" },
-    { name: b.title },
+    { name: displayTitle },
   ], { locale, pageUrl: `${SITE_URL}${locale === "km" ? "/km" : ""}/catalogs/${b.slug}` });
 
   return (
@@ -336,7 +347,7 @@ export default async function CatalogBookPage({
             <svg className="h-3.5 w-3.5 shrink-0 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden><path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
             <Link href="/catalogs" className="transition-colors hover:text-brand">{t("detail.library")}</Link>
             <svg className="h-3.5 w-3.5 shrink-0 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden><path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            <span className="max-w-[180px] truncate font-medium text-text-heading sm:max-w-xs" aria-current="page">{b.title}</span>
+            <span className="max-w-[180px] truncate font-medium text-text-heading sm:max-w-xs" aria-current="page">{displayTitle}</span>
           </BreadcrumbNav>
         </div>
       </div>
@@ -358,7 +369,7 @@ export default async function CatalogBookPage({
               <div className="relative aspect-[3/4] w-full overflow-hidden rounded-2xl border border-black/10 shadow-[0_16px_48px_rgba(0,0,0,0.18),0_4px_12px_rgba(0,0,0,0.1)] dark:border-white/10">
                 <SmartBookCover
                   coverUrl={b.cover_url}
-                  title={b.title}
+                  title={displayTitle}
                   author={authorDisplay}
                   category={b.category}
                   callNumber={b.shelf_location}
@@ -463,7 +474,7 @@ export default async function CatalogBookPage({
                 </span>
               )}
               <h1 className="font-khmer-serif text-2xl font-bold leading-tight text-text-heading md:text-[28px]">
-                {b.title}
+                {displayTitle}
               </h1>
               {authorDisplay && (
                 <p className="mt-2 flex items-center gap-1.5 text-base font-medium text-text-muted">

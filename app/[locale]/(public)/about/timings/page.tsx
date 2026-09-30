@@ -20,6 +20,7 @@ import {
   InformationCard,
   NoticePanel,
 } from "@/components/about/primitives";
+import { siteNameFor } from "@/lib/seo/brand";
 
 // Short window: the server-rendered status is only a first paint (the client
 // refreshes it every minute), but a stale-by-an-hour cache would still show a
@@ -40,7 +41,7 @@ export async function generateMetadata({
   // travels alone into a social card, so that one is branded explicitly.
   const title = t("metaTitle");
   const description = t("metaDescription");
-  const socialTitle = `${title} · ${org.siteName}`;
+  const socialTitle = `${title} · ${siteNameFor(org, locale)}`;
 
   // One builder, so this block cannot drift from its four identical siblings
   // again: all five hand-wrote siteName + locale and none of them carried

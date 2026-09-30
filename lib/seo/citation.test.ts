@@ -18,8 +18,14 @@ describe("formatScholarDate", () => {
     expect(formatScholarDate(null, "not-a-date", "2025-12-25")).toBe("2025/12/25");
   });
 
-  it("falls back to the current year when nothing parses", () => {
-    expect(formatScholarDate(null, undefined)).toBe(String(new Date().getFullYear()));
+  it("publishes a 1 January date as its year: a stored year, not a known day", () => {
+    expect(formatScholarDate("2016-01-01")).toBe("2016");
+    expect(formatScholarDate("2023-01-01T00:00:00+00:00")).toBe("2023");
+  });
+
+  it("publishes no date when nothing parses, never the current year", () => {
+    // No date is published rather than an invented one (docs/seo F3/F9).
+    expect(formatScholarDate(null, undefined)).toBeUndefined();
   });
 });
 
@@ -63,7 +69,7 @@ describe("bookScholarMeta", () => {
     expect(meta).toMatchObject({
       citation_title: "PISA-D Assessment Framework",
       citation_author: ["Jane Doe"],
-      citation_publication_date: "2024-06-15",
+      citation_publication_date: "2024/06/15",
       citation_isbn: "978-1-234567-89-0",
       citation_language: "English",
       citation_keywords: "Assessment; PISA",

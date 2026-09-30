@@ -9,7 +9,7 @@ import Icon from "@/components/ui/core/Icon";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { SITE_URL } from "@/lib/seo/site";
 import { getOrgIdentity } from "@/lib/system-settings/config";
-import { localeAlternates } from "@/lib/seo/alternates";
+import { localeAlternates, dropHreflangWhenNoindex } from "@/lib/seo/alternates";
 import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 import {
   contributorNodes,
@@ -27,6 +27,7 @@ import AuthorAbout from "@/components/ui/authors/AuthorAbout";
 import ResearchInterests from "@/components/ui/authors/ResearchInterests";
 import AuthorWorksList from "@/components/ui/authors/AuthorWorksList";
 import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
+import { fitDescription } from "@/lib/seo/text-fit";
 
 export const revalidate = 3600;
 
@@ -39,9 +40,9 @@ export function generateStaticParams() {
 
 type PageProps = { params: Promise<{ slug: string; locale: string }> };
 
-function truncate(text: string | null | undefined, max = 155): string {
-  const clean = text?.replace(/\s+/g, " ").trim() ?? "";
-  return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
+/** Fitted at a sentence or word boundary, never "…" (lib/seo/text-fit.ts). */
+function truncate(text: string | null | undefined, locale: string, max?: number): string {
+  return fitDescription(text, locale, max);
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -57,8 +58,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const title = `${author.name} — ${t("eyebrow")}`;
   // The biography when there is one; otherwise a factual sentence, never an
   // invented description of who this person is.
-  const description =
-    truncate(author.bio) || t("metaDescription", { name: author.name });
+  // The biography in the page's language when the profile has one (the /km
+  // page used the English bio even when a Khmer one existed).
+  const bio = locale === "km" && author.bioKm ? author.bioKm : author.bio;
+  const description = truncate(bio, locale) || t("metaDescription", { name: author.name });
   const alternates = localeAlternates(`/authors/${author.slug}`, locale);
 
   // Production, 2026-09-20: an author with no portrait published NO og:image
@@ -81,7 +84,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     imageAlt: author.name,
   });
 
-  return {
+  return dropHreflangWhenNoindex({
     title,
     description,
     alternates,
@@ -138,7 +141,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       description,
       images: openGraph.images,
     }),
-  };
+  });
 }
 
 export default async function AuthorPage({ params }: PageProps) {
@@ -262,7 +265,7 @@ export default async function AuthorPage({ params }: PageProps) {
             // was harmless as an identifier but read as a contradiction in
             // the one place a reader looks to check the type.
             "@id": `${canonical}#${entityNode["@type"] === "Organization" ? "organization" : "person"}`,
-            ...(author.bio ? { description: truncate(author.bio, 300) } : {}),
+            ...(author.bio ? { description: truncate(author.bio, "en", 300) } : {}),
             ...(author.photoUrl ? { image: author.photoUrl } : {}),
             // jobTitle and affiliation describe a human; an organisation has
             // neither, and asserting them of one would be a new false claim.

@@ -17,6 +17,7 @@ import { authorFilterKey } from "@/lib/authors/filter-key";
 import AuthorDirectoryFilter from "@/components/ui/authors/AuthorDirectoryFilter";
 import { CollectionHeader, CollectionEmptyState, EntityBadge } from "@/components/ui/collection";
 import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
+import { libraryNameFor } from "@/lib/seo/brand";
 
 export const revalidate = 3600;
 
@@ -33,7 +34,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const description = t("hubSeoDescription");
   const alternates = localeAlternates("/authors", locale);
 
-  const socialTitle = `${title} | ${org.libraryName}`;
+  const socialTitle = `${title} | ${libraryNameFor(org, locale)}`;
   const openGraph = buildOpenGraph({
     locale,
     org,

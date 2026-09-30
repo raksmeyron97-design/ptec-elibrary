@@ -76,14 +76,16 @@ export async function generateMetadata({
     getCollectionStats(),
     getOrgIdentity(),
   ]);
+  const tSummary = await getTranslations({ locale, namespace: "thesisSummary" });
   const page = parsePageParam(params.page);
   return buildListingMetadata({
     org,
     path: "/theses/summary",
     locale,
-    title: "Student Theses Summary Index",
-    description:
-      `Browse student theses from ${org.institutionName} by academic year, cohort, author, advisor, program, and research topic.`,
+    // Localized (it was hard-coded English on /km too — AUDIT N2); the same
+    // approved strings the page's own heading and intro use.
+    title: tSummary("title"),
+    description: tSummary("description"),
     page,
     outOfRange: isPageOutOfRange(page, stats?.theses, resolvePageSize(undefined)),
     hasFilters: !!(

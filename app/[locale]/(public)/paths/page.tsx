@@ -26,10 +26,18 @@ export const revalidate = 3600;
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<Metadata> {
   const { locale } = await params;
+  // Any filter, search or sort parameter makes this a permutation of the hub.
+  const raw = searchParams ? await searchParams : undefined;
+  const hasFilters = ["level", "q", "sort"].some((key) => {
+    const v = raw?.[key];
+    return Array.isArray(v) ? v.some(Boolean) : Boolean(v);
+  });
   const [t, stats, org] = await Promise.all([
     getTranslations({ locale, namespace: "paths" }),
     getCollectionStats(),
@@ -41,6 +49,7 @@ export async function generateMetadata({
       title: t("seoTitle"),
       description: t("seoDescription"),
       isEmpty: stats?.learningPaths === 0,
+      hasFilters,
     },
     org,
   );

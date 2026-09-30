@@ -354,6 +354,9 @@ export default async function AboutPageShell({
   footer?: ReactNode;
 }) {
   const tNav = await getTranslations("nav");
+  // The same labels the visible trail uses (AboutBreadcrumbs), so the
+  // structured data says "ទំព័រដើម › អំពីយើង" on /km, not "Home › About".
+  const t = await getTranslations("about");
   const navItem = ABOUT_NAV.find((i) => i.key === page);
   const currentLabel = navItem ? tNav(navItem.labelKey) : hero.title;
 
@@ -363,8 +366,8 @@ export default async function AboutPageShell({
           two must agree or Google treats the markup as misleading. */}
       <JsonLd
         data={breadcrumbSchema([
-          { name: "Home", path: "/" },
-          { name: "About", path: "/about" },
+          { name: t("breadcrumb.home"), path: "/" },
+          { name: t("breadcrumb.about"), path: "/about" },
           { name: currentLabel },
         ], { locale })}
       />

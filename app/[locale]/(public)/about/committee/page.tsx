@@ -21,6 +21,7 @@ import {
   InformationCard,
   NoticePanel,
 } from "@/components/about/primitives";
+import { siteNameFor } from "@/lib/seo/brand";
 
 // The committee changes rarely and every admin mutation revalidates this path
 // (app/(admin)/admin/(protected)/team/committee/actions.ts), as does every edit
@@ -40,7 +41,7 @@ export async function generateMetadata({
   // `title` must not repeat it; an OG title travels alone into a social card.
   const title = t("metaTitle");
   const description = t("metaDescription");
-  const socialTitle = `${title} · ${org.siteName}`;
+  const socialTitle = `${title} · ${siteNameFor(org, locale)}`;
 
   const openGraph = buildOpenGraph({
     locale,

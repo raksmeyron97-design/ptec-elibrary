@@ -104,13 +104,13 @@ describe("buildListingMetadata — an empty collection is not an index entry", (
     expect(emptyUnfiltered.robots).toEqual({ index: false, follow: true });
   });
 
-  it("keeps canonical and hreflang on an empty listing — noindex, not unreachable", () => {
+  it("keeps the canonical on an empty listing but no hreflang — noindex, not unreachable", () => {
+    // Phase 1.4 (docs/seo/AUDIT-VERIFICATION.md F5): hreflang asks an engine to
+    // swap one INDEXED page for its translation, so a noindex page has none.
+    // The canonical stays, so the page is still reachable and attributable.
     const meta = buildListingMetadata({ ...base, isEmpty: true });
     expect(meta.alternates?.canonical).toBe("https://library.ptec.edu.kh/theses");
-    expect(meta.alternates?.languages).toMatchObject({
-      en: "https://library.ptec.edu.kh/theses",
-      km: "https://library.ptec.edu.kh/km/theses",
-    });
+    expect(meta.alternates?.languages).toBeUndefined();
   });
 });
 

@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { headers } from "next/headers";
 import SearchPageClient, { type InitialSearch } from "./SearchPageClient";
 import { getDepartmentsCached, getLanguagesCached, getCategoriesCached } from "@/lib/books-data";
-import { localeAlternates } from "@/lib/seo/alternates";
+import { localeAlternates, dropHreflangWhenNoindex } from "@/lib/seo/alternates";
 import { getTranslations } from "next-intl/server";
 import { ServerTiming } from "@/lib/search/server-timing";
 import { serveNativeSearch } from "@/lib/search/serve-search";
@@ -19,13 +19,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "search" });
-  return {
+  return dropHreflangWhenNoindex({
     title: t("metaTitle"),
     description: t("metaDescription"),
     alternates: localeAlternates("/search", locale),
     // Internal search results shouldn't be indexed, but links found there should be crawled.
     robots: { index: false, follow: true },
-  };
+  });
 }
 
 function toSearchParams(record: Record<string, string | string[] | undefined>): URLSearchParams {

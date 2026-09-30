@@ -21,6 +21,9 @@ import type { ResourceContributorView } from "@/lib/resources/contributor-view";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { buildOpenGraph, buildTwitter, OG_FALLBACK_IMAGE } from "@/lib/seo/open-graph";
 import { libraryNode } from "@/lib/seo/org-nodes";
+import { fitDescription, fitTitle } from "@/lib/seo/text-fit";
+import { brandSuffixFor } from "@/lib/seo/brand";
+import { isoDateAtPrecision } from "@/lib/seo/dates";
 import {
   resolveOrgIdentity,
   type OrgIdentity,
@@ -104,14 +107,8 @@ export function booksCollectionUrl(locale: string, page = 1): string {
 
 // ── Description fallbacks ────────────────────────────────────────────────────
 
-const MAX_META_DESCRIPTION = 157;
-
 function clean(value: string | null | undefined): string {
   return value?.replace(/\s+/g, " ").trim() ?? "";
-}
-
-function truncate(text: string): string {
-  return text.length > MAX_META_DESCRIPTION ? `${text.slice(0, MAX_META_DESCRIPTION)}...` : text;
 }
 
 /** Factual one-liner built ONLY from verified fields (title, authors,
@@ -140,16 +137,19 @@ export function bookFallbackDescription(book: BookSeoInput, locale: string): str
   return `${clean(book.title)}${byline} — a free${subjectPart} e-book in the PTEC Library. ${access}${languagePart}.`;
 }
 
-/** Meta description: the record's own description when present (enriched with
- *  the factual fallback when very short), otherwise the fallback. Always
- *  truncated to a search-snippet-safe length; never empty. */
-export function bookMetaDescription(book: BookSeoInput, locale: string): string {
+/** The full description: the record's own text when present (enriched with
+ *  the factual fallback when very short), otherwise the fallback. Never empty. */
+function bookDescription(book: BookSeoInput, locale: string): string {
   const own = clean(book.description);
-  if (!own) return truncate(bookFallbackDescription(book, locale));
-  if (own.length < 70) {
-    return truncate(`${own.replace(/[.。។]\s*$/, "")}. ${bookFallbackDescription(book, locale)}`);
-  }
-  return truncate(own);
+  if (!own) return bookFallbackDescription(book, locale);
+  if (own.length < 70) return `${own.replace(/[.。។]\s*$/, "")}. ${bookFallbackDescription(book, locale)}`;
+  return own;
+}
+
+/** Meta description: `bookDescription` fitted to a snippet at a sentence or
+ *  word boundary, never with an ellipsis (lib/seo/text-fit.ts). */
+export function bookMetaDescription(book: BookSeoInput, locale: string): string {
+  return fitDescription(bookDescription(book, locale), locale);
 }
 
 // ── Metadata (generateMetadata) ──────────────────────────────────────────────
@@ -199,6 +199,8 @@ export function buildBookMetadata(
   const seoTitleOverride = clean(overrides?.seoTitle) || null;
   const title = seoTitleOverride || book.title;
   const pageTitle = pageTitleFor(title, book, seoTitleOverride, options?.pdfTitleSuffix === true);
+  const isbn = clean(book.isbn);
+  const releaseDate = isoDateAtPrecision(book.publishedAt);
   const description = clean(overrides?.seoDescription) || bookMetaDescription(book, locale);
   const authors = (book.authors ?? []).map(clean).filter(Boolean);
   const alternates = localeAlternates(`/books/${book.slug}`, locale);
@@ -208,13 +210,16 @@ export function buildBookMetadata(
   const ogImage = clean(overrides?.ogImage) || book.coverUrl;
   const imageAlt = locale === "km" ? `ក្របសៀវភៅ៖ ${title}` : `Book cover: ${title}`;
 
+  // og:type is `book` (it was `article`, while catalogue records already said
+  // `book` — F9). `book:*` properties only when the record knows them, and
+  // the release date at the precision the library holds (lib/seo/dates.ts).
   const openGraph = {
     ...buildOpenGraph({
       locale,
       org,
       title,
       description,
-      type: "article" as const,
+      type: "book" as const,
       url: canonicalUrl,
       // A record cover when there is one, the shared site card otherwise. The
       // alt describes the image ACTUALLY used: buildOpenGraph ignores
@@ -224,15 +229,16 @@ export function buildBookMetadata(
       imageAlt,
     }),
     authors: authors.length > 0 ? authors : undefined,
-    publishedTime: book.publishedAt ?? undefined,
-    section,
+    isbn: isbn && isbn !== "N/A" ? isbn : undefined,
+    releaseDate,
     tags: tags.length > 0 ? tags : undefined,
   };
 
   return {
     // The `<title>` may carry the format cue; `openGraph.title` and
-    // `twitter.title` above deliberately do not.
-    title: pageTitle,
+    // `twitter.title` above deliberately do not. The item name is never cut:
+    // when it and the brand do not fit, the brand is dropped (text-fit.ts).
+    title: fitTitle(pageTitle, { locale, brandSuffix: brandSuffixFor(org, locale) }),
     description,
     keywords: tags.length > 0 ? tags : undefined,
     authors: authors.length > 0 ? authors.map((name) => ({ name })) : undefined,
@@ -302,12 +308,13 @@ export function bookJsonLd(
     publisher: publisher ? { "@type": "Organization", name: publisher } : undefined,
     provider: libraryNode(org),
     inLanguage: languageCode(book.language),
-    description: bookMetaDescription(book, locale),
+    // The whole description: structured data is not a search snippet.
+    description: bookDescription(book, locale),
     image: book.coverUrl || FALLBACK_OG_IMAGE,
     isbn: isbn && isbn !== "N/A" ? isbn : undefined,
     // pages <= 1 is the legacy "unknown" default — never emit it as a fact.
     numberOfPages: pages > 1 ? pages : undefined,
-    datePublished: book.publishedAt || undefined,
+    datePublished: isoDateAtPrecision(book.publishedAt),
     about: subjects.length > 0 ? subjects : undefined,
     keywords: tags.length > 0 ? tags.join(", ") : undefined,
     bookFormat: "https://schema.org/EBook",

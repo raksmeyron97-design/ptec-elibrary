@@ -11,7 +11,7 @@ import Icon from "@/components/ui/core/Icon";
 import ResourceTypeBadge from "@/components/ui/collection/ResourceTypeBadge";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { SITE_URL } from "@/lib/seo/site";
-import { localeAlternates } from "@/lib/seo/alternates";
+import { localeAlternates, dropHreflangWhenNoindex } from "@/lib/seo/alternates";
 import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 import { libraryNode } from "@/lib/seo/org-nodes";
 import { getOrgIdentity } from "@/lib/system-settings/config";
@@ -30,6 +30,8 @@ import {
 } from "@/lib/subjects";
 import { JOURNALS_PATH } from "@/lib/journals/urls";
 import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
+import { libraryNameFor } from "@/lib/seo/brand";
+import { fitDescription } from "@/lib/seo/text-fit";
 
 export const revalidate = 3600;
 
@@ -50,9 +52,18 @@ const LISTING_PATH: Record<SubjectResourceType, string> = {
   catalog: "/catalogs",
 };
 
-function truncate(text: string, max = 155): string {
-  const clean = text.replace(/\s+/g, " ").trim();
-  return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
+/** Meta description: fitted at a sentence or word boundary, never "…"
+ *  (lib/seo/text-fit.ts). */
+function truncate(text: string, max = 155, locale = "en"): string {
+  return fitDescription(text, locale, max);
+}
+
+/** A VISIBLE card excerpt: the same boundary rule, and an ellipsis when it was
+ *  cut, because a reader should see that the text continues. */
+function excerpt(text: string, max: number, locale: string): string {
+  const whole = text.replace(/\s+/g, " ").trim();
+  const cut = fitDescription(whole, locale, max);
+  return cut.length < whole.length ? `${cut}…` : cut;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -79,10 +90,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const title = t("metaTitle", { subject: subject.name });
   const description =
     parts.length > 0
-      ? truncate(t("metaDescription", { subject: subject.name, breakdown: parts.join(", ") }))
-      : truncate(t("metaDescriptionEmpty", { subject: subject.name }));
+      ? truncate(t("metaDescription", { subject: subject.name, breakdown: parts.join(", ") }), 155, locale)
+      : truncate(t("metaDescriptionEmpty", { subject: subject.name }), 155, locale);
   const alternates = localeAlternates(`/subjects/${subject.slug}`, locale);
-  const socialTitle = `${title} | ${org.libraryName}`;
+  const socialTitle = `${title} | ${libraryNameFor(org, locale)}`;
   const openGraph = buildOpenGraph({
     locale,
     org,
@@ -92,7 +103,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     url: alternates.canonical,
   });
 
-  return {
+  return dropHreflangWhenNoindex({
     title,
     description,
     alternates,
@@ -118,7 +129,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       description,
       images: openGraph.images,
     }),
-  };
+  });
 }
 
 export default async function SubjectPage({ params }: PageProps) {
@@ -351,7 +362,7 @@ export default async function SubjectPage({ params }: PageProps) {
                 <ul className="grid gap-3 sm:grid-cols-2">
                   {group.items.map((item) => (
                     <li key={`${item.type}-${item.href}`}>
-                      <ResourceTile
+                      <ResourceTile locale={locale}
                         item={item}
                         label={t(`type${subjectTypeKey(item.type)}` as "typeBook")}
                       />
@@ -396,7 +407,7 @@ export default async function SubjectPage({ params }: PageProps) {
   );
 }
 
-function ResourceTile({ item, label }: { item: SubjectItem; label: string }) {
+function ResourceTile({ item, label, locale }: { item: SubjectItem; label: string; locale: string }) {
   return (
     <Link
       href={item.href}
@@ -423,7 +434,7 @@ function ResourceTile({ item, label }: { item: SubjectItem; label: string }) {
 
         {item.excerpt && (
           <p className="mt-2.5 line-clamp-2 text-[13px] leading-relaxed text-text-body">
-            {truncate(item.excerpt, 140)}
+            {excerpt(item.excerpt, 140, locale)}
           </p>
         )}
       </div>

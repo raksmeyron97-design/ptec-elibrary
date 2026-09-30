@@ -25,6 +25,8 @@ import { buildOpenGraph, buildTwitter, OG_FALLBACK_IMAGE } from "@/lib/seo/open-
 import { normalizeDoi } from "@/lib/seo/identifiers";
 import { schemaCitations } from "@/lib/seo/references";
 import { languageCode } from "@/lib/seo/book-seo";
+import { fitDescription, fitTitle } from "@/lib/seo/text-fit";
+import { brandSuffixFor } from "@/lib/seo/brand";
 
 /** Re-exported so existing importers keep one constant, not a second copy. */
 export const FALLBACK_OG_IMAGE = OG_FALLBACK_IMAGE;
@@ -128,14 +130,8 @@ export type ThesisSeoInput = {
 
 // ── Description fallbacks (localized, factual) ────────────────────────────────
 
-const MAX_META_DESCRIPTION = 157;
-
 function clean(value: string | null | undefined): string {
   return value?.replace(/\s+/g, " ").trim() ?? "";
-}
-
-function truncate(text: string): string {
-  return text.length > MAX_META_DESCRIPTION ? `${text.slice(0, MAX_META_DESCRIPTION)}...` : text;
 }
 
 /** Factual one-liner built only from verified fields — localized, no invention. */
@@ -164,13 +160,14 @@ export function thesisMetaDescription(
   org?: OrgIdentity,
 ): string {
   const abstract = clean(thesis.abstract);
-  if (abstract.length >= 70) return truncate(abstract);
+  if (abstract.length >= 70) return fitDescription(abstract, locale);
   if (abstract) {
-    return truncate(
+    return fitDescription(
       `${abstract.replace(/[.。។]\s*$/, "")}. ${thesisFallbackDescription(thesis, locale, org)}`,
+      locale,
     );
   }
-  return truncate(thesisFallbackDescription(thesis, locale, org));
+  return fitDescription(thesisFallbackDescription(thesis, locale, org), locale);
 }
 
 // ── Detail metadata (generateMetadata) ───────────────────────────────────────
@@ -216,7 +213,7 @@ export function buildThesisMetadata(
   };
 
   return {
-    title,
+    title: fitTitle(title, { locale, brandSuffix: brandSuffixFor(org, locale) }),
     description,
     keywords: keywords.length > 0 ? keywords : undefined,
     // Only real authors — never a fabricated "Unknown Author".

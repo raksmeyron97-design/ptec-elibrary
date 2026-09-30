@@ -23,9 +23,11 @@ import JsonLd from "@/components/seo/JsonLd";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import { getPublicTeamData, getTeamMemberBySlug } from "@/lib/team/data";
 import { decodeSlugParam } from "@/lib/slug";
-import { photoAltText, truncate, type PublicTeamMember } from "@/lib/team/public";
+import { photoAltText, type PublicTeamMember } from "@/lib/team/public";
 import { formatDate, toAboutLocale, type AboutLocale } from "@/lib/about/format";
 import { AboutExternalAction, AboutLinkAction } from "@/components/about/actions";
+import { siteNameFor } from "@/lib/seo/brand";
+import { fitDescription } from "@/lib/seo/text-fit";
 
 // Published team data is public and changes rarely; the admin team actions
 // revalidate /about/team/<slug> on every change, so a long window is safe.
@@ -127,14 +129,14 @@ export async function generateMetadata({
     aboutLocale,
   );
   const description = summary
-    ? truncate(summary.text, 160)
+    ? fitDescription(summary.text, summary.lang, 160)
     : t("profile.metaFallback", { name: name.primary });
 
   // The document <title> gets the brand from the titleTemplate
   // ("%s · PTEC Library"), so `title` must NOT repeat it; the Open Graph
   // title travels alone into a social card, so that one is branded.
   const title = name.primary;
-  const socialTitle = `${title} · ${org.siteName}`;
+  const socialTitle = `${title} · ${siteNameFor(org, locale)}`;
 
   // The portrait when there is one, the shared card otherwise — the same
   // hierarchy every other surface uses, but now with og:image:alt (absent in

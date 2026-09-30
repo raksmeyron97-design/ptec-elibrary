@@ -28,6 +28,8 @@ import { localeAlternates } from "@/lib/seo/alternates";
 import { buildOpenGraph, buildTwitter, OG_FALLBACK_IMAGE } from "@/lib/seo/open-graph";
 import { normalizeDoi, doiUrl, normalizeIssn, normalizeLicense } from "@/lib/seo/identifiers";
 import { languageCode } from "@/lib/seo/book-seo";
+import { fitDescription, fitTitle } from "@/lib/seo/text-fit";
+import { brandSuffixFor } from "@/lib/seo/brand";
 import { articlePath, JOURNALS_PATH } from "@/lib/journals/urls";
 import { partOfChain, type IssueSeoRef, type JournalSeoRef } from "@/lib/seo/journal-seo";
 
@@ -112,26 +114,8 @@ export function isFreelyAccessible(pub: PublicationSeoInput): boolean {
 
 // ── Description fallbacks (localized, factual) ────────────────────────────────
 
-const MAX_META_DESCRIPTION = 157;
-
 function clean(value: string | null | undefined): string {
   return value?.replace(/\s+/g, " ").trim() ?? "";
-}
-
-function truncate(text: string): string {
-  return text.length > MAX_META_DESCRIPTION ? `${text.slice(0, MAX_META_DESCRIPTION)}...` : text;
-}
-
-// Journal article titles routinely exceed 100 chars; the <title> tag (plus the
-// "· PTEC Library" template suffix) gets a word-boundary cut. og/twitter/JSON-LD
-// keep the full title.
-const MAX_TITLE_TAG = 60;
-
-export function truncateTitleTag(text: string): string {
-  if (text.length <= MAX_TITLE_TAG) return text;
-  const cut = text.slice(0, MAX_TITLE_TAG + 1);
-  const lastSpace = cut.lastIndexOf(" ");
-  return `${cut.slice(0, lastSpace > 40 ? lastSpace : MAX_TITLE_TAG).trimEnd()}…`;
 }
 
 export function publicationFallbackDescription(pub: PublicationSeoInput, locale: string): string {
@@ -150,11 +134,11 @@ export function publicationFallbackDescription(pub: PublicationSeoInput, locale:
 
 export function publicationMetaDescription(pub: PublicationSeoInput, locale: string): string {
   const abstract = clean(pub.abstractText);
-  if (abstract.length >= 70) return truncate(abstract);
+  if (abstract.length >= 70) return fitDescription(abstract, locale);
   if (abstract) {
-    return truncate(`${abstract.replace(/[.。។]\s*$/, "")}. ${publicationFallbackDescription(pub, locale)}`);
+    return fitDescription(`${abstract.replace(/[.。។]\s*$/, "")}. ${publicationFallbackDescription(pub, locale)}`, locale);
   }
-  return truncate(publicationFallbackDescription(pub, locale));
+  return fitDescription(publicationFallbackDescription(pub, locale), locale);
 }
 
 // ── Detail metadata (generateMetadata) ───────────────────────────────────────
@@ -198,9 +182,10 @@ export function buildPublicationMetadata(
   };
 
   return {
-    // The override is already the admin's final choice — only the auto title
-    // gets length-clamped for the <title> tag.
-    title: clean(overrides?.seoTitle) || truncateTitleTag(autoTitle),
+    // Article titles routinely exceed 100 characters. They are never cut (the
+    // old 60-character clamp published "…Measurement Device… · PTEC Library");
+    // when a title and the brand do not fit, the brand is dropped instead.
+    title: fitTitle(clean(overrides?.seoTitle) || autoTitle, { locale, brandSuffix: brandSuffixFor(org, locale) }),
     description,
     keywords: keywords.length > 0 ? keywords : undefined,
     authors: authors.length > 0 ? authors.map((name) => ({ name })) : undefined,

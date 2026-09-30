@@ -4,6 +4,7 @@
 // the pages stay thin call sites and this module stays unit-testable without
 // a database. Browser-safe — no server-only imports.
 
+import { scholarDateAtPrecision } from "@/lib/seo/dates";
 import { SITE_URL } from "@/lib/seo/site";
 import { resolveBookDownloadAccess } from "@/lib/books/access";
 import {
@@ -19,24 +20,16 @@ import { citationNames } from "@/lib/resources/contributor-identity";
 export type ScholarMeta = Record<string, string | string[]>;
 
 /**
- * First valid date among the candidates, formatted `YYYY/MM/DD` (the format
- * Highwire tags require). Falls back to the current year if none parse —
- * matches the pre-existing per-page behavior this replaces.
+ * First valid date among the candidates, in the Highwire form Google Scholar
+ * reads, AT THE PRECISION THE LIBRARY KNOWS: "2023" for a date on 1 January
+ * (books store a year as `YYYY-01-01`), "2023/05/12" otherwise, read in UTC
+ * (lib/seo/dates.ts). Undefined when nothing parses: the old fallback to the
+ * CURRENT year published an invented date, and a missing tag is honest.
  */
 export function formatScholarDate(
   ...candidates: Array<string | null | undefined>
-): string {
-  for (const raw of candidates) {
-    if (!raw) continue;
-    const d = new Date(raw);
-    if (!isNaN(d.getTime())) {
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
-      return `${yyyy}/${mm}/${dd}`;
-    }
-  }
-  return String(new Date().getFullYear());
+): string | undefined {
+  return scholarDateAtPrecision(...candidates);
 }
 
 /**
@@ -114,7 +107,8 @@ export function bookScholarMeta(book: BookCitationRow, authors: string[]): Schol
   const publisher = book.publisher?.trim();
   if (publisher) tags.citation_publisher = publisher;
   if (authors.length > 0) tags.citation_author = authors;
-  if (book.published_at) tags.citation_publication_date = book.published_at;
+  const date = scholarDateAtPrecision(book.published_at);
+  if (date) tags.citation_publication_date = date;
   if (book.isbn && book.isbn !== "N/A") tags.citation_isbn = book.isbn;
   if (book.language) tags.citation_language = book.language;
   const keywords = Array.isArray(book.tags) ? book.tags.filter(Boolean) : [];
@@ -147,12 +141,13 @@ export function thesisScholarMeta(
   const keywords = normalizeKeywords(report.keywords);
   const tags: ScholarMeta = {
     citation_title: report.title,
-    citation_publication_date: formatScholarDate(report.published_at, report.created_at),
     // Dissertation tag (not citation_technical_report_institution) is the
     // semantically correct Highwire tag for a student thesis/dissertation.
     citation_dissertation_institution: org.institutionName,
     citation_pdf_url: `${SITE_URL}/api/theses/${report.id}/file`,
   };
+  const date = formatScholarDate(report.published_at, report.created_at);
+  if (date) tags.citation_publication_date = date;
   if (authors.length > 0) tags.citation_author = authors;
   if (report.abstract) tags.citation_abstract = report.abstract;
   if (keywords.length > 0) tags.citation_keywords = keywords.join("; ");
@@ -170,10 +165,11 @@ export function publicationScholarMeta(pub: Publication): ScholarMeta {
   const authors = authorList(pub);
   const tags: ScholarMeta = {
     citation_title: pub.title,
-    citation_publication_date: formatScholarDate(pub.publication_date, pub.published_at, pub.created_at),
     citation_pdf_url: `${SITE_URL}/api/publications/${pub.slug}/file`,
     citation_language: pub.language,
   };
+  const date = formatScholarDate(pub.publication_date, pub.published_at, pub.created_at);
+  if (date) tags.citation_publication_date = date;
   if (authors.length > 0) tags.citation_author = authors;
   if (pub.journal_name) tags.citation_journal_title = pub.journal_name;
   if (pub.volume) tags.citation_volume = pub.volume;

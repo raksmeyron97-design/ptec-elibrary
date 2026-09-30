@@ -25,3 +25,30 @@ export function localeAlternates(path: string, locale: string) {
     languages: { en, km, "x-default": en },
   };
 }
+
+type RobotsLike = string | { index?: boolean | null } | null | undefined;
+type WithAlternates = { robots?: unknown; alternates?: { canonical?: unknown; languages?: unknown } | null };
+
+/** Does a Metadata `robots` value keep the page out of the index? */
+export function robotsSaysNoindex(robots: RobotsLike): boolean {
+  if (!robots) return false;
+  if (typeof robots === "string") return /\b(noindex|none)\b/i.test(robots);
+  return robots.index === false;
+}
+
+/**
+ * A noindex page carries its canonical but no hreflang.
+ *
+ * Hreflang asks a search engine to swap one INDEXED page for its translation;
+ * on a page that asked not to be indexed it is a contradiction search engines
+ * ignore at best. Six noindex templates carried it (filtered and out-of-range
+ * listings, search, the reader, catalogue records — docs/seo/AUDIT-VERIFICATION.md
+ * F5). Every builder that can answer noindex passes its result through here,
+ * so the rule is decided once.
+ */
+export function dropHreflangWhenNoindex<T extends WithAlternates>(metadata: T): T {
+  if (!robotsSaysNoindex(metadata.robots as RobotsLike) || !metadata.alternates?.languages) return metadata;
+  const { languages: _languages, ...rest } = metadata.alternates;
+  void _languages;
+  return { ...metadata, alternates: rest };
+}

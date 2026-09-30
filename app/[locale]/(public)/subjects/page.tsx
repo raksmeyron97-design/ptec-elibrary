@@ -21,6 +21,7 @@ import {
   type SubjectHierarchyRef,
 } from "@/lib/subjects";
 import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
+import { libraryNameFor } from "@/lib/seo/brand";
 
 // ISR. The hub renders taxonomy + counts, both invalidated by the tags on
 // getSubjectIndex(), so publishing a book moves the numbers without a redeploy.
@@ -51,7 +52,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const description = t("hubSeoDescription");
   const alternates = localeAlternates("/subjects", locale);
 
-  const socialTitle = `${title} | ${org.libraryName}`;
+  const socialTitle = `${title} | ${libraryNameFor(org, locale)}`;
   const openGraph = buildOpenGraph({
     locale,
     org,

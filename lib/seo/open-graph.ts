@@ -37,6 +37,7 @@
 // canonical and an og:url come to disagree, and this file has no way to know
 // whether a listing page carries `?page=2`.
 
+import { siteNameFor } from "@/lib/seo/brand";
 import { SITE_URL } from "@/lib/seo/site";
 import type { OrgIdentity } from "@/lib/system-settings/org-identity";
 
@@ -179,7 +180,7 @@ export function buildOpenGraph<T extends OpenGraphType>({
     ...(desc ? { description: desc } : {}),
     type,
     url,
-    siteName: org.siteName,
+    siteName: siteNameFor(org, locale),
     locale: ogLocale(locale),
     alternateLocale: ogAlternateLocale(locale),
     images: ogImages(image, { alt: imageAlt, fallbackAlt: fallbackImageAlt ?? org.siteName }),
