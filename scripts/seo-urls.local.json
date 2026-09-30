@@ -1,0 +1,572 @@
+{
+  "$comment": "Local twin of seo-urls.json for a production build against the seeded local Supabase stack (.env.local → 127.0.0.1:54331). Same templates; slugs from the seed. Phase exits run: npx tsx scripts/seo-check.ts --base http://localhost:3200 --urls scripts/seo-urls.local.json --phase N",
+  "sitewideJsonld": [
+    "EducationalOrganization",
+    "Library",
+    "WebSite"
+  ],
+  "sitewideJsonldTarget": [
+    "CollegeOrUniversity",
+    "Library",
+    "WebSite"
+  ],
+  "templates": {
+    "home": {
+      "robots": "index",
+      "hreflang": true
+    },
+    "books-list": {
+      "robots": "index",
+      "hreflang": true,
+      "jsonld": [
+        "CollectionPage",
+        "ItemList"
+      ],
+      "cardLinks": "^/(km/)?books/[^/]+$",
+      "total": true
+    },
+    "books-list-page": {
+      "robots": "index",
+      "hreflang": true,
+      "cardLinks": "^/(km/)?books/[^/]+$"
+    },
+    "books-list-page1": {
+      "robots": "index"
+    },
+    "books-list-filtered": {
+      "robots": "noindex"
+    },
+    "books-list-out-of-range": {
+      "robots": "noindex"
+    },
+    "book": {
+      "robots": "index",
+      "hreflang": true,
+      "record": true,
+      "scholarly": true,
+      "jsonld": [
+        "Book",
+        "BreadcrumbList"
+      ],
+      "ogType": "book",
+      "ogTypePhase": 1
+    },
+    "book-read": {
+      "robots": "noindex"
+    },
+    "subjects-hub": {
+      "robots": "index",
+      "hreflang": true,
+      "jsonld": [
+        "BreadcrumbList",
+        "CollectionPage",
+        "ItemList"
+      ]
+    },
+    "subject": {
+      "robots": "index",
+      "hreflang": true,
+      "record": true,
+      "jsonld": [
+        "BreadcrumbList",
+        "CollectionPage"
+      ],
+      "cardLinks": "^/(km/)?books/[^/]+$"
+    },
+    "authors-hub": {
+      "robots": "index",
+      "hreflang": true,
+      "jsonld": [
+        "BreadcrumbList",
+        "CollectionPage",
+        "ItemList"
+      ],
+      "cardLinks": "^/(km/)?authors/[^/]+$"
+    },
+    "author": {
+      "robots": "index",
+      "hreflang": true,
+      "record": true,
+      "jsonld": [
+        "ProfilePage",
+        "BreadcrumbList"
+      ],
+      "ogType": "profile"
+    },
+    "author-thin": {
+      "robots": "noindex",
+      "robotsPhase": 2,
+      "record": true
+    },
+    "theses-hub": {
+      "robots": "index",
+      "hreflang": true,
+      "jsonld": [
+        "CollectionPage",
+        "ItemList"
+      ],
+      "cardLinks": "^/(km/)?theses/(?!summary$)[^/]+$"
+    },
+    "theses-summary": {
+      "robots": "index",
+      "hreflang": true,
+      "jsonld": [
+        "BreadcrumbList",
+        "CollectionPage",
+        "ItemList"
+      ]
+    },
+    "thesis": {
+      "robots": "index",
+      "hreflang": true,
+      "record": true,
+      "scholarly": true,
+      "jsonld": [
+        "ScholarlyArticle",
+        "BreadcrumbList"
+      ],
+      "jsonldTarget": [
+        "Thesis"
+      ]
+    },
+    "journals-hub": {
+      "robots": "index",
+      "hreflang": true,
+      "jsonld": [
+        "CollectionPage",
+        "ItemList"
+      ],
+      "cardLinks": "^/(km/)?journals/articles/[^/]+$"
+    },
+    "journal": {
+      "robots": "index",
+      "hreflang": true,
+      "record": true,
+      "jsonld": [
+        "Periodical",
+        "BreadcrumbList"
+      ]
+    },
+    "journal-issues": {
+      "robots": "index",
+      "hreflang": true,
+      "jsonld": [
+        "CollectionPage",
+        "ItemList",
+        "BreadcrumbList"
+      ]
+    },
+    "journal-issue": {
+      "robots": "index",
+      "hreflang": true,
+      "jsonld": [
+        "PublicationIssue",
+        "BreadcrumbList"
+      ]
+    },
+    "article": {
+      "robots": "index",
+      "hreflang": true,
+      "record": true,
+      "scholarly": true,
+      "jsonld": [
+        "ScholarlyArticle",
+        "BreadcrumbList"
+      ],
+      "jsonldTarget": [
+        "PublicationIssue",
+        "PublicationVolume",
+        "Periodical"
+      ],
+      "ogType": "article"
+    },
+    "posts-hub": {
+      "robots": "index",
+      "hreflang": true,
+      "jsonld": [
+        "BreadcrumbList"
+      ],
+      "cardLinks": "^/(km/)?posts/[^/]+$"
+    },
+    "post": {
+      "robots": "index",
+      "hreflang": true,
+      "record": true,
+      "jsonld": [
+        "BreadcrumbList"
+      ],
+      "ogType": "article"
+    },
+    "paths-hub": {
+      "robots": "index",
+      "hreflang": true,
+      "jsonld": [
+        "CollectionPage",
+        "ItemList",
+        "BreadcrumbList"
+      ]
+    },
+    "path": {
+      "robots": "index",
+      "hreflang": true,
+      "record": true,
+      "jsonld": [
+        "Course",
+        "BreadcrumbList"
+      ],
+      "jsonldTarget": [
+        "ItemList"
+      ]
+    },
+    "catalogs-hub": {
+      "robots": "index",
+      "hreflang": true
+    },
+    "catalog-record": {
+      "robots": "noindex",
+      "record": true,
+      "jsonld": [
+        "Book",
+        "BreadcrumbList"
+      ],
+      "ogType": "book"
+    },
+    "about": {
+      "robots": "index",
+      "hreflang": true
+    },
+    "about-page": {
+      "robots": "index",
+      "hreflang": true,
+      "jsonld": [
+        "BreadcrumbList"
+      ]
+    },
+    "team-member": {
+      "robots": "index",
+      "hreflang": true,
+      "jsonld": [
+        "Person",
+        "BreadcrumbList"
+      ],
+      "ogType": "profile"
+    },
+    "static-page": {
+      "robots": "index",
+      "hreflang": true
+    },
+    "search": {
+      "robots": "noindex"
+    },
+    "offline-shell": {
+      "robots": "noindex",
+      "robotsPhase": 1
+    },
+    "missing": {
+      "status": 404
+    },
+    "redirect-308": {
+      "status": 308
+    },
+    "redirect-301": {
+      "status": 301
+    },
+    "subject-thin": {
+      "robots": "noindex",
+      "record": true,
+      "jsonld": [
+        "BreadcrumbList",
+        "CollectionPage"
+      ]
+    },
+    "catalog-record-described": {
+      "robots": "index",
+      "hreflang": true,
+      "record": true,
+      "jsonld": [
+        "Book",
+        "BreadcrumbList"
+      ],
+      "ogType": "book"
+    }
+  },
+  "urls": [
+    {
+      "path": "/",
+      "template": "home"
+    },
+    {
+      "path": "/km",
+      "template": "home"
+    },
+    {
+      "path": "/books",
+      "template": "books-list"
+    },
+    {
+      "path": "/km/books",
+      "template": "books-list"
+    },
+    {
+      "path": "/books?page=1",
+      "template": "books-list-page1",
+      "canonical": "/books"
+    },
+    {
+      "path": "/books?sort=downloads",
+      "template": "books-list-filtered",
+      "canonical": "/books"
+    },
+    {
+      "path": "/km/books?sort=downloads",
+      "template": "books-list-filtered",
+      "canonical": "/km/books"
+    },
+    {
+      "path": "/books?page=9999",
+      "template": "books-list-out-of-range"
+    },
+    {
+      "path": "/books/classroom-management-basics",
+      "template": "book"
+    },
+    {
+      "path": "/km/books/classroom-management-basics",
+      "template": "book"
+    },
+    {
+      "path": "/books/mathematics-for-primary-teachers",
+      "template": "book"
+    },
+    {
+      "path": "/km/books/mathematics-for-primary-teachers",
+      "template": "book"
+    },
+    {
+      "path": "/books/classroom-management-basics/read",
+      "template": "book-read",
+      "canonical": "/books/classroom-management-basics"
+    },
+    {
+      "path": "/subjects",
+      "template": "subjects-hub"
+    },
+    {
+      "path": "/km/subjects",
+      "template": "subjects-hub"
+    },
+    {
+      "path": "/subjects/mathematics",
+      "template": "subject-thin"
+    },
+    {
+      "path": "/km/subjects/mathematics",
+      "template": "subject-thin"
+    },
+    {
+      "path": "/authors",
+      "template": "authors-hub"
+    },
+    {
+      "path": "/km/authors",
+      "template": "authors-hub"
+    },
+    {
+      "path": "/authors/sok-dara",
+      "template": "author"
+    },
+    {
+      "path": "/km/authors/sok-dara",
+      "template": "author"
+    },
+    {
+      "path": "/authors/%E1%9E%A1%E1%9E%BB%E1%9E%84-%E1%9E%9F%E1%9E%BB%E1%9E%9C%E1%9E%8E%E1%9F%92%E1%9E%8E%E1%9E%B6%E1%9E%9A%E1%9F%89%E1%9E%B6",
+      "template": "author"
+    },
+    {
+      "path": "/theses",
+      "template": "theses-hub"
+    },
+    {
+      "path": "/km/theses",
+      "template": "theses-hub"
+    },
+    {
+      "path": "/theses/summary",
+      "template": "theses-summary"
+    },
+    {
+      "path": "/km/theses/summary",
+      "template": "theses-summary"
+    },
+    {
+      "path": "/theses/reading-fluency-grade-3",
+      "template": "thesis"
+    },
+    {
+      "path": "/km/theses/reading-fluency-grade-3",
+      "template": "thesis"
+    },
+    {
+      "path": "/journals",
+      "template": "journals-hub"
+    },
+    {
+      "path": "/km/journals",
+      "template": "journals-hub"
+    },
+    {
+      "path": "/journals/cambodian-journal-of-teacher-education",
+      "template": "journal"
+    },
+    {
+      "path": "/journals/cambodian-journal-of-teacher-education/issues",
+      "template": "journal-issues"
+    },
+    {
+      "path": "/journals/cambodian-journal-of-teacher-education/issues/vol-7-issue-1",
+      "template": "journal-issue"
+    },
+    {
+      "path": "/journals/articles/khmer-literacy-assessment-framework",
+      "template": "article"
+    },
+    {
+      "path": "/km/journals/articles/khmer-literacy-assessment-framework",
+      "template": "article"
+    },
+    {
+      "path": "/posts",
+      "template": "posts-hub"
+    },
+    {
+      "path": "/km/posts",
+      "template": "posts-hub"
+    },
+    {
+      "path": "/posts/new-semester-opening-hours",
+      "template": "post"
+    },
+    {
+      "path": "/km/posts/new-semester-opening-hours",
+      "template": "post"
+    },
+    {
+      "path": "/paths",
+      "template": "paths-hub"
+    },
+    {
+      "path": "/km/paths",
+      "template": "paths-hub"
+    },
+    {
+      "path": "/paths/early-grade-reading",
+      "template": "path"
+    },
+    {
+      "path": "/km/paths/early-grade-reading",
+      "template": "path"
+    },
+    {
+      "path": "/catalogs",
+      "template": "catalogs-hub"
+    },
+    {
+      "path": "/km/catalogs",
+      "template": "catalogs-hub"
+    },
+    {
+      "path": "/catalogs/teaching-practice-handbook",
+      "template": "catalog-record-described"
+    },
+    {
+      "path": "/about",
+      "template": "about"
+    },
+    {
+      "path": "/km/about",
+      "template": "about"
+    },
+    {
+      "path": "/about/rules",
+      "template": "about-page"
+    },
+    {
+      "path": "/km/about/rules",
+      "template": "about-page"
+    },
+    {
+      "path": "/about/team",
+      "template": "about-page"
+    },
+    {
+      "path": "/about/team/head-librarian",
+      "template": "team-member"
+    },
+    {
+      "path": "/contact",
+      "template": "static-page"
+    },
+    {
+      "path": "/km/contact",
+      "template": "static-page"
+    },
+    {
+      "path": "/policy",
+      "template": "static-page"
+    },
+    {
+      "path": "/privacy",
+      "template": "static-page"
+    },
+    {
+      "path": "/search?q=mathematics",
+      "template": "search",
+      "canonical": "/search"
+    },
+    {
+      "path": "/~offline",
+      "template": "offline-shell"
+    },
+    {
+      "path": "/books/this-page-should-not-exist-xyz-12345",
+      "template": "missing"
+    },
+    {
+      "path": "/km/books/this-page-should-not-exist-xyz-12345",
+      "template": "missing"
+    },
+    {
+      "path": "/subjects/no-such-subject-xyz",
+      "template": "missing"
+    },
+    {
+      "path": "/authors/no-such-author-xyz-12345",
+      "template": "missing"
+    },
+    {
+      "path": "/theses/no-such-thesis-xyz-12345",
+      "template": "missing"
+    },
+    {
+      "path": "/home",
+      "template": "redirect-308",
+      "location": "/"
+    },
+    {
+      "path": "/km/home",
+      "template": "redirect-308",
+      "location": "/km"
+    },
+    {
+      "path": "/en/books",
+      "template": "redirect-301",
+      "location": "/books"
+    },
+    {
+      "path": "/books/",
+      "template": "redirect-308",
+      "location": "/books"
+    }
+  ]
+}
