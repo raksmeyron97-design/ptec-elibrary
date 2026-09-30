@@ -33,6 +33,7 @@ import { getCollectionStats } from "@/lib/collection-stats";
 import { chooseCountLabel } from "@/lib/listing-count";
 import { citationNames } from "@/lib/resources/contributor-identity";
 import HubIntro from "@/components/seo/HubIntro";
+import ThesisBrowseLinks from "@/components/ui/theses/ThesisBrowseLinks";
 
 export const dynamic = "force-dynamic";
 
@@ -380,6 +381,7 @@ export default async function ThesesPage({
             keywords={keywords}
           />
           <HubIntro hub="theses" locale={locale} show={!hasFilters && page === 1} className="mb-6" />
+          <ThesisBrowseLinks locale={locale} show={!hasFilters && page === 1} />
 
           {/* Facet rail | results. The rail is a fixed 264px column so the
               results measure stays constant as facet labels change length. */}

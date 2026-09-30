@@ -22,6 +22,7 @@ import { getListedAuthors } from '@/lib/authors/directory';
 import { authorUrlsWithWorks } from '@/lib/authors/sitemap-filter';
 import { authorIsIndexable } from '@/lib/authors/indexability';
 import { authorIndexMinWorks } from '@/lib/seo/seo-flags';
+import { getThesisProgramGroups, getThesisYearGroups } from '@/lib/theses/browse.server';
 import { normalizeByline } from '@/lib/resources/contributor-identity';
 import { articlePath } from '@/lib/journals/urls';
 import { journalSitemapPaths, type SitemapIssue, type SitemapJournal } from '@/lib/journals/sitemap';
@@ -291,11 +292,23 @@ async function thesisEntries(supabase: Supabase): Promise<MetadataRoute.Sitemap>
       priority: 0.9,
     }),
   );
+  // Year and programme browse pages (Phase 3.5) — only those that exist,
+  // which is the same rule the pages 404 by (lib/theses/browse.ts). A failed
+  // browse read costs these few URLs, never the thesis URLs above.
+  const browseUrls: MetadataRoute.Sitemap = [];
+  try {
+    const [years, programs] = await Promise.all([getThesisYearGroups(), getThesisProgramGroups()]);
+    for (const y of years) browseUrls.push(entry(`/theses/year/${y.key}`, { changeFrequency: 'monthly', priority: 0.6 }));
+    for (const p of programs) browseUrls.push(entry(`/theses/program/${p.key}`, { changeFrequency: 'monthly', priority: 0.6 }));
+  } catch (error) {
+    console.warn('[sitemap] thesis browse pages omitted:', error);
+  }
   // /theses/summary rides on the thesis count because it is a view over
   // exactly those rows.
   return [
     ...hub('/theses', reports.length, { changeFrequency: 'daily', priority: 0.9 }),
     ...hub('/theses/summary', reports.length, { changeFrequency: 'daily', priority: 0.6 }),
+    ...browseUrls,
     ...reportUrls,
   ];
 }

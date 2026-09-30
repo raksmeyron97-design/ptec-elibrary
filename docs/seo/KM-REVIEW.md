@@ -18,6 +18,11 @@ built from words the site already publishes, but the combination is new.
 | 2 | `/km/authors` `<title>` (`authors.hubSeoTitle`, changed so the title and the H1 say the same thing — N5) | `អ្នកនិពន្ធ — បុគ្គល និងស្ថាប័ននៅពីក្រោយបណ្ដុំឯកសារ` | "Authors — People & organizations behind the collection" | `authors.breadcrumbAuthors` + `authors.hubSubtitle` (the H1), verbatim |
 | 3 | 403 page of `/km/theses/<slug>/fulltext.pdf` (`thesisDetail.fulltextNotPublic`) | `អត្ថបទពេញនេះមិនទាន់ផ្សព្វផ្សាយជាសាធារណៈនៅឡើយទេ។` | "This full text is not published openly." | `អត្ថបទពេញ` (`thesisDetail.sectionFullText`), `ផ្សព្វផ្សាយ`, `សាធារណៈ` (site copy) |
 | 3 | the same page, link to the record (`thesisDetail.fulltextSeeRecord`) | `កំណត់ត្រានេះពន្យល់ពីរបៀបអាន៖ {title}` | "The record explains how to read it: {title}" | `កំណត់ត្រា`, `អាន` (site copy) |
+| 3 | `/km/theses/year/<yyyy>` title/H1 (`theses.browseYearTitle`) | `និក្ខេបបទ និងរបាយការណ៍ស្រាវជ្រាវ ឆ្នាំ {year}` | "Theses and research reports from {year}" | `theses.seoTitle` + `ឆ្នាំ` |
+| 3 | its description (`theses.browseYearDescription`) | `និក្ខេបបទ និងរបាយការណ៍ស្រាវជ្រាវ {count} របស់គរុនិស្សិត វ.គ.ភ ឆ្នាំ {year}។` | "{n} theses and research reports by PTEC student teachers from {year}." | `theses.seoTitle`, `គរុនិស្សិត` (thesisSummary.description) |
+| 3 | `/km/theses/program/<programme>` title/H1 (`theses.browseProgramTitle`) | `{program}៖ និក្ខេបបទ និងរបាយការណ៍ស្រាវជ្រាវ` | "{programme}: theses and research reports" | as above |
+| 3 | its description (`theses.browseProgramDescription`) | `និក្ខេបបទ និងរបាយការណ៍ស្រាវជ្រាវ {count} របស់គរុនិស្សិត វ.គ.ភ ក្នុងកម្មវិធីសិក្សា {program}។` | "…in {programme}." | `កម្មវិធីសិក្សា` (theses.seoDescription) |
+| 3 | hub link labels (`theses.browseByYear`, `theses.browseByProgram`) | `រកមើលតាមឆ្នាំ`, `រកមើលតាមកម្មវិធីសិក្សា` | "Browse by year", "Browse by programme" | `subjects.hubTitle` "រកមើលតាមមុខវិជ្ជា" with the noun changed |
 
 Approved keys reused as-is (no review needed): `about.eyebrow` (the /about
 title), `thesisSummary.title` / `thesisSummary.description` (the theses
