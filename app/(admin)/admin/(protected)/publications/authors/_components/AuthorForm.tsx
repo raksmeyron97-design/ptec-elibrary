@@ -51,6 +51,7 @@ type FormState = {
   google_scholar_url: string;
   research_gate_url: string;
   is_published: boolean;
+  is_ptec_staff: boolean;
 };
 
 const EMPTY: FormState = {
@@ -69,6 +70,7 @@ const EMPTY: FormState = {
   google_scholar_url: "",
   research_gate_url: "",
   is_published: true,
+  is_ptec_staff: false,
 };
 
 function fromRow(row: AdminAuthorRow): FormState {
@@ -88,6 +90,7 @@ function fromRow(row: AdminAuthorRow): FormState {
     google_scholar_url: row.google_scholar_url ?? "",
     research_gate_url: row.research_gate_url ?? "",
     is_published: row.is_published,
+    is_ptec_staff: row.is_ptec_staff,
   };
 }
 
@@ -216,6 +219,7 @@ export default function AuthorForm({
       google_scholar_url: form.google_scholar_url,
       research_gate_url: form.research_gate_url,
       is_published: form.is_published,
+      is_ptec_staff: form.is_ptec_staff,
     });
     setSaving(false);
     if (err) {
@@ -512,6 +516,14 @@ export default function AuthorForm({
               an authorship is a fact of the record, not a profile setting.
             </>
           }
+        />
+        <Switch
+          checked={form.is_ptec_staff}
+          onChange={(next) => set("is_ptec_staff", next)}
+          label="PTEC staff"
+          description="A member of PTEC's staff. Their page shows their position and the theses they advised."
+          onDescription={<>The profile lists published theses that name this person as advisor or co-advisor.</>}
+          offDescription={<>No advised theses are listed.</>}
         />
       </FormSection>
 

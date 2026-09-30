@@ -63,6 +63,17 @@ export interface AuthorProfile {
    *  normal for someone the 0105 backfill reached from both legacy tables. */
   contributorIds: string[];
   works: AuthorWork[];
+  /**
+   * A biography a librarian approved: a published academic profile's, or a
+   * book author's with `bio_status = 'approved'` (0162). One of the two ways
+   * a page earns indexing (lib/authors/indexability.ts).
+   */
+  hasApprovedBio: boolean;
+  /** PTEC staff (0162): the page shows their role and the theses they advised. */
+  isPtecStaff: boolean;
+  /** Published theses naming this person as advisor or co-advisor. Empty
+   *  unless `isPtecStaff`. */
+  advisedTheses: AuthorWork[];
 }
 
 /** Derived figures shown in the profile's statistics strip. */

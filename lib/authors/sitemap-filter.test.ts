@@ -83,8 +83,12 @@ describe("the call sites keep the rules that make this safe", () => {
     // de-index a page already in the index, and it does not stop anything that
     // links to the page from keeping it discoverable. Only `noindex` does.
     // Both halves must use the same predicate or they drift apart again.
+    // Since Phase 2.6 the predicate is authorIsIndexable (which still refuses
+    // an author with no works — lib/authors/indexability.test.ts), called by
+    // the page and by the sitemap with the same directory figures.
     const page = read("app/[locale]/(public)/authors/[slug]/page.tsx");
-    expect(page).toContain("author.works.length === 0");
+    expect(page).toMatch(/authorIsIndexable\(/);
+    expect(read("lib/seo/sitemap-entries.ts")).toMatch(/authorIsIndexable\(/);
     expect(page).toContain("robots: { index: false, follow: true }");
     // `follow`, never `nofollow`: the page's own links are real.
     expect(page).not.toContain("follow: false");
@@ -98,5 +102,26 @@ describe("the call sites keep the rules that make this safe", () => {
     const m = src.match(/const PER_TYPE_LIMIT = (\d+);/);
     expect(m, "PER_TYPE_LIMIT not found").toBeTruthy();
     expect(Number(m![1])).toBeGreaterThanOrEqual(93);
+  });
+});
+
+describe("authorUrlsWithWorks — indexability (Phase 2.6)", () => {
+  const candidates = new Map([
+    ["many-works", "2026-01-01"],
+    ["one-work", "2026-01-01"],
+  ]);
+  it("drops a listed author whose page is not indexable", () => {
+    const { entries } = authorUrlsWithWorks(candidates, new Set(["many-works", "one-work"]), (s) => s === "many-works");
+    expect(entries.map(([slug]) => slug)).toEqual(["many-works"]);
+  });
+  it("an empty indexable set is an answer, not a failed read", () => {
+    const { entries, degraded } = authorUrlsWithWorks(candidates, new Set(["many-works", "one-work"]), () => false);
+    expect(entries).toEqual([]);
+    expect(degraded).toBe(false);
+  });
+  it("an empty roster still degrades to unfiltered, whatever the predicate says", () => {
+    const { entries, degraded } = authorUrlsWithWorks(candidates, new Set(), () => false);
+    expect(entries).toHaveLength(2);
+    expect(degraded).toBe(true);
   });
 });

@@ -14,6 +14,7 @@
 // browser-safety note in CLAUDE.md both depend on that).
 
 import "server-only";
+import { parseAuthorMinWorks } from "@/lib/authors/indexability";
 
 /**
  * Pure, so the rule is testable without stubbing the environment.
@@ -36,4 +37,12 @@ export function resolveSeoFlag(raw: string | undefined): boolean {
  */
 export function pdfTitleSuffixEnabled(): boolean {
   return resolveSeoFlag(process.env.SEO_PDF_TITLE_SUFFIX);
+}
+
+/**
+ * Works an author needs for an indexable page without an approved biography
+ * (SEO Phase 2.6, D2). SEO_AUTHOR_MIN_WORKS, a whole number ≥ 1; default 3.
+ */
+export function authorIndexMinWorks(): number {
+  return parseAuthorMinWorks(process.env.SEO_AUTHOR_MIN_WORKS);
 }

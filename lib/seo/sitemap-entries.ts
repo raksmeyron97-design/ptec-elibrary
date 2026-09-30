@@ -20,6 +20,8 @@ import { validateSitemapEntry } from '@/lib/seo/validate';
 import { addressableAuthorSlug } from '@/lib/authors/slug';
 import { getListedAuthors } from '@/lib/authors/directory';
 import { authorUrlsWithWorks } from '@/lib/authors/sitemap-filter';
+import { authorIsIndexable } from '@/lib/authors/indexability';
+import { authorIndexMinWorks } from '@/lib/seo/seo-flags';
 import { normalizeByline } from '@/lib/resources/contributor-identity';
 import { articlePath } from '@/lib/journals/urls';
 import { journalSitemapPaths, type SitemapIssue, type SitemapJournal } from '@/lib/journals/sitemap';
@@ -473,9 +475,15 @@ async function authorEntries(supabase: Supabase): Promise<MetadataRoute.Sitemap>
   // swallows its own errors and answers [] — so an empty roster beside a
   // non-empty row set is treated as UNKNOWN and the unfiltered set is emitted.
   const listed = await getListedAuthors();
+  // Phase 2.6 (D2): only pages that may be search results — enough works, or
+  // an approved biography. The author page asks the same question with the
+  // same directory figures, so the two cannot disagree.
+  const minWorks = authorIndexMinWorks();
+  const indexable = new Set(listed.filter((a) => authorIsIndexable(a, minWorks)).map((a) => a.slug));
   const { entries: withWorks, degraded } = authorUrlsWithWorks(
     authorSlugSet,
     new Set(listed.map((a) => a.slug).filter(Boolean)),
+    (slug) => indexable.has(slug),
   );
   if (degraded) {
     console.warn(

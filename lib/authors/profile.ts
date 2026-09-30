@@ -135,12 +135,19 @@ type AuthorRecord = {
   research_gate_url: string | null;
   research_interests: string[] | null;
   is_published: boolean | null;
+  /** 0162; absent on an older database. */
+  is_ptec_staff?: boolean | null;
 };
 
 const AUTHOR_SELECT =
   "id, full_name, full_name_km, orcid, bio, bio_km, photo_url, slug, position_title, " +
   "affiliation_name, website_url, google_scholar_url, research_gate_url, " +
   "research_interests, is_published";
+
+/** Is this PostgREST error "a column in the select does not exist"? */
+function isMissingColumn(error: { code?: string } | null | undefined): boolean {
+  return error?.code === "42703" || error?.code === "PGRST204";
+}
 
 /**
  * Find the academic profile record for a slug.
@@ -158,11 +165,17 @@ async function findPublicationAuthor(
   // schema type in this repo, so it infers a select naming 0125's columns as
   // an error shape until the migration is applied. The runtime already handles
   // the "column missing" case — that is what the scan fallback below is.
-  const { data: bySlug } = await supabase
+  // 0162's column first, the 0125 select as the retry: naming a column the
+  // database does not have yet fails the whole read, and a failed read here
+  // is a 404 for every academic profile during a deploy window.
+  const withStaff = await supabase
     .from("publication_authors")
-    .select(AUTHOR_SELECT)
+    .select(`${AUTHOR_SELECT}, is_ptec_staff`)
     .eq("slug", slug)
     .maybeSingle();
+  const { data: bySlug } = isMissingColumn(withStaff.error)
+    ? await supabase.from("publication_authors").select(AUTHOR_SELECT).eq("slug", slug).maybeSingle()
+    : withStaff;
   if (bySlug) return bySlug as unknown as AuthorRecord;
 
   const { data: all } = await pagedScan<unknown>(
@@ -183,17 +196,33 @@ async function findPublicationAuthor(
   );
 }
 
-type BookAuthorRecord = { id: string; name: string; bio: string | null; photo_url: string | null };
+type BookAuthorRecord = {
+  id: string;
+  name: string;
+  bio: string | null;
+  photo_url: string | null;
+  // 0162; absent on an older database.
+  bio_km?: string | null;
+  bio_status?: string | null;
+  affiliation?: string | null;
+  position_title?: string | null;
+  orcid?: string | null;
+  scholar_url?: string | null;
+  is_ptec_staff?: boolean | null;
+};
+
+const BOOK_AUTHOR_SELECT =
+  "id, name, bio, photo_url, bio_km, bio_status, affiliation, position_title, orcid, scholar_url, is_ptec_staff";
 
 async function findBookAuthor(
   supabase: ReturnType<typeof createServiceClient>,
   slug: string,
 ): Promise<BookAuthorRecord | null> {
-  const { data: bySlug } = await supabase
-    .from("authors")
-    .select("id, name, bio, photo_url")
-    .eq("slug", slug)
-    .maybeSingle();
+  // 0162's columns first, the old select as the retry (see above).
+  const full = await supabase.from("authors").select(BOOK_AUTHOR_SELECT).eq("slug", slug).maybeSingle();
+  const { data: bySlug } = isMissingColumn(full.error)
+    ? await supabase.from("authors").select("id, name, bio, photo_url").eq("slug", slug).maybeSingle()
+    : full;
   if (bySlug) return bySlug as BookAuthorRecord;
 
   const { data: all } = await pagedScan<BookAuthorRecord>(
@@ -376,6 +405,47 @@ async function thesisWorks(
       byline: clean(row.author_names),
       doi: clean(row.doi),
       coverUrl: clean(row.cover_url),
+      downloadable: !!row.file_url,
+    }));
+}
+
+/**
+ * Published theses that name this person as advisor or co-advisor, for a PTEC
+ * staff page (Phase 2.6). The same widen-then-narrow rule as `thesisWorks`:
+ * `ilike` finds candidates, an exact name match decides, so "Sok" never
+ * claims theses advised by "Sok Dara".
+ */
+async function advisedThesisWorks(
+  supabase: ReturnType<typeof createServiceClient>,
+  aliases: string[],
+): Promise<AuthorWork[]> {
+  if (aliases.length === 0) return [];
+  const { data, error } = await pagedScan<any>(
+    (from, to) =>
+      supabase
+        .from("research_reports")
+        .select("id, slug, title, abstract, author_names, advisor_name, co_advisor_name, published_at, created_at, faculty, file_url")
+        .eq("is_published", true)
+        .or(aliases.flatMap((a) => [`advisor_name.ilike.%${a}%`, `co_advisor_name.ilike.%${a}%`]).join(","))
+        .order("id", { ascending: true })
+        .range(from, to),
+    PER_TYPE_LIMIT * 2,
+  );
+  if (error) return [];
+  return data
+    .filter((row) => isNamedIn(row.advisor_name, aliases) || isNamedIn(row.co_advisor_name, aliases))
+    .slice(0, PER_TYPE_LIMIT)
+    .map((row) => ({
+      id: row.id,
+      type: "thesis" as const,
+      title: row.title,
+      href: `/theses/${row.slug ?? row.id}`,
+      excerpt: clean(row.abstract),
+      year: yearOf(row.published_at ?? row.created_at),
+      venue: clean(row.faculty),
+      byline: clean(row.author_names),
+      doi: null,
+      coverUrl: null,
       downloadable: !!row.file_url,
     }));
 }
@@ -654,22 +724,35 @@ export async function getAuthorProfile(slug: string): Promise<AuthorProfile | nu
 
   const interests = profileVisible ? (academic?.research_interests ?? []).filter(Boolean) : [];
 
+  // Approval of a biography (Phase 2.6): a PUBLISHED academic profile is an
+  // approved one — publishing it is how a librarian signs it off — and a book
+  // author's needs bio_status = 'approved' (0162). Nothing else counts, so no
+  // existing biography became "approved" by this change.
+  const academicBio = profileVisible && (clean(academic?.bio) || clean(academic?.bio_km));
+  const bookBio = bookAuthor?.bio_status === "approved" && (clean(bookAuthor?.bio) || clean(bookAuthor?.bio_km));
+  const hasApprovedBio = Boolean(academicBio || bookBio);
+  const isPtecStaff = academic?.is_ptec_staff === true || bookAuthor?.is_ptec_staff === true;
+  const advisedTheses = isPtecStaff ? await advisedThesisWorks(supabase, aliases) : [];
+
   return {
     slug: academic?.slug ?? slug,
     name,
     nameKm: clean(academic?.full_name_km),
     photoUrl: profileVisible ? clean(academic?.photo_url) ?? clean(bookAuthor?.photo_url) : null,
-    positionTitle: profileVisible ? clean(academic?.position_title) : null,
-    affiliation: profileVisible ? clean(academic?.affiliation_name) : null,
+    positionTitle: profileVisible ? clean(academic?.position_title) ?? clean(bookAuthor?.position_title) : null,
+    affiliation: profileVisible ? clean(academic?.affiliation_name) ?? clean(bookAuthor?.affiliation) : null,
     bio: profileVisible ? clean(academic?.bio) ?? clean(bookAuthor?.bio) : null,
-    bioKm: profileVisible ? clean(academic?.bio_km) : null,
+    bioKm: profileVisible ? clean(academic?.bio_km) ?? clean(bookAuthor?.bio_km) : null,
     researchInterests: interests,
-    orcid: profileVisible ? clean(academic?.orcid) : null,
+    orcid: profileVisible ? clean(academic?.orcid) ?? clean(bookAuthor?.orcid) : null,
     websiteUrl: profileVisible ? clean(academic?.website_url) : null,
-    googleScholarUrl: profileVisible ? clean(academic?.google_scholar_url) : null,
+    googleScholarUrl: profileVisible ? clean(academic?.google_scholar_url) ?? clean(bookAuthor?.scholar_url) : null,
     researchGateUrl: profileVisible ? clean(academic?.research_gate_url) : null,
     contributorIds: contributorRecords.map((r) => r.id),
     contributorKind: canonicalKindOf(contributorRecords, name),
     works: sortWorks(dedupeWorks(canonical, publications, theses, books, catalog)),
+    hasApprovedBio,
+    isPtecStaff,
+    advisedTheses: sortWorks(advisedTheses),
   };
 }

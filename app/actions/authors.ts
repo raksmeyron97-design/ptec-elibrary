@@ -47,10 +47,18 @@ export async function listPublicationAuthors(): Promise<{
       .select(select)
       .order("full_name", { ascending: true });
 
-  const [authorsResult, { data: links }] = await Promise.all([
+  const [authorsResult, { data: links }, staffResult] = await Promise.all([
     load(AUTHOR_SELECT_FULL),
     supabase.from("publication_authorships").select("author_id"),
+    // 0162, read on its own so a database without the column still lists
+    // every author; a failed read shows everyone as not staff.
+    supabase.from("publication_authors").select("id, is_ptec_staff"),
   ]);
+  const staff = new Set(
+    ((staffResult.error ? [] : staffResult.data) ?? [])
+      .filter((r: { is_ptec_staff?: boolean | null }) => r.is_ptec_staff === true)
+      .map((r: { id: string }) => r.id),
+  );
 
   // Pre-0125 fallback: the table renders with the columns the database has,
   // and the profile fields simply read as empty rather than the page erroring.
@@ -84,6 +92,7 @@ export async function listPublicationAuthors(): Promise<{
       research_gate_url: row.research_gate_url ?? null,
       research_interests: row.research_interests ?? [],
       is_published: row.is_published ?? true,
+      is_ptec_staff: staff.has(row.id),
       publicationCount: counts.get(row.id) ?? 0,
       completeness: completeness(row),
       duplicateOf: duplicates.get(row.id) ?? [],

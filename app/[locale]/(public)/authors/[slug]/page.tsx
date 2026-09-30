@@ -28,6 +28,9 @@ import ResearchInterests from "@/components/ui/authors/ResearchInterests";
 import AuthorWorksList from "@/components/ui/authors/AuthorWorksList";
 import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
 import { fitDescription } from "@/lib/seo/text-fit";
+import { authorIsIndexable } from "@/lib/authors/indexability";
+import { authorIndexMinWorks } from "@/lib/seo/seo-flags";
+import { getAuthorDirectory } from "@/lib/authors/directory";
 
 export const revalidate = 3600;
 
@@ -53,6 +56,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     getTranslations({ locale, namespace: "authors" }),
   ]);
   if (!author) return { title: t("notFoundTitle"), robots: { index: false, follow: true } };
+  const directoryEntry = (await getAuthorDirectory()).find((a) => a.slug === author.slug) ?? null;
 
   const org = await getOrgIdentity();
   const title = `${author.name} — ${t("eyebrow")}`;
@@ -128,7 +132,18 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     // qualifies (Kenneth N. Berk, Patrick Carey), and the moment a librarian
     // attaches a work the directory's cache tag refreshes and the page returns
     // to the index with no deploy.
-    ...(author.works.length === 0 ? { robots: { index: false, follow: true } } : {}),
+    //
+    // Phase 2.6 (D2) extends it: a page with fewer than SEO_AUTHOR_MIN_WORKS
+    // works (default 3) and no approved biography is withdrawn the same way.
+    // The figures are the DIRECTORY's, which the sitemap filter reads too, so
+    // the page and the sitemap answer one question with one set of numbers;
+    // the page's own list stands in only when the directory has no entry.
+    ...(authorIsIndexable(
+      directoryEntry ?? { workCount: author.works.length, hasApprovedBio: author.hasApprovedBio },
+      authorIndexMinWorks(),
+    )
+      ? {}
+      : { robots: { index: false, follow: true } }),
     openGraph,
     twitter: buildTwitter({
       // A PORTRAIT is a square thumbnail, not a large_image hero — that part
@@ -438,6 +453,37 @@ export default async function AuthorPage({ params }: PageProps) {
             }}
           />
         </section>
+
+        {/* PTEC staff (0162): the theses they advised. Matched by exact name on
+            the thesis's advisor fields, like the works above; a thesis is
+            listed here, not claimed as their work. */}
+        {author.isPtecStaff && author.advisedTheses.length > 0 && (
+          <section aria-labelledby="author-advised-heading" className="mt-10 border-t border-divider pt-8">
+            <h2
+              id="author-advised-heading"
+              className="mb-6 text-[20px] font-bold tracking-tight text-text-heading sm:text-[22px]"
+            >
+              {t("advisedHeading")}
+            </h2>
+            <ul className="grid gap-3">
+              {author.advisedTheses.map((work) => (
+                <li key={work.id} className="rounded-xl border border-divider bg-bg-surface p-4">
+                  <Link
+                    href={work.href}
+                    className="focus-field rounded-sm font-semibold text-text-heading transition-colors hover:text-brand"
+                  >
+                    {work.title}
+                  </Link>
+                  {(work.byline || work.year) && (
+                    <p className="mt-1 text-[13px] text-text-muted">
+                      {[work.byline, work.year].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
     </main>
   );

@@ -49,6 +49,9 @@ export type AuthorDirectoryEntry = {
    *  interests may exist). Used only to order the roster — never displayed as
    *  a claim about the person. */
   hasProfile: boolean;
+  /** A librarian-approved biography backs this person (Phase 2.6) — see
+   *  lib/authors/indexability.ts. */
+  hasApprovedBio: boolean;
   /**
    * False when the row's name provably does not identify anybody — an
    * operating-system account, a program's name, a placeholder, a telephone
@@ -130,16 +133,21 @@ async function loadAuthorDirectory(): Promise<AuthorDirectoryEntry[]> {
    * than resuming — a scan that changed its column list mid-way would hand the
    * mapper two row shapes.
    */
-  const scanWithFallback = async <T,>(table: string, columns: string, fallback: string) => {
+  const scanWithFallback = async <T,>(table: string, ...projections: string[]) => {
     const run = (cols: string) =>
       pagedScan<T>(
         (from, to) =>
           supabase.from(table).select(cols).order("id", { ascending: true }).range(from, to),
         DIRECTORY_SCAN_CAP,
       );
-    const first = await run(columns);
-    if (!first.error) return counted(table, first);
-    return counted(table, await run(fallback));
+    // Widest projection first; each failure retries the WHOLE scan one
+    // projection narrower (0162 → 0125 → the original columns).
+    let result = await run(projections[0]);
+    for (const narrower of projections.slice(1)) {
+      if (!result.error) break;
+      result = await run(narrower);
+    }
+    return counted(table, result);
   };
 
   // Every sweep orders on a UNIQUE key before it pages: two LIMIT/OFFSET
@@ -148,13 +156,30 @@ async function loadAuthorDirectory(): Promise<AuthorDirectoryEntry[]> {
   // no works.
   const [academics, bookAuthors, bookScan, authorshipScan, thesisScan, catalogScan, contributorScan, creditScan] =
     await Promise.all([
-      scanWithFallback<{ id: string; full_name: string; full_name_km: string | null; slug?: string | null }>(
+      scanWithFallback<{
+        id: string;
+        full_name: string;
+        full_name_km: string | null;
+        slug?: string | null;
+        bio?: string | null;
+        bio_km?: string | null;
+        is_published?: boolean | null;
+      }>(
         "publication_authors",
+        "id, full_name, full_name_km, slug, bio, bio_km, is_published",
         "id, full_name, full_name_km, slug",
         "id, full_name, full_name_km",
       ),
-      scanWithFallback<{ id: string; name: string; slug?: string | null }>(
+      scanWithFallback<{
+        id: string;
+        name: string;
+        slug?: string | null;
+        bio?: string | null;
+        bio_km?: string | null;
+        bio_status?: string | null;
+      }>(
         "authors",
+        "id, name, slug, bio, bio_km, bio_status",
         "id, name, slug",
         "id, name",
       ),
@@ -288,7 +313,7 @@ async function loadAuthorDirectory(): Promise<AuthorDirectoryEntry[]> {
   const add = (
     rawSlug: string | null | undefined,
     name: string | null | undefined,
-    opts: { nameKm?: string | null; hasProfile: boolean; count: number; aliases: string[] },
+    opts: { nameKm?: string | null; hasProfile: boolean; hasApprovedBio: boolean; count: number; aliases: string[] },
   ) => {
     const cleanName = name?.replace(/\s+/g, " ").trim();
     if (!cleanName) return;
@@ -304,6 +329,7 @@ async function loadAuthorDirectory(): Promise<AuthorDirectoryEntry[]> {
     if (existing) {
       existing.workCount += opts.count;
       existing.hasProfile = existing.hasProfile || opts.hasProfile;
+      existing.hasApprovedBio = existing.hasApprovedBio || opts.hasApprovedBio;
       existing.nameKm = existing.nameKm ?? opts.nameKm ?? null;
       return;
     }
@@ -313,6 +339,7 @@ async function loadAuthorDirectory(): Promise<AuthorDirectoryEntry[]> {
       nameKm: opts.nameKm ?? null,
       workCount: opts.count + nameMatched,
       hasProfile: opts.hasProfile,
+      hasApprovedBio: opts.hasApprovedBio,
       identified: assessContributorName(cleanName).trust !== "invalid",
     });
   };
@@ -324,6 +351,9 @@ async function loadAuthorDirectory(): Promise<AuthorDirectoryEntry[]> {
     add(a.slug, a.full_name, {
       nameKm: a.full_name_km?.trim() || null,
       hasProfile: true,
+      // The same approval rule as the profile page (lib/authors/profile.ts):
+      // a published academic profile's biography is an approved one.
+      hasApprovedBio: a.is_published !== false && Boolean(a.bio?.trim() || a.bio_km?.trim()),
       count: pubCountByAuthorId.get(a.id) ?? 0,
       aliases,
     });
@@ -331,6 +361,7 @@ async function loadAuthorDirectory(): Promise<AuthorDirectoryEntry[]> {
   for (const a of bookAuthors) {
     add(a.slug, a.name, {
       hasProfile: false,
+      hasApprovedBio: a.bio_status === "approved" && Boolean(a.bio?.trim() || a.bio_km?.trim()),
       count: bookCountByAuthorId.get(a.id) ?? 0,
       aliases: [a.name.trim().toLowerCase()].filter((k) => k.length >= 2),
     });
@@ -341,7 +372,7 @@ async function loadAuthorDirectory(): Promise<AuthorDirectoryEntry[]> {
   );
 }
 
-const cachedAuthorDirectory = unstable_cache(loadAuthorDirectory, ["author-directory-v1"], {
+const cachedAuthorDirectory = unstable_cache(loadAuthorDirectory, ["author-directory-v2"], {
   revalidate: 3600,
   tags: [TAGS.books, TAGS.publications, TAGS.theses, TAGS.catalogBooks],
 });
