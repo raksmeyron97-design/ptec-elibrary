@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { ArrowUpRight } from "lucide-react";
 
 import { Link } from "@/i18n/navigation";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import Icon from "@/components/ui/core/Icon";
 import CollectionHeader from "@/components/ui/collection/CollectionHeader";
 import SubjectDirectoryFilter from "@/components/ui/subjects/SubjectDirectoryFilter";
@@ -137,8 +137,7 @@ export default async function SubjectsHubPage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-bg-body px-4 py-8 sm:px-6 sm:py-10 md:px-12">
-      <JsonLd data={breadcrumbs} />
-      {sorted.length > 0 && <JsonLd data={collectionSchema} />}
+      <PageJsonLd nodes={[breadcrumbs, sorted.length > 0 ? collectionSchema : null]} />
 
       <div className="mx-auto max-w-5xl">
         <BreadcrumbNav

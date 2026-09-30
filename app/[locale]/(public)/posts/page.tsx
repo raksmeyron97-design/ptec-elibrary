@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
 import { postsCollectionJsonLd, POSTS_FALLBACK_OG_IMAGE } from "@/lib/seo/posts-seo";
@@ -180,8 +180,7 @@ export default async function PostsPage({
 
   return (
     <ClientNavWrapper>
-      <JsonLd data={listingBreadcrumb} />
-      {collectionSchema && <JsonLd data={collectionSchema} />}
+      <PageJsonLd nodes={[listingBreadcrumb, collectionSchema ? collectionSchema : null]} />
 
       <div className="min-h-screen bg-bg-app">
         {/* ── Masthead ──

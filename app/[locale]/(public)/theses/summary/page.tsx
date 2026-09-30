@@ -18,7 +18,7 @@ import {
   parsePageParam,
 } from "@/lib/seo/listing-metadata";
 import { getCollectionStats } from "@/lib/collection-stats";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import Pagination from "@/components/ui/core/Pagination";
 import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
 import SummaryToolbar from "@/components/ui/theses/SummaryToolbar";
@@ -371,8 +371,7 @@ export default async function ThesesSummaryPage({
 
   return (
     <ClientNavWrapper>
-      <JsonLd data={crumbs} />
-      <JsonLd data={collectionSchema} />
+      <PageJsonLd nodes={[crumbs, collectionSchema]} />
       <div className="min-h-screen bg-bg-body">
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="border-b border-divider bg-bg-surface px-4 py-6 md:px-12 md:py-8">

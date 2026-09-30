@@ -56,7 +56,7 @@ import {
 } from "@/lib/publications/article-layout";
 import { reviewsEnabled, aggregateRatingAllowed } from "@/lib/reviews/policy";
 import Icon from "@/components/ui/core/Icon";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import ResourceConnections from "@/components/seo/ResourceConnections";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { citationLocale, publicationScholarMeta } from "@/lib/seo/citation";
@@ -473,9 +473,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
 
   return (
     <>
-      <JsonLd data={scholarlyArticleSchema} />
-      <JsonLd data={pubBreadcrumbSchema} />
-      {faqSchema && <JsonLd data={faqSchema} />}
+      <PageJsonLd nodes={[scholarlyArticleSchema, pubBreadcrumbSchema, faqSchema ? faqSchema : null]} />
       <PublicationViewPing id={pub.id} />
 
       {/* ── The article: one reading surface, header and body ───────────── */}

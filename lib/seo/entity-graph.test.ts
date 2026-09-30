@@ -40,16 +40,22 @@ const org: OrgIdentity = {
 
 describe("entity @id anchors", () => {
   it("are absolute, origin-correct and distinct", () => {
-    for (const id of [ORGANIZATION_ID, LIBRARY_ID, WEBSITE_ID]) {
+    // The college is anchored on its OWN origin, the library and the website
+    // on this one.
+    expect(ORGANIZATION_ID.startsWith("https://www.ptec.edu.kh/#")).toBe(true);
+    for (const id of [LIBRARY_ID, WEBSITE_ID]) {
       expect(id.startsWith(`${SITE_URL}/#`)).toBe(true);
     }
     expect(new Set([ORGANIZATION_ID, LIBRARY_ID, WEBSITE_ID]).size).toBe(3);
   });
 
-  it("keep the historic `/#fragment` form — an @id IS the entity's identity", () => {
+  it("are pinned — an @id IS the entity's identity", () => {
     // Changing these strings re-identifies the entity to every consumer that
-    // has already seen them. They are not cosmetic.
-    expect(ORGANIZATION_ID).toBe(`${SITE_URL}/#organization`);
+    // has already seen them. They are not cosmetic. The college's moved ONCE,
+    // deliberately, in SEO Phase 4 (from `<library>/#organization`): the
+    // approved structured-data plan anchors PTEC on its own website, where an
+    // identifier under the library's host read as the library naming itself.
+    expect(ORGANIZATION_ID).toBe("https://www.ptec.edu.kh/#org");
     expect(LIBRARY_ID).toBe(`${SITE_URL}/#library`);
     expect(WEBSITE_ID).toBe(`${SITE_URL}/#website`);
   });
@@ -86,8 +92,8 @@ describe("libraryNode", () => {
     expect(Object.keys(parent)).toEqual(["@id"]);
   });
 
-  it("never emits an EducationalOrganization node of its own", () => {
-    expect(JSON.stringify(libraryNode(org))).not.toContain("EducationalOrganization");
+  it("never emits an institution node of its own", () => {
+    expect(JSON.stringify(libraryNode(org))).not.toMatch(/EducationalOrganization|CollegeOrUniversity/);
   });
 });
 
@@ -118,22 +124,23 @@ const SOURCE_DIRS = ["app", "components", "lib"].map((d) => join(ROOT, d));
 const sourceFiles = SOURCE_DIRS.flatMap((d) => walk(d));
 
 describe("only one module may declare the institution", () => {
-  it('no file outside RootShell/org-nodes emits an "EducationalOrganization" node', () => {
-    // RootShell declares the real node. org-nodes builds the reference to it.
-    // Anything else re-declaring it is how D-2 happened.
+  it('no file outside jsonld/org-nodes emits an institution node', () => {
+    // lib/seo/jsonld.ts declares the real node (RootShell did, before Phase 4).
+    // org-nodes builds the reference to it. Anything else re-declaring it is
+    // how D-2 happened.
     const allowed = new Set([
-      join(ROOT, "components/layout/RootShell.tsx"),
+      join(ROOT, "lib/seo/jsonld.ts"),
       join(ROOT, "lib/seo/org-nodes.ts"),
     ]);
     const offenders = sourceFiles.filter(
-      (f) => !allowed.has(f) && code(f).includes('"EducationalOrganization"'),
+      (f) => !allowed.has(f) && /"(EducationalOrganization|CollegeOrUniversity)"/.test(code(f)),
     );
     expect(offenders.map((f) => f.slice(ROOT.length + 1))).toEqual([]);
   });
 
-  it('no file outside RootShell/org-nodes emits a bare "Library" schema node', () => {
+  it('no file outside jsonld/org-nodes emits a bare "Library" schema node', () => {
     const allowed = new Set([
-      join(ROOT, "components/layout/RootShell.tsx"),
+      join(ROOT, "lib/seo/jsonld.ts"),
       join(ROOT, "lib/seo/org-nodes.ts"),
     ]);
     const offenders = sourceFiles.filter(
@@ -142,8 +149,8 @@ describe("only one module may declare the institution", () => {
     expect(offenders.map((f) => f.slice(ROOT.length + 1))).toEqual([]);
   });
 
-  it("RootShell builds its @id anchors from lib/seo/entity-ids, not inline literals", () => {
-    const src = readFileSync(join(ROOT, "components/layout/RootShell.tsx"), "utf8");
+  it("the site graph builds its @id anchors from lib/seo/entity-ids, not inline literals", () => {
+    const src = readFileSync(join(ROOT, "lib/seo/jsonld.ts"), "utf8");
     expect(src).toContain('from "@/lib/seo/entity-ids"');
     // The inline template form is what let org-nodes.ts have no way to
     // reference these anchors, which is why it duplicated the nodes instead.
@@ -164,7 +171,7 @@ describe("only one module may declare the institution", () => {
 // ── SEO5-04: a node's sameAs never lists its own url, or its parent's ───────
 
 describe("sameAs is other presences of THIS entity", () => {
-  const SRC = readFileSync(join(process.cwd(), "components/layout/RootShell.tsx"), "utf8");
+  const SRC = readFileSync(join(process.cwd(), "lib/seo/jsonld.ts"), "utf8");
 
   it("neither node is handed the raw cfg.sameAs list", () => {
     // `cfg.sameAs` is [website, facebook, youtube, telegram]. Assigning it

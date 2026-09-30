@@ -7,7 +7,7 @@ import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES, ADMIN_ROLES } from "@/lib/types/roles";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import { organizationNode } from "@/lib/seo/org-nodes";
 import { contributorNodes } from "@/lib/seo/contributor";
 import { breadcrumbSchema } from "@/lib/seo/schema";
@@ -374,8 +374,7 @@ export default async function PostDetailPage({
 
   return (
     <article className="min-h-screen bg-bg-app">
-      <JsonLd data={eventSchema ?? postSchema} />
-      <JsonLd data={postBreadcrumbSchema} />
+      <PageJsonLd nodes={[eventSchema ?? postSchema, postBreadcrumbSchema]} />
       <ViewTracker postId={post.id} />
 
       {/* ── Hero ── */}

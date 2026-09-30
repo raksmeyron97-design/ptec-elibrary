@@ -6,7 +6,7 @@ import { localeAlternates } from "@/lib/seo/alternates";
 import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { breadcrumbSchema } from "@/lib/seo/schema";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import { ABOUT_CONTENT_REVIEWED_AT, RULES_POLICY_VERSION } from "@/lib/about/content";
 import { LIFECYCLE_STEPS, POLICY_SECTIONS } from "@/lib/policy/borrow";
 import { readingTime } from "@/lib/policy/reading-time";
@@ -17,7 +17,7 @@ import Stepper from "@/components/policy/Stepper";
 import PolicyHeroActions from "./PolicyHeroActions";
 import PolicyKeyNumbers from "./PolicyKeyNumbers";
 import PolicyAllowances from "./PolicyAllowances";
-import PolicyFaq from "./PolicyFaq";
+import PolicyFaq, { policyFaqNode } from "./PolicyFaq";
 
 /**
  * /policy — Borrow & Return.
@@ -104,7 +104,7 @@ export default async function PolicyPage({
 
   return (
     <>
-      <JsonLd data={breadcrumb} />
+      <PageJsonLd nodes={[breadcrumb, await policyFaqNode(locale)]} />
 
       <PolicyHero
         id="policy-hero"

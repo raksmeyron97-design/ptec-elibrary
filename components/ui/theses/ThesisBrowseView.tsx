@@ -1,7 +1,7 @@
 import { Link } from "@/i18n/navigation";
 import Icon from "@/components/ui/core/Icon";
 import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import type { BrowseThesisRow } from "@/lib/theses/browse";
 import { scriptOf } from "@/lib/theses/script";
 
@@ -25,9 +25,7 @@ export default function ThesisBrowseView({
 }) {
   return (
     <main className="min-h-screen bg-bg-body px-4 py-8 md:px-12">
-      {jsonLd.map((data) => (
-        <JsonLd key={String(data["@type"])} data={data} />
-      ))}
+      <PageJsonLd nodes={jsonLd} />
       <div className="mx-auto max-w-[960px]">
         <BreadcrumbNav className="mb-6 flex flex-wrap items-center gap-1.5 text-[13px] font-medium text-text-muted sm:gap-2">
           <Link href="/" className="focus-field rounded-sm transition-colors hover:text-brand">

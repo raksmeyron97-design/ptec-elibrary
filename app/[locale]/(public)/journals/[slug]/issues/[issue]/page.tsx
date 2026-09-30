@@ -14,7 +14,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { ArrowLeft } from "lucide-react";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import JournalBreadcrumb from "@/components/ui/journals/JournalBreadcrumb";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { buildIssueMetadata, issueJsonLd, type JournalPageSeoInput } from "@/lib/seo/journal-seo";
@@ -99,25 +99,25 @@ export default async function JournalIssuePage({ params }: PageProps) {
 
   return (
     <section className="min-h-screen bg-bg-body px-4 py-6 sm:px-6 sm:py-10 md:px-12">
-      <JsonLd
-        data={issueJsonLd(
-          toSeo(journal),
-          issueSeo(issue, locale),
-          articles.map((a) => ({ slug: a.slug, title: a.title, doi: a.doi, pageStart: a.page_start, pageEnd: a.page_end })),
-          locale,
-        )}
-      />
-      <JsonLd
-        data={breadcrumbSchema(
-          [
-            { name: crumbs[0].label, path: "/" },
-            { name: crumbs[1].label, path: JOURNALS_PATH },
-            { name, path: journalPath(journal.slug) },
-            { name: crumbs[3].label, path: journalIssuesPath(journal.slug) },
-            { name: label, path: issuePath(journal.slug, issue.slug) },
-          ],
-          { locale },
-        )}
+      <PageJsonLd
+        nodes={[
+          issueJsonLd(
+            toSeo(journal),
+            issueSeo(issue, locale),
+            articles.map((a) => ({ slug: a.slug, title: a.title, doi: a.doi, pageStart: a.page_start, pageEnd: a.page_end })),
+            locale,
+          ),
+          breadcrumbSchema(
+            [
+              { name: crumbs[0].label, path: "/" },
+              { name: crumbs[1].label, path: JOURNALS_PATH },
+              { name, path: journalPath(journal.slug) },
+              { name: crumbs[3].label, path: journalIssuesPath(journal.slug) },
+              { name: label, path: issuePath(journal.slug, issue.slug) },
+            ],
+            { locale },
+          ),
+        ]}
       />
       <div className="mx-auto max-w-[1000px]">
         <JournalBreadcrumb crumbs={crumbs} />

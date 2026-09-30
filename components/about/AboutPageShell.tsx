@@ -21,7 +21,7 @@ import { getTranslations } from "next-intl/server";
 import { ArrowLeft, ArrowRight, ChevronRight, type LucideIcon } from "lucide-react";
 import { Clock, Library, Milestone, Scale, Users, UsersRound } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { ABOUT_NAV, aboutPager, relatedAboutPages } from "@/lib/about/nav";
 import type { AboutPageKey } from "@/lib/about/types";
@@ -344,11 +344,15 @@ export default async function AboutPageShell({
   hero,
   children,
   footer,
+  jsonLd = [],
 }: {
   page: AboutPageKey;
   locale: AboutLocale;
   hero: AboutHeroProps;
   children: ReactNode;
+  /** The page's own JSON-LD nodes. The shell renders the page's ONE block
+   *  (SEO Phase 4): the site graph, this breadcrumb, and these. */
+  jsonLd?: readonly unknown[];
   /** Page-specific block rendered after the content and before the related
    *  pages — e.g. the rules "About this policy" panel. */
   footer?: ReactNode;
@@ -362,14 +366,18 @@ export default async function AboutPageShell({
 
   return (
     <div className="about-page min-h-screen bg-paper">
-      {/* Breadcrumb structured data mirrors the visible trail exactly — the
-          two must agree or Google treats the markup as misleading. */}
-      <JsonLd
-        data={breadcrumbSchema([
-          { name: t("breadcrumb.home"), path: "/" },
-          { name: t("breadcrumb.about"), path: "/about" },
-          { name: currentLabel },
-        ], { locale })}
+      {/* The page's one JSON-LD document. The breadcrumb mirrors the visible
+          trail exactly — the two must agree or Google treats the markup as
+          misleading. */}
+      <PageJsonLd
+        nodes={[
+          breadcrumbSchema([
+            { name: t("breadcrumb.home"), path: "/" },
+            { name: t("breadcrumb.about"), path: "/about" },
+            { name: currentLabel },
+          ], { locale }),
+          ...jsonLd,
+        ]}
       />
 
       <AboutHero

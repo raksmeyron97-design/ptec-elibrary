@@ -8,7 +8,7 @@ import SubscribeButton from "@/components/ui/books/SubscribeButton";
 import type { Publication } from "@/lib/publications";
 import { academicTextToPlainText } from "@/lib/publications/citations";
 import { citationYear, authorList } from "@/lib/citations";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import { publicationsCollectionJsonLd } from "@/lib/seo/publication-seo";
 import PublicationCard from "@/components/ui/publications/PublicationCard";
 import PublicationListItem from "@/components/ui/publications/PublicationListItem";
@@ -313,7 +313,7 @@ export default async function PublicationsPage({
 
   return (
     <ClientNavWrapper>
-      {collectionSchema && <JsonLd data={collectionSchema} />}
+      <PageJsonLd nodes={[collectionSchema ? collectionSchema : null]} />
       <div className="min-h-screen bg-bg-body">
         <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-10 md:py-8">
           {/* ── Hero: search-first header (Scholar-style) ── */}

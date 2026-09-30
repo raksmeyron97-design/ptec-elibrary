@@ -10,11 +10,12 @@ import { createClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
 import PathExperience from "../_components/PathExperience";
 import PathCard from "../_components/PathCard";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import {
   buildPathMetadata,
   pathCourseJsonLd,
+  pathStepsItemList,
   pathLocalizedTitle,
   pathLocalizedDescription,
   type LearningPathSeoInput,
@@ -119,8 +120,7 @@ export default async function LearningPathDetailPage({ params }: PageProps) {
 
   return (
     <div className="paths-page min-h-screen bg-bg-body">
-      <JsonLd data={pathBreadcrumb} />
-      <JsonLd data={courseSchema} />
+      <PageJsonLd nodes={[pathBreadcrumb, courseSchema, pathStepsItemList(seoInput, locale)]} />
       <div className="mx-auto max-w-[1200px] px-4 py-6 md:px-8 md:py-12">
         {/* ── Breadcrumb ── */}
         <BreadcrumbNav className="mb-4 text-[13px] font-medium text-text-muted sm:mb-5">

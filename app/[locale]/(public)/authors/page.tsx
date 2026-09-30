@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { ArrowUpRight } from "lucide-react";
 
 import { Link } from "@/i18n/navigation";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import Icon from "@/components/ui/core/Icon";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { contributorNodes, soleContributorNode } from "@/lib/seo/contributor";
@@ -116,8 +116,7 @@ export default async function AuthorsHubPage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-bg-body px-4 py-8 sm:px-6 sm:py-10 md:px-12">
-      <JsonLd data={breadcrumbs} />
-      {authors.length > 0 && <JsonLd data={collectionSchema} />}
+      <PageJsonLd nodes={[breadcrumbs, authors.length > 0 ? collectionSchema : null]} />
 
       <div className="mx-auto max-w-5xl">
         {/* Semantic Breadcrumb */}

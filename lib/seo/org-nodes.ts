@@ -44,7 +44,7 @@ import type { OrgIdentity } from "@/lib/system-settings/org-identity";
  */
 export function organizationNode(org: OrgIdentity) {
   return {
-    "@type": "EducationalOrganization",
+    "@type": "CollegeOrUniversity",
     "@id": ORGANIZATION_ID,
     name: org.institutionName,
     url: org.institutionUrl,

@@ -19,7 +19,7 @@ import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 import { breadcrumbSchema } from "@/lib/seo/schema";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import { getPublicTeamData, getTeamMemberBySlug } from "@/lib/team/data";
 import { decodeSlugParam } from "@/lib/slug";
@@ -28,6 +28,7 @@ import { formatDate, toAboutLocale, type AboutLocale } from "@/lib/about/format"
 import { AboutExternalAction, AboutLinkAction } from "@/components/about/actions";
 import { siteNameFor } from "@/lib/seo/brand";
 import { fitDescription } from "@/lib/seo/text-fit";
+import { LIBRARY_ID } from "@/lib/seo/entity-ids";
 
 // Published team data is public and changes rarely; the admin team actions
 // revalidate /about/team/<slug> on every change, so a long window is safe.
@@ -223,7 +224,7 @@ export default async function TeamMemberPage({
   const next = index >= 0 && index < slugged.length - 1 ? slugged[index + 1] : null;
 
   // Structured data — public, non-contact fields only. Admin-authored names
-  // flow in here, so it must go through <JsonLd> (which escapes "<"), never a
+  // flow in here, so it must go through <PageJsonLd> (which escapes "<"), never a
   // raw JSON.stringify.
   const pageUrl = `${SITE_URL}${locale === "km" ? "/km" : ""}/about/team/${slug}`;
   const personJsonLd = {
@@ -243,16 +244,8 @@ export default async function TeamMemberPage({
     ...(member.section_name_en ? { department: member.section_name_en } : {}),
     url: pageUrl,
     mainEntityOfPage: pageUrl,
-    worksFor: {
-      "@type": "Organization",
-      name: org.siteName,
-      url: SITE_URL,
-      parentOrganization: {
-        "@type": "CollegeOrUniversity",
-        name: cfg.name.en,
-        sameAs: [...cfg.sameAs],
-      },
-    },
+    // The library, by reference: the page's graph declares it once.
+    worksFor: { "@id": LIBRARY_ID },
   };
 
   // Pre-addressed mail link. The subject names the person and the library so
@@ -279,16 +272,19 @@ export default async function TeamMemberPage({
       className="about-page min-h-screen bg-paper"
       aria-labelledby="member-name"
     >
-      <JsonLd data={personJsonLd} />
-      {/* Breadcrumb structured data mirrors the visible trail exactly — the
-          two must agree or Google treats the markup as misleading. */}
-      <JsonLd
-        data={breadcrumbSchema([
-          { name: "Home", path: "/" },
-          { name: "About", path: "/about" },
-          { name: t("title"), path: "/about/team" },
-          { name: name.primary },
-        ], { locale })}
+      {/* One JSON-LD document (SEO Phase 4). The breadcrumb mirrors the
+          visible trail exactly — the two must agree or Google treats the
+          markup as misleading. */}
+      <PageJsonLd
+        nodes={[
+          personJsonLd,
+          breadcrumbSchema([
+            { name: "Home", path: "/" },
+            { name: "About", path: "/about" },
+            { name: t("title"), path: "/about/team" },
+            { name: name.primary },
+          ], { locale }),
+        ]}
       />
 
       {/* ── Hero ─────────────────────────────────────────────────────── */}

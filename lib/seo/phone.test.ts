@@ -44,8 +44,9 @@ describe("the visible number is NOT converted", () => {
   it("only the JSON-LD nodes call it", () => {
     // The footer shows what the institution published. Converting there
     // would be changing the organisation's own presentation of itself.
+    // The site graph moved from RootShell to lib/seo/jsonld.ts (SEO Phase 4).
     const shell = readFileSync(
-      join(process.cwd(), "components/layout/RootShell.tsx"),
+      join(process.cwd(), "lib/seo/jsonld.ts"),
       "utf8",
     );
     expect(shell).toMatch(/telephone: toInternationalKhPhone\(cfg\.phone\)/);

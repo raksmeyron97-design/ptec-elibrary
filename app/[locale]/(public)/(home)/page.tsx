@@ -30,7 +30,7 @@ import LibraryNow from "@/components/ui/home/LibraryNow";
 import HeroPhotoGallery, { HERO_PHOTO_COUNT } from "@/components/ui/home/HeroPhotoGallery";
 import NarrativeCards, { NARRATIVE_PHOTO_COUNT } from "@/components/ui/home/NarrativeCards";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
-import FaqSection from "@/components/ui/home/FaqSection";
+import FaqSection, { homeFaqNode } from "@/components/ui/home/FaqSection";
 import SignupCta from "@/components/ui/home/SignupCta";
 import SignedOutOnly from "@/components/ui/home/SignedOutOnly";
 import ContinueReadingSwap from "@/components/ui/home/ContinueReadingSwap";
@@ -39,6 +39,7 @@ import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 
 import BrowseBooksSkeleton from "@/components/ui/home/skeletons/BrowseBooksSkeleton";
 import LatestPostsSkeleton from "@/components/ui/home/skeletons/LatestPostsSkeleton";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 
 export const revalidate = 60;
 
@@ -184,8 +185,10 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
   return (
     <div className="min-h-screen bg-paper">
-      {/* Institutional JSON-LD (organization / library / website @graph) is
-          emitted site-wide by app/layout.tsx — do not re-declare it here. */}
+      {/* The page's one JSON-LD document (SEO Phase 4): the college, library
+          and website nodes, plus the FAQ below, which is read from the same
+          strings as the visible accordion. */}
+      <PageJsonLd nodes={[await homeFaqNode(locale)]} />
 
       {/* ════════ HERO ════════ */}
       <section className="hero-ink relative isolate z-40 text-white">

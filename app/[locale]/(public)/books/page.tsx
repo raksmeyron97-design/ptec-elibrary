@@ -23,7 +23,7 @@ import MobileFilterSheet from "@/components/ui/books/MobileFilterSheet";
 import { getTranslations } from 'next-intl/server';
 import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
 import { booksCollectionJsonLd, FALLBACK_OG_IMAGE } from "@/lib/seo/book-seo";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import HubIntro from "@/components/seo/HubIntro";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { getCollectionStats } from "@/lib/collection-stats";
@@ -174,7 +174,7 @@ export default async function BooksPage({
 
   return (
     <ClientNavWrapper>
-    {collectionSchema && <JsonLd data={collectionSchema} />}
+    <PageJsonLd nodes={[collectionSchema ? collectionSchema : null]} />
     <div className="min-h-screen bg-bg-body">
       {/* ── Header ── */}
       <div className="border-b border-divider bg-bg-surface px-4 py-4 md:px-12 md:py-7">

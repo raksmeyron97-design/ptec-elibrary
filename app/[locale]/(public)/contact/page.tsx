@@ -1,6 +1,7 @@
 import { getSiteConfig } from "@/lib/system-settings/config";
 import { compactHoursLabel } from "@/lib/library-hours";
 import ContactClient from "./ContactClient";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 
 /** The allowlisted subset of the published site settings the contact page
  *  needs — resolved server-side so the client bundle carries no institution
@@ -47,5 +48,12 @@ export default async function ContactPage({
     },
   };
 
-  return <ContactClient site={site} />;
+  return (
+    <>
+      {/* The page's one JSON-LD document: the site graph, which carries the
+          library's address, telephone and hours (SEO Phase 4). */}
+      <PageJsonLd />
+      <ContactClient site={site} />
+    </>
+  );
 }

@@ -5,7 +5,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getPublishedPaths, getFeaturedPath, getPathBySlug } from "@/app/actions/learning-paths";
 import { getCollectionStats } from "@/lib/collection-stats";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import PathsCatalogueClient from "./_components/PathsCatalogueClient";
 import PathJourneyVisual from "./_components/PathJourneyVisual";
@@ -122,8 +122,7 @@ export default async function LearningPathsPage({
 
   return (
     <div className="paths-page min-h-screen bg-bg-body">
-      {paths.length > 0 && <JsonLd data={collectionSchema} />}
-      <JsonLd data={breadcrumbs} />
+      <PageJsonLd nodes={[paths.length > 0 ? collectionSchema : null, breadcrumbs]} />
       <div className="mx-auto max-w-[1200px] px-4 py-8 md:px-8 md:py-10">
         {/* Semantic Breadcrumb */}
         <BreadcrumbNav

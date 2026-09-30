@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowUpRight } from "lucide-react";
 
 import { Link } from "@/i18n/navigation";
 import SubjectLearningPaths from "@/components/seo/SubjectLearningPaths";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import Icon from "@/components/ui/core/Icon";
 import ResourceTypeBadge from "@/components/ui/collection/ResourceTypeBadge";
 import { breadcrumbSchema } from "@/lib/seo/schema";
@@ -242,8 +242,7 @@ export default async function SubjectPage({ params, searchParams }: PageProps) {
 
   return (
     <main className="min-h-screen bg-bg-body px-4 py-8 sm:px-6 sm:py-10 md:px-12">
-      <JsonLd data={breadcrumbs} />
-      <JsonLd data={collectionSchema} />
+      <PageJsonLd nodes={[breadcrumbs, collectionSchema]} />
 
       <div className="mx-auto max-w-5xl">
         <BreadcrumbNav

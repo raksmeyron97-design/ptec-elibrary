@@ -25,7 +25,7 @@ import {
   isPageOutOfRange,
   parsePageParam,
 } from "@/lib/seo/listing-metadata";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import { thesesCollectionJsonLd } from "@/lib/seo/thesis-seo";
 import { getYear } from "@/lib/theses/report-fields";
 import { getOrgIdentity } from "@/lib/system-settings/config";
@@ -360,7 +360,7 @@ export default async function ThesesPage({
 
   return (
     <ClientNavWrapper>
-      {collectionSchema && <JsonLd data={collectionSchema} />}
+      <PageJsonLd nodes={[collectionSchema ? collectionSchema : null]} />
       <div className="min-h-screen bg-bg-app pb-16">
         {/* Same container as the record page: a reader moving from a result to
             the record should not see the page's measure change under them. */}

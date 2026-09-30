@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
 import { decodeSlugParam } from "@/lib/slug";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import Icon from "@/components/ui/core/Icon";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { SITE_URL } from "@/lib/seo/site";
@@ -318,8 +318,7 @@ export default async function AuthorPage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-bg-body px-4 py-8 sm:px-6 sm:py-10 md:px-12">
-      <JsonLd data={personSchema} />
-      <JsonLd data={breadcrumbs} />
+      <PageJsonLd nodes={[personSchema, breadcrumbs]} />
 
       <div className="mx-auto max-w-5xl">
         <BreadcrumbNav

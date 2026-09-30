@@ -9,7 +9,6 @@ import { Link } from "@/i18n/navigation";
 import NextLink from "next/link";
 import { isLocaleScoped } from "@/lib/routing/locale-scope";
 import { getTranslations } from "next-intl/server";
-import JsonLd from "@/components/seo/JsonLd";
 import AnimatedAccordion from "@/components/ui/animations/AnimatedAccordion";
 import { HomeSection, SectionHeader } from "./HomeSection";
 
@@ -20,10 +19,12 @@ type FaqItem = {
   href?: string;
 };
 
-export default async function FaqSection() {
-  const t = await getTranslations("home");
+type HomeTranslate = Awaited<ReturnType<typeof getTranslations<"home">>>;
 
-  const items: FaqItem[] = [
+/** The six questions, from the translation strings — the one list both the
+ *  visible accordion and the FAQPage node read, so they cannot disagree. */
+function faqItems(t: HomeTranslate): FaqItem[] {
+  return [
     { q: t("faqQ1"), a: t("faqA1"), href: "/policy" },
     { q: t("faqQ2"), a: t("faqA2"), href: "/offline-books" },
     { q: t("faqQ3"), a: t("faqA3"), href: "/auth/signup" },
@@ -31,23 +32,36 @@ export default async function FaqSection() {
     { q: t("faqQ5"), a: t("faqA5") },
     { q: t("faqQ6"), a: t("faqA6"), href: "/contact" },
   ];
+}
 
-  const faqSchema = {
-    "@context": "https://schema.org",
+/**
+ * The homepage's FAQPage node (kept, D10 — none is added elsewhere). The
+ * homepage puts it in its ONE JSON-LD block (SEO Phase 4) rather than this
+ * section rendering a block of its own.
+ */
+export async function homeFaqNode(locale: string) {
+  const t = await getTranslations({ locale, namespace: "home" });
+  return {
     "@type": "FAQPage",
-    mainEntity: items.map((item) => ({
+    mainEntity: faqItems(t).map((item) => ({
       "@type": "Question",
       name: item.q,
       acceptedAnswer: { "@type": "Answer", text: item.a },
     })),
   };
+}
+
+export default async function FaqSection() {
+  const t = await getTranslations("home");
+
+  const items = faqItems(t);
+
 
   // Two independent columns (3 + 3) so open/close never reflows the other side.
   const columns = [items.slice(0, 3), items.slice(3)];
 
   return (
     <HomeSection id="faq" surface="paper" labelledBy="faq-title">
-      <JsonLd data={faqSchema} />
       <SectionHeader
         id="faq-title"
         tone="accent"

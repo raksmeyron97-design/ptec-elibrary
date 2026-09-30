@@ -4,6 +4,7 @@ import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { getTranslations } from "next-intl/server";
 import { libraryNameFor } from "@/lib/seo/brand";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 
 export async function generateMetadata({
   params,
@@ -92,6 +93,8 @@ function SectionHeading({ id, km, en }: { id: string; km: string; en: string }) 
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-paper">
+      {/* The page's one JSON-LD document: the site graph (SEO Phase 4). */}
+      <PageJsonLd />
       {/* ── Hero ──────────────────────────────────────────────── */}
       <section
         className="relative overflow-hidden"

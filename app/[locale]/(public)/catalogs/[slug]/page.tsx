@@ -13,7 +13,7 @@ import { unstable_cache } from "next/cache";
 import { getTranslations } from "next-intl/server";
 import { createPublicClient } from "@/lib/supabase/public";
 import { TAGS } from "@/lib/cache/revalidate";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { contributorNodes } from "@/lib/seo/contributor";
 import { getOrgIdentity } from "@/lib/system-settings/config";
@@ -325,8 +325,7 @@ export default async function CatalogBookPage({
 
   return (
     <div className="min-h-screen bg-paper">
-      <JsonLd data={bookSchema} />
-      <JsonLd data={catalogBreadcrumbSchema} />
+      <PageJsonLd nodes={[bookSchema, catalogBreadcrumbSchema]} />
 
       {/* ── Hero band ── */}
       <div

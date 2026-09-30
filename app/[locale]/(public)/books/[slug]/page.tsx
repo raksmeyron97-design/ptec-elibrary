@@ -36,7 +36,7 @@ import SubscribeButton from "@/components/ui/books/SubscribeButton";
 import { getTranslations, getLocale } from "next-intl/server";
 import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import { buildBookMetadata, bookCanonicalUrl, bookJsonLd, type BookSeoInput } from "@/lib/seo/book-seo";
 import { pdfTitleSuffixEnabled } from "@/lib/seo/seo-flags";
 import ResourceConnections from "@/components/seo/ResourceConnections";
@@ -376,8 +376,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
 
   return (
     <article className="bg-bg-body px-4 py-6 sm:px-6 sm:py-10 md:px-12 min-h-screen">
-      <JsonLd data={bookSchema} />
-      <JsonLd data={bookBreadcrumbSchema} />
+      <PageJsonLd nodes={[bookSchema, bookBreadcrumbSchema]} />
       {book.dbId && <BookViewPing bookId={book.dbId} />}
       {/* This device's "recently viewed" list — what the offline pages show. */}
       <RecentlyViewedRecorder slug={book.slug} title={book.title} author={book.author} coverUrl={book.coverUrl} />

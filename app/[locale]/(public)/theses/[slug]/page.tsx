@@ -35,7 +35,7 @@ function thesisAuthorCredits(views: readonly ResourceContributorView[]): Resourc
   return authorRoleContributors(views).filter((v) => !isCohortLabel(v.name));
 }
 import { buildThesisMetadata, thesisJsonLd, type ThesisSeoInput } from "@/lib/seo/thesis-seo";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import ResourceConnections from "@/components/seo/ResourceConnections";
 import { resolveAuthorLinks } from "@/lib/resources/connections";
 import ThesisRecordView from "@/components/ui/theses/record/ThesisRecordView";
@@ -142,7 +142,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     other: {
       ...scholar,
       "dc.publisher": org.institutionName,
-      "dc.type": "ScholarlyArticle",
+      "dc.type": "Thesis",
     },
   };
 }
@@ -211,7 +211,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
   );
   record.personLinks = Object.fromEntries(personLinks.filter(([, href]) => Boolean(href)));
 
-  // Validated, sanitized ScholarlyArticle JSON-LD — see lib/seo/thesis-seo.ts.
+  // Validated, sanitized Thesis JSON-LD — see lib/seo/thesis-seo.ts.
   const thesisArticleSchema = thesisJsonLd(
     {
       slug: record.slug,
@@ -229,6 +229,11 @@ export default async function ThesisDetailPage({ params }: PageProps) {
       program: report.program,
       language: getLanguageLabel(report),
       references: getReferences(report),
+      advisors: [record.advisor, record.coAdvisor],
+      degree: record.degree,
+      openPdfUrl: thesisIsOpenAccess(report)
+        ? `${SITE_URL}${locale === "km" ? "/km" : ""}/theses/${encodeURIComponent(record.slug)}/fulltext.pdf`
+        : null,
     },
     locale,
     org,
@@ -246,8 +251,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
       reportEmail={siteConfig.email}
       seo={
         <>
-          <JsonLd data={thesisArticleSchema} />
-          <JsonLd data={thesisBreadcrumbSchema} />
+          <PageJsonLd nodes={[thesisArticleSchema, thesisBreadcrumbSchema]} />
         </>
       }
       connections={

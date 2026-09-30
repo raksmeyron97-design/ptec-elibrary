@@ -37,6 +37,7 @@ import {
   type FacetSourceRow,
 } from "@/lib/catalogs/facets";
 import HubIntro from "@/components/seo/HubIntro";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 
 export const revalidate = 3600;
 
@@ -400,6 +401,8 @@ export default async function CatalogsPage({
 
   return (
     <ClientNavWrapper>
+      {/* The page's one JSON-LD document: the site graph (SEO Phase 4). */}
+      <PageJsonLd />
     <div className="min-h-screen bg-paper">
 
       {/* ── Header ── */}
