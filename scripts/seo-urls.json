@@ -1,7 +1,7 @@
 {
   "$comment": "URL list for scripts/seo-check.ts: one URL per public template in each locale, with Khmer slugs percent-encoded. Unphased expectations (jsonld, robots, ogType, canonical) are what production does TODAY and must keep doing (phase 0). jsonldTarget is Phase 4; robotsPhase/ogTypePhase name the phase that changes an expectation. See docs/seo/AUDIT-VERIFICATION.md.",
   "sitewideJsonld": [
-    "EducationalOrganization",
+    "CollegeOrUniversity",
     "Library",
     "WebSite"
   ],
@@ -129,7 +129,7 @@
       "record": true,
       "scholarly": true,
       "jsonld": [
-        "ScholarlyArticle",
+        "Thesis",
         "BreadcrumbList"
       ],
       "jsonldTarget": [

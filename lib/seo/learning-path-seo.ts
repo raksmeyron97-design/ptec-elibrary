@@ -251,6 +251,35 @@ export function pathCourseJsonLd(
   });
 }
 
+/**
+ * The path's steps, in order, as an ItemList beside its Course (SEO Phase 4):
+ * the reading order is what the page is — the Course node says what it is
+ * for, this says what it consists of. Only steps with a title are listed; a
+ * step's url is made absolute when it is a path on this site.
+ */
+export function pathStepsItemList(path: LearningPathSeoInput, locale: string): Record<string, unknown> | null {
+  const url = pathCanonicalUrl(path.slug, locale);
+  const steps = (path.modules ?? []).flatMap((m) => m.steps ?? []).filter((st) => clean(st.title));
+  if (steps.length === 0) return null;
+  return {
+    "@type": "ItemList",
+    "@id": `${url}#steps`,
+    name: pathLocalizedTitle(path, locale),
+    about: { "@id": `${url}#course` },
+    itemListOrder: "https://schema.org/ItemListOrderAscending",
+    numberOfItems: steps.length,
+    itemListElement: steps.map((st, i) => {
+      const href = clean(st.url);
+      return compact({
+        "@type": "ListItem",
+        position: i + 1,
+        name: clean(st.title),
+        url: href ? (href.startsWith("/") ? `${SITE_URL}${href}` : href) : undefined,
+      });
+    }),
+  };
+}
+
 /** CollectionPage + ItemList for /paths (and /km/paths). */
 export function pathsCollectionJsonLd({
   locale,

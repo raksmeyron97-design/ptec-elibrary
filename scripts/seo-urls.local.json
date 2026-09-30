@@ -1,7 +1,7 @@
 {
   "$comment": "Local twin of seo-urls.json for a production build against the seeded local Supabase stack (.env.local → 127.0.0.1:54331). Same templates; slugs from the seed. Phase exits run: npx tsx scripts/seo-check.ts --base http://localhost:3200 --urls scripts/seo-urls.local.json --phase N",
   "sitewideJsonld": [
-    "EducationalOrganization",
+    "CollegeOrUniversity",
     "Library",
     "WebSite"
   ],
@@ -129,7 +129,7 @@
       "record": true,
       "scholarly": true,
       "jsonld": [
-        "ScholarlyArticle",
+        "Thesis",
         "BreadcrumbList"
       ],
       "jsonldTarget": [

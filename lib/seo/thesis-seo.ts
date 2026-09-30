@@ -126,6 +126,14 @@ export type ThesisSeoInput = {
   /** Human-readable language name ("Khmer" / "English" / …). */
   language?: string | null;
   references?: string[];
+  /** Advisor and co-advisor as printed — schema.org `contributor` (Phase 4). */
+  advisors?: (string | null | undefined)[];
+  /** The degree the work was written for, as printed ("Bachelor of
+   *  Education (12+4)") — schema.org `inSupportOf`. */
+  degree?: string | null;
+  /** The PUBLIC full text (lib/theses/open-access.ts), or null — then no
+   *  `encoding` is claimed. */
+  openPdfUrl?: string | null;
 };
 
 // ── Description fallbacks (localized, factual) ────────────────────────────────
@@ -260,9 +268,14 @@ export function thesisJsonLd(
   const citations = schemaCitations(thesis.references);
   const abstract = clean(thesis.abstract);
 
+  const advisors = (thesis.advisors ?? []).map((a) => clean(a)).filter(Boolean);
+
+  // `Thesis` (SEO Phase 4): what a thesis is, not the ScholarlyArticle a
+  // journal article is. Authors are the author-role credits; advisors are
+  // contributors; the degree is what it was written in support of.
   return compact({
     "@context": "https://schema.org",
-    "@type": "ScholarlyArticle",
+    "@type": "Thesis",
     "@id": `${url}#thesis`,
     headline: thesis.title,
     alternativeHeadline:
@@ -273,6 +286,11 @@ export function thesisJsonLd(
     url,
     mainEntityOfPage: url,
     author: contributorNodes.length > 0 ? contributorNodes : undefined,
+    // Through the byline classifier like every other credit — a name is
+    // typed by lib/seo/contributor.ts, never by hand.
+    contributor: advisors.length > 0 ? resolveContributorNodes(null, advisors, org) : undefined,
+    inSupportOf: clean(thesis.degree) || undefined,
+    sourceOrganization: organizationNode(org),
     publisher: organizationNode(org),
     provider: libraryNode(org),
     isPartOf: {
@@ -293,6 +311,10 @@ export function thesisJsonLd(
     citation: citations.length > 0 ? citations : undefined,
     identifier: doi ? { "@type": "PropertyValue", propertyID: "DOI", value: doi } : undefined,
     isAccessibleForFree: true,
+    // Only a PUBLIC full text is a media object anyone can fetch.
+    encoding: thesis.openPdfUrl
+      ? { "@type": "MediaObject", encodingFormat: "application/pdf", contentUrl: thesis.openPdfUrl }
+      : undefined,
     potentialAction: { "@type": "ReadAction", target: { "@type": "EntryPoint", urlTemplate: url } },
   });
 }
