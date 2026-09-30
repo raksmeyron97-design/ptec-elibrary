@@ -13,7 +13,8 @@
   "templates": {
     "home": {
       "robots": "index",
-      "hreflang": true
+      "hreflang": true,
+      "cacheable": true
     },
     "books-list": {
       "robots": "index",
@@ -61,7 +62,8 @@
         "BreadcrumbList",
         "CollectionPage",
         "ItemList"
-      ]
+      ],
+      "cacheable": true
     },
     "subject": {
       "robots": "index",
@@ -71,7 +73,8 @@
         "BreadcrumbList",
         "CollectionPage"
       ],
-      "cardLinks": "^/(km/)?books/[^/]+$"
+      "cardLinks": "^/(km/)?books/[^/]+$",
+      "cacheable": true
     },
     "authors-hub": {
       "robots": "index",
@@ -81,7 +84,8 @@
         "CollectionPage",
         "ItemList"
       ],
-      "cardLinks": "^/(km/)?authors/[^/]+$"
+      "cardLinks": "^/(km/)?authors/[^/]+$",
+      "cacheable": true
     },
     "author": {
       "robots": "index",
@@ -91,12 +95,14 @@
         "ProfilePage",
         "BreadcrumbList"
       ],
-      "ogType": "profile"
+      "ogType": "profile",
+      "cacheable": true
     },
     "author-thin": {
       "robots": "noindex",
       "robotsPhase": 2,
-      "record": true
+      "record": true,
+      "cacheable": true
     },
     "theses-hub": {
       "robots": "index",
@@ -127,7 +133,8 @@
       ],
       "jsonldTarget": [
         "Thesis"
-      ]
+      ],
+      "cacheable": true
     },
     "journals-hub": {
       "robots": "index",
@@ -145,7 +152,8 @@
       "jsonld": [
         "Periodical",
         "BreadcrumbList"
-      ]
+      ],
+      "cacheable": true
     },
     "journal-issues": {
       "robots": "index",
@@ -154,7 +162,8 @@
         "CollectionPage",
         "ItemList",
         "BreadcrumbList"
-      ]
+      ],
+      "cacheable": true
     },
     "journal-issue": {
       "robots": "index",
@@ -162,7 +171,8 @@
       "jsonld": [
         "PublicationIssue",
         "BreadcrumbList"
-      ]
+      ],
+      "cacheable": true
     },
     "article": {
       "robots": "index",
@@ -229,18 +239,21 @@
         "Book",
         "BreadcrumbList"
       ],
-      "ogType": "book"
+      "ogType": "book",
+      "cacheable": true
     },
     "about": {
       "robots": "index",
-      "hreflang": true
+      "hreflang": true,
+      "cacheable": true
     },
     "about-page": {
       "robots": "index",
       "hreflang": true,
       "jsonld": [
         "BreadcrumbList"
-      ]
+      ],
+      "cacheable": true
     },
     "team-member": {
       "robots": "index",
@@ -249,11 +262,13 @@
         "Person",
         "BreadcrumbList"
       ],
-      "ogType": "profile"
+      "ogType": "profile",
+      "cacheable": true
     },
     "static-page": {
       "robots": "index",
-      "hreflang": true
+      "hreflang": true,
+      "cacheable": true
     },
     "search": {
       "robots": "noindex"

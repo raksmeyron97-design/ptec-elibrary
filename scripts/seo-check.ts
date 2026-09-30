@@ -150,6 +150,7 @@ const CHECKS: Record<string, CheckDef> = {
   "citation-pdf": { phase: 3, finding: "F4", about: "citation_pdf_url in the abstract's directory, robots-allowed, anonymous 200 application/pdf" },
   "og-type": { phase: 0, finding: "F9", about: "og:type matches the template" },
   "og-url": { phase: 0, about: "og:url equals the canonical" },
+  cacheable: { phase: 0, about: "a page served from the ISR/static cache stays shared-cacheable (never private, no-store)" },
   "card-links": { phase: 0, finding: "F4", about: "listing cards are <a href> links to detail URLs" },
   "results-total-attr": { phase: 1, finding: "F1", about: "listings expose data-results-total" },
   "totals-parity": { phase: 0, finding: "F1", about: "/books, /books?page=1 and /km/books report the same total" },
@@ -547,6 +548,8 @@ type Template = {
   ogTypePhase?: number;
   cardLinks?: string;
   total?: boolean;
+  /** The page is prerendered or ISR today and must stay shared-cacheable. */
+  cacheable?: boolean;
 };
 type UrlEntry = { path: string; template: string; canonical?: string; location?: string; note?: string };
 type UrlFile = { sitewideJsonld: string[]; sitewideJsonldTarget: string[]; templates: Record<string, Template>; urls: UrlEntry[] };
@@ -703,6 +706,15 @@ async function checkUrl(entry: UrlEntry): Promise<void> {
     const ogUrl = page.og.get("og:url");
     if (!ogUrl) record(label, "og-url", "warn", "no og:url");
     else judge(label, "og-url", sameUrl(ogUrl, canonical), `og:url=${ogUrl}`);
+  }
+
+  // Rendering mode. A page that silently became a per-request render still
+  // answers 200 with every tag right; only its Cache-Control says so. The
+  // homepage did exactly that during Phase 1 (next-intl read headers once the
+  // route boundary was gone), and no other check here could see it.
+  if (tpl.cacheable) {
+    const cc = (res.headers.get("cache-control") ?? "").toLowerCase();
+    judge(label, "cacheable", /s-maxage=\d+/.test(cc) && !/\b(private|no-store)\b/.test(cc), `cache-control: ${cc || "(none)"}`);
   }
 
   // Listing cards
