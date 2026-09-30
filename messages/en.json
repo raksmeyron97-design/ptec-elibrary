@@ -6948,6 +6948,17 @@
       "any": "Missing Khmer or contents",
       "khmer": "Missing Khmer title or abstract",
       "contents": "Missing table of contents"
+    },
+    "backfillCoverage": {
+      "heading": "Khmer & contents · the {count} most-viewed theses",
+      "remaining": "{count, plural, one {# still needs a Khmer title, a Khmer abstract or its contents.} other {# still need a Khmer title, a Khmer abstract or their contents.}}",
+      "allDone": "Every one has its Khmer title, Khmer abstract and contents.",
+      "titleKm": "Khmer title",
+      "abstractKm": "Khmer abstract",
+      "contents": "Contents",
+      "ratio": "{done} of {total}",
+      "khmerNote": "Khmer title and abstract are counted over English and bilingual theses; a Khmer thesis's title is already Khmer.",
+      "open": "Open the worklist"
     }
   },
   "adminPosts": {

@@ -236,7 +236,15 @@ export function buildThesisRecord(input: ThesisRecordInput): ThesisRecord {
   const access = resolveThesisAccess({ decision: input.decision, hasFile, authenticated: false });
   const rank = access.rank != null && access.rank <= TOP_N_PROTECTED ? access.rank : null;
 
-  const cohort = row.cohort ? t("cohortNumber", { number: String(row.cohort) }) : null;
+  // The admin form stores a cohort as its number ("12"); older rows carry a
+  // label that already says so ("Cohort 2023"), which must not become
+  // "Cohort Cohort 2023".
+  const cohortRaw = row.cohort == null ? "" : String(row.cohort).trim();
+  const cohort = !cohortRaw
+    ? null
+    : /^[0-9\u17E0-\u17E9]+$/.test(cohortRaw)
+      ? t("cohortNumber", { number: cohortRaw })
+      : cohortRaw;
 
   // ── Facts grid: what the title page does not already say ────────────────
   const languageKey = getLanguageKey(row);

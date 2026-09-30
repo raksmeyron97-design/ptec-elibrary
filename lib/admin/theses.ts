@@ -5,7 +5,11 @@ import { getTopThesisRanks, TOP_N_PROTECTED } from "@/lib/theses/download-permis
 import { scoreMetadataQuality } from "@/lib/admin/thesis-metadata-quality";
 import {
   applyBackfillFilter,
+  BACKFILL_TOP_N,
   normalizeStatus,
+  summarizeBackfill,
+  type BackfillCoverage,
+  type BackfillRow,
   type ThesisListRow,
   type ThesesQueryParams,
   type ThesesSummary,
@@ -358,4 +362,24 @@ export async function getThesisFilterOptions(): Promise<{
     cohorts,
     academicYears,
   };
+}
+
+/**
+ * The backfill's progress over the most-viewed published theses — the set the
+ * `?backfill=any&sort=most-viewed&status=published` worklist starts from.
+ *
+ * Null when the read fails, including before migration 0160 adds the
+ * columns: the page then shows no count rather than "0 of 50 done", which
+ * would read as a fact about the collection.
+ */
+export async function getBackfillCoverage(): Promise<BackfillCoverage | null> {
+  const { data, error } = await createServiceClient()
+    .from("research_reports")
+    .select("language, title_km, abstract_km, table_of_contents")
+    .eq("status", "published")
+    .order("view_count", { ascending: false, nullsFirst: false })
+    .order("id", { ascending: true })
+    .limit(BACKFILL_TOP_N);
+  if (error || !data) return null;
+  return summarizeBackfill(data as BackfillRow[]);
 }

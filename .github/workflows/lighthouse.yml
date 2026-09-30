@@ -44,6 +44,10 @@ jobs:
           THESIS=$(curl -sL "$SITE/sitemap.xml" | grep -o "$SITE/theses/[^<]*" | grep -v "/theses/summary" | head -1 || true)
           echo "book=${BOOK:-$SITE/books}" >> "$GITHUB_OUTPUT"
           echo "thesis=${THESIS:-$SITE/theses}" >> "$GITHUB_OUTPUT"
+          # The same record in Khmer: its title page, access panel and facts
+          # set Khmer text on Hanuman, and the a11y/CLS gates must hold there too.
+          THESIS_KM="${THESIS/$SITE\/theses\//$SITE/km/theses/}"
+          echo "thesis_km=${THESIS_KM:-$SITE/km/theses}" >> "$GITHUB_OUTPUT"
 
       - name: Lighthouse CI (mobile)
         run: |
@@ -55,6 +59,7 @@ jobs:
             --collect.url="${{ steps.urls.outputs.book }}" \
             --collect.url="$SITE/theses" \
             --collect.url="${{ steps.urls.outputs.thesis }}" \
+            --collect.url="${{ steps.urls.outputs.thesis_km }}" \
             --collect.url="$SITE/catalogs" \
             --collect.url="$SITE/contact" \
             --collect.url="$SITE/auth/login"

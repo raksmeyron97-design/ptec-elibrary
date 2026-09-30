@@ -296,6 +296,55 @@ VALUES
    'bachelor_plus_1', NULL, NULL, '{digital-access,mobile,offline,study-habits}', true, 'published', '2025-03-14')
 ON CONFLICT (id) DO NOTHING;
 
+-- ── The record page's access states, each reachable from the seed ──────────
+-- e2e/thesis-record.spec.ts walks every state lib/theses/access.ts can
+-- produce and checks that the page never draws an action the file route
+-- would refuse. With every download_count at 0 the Top-N ranking is by
+-- published_at, so all four theses rank inside the protected ten; the
+-- overrides below are what separate them:
+--
+--   reading-fluency-grade-3        file + 'allow'   → sign in / read / download
+--   teacher-motivation-retention   file, inherit    → protected (Top 10, #4)
+--   digital-access-study-habits    file + 'block'   → protected (library block)
+--   teaching-aids-mathematics…     no file          → no PDF deposited
+--
+-- The PDFs are bare legacy keys that exist in no local store: the spec asks
+-- the file route whether it would SERVE each one (401/403 or not), which is
+-- the property under test, and never renders the bytes.
+UPDATE public.research_reports SET
+  file_url          = 'research/seed/reading-fluency-grade-3.pdf',
+  download_override = 'allow',
+  title_km          = 'ភាពស្ទាត់ក្នុងការអាន នៅថ្នាក់ទី៣',
+  table_of_contents = '[{"level":1,"label":"ABSTRACT","page":"iii"},{"level":1,"number":"1","label":"INTRODUCTION","page":"1"},{"level":2,"number":"1.1","label":"Background of the study","page":"2"},{"level":1,"number":"2","label":"METHOD","page":"9"},{"level":1,"label":"REFERENCES","page":"41"}]'::jsonb,
+  "references"      = E'Rasinski, T. (2010). The fluent reader. Scholastic.\nTopping, K. (1995). Paired reading, spelling and writing. Cassell.'
+WHERE id = '44444444-4444-4444-8444-444444444401';
+
+UPDATE public.research_reports SET file_url = 'research/seed/teacher-motivation-retention.pdf'
+WHERE id = '44444444-4444-4444-8444-444444444402';
+
+UPDATE public.research_reports SET
+  file_url          = 'research/seed/digital-access-study-habits.pdf',
+  download_override = 'block'
+WHERE id = '44444444-4444-4444-8444-444444444404';
+
+-- The second reader has a complete Download Access Profile, so the spec has
+-- one reader in each signed-in state: student@ can read but not download
+-- (profile incomplete), student2@ can do both. The isolation tests that use
+-- student2@ (lib/rls-cross-account.test.ts) read none of these columns.
+UPDATE public.profiles SET
+  gender                      = 'female',
+  phone                       = '012 345 678',
+  institution_name            = 'Phnom Penh Teacher Education College',
+  institution_type            = 'ptec',
+  faculty_department          = 'Primary Education',
+  professional_role           = 'student',
+  country                     = 'Cambodia',
+  download_purpose            = 'personal_study',
+  responsible_use_accepted_at = now(),
+  download_privacy_consent_at = now(),
+  download_profile_updated_at = now()
+WHERE id = '55555555-5555-5555-5555-555555555555';
+
 
 -- ============================================================================
 -- 8. Posts (2 published, 1 draft — exercises the CMS status form)

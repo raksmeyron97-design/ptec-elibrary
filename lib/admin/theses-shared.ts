@@ -79,6 +79,57 @@ export function applyBackfillFilter<Q extends { or(filters: string): Q; is(colum
   }
   return query;
 }
+
+/** The backfill starts with the most-read theses; this is how many. */
+export const BACKFILL_TOP_N = 50;
+
+/** The four columns the coverage count reads, as the database holds them. */
+export interface BackfillRow {
+  language: string | null;
+  title_km: string | null;
+  abstract_km: string | null;
+  table_of_contents: unknown;
+}
+
+export interface BackfillCoverage {
+  /** Rows counted — the top N, or fewer in a smaller collection. */
+  considered: number;
+  /** Of those, how many are English, bilingual or unlabelled, and so are
+   *  owed a Khmer title and abstract at all. */
+  khmerApplicable: number;
+  titleKm: number;
+  abstractKm: number;
+  contents: number;
+  /** Nothing left to do: contents, and both Khmer fields where they apply. */
+  complete: number;
+}
+
+/**
+ * How far the backfill has come over the most-viewed published theses.
+ *
+ * It asks exactly the questions applyBackfillFilter() asks, so "23 to go"
+ * here is the number of rows the `any` worklist shows for the same set: a
+ * field is present when it is not null (the save path stores a blank as
+ * null), and a Khmer-language thesis is never owed a Khmer title.
+ */
+export function summarizeBackfill(rows: readonly BackfillRow[]): BackfillCoverage {
+  const candidate = (r: BackfillRow) => r.language == null || r.language === "en" || r.language === "km_en";
+  const out: BackfillCoverage = { considered: rows.length, khmerApplicable: 0, titleKm: 0, abstractKm: 0, contents: 0, complete: 0 };
+  for (const r of rows) {
+    const owesKhmer = candidate(r);
+    const hasContents = r.table_of_contents != null;
+    const hasTitle = r.title_km != null;
+    const hasAbstract = r.abstract_km != null;
+    if (owesKhmer) {
+      out.khmerApplicable += 1;
+      if (hasTitle) out.titleKm += 1;
+      if (hasAbstract) out.abstractKm += 1;
+    }
+    if (hasContents) out.contents += 1;
+    if (hasContents && (!owesKhmer || (hasTitle && hasAbstract))) out.complete += 1;
+  }
+  return out;
+}
 export type FileStatusFilter = (typeof FILE_STATUS_OPTIONS)[number];
 
 export const METADATA_QUALITY_OPTIONS = ["complete", "good", "needs_review", "incomplete"] as const;
