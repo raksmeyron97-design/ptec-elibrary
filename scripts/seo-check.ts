@@ -274,7 +274,9 @@ type Page = {
   xRobots: string;
   noindex: boolean;
   hreflang: Map<string, string>;
-  h1s: { text: string; hidden: boolean }[];
+  /** `translated`: the full text of a sibling right after the H1 that is in
+   *  another language — the bilingual record header's translated title. */
+  h1s: { text: string; hidden: boolean; translated: string | null }[];
   footerHeadings: number;
   jsonldBlocks: { ok: boolean; error?: string; data?: unknown; inHead: boolean }[];
   jsonldTypes: Set<string>;
@@ -356,7 +358,12 @@ function loadPage(siteHref: string): Promise<Page> {
       for (const l of doc.querySelectorAll('link[rel="alternate"][hreflang]')) {
         page.hreflang.set((l.getAttribute("hreflang") ?? "").toLowerCase(), l.getAttribute("href") ?? "");
       }
-      page.h1s = [...doc.querySelectorAll("h1")].map((h) => ({ text: textOf(h), hidden: h.closest("[hidden]") !== null }));
+      page.h1s = [...doc.querySelectorAll("h1")].map((h) => {
+        const next = h.nextElementSibling;
+        const nextLang = next?.getAttribute("lang");
+        const translated = next && nextLang && nextLang !== (h.getAttribute("lang") ?? page.lang) ? textOf(next) : null;
+        return { text: textOf(h), hidden: h.closest("[hidden]") !== null, translated };
+      });
       page.footerHeadings = [...doc.querySelectorAll("footer")]
         .filter((f) => !f.closest("main, article, section"))
         .reduce((n, f) => n + f.querySelectorAll("h1, h2, h3, h4, h5, h6").length, 0);
@@ -587,7 +594,12 @@ async function checkUrl(entry: UrlEntry): Promise<void> {
   const h1 = page.h1s.find((h) => h.text) ?? null;
   const itemEllipsis = h1 ? ELLIPSIS.test(h1.text) : false;
   judge(label, "title-no-ellipsis", !ELLIPSIS.test(stripBrand(title)) || itemEllipsis, `"${title}"`);
-  if (tpl.record && h1) judge(label, "title-contains-item", norm(title).includes(norm(h1.text)), `title "${title}" vs H1 "${h1.text}"`);
+  // The item's full name, or its full translated title where the page shows
+  // one under the H1 (a bilingual header): what must not happen is a CUT.
+  if (tpl.record && h1) {
+    const whole = norm(title).includes(norm(h1.text)) || (h1.translated !== null && norm(title).includes(norm(h1.translated)));
+    judge(label, "title-contains-item", whole, `title "${title}" vs H1 "${h1.text}"${h1.translated ? ` / "${h1.translated}"` : ""}`);
+  }
   const tlen = graphemes(title);
   record(label, "title-length", tlen <= 70 ? "ok" : "warn", `${tlen} graphemes`);
   if (locale === "km") judge(label, "title-km-brand", !/PTEC Library\s*$/.test(title), `"${title}"`);
