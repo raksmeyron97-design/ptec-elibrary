@@ -33,11 +33,16 @@ export default function SparkLine({
   accent = "brand",
   width = 74,
   height = 32,
+  fluid = false,
 }: {
   points: TrendPoint[];
   accent?: KpiAccent;
   width?: number;
   height?: number;
+  /** Stretch to the container's width (the Overview's KPI cards). The line
+   *  keeps its stroke width however far it is stretched, and the end dot is
+   *  left out — a circle in a non-uniformly scaled viewBox is an ellipse. */
+  fluid?: boolean;
 }) {
   const gradId = useId();
   const color = ACCENT_COLOR[accent];
@@ -58,11 +63,12 @@ export default function SparkLine({
 
   return (
     <svg
-      width={width}
+      width={fluid ? "100%" : width}
       height={height}
       viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio={fluid ? "none" : undefined}
       aria-hidden="true"
-      className="shrink-0"
+      className={fluid ? "block" : "shrink-0"}
     >
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
@@ -71,8 +77,16 @@ export default function SparkLine({
         </linearGradient>
       </defs>
       <path d={area} fill={`url(#${gradId})`} stroke="none" />
-      <path d={line} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-      {coords.length > 0 && (
+      <path
+        d={line}
+        fill="none"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        vectorEffect={fluid ? "non-scaling-stroke" : undefined}
+      />
+      {!fluid && coords.length > 0 && (
         <circle
           cx={coords[coords.length - 1][0]}
           cy={coords[coords.length - 1][1]}

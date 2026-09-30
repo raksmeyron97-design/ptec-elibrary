@@ -71,3 +71,24 @@ export function relativeFromNow(locale: string, iso: string, now: number): strin
   if (hours >= 1) return rtf.format(-hours, "hour");
   return rtf.format(-Math.max(1, Math.floor(diff / 60_000)), "minute");
 }
+
+const PHNOM_PENH_DAY = new Intl.DateTimeFormat("en-CA", {
+  timeZone: APP_TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+/** "YYYY-MM-DD" of an instant, in the library's timezone — the same key
+ *  `dayKey()` produces on the server, so a calendar cell and a timestamp
+ *  agree on which day something happened. */
+export function phnomPenhDay(iso: string): string | null {
+  const d = new Date(iso);
+  return Number.isFinite(d.getTime()) ? PHNOM_PENH_DAY.format(d) : null;
+}
+
+/** Noon in Phnom Penh on a "YYYY-MM-DD" day — safe to format in any locale
+ *  without the date sliding across midnight. */
+export function middayOf(day: string): Date {
+  return new Date(`${day}T05:00:00Z`);
+}

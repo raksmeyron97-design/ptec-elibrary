@@ -32,8 +32,8 @@ export default async function RecentAdminActivity({
   const relative = (iso: string) => relativeFromNow(locale, iso, now);
 
   return (
-    <section aria-labelledby="activity-heading" className="dash-card flex h-full flex-col p-5">
-      <div className="flex min-w-0 items-center gap-2">
+    <section aria-labelledby="activity-heading" className="dash-card flex h-full flex-col">
+      <div className="dash-panel-head">
         <span className="dash-ico dash-ico--md dash-ico--brand" aria-hidden="true">
           <History className="h-[18px] w-[18px]" />
         </span>
@@ -45,68 +45,71 @@ export default async function RecentAdminActivity({
         </div>
       </div>
 
-      {/* Empty: the shared kit surface (dashed frame + icon well) rather than a
-          bare line of muted text. No new message key — `empty` is already a
-          whole friendly sentence, so it serves as the title. */}
-      {entries.length === 0 ? (
-        <EmptyState className="mt-4 flex-1" icon={<History className="h-6 w-6" />} title={t("empty")} />
-      ) : (
-        <ol className="dash-timeline mt-4 flex-1 space-y-1">
-          {entries.map((e, i) => {
-            const label = e.labelKey ? t(`action.${e.labelKey}`) : humanise(e.action);
-            const body = (
-              <>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-xs font-medium leading-4 text-text-body">
-                    {label}
-                    {e.repeats > 1 && (
-                      <span className="ms-1 rounded bg-paper px-1 py-px text-xs font-bold tabular-nums text-text-muted">
-                        ×{e.repeats}
-                      </span>
-                    )}
-                    {e.sensitive && (
-                      <>
-                        <Shield className="ms-1 inline h-3 w-3 align-[-1px] text-[var(--ptec-warning)]" aria-hidden="true" />
-                        <span className="sr-only">{t("sensitive")}</span>
-                      </>
-                    )}
-                  </span>
-                  <span className="block text-xs text-text-muted">
-                    {t("byline", { actor: e.actor, when: relative(e.createdAt) })}
-                  </span>
-                </span>
-              </>
-            );
+      <div className="dash-panel-body @container flex flex-1 flex-col">
 
-            return (
-              <li key={`${e.action}-${e.createdAt}-${i}`} data-sensitive={e.sensitive ? "true" : undefined}>
-                {e.href ? (
-                  <Link
-                    href={e.href}
-                    // Inset offset so the ring hugs the row instead of
-                    // overlapping the timeline rail to its left.
-                    className="flex items-start gap-2 rounded-lg px-2 py-1.5 transition-colors [--focus-ring-offset:-2px] hover:bg-paper"
-                  >
-                    {body}
-                  </Link>
-                ) : (
-                  <span className="flex items-start gap-2 px-2 py-1.5">{body}</span>
-                )}
-              </li>
-            );
-          })}
-        </ol>
-      )}
+        {/* Empty: the shared kit surface (dashed frame + icon well) rather than a
+            bare line of muted text. No new message key — `empty` is already a
+            whole friendly sentence, so it serves as the title. */}
+        {entries.length === 0 ? (
+          <EmptyState className="flex-1" icon={<History className="h-6 w-6" />} title={t("empty")} />
+        ) : (
+          <ol className="dash-timeline dash-timeline--flow flex-1 space-y-1">
+            {entries.map((e, i) => {
+              const label = e.labelKey ? t(`action.${e.labelKey}`) : humanise(e.action);
+              const body = (
+                <>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xs font-medium leading-4 text-text-body">
+                      {label}
+                      {e.repeats > 1 && (
+                        <span className="ms-1 rounded bg-paper px-1 py-px text-xs font-bold tabular-nums text-text-muted">
+                          ×{e.repeats}
+                        </span>
+                      )}
+                      {e.sensitive && (
+                        <>
+                          <Shield className="ms-1 inline h-3 w-3 align-[-1px] text-[var(--ptec-warning)]" aria-hidden="true" />
+                          <span className="sr-only">{t("sensitive")}</span>
+                        </>
+                      )}
+                    </span>
+                    <span className="block text-xs text-text-muted">
+                      {t("byline", { actor: e.actor, when: relative(e.createdAt) })}
+                    </span>
+                  </span>
+                </>
+              );
 
-      {/* Route to the full audit trail. Sits at the foot of the list rather
-          than beside the heading: it is the action you take after reading
-          the entries, not before. */}
-      <Link
-        href={logsHref}
-        className="mt-3 block rounded-lg py-1 text-center text-xs font-semibold text-brand hover:underline"
-      >
-        {t("viewLog")}
-      </Link>
+              return (
+                <li key={`${e.action}-${e.createdAt}-${i}`} data-sensitive={e.sensitive ? "true" : undefined}>
+                  {e.href ? (
+                    <Link
+                      href={e.href}
+                      // Inset offset so the ring hugs the row instead of
+                      // overlapping the timeline rail to its left.
+                      className="flex items-start gap-2 rounded-lg px-2 py-1.5 transition-colors [--focus-ring-offset:-2px] hover:bg-paper"
+                    >
+                      {body}
+                    </Link>
+                  ) : (
+                    <span className="flex items-start gap-2 px-2 py-1.5">{body}</span>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        )}
+
+        {/* Route to the full audit trail. Sits at the foot of the list rather
+            than beside the heading: it is the action you take after reading
+            the entries, not before. */}
+        <Link
+          href={logsHref}
+          className="mt-3 block rounded-lg py-1 text-center text-xs font-semibold text-brand hover:underline"
+        >
+          {t("viewLog")}
+        </Link>
+      </div>
     </section>
   );
 }

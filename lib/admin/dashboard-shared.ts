@@ -426,6 +426,9 @@ export type TrendInfo = {
  * When the previous period is 0 there is nothing to compare against, so the
  * result is marked `mode: "hidden"` and the UI suppresses the chip entirely.
  */
+/** At or past this many percent, a change is reported as a count instead. */
+const PERCENT_CEILING = 1_000;
+
 export function compareTrend(
   current: number,
   previous: number,
@@ -465,6 +468,13 @@ export function compareTrend(
   const pct = Math.round((diff / previous) * 100);
   if (pct === 0) {
     return { direction: "neutral", value: "±0%", label: vsLabel, previous, mode };
+  }
+  // A base of 20 still yields "+9948%" when a period grows a hundredfold (25
+  // visitors → 2,512, measured on production 2026-09-30) — the drama the base
+  // was chosen to avoid, reached from the other side. Past 1,000% the percent
+  // says nothing a reader can use; the count of what was added does.
+  if (Math.abs(pct) >= PERCENT_CEILING) {
+    return { direction: "up", value: `+${diff}`, label: vsLabel, previous, mode: "absolute" };
   }
   return {
     direction: pct > 0 ? "up" : "down",

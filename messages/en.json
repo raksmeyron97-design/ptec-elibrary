@@ -2487,6 +2487,98 @@
     }
   },
   "adminDashboard": {
+    "library": {
+      "attentionColumns": {
+        "severity": "Severity",
+        "area": "Area",
+        "issue": "Issue",
+        "detected": "Detected",
+        "action": "Action"
+      },
+      "attention": "{count, plural, =1 {1 item needs attention} other {# items need attention}}",
+      "collection": {
+        "title": "Collection",
+        "hint": "What the library holds right now · does not follow the date range",
+        "books": "E-books",
+        "theses": "Theses",
+        "publications": "Journal articles",
+        "printTitles": "Print titles",
+        "printCopies": "Print copies",
+        "learningPaths": "Learning paths",
+        "unavailable": "Collection counts could not be loaded right now.",
+        "countUnavailable": "Unavailable"
+      },
+      "period": {
+        "title": "{range, select, today {Today} 7d {Last 7 days} 30d {Last 30 days} 90d {Last 90 days} other {Selected period}}",
+        "hint": "What readers did · staff visits excluded",
+        "hintCompare": "What readers did, compared with the period before · staff visits excluded"
+      },
+      "recent": {
+        "title": "Recently added",
+        "subtitle": "Newest records across the digital collection",
+        "add": "Add book",
+        "all": "All e-books",
+        "empty": "Nothing has been added yet.",
+        "status": {
+          "published": "Published",
+          "scheduled": "Scheduled",
+          "draft": "Draft",
+          "review": "In review",
+          "archived": "Archived",
+          "unpublished": "Not published"
+        }
+      },
+      "requests": {
+        "title": "Reader requests",
+        "subtitle": "{count, plural, =0 {Nothing waiting on the library} =1 {1 request waiting} other {# requests waiting}}",
+        "open": "Open requests",
+        "empty": "No reader has asked for a book yet.",
+        "unavailable": "Reader requests could not be loaded.",
+        "by": "by {author}",
+        "kind": {
+          "acquisition": "Acquire",
+          "deposit": "Thesis offer"
+        },
+        "status": {
+          "pending": "Waiting",
+          "approved": "Approved",
+          "added": "Added",
+          "rejected": "Declined"
+        }
+      },
+      "shelf": {
+        "title": "Most read · {range}",
+        "subtitle": "Ranked by detail views · staff visits excluded",
+        "report": "Full content report",
+        "views": "{count, plural, =1 {1 view} other {# views}}",
+        "empty": "No record was viewed in this period."
+      },
+      "calendar": {
+        "title": "Publishing calendar",
+        "subtitle": "{count, plural, =0 {Nothing published in {month}} =1 {1 publishing day in {month}} other {# publishing days in {month}}}",
+        "published": "Published",
+        "scheduled": "Scheduled",
+        "today": "Today",
+        "dayLabel": "{date}: {count, plural, =0 {nothing published} =1 {1 item published} other {# items published}}",
+        "comingUp": "Coming up",
+        "nothingScheduled": "Nothing is scheduled to publish.",
+        "scheduledUnavailable": "Scheduled items could not be loaded.",
+        "type": {
+          "book": "E-book",
+          "research_report": "Thesis",
+          "post": "Post"
+        }
+      },
+      "rhythm": {
+        "title": "Busiest reading days",
+        "subtitle": "Detail views by day of the week",
+        "busiest": "{day} is the busiest day.",
+        "weekend": "Weekends carry {pct}% of detail views.",
+        "needsWeek": "Choose a range of at least 7 days to see the weekly rhythm.",
+        "empty": "No detail views in this period.",
+        "bar": "{day}: {count}"
+      }
+    },
     "header": {
       "eyebrow": "PTEC Library Administration",
       "subtitle": "Here is what changed across the library.",

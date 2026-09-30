@@ -10,57 +10,59 @@ function ZoneHeaderSkeleton({ className }: { className: string }) {
 }
 
 /**
- * The four engagement measures. Mirrors ExecutivePulse's own grid — one
- * column, two from `sm`, four from `lg` — NOT a five-up row: the pulse
- * renders a full-width health card above these four, and this skeleton
- * previously claimed five equal columns, which shifted the whole KPI row
- * sideways the moment real data streamed in.
- */
-export function KpiRowSkeleton() {
-  return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <Pulse key={i} className="h-[168px]" />
-      ))}
-    </div>
-  );
-}
-
-/**
- * Mirrors the real Overview block for block, including its two-zone rhythm
- * (space-y-8 between zones, space-y-5 within), so streaming in the data never
- * shifts the layout. If you change a gap in OverviewView, change it here too —
- * that coupling is the entire point of this file.
+ * Mirrors the real Overview block for block (space-y-6 between blocks,
+ * container-sized rows), so streaming in the data never shifts the layout. If
+ * you change a gap or a row in OverviewView, change it here too — that
+ * coupling is the entire point of this file.
  */
 export function OverviewSkeleton() {
   return (
-    <div className="space-y-8" role="status" aria-label="Loading">
-      {/* Zone 1 · Right now — health verdict, KPI row, attention queue. */}
-      <div className="space-y-5">
-        <ZoneHeaderSkeleton className="w-64" />
-        <Pulse className="h-[92px]" />
-        <KpiRowSkeleton />
-        <Pulse className="h-[220px]" />
-      </div>
-
-      {/* Zone 2 · Trends & performance. */}
-      <div className="space-y-5">
+    <div className="space-y-6" role="status" aria-label="Loading">
+      {/* 1 — Collection tiles. */}
+      <div>
         <ZoneHeaderSkeleton className="w-72" />
-        <div className="grid gap-5 xl:grid-cols-12">
-          <Pulse className="h-[380px] xl:col-span-8" />
-          <Pulse className="h-[380px] xl:col-span-4" />
-        </div>
-        <div className="grid gap-5 lg:grid-cols-2">
-          <Pulse className="h-[300px]" />
-          <Pulse className="h-[300px]" />
-        </div>
-        <div className="grid gap-5 lg:grid-cols-2">
-          <Pulse className="h-[240px]" />
-          <Pulse className="h-[240px]" />
+        <div className="@container mt-2.5">
+          <div className="grid grid-cols-2 gap-3 @xl:grid-cols-3 @xl:gap-4 @6xl:grid-cols-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Pulse key={i} className="h-[96px]" />
+            ))}
+          </div>
         </div>
       </div>
 
-      <Pulse className="h-[28px]" />
+      {/* 2 — The period's four KPI cards. */}
+      <div>
+        <ZoneHeaderSkeleton className="w-80" />
+        <div className="@container mt-2.5">
+          <div className="grid grid-cols-1 gap-4 @xl:grid-cols-2 @xl:gap-5 @5xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Pulse key={i} className="h-[208px]" />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* 3 — Trend + calendar. */}
+      <div className="@container">
+        <div className="grid gap-5 @5xl:grid-cols-12">
+          <Pulse className="h-[440px] @5xl:col-span-8" />
+          <Pulse className="h-[440px] @5xl:col-span-4" />
+        </div>
+      </div>
+
+      {/* 4 — Needs attention. */}
+      <Pulse className="h-[300px]" />
+
+      {/* 5 — Recently added + reader requests. */}
+      <div className="@container">
+        <div className="grid gap-5 @3xl:grid-cols-2">
+          <Pulse className="h-[380px]" />
+          <Pulse className="h-[380px]" />
+        </div>
+      </div>
+
+      {/* 6 — Shelf. */}
+      <Pulse className="h-[340px]" />
     </div>
   );
 }

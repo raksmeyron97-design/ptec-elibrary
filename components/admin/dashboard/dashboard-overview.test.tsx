@@ -544,6 +544,7 @@ describe("NeedsAttentionPanel", () => {
 
 const contentRow = (over: Partial<TopContentRow> & { id: string; title: string }): TopContentRow => ({
   type: "book",
+  coverUrl: null,
   published: true,
   language: "en",
   department: "Science",

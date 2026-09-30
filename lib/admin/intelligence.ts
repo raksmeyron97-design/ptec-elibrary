@@ -33,6 +33,8 @@ import {
   type TrendInfo,
 } from "./dashboard-shared";
 import { generateInsights, type Insight } from "./insights";
+import { monthOf, publishingDays } from "./overview-library";
+import { pagedScan } from "@/lib/db/paged-scan";
 import { EBOOKS_BASE_PATH } from "@/lib/admin/ebooks-url";
 import { articlePath } from "@/lib/journals/urls";
 
@@ -109,13 +111,32 @@ async function getInternalUserIds(supabase: ServiceClient): Promise<Set<string>>
   return new Set(((data ?? []) as { id: string }[]).map((r) => r.id));
 }
 
+/**
+ * A ceiling, not a page size: `pagedScan` reads in 1,000-row pages until the
+ * set runs out. It exists so a runaway table cannot turn one dashboard load
+ * into an unbounded scan.
+ */
+const BOOK_CATALOG_MAX_ROWS = 50_000;
+
 export async function loadContentCatalog(supabase: ServiceClient): Promise<ContentMeta[]> {
   const [booksRes, thesesRes, pubsRes, postsRes, deptsRes] = await Promise.all([
-    supabase
-      .from("books")
-      .select(
-        "id, title, slug, department, language, cover_url, description, isbn, is_published, status, view_count, download_count, created_at, updated_at, published_at, authors(name)",
-      ),
+    // PAGED. PostgREST clips every response at db-max-rows (1,000), and the
+    // library holds more books than that — a one-shot select handed this
+    // catalog an arbitrary 1,000 of 1,956, and every event whose record fell
+    // outside the sample was silently dropped from Top content (its row is
+    // built only when the record's metadata is found). Ordered by id because
+    // LIMIT/OFFSET pages without a stable order may skip or repeat rows.
+    pagedScan<Record<string, unknown>>(
+      (from, to) =>
+        supabase
+          .from("books")
+          .select(
+            "id, title, slug, department, language, cover_url, description, isbn, is_published, status, view_count, download_count, created_at, updated_at, published_at, authors(name)",
+          )
+          .order("id", { ascending: true })
+          .range(from, to),
+      BOOK_CATALOG_MAX_ROWS,
+    ),
     supabase
       .from("research_reports")
       .select(
@@ -501,15 +522,44 @@ export type OverviewData = {
    *  Overview's content preview and each KPI's details drawer, computed from
    *  the event rows already in memory (no extra queries). */
   topContent: TopContentRow[];
+  /** Newest records in the digital collection, any status — the admin sees
+   *  its own drafts and review queue here, which is the point. */
+  recentlyAdded: RecentRecord[];
+  /** Publish activity for the calendar month containing the window's end. */
+  publishing: {
+    /** "YYYY-MM". */
+    month: string;
+    /** Phnom Penh "today", so the calendar can mark it without a clock. */
+    today: string;
+    days: { date: string; count: number }[];
+  };
   /** Ranked collection gaps behind the period's search behaviour. */
   searchOpportunities: SearchOpportunity[];
   insights: Insight[];
 };
 
+export type RecentRecord = {
+  id: string;
+  type: Exclude<ContentType, "post">;
+  title: string;
+  coverUrl: string | null;
+  /** Workflow status (books), or null where the type has none in the catalog. */
+  status: string | null;
+  published: boolean;
+  department: string | null;
+  createdAt: string;
+  editHref: string;
+};
+
+/** How many records the "Recently added" panel lists. */
+const RECENTLY_ADDED_LIMIT = 5;
+
 export type TopContentRow = {
   id: string;
   type: ContentType;
   title: string;
+  /** Stored cover URL, or null — the shelf draws the generated cover then. */
+  coverUrl: string | null;
   published: boolean;
   language: "en" | "km" | null;
   department: string | null;
@@ -864,6 +914,7 @@ export async function getOverviewData(filters: DashboardFilters): Promise<Overvi
         id: meta.id,
         type: meta.type,
         title: meta.title,
+        coverUrl: meta.coverUrl,
         published: meta.published,
         language: meta.language,
         department: meta.department,
@@ -922,6 +973,44 @@ export async function getOverviewData(filters: DashboardFilters): Promise<Overvi
     spark: trendSeries(asCountEvents(rows), win),
   });
 
+  // ── Recently added + publishing calendar (catalog already in memory) ──
+  // Both describe the COLLECTION rather than the period's traffic, so neither
+  // needs a query of its own; they honour the content filters so a view
+  // narrowed to theses lists theses.
+  const recentlyAdded: RecentRecord[] = catalog
+    .filter(
+      (c): c is ContentMeta & { type: RecentRecord["type"]; createdAt: string } =>
+        c.type !== "post" && !!c.createdAt && metaMatchesFilters(c, filters),
+    )
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0))
+    .slice(0, RECENTLY_ADDED_LIMIT)
+    .map((c) => ({
+      id: c.id,
+      type: c.type,
+      title: c.title,
+      coverUrl: c.coverUrl,
+      status: c.status,
+      published: c.published,
+      department: c.department,
+      createdAt: c.createdAt,
+      editHref: EDIT_HREF[c.type](c.id),
+    }));
+
+  const today = dayKey(now);
+  const calendarMonth = monthOf(dayKey(win.end)) ?? monthOf(today) ?? today.slice(0, 7);
+  const publishing = {
+    month: calendarMonth,
+    today,
+    days: publishingDays(
+      calendarMonth,
+      catalog
+        .filter((c) => metaMatchesFilters(c, filters))
+        .map((c) => c.publishedAt ?? (c.published ? c.createdAt : null))
+        .filter((ts): ts is string => !!ts)
+        .map((ts) => dayKey(new Date(ts))),
+    ),
+  };
+
   return {
     rangeLabel: win.label,
     vsLabel: win.vsLabel,
@@ -976,6 +1065,8 @@ export async function getOverviewData(filters: DashboardFilters): Promise<Overvi
     },
     discovery,
     topContent,
+    recentlyAdded,
+    publishing,
     searchOpportunities,
     insights,
   };
@@ -1271,7 +1362,8 @@ export async function getActionCenter(filters: DashboardFilters): Promise<Action
     contactRes,
     needsReviewRes,
     zeroRes,
-    catalogRes,
+    catalogActiveRes,
+    catalogLowRes,
   ] = await Promise.all([
     supabase.from("file_health").select("record_type, record_id", { count: "exact" }).eq("status", "broken").limit(500),
     supabase
@@ -1284,7 +1376,18 @@ export async function getActionCenter(filters: DashboardFilters): Promise<Action
       .select("status", { count: "exact" })
       .eq("kind", "ai_request")
       .gte("created_at", win.start.toISOString()),
-    supabase.from("books").select("is_published, status, created_at, cover_url, description, language, department, author_id"),
+    // Paged for the same reason as loadContentCatalog: one select stopped at
+    // 1,000 of the library's books, so "missing metadata" and the draft
+    // counts described a sample and read like a census.
+    pagedScan<Record<string, unknown>>(
+      (from, to) =>
+        supabase
+          .from("books")
+          .select("is_published, status, created_at, cover_url, description, language, department, author_id")
+          .order("id", { ascending: true })
+          .range(from, to),
+      BOOK_CATALOG_MAX_ROWS,
+    ),
     supabase.from("posts").select("created_at").eq("is_published", false),
     supabase.from("research_reports").select("created_at").eq("is_published", false),
     supabase
@@ -1300,7 +1403,16 @@ export async function getActionCenter(filters: DashboardFilters): Promise<Action
       .eq("result_count", 0)
       .gte("searched_at", win.start.toISOString())
       .limit(2000),
-    supabase.from("catalog_books").select("copies_total, copies_available").eq("is_active", true),
+    // COUNTED, not scanned: the physical catalogue holds more active titles
+    // than one PostgREST response carries, so filtering fetched rows reported
+    // low stock among whichever 1,000 came back. A head count is not clipped.
+    supabase.from("catalog_books").select("id", { count: "exact", head: true }).eq("is_active", true),
+    supabase
+      .from("catalog_books")
+      .select("id", { count: "exact", head: true })
+      .eq("is_active", true)
+      .gt("copies_total", 0)
+      .lte("copies_available", 1),
   ]);
 
   const items: ActionItem[] = [];
@@ -1494,11 +1606,12 @@ export async function getActionCenter(filters: DashboardFilters): Promise<Action
     secondary: [{ key: "searchView", href: "/admin?view=search" }],
   });
 
-  const catalog = (catalogRes.data ?? []) as { copies_total: number | null; copies_available: number | null }[];
-  const lowStock = catalog.filter((c) => (c.copies_total ?? 0) > 0 && (c.copies_available ?? 0) <= 1).length;
+  const activeTitles = catalogActiveRes.count ?? 0;
+  const lowStock = catalogLowRes.count ?? 0;
   // An empty physical catalogue is onboarding, not a failure — it lives in
-  // Collection Health, never in this queue.
-  if (catalog.length > 0) {
+  // Collection Health, never in this queue. A failed count is not evidence of
+  // either, so it raises nothing rather than a zero.
+  if (activeTitles > 0 && !catalogLowRes.error) {
     push({
       key: "lowStock",
       severity: "warning",
@@ -2377,7 +2490,18 @@ export async function getSystemData(filters: DashboardFilters): Promise<SystemDa
 export async function getDepartmentOptions(): Promise<string[]> {
   const supabase = createServiceClient();
   const [booksRes, deptsRes] = await Promise.all([
-    supabase.from("books").select("department").not("department", "is", null),
+    // Paged: a department used only by books past the first 1,000 rows was
+    // missing from the filter.
+    pagedScan<{ department: string | null }>(
+      (from, to) =>
+        supabase
+          .from("books")
+          .select("department")
+          .not("department", "is", null)
+          .order("id", { ascending: true })
+          .range(from, to),
+      BOOK_CATALOG_MAX_ROWS,
+    ),
     supabase.from("departments").select("name"),
   ]);
   const names = new Set<string>();

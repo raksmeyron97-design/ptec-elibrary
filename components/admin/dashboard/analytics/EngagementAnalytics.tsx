@@ -150,7 +150,10 @@ export default function EngagementAnalytics({
     (best, point) => (!best || point.value > best.value ? point : best),
     null,
   );
-  const height = width >= 720 ? 300 : width >= 480 ? 260 : 230;
+  // 640, not 720: beside the publishing calendar the chart's column is
+  // ~690px at 1440, and the calendar stands ~300px tall — the taller plot is
+  // what keeps the two panels from ending a band apart.
+  const height = width >= 640 ? 300 : width >= 480 ? 260 : 230;
   const collecting = state.metric === "readerOpens" && series.readerOpens === null;
   const comparisonLabel =
     state.comparison === "metrics"

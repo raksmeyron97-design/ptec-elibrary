@@ -1,201 +1,226 @@
 import { getTranslations } from "next-intl/server";
 import {
   getOverviewData,
-  getActionCenter,
-  getHealthPulse,
   getRecentAdminActivity,
   type HealthPulseData,
   type AdminActivityEntry,
+  type ContentType,
 } from "@/lib/admin/intelligence";
+import { getActionCenterOnce, getHealthPulseOnce } from "@/lib/admin/overview-cache";
+import { getCollectionPulse, type CollectionCounts, type ScheduledItem } from "@/lib/admin/collection-pulse";
+import { weekdayRhythm } from "@/lib/admin/overview-library";
 import type { DashboardFilters, DashboardMetric } from "@/lib/admin/dashboard-shared";
 import type { EngagementChartVersion } from "@/lib/admin/analytics-flags";
 import { serializeDashboardFilters } from "@/lib/admin/dashboard-shared";
 import { MetricSelectionProvider } from "../MetricSelection";
+import CollectionTiles from "../CollectionTiles";
 import ExecutivePulse from "../ExecutivePulse";
 import NeedsAttentionPanel from "../NeedsAttentionPanel";
 import EngagementChart from "../EngagementChart";
 import EngagementPathways from "../EngagementPathways";
+import PublishingCalendar from "../PublishingCalendar";
+import RecentlyAddedPanel from "../RecentlyAddedPanel";
+import ReaderRequestsPanel from "../ReaderRequestsPanel";
+import MostReadShelf from "../MostReadShelf";
+import ReadingRhythmPanel from "../ReadingRhythmPanel";
 import SearchOpportunityPanel from "../SearchOpportunityPanel";
-import ContentPerformancePanel from "../ContentPerformancePanel";
 import AutomatedInsightsPanel from "../AutomatedInsightsPanel";
 import RecentAdminActivity from "../RecentAdminActivity";
+import DashPanel from "../DashPanel";
 import DataFreshnessBar from "../DataFreshnessBar";
 
 /**
- * A quiet divider that names the two intents the Overview is ordered by: act on
- * what is live or waiting ("Right now") vs. explore how the library is used
- * ("Trends & performance"). The gold tick echoes the sidebar/tab active accent,
- * so the grouping reads as part of the existing visual language rather than a
- * new device. Purely a reading cue — each panel keeps its own heading, so the
- * document's heading outline is unchanged.
+ * What the viewer may open, decided by the page from the route registry and
+ * handed down, so no panel ever links to (or reads) something its viewer
+ * could not open.
  */
-function ZoneHeader({ label, hint }: { label: string; hint: string }) {
-  return (
-    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 pt-0.5">
-      <span
-        className="h-3.5 w-[3px] shrink-0 rounded-full"
-        style={{ background: "var(--dash-gold)" }}
-        aria-hidden="true"
-      />
-      <p className="dash-eyebrow">{label}</p>
-      <p className="text-xs leading-4 text-text-muted">{hint}</p>
-    </div>
-  );
-}
+export type OverviewAccess = {
+  requests: boolean;
+  /** Which scheduled types the viewer may see in "Coming up". */
+  scheduled: Record<ScheduledItem["type"], boolean>;
+  /** Which record types link to their edit page. */
+  editable: Partial<Record<ContentType, boolean>>;
+  tileHrefs: Partial<Record<keyof CollectionCounts, string>>;
+  addBookHref: string | null;
+  allBooksHref: string | null;
+  requestsHref: string;
+};
 
 /**
- * The Overview: a decision-first control centre, ordered by the questions an
- * administrator needs answered fastest.
+ * The Overview, in the order a library reads its own ledger:
  *
- *   1. Is anything broken?          → Executive Pulse (health first)
- *   2. What needs me now?           → Needs attention
- *   3. How is engagement moving?    → Engagement trends + pathways
- *   4. What are readers missing?    → Search opportunities
- *   5. What content is working?     → Content performance
- *   6. What should I look at next?  → Rule-based insights + admin activity
+ *   1. What do we hold?              → Collection tiles (stock; ignore the range)
+ *   2. What did readers do?          → the four KPI cards (the period)
+ *   3. How is it moving, and when
+ *      do we publish?                → Engagement trend + publishing calendar
+ *   4. What needs me now?            → Needs attention
+ *   5. What came in, what was asked? → Recently added + reader requests
+ *   6. What is being read?           → Most-read shelf
+ *   7. How do readers get there?     → Engagement pathways
+ *   8. What should I look at next?   → Rhythm, search gaps, insights, activity
  *
- * Health and admin activity are loaded alongside the main analytics but are
- * allowed to fail independently — a failing probe degrades one card, never the
- * page. `MetricSelectionProvider` is the only client state at this level: it
- * keeps the KPI row and the chart on the same metric.
+ * "Is anything broken?" is answered before all of it, in the header's status
+ * chips; the full health card appears in the KPI section only when a check is
+ * not passing. Every supporting read may fail on its own and degrades its own
+ * panel — never the page. `MetricSelectionProvider` remains the only client
+ * state at this level: it keeps the KPI row and the chart on the same metric.
  */
 export default async function OverviewView({
   filters,
   metric,
   canSeeAudit,
   chartVersion,
+  access,
 }: {
   filters: DashboardFilters;
   metric: DashboardMetric;
   canSeeAudit: boolean;
   chartVersion: EngagementChartVersion;
+  access: OverviewAccess;
 }) {
-  const [t, data, actions, health, activity] = await Promise.all([
+  const [t, tLib, data, actions, health, activity, pulse] = await Promise.all([
     getTranslations("adminDashboard"),
+    getTranslations("adminDashboard.library"),
     getOverviewData(filters),
-    getActionCenter(filters),
+    getActionCenterOnce(filters),
     // Supporting probes must not take the page down with them.
-    getHealthPulse(filters).catch((): HealthPulseData | null => null),
+    getHealthPulseOnce(filters).catch((): HealthPulseData | null => null),
     canSeeAudit ? getRecentAdminActivity().catch((): AdminActivityEntry[] => []) : Promise.resolve([]),
+    getCollectionPulse({ requests: access.requests, scheduled: access.scheduled }),
   ]);
 
   const rangeLabel = filters.range === "custom" ? data.rangeLabel : t(`rangeLabel.${filters.range}`);
+  const periodTitle =
+    filters.range === "custom" ? data.rangeLabel : tLib("period.title", { range: filters.range });
   const link = (view: DashboardFilters["view"], extra?: string) => {
     const s = serializeDashboardFilters({ ...filters, view });
     const qs = [s, extra].filter(Boolean).join("&");
     return qs ? `/admin?${qs}` : "/admin";
   };
+  // Hourly buckets (Today) have no weekday to speak of.
+  const rhythm = data.granularity === "day" ? weekdayRhythm(data.engagement.series.views) : null;
+  const scheduledAllowed = Object.values(access.scheduled).some(Boolean);
 
   return (
     <MetricSelectionProvider initialMetric={metric}>
-      {/* Two tiers of rhythm: 20px inside a zone, 32px between the "act now"
-          and "explore" zones, so the decision-first ordering reads as
-          structure. The gap between tiers is what makes the two zones legible
-          as zones — keep them a full step apart on the spacing scale.
+      {/* `dash-stagger` fades each block up in sequence on mount — a pure CSS
+          animation (no client JS) that collapses to an instant reveal under
+          prefers-reduced-motion. */}
+      <div className="dash-stagger space-y-6">
+        {/* 1 — What the library holds. */}
+        <CollectionTiles counts={pulse.collection} hrefs={access.tileHrefs} />
 
-          `dash-stagger` fades each zone's children up in sequence on mount;
-          it is a pure CSS animation (no client JS) and collapses to an
-          instant reveal under prefers-reduced-motion. */}
-      <div className="space-y-8">
-        {/* ── Zone 1 · Right now — act on what is live or waiting ── */}
-        <div className="dash-stagger space-y-5">
-          <ZoneHeader label={t("overview.zoneNowLabel")} hint={t("overview.zoneNowHint")} />
+        {/* 2 — What readers did in the period (and the health card, only
+            when a check is failing). */}
+        <ExecutivePulse
+          data={data}
+          health={health}
+          actions={actions.items}
+          filters={filters}
+          rangeLabel={rangeLabel}
+          periodTitle={periodTitle}
+        />
 
-          {/* 1 — Executive Pulse: health first, then the four engagement measures. */}
-          <ExecutivePulse
-            data={data}
-            health={health}
-            actions={actions.items}
-            filters={filters}
-            rangeLabel={rangeLabel}
+        {/* 3 — The trend the KPI cards select, beside the month it ends in.
+
+            Sized by the COLUMN: side by side only once the column can give
+            the chart ~650px and the calendar its seven 44px days; stacked
+            below that, where a 4-column calendar would crush both. */}
+        <div className="@container">
+          {/* `items-start`: the chart's height follows its width and the
+              calendar's follows its scheduled list, so stretching them to
+              one height only ever painted an empty band inside one card. */}
+          <div className="grid items-start gap-5 @5xl:grid-cols-12 [&>*]:min-w-0">
+            <DashPanel
+              id="engagement"
+              title={t("engagement.title")}
+              subtitle={t("engagement.subtitle", { range: rangeLabel })}
+              className="@5xl:col-span-8"
+            >
+              <EngagementChart
+                version={chartVersion}
+                series={data.engagement.series}
+                prevSeries={data.engagement.prevSeries}
+                annotations={data.engagement.annotations}
+                granularity={data.granularity}
+                compare={filters.compare}
+                filters={filters}
+                generatedAt={data.generatedAt}
+              />
+            </DashPanel>
+            <PublishingCalendar
+              className="@5xl:col-span-4"
+              publishing={data.publishing}
+              scheduled={pulse.scheduled}
+              scheduledAllowed={scheduledAllowed}
+              editable={access.editable}
+            />
+          </div>
+        </div>
+
+        {/* 4 — What needs attention now. */}
+        <NeedsAttentionPanel data={actions} />
+
+        {/* 5 — What came in, and what readers asked for. A matched pair: both
+            are grid items and stretch to one height. */}
+        <div className="@container">
+        <div className="grid gap-5 @3xl:grid-cols-2 [&>*]:min-w-0">
+          <RecentlyAddedPanel
+            className={access.requests ? undefined : "@3xl:col-span-2"}
+            rows={data.recentlyAdded}
+            editable={access.editable}
+            addHref={access.addBookHref}
+            allHref={access.allBooksHref}
+            generatedAt={data.generatedAt}
           />
-
-          {/* 2 — What needs attention now. */}
-          <NeedsAttentionPanel data={actions} />
+          {access.requests && (
+            <ReaderRequestsPanel data={pulse.requests} href={access.requestsHref} generatedAt={data.generatedAt} />
+          )}
+        </div>
         </div>
 
-        {/* ── Zone 2 · Trends & performance — explore how the library is used ── */}
-        <div className="dash-stagger space-y-5">
-          <ZoneHeader label={t("overview.zoneTrendsLabel")} hint={t("overview.zoneTrendsHint")} />
+        {/* 6 — What is being read. */}
+        <MostReadShelf
+          rows={data.topContent}
+          periodTitle={periodTitle}
+          reportHref={link("content")}
+          editable={access.editable}
+        />
 
-          {/* 3 — Engagement trends, then the measurement pathways beneath them.
+        {/* 7 — How measurement connects. Full width: the pathways are three
+            columns of rates, a layout the component was written for. */}
+        <DashPanel
+          id="pathways"
+          title={t("discovery.title")}
+          subtitle={t("discovery.subtitle", { range: rangeLabel })}
+        >
+          <EngagementPathways
+            volumes={data.discovery.volumes}
+            prevVolumes={data.discovery.prevVolumes}
+            rates={data.discovery.rates}
+            prevRates={data.discovery.prevRates}
+            compare={filters.compare}
+            conversion={data.kpis.conversion}
+          />
+        </DashPanel>
 
-              These were an 8/4 split, and the two halves are not the same SHAPE
-              of content: a time series is wide and short, a stack of pathway
-              rates is narrow and long. Measured on this collection the chart
-              section came out 364px tall beside a 915px column — 551px of empty
-              card next to the page's most important chart, at every desktop
-              width. Stacking them gives the chart the full measure (its own
-              adaptive height already tops out at 300px from 720px wide, so it
-              gains resolution rather than dead space) and lets the pathways run
-              as a wide strip, which is a layout `EngagementPathways` was already
-              written for — its `md:grid-cols-2` had simply never been given the
-              room. */}
-          <section aria-labelledby="engagement-heading" className="dash-card min-w-0 p-5">
-            <h2 id="engagement-heading" className="text-sm font-bold text-text-heading">
-              {t("engagement.title")}
-            </h2>
-            <p className="mb-2.5 text-xs text-text-muted">
-              {t("engagement.subtitle", { range: rangeLabel })}
-            </p>
-            <EngagementChart
-              version={chartVersion}
-              series={data.engagement.series}
-              prevSeries={data.engagement.prevSeries}
-              annotations={data.engagement.annotations}
-              granularity={data.granularity}
-              compare={filters.compare}
-              filters={filters}
-              generatedAt={data.generatedAt}
-            />
-          </section>
-
-          <section aria-labelledby="pathways-heading" className="dash-card min-w-0 p-5">
-            <h2 id="pathways-heading" className="text-sm font-bold text-text-heading">
-              {t("discovery.title")}
-            </h2>
-            <p className="mb-2.5 text-xs text-text-muted">
-              {t("discovery.subtitle", { range: rangeLabel })}
-            </p>
-            <EngagementPathways
-              volumes={data.discovery.volumes}
-              prevVolumes={data.discovery.prevVolumes}
-              rates={data.discovery.rates}
-              prevRates={data.discovery.prevRates}
-              compare={filters.compare}
-              conversion={data.kpis.conversion}
-            />
-          </section>
-
-          {/* 4 + 5 — Where the collection is short, and what is performing.
-
-              These two are a MATCHED PAIR and both carry `h-full` — the row is
-              two readings of the same period, so they share a baseline. Do not
-              add `items-start` here expecting one to shrink: a percentage
-              height on a grid item resolves against the grid AREA, so `h-full`
-              wins and the only effect is code that says the opposite of what
-              renders. */}
-          <div className="grid min-w-0 gap-5 lg:grid-cols-2 [&>*]:min-w-0">
-            <SearchOpportunityPanel
-              opportunities={data.searchOpportunities}
-              rangeLabel={rangeLabel}
-              searchHref={link("search")}
-            />
-            <ContentPerformancePanel
-              rows={data.topContent}
-              contentHref={link("content")}
-              compare={filters.compare}
-            />
-          </div>
-
-          {/* 6 — What to look at next. Matched pair, as above. */}
-          <div className="grid min-w-0 gap-5 lg:grid-cols-2 [&>*]:min-w-0">
-            <AutomatedInsightsPanel insights={data.insights} emptyHint={t("insights.emptyHint")} />
-            {canSeeAudit && (
-              <RecentAdminActivity entries={activity} logsHref="/admin/logs" generatedAt={data.generatedAt} />
-            )}
-          </div>
+        {/* 8 — What to look at next. Three readings of the same period —
+            stacked until the column fits all three, never two-and-an-orphan. */}
+        <div className="@container">
+        <div className="grid gap-5 @5xl:grid-cols-3 [&>*]:min-w-0">
+          <ReadingRhythmPanel rhythm={rhythm} />
+          <SearchOpportunityPanel
+            opportunities={data.searchOpportunities}
+            rangeLabel={rangeLabel}
+            searchHref={link("search")}
+          />
+          <AutomatedInsightsPanel insights={data.insights} emptyHint={t("insights.emptyHint")} />
         </div>
+        </div>
+
+        {canSeeAudit && (
+          <RecentAdminActivity entries={activity} logsHref="/admin/logs" generatedAt={data.generatedAt} />
+        )}
 
         <DataFreshnessBar
           generatedAt={data.generatedAt}

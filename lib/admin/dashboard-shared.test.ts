@@ -125,6 +125,14 @@ describe("compareTrend", () => {
     expect(compareTrend(24, 20, "vs prev")).toMatchObject({ value: "+20%", mode: "percent" });
   });
 
+  it("reports a hundredfold jump as a count, not a four-digit percentage", () => {
+    // Production, 30 Sep 2026: 25 → 2,512 visitors rendered "+9948%".
+    expect(compareTrend(2512, 25, "vs prev")).toMatchObject({ value: "+2487", direction: "up", mode: "absolute" });
+    expect(compareTrend(3407, 49, "vs prev")).toMatchObject({ value: "+3358", mode: "absolute" });
+    // 999% is still a readable percentage.
+    expect(compareTrend(1099, 100, "vs prev")).toMatchObject({ value: "+999%", mode: "percent" });
+  });
+
   it("uses percentages for meaningful bases", () => {
     expect(compareTrend(120, 100, "vs prev")).toMatchObject({ value: "+20%", mode: "percent" });
     expect(compareTrend(80, 100, "vs prev")).toMatchObject({ direction: "down", value: "-20%", mode: "percent" });
