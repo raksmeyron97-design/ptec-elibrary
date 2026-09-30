@@ -10,7 +10,7 @@ import { toBookCardList } from "@/lib/books/card-data";
 import { getPublishedPaths } from "@/app/actions/learning-paths";
 import { getHomepagePhotos } from "@/lib/homepage-photos";
 import HeroBookStack from "@/components/ui/home/HeroBookStack";
-import { getTranslations, getLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 // ── Feature components ───────────────────────────────────────────────────────
 import AskLibraryHero from "@/components/ui/home/AskLibraryHero";
 import HeroConstellation from "@/components/ui/home/HeroConstellation";
@@ -121,7 +121,17 @@ export async function generateMetadata({
 // <SessionProvider>, and this page prerenders.
 
 // ── Page ─────────────────────────────────────────────────────────────────────
-export default async function HomePage() {
+export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
+  // The locale comes from the route, and next-intl is told it here, in the
+  // page itself. Without this, getTranslations()/getLocale() fall back to
+  // reading request headers whenever the layout's setRequestLocale() has not
+  // reached this segment — a dynamic API that turned the whole homepage into
+  // a per-request render once the route-level loading boundary was removed
+  // (SEO Phase 1, D9). next-intl's static-rendering rule: every page that
+  // reads translations on the server calls setRequestLocale().
+  const { locale } = await params;
+  setRequestLocale(locale);
+
   // LCP: preload the hero photo (AVIF branch — ~95% of browsers; the rest
   // simply fetch it via <picture> without the head start).
   // MUST stay byte-identical to the <source sizes> below, or the browser
@@ -136,9 +146,8 @@ export default async function HomePage() {
     fetchPriority: "high",
   });
 
-  const [t, locale, trendingBooks, trendingTerms, paths, siteConfig] = await Promise.all([
-    getTranslations("home"),
-    getLocale(),
+  const [t, trendingBooks, trendingTerms, paths, siteConfig] = await Promise.all([
+    getTranslations({ locale, namespace: "home" }),
     getTrendingBooksCached(),
     getTrendingTermsCached(),
     getPublishedPaths(),
