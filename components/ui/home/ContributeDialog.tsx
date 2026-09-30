@@ -62,6 +62,10 @@ export default function ContributeDialog({
   const formRef = useRef<HTMLFormElement>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
+  // The body mounts only while the dialog is open. A closed native <dialog> is
+  // still in the server HTML, so its <h2> duplicated the card headings on the
+  // homepage for every crawler (docs/seo/AUDIT-VERIFICATION.md F14).
+  const [isOpen, setIsOpen] = useState(false);
   const titleId = useId();
 
   const isDeposit = kind === "deposit";
@@ -70,8 +74,15 @@ export default function ContributeDialog({
 
   const open = useCallback(() => {
     setResult(null);
-    dialogRef.current?.showModal();
+    setIsOpen(true);
   }, []);
+
+  // showModal() after the body has rendered, so the browser's initial focus
+  // lands on the first control inside it rather than on an empty dialog.
+  useEffect(() => {
+    const el = dialogRef.current;
+    if (isOpen && el && !el.open) el.showModal();
+  }, [isOpen]);
 
   const close = useCallback(() => {
     dialogRef.current?.close();
@@ -109,6 +120,7 @@ export default function ContributeDialog({
       setBusy(false);
       setResult(null);
       formRef.current?.reset();
+      setIsOpen(false);
     };
     el.addEventListener("close", onClose);
     return () => el.removeEventListener("close", onClose);
@@ -145,169 +157,173 @@ export default function ContributeDialog({
       <dialog
         ref={dialogRef}
         onClick={handleDialogClick}
-        aria-labelledby={titleId}
+        aria-labelledby={isOpen ? titleId : undefined}
         className="
           m-auto w-[calc(100vw-2rem)] max-w-md rounded-[20px] border border-divider
           bg-bg-surface p-0 text-text-body shadow-2xl
           backdrop:bg-black/50 backdrop:backdrop-blur-sm
         "
       >
-        <div className="flex items-center justify-between border-b border-divider px-6 py-4">
-          <div className="flex items-center gap-2.5">
-            <Icon className="h-5 w-5 text-brand" aria-hidden strokeWidth={2} />
-            <h2 id={titleId} className="font-khmer-serif text-[15px] font-bold text-text-heading">
-              {t(k("Title"))}
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={close}
-            aria-label={t("growClose")}
-            className="focus-field rounded-lg p-1.5 text-text-muted outline-none transition-colors hover:bg-paper hover:text-text-body"
-          >
-            <X className="h-4 w-4" aria-hidden />
-          </button>
-        </div>
-
-        <div className="px-6 py-5">
-          {signedOut ? (
-            <div className="rounded-xl border border-divider bg-paper p-4 text-center">
-              <p className="text-[13px] leading-relaxed text-text-muted">
-                {t.rich("growSignIn", {
-                  link: (chunks) => (
-                    <Link
-                      href="/auth/login"
-                      className="font-semibold text-brand hover:underline"
-                    >
-                      {chunks}
-                    </Link>
-                  ),
-                })}
-              </p>
-            </div>
-          ) : result?.success ? (
-            <div className="flex flex-col items-center gap-3 py-4 text-center">
-              <CheckCircle2 className="h-10 w-10 text-[var(--ptec-success)]" aria-hidden />
-              <p className="text-[14px] font-semibold text-text-heading">{t("growSentTitle")}</p>
-              <p className="text-[13px] leading-relaxed text-text-muted">{t(k("Sent"))}</p>
+        {isOpen && (
+          <>
+            <div className="flex items-center justify-between border-b border-divider px-6 py-4">
+              <div className="flex items-center gap-2.5">
+                <Icon className="h-5 w-5 text-brand" aria-hidden strokeWidth={2} />
+                <h2 id={titleId} className="font-khmer-serif text-[15px] font-bold text-text-heading">
+                  {t(k("Title"))}
+                </h2>
+              </div>
               <button
                 type="button"
                 onClick={close}
-                className="focus-field mt-2 rounded-[10px] bg-brand px-5 py-2 text-[13px] font-bold text-brand-contrast outline-none transition hover:bg-brand-hover"
+                aria-label={t("growClose")}
+                className="focus-field rounded-lg p-1.5 text-text-muted outline-none transition-colors hover:bg-paper hover:text-text-body"
               >
-                {t("growDone")}
+                <X className="h-4 w-4" aria-hidden />
               </button>
             </div>
-          ) : (
-            <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <p className="text-[12.5px] leading-relaxed text-text-muted">{t(k("Intro"))}</p>
 
-              {result?.error && (
-                <p
-                  role="alert"
-                  className="flex items-start gap-2 rounded-xl border border-[var(--ptec-danger-line)] bg-[var(--ptec-danger-soft)] px-3 py-2.5 text-[12.5px] text-[var(--ptec-danger-text)]"
-                >
-                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-                  {result.error}
-                </p>
-              )}
-
-              <div>
-                <label htmlFor={`${titleId}-title`} className={LABEL}>
-                  {t(k("FieldTitle"))} <span className="text-[var(--ptec-danger-text)]">*</span>
-                </label>
-                <input
-                  id={`${titleId}-title`}
-                  name="title"
-                  required
-                  maxLength={300}
-                  placeholder={t(k("FieldTitlePlaceholder"))}
-                  className={FIELD}
-                />
-              </div>
-
-              <div>
-                <label htmlFor={`${titleId}-author`} className={LABEL}>
-                  {t(k("FieldAuthor"))}
-                </label>
-                <input
-                  id={`${titleId}-author`}
-                  name="author"
-                  maxLength={200}
-                  placeholder={t(k("FieldAuthorPlaceholder"))}
-                  className={FIELD}
-                />
-              </div>
-
-              {/* The one structural difference between the two directions: an
-                  acquisition identifies a work that exists in the world (ISBN);
-                  a deposit points at a file only its author can supply. */}
-              {isDeposit ? (
-                <div>
-                  <label htmlFor={`${titleId}-src`} className={LABEL}>
-                    {t("growDepositFieldLink")}
-                  </label>
-                  <input
-                    id={`${titleId}-src`}
-                    name="source_url"
-                    type="url"
-                    inputMode="url"
-                    maxLength={2000}
-                    placeholder="https://…"
-                    className={FIELD}
-                  />
-                  <p className="mt-1.5 text-[11.5px] leading-relaxed text-text-muted">
-                    {t("growDepositFieldLinkHelp")}
+            <div className="px-6 py-5">
+              {signedOut ? (
+                <div className="rounded-xl border border-divider bg-paper p-4 text-center">
+                  <p className="text-[13px] leading-relaxed text-text-muted">
+                    {t.rich("growSignIn", {
+                      link: (chunks) => (
+                        <Link
+                          href="/auth/login"
+                          className="font-semibold text-brand hover:underline"
+                        >
+                          {chunks}
+                        </Link>
+                      ),
+                    })}
                   </p>
                 </div>
-              ) : (
-                <div>
-                  <label htmlFor={`${titleId}-isbn`} className={LABEL}>
-                    {t("growRequestFieldIsbn")}
-                  </label>
-                  <input
-                    id={`${titleId}-isbn`}
-                    name="isbn"
-                    maxLength={20}
-                    placeholder="978-0-06-112008-4"
-                    className={FIELD}
-                  />
+              ) : result?.success ? (
+                <div className="flex flex-col items-center gap-3 py-4 text-center">
+                  <CheckCircle2 className="h-10 w-10 text-[var(--ptec-success)]" aria-hidden />
+                  <p className="text-[14px] font-semibold text-text-heading">{t("growSentTitle")}</p>
+                  <p className="text-[13px] leading-relaxed text-text-muted">{t(k("Sent"))}</p>
+                  <button
+                    type="button"
+                    onClick={close}
+                    className="focus-field mt-2 rounded-[10px] bg-brand px-5 py-2 text-[13px] font-bold text-brand-contrast outline-none transition hover:bg-brand-hover"
+                  >
+                    {t("growDone")}
+                  </button>
                 </div>
+              ) : (
+                <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-4">
+                  <p className="text-[12.5px] leading-relaxed text-text-muted">{t(k("Intro"))}</p>
+
+                  {result?.error && (
+                    <p
+                      role="alert"
+                      className="flex items-start gap-2 rounded-xl border border-[var(--ptec-danger-line)] bg-[var(--ptec-danger-soft)] px-3 py-2.5 text-[12.5px] text-[var(--ptec-danger-text)]"
+                    >
+                      <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                      {result.error}
+                    </p>
+                  )}
+
+                  <div>
+                    <label htmlFor={`${titleId}-title`} className={LABEL}>
+                      {t(k("FieldTitle"))} <span className="text-[var(--ptec-danger-text)]">*</span>
+                    </label>
+                    <input
+                      id={`${titleId}-title`}
+                      name="title"
+                      required
+                      maxLength={300}
+                      placeholder={t(k("FieldTitlePlaceholder"))}
+                      className={FIELD}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor={`${titleId}-author`} className={LABEL}>
+                      {t(k("FieldAuthor"))}
+                    </label>
+                    <input
+                      id={`${titleId}-author`}
+                      name="author"
+                      maxLength={200}
+                      placeholder={t(k("FieldAuthorPlaceholder"))}
+                      className={FIELD}
+                    />
+                  </div>
+
+                  {/* The one structural difference between the two directions: an
+                      acquisition identifies a work that exists in the world (ISBN);
+                      a deposit points at a file only its author can supply. */}
+                  {isDeposit ? (
+                    <div>
+                      <label htmlFor={`${titleId}-src`} className={LABEL}>
+                        {t("growDepositFieldLink")}
+                      </label>
+                      <input
+                        id={`${titleId}-src`}
+                        name="source_url"
+                        type="url"
+                        inputMode="url"
+                        maxLength={2000}
+                        placeholder="https://…"
+                        className={FIELD}
+                      />
+                      <p className="mt-1.5 text-[11.5px] leading-relaxed text-text-muted">
+                        {t("growDepositFieldLinkHelp")}
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <label htmlFor={`${titleId}-isbn`} className={LABEL}>
+                        {t("growRequestFieldIsbn")}
+                      </label>
+                      <input
+                        id={`${titleId}-isbn`}
+                        name="isbn"
+                        maxLength={20}
+                        placeholder="978-0-06-112008-4"
+                        className={FIELD}
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label htmlFor={`${titleId}-reason`} className={LABEL}>
+                      {t(k("FieldReason"))}
+                    </label>
+                    <textarea
+                      id={`${titleId}-reason`}
+                      name="reason"
+                      rows={3}
+                      maxLength={500}
+                      placeholder={t(k("FieldReasonPlaceholder"))}
+                      className={`${FIELD} resize-none`}
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={close}
+                      className="focus-field flex-1 rounded-[10px] border border-divider bg-paper py-2.5 text-[13px] font-semibold text-text-body outline-none transition hover:bg-bg-app"
+                    >
+                      {t("growCancel")}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={busy}
+                      className="focus-field flex-1 rounded-[10px] bg-brand py-2.5 text-[13px] font-bold text-brand-contrast outline-none transition hover:bg-brand-hover disabled:opacity-60"
+                    >
+                      {busy ? t("growSubmitting") : t(k("Submit"))}
+                    </button>
+                  </div>
+                </form>
               )}
-
-              <div>
-                <label htmlFor={`${titleId}-reason`} className={LABEL}>
-                  {t(k("FieldReason"))}
-                </label>
-                <textarea
-                  id={`${titleId}-reason`}
-                  name="reason"
-                  rows={3}
-                  maxLength={500}
-                  placeholder={t(k("FieldReasonPlaceholder"))}
-                  className={`${FIELD} resize-none`}
-                />
-              </div>
-
-              <div className="flex gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={close}
-                  className="focus-field flex-1 rounded-[10px] border border-divider bg-paper py-2.5 text-[13px] font-semibold text-text-body outline-none transition hover:bg-bg-app"
-                >
-                  {t("growCancel")}
-                </button>
-                <button
-                  type="submit"
-                  disabled={busy}
-                  className="focus-field flex-1 rounded-[10px] bg-brand py-2.5 text-[13px] font-bold text-brand-contrast outline-none transition hover:bg-brand-hover disabled:opacity-60"
-                >
-                  {busy ? t("growSubmitting") : t(k("Submit"))}
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
+            </div>
+          </>
+        )}
       </dialog>
     </>
   );

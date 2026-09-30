@@ -85,14 +85,18 @@ function FooterColumn({
       : "text-[12px] uppercase tracking-[0.14em]";
   // `.footer-col` (app/globals.css) drops the rule and the heading row's
   // height from md up, where the groups are grid columns.
+  // The title is a LABEL, not a heading. Six footer <h2>s on every page were
+  // the only headings a reader without JavaScript saw before the streamed page
+  // body arrived (docs/seo/AUDIT-VERIFICATION.md F2), and a column title
+  // outlines nothing. The group keeps its name through aria-labelledby.
   return (
     <div className={`footer-col border-t border-white/10 ${className}`}>
       <div className="footer-col-head flex min-h-12 items-center">
-        <h2 id={id} className={`font-semibold text-gold-200 ${heading}`}>
+        <p id={id} className={`font-semibold text-gold-200 ${heading}`}>
           {title}
-        </h2>
+        </p>
       </div>
-      <div className="pb-5 md:pb-0 md:pt-4">{children}</div>
+      <div role="group" aria-labelledby={id} className="pb-5 md:pb-0 md:pt-4">{children}</div>
     </div>
   );
 }
@@ -256,12 +260,13 @@ export default async function Footer() {
                 <p lang="km" className="font-khmer-serif text-[13px] font-bold leading-6 text-gold-200">
                   {cfg.libraryName.km}
                 </p>
-                <h2
+                {/* Names the brand <section>; not a heading (see FooterColumn). */}
+                <p
                   id="footer-brand-heading"
                   className="text-[22px] font-bold leading-tight tracking-wide text-white"
                 >
                   {cfg.libraryName.en}
-                </h2>
+                </p>
                 {/* The institution line is a desktop courtesy; on a phone the
                     copyright line below names the institution already. */}
                 <p

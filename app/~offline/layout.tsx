@@ -1,8 +1,11 @@
 import RootShell from "@/components/layout/RootShell";
 import { identityMetadata, rootViewport } from "@/app/root-metadata";
+import { NOINDEX_ROBOTS } from "@/lib/seo/indexing";
 
+// The offline fallback is a service-worker shell, not a page anyone should
+// find in search: it was `index, follow` with no canonical (AUDIT N1).
 export async function generateMetadata() {
-  return identityMetadata();
+  return { ...(await identityMetadata()), robots: NOINDEX_ROBOTS };
 }
 export const viewport = rootViewport;
 
