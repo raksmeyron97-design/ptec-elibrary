@@ -72,6 +72,12 @@ const nextConfig: NextConfig = {
   // copies .next/standalone). Harmless elsewhere: `next start` and Vercel
   // deployments ignore it.
   output: "standalone",
+  // Next's own file-system ISR cache, except that a path component too long
+  // for a file name (a Khmer slug is 3 bytes a character; the limit is 255)
+  // gets a short hashed name instead of failing with ENAMETOOLONG. See the
+  // file for what is and is not changed. Traced into .next/standalone by the
+  // build, and stored relative to .next, so the Docker image carries it.
+  cacheHandler: require.resolve("./lib/cache/isr-cache-handler.js"),
   /**
    * NO PERSISTENT WEBPACK CACHE IN A PRODUCTION BUILD.
    *
