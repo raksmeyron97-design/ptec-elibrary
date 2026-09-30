@@ -30,6 +30,7 @@ import PostsEmptyState from "@/components/ui/posts/PostsEmptyState";
 import { CloseIcon } from "@/components/ui/posts/icons";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import HubIntro from "@/components/seo/HubIntro";
+import SparseCollectionNotice from "@/components/seo/SparseCollectionNotice";
 
 type SearchParams = {
   q?: string;
@@ -65,6 +66,13 @@ export async function generateMetadata({
     const { items } = await getPostsPage({}, page, resolvePostsPageSize(sp.size));
     outOfRange = items.length === 0;
   }
+  // An empty collection is a soft-404, like /journals (SEO Phase 3.8). The
+  // first page is the cached read the page itself makes.
+  let isEmpty = false;
+  if (!filters) {
+    const { total } = await getPostsPage({}, 1, resolvePostsPageSize(sp.size));
+    isEmpty = total === 0 && !(await getFeaturedPost());
+  }
 
   return buildListingMetadata({
     org: await getOrgIdentity(),
@@ -78,6 +86,7 @@ export async function generateMetadata({
     imageAlt: t("title"),
     pageLabel: t("pageLabel"),
     outOfRange,
+    isEmpty,
   });
 }
 
@@ -334,6 +343,14 @@ export default async function PostsPage({
             searchParams={sp as Record<string, string | undefined>}
             basePath={basePath}
             pageSizeOptions={[...POSTS_PAGE_SIZE_OPTIONS]}
+          />
+          {/* A young collection says what the library is for and where the
+              rest of it is (SEO Phase 3.8) — on the unfiltered list only. */}
+          <SparseCollectionNotice
+            hub="posts"
+            total={cleanView ? total + (showFeatured ? 1 : 0) : null}
+            locale={locale}
+            show={cleanView && requestedPage === 1}
           />
         </div>
       </div>

@@ -34,6 +34,7 @@ import { JOURNALS_PATH, PTEC_PUBLICATIONS_URL } from "@/lib/journals/urls";
 import { ExternalLink } from "lucide-react";
 import JournalShelf from "@/components/ui/journals/JournalShelf";
 import HubIntro from "@/components/seo/HubIntro";
+import SparseCollectionNotice from "@/components/seo/SparseCollectionNotice";
 
 export const dynamic = "force-dynamic";
 
@@ -532,6 +533,14 @@ export default async function PublicationsPage({
                    navigation only, matching the theses listing. */
               />
             )}
+            {/* SEO Phase 3.8: a young collection says what the library is for,
+                how to add to it and where the rest is — unfiltered list only. */}
+            <SparseCollectionNotice
+              hub="journals"
+              total={stats?.publications ?? null}
+              locale={locale}
+              show={!hasFilters && page === 1}
+            />
           </div>
         </div>
       </div>

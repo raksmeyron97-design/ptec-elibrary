@@ -88,6 +88,8 @@ export async function generateMetadata({
     description: tSummary("description"),
     page,
     outOfRange: isPageOutOfRange(page, stats?.theses, resolvePageSize(undefined)),
+    // An empty collection is a soft-404, like /journals (SEO Phase 3.8).
+    isEmpty: stats?.theses === 0,
     hasFilters: !!(
       params.q ||
       params.year ||

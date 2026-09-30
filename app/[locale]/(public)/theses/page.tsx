@@ -85,6 +85,9 @@ export async function generateMetadata({
     pageLabel: t("pageLabel"),
     page,
     outOfRange: isPageOutOfRange(page, stats?.theses, resolvePageSize(undefined)),
+    // An empty collection is a soft-404, like /journals (SEO Phase 3.8). A
+    // NULL stats read is "unknown", never empty.
+    isEmpty: stats?.theses === 0,
     hasFilters: !!(
       params.q ||
       params.cohort ||
@@ -500,6 +503,14 @@ export default async function ThesesPage({
                     </p>
                     <p className="mt-1 max-w-[62ch] text-[13.5px] leading-[1.6] text-text-muted">
                       {tTheses("growingNote")}
+                    </p>
+                    {/* Where the rest of the library is (SEO Phase 3.8). */}
+                    <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[13.5px]">
+                      {([["/books", "eBooks"], ["/journals", "journals"], ["/paths", "learningPaths"]] as const).map(([href, key]) => (
+                        <Link key={href} href={href} className="focus-field rounded-sm text-brand hover:underline">
+                          {t(key)}
+                        </Link>
+                      ))}
                     </p>
                   </div>
                   <Link
