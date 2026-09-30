@@ -256,59 +256,73 @@ export default function KpiCard({
           onClick={s.onSelect}
           // Inset ring: the button fills the card, so a positive offset would
           // paint outside the card's own border.
-          className="flex w-full cursor-pointer flex-col items-start gap-2.5 rounded-[calc(var(--dash-r-lg)-2px)] p-5 pb-2 text-start [--focus-ring-offset:-2px]"
+          className="flex w-full cursor-pointer flex-col items-start gap-3 rounded-[calc(var(--dash-r-lg)-2px)] p-5 pb-3 text-start [--focus-ring-offset:-2px]"
         >
-          <span className="flex w-full items-center gap-2">
-            {iconTile}
-            <span className="min-w-0 flex-1 dash-truncate text-xs font-semibold text-text-muted">{title}</span>
-            {/* A MARK, not a word.
-
-                This chip spelt "Charted" out, and on the selected card it took
-                about 79px out of a header row the metric's own name has to
-                share: at 1280px "Detail views" was drawn as "Detail vie…", and
-                in Khmer — where the label is "កំពុងបង្ហាញ" and the title
-                "ការមើលទំព័រលម្អិត" — it clips at every desktop width. A card
-                whose own name is cut to make room for a decoration has the
-                priority backwards.
-
-                Nothing is lost: selection is already carried by the card's
-                accent strip, its border and `aria-pressed`, the glyph adds a
-                fourth (shape, not colour), and the word itself is still in the
-                accessibility tree. A responsive rule was rejected — it would
-                still clip in Khmer, which is the locale that needs it most. */}
-            {s.isSelected && (
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-brand/10 text-brand">
-                <LineChart className="h-3 w-3" aria-hidden="true" />
-                <span className="sr-only">{s.selectedLabel}</span>
+          {/* Figure first, then what it counts, and the metric's own disc on
+              the right — the reference design's stat card. The disc is the
+              series colour at full strength, so the card, its sparkline and
+              the chart line it selects are visibly one thing. */}
+          <span className="flex w-full items-start justify-between gap-3">
+            <span className="flex min-w-0 flex-col">
+              <span
+                className={`dash-num-display flex items-center gap-1.5 text-[28px] font-extrabold leading-9 ${
+                  toneStyle ? `${toneStyle.status} text-[var(--dash-status-fg)]` : "text-text-heading"
+                }`}
+              >
+                {value}
               </span>
-            )}
-          </span>
-
-          {valueRow}
-
-          <span className="min-h-[34px] w-full text-xs leading-[17px]">
-            {s.collecting ? (
-              <span className="inline-flex items-center rounded-md bg-info-soft px-1.5 py-0.5 text-xs font-semibold text-info-text">
-                {s.collectingLabel}
-              </span>
-            ) : trend && trend.mode !== "hidden" ? (
-              <>
-                <span className="flex flex-wrap items-center gap-x-1.5 text-text-muted">
-                  {trend.mode === "percent" ? (
-                    <TrendChip trend={trend} trendTone={trendTone} />
-                  ) : (
-                    <span className="font-semibold tabular-nums text-text-body">{trend.value}</span>
-                  )}
-                  <span>{compareLabel ?? trend.label}</span>
-                </span>
-                {s.previousLabel !== null && (
-                  <span className="mt-0.5 block text-xs tabular-nums text-text-muted">{s.previousLabel}</span>
+              <span className="flex min-w-0 items-center gap-1.5">
+                <span className="min-w-0 dash-truncate text-[13px] font-semibold text-text-muted">{title}</span>
+                {/* A MARK, not a word: the chip used to spell "Charted" and took
+                    the room the metric's own name needed ("Detail vie…", and
+                    every Khmer title). Selection is also carried by the ring,
+                    the border and aria-pressed; the word stays for assistive
+                    tech. */}
+                {s.isSelected && (
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-brand/10 text-brand">
+                    <LineChart className="h-3 w-3" aria-hidden="true" />
+                    <span className="sr-only">{s.selectedLabel}</span>
+                  </span>
                 )}
-              </>
-            ) : s.noComparisonLabel !== null ? (
-              <span className="text-xs text-text-muted">{s.noComparisonLabel}</span>
-            ) : null}
+              </span>
+            </span>
+            <span className="dash-kpi-disc" aria-hidden="true">
+              <IconCmp className="h-[18px] w-[18px]" />
+            </span>
           </span>
+
+          <span className="block min-h-[36px] w-full text-xs leading-[17px]">
+            <span className="block min-w-0">
+              {s.collecting ? (
+                <span className="inline-flex items-center rounded-md bg-info-soft px-1.5 py-0.5 text-xs font-semibold text-info-text">
+                  {s.collectingLabel}
+                </span>
+              ) : trend && trend.mode !== "hidden" ? (
+                <>
+                  <span className="flex flex-wrap items-center gap-x-1.5 text-text-muted">
+                    {trend.mode === "percent" ? (
+                      <TrendChip trend={trend} trendTone={trendTone} />
+                    ) : (
+                      <span className="font-bold tabular-nums text-text-body">{trend.value}</span>
+                    )}
+                    <span>{compareLabel ?? trend.label}</span>
+                  </span>
+                  {s.previousLabel !== null && (
+                    <span className="mt-0.5 block text-xs tabular-nums text-text-muted">{s.previousLabel}</span>
+                  )}
+                </>
+              ) : s.noComparisonLabel !== null ? (
+                <span className="text-xs text-text-muted">{s.noComparisonLabel}</span>
+              ) : null}
+            </span>
+          </span>
+          {/* Full width under the text, so the comparison gets the card's
+              whole measure and four cards fit across a 1,024px column. */}
+          {spark && spark.length > 1 && (
+            <span className="block w-full">
+              <SparkLine points={spark} accent={accent} width={240} height={30} fluid />
+            </span>
+          )}
         </button>
 
         <div className="flex items-center justify-between gap-1 border-t border-divider/60 px-3 py-1">

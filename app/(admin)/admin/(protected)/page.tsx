@@ -9,14 +9,18 @@ import {
   type DashboardFilters,
   type DashboardView,
 } from "@/lib/admin/dashboard-shared";
-import { getDepartmentOptions, getHealthPulse } from "@/lib/admin/intelligence";
+import { getDepartmentOptions } from "@/lib/admin/intelligence";
+import { getActionCenterOnce, getHealthPulseOnce } from "@/lib/admin/overview-cache";
+import { canAccessRoute, type AdminViewer } from "@/lib/admin/access-policy";
+import { COLLECTION_TILE_HREF } from "@/lib/admin/collection-pulse";
+import { EBOOKS_BASE_PATH, EBOOKS_UPLOAD_PATH } from "@/lib/admin/ebooks-url";
 import { resolveEngagementChartVersion } from "@/lib/admin/analytics-flags";
 import DashboardHeader, { type QuickActionKey } from "@/components/admin/dashboard/DashboardHeader";
 import HeaderStatus from "@/components/admin/dashboard/HeaderStatus";
 import DashboardControlBar from "@/components/admin/dashboard/DashboardControlBar";
 import SectionBoundary from "@/components/admin/dashboard/SectionBoundary";
 import { OverviewSkeleton, TableSkeleton, CardsSkeleton } from "@/components/admin/dashboard/Skeletons";
-import OverviewView from "@/components/admin/dashboard/views/OverviewView";
+import OverviewView, { type OverviewAccess } from "@/components/admin/dashboard/views/OverviewView";
 import ContentView from "@/components/admin/dashboard/views/ContentView";
 import SearchView from "@/components/admin/dashboard/views/SearchView";
 import AudienceView from "@/components/admin/dashboard/views/AudienceView";
@@ -47,7 +51,12 @@ const PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_ROOT_DOMAIN
  * "status unavailable" rather than taking the dashboard down.
  */
 async function DashboardStatus({ filters }: { filters: DashboardFilters }) {
-  const health = await getHealthPulse(filters).catch(() => null);
+  // Both reads are request-memoised and shared with the Overview body, which
+  // asks the same questions — the chips cost no extra queries on that view.
+  const [health, actions] = await Promise.all([
+    getHealthPulseOnce(filters).catch(() => null),
+    filters.view === "overview" ? getActionCenterOnce(filters).catch(() => null) : Promise.resolve(null),
+  ]);
   if (!health) return null;
   const qs = serializeDashboardFilters({ ...filters, view: "system" });
   return (
@@ -56,8 +65,53 @@ async function DashboardStatus({ filters }: { filters: DashboardFilters }) {
       failing={health.failing}
       generatedAt={health.generatedAt}
       href={qs ? `/admin?${qs}` : "/admin"}
+      attention={
+        actions
+          ? {
+              count: actions.items.length,
+              critical: actions.items.some((i) => i.severity === "critical"),
+              href: "#attention",
+            }
+          : null
+      }
     />
   );
+}
+
+/**
+ * What the Overview may show and link to, asked of the route registry — the
+ * same question `requireRouteAccess` asks at each destination — so no tile,
+ * row or panel points at a 403, and a panel the viewer may not open is not
+ * even read.
+ */
+function overviewAccess(viewer: AdminViewer): OverviewAccess {
+  const can = (policyId: string) => canAccessRoute(viewer, policyId);
+  const tile = (policyId: string, href: string) => (can(policyId) ? href : undefined);
+  return {
+    requests: can("books.requests"),
+    scheduled: {
+      book: can("books.manage"),
+      research_report: can("theses.manage"),
+      post: can("posts.manage"),
+    },
+    editable: {
+      book: can("books.edit"),
+      research_report: can("theses.edit"),
+      publication: can("publications.edit"),
+      post: can("posts.edit"),
+    },
+    tileHrefs: {
+      books: tile("books.manage", COLLECTION_TILE_HREF.books),
+      theses: tile("theses.manage", COLLECTION_TILE_HREF.theses),
+      publications: tile("journals.manage", COLLECTION_TILE_HREF.publications),
+      printTitles: tile("catalog.manage", COLLECTION_TILE_HREF.printTitles),
+      printCopies: tile("catalog.manage", COLLECTION_TILE_HREF.printCopies),
+      learningPaths: tile("paths.manage", COLLECTION_TILE_HREF.learningPaths),
+    },
+    addBookHref: can("books.upload") ? EBOOKS_UPLOAD_PATH : null,
+    allBooksHref: can("books.manage") ? EBOOKS_BASE_PATH : null,
+    requestsHref: "/admin/book-requests",
+  };
 }
 
 async function getPageIdentity(): Promise<{
@@ -81,7 +135,7 @@ export default async function AdminDashboardPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireRouteAccess("dashboard");
+  const { viewer } = await requireRouteAccess("dashboard");
 
   const sp = await searchParams;
   const filters = parseDashboardFilters(sp);
@@ -122,8 +176,8 @@ export default async function AdminDashboardPage({
   const suspenseKey = `${filterQs}|${presetParam ?? ""}|${pageParam ?? ""}|${qParam ?? ""}|${queryViewParam ?? ""}`;
 
   return (
-    <div className="dash-shell -mx-7 -my-6 min-h-full px-7 pb-6 pt-4">
-      <div className="w-full space-y-4 overflow-x-clip">
+    <div className="dash-shell -mx-7 -my-6 min-h-full px-7 pb-8 pt-6">
+      <div className="w-full space-y-5 overflow-x-clip">
         <DashboardHeader
           view={view}
           name={name}
@@ -152,6 +206,7 @@ export default async function AdminDashboardPage({
               metric={metric}
               canSeeAudit={canSystem}
               chartVersion={engagementChartVersion}
+              access={overviewAccess(viewer)}
             />
           </Suspense>
         )}

@@ -54,20 +54,24 @@ export default async function ExecutivePulse({
   actions,
   filters,
   rangeLabel,
+  periodTitle,
 }: {
   data: OverviewData;
   health: HealthPulseData | null;
   actions: ActionItem[];
   filters: DashboardFilters;
   rangeLabel: string;
+  /** Visible section label, e.g. "Last 30 days" — already localised. */
+  periodTitle: string;
 }) {
   // Four independent lookups: awaiting them in sequence made the card row
   // wait for four round trips it never needed.
-  const [t, tHealth, tActions, typeLabels, locale] = await Promise.all([
+  const [t, tHealth, tActions, typeLabels, tPeriod, locale] = await Promise.all([
     getTranslations("adminDashboard.kpi"),
     getTranslations("adminDashboard.health"),
     getTranslations("adminDashboard.actionCenter"),
     getTranslations("adminDashboard.toolbar"),
+    getTranslations("adminDashboard.library.period"),
     getLocale(),
   ]);
   const nf = numberFormat(locale);
@@ -206,45 +210,54 @@ export default async function ExecutivePulse({
 
   return (
     <section aria-labelledby="pulse-heading">
-      <h2 id="pulse-heading" className="sr-only">
-        {t("sectionLabel", { range: rangeLabel })}
-      </h2>
-      {/* Status verdict first, full width — answered before the numbers. */}
-      {health ? (
-        <HealthCard pulse={health} />
-      ) : (
-        <div className="dash-card flex items-center gap-2 p-3.5 text-xs text-text-muted">
+      {/* A VISIBLE period label. The collection tiles above hold stock and
+          ignore the date range; these four cards are the period's traffic.
+          Two rows of big numbers without a label between them read as one
+          set, so the section names the period it answers for. */}
+      <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+        <h2 id="pulse-heading" className="dash-eyebrow">
+          {periodTitle}
+          <span className="sr-only"> · {t("sectionLabel", { range: rangeLabel })}</span>
+        </h2>
+        <p className="text-xs leading-4 text-text-muted">
+          {filters.compare ? tPeriod("hintCompare") : tPeriod("hint")}
+        </p>
+      </div>
+
+      {/* The full health card appears only when a check is NOT passing — then
+          it names the failing subsystem before any number. While everything
+          passes, the greeting line's status chip already says so, and a
+          full-width "Operational" card above the numbers was a row of the
+          page's most valuable space spent on good news. */}
+      {health === null ? (
+        <div className="dash-card mt-2.5 flex items-center gap-2 p-3.5 text-xs text-text-muted">
           {tHealth("unavailable")}
         </div>
-      )}
+      ) : health.level !== "operational" ? (
+        <div className="mt-2.5">
+          <HealthCard pulse={health} />
+        </div>
+      ) : null}
 
-      {/* The four engagement measures, as one cohesive group. gap-5 matches
-          every other tab's KPI row — this one sat at gap-4 alone.
-
-          Below `sm` this is a SNAP STRIP rather than a stack. Stacked, the four
-          cards ran 792px on a 390x844 phone — four numbers costing more than a
-          screen of scrolling, before the attention queue below them has said
-          anything. Each card keeps its full anatomy (title, figure, trend,
-          sparkline, definition and details) at 82% of the viewport, so the next
-          card always peeks and the swipe is self-evident; the cards are buttons,
-          so Tab still walks the row and the browser scrolls each into view.
-          Four across starts at `xl`, not `lg`. The admin shell's sidebar is a
-          fixed 256px, so at a 1024px viewport the content column is about
-          712px — four cards of 163px, which truncated "Unique visitors" and
-          "Detail views" to their own ellipsis. The breakpoint has to be read
-          against the content column, not the window. */}
-      <div className="dash-scroll-x -mx-1 mt-4 flex snap-x snap-mandatory gap-5 px-1 pb-1 sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:px-0 sm:pb-0 xl:grid-cols-4 [&>*]:w-[82%] [&>*]:shrink-0 [&>*]:snap-start sm:[&>*]:w-auto">
-        {rowCards.map((card) => (
-          <MetricCard
-            key={card.metric}
-            data={card}
-            title={t(`${card.metric}Title`)}
-            definition={t(`${card.metric}Def`)}
-            compareLabel={filters.compare ? data.vsLabel : null}
-            collectingLabel={t("collecting")}
-            noComparisonLabel={noComparisonEverywhere ? null : t("noComparison")}
-          />
-        ))}
+      {/* Below a 576px COLUMN this is a snap strip rather than a stack (four
+          stacked cards ran 792px on a 390px phone, before the attention queue
+          had said anything); two across up to a 1024px column; four across
+          beyond. Column, not window: the admin sidebar is 64px or 256px, and a
+          viewport breakpoint cannot know which. */}
+      <div className="@container mt-2.5">
+        <div className="dash-scroll-x -mx-1 flex snap-x snap-mandatory gap-4 px-1 pb-1 @xl:mx-0 @xl:grid @xl:snap-none @xl:grid-cols-2 @xl:gap-5 @xl:px-0 @xl:pb-0 @5xl:grid-cols-4 [&>*]:w-[82%] [&>*]:shrink-0 [&>*]:snap-start @xl:[&>*]:w-auto">
+          {rowCards.map((card) => (
+            <MetricCard
+              key={card.metric}
+              data={card}
+              title={t(`${card.metric}Title`)}
+              definition={t(`${card.metric}Def`)}
+              compareLabel={filters.compare ? data.vsLabel : null}
+              collectingLabel={t("collecting")}
+              noComparisonLabel={noComparisonEverywhere ? null : t("noComparison")}
+            />
+          ))}
+        </div>
       </div>
 
       {noComparisonEverywhere && (

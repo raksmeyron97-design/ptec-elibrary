@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { getTranslations, getLocale } from "next-intl/server";
-import { Upload, ExternalLink } from "lucide-react";
+import { CalendarDays, Upload, ExternalLink } from "lucide-react";
 import type { DashboardView } from "@/lib/admin/dashboard-shared";
 import { EBOOKS_UPLOAD_PATH } from "@/lib/admin/ebooks-url";
 import HeaderMenu, { type HeaderMenuItem } from "./HeaderMenu";
+import { dateTimeFormat } from "./formatters";
 
 const APP_TZ = "Asia/Phnom_Penh";
 
@@ -17,14 +18,16 @@ export type QuickActionKey =
   | "reviewRequests";
 
 /**
- * Compact operational page header (~56px, one row on desktop).
+ * The page header: a greeting, today's date and the live status chips on the
+ * left; one primary action, a Create menu, a quiet utility menu and the
+ * public-site link on the right.
  *
- * Left: the view's own title — an operational label, not a greeting card —
- * with the greeting, live system status and data freshness compressed onto a
- * single secondary line. Right: one primary action, a Create menu, a quiet
- * utility menu and the public-site link. Global controls (search, language,
- * notifications, profile) deliberately stay in the admin shell topbar and are
- * never duplicated here.
+ * The greeting is the page's <h1> on every view — the active tab below names
+ * the view. The viewer's name carries the brand ink (the reference design's
+ * "Hello, Mohammed!"), split out of the translated sentence rather than
+ * concatenated, so the Khmer word order is the translation's, not ours.
+ * Global controls (search, language, notifications, profile) stay in the
+ * admin shell's top bar and are never duplicated here.
  *
  * `status` is streamed in by the caller inside its own Suspense boundary, so
  * a slow or failing health probe never delays the rest of the page.
@@ -55,6 +58,17 @@ export default async function DashboardHeader({
   const greetingKey = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
   const firstName = name?.trim().split(/\s+/)[0] ?? "Admin";
   const can = (k: QuickActionKey) => actions.includes(k);
+
+  // "Good morning, {name}" → [before, name, after], so the name can be styled
+  // without assuming where the translation puts it.
+  const NAME_MARK = "\u0000";
+  const [before, after = ""] = t(greetingKey, { name: NAME_MARK }).split(NAME_MARK);
+  const today = dateTimeFormat(locale, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
 
   const createItems: HeaderMenuItem[] = [
     can("addThesis") && {
@@ -93,26 +107,39 @@ export default async function DashboardHeader({
   ].filter(Boolean) as HeaderMenuItem[];
 
   return (
-    <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 pb-1">
-      <div className="min-w-0">
-        <h1 className="dash-truncate-head text-xl font-bold tracking-tight text-[var(--dash-ink)] sm:text-xl">
-          {tTabs(view)}
-        </h1>
-        <div
-          className="mt-0.5 flex min-h-[18px] flex-wrap items-center gap-x-2 gap-y-0.5 text-xs leading-[18px] text-text-muted"
+    <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+      {/* Grows and SHRINKS: the status chips wrap inside this block before
+          the action cluster is pushed onto its own row. */}
+      <div className="min-w-0 flex-[1_1_26rem]">
+        <h1
+          className="text-[28px] font-extrabold leading-9 tracking-tight text-[var(--dash-ink)]"
           // Khmer greetings run long; wrapping is expected, truncation is not.
           lang={locale}
         >
-          <span>{t(greetingKey, { name: firstName })}</span>
+          {before}
+          <span className="text-brand">{firstName}</span>
+          {after}
+          {/* The heading also names the view for anyone who lands on it by
+              heading navigation; sighted readers get it from the active tab. */}
+          <span className="sr-only"> · {tTabs(view)}</span>
+        </h1>
+        <div
+          className="mt-2 flex min-h-7 flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[13px] text-text-muted"
+          lang={locale}
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <CalendarDays className="h-4 w-4 text-[var(--dash-ink-3)]" aria-hidden="true" />
+            {today}
+          </span>
           {status}
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
         {can("addBook") && (
           <Link
             href={EBOOKS_UPLOAD_PATH}
-            className="flex h-10 items-center gap-1.5 rounded-[10px] bg-brand px-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-hover"
+            className="flex h-11 items-center gap-2 rounded-xl bg-brand px-4 text-sm font-bold text-white shadow-[0_6px_14px_-6px_rgba(30,58,138,0.55)] transition-colors hover:bg-brand-hover"
           >
             <Upload className="h-4 w-4" aria-hidden="true" />
             {t("actions.addBook")}
@@ -126,7 +153,7 @@ export default async function DashboardHeader({
           href={publicSiteUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex h-10 items-center gap-1.5 rounded-[10px] px-2.5 text-sm font-medium text-text-muted transition-colors hover:bg-paper hover:text-text-heading"
+          className="flex h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-text-muted transition-colors hover:bg-bg-surface hover:text-text-heading"
         >
           <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
           <span className="hidden sm:inline">{t("actions.viewSite")}</span>

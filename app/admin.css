@@ -135,7 +135,7 @@
      (#F8FAFC, #E2E8F0, #64748B…), so a palette change meant editing JSX.
      Brand hue stays PTEC navy/gold above; only the neutrals are restated
      here as tokens. */
-  --dash-bg: #F8F9FB;                  /* app background — never pure white */
+  --dash-bg: #F3F5F9;                  /* app background — a step below the cards so white panels read as panels */
   --dash-surface: #FFFFFF;
   --dash-line: #E2E8F0;
   --dash-line-subtle: #F1F5F9;
@@ -277,9 +277,9 @@
   z-index: var(--dash-z-sticky);
   margin-inline: -6px;
   padding-inline: 6px;
-  background: linear-gradient(180deg, #FBFCFE 0%, #F7F9FC 100%);
-  border-bottom: 1px solid color-mix(in srgb, var(--dash-blue) 10%, var(--ptec-divider));
-  box-shadow: 0 1px 0 rgba(255, 255, 255, .8), 0 6px 14px -12px rgba(11, 21, 48, .5);
+  background: var(--dash-bg);
+  border-bottom: 1px solid var(--dash-line);
+  box-shadow: 0 8px 14px -14px rgba(11, 21, 48, .45);
 }
 
 /* Keyboard focus must never land underneath the bar. Scoped with :has() so
@@ -514,54 +514,45 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
 }
 .dash-scroll-x::-webkit-scrollbar { display: none; }
 
-/* ── View tab rail: tinted rail, blue active pill, gold 2px indicator ── */
+/* ── View tabs: page-level underline tabs, gold 3px indicator ─────────────
+   The tabs used to sit in a tinted, bordered, shadowed rail with a white pill
+   on the active tab — a control drawn as a card, stacked right under the
+   page's real cards. As underline tabs they read as the page's own sections,
+   and the range controls beside them stay the only boxed controls on the row. */
 .dash-tabrail {
   display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 4px;
-  border-radius: var(--dash-r-md);
-  background: color-mix(in srgb, var(--dash-blue) 5%, #fff);
-  border: 1px solid color-mix(in srgb, var(--dash-blue) 11%, var(--ptec-divider));
-  box-shadow: var(--dash-elev-1);
+  align-items: stretch;
+  gap: 2px;
 }
 .dash-tab {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  border-radius: var(--dash-r-sm);
-  /* Tight enough that the five English tabs and the whole control cluster
-     share one row at the 1400px content width. */
-  padding: 7px 10px;
-  font-size: var(--dash-t-md);
-  line-height: var(--dash-lh-md);
+  gap: 7px;
+  border-radius: var(--dash-r-sm) var(--dash-r-sm) 0 0;
+  padding: 10px 12px 12px;
+  font-size: var(--dash-t-lg);
+  line-height: var(--dash-lh-lg);
   font-weight: 600;
   white-space: nowrap;
-  color: var(--ptec-text-muted);
+  color: var(--dash-ink-2);
   transition: color .15s ease, background .15s ease;
 }
-.dash-tab:hover { color: var(--dash-ink); background: color-mix(in srgb, var(--dash-blue) 6%, transparent); }
+.dash-tab:hover { color: var(--dash-ink); background: color-mix(in srgb, var(--dash-blue) 5%, transparent); }
 .dash-tab .dash-tab-ico { opacity: .7; transition: opacity .15s ease; }
-/* No font-weight change on the active tab. Bolding one item in a horizontal
-   rail widens it, which re-flows every tab to its right — so the target a user
-   is about to click moves under the cursor as the previous click resolves, and
-   the whole cluster shifts on every view change. The active state is already
-   carried by the white pill, the blue ink, the gold underline and
-   aria-current; a fourth channel that costs layout stability is a bad trade. */
-.dash-tab[aria-current="page"] {
-  color: var(--dash-blue);
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(11, 21, 48, .07), 0 2px 8px -3px rgba(30, 58, 138, .28);
-}
+/* No font-weight change on the active tab: bolding one item in a horizontal
+   row widens it and re-flows every tab to its right, so the target a user is
+   about to click moves under the cursor. Ink, the indicator and aria-current
+   carry the state. */
+.dash-tab[aria-current="page"] { color: var(--dash-blue); }
 .dash-tab[aria-current="page"] .dash-tab-ico { opacity: 1; }
 .dash-tab[aria-current="page"]::after {   /* gold indicator */
   content: "";
   position: absolute;
-  inset-inline: 9px;
-  bottom: 3px;
-  height: 2px;
-  border-radius: 2px;
+  inset-inline: 10px;
+  bottom: 0;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
   background: var(--dash-gold);
 }
 .dash-tab:focus-visible { outline: 2px solid var(--dash-blue); outline-offset: 2px; }
@@ -707,15 +698,10 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
 @keyframes dash-slide-in { from { transform: translateX(4%); opacity: .6 } to { transform: none; opacity: 1 } }
 
 /* ── Needs-attention row + pathway step ─────────────────────────────────── */
-.dash-attention-row {
-  border: 1px solid color-mix(in srgb, var(--ptec-divider) 60%, transparent);
-  background: color-mix(in srgb, var(--ptec-paper) 40%, #fff);
-  transition: border-color .15s ease, background .15s ease;
-}
-.dash-attention-row:hover {
-  border-color: color-mix(in srgb, var(--dash-blue) 20%, transparent);
-  background: #fff;
-}
+/* A row of the attention TABLE: the list's dividers separate rows, so the
+   row itself carries no border — only a hover wash. */
+.dash-attention-row { background: #fff; transition: background .15s ease; }
+.dash-attention-row:hover { background: color-mix(in srgb, var(--dash-blue) 3%, #fff); }
 .dash-pathway-step {
   display: flex;
   align-items: center;
@@ -883,6 +869,12 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   background: var(--dash-timeline-dot, var(--dash-blue));
   /* Ring in the card colour so the dot reads as sitting on top of the rail. */
   box-shadow: 0 0 0 2px var(--dash-surface);
+}
+/* A full-width activity panel flows its entries into two columns rather than
+   leaving a single narrow list against an empty right half. */
+@container (min-width: 760px) {
+  .dash-timeline--flow { columns: 2; column-gap: 40px; }
+  .dash-timeline--flow > li { break-inside: avoid; }
 }
 /* Entries touching personal data are marked on the rail as well as inline. */
 .dash-timeline > li[data-sensitive="true"] { --dash-timeline-dot: var(--ptec-warning); }
@@ -1261,3 +1253,241 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   .upl-done-mark { animation-duration: .01ms; }
   .upl-done-mark::after { animation: none; opacity: 0; }
 }
+
+/* ══ Overview · library layer (2026-09 redesign) ══════════════════════════
+   The Overview now opens the way a library reads its own ledger: what it
+   holds (solid collection tiles — stock, not traffic, so they ignore the date
+   range), then what readers did in the period (KPI cards), then the panels a
+   librarian acts on. Everything below reads the same --dash-* ramps and the
+   validated --ptec-series-* palette; no new hue is introduced except the
+   collection tiles' three surfaces, each AA-checked for white text:
+     navy  #1E3A8A  10.4:1 · ink  #0B1530  18.1:1 · gold-ink  #806211  5.7:1 */
+
+/* One panel header for every Overview panel: title block, optional action,
+   and a hairline that separates the header from the data. */
+.dash-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--dash-line-subtle);
+}
+.dash-panel-body { padding: 16px 20px 20px; }
+
+/* Outline action in a panel header ("Add book", "Open requests"). */
+.dash-head-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--dash-blue) 22%, var(--dash-line));
+  background: #fff;
+  color: var(--dash-blue);
+  font-size: var(--dash-t-md);
+  line-height: var(--dash-lh-md);
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background .15s ease, border-color .15s ease;
+}
+.dash-head-action:hover {
+  background: color-mix(in srgb, var(--dash-blue) 5%, #fff);
+  border-color: color-mix(in srgb, var(--dash-blue) 40%, transparent);
+}
+
+/* Status chips in the greeting line. */
+.dash-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: var(--dash-t-sm);
+  line-height: var(--dash-lh-sm);
+  font-weight: 600;
+  background: var(--dash-status-bg, var(--dash-well));
+  color: var(--dash-status-fg, var(--dash-ink-2));
+  box-shadow: inset 0 0 0 1px var(--dash-status-line, var(--dash-line));
+}
+a.dash-chip:hover { text-decoration: underline; }
+button.dash-chip:not(:disabled):hover { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dash-status-fg, var(--dash-blue)) 45%, transparent); }
+/* The pressed filter chip: brand fill, whatever its severity colour. */
+.dash-chip--active {
+  background: var(--dash-blue);
+  color: #fff;
+  box-shadow: none;
+}
+
+/* ── Collection tiles (solid) ─────────────────────────────────────────── */
+.dash-tile {
+  --dash-tile-bg: var(--dash-blue);
+  --dash-tile-ico: var(--dash-gold);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  min-height: 96px;
+  padding: 14px 16px 14px 16px;
+  border-radius: var(--dash-r-lg);
+  background: var(--dash-tile-bg);
+  color: #fff;
+  box-shadow: 0 10px 22px -16px color-mix(in srgb, var(--dash-tile-bg) 85%, transparent);
+  transition: background-color .16s ease, transform .16s ease, box-shadow .16s ease;
+}
+a.dash-tile:hover {
+  background: color-mix(in srgb, var(--dash-tile-bg) 90%, #fff);
+  box-shadow: 0 14px 26px -16px color-mix(in srgb, var(--dash-tile-bg) 95%, transparent);
+}
+/* The page's blue focus ring disappears on a navy surface. */
+a.dash-tile:focus-visible { outline: 3px solid var(--dash-gold); outline-offset: 2px; }
+.dash-tile--print  { --dash-tile-bg: var(--dash-ink); }
+.dash-tile--guided { --dash-tile-bg: var(--dash-gold-ink); --dash-tile-ico: #FFF4CC; }
+.dash-tile-ico {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: rgb(255 255 255 / .13);
+  color: var(--dash-tile-ico);
+}
+.dash-tile-label { color: rgb(255 255 255 / .86); }
+.dash-tile-value { font-variant-numeric: proportional-nums; letter-spacing: -.02em; }
+@media (prefers-reduced-motion: no-preference) {
+  a.dash-tile:hover { transform: translateY(-1px); }
+}
+
+/* ── KPI card, hero anatomy (figure first, filled metric disc) ─────────── */
+.dash-kpi-disc {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--dash-kpi-accent, var(--dash-blue));
+  box-shadow: 0 6px 14px -8px var(--dash-kpi-accent, var(--dash-blue));
+}
+/* Selection wears the metric's own colour, so the card and the line it
+   selects say the same thing. The ring, aria-pressed and the chart glyph
+   still carry it for anyone who cannot tell the hues apart. */
+.dash-metric-card.is-selected {
+  border-color: color-mix(in srgb, var(--dash-kpi-accent, var(--dash-blue)) 70%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--dash-kpi-accent, var(--dash-blue)) 55%, transparent),
+    0 12px 26px -16px color-mix(in srgb, var(--dash-kpi-accent, var(--dash-blue)) 70%, transparent);
+}
+
+/* ── Book covers (recently added, shelf) ───────────────────────────────── */
+.dash-cover {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  border-radius: 3px 6px 6px 3px;
+  background: var(--dash-well);
+  box-shadow: inset 3px 0 0 rgb(0 0 0 / .14), 0 6px 12px -8px rgba(11, 21, 48, .55);
+}
+.dash-cover > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dash-cover--thumb { width: 34px; height: 48px; }
+.dash-cover--shelf { width: 100%; aspect-ratio: 2 / 3; border-radius: 4px 8px 8px 4px; }
+.dash-shelf-rank {
+  position: absolute;
+  top: 8px;
+  inset-inline-end: 8px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--dash-gold);
+  color: var(--dash-ink);            /* 8.9:1 on the gold */
+  font-size: var(--dash-t-sm);
+  font-weight: 800;
+  box-shadow: 0 2px 6px rgba(11, 21, 48, .35);
+}
+.dash-shelf-item:hover .dash-cover--shelf { box-shadow: inset 3px 0 0 rgb(0 0 0 / .14), 0 14px 22px -12px rgba(11, 21, 48, .6); }
+
+/* ── Publishing calendar (a real <table>: cells stay table-cells) ───────── */
+.dash-cal-dow {
+  padding-bottom: 6px;
+  font-size: var(--dash-t-xs);
+  line-height: var(--dash-lh-xs);
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--dash-ink-3);
+}
+.dash-cal-day {
+  padding: 3px 0;
+  text-align: center;
+  vertical-align: top;
+}
+.dash-cal-num {
+  display: grid;
+  place-items: center;
+  margin-inline: auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  font-size: var(--dash-t-md);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--dash-ink);
+}
+.dash-cal-day[data-out] .dash-cal-num { color: var(--dash-ink-3); font-weight: 400; }
+.dash-cal-day[data-scheduled] .dash-cal-num { box-shadow: inset 0 0 0 2px var(--ptec-series-views); }
+.dash-cal-day[data-today] .dash-cal-num { background: var(--dash-blue); color: #fff; font-weight: 800; box-shadow: none; }
+/* Gold-INK, not gold: the dot is a non-text mark and needs 3:1 on white —
+   the brand gold is 1.9:1. */
+.dash-cal-dot { display: block; width: 6px; height: 6px; margin: 3px auto 0; border-radius: 99px; }
+.dash-cal-day[data-published] .dash-cal-dot { background: var(--dash-gold-ink); }
+.dash-cal-legend-dot { width: 8px; height: 8px; border-radius: 99px; flex-shrink: 0; }
+.dash-cal-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 42px;
+  height: 44px;
+  border-radius: 10px;
+  line-height: 1;
+  background: color-mix(in srgb, var(--dash-blue) 7%, #fff);
+  color: var(--dash-blue);
+}
+
+/* ── Reading rhythm (weekday bars) ─────────────────────────────────────── */
+.dash-rhythm {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  min-height: 164px;
+}
+.dash-rhythm-col { display: flex; flex-direction: column; align-items: center; gap: 6px; min-height: 0; }
+.dash-rhythm-track {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  min-height: 60px;
+}
+.dash-rhythm-bar {
+  display: block;
+  width: 100%;
+  max-width: 34px;
+  min-height: 2px;
+  border-radius: 7px 7px 3px 3px;
+  background: color-mix(in srgb, var(--dash-blue) 24%, #fff);
+}
+.dash-rhythm-col[data-top] .dash-rhythm-bar { background: var(--dash-blue); }
+.dash-rhythm-col[data-top] .dash-rhythm-value { color: var(--dash-blue); }
+
