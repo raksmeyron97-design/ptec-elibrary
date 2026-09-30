@@ -554,7 +554,18 @@ type Template = {
   /** The page is prerendered or ISR today and must stay shared-cacheable. */
   cacheable?: boolean;
 };
-type UrlEntry = { path: string; template: string; canonical?: string; location?: string; note?: string };
+type UrlEntry = {
+  path: string;
+  template: string;
+  canonical?: string;
+  location?: string;
+  note?: string;
+  /** Checks this environment cannot verify, with the reason — recorded as
+   *  "could not be checked", never as a pass (e.g. a local stack with no
+   *  storage server cannot serve a seed PDF). Only the part that needs the
+   *  missing service is skipped; everything else is still judged. */
+  unverifiable?: Record<string, string>;
+};
 type UrlFile = { sitewideJsonld: string[]; sitewideJsonldTarget: string[]; templates: Record<string, Template>; urls: UrlEntry[] };
 
 let urlFile!: UrlFile;
@@ -711,7 +722,7 @@ async function checkUrl(entry: UrlEntry): Promise<void> {
       judge(label, "citation-locale", workLocale === locale, `citation_language="${lang}" on the ${locale} page`);
     }
     const pdf = page.citations.get("citation_pdf_url")?.[0];
-    if (pdf) await checkPdf(label, canonical || url, pdf);
+    if (pdf) await checkPdf(label, canonical || url, pdf, entry.unverifiable?.["citation-pdf"]);
   }
 
   // Open Graph
@@ -740,7 +751,7 @@ async function checkUrl(entry: UrlEntry): Promise<void> {
   if (tpl.total) judge(label, "results-total-attr", page.resultsTotalAttr !== null, page.resultsTotalAttr ?? "no [data-results-total]");
 }
 
-async function checkPdf(label: string, pageUrl: string, pdf: string): Promise<void> {
+async function checkPdf(label: string, pageUrl: string, pdf: string, unverifiable?: string): Promise<void> {
   const problems: string[] = [];
   const pageDir = new URL(pageUrl).pathname.replace(/[^/]*$/, "");
   const pdfUrl = new URL(pdf, pageUrl);
@@ -749,6 +760,13 @@ async function checkPdf(label: string, pageUrl: string, pdf: string): Promise<vo
   if (robotsTxt) {
     const verdict = robotsAllows(robotsTxt, "googlebot", pdfUrl.pathname + pdfUrl.search);
     if (!verdict.allowed) problems.push(`robots.txt: ${verdict.rule}`);
+  }
+  // Where the PDF is, and whether robots may fetch it, are always judged. The
+  // fetch itself needs storage; where the entry says this environment has
+  // none, a failed fetch is "could not be checked", not a verdict.
+  if (unverifiable && problems.length === 0) {
+    record(label, "citation-pdf", "unknown", `${unverifiable} (${pdfUrl.pathname})`);
+    return;
   }
   try {
     const r = await request(toBase(pdfUrl.href), { headers: { range: "bytes=0-1023" }, readBody: false });
