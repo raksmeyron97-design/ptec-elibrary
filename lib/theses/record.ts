@@ -109,6 +109,12 @@ export interface ThesisRecord {
   authors: string[];
   advisor: string | null;
   coAdvisor: string | null;
+  /**
+   * Author pages for the people above, by the name as printed (SEO Phase
+   * 3.2). Only exact matches resolve (lib/resources/connections.ts), so a
+   * name without a page is printed without a link rather than linked wrongly.
+   */
+  personLinks?: Record<string, string>;
   institution: {
     name: string;
     faculty: string | null;

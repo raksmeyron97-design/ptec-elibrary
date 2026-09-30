@@ -37,6 +37,7 @@ function thesisAuthorCredits(views: readonly ResourceContributorView[]): Resourc
 import { buildThesisMetadata, thesisJsonLd, type ThesisSeoInput } from "@/lib/seo/thesis-seo";
 import JsonLd from "@/components/seo/JsonLd";
 import ResourceConnections from "@/components/seo/ResourceConnections";
+import { resolveAuthorLinks } from "@/lib/resources/connections";
 import ThesisRecordView from "@/components/ui/theses/record/ThesisRecordView";
 
 /**
@@ -199,6 +200,16 @@ export default async function ThesisDetailPage({ params }: PageProps) {
     t,
     tTrust: tLicence,
   });
+
+  // Author pages for the authors and advisors printed on the title page
+  // (Phase 3.2) — exact-name matches only, from the cached directory.
+  const peopleNames = [...record.authors, record.advisor, record.coAdvisor].filter((n): n is string => Boolean(n));
+  // One lookup per printed name: the resolver answers with the directory's
+  // spelling, and the map must be keyed by the name as this page prints it.
+  const personLinks = await Promise.all(
+    peopleNames.map(async (name) => [name, (await resolveAuthorLinks([name]))[0]?.href] as const),
+  );
+  record.personLinks = Object.fromEntries(personLinks.filter(([, href]) => Boolean(href)));
 
   // Validated, sanitized ScholarlyArticle JSON-LD — see lib/seo/thesis-seo.ts.
   const thesisArticleSchema = thesisJsonLd(
