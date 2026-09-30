@@ -1545,3 +1545,76 @@ export async function bulkSetThesisDownloadOverride(
   revalidatePath("/theses");
   return { success: true, count: affected, failed: cleanIds.length - affected };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Open access (SEO Phase 3.1/3.4, 0163). Opening a thesis publishes its full
+// text to everyone at /theses/<slug>/fulltext.pdf and names it to Google
+// Scholar, so it needs the two facts the database CHECK also demands: a
+// recorded licence and the authors' consent, which this action records.
+// Closing it keeps the consent on record (it was given) and returns the
+// thesis to the signed-in door, which this does not touch.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function setThesisOpenAccess(
+  id: string,
+  open: boolean,
+  authorsConsented: boolean,
+): Promise<{ success: boolean; error?: string }> {
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
+  try {
+    admin = await requirePermission("research", "write");
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+  const { supabase } = admin;
+
+  const { data: prev, error: readError } = await supabase
+    .from("research_reports")
+    .select("title, slug, license, access, access_consent_at")
+    .eq("id", id)
+    .maybeSingle();
+  if (readError) {
+    return {
+      success: false,
+      error:
+        readError.code === "42703"
+          ? "Open access needs database migration 0163, which has not been applied yet."
+          : readError.message,
+    };
+  }
+  if (!prev) return { success: false, error: "Thesis not found" };
+
+  const license = typeof prev.license === "string" ? prev.license.trim() : "";
+  if (open && (!license || license === "unknown")) {
+    return { success: false, error: "Record the thesis's licence first — an open full text needs one." };
+  }
+  if (open && !authorsConsented && !prev.access_consent_at) {
+    return { success: false, error: "Confirm that the authors have consented to public access." };
+  }
+
+  const update: Record<string, unknown> = { access: open ? "open" : "restricted" };
+  if (open && !prev.access_consent_at) {
+    update.access_consent_at = new Date().toISOString();
+    update.access_consent_by = admin.user.id;
+  }
+  // Ask for the row: an update that matched nothing succeeds silently.
+  const { data: changed, error } = await supabase
+    .from("research_reports")
+    .update(update)
+    .eq("id", id)
+    .select("id");
+  if (error) return { success: false, error: error.message };
+  if (!changed || changed.length !== 1) return { success: false, error: "Thesis not found" };
+
+  const meta = await requestMeta();
+  await logAdminAction(admin.user.id, "thesis.open_access", "research_reports", id, {
+    title: prev.title,
+    previous_access: prev.access ?? "restricted",
+    new_access: open ? "open" : "restricted",
+    consent_recorded: Boolean(update.access_consent_at ?? prev.access_consent_at),
+    ...meta,
+  });
+
+  revalidateThesis(prev.slug);
+  return { success: true };
+}
