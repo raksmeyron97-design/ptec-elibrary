@@ -4,7 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 
 import enMessages from "@/messages/en.json";
 import kmMessages from "@/messages/km.json";
-import ThesisContents from "./ThesisContents";
+import ContentsList from "./ContentsList";
 
 const ENTRIES = [
   { level: 1 as const, label: "ABSTRACT", page: "iii" },
@@ -17,12 +17,12 @@ const ENTRIES = [
 function renderContents(locale: "en" | "km" = "en") {
   return render(
     <NextIntlClientProvider locale={locale} messages={locale === "km" ? kmMessages : enMessages}>
-      <ThesisContents entries={ENTRIES} />
+      <ContentsList entries={ENTRIES} />
     </NextIntlClientProvider>,
   );
 }
 
-describe("ThesisContents", () => {
+describe("ContentsList", () => {
   it("lists every entry in order, with its printed page", () => {
     renderContents();
     const rows = screen.getAllByRole("listitem");

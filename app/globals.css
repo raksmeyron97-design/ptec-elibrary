@@ -515,6 +515,12 @@
      to body/UI text: Koulen has one weight and no lowercase rhythm — it is a
      poster face. */
   --font-khmer-display: var(--font-var-serif), var(--font-var-koulen), "Hanuman", var(--font-var-hanuman), Georgia, serif;
+  /* A RECORD's display lines — the thesis title, its section heads and the
+     related-work titles. The same trick as --font-khmer-display, with Hanuman
+     in Koulen's place: Crimson Pro sets the Latin, and a Khmer title falls
+     through to Hanuman. The old `font-khmer-serif` h1 listed Hanuman first,
+     so every English thesis title was set in Hanuman's Latin companion. */
+  --font-record: var(--font-var-serif), "Crimson Pro", "Hanuman", var(--font-var-hanuman), Georgia, serif;
   --font-title: var(--font-var-angkor);
   --font-body: "Hanuman", var(--font-var-hanuman);
   

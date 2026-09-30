@@ -1,7 +1,8 @@
 "use client";
 
-// Thesis abstract with the shared reader controls (text zoom + distraction-free
-// fullscreen reader). Thesis abstracts are plain text with no inline
+// The record's abstract, with the shared reader controls (text zoom +
+// distraction-free fullscreen reader) and the keywords that search the
+// collection. Thesis abstracts are plain text with no inline
 // citations, so the body is simple paragraphs — the zoom, fullscreen dialog,
 // focus management, and i18n all come from components/ui/reader/*.
 //
@@ -13,7 +14,8 @@
 import { useRef, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import { Clock, FileText } from "lucide-react";
-import KeywordList from "@/components/ui/detail/KeywordList";
+import { LABEL, SECTION_HEADING } from "./styles";
+import { Link } from "@/i18n/navigation";
 import ReaderDialog from "@/components/ui/reader/ReaderDialog";
 import ReaderToolbar from "@/components/ui/reader/ReaderToolbar";
 import { useReaderPreferences } from "@/components/ui/reader/useReaderPreferences";
@@ -51,19 +53,18 @@ function AbstractBody({ paragraphs }: { paragraphs: string[] }) {
   );
 }
 
-export default function ThesisAbstractReader({
+export default function AbstractBlock({
   abstract,
   abstractKm,
   keywords,
-  basePath,
   title,
   locale = "en",
 }: {
   abstract: string;
   /** The Khmer abstract, when the record has one (0160). */
   abstractKm?: string | null;
+  /** Each one searches the theses listing's own keyword facet. */
   keywords: string[];
-  basePath: string;
   title: string;
   /** Page locale — drives the reader header/eyebrow typography and chrome. */
   locale?: string;
@@ -92,7 +93,7 @@ export default function ThesisAbstractReader({
   const readingMinutes = words > 0 ? Math.max(1, Math.round(words / WORDS_PER_MINUTE)) : 0;
   const khmer = trimmed ? isKhmerDominant(trimmed) : false;
   const bodyLang = khmer ? "km" : "en";
-  const bodyFont = khmer ? "font-khmer-serif" : "font-sans";
+  const bodyFont = khmer ? "font-kh" : "font-sans";
   const contentStyle: ReaderScaleStyle = { "--reader-scale": textSize / 100 };
   const heading = t("heading");
 
@@ -104,18 +105,12 @@ export default function ThesisAbstractReader({
     );
 
   return (
-    <article>
-      {/* Heading row: the section title at display weight, the reading
-          controls flush right, a 2px rule under both. The reading stats used
-          to sit in a header line of their own above this; they are a caption
-          on the section, so they ride with the heading instead of costing a
-          row. */}
+    <div>
+      {/* Heading row: the section title, the reading stats as its caption,
+          the language switch and reading controls flush right. */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2
-            id="abstract-heading"
-            className="text-[20px] font-bold leading-tight tracking-[-0.01em] text-text-heading sm:text-[22px]"
-          >
+          <h2 id="abstract-heading" className={SECTION_HEADING}>
             {heading}
           </h2>
           {words > 0 && (
@@ -135,7 +130,7 @@ export default function ThesisAbstractReader({
           <div
             role="group"
             aria-label={t("languageAria")}
-            className="inline-flex rounded-lg border border-divider bg-bg-surface p-0.5"
+            className="inline-flex gap-0.5 rounded-lg border border-reader-control-border bg-bg-surface p-[3px]"
           >
             {([
               [false, t("languageEn"), "en"],
@@ -147,8 +142,8 @@ export default function ThesisAbstractReader({
                 lang={lang}
                 aria-pressed={showKm === isKm}
                 onClick={() => setShowKm(isKm)}
-                className={`min-h-[32px] rounded-md px-3 text-[12.5px] font-semibold transition-colors duration-150 ${
-                  showKm === isKm ? "bg-brand text-brand-contrast" : "text-text-muted hover:text-text-heading"
+                className={`min-h-[32px] cursor-pointer rounded-md px-3 text-[13px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 [&:lang(km)]:font-kh [&:lang(km)]:text-[14px] [&:lang(km)]:font-normal ${
+                  showKm === isKm ? "bg-brand text-brand-contrast" : "text-text-muted hover:bg-paper hover:text-text-heading"
                 }`}
               >
                 {label}
@@ -170,10 +165,10 @@ export default function ThesisAbstractReader({
         />
       </div>
 
-      {/* The measure is capped here rather than on the <article>, so the
+      {/* The measure is capped here rather than on the wrapper, so the
           heading row and the keyword list still span the column while the
           running text stays at a readable ~68 characters. */}
-      <div className="mt-5 max-w-[68ch]">
+      <div className="mt-4 max-w-[68ch]">
         <div
           lang={bodyLang}
           className={`abstract-reader-copy text-text-body ${bodyFont}`}
@@ -184,9 +179,21 @@ export default function ThesisAbstractReader({
       </div>
 
       {keywords.length > 0 && (
-        <section id="keywords" className="mt-8 scroll-mt-28 border-t border-divider pt-6">
-          <KeywordList keywords={keywords} basePath={basePath} heading={t("keywordsHeading")} />
-        </section>
+        <div className="mt-6">
+          <h3 className={LABEL}>{t("keywordsHeading")}</h3>
+          <ul className="mt-2.5 flex flex-wrap gap-2">
+            {keywords.map((kw) => (
+              <li key={kw}>
+                <Link
+                  href={`/theses?keyword=${encodeURIComponent(kw)}`}
+                  className="inline-flex min-h-8 items-center rounded-full border border-border bg-bg-surface px-3 text-[13.5px] font-medium text-text-heading transition-colors duration-150 hover:border-brand hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+                >
+                  {kw}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <ReaderDialog
@@ -207,6 +214,6 @@ export default function ThesisAbstractReader({
           {body}
         </div>
       </ReaderDialog>
-    </article>
+    </div>
   );
 }

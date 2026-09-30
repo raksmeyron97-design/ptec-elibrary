@@ -1,68 +1,27 @@
 import { notFound, permanentRedirect } from "next/navigation";
-import { Link } from "@/i18n/navigation";
-// Plain next/link, not the locale-aware one: /admin is outside the locale
-// scheme and the i18n Link would prefix it with /km.
-import NextLink from "next/link";
-import { decodeSlugParam } from "@/lib/slug";
-import type { AppRole } from "@/lib/types/roles";
-import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import type { Metadata } from "next";
-import { getThesisById, getThesisBySlug, getThesisPrograms, getThesisFaculties } from "@/app/actions/theses";
-import {
-  evaluateThesisDownload,
-  resolveDownloadPolicy,
-  TOP_N_PROTECTED,
-  type ThesisDownloadDecision,
-  type ThesisPolicyRow,
-} from "@/lib/theses/download-permission";
-import { resolveThesisAccess } from "@/lib/theses/access";
-import ThesisViewPing from "@/components/ui/theses/ThesisViewPing";
-import FullTextSection from "@/components/ui/theses/detail/FullTextSection";
-import RelatedTheses from "@/components/ui/theses/RelatedTheses";
-import ReferenceList from "@/components/ui/theses/ReferenceList";
-import ThesisHero from "@/components/ui/theses/detail/ThesisHero";
-import ThesisMetadata from "@/components/ui/theses/detail/ThesisMetadata";
-import ThesisSectionNav, {
-  type RecordSection,
-} from "@/components/ui/theses/detail/ThesisSectionNav";
-import RecordStatusCard from "@/components/ui/theses/detail/RecordStatusCard";
-import PublicationMetadata from "@/components/ui/theses/detail/PublicationMetadata";
-import {
-  ThesisPrimaryActions,
-  ThesisSecondaryActions,
-} from "@/components/ui/theses/detail/ThesisActions";
-import ThesisDownloadButton from "@/components/ui/theses/ThesisDownloadButton";
-import CiteThis from "@/components/ui/theses/CiteThis";
-import BackToTopButton from "@/components/ui/detail/BackToTopButton";
-import ThesisAbstractReader from "@/components/ui/theses/ThesisAbstractReader";
-import AuthorCard from "@/components/ui/theses/detail/AuthorCard";
-import ThesisContents from "@/components/ui/theses/detail/ThesisContents";
-import { sanitizeContents } from "@/lib/theses/contents";
 import { getTranslations } from "next-intl/server";
-import JsonLd from "@/components/seo/JsonLd";
-import ResourceConnections from "@/components/seo/ResourceConnections";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { getPublicResourceContributors } from "@/lib/resources/public-contributors";
+import { decodeSlugParam } from "@/lib/slug";
+import { getThesisPrograms, getThesisFaculties } from "@/app/actions/theses";
+import {
+  anonymousThesisDecision,
+  readRelatedTheses,
+  readThesisById,
+  readThesisBySlug,
+  readThesisContributors,
+} from "@/lib/theses/record.server";
+import { buildThesisRecord, type RecordLocale, type Translate } from "@/lib/theses/record";
 import { contributorNames } from "@/lib/resources/contributor-view";
 import { citationNames } from "@/lib/resources/contributor-identity";
-import {
-  formatPublicationDate,
-  getCoAdvisor,
-  getKeywords,
-  getReferences,
-  getDoi,
-  getDepartment,
-  getLanguageLabel,
-  getLanguageKey,
-  getThesisTypeKey,
-} from "@/lib/theses/report-fields";
+import { getKeywords, getReferences, getDoi, getDepartment, getLanguageLabel } from "@/lib/theses/report-fields";
 import { SITE_URL } from "@/lib/seo/site";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import { breadcrumbSchema } from "@/lib/seo/schema";
-import { thesisScholarMeta } from "@/lib/seo/citation";
+import { thesisScholarMeta, type ThesisCitationRow } from "@/lib/seo/citation";
 import { buildThesisMetadata, thesisJsonLd, type ThesisSeoInput } from "@/lib/seo/thesis-seo";
-import { ChevronRight, FileX2, Pencil } from "lucide-react";
-import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
+import JsonLd from "@/components/seo/JsonLd";
+import ResourceConnections from "@/components/seo/ResourceConnections";
+import ThesisRecordView from "@/components/ui/theses/record/ThesisRecordView";
 
 /**
  * The LEGACY-byline fallback, used only when the canonical graph has no
@@ -71,6 +30,9 @@ import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
  */
 const splitAuthors = citationNames;
 
+// Shared-cached: nothing below reads the session. The viewer's half of the
+// access decision and the staff Edit link are resolved in the browser against
+// /api/theses/[id]/download-status (components/ui/theses/record/useThesisAccess).
 export const revalidate = 3600;
 
 type PageProps = { params: Promise<{ slug: string; locale: string }> };
@@ -81,52 +43,30 @@ type PageProps = { params: Promise<{ slug: string; locale: string }> };
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const [{ slug: rawSlug, locale }, supabase, org] = await Promise.all([
-    params,
-    createClient(),
-    getOrgIdentity(),
-  ]);
+  const [{ slug: rawSlug, locale }, org] = await Promise.all([params, getOrgIdentity()]);
   // decodeSlugParam is idempotent — normalize in both entry points so the
   // metadata and the body can never resolve to different records.
   const slug = decodeSlugParam(rawSlug);
-  // seo_title/seo_description/og_image (migration 0076) are selected HERE, in
-  // the row we are already fetching, rather than in a follow-up query keyed on
-  // report.id. That second round-trip was pure latency — same table, same row —
-  // and it is what pushed this route's metadata past the shell: Next streams
-  // metadata that resolves after the shell has flushed, emitting the tags into
-  // <body> instead of <head>. Lighthouse reads `head meta`, saw no description,
-  // and scored SEO 0.92 against a 0.95 gate. A meta description in <body> is
-  // also invalid HTML that head-only crawlers ignore, so this was a real SEO
-  // bug and not just a failing audit.
-  const { data: report } = await supabase
-    .from('research_reports')
-    .select('id, slug, title, abstract, author_names, cover_url, file_url, published_at, created_at, updated_at, keywords, doi, is_published, program, faculty, subject, language, department_id, verified_at, seo_title, seo_description, og_image, departments(name)')
-    .eq('slug', slug)
-    .eq('is_published', true)
-    .maybeSingle();
+  // The SAME request-cached row read as the page (lib/theses/record.server.ts),
+  // carrying seo_title/seo_description/og_image. A second round-trip here is
+  // what once pushed this route's metadata past the shell: Next streams late
+  // metadata into <body>, where Lighthouse and head-only crawlers miss it.
+  const report = await readThesisBySlug(slug);
 
   if (!report) {
     // Legacy UUID URLs are handled in the page component (301 or 404); for
     // everything else, throwing here (before the shell streams) makes the
     // response a genuine HTTP 404 instead of a soft 200+noindex.
     if (!UUID_RE.test(slug)) notFound();
-    return { title: 'Thesis not found' };
+    return { title: "Thesis not found" };
   }
 
   // Canonical credits feed the citation_* meta tags + JSON-LD, consistent with
-  // the visible page. ONE resolution — graph, then the legacy byline, with a
-  // failed read reported as `unavailable` rather than as no authors at all.
-  const metaOrg = await getOrgIdentity();
-  const metaContributors = await getPublicResourceContributors("thesis", report.id, {
-    byline: report.author_names,
-    org: metaOrg,
-  });
+  // the visible page — the same request-cached read the page makes.
+  const metaContributors = await readThesisContributors(report.id, report.author_names ?? null);
   const metaAuthorNames = contributorNames(metaContributors.contributors);
-  const seoRow = report;
   const reportForMeta =
-    metaAuthorNames.length > 0
-      ? { ...report, author_names: metaAuthorNames.join(", ") }
-      : report;
+    metaAuthorNames.length > 0 ? { ...report, author_names: metaAuthorNames.join(", ") } : report;
 
   const seoInput: ThesisSeoInput = {
     slug: report.slug,
@@ -151,11 +91,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const base = buildThesisMetadata(
     seoInput,
     locale,
-    {
-      seoTitle: seoRow?.seo_title,
-      seoDescription: seoRow?.seo_description,
-      ogImage: seoRow?.og_image,
-    },
+    { seoTitle: report.seo_title, seoDescription: report.seo_description, ogImage: report.og_image },
     org,
   );
 
@@ -163,479 +99,113 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     ...base,
     // Google Scholar citation_* meta tags — see lib/seo/citation.ts
     other: {
-      ...thesisScholarMeta(reportForMeta, org),
-      'dc.publisher': org.institutionName,
-      'dc.type': 'ScholarlyArticle',
+      ...thesisScholarMeta(reportForMeta as ThesisCitationRow, org),
+      "dc.publisher": org.institutionName,
+      "dc.type": "ScholarlyArticle",
     },
   };
 }
 
 export default async function ThesisDetailPage({ params }: PageProps) {
-  const { slug: rawSlug, locale } = await params;
+  const { slug: rawSlug, locale: rawLocale } = await params;
+  const locale: RecordLocale = rawLocale === "km" ? "km" : "en";
   const slug = decodeSlugParam(rawSlug);
-  let { data: report } = await getThesisBySlug(slug);
+  let report = await readThesisBySlug(slug);
 
   if (!report && UUID_RE.test(slug)) {
     // Legacy ID URL: 301 to the canonical slug URL, 404 if the id is unknown.
-    const { data: bySlugId } = await getThesisById(slug);
-    if (bySlugId?.slug && bySlugId.is_published) {
-      permanentRedirect(locale === "km" ? `/km/theses/${bySlugId.slug}` : `/theses/${bySlugId.slug}`);
-    }
-    report = bySlugId;
+    const byId = await readThesisById(slug);
+    if (byId?.slug) permanentRedirect(locale === "km" ? `/km/theses/${byId.slug}` : `/theses/${byId.slug}`);
+    report = byId;
   }
+  if (!report) notFound();
 
-  if (!report || !report.is_published) {
-    notFound();
-  }
+  const [contributorRead, decision, { data: programs }, { data: faculties }, related, siteConfig, org, tDetail, tTrust, tNav] =
+    await Promise.all([
+      readThesisContributors(report.id, report.author_names ?? null),
+      anonymousThesisDecision(report),
+      getThesisPrograms(),
+      getThesisFaculties(),
+      readRelatedTheses(report),
+      getSiteConfig(),
+      getOrgIdentity(),
+      getTranslations({ locale, namespace: "thesisDetail" }),
+      getTranslations({ locale, namespace: "trust" }),
+      getTranslations({ locale, namespace: "nav" }),
+    ]);
 
-  const id: string = report.id;
-  const canonicalSlug: string = report.slug ?? report.id;
-
-  // Canonical author credits (migrations 0104–0109). DEFENSIVE read-switch:
-  // structured contributors replace the free-text `author_names` on the display
-  // surfaces and JSON-LD when present, falling back to the legacy string when
-  // absent (pre-migration) or empty. `report` itself is left untouched because
-  // AuthorCard matches sibling theses by the exact legacy `author_names` string;
-  // only `displayReport` carries the canonical form.
-  const pageOrg = await getOrgIdentity();
-  const contributorRead = await getPublicResourceContributors("thesis", id, {
-    byline: report.author_names,
-    org: pageOrg,
-  });
+  // Canonical credits (migrations 0104–0109) replace the free-text byline when
+  // the graph has them; otherwise the byline is shown as stored.
   const canonicalAuthors = contributorNames(contributorRead.contributors);
-  const displayReport =
-    canonicalAuthors.length > 0
-      ? { ...report, author_names: canonicalAuthors.join(", ") }
-      : report;
+  const byline = typeof report.author_names === "string" ? report.author_names.trim() : "";
+  const displayAuthorNames = canonicalAuthors.length > 0 ? canonicalAuthors.join(", ") : byline;
 
-  // Admin-only edit link — best-effort, non-blocking. Also resolves whether the
-  // reader is signed in, which gates inline full-text viewing (the file API
-  // requires auth).
-  let isAdmin = false;
-  let userId: string | null = null;
-  try {
-    const authClient = await createClient();
-    const { data: { user } } = await authClient.auth.getUser();
-    if (user) {
-      userId = user.id;
-      const { data: profile } = await authClient
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-      isAdmin = ADMIN_PANEL_ROLES.includes((profile?.role ?? "reader") as AppRole);
-    }
-  } catch { /* non-fatal */ }
-
-  // ── Derived metadata ──────────────────────────────────────────────────────
-  const keywords = getKeywords(report);
-  const references = getReferences(report);
-  const doi = getDoi(report);
-  const department = getDepartment(report);
-  const fileHref = `/api/theses/${id}/file`;
-  const shareUrl = `${SITE_URL}/theses/${canonicalSlug}`;
-  // Localized internal path — carried as returnTo / login callback by the
-  // gated download flow (validated by safeReturnTo before use).
-  const thesisPath = locale === "km" ? `/km/theses/${canonicalSlug}` : `/theses/${canonicalSlug}`;
-
-  // What THIS reader may do with the full text — the same engine the file and
-  // download routes enforce, read through the same projection
-  // (lib/theses/access.ts). Every read control on the page is drawn from it,
-  // so none can offer what the file route will refuse: the old rule drew a
-  // solid "Preview PDF" for any record with a file, and a Top-10 thesis
-  // answered it with 403. The evaluation also yields the global rank that
-  // drives the "Top 10" badge.
-  //
-  // The evaluation's own reads already degrade rather than throw (an
-  // unreadable rank is "unranked", an unreadable profile "incomplete"). If it
-  // throws anyway — no service credentials — the SAME pure engine decides with
-  // exactly that degradation, never a hand-built answer, and the file route
-  // re-decides every request regardless.
-  const isLoggedIn = userId != null;
-  let decision: ThesisDownloadDecision;
-  try {
-    decision = await evaluateThesisDownload({
-      service: createServiceClient(),
-      report: report as ThesisPolicyRow,
-      userId,
-    });
-  } catch {
-    decision = resolveDownloadPolicy({
-      isPublished: true,
-      hasFile: !!report.file_url,
-      override: report.download_override,
-      rank: null,
-      authenticated: isLoggedIn,
-      profileComplete: false,
-    });
-  }
-  const access = resolveThesisAccess({ decision, hasFile: !!report.file_url, authenticated: isLoggedIn });
-  const thesisRank = access.rank;
-  const isTopTen = thesisRank != null && thesisRank <= TOP_N_PROTECTED;
-
-  // ── Display labels ────────────────────────────────────────────────────────
-  // Program and faculty are stored as codes; the spec strip shows names.
-  // Independent lookups, so they run together rather than in series.
-  const [{ data: programs }, { data: faculties }, siteConfig, orgIdentity] = await Promise.all([
-    getThesisPrograms(),
-    getThesisFaculties(),
-    getSiteConfig(),
-    getOrgIdentity(),
-  ]);
-  // Khmer names on /km: both tables carry `name_km`, and the page used to show
-  // the English name on both locales. A blank Khmer name falls back to the
-  // English one rather than to nothing.
-  const localName = (row?: { name_en?: string | null; name_km?: string | null } | null) =>
-    (locale === "km" ? row?.name_km?.trim() || row?.name_en : row?.name_en) ?? null;
-  const programLabel =
-    localName(programs?.find((p) => p.code === report.program)) ?? report.program ?? null;
-  const facultyLabel = localName(
-    faculties?.find((f) => f.program_code === report.program && f.code === report.faculty),
-  );
-  // Department is the messiest field on this table. `getDepartment()` falls
-  // back to the raw faculty CODE when no distinct department record exists, so
-  // a record whose faculty is "Primary Education" was showing "primary" in a
-  // Department row directly beside it — the same fact, once as a label and
-  // once as a code, which reads as a data error rather than as two fields.
-  //
-  // The row is therefore dropped whenever it is just the faculty in disguise
-  // (equal, or a prefix of it, case-insensitively), and title-cased when it
-  // does survive, because codes are stored lowercase and a metadata grid
-  // should not be the place a reader meets one.
-  const departmentLabel = (() => {
-    const raw = department?.trim();
-    if (!raw) return null;
-    const a = raw.toLowerCase();
-    const b = (facultyLabel ?? "").toLowerCase();
-    if (b && (a === b || b.startsWith(a))) return null;
-    return raw.replace(/\b\p{Ll}/gu, (c) => c.toUpperCase());
-  })();
-
-  // The poster's one-line lead. A librarian's SEO description when there is
-  // one, otherwise the abstract's first sentence — the deck sets a single
-  // claim here, not a paragraph, and the full abstract is a screen below.
-  const abstractText = (report.abstract ?? "").replace(/\s+/g, " ").trim();
-  const lead =
-    (report.seo_description ?? "").trim() ||
-    (abstractText ? `${abstractText.split(/(?<=[.!?។])\s/)[0]}`.slice(0, 240) : null);
-
-  const [tDetail, tSearch] = await Promise.all([
-    getTranslations({ locale, namespace: "thesisDetail" }),
-    getTranslations({ locale, namespace: "thesisSearch" }),
-  ]);
-  const cohortLine = [report.cohort ? tSearch("cohortNumber", { number: report.cohort }) : null, report.academic_year]
-    .filter(Boolean)
-    .join(" · ");
-
-  // Reader-facing labels are translations of the stored codes. The English
-  // getThesisTypeLabel/getLanguageLabel stay for the citation and JSON-LD.
-  const typeLabel = tDetail(`type.${getThesisTypeKey(report)}`);
-  const languageKey = getLanguageKey(report);
-  const languageLabel = languageKey ? tDetail(`language.${languageKey}`) : null;
-
-  // Where a protected record sends a reader who wants the full text. The
-  // subject is for library staff, so it stays in English like the corrections
-  // link in <RecordStatusCard>; it is clamped to the contact form's max.
-  const contactHref = `${locale === "km" ? "/km" : ""}/contact?${new URLSearchParams({
-    subject: `Thesis full-text access: ${report.title}`.slice(0, 200),
-    category: "other",
-  }).toString()}`;
-  const signInHref = `/auth/login?callbackUrl=${encodeURIComponent(thesisPath)}`;
-
-  // ── The reading column's sections ─────────────────────────────────────────
-  // The tab strip this replaced hid the full text and the reference list
-  // behind a click, so a reader arriving from a search result could not see
-  // that either existed. Everything is on the page now; the left rail indexes
-  // it. A section that has no content for this thesis is not listed, so the
-  // index never points at an empty heading.
-  const hasReferences = references.length > 0;
-  // The librarian-confirmed contents (0160). Re-shaped on the way out as on
-  // the way in: the column is jsonb, and a hand-edited row must not be able
-  // to break the page. Absent before the migration, which reads as none.
-  const contents = sanitizeContents(report.table_of_contents) ?? [];
-  const sections: RecordSection[] = [
-    { id: "abstract", label: tDetail("sectionAbstract") },
-    ...(keywords.length > 0 ? [{ id: "keywords", label: tDetail("sectionKeywords") }] : []),
-    ...(contents.length > 0
-      ? [{ id: "contents", label: tDetail("sectionContents"), meta: String(contents.length) }]
-      : []),
-    { id: "full-text", label: tDetail("sectionFullText") },
-    { id: "publication-details", label: tDetail("sectionPublication") },
-    { id: "references", label: tDetail("sectionReferences"), meta: String(references.length) },
-  ];
-
-  const tNav = await getTranslations("nav");
+  // Every label and fact on the page is resolved here, once (lib/theses/record.ts).
+  const t: Translate = (key, values) => tDetail(key as never, values as never);
+  const tLicence: Translate = (key, values) => tTrust(key as never, values as never);
+  const record = buildThesisRecord({
+    row: report,
+    locale,
+    authors: canonicalAuthors.length > 0 ? canonicalAuthors : byline ? [byline] : [],
+    canonicalAuthors,
+    programs,
+    faculties,
+    decision,
+    institution: org.institutionName,
+    siteUrl: SITE_URL,
+    t,
+    tTrust: tLicence,
+  });
 
   // Validated, sanitized ScholarlyArticle JSON-LD — see lib/seo/thesis-seo.ts.
   const thesisArticleSchema = thesisJsonLd(
     {
-      slug: canonicalSlug,
+      slug: record.slug,
       title: report.title,
       alternativeTitle: report.title_km ?? null,
       abstract: report.abstract,
-      authors: canonicalAuthors.length > 0 ? canonicalAuthors : splitAuthors(displayReport.author_names),
+      authors: canonicalAuthors.length > 0 ? canonicalAuthors : splitAuthors(displayAuthorNames),
       contributors: contributorRead.contributors,
       coverUrl: report.cover_url,
       datePublished: report.published_at,
       dateModified: report.verified_at ?? report.updated_at ?? null,
-      keywords,
-      doi,
-      department,
+      keywords: record.keywords,
+      doi: getDoi(report),
+      department: getDepartment(report),
       program: report.program,
       language: getLanguageLabel(report),
-      references,
+      references: getReferences(report),
     },
     locale,
-    pageOrg,
+    org,
   );
-  const thesisBreadcrumbSchema = breadcrumbSchema([
-    { name: tNav("home"), path: "/" },
-    { name: tNav("theses"), path: "/theses" },
-    { name: report.title },
-  ], { locale });
+  const thesisBreadcrumbSchema = breadcrumbSchema(
+    [{ name: tNav("home"), path: "/" }, { name: tNav("theses"), path: "/theses" }, { name: report.title }],
+    { locale },
+  );
 
   return (
-    // One <article> holding one <h1>, with the sections beneath it as <section>
-    // elements carrying their own <h2>. Heading levels run h1 → h2 with no
-    // skips, which is what lets a screen-reader user jump the record by
-    // heading. `scroll-smooth` is set here rather than globally so the anchors
-    // in <ThesisSectionNav> glide, and it defers to prefers-reduced-motion.
-    <article className="scroll-smooth bg-bg-app pb-16">
-      <JsonLd data={thesisArticleSchema} />
-      <JsonLd data={thesisBreadcrumbSchema} />
-      <ThesisViewPing id={id} />
-
-      <div className="mx-auto w-full max-w-[1320px] px-4 sm:px-6 lg:px-8">
-        {/* ── Breadcrumb ──
-            Deliberately small and quiet: it orients, it does not compete with
-            the title two elements below it. */}
-        <BreadcrumbNav
-          className="flex flex-wrap items-center gap-x-2 gap-y-1 py-5 text-[12.5px] text-text-muted"
-        >
-          <Link href="/" className="rounded-sm transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50">
-            {tNav("home")}
-          </Link>
-          <ChevronRight className="h-3.5 w-3.5 text-divider" aria-hidden="true" />
-          <Link href="/theses" className="rounded-sm transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50">
-            {tNav("theses")}
-          </Link>
-          <ChevronRight className="h-3.5 w-3.5 text-divider" aria-hidden="true" />
-          <span aria-current="page" className="max-w-[46ch] truncate font-medium text-text-heading">
-            {report.title}
-          </span>
-          {isAdmin && (
-            <NextLink
-              href={`/admin/theses/edit/${id}`}
-              className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-divider bg-bg-surface px-3 py-1.5 text-[12px] font-medium text-text-muted transition-colors duration-150 hover:border-brand hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
-            >
-              <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-              {tDetail("editThesis")}
-            </NextLink>
-          )}
-        </BreadcrumbNav>
-
-        <ThesisHero
-          report={displayReport}
-          typeLabel={typeLabel}
-          rank={isTopTen ? thesisRank : null}
-          lead={lead}
-          cohortLine={cohortLine || null}
-          primaryActions={
-            <ThesisPrimaryActions
-              access={access}
-              signInHref={signInHref}
-              contactHref={contactHref}
-              downloadSlot={
-                <ThesisDownloadButton
-                  reportId={id}
-                  hasFile={!!report.file_url}
-                  variant="full"
-                  thesisPath={thesisPath}
-                />
-              }
-            />
-          }
-          secondaryActions={
-            <ThesisSecondaryActions id={id} title={report.title} shareUrl={shareUrl} />
-          }
-        />
-
-        <div className="mt-10">
-          <ThesisMetadata
-            authorNames={displayReport.author_names}
-            advisor={report.advisor_name}
-            coAdvisor={getCoAdvisor(report)}
-            program={programLabel}
-            faculty={facultyLabel}
-            department={departmentLabel}
-            academicYear={report.academic_year}
-            language={languageLabel}
-            publishedOn={formatPublicationDate(report, locale)}
-          />
-        </div>
-
-        {/* ── Content + supporting rail ──
-            70/30 at `lg`, one column below it. The rail is NOT sticky as a
-            whole — a 700px-tall pinned column fights the reader on a laptop —
-            only the section nav inside it is. */}
-        <div className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_320px] xl:gap-10">
-          <div className="min-w-0 space-y-6">
-            {/* On small screens the section nav is a disclosure and belongs
-                above the content it indexes; on `lg` it is the sticky rail at
-                the top of the sidebar instead. One component, two slots — the
-                hidden one costs nothing because each presentation is behind a
-                display query inside it. */}
-            <div className="lg:hidden">
-              <ThesisSectionNav sections={sections} variant="disclosure" />
-            </div>
-
-            {/* The reading card. Every content section lives in ONE surface
-                with hairline separators, rather than each getting its own
-                bordered box — five stacked cards is the "collection of boxes"
-                the previous layout had. */}
-            <div className="divide-y divide-divider rounded-2xl border border-divider bg-bg-surface shadow-sm">
-              <section id="abstract" className="scroll-mt-28 p-5 sm:p-7">
-                <ThesisAbstractReader
-                  abstract={report.abstract || ""}
-                  abstractKm={report.abstract_km ?? null}
-                  keywords={keywords}
-                  basePath="/theses"
-                  title={report.title}
-                  locale={locale}
-                />
-              </section>
-
-              {contents.length > 0 && (
-                <section id="contents" className="scroll-mt-28 p-5 sm:p-7">
-                  <h2 className="text-[20px] font-bold tracking-[-0.01em] text-text-heading sm:text-[22px]">
-                    {tDetail("sectionContents")}
-                    <span className="ml-2 text-[15px] font-medium tabular-nums text-text-muted">
-                      ({contents.length})
-                    </span>
-                  </h2>
-                  <ThesisContents entries={contents} />
-                </section>
-              )}
-
-              <section id="full-text" className="scroll-mt-28 p-5 sm:p-7">
-                <h2 className="text-[20px] font-bold tracking-[-0.01em] text-text-heading sm:text-[22px]">
-                  {tDetail("sectionFullText")}
-                </h2>
-                <div className="mt-4">
-                  {report.file_url ? (
-                    <FullTextSection
-                      reportId={id}
-                      title={report.title}
-                      fileHref={fileHref}
-                      reportEmail={siteConfig.email}
-                      language={languageLabel}
-                      access={access}
-                      contactHref={contactHref}
-                    />
-                  ) : (
-                    <div className="flex items-start gap-3 rounded-2xl bg-bg-app p-5">
-                      <FileX2 className="mt-0.5 h-5 w-5 shrink-0 text-text-muted" aria-hidden="true" />
-                      <div className="min-w-0">
-                        <p className="text-[14.5px] font-semibold text-text-heading">
-                          {tDetail("noPdf")}
-                        </p>
-                        <p className="mt-1 max-w-[52ch] text-[13.5px] leading-[1.6] text-text-muted">
-                          {tDetail("noPdfBody")}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              <section id="publication-details" className="scroll-mt-28 p-5 sm:p-7">
-                <h2 className="text-[20px] font-bold tracking-[-0.01em] text-text-heading sm:text-[22px]">
-                  {tDetail("sectionPublication")}
-                </h2>
-                <div className="mt-4">
-                  <PublicationMetadata report={displayReport} />
-                </div>
-              </section>
-
-              <section id="references" className="scroll-mt-28 p-5 sm:p-7">
-                <h2 className="text-[20px] font-bold tracking-[-0.01em] text-text-heading sm:text-[22px]">
-                  {tDetail("sectionReferences")}
-                  {hasReferences && (
-                    <span className="ml-2 text-[15px] font-medium tabular-nums text-text-muted">
-                      ({references.length})
-                    </span>
-                  )}
-                </h2>
-                <div className="mt-4">
-                  <ReferenceList references={references} />
-                </div>
-              </section>
-            </div>
-          </div>
-
-          {/* ── Supporting rail ──
-              The whole rail pins as ONE sticky unit, not just the nav inside
-              it. Sticking only the nav looked right until the page scrolled:
-              a sticky element stays put while its SIBLINGS scroll past it, so
-              the citation and status cards slid underneath the pinned nav and
-              overlapped it.
-              `max-h` + `overflow-y-auto` keep the bottom of the rail reachable
-              when its cards are taller than the viewport, and
-              `overscroll-contain` stops a scroll that reaches the rail's end
-              from chaining into the page behind it. `dvh` rather than `vh`
-              because mobile browser chrome changes the viewport height —
-              harmless here since the rule is `lg`-only, but correct. */}
-          <aside className="space-y-5 lg:sticky lg:top-24 lg:max-h-[calc(100dvh-7rem)] lg:min-w-0 lg:overflow-y-auto lg:overscroll-contain lg:pb-2">
-            <div className="hidden lg:block">
-              <ThesisSectionNav sections={sections} variant="rail" />
-            </div>
-
-            <div id="cite-panel" className="scroll-mt-28">
-              <CiteThis
-                report={displayReport}
-                reportId={canonicalSlug}
-                institution={orgIdentity.institutionName}
-                // The verification warning and the corrections link live in
-                // <RecordStatusCard> on this page — see the prop's docs.
-                showRecordNotes={false}
-              />
-            </div>
-
-            <RecordStatusCard
-              verifiedAt={report.verified_at}
-              publishedOn={formatPublicationDate(report, locale)}
-              views={(report.view_count || 0) + 1}
-              downloads={report.download_count || 0}
-              reportTitle={report.title ?? canonicalSlug}
-            />
-
-            {report.author_names && (
-              <AuthorCard variant="rail" currentId={id} authorNames={report.author_names} />
-            )}
-
-            <div className="hidden lg:block">
-              <BackToTopButton label={tDetail("backToTop")} />
-            </div>
-          </aside>
-        </div>
-
-        {/* Subject + author hubs. `subject` is the thesis's own taxonomy
-            column; the byline is the display author list, so a thesis credits
-            the same people its citation does. */}
+    <ThesisRecordView
+      record={record}
+      related={related}
+      locale={locale}
+      reportEmail={siteConfig.email}
+      seo={
+        <>
+          <JsonLd data={thesisArticleSchema} />
+          <JsonLd data={thesisBreadcrumbSchema} />
+        </>
+      }
+      connections={
+        // Subject + author hubs. `subject` is the thesis's own taxonomy
+        // column; the byline is the display author list, so a thesis credits
+        // the same people its citation does.
         <ResourceConnections
           locale={locale}
           subjectNames={[report.subject]}
-          authorNames={splitAuthors(displayReport.author_names)}
+          authorNames={splitAuthors(displayAuthorNames)}
         />
-
-        <RelatedTheses
-          currentId={id}
-          program={report.program}
-          cohort={report.cohort}
-          faculty={report.faculty}
-          academicYear={report.academic_year}
-        />
-      </div>
-    </article>
+      }
+    />
   );
 }

@@ -89,12 +89,18 @@ export function assistantFabHidden(pathname: string): boolean {
 /**
  * Routes where the FAB steps aside on PHONES only, because the page docks its
  * own assistant entry point there: a book's detail page, whose read dock
- * carries "Ask about this book", and a journal article, whose action dock
- * carries "Ask about this article". From `lg` the FAB is back — no dock.
+ * carries "Ask about this book", a journal article, whose action dock carries
+ * "Ask about this article", and a thesis record, whose dock carries "Ask
+ * about this thesis" (/theses/summary is a listing, not a record, and has no
+ * dock). From `lg` the FAB is back — no dock.
  */
 export function assistantFabHiddenOnPhone(pathname: string): boolean {
   const path = stripLocale(pathname);
-  return /^\/books\/[^/]+\/?$/.test(path) || /^\/journals\/articles\/[^/]+\/?$/.test(path);
+  return (
+    /^\/books\/[^/]+\/?$/.test(path) ||
+    /^\/journals\/articles\/[^/]+\/?$/.test(path) ||
+    /^\/theses\/(?!summary\/?$)[^/]+\/?$/.test(path)
+  );
 }
 
 /**
