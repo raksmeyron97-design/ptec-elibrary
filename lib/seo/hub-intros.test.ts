@@ -10,9 +10,13 @@ const words = (n: number) => Array.from({ length: n }, (_, i) => `word${i}`).joi
 
 describe("content/hub-intros.json holds approved intros only", () => {
   const hubs = (approved as { hubs: Record<string, HubIntroEntry> }).hubs;
-  it.each(Object.keys(hubs))("%s is approved, marker-free and 60–120 English words", (hub) => {
-    expect(HUB_KEYS as readonly string[]).toContain(hub);
-    expect(hubIntroProblems(hubs[hub])).toEqual([]);
+  // One test over every entry (not it.each): the file is empty until the
+  // first approval, and an empty it.each is an empty suite, which fails.
+  it("every entry is a known hub, approved, marker-free and 60–120 English words", () => {
+    for (const [hub, entry] of Object.entries(hubs)) {
+      expect(HUB_KEYS as readonly string[]).toContain(hub);
+      expect(hubIntroProblems(entry), hub).toEqual([]);
+    }
   });
 });
 
