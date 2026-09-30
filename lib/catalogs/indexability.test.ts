@@ -117,11 +117,14 @@ describe("one gate, both surfaces", () => {
    */
   const body = (p: string) => read(p).replace(/^\s*import\s[\s\S]*?;\s*$/gm, "");
 
-  it("the sitemap filters on it", () => {
-    const src = body("app/sitemap.ts");
-    expect(src).toMatch(/isCatalogRecordIndexable\(/);
-    // …and selects the column it needs to ask, or the answer is always "no".
-    expect(read("app/sitemap.ts")).toMatch(/from\('catalog_books'\)[\s\S]{0,300}description/);
+  it("the sitemap advertises no catalogue record at all (Phase 1.5, F12)", () => {
+    // A catalogue record describes a shelf copy; the sitemap used to list the
+    // few that clear this gate beside the e-books they duplicate. Now it lists
+    // none, and keeps only the /catalogs hub, gated on the catalogue's count.
+    const src = body("lib/seo/sitemap-entries.ts");
+    expect(src).not.toMatch(/entry\(`\/catalogs\/\$\{/);
+    expect(src).not.toMatch(/isCatalogRecordIndexable\(/);
+    expect(src).toMatch(/hub\('\/catalogs', catalogCount/);
   });
 
   it("the page's robots meta reads the same function", () => {

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { PTEC_PUBLICATIONS_URL } from "../lib/journals/urls";
+import { mergedSitemap } from "./utils/sitemap";
 
 /**
  * Publications → Journals (migration 0148, docs/JOURNALS-ARCHITECTURE.md).
@@ -106,7 +107,7 @@ test.describe("navigation: Journals inside, Publications ↗ outside", () => {
 
 test.describe("sitemap", () => {
   test("advertises journal, issue and article URLs and no /publications URL", async ({ request }) => {
-    const xml = await (await request.get("/sitemap.xml")).text();
+    const xml = await mergedSitemap(request);
     expect(xml).toContain(`/journals/${CJTE}</loc>`);
     expect(xml).toContain(`/journals/${CJTE}/issues/vol-7-issue-2</loc>`);
     expect(xml).toContain(`/journals/articles/${ARTICLE}</loc>`);

@@ -49,6 +49,7 @@ import {
   tally,
   type Outcome,
 } from "../lib/verify/http";
+import { fetchMergedSitemap } from "../lib/verify/sitemap";
 
 const argv = process.argv.slice(2);
 const flag = (name: string, fallback?: string) => {
@@ -97,8 +98,8 @@ async function probe(url: string): Promise<Row> {
 }
 
 async function main() {
-  const res = await fetch(`${BASE}/sitemap.xml`, { headers: { "user-agent": UA } });
-  const xml = await res.text();
+  // /sitemap.xml is an index since Phase 1.5; read every child as one urlset.
+  const xml = await fetchMergedSitemap(BASE, async (u) => (await fetch(u, { headers: { "user-agent": UA } })).text());
   const urls = [...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) =>
     m[1].replace(/&amp;/g, "&").trim(),
   );

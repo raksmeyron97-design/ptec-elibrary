@@ -69,10 +69,10 @@ describe("an empty roster is UNKNOWN, not 'nobody has works'", () => {
 
 // ── Source scans: the two call-site rules a refactor would most plausibly undo.
 describe("the call sites keep the rules that make this safe", () => {
-  it("app/sitemap.ts filters through the directory, not a fresh count", () => {
+  it("the sitemap filters through the directory, not a fresh count", () => {
     // A second implementation of "has works" is how the sitemap and the hub
     // came to disagree in the first place.
-    const src = read("app/sitemap.ts");
+    const src = read("lib/seo/sitemap-entries.ts");
     expect(src).toContain("getListedAuthors()");
     expect(src).toContain("authorUrlsWithWorks(");
     expect(src).toMatch(/if \(degraded\)/);

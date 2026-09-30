@@ -636,6 +636,9 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon\\.ico|sitemap\\.xml|robots\\.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|js|json)$).*)",
+    // `xml` is excluded with the other file types: the sitemap index and its
+    // children (/sitemaps/<type>.xml) are route handlers outside [locale], and
+    // a locale rewrite would send them to /en/sitemaps/… — a 404.
+    "/((?!_next/static|_next/image|favicon\\.ico|sitemap\\.xml|robots\\.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|js|json|xml)$).*)",
   ],
 };

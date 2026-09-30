@@ -37,7 +37,7 @@ const ROOT = join(__dirname, "..", "..");
 
 /** Files whose `.range()` calls page through a whole table. */
 const SWEEP_FILES = [
-  "app/sitemap.ts",
+  "lib/seo/sitemap-entries.ts",
   "lib/chunk-embed.ts",
   "lib/oai/records.ts",
   "lib/metadata-exports/works.ts",
@@ -218,7 +218,7 @@ describe("paginated sweeps end on a unique key", () => {
     // The sitemap is the sweep this rule was written for, and the one whose
     // failure is invisible: the XML stays well-formed and the route still
     // answers 200 while an arbitrary handful of published books go missing.
-    const src = readFileSync(join(ROOT, "app/sitemap.ts"), "utf8");
+    const src = readFileSync(join(ROOT, "lib/seo/sitemap-entries.ts"), "utf8");
     expect(src).toMatch(/const TIEBREAK = ['"]id['"]/);
     // Every sweep in that file must actually use it.
     const chains = rangeChains(src);

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { mergedSitemap } from "./utils/sitemap";
 
 // SEO foundation assertions. The dev server runs with SEO_INDEXING=on
 // (playwright.config.ts) so these verify the production-shaped output;
@@ -122,7 +123,9 @@ test.describe("robots.txt and sitemap", () => {
   }) => {
     const res = await request.get("/sitemap.xml");
     expect(res.status()).toBe(200);
-    const body = await res.text();
+    // An index since Phase 1.5: one child per resource type.
+    expect(await res.text()).toContain("<sitemapindex");
+    const body = await mergedSitemap(request);
     expect(body).toContain(`<loc>${PROD}</loc>`);
     expect(body).not.toContain(`<loc>${PROD}/home</loc>`);
     expect(body).not.toContain("/admin");
@@ -216,7 +219,7 @@ test.describe("subject and author hubs", () => {
     page,
     request,
   }) => {
-    const sitemap = await (await request.get("/sitemap.xml")).text();
+    const sitemap = await mergedSitemap(request);
 
     await page.goto("/subjects");
     const hrefs = await page.locator('main a[href*="/subjects/"]').evaluateAll((els) =>
@@ -238,7 +241,7 @@ test.describe("subject and author hubs", () => {
   }) => {
     // The soft-404 rule: getIndexableSubjects() filters empty subjects out of
     // the sitemap, so anything still listed must have content.
-    const sitemap = await (await request.get("/sitemap.xml")).text();
+    const sitemap = await mergedSitemap(request);
     // Pull every <loc> out with a pattern that knows nothing about hosts, then
     // keep the subject URLs by exact origin. A host written into the pattern
     // instead would have to be escaped by hand to mean one host (an unescaped

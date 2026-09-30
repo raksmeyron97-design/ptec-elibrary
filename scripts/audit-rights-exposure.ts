@@ -57,6 +57,7 @@ import {
   type ReviewPriority,
   type RightsClass,
 } from "../lib/rights/publisher-signals";
+import { fetchMergedSitemap } from "../lib/verify/sitemap";
 
 // `export {}` at the foot of this file is load-bearing: without it TypeScript
 // treats a script with no top-level import as a GLOBAL script, and its consts
@@ -286,7 +287,8 @@ async function run(): Promise<void> {
   console.log(`\nRights-exposure audit — ${BASE}`);
   console.log(`READ-ONLY. Public pages only. Nothing is changed.\n`);
 
-  const sitemap = await fetchText(`${BASE}/sitemap.xml`);
+  // /sitemap.xml is an index since Phase 1.5; read every child as one urlset.
+  const sitemap = await fetchMergedSitemap(BASE, (u) => fetchText(u));
   const all = [...sitemap.matchAll(/<loc>([^<]*\/books\/[^<]+)<\/loc>/g)]
     .map((m) => m[1].split("/books/")[1])
     .filter((s) => s && !s.includes("/"));

@@ -44,6 +44,7 @@ import {
   tally,
   type Outcome,
 } from "../lib/verify/http";
+import { fetchMergedSitemap } from "../lib/verify/sitemap";
 
 // `export {}` at the foot of this file is load-bearing: without it TypeScript
 // treats a script with no top-level import as a GLOBAL script, and its consts
@@ -113,7 +114,8 @@ function hubSubjectPaths(html: string): string[] {
 async function run() {
   console.log(`\nSubject indexability — ${BASE}\n`);
 
-  const [sitemapXml, hubHtml] = await Promise.all([text("/sitemap.xml"), text("/subjects")]);
+  // /sitemap.xml is an index since Phase 1.5; read every child as one urlset.
+  const [sitemapXml, hubHtml] = await Promise.all([fetchMergedSitemap(BASE, (u) => fetchText(u)), text("/subjects")]);
   const advertised = sitemapSubjectPaths(sitemapXml);
   const linked = hubSubjectPaths(hubHtml);
 

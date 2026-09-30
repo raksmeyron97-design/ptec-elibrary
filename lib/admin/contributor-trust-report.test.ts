@@ -96,7 +96,7 @@ describe("the public surfaces honour the rule", () => {
     // The roster read can fail, and this file deliberately emits UNFILTERED
     // when it does. That fallback is right for the works rule, which needs a
     // database; it is not right for this one, which needs nothing.
-    const source = read("app/sitemap.ts");
+    const source = read("lib/seo/sitemap-entries.ts");
     expect(source).toMatch(/normalizeByline\([^)]*\)\.unidentified/);
     expect(source).toContain("unidentified(a.name)");
     expect(source).toContain("unidentified(a.full_name)");
