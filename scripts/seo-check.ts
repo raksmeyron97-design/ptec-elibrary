@@ -145,7 +145,7 @@ const CHECKS: Record<string, CheckDef> = {
   "jsonld-single-block": { phase: 4, finding: "F10", about: "one ld+json block holding an @graph" },
   "jsonld-no-searchaction": { phase: 4, finding: "F10", about: "no SearchAction in the graph" },
   "jsonld-empty-values": { phase: 4, finding: "F10", about: "no null, empty or 'undefined' value in any node" },
-  "citation-required": { phase: 0, finding: "F4", about: "scholarly records: citation_title, ≥1 citation_author, valid date" },
+  "citation-required": { phase: 0, finding: "F4", about: "scholarly records: citation_title, ≥1 citation_author, valid date — on the page in the work's own language" },
   "citation-date-precision": { phase: 1, finding: "F9", warnOnly: true, about: "citation date not padded to 01/01" },
   "citation-locale": { phase: 3, finding: "F4", about: "citation_* only on the locale matching citation_language" },
   "citation-pdf": { phase: 3, finding: "F4", about: "citation_pdf_url in the abstract's directory, robots-allowed, anonymous 200 application/pdf" },
@@ -707,12 +707,32 @@ async function checkUrl(entry: UrlEntry): Promise<void> {
 
   // Scholar
   if (tpl.scholarly) {
-    const ct = page.citations.get("citation_title")?.[0] ?? "";
-    const authors = page.citations.get("citation_author") ?? [];
-    const date = page.citations.get("citation_publication_date")?.[0] ?? page.citations.get("citation_date")?.[0] ?? "";
+    // One Scholar record per work (Phase 3.3): the tags live on the page in
+    // the work's own language. A page without them passes only when its
+    // other-language version carries them (loadPage is cached — the hreflang
+    // check above already fetched it).
+    let cites = page.citations;
+    let where = "";
+    if (!cites.get("citation_title")) {
+      const other = [...page.hreflang].find(([lang]) => lang !== "x-default" && lang !== locale);
+      if (other) {
+        try {
+          const alt = await loadPage(other[1]);
+          if (alt.citations.get("citation_title")) {
+            cites = alt.citations;
+            where = ` (on the ${other[0]} page)`;
+          }
+        } catch (err) {
+          if (err instanceof AbortRun) throw err;
+        }
+      }
+    }
+    const ct = cites.get("citation_title")?.[0] ?? "";
+    const authors = cites.get("citation_author") ?? [];
+    const date = cites.get("citation_publication_date")?.[0] ?? cites.get("citation_date")?.[0] ?? "";
     const validDate = /^\d{4}(?:[/-]\d{1,2}(?:[/-]\d{1,2})?)?$/.test(date);
     judge(label, "citation-required", Boolean(ct) && authors.length > 0 && validDate,
-      `title=${ct ? "yes" : "NO"} authors=${authors.length} date="${date}"`);
+      `title=${ct ? "yes" : "NO"} authors=${authors.length} date="${date}"${where}`);
     if (date) record(label, "citation-date-precision", /^\d{4}[/-]0?1[/-]0?1$/.test(date) ? "warn" : "ok", `date="${date}"`);
     const lang = (page.citations.get("citation_language")?.[0] ?? "").toLowerCase();
     if (lang) {
