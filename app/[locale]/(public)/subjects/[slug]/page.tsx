@@ -33,6 +33,13 @@ import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
 
 export const revalidate = 3600;
 
+// `revalidate` alone does not cache a dynamic segment: Next 16 renders it per
+// request unless the page opts into runtime ISR. An empty list builds nothing
+// and caches each path on its first visit (see theses/[slug]/page.tsx).
+export function generateStaticParams() {
+  return [];
+}
+
 type PageProps = { params: Promise<{ slug: string; locale: string }> };
 
 /** Where "browse all" sends a visitor for each resource type. */
