@@ -7,7 +7,7 @@ import type { Page } from "@playwright/test";
  * `<script type="application/ld+json">` holding an `@graph`; a spec looks a
  * node up by `@type` among these rather than among the blocks.
  */
-export async function jsonLdNodes(page: Page): Promise<Record<string, any>[]> {
+export async function jsonLdNodes(page: Page): Promise<any[]> {
   const blocks = await page.locator('script[type="application/ld+json"]').allTextContents();
   return blocks.flatMap((b) => {
     const doc = JSON.parse(b);
