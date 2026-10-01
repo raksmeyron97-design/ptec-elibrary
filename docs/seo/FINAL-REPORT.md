@@ -51,7 +51,7 @@ are runbook checks.
 | P5-2 | Dry run of the draft generator | **After deploy, on the box**: `--limit 50 --confirm-host <host>`, no `--apply` (RUNBOOK "Phase 5") |
 | P6-1 | `/contact` map on click | **Done** — a same-height placeholder with "Show the map"; nothing is fetched from Google until pressed |
 | P6-2 | "Request a book" is the homepage's dialog | **Done** — `RequestBookButton` renders `ContributeDialog`; `BookRequestForm` deleted |
-| P7-1 | Make the CI `seo-check` job gating | **After its first green run** on the release PR |
+| P7-1 | Make the CI `seo-check` job gating | **Done** — first green run on a fresh seed on `main` (a27a279): 1,541 ok, 0 failing; `continue-on-error` removed and the job required on `main` |
 | P7-2 | Switch IndexNow on | **After Bing Webmaster Tools is set up**: `INDEXNOW_KEY` in the box's `.env` (RUNBOOK §4–§5) |
 | P7-3 | A missing root file answers 404, not 500 | **Done, differently from the proposal** — `dynamicParams = false` on `[locale]` would have 404'd every book, thesis and article page not prerendered at build time (Next ANDs it across all segments of a route). The fix is in `i18n/request.ts`: an invalid locale segment resolves to the default locale instead of reading cookies |
 
@@ -71,7 +71,27 @@ Also added for the deploy: migrations 0161–0164 now `SET LOCAL lock_timeout = 
 - **Migrations 0161–0164** are applied only to the local stack. They reach
   production through the box's `migrate.sh` on deploy.
 
-## How to ship it
+## Deployed (2026-10-01)
+
+- Merged as #285 (`a27a279`, 07:01 UTC); image built 07:47 UTC. The site
+  serves it (`x-ptec-build: 2026-10-01T07:47Z`).
+- Migrations 0161–0164 are live: each new column answers on production with
+  its default, and `book_description_drafts` exists and refuses anon
+  (`permission denied`).
+- Production was unreachable from about 11:40 Phnom Penh time (the app and
+  file storage; by 14:05 its database too), hours before this merge. By 14:54
+  everything answered again, with the new image already serving. Whether the
+  box recovered first or the deploy's restart helped is not visible from
+  outside; the cause is on the box and still unknown.
+- `seo-check` against production (sequential): 1,590 ok and 5 errors.
+  - 3 were books whose only date is the import placeholder: since Phase 5.5
+    they publish no citation date (D11), and the harness now treats that as a
+    warning for books.
+  - 2 are one thesis whose admin-entered SEO title override shortens its
+    title (already failing in the 2026-09-30 baseline). Content: edit or clear
+    the SEO title on that thesis.
+
+
 
 1. Merge the eight branches in order, or `seo/phase-7-handover` alone (it
    contains all of them). Your call; nothing is pushed.

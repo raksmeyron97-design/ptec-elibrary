@@ -401,7 +401,7 @@ repo). The rules that must keep holding:
   then `npx tsx scripts/seo-check.ts --base http://localhost:<port> --urls scripts/seo-urls.local.json`.
   Production is a baseline only: `--delay 1500`, one request at a time — it
   502s under about six concurrent requests. CI's `seo-check` job runs the same
-  on a fresh seed (non-gating until its first green run).
+  on a fresh seed and is a required check (P7-1).
 - **Never change a public URL** (Khmer Unicode slugs included) without a
   301/308 map, a test per redirect and the owner's approval. New slugs are
   capped on CREATE only (`capSlug`/`newRecordSlug`, D8); `slugify()` also

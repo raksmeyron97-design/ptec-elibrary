@@ -139,3 +139,30 @@ expected effect, for checking it against:
   render delay once Phase 1's removal of the hidden streaming container is
   live. That is not a Phase 6 change; this file records the expectation so
   the post-deploy run can confirm or refute it.
+
+## After deploy (production, 2026-10-01, 15:05 Phnom Penh time)
+
+The same runner, the same six URLs, three sequential rounds, Lighthouse 13.5
+mobile. The machine's load was 6.7 (it was 7–18 for the baseline), so read
+TBT as indicative only. Before → after, medians:
+
+| Template | Perf | FCP s | LCP s | JS KB | Image KB | LCP element | LCP render delay (ms) |
+|---|---:|---:|---:|---:|---:|---|---:|
+| home | 49 → 69 | 2.1 → 1.8 | 5.2 → 4.7 | 273 → 273 | 169 → 179 | hero image | 1,199 → 547 |
+| `/books` | 60 → 64 | 1.8 → 1.7 | 5.3 → 4.8 | **356 → 284** | 435 → 429 | first cover | 289 → 167 |
+| record | 62 → 68 | 1.8 → 1.7 | 5.5 → 4.7 | 312 → 314 | **178 → 137** | cover | 234 → 55 |
+| subject | — | 1.7 → 1.7 | 3.9 → 2.5 | 279 → 282 | 51 → 44 | (one run only) | — |
+| path | 64 → 76 | 2.1 → 1.6 | 4.8 → 4.3 | 287 → 289 | 109 → 102 | header image | 326 → 91 |
+| thesis | 60 → 70 | 1.8 → 1.6 | 4.7 → 3.9 | 299 → 301 | 56 → 49 | H1 | 954 → 548 |
+
+- **The two byte fixes carried over to production.** `/books` script fell by
+  72 KB (the Supabase client), and the record page's images by 41 KB (the
+  cover at 448w instead of 828w).
+- **LCP fell on every template**, 0.5–0.8 s. The thesis H1's render delay
+  halved, as the Phase 1 change predicted.
+- **Subject is incomplete.** Two of its three runs failed with Lighthouse's
+  own `NO_NAVSTART` trace error, so its row is a single run and its score is
+  not reported.
+- **Caveat:** before and after are a day apart, so network and server load
+  differ. The byte figures are exact; the timings are indicative.
+
