@@ -188,7 +188,7 @@ test.describe("thesis record: the page", () => {
     test.skip(res.status() === 404, "The thesis seed is not loaded in this environment");
     const html = await res.text();
     expect(html).not.toContain("research/seed/");
-    expect(html).toContain('"@type":"ScholarlyArticle"');
+    expect(html).toContain('"@type":"Thesis"');
     expect(html).toContain('name="citation_title"');
   });
 

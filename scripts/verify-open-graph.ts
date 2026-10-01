@@ -48,6 +48,7 @@ import {
   tally,
   type Outcome,
 } from "../lib/verify/http";
+import { fetchMergedSitemap } from "../lib/verify/sitemap";
 
 // `export {}` at the foot of this file is load-bearing: without it TypeScript
 // treats a script with no top-level import as a GLOBAL script, and its consts
@@ -365,7 +366,8 @@ const KM_SHAPES = ["home (en)", "books listing", "book detail", "subject detail"
 async function run(): Promise<void> {
   console.log(`\nOpen Graph contract — ${BASE}\n`);
 
-  const xml = await fetchText(`${BASE}/sitemap.xml`);
+  // /sitemap.xml is an index since Phase 1.5; read every child as one urlset.
+  const xml = await fetchMergedSitemap(BASE, (u) => fetchText(u));
   // Paths, never origins. A local production build emits the CANONICAL origin
   // in its sitemap (SITE_URL is a build-time constant), so filtering on
   // `startsWith(BASE)` would drop every URL when --base is a localhost build —

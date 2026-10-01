@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { localeAlternates } from "@/lib/seo/alternates";
+import { localeAlternates, dropHreflangWhenNoindex } from "@/lib/seo/alternates";
 import { buildOpenGraph, buildTwitter, OG_FALLBACK_IMAGE } from "@/lib/seo/open-graph";
 import {
   resolveOrgIdentity,
   type OrgIdentity,
 } from "@/lib/system-settings/org-identity";
+import { libraryNameFor } from "@/lib/seo/brand";
 
 /** The shared social card, same asset every detail-page builder falls back to.
  *  Re-exported so existing importers keep one constant, not a second copy. */
@@ -81,7 +82,7 @@ export function buildListingMetadata({
   const pathWithQuery = page > 1 ? `${path}?page=${page}` : path;
   const alternates = localeAlternates(pathWithQuery, locale);
   const pagedTitle = page > 1 ? `${title} — ${pageLabel} ${page}` : title;
-  const socialTitle = `${pagedTitle} | ${org.libraryName}`;
+  const socialTitle = `${pagedTitle} | ${libraryNameFor(org, locale)}`;
   // `image` stays optional and its absence still means the shared card —
   // buildOpenGraph now owns that fallback (with its width, height and alt)
   // instead of this builder holding a second copy of the rule.
@@ -97,7 +98,7 @@ export function buildListingMetadata({
     fallbackImageAlt: imageAlt,
   });
 
-  return {
+  return dropHreflangWhenNoindex({
     title: pagedTitle,
     description,
     alternates,
@@ -110,7 +111,7 @@ export function buildListingMetadata({
       description,
       images: openGraph.images,
     }),
-  };
+  });
 }
 
 /** Parse a ?page= value into a sane 1-based page number. */

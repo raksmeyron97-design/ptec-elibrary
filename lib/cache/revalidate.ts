@@ -98,7 +98,37 @@ export const TAGS = {
   homepagePhotos: "homepage-photos",
   /** The "reader submissions added" figure in <GrowTheCollection>. */
   homeContributions: "home-contributions",
+  /** The sitemaps' entry cache (lib/seo/sitemap-entries.ts). Every helper
+   *  whose record can enter, leave or move in a sitemap fires it (SEO Phase
+   *  7.2): without it a newly published record reached the sitemap only once
+   *  the hour-long entry cache AND the route's hourly revalidation had both
+   *  turned over — up to two hours, measured. */
+  sitemap: "sitemap",
 } as const;
+
+function revalidateSitemaps() {
+  revalidateTag(TAGS.sitemap, "max");
+}
+
+/**
+ * Tell IndexNow engines that a public record changed (SEO Phase 7.2). Off
+ * unless INDEXNOW_KEY is set, and the cheap check runs first so the sender —
+ * and the settings read behind it — is only loaded when it is on. Never
+ * throws: a failed ping must not fail the save that caused it.
+ */
+let indexNowSender: Promise<typeof import("@/lib/seo/indexnow.server")> | null = null;
+
+function announce(path: string) {
+  if (!process.env.INDEXNOW_KEY) return;
+  // One load shared by every announcement; a failed load is forgotten so the
+  // next change tries again rather than staying silent for the process's life.
+  indexNowSender ??= import("@/lib/seo/indexnow.server");
+  void indexNowSender
+    .then((m) => m.announcePublicChange([path]))
+    .catch(() => {
+      indexNowSender = null;
+    });
+}
 
 /**
  * Published site settings changed (publish or rollback in
@@ -182,9 +212,11 @@ export function revalidateBook(
   { affectsHome = false }: { affectsHome?: boolean } = {},
 ) {
   revalidateTag(TAGS.books, "max");
+  revalidateSitemaps();
   if (slug) {
     revalidateTag(TAGS.book(slug), "max");
     revalidatePublicPath(`/books/${slug}`);
+    announce(`/books/${slug}`);
   }
   revalidatePublicPath("/books");
   revalidateCollectionStats();
@@ -220,9 +252,11 @@ export function revalidateCatalogBook(slug?: string | null) {
 
 export function revalidateThesis(slug?: string | null) {
   revalidateTag(TAGS.theses, "max");
+  revalidateSitemaps();
   if (slug) {
     revalidateTag(TAGS.thesis(slug), "max");
     revalidatePublicPath(`/theses/${slug}`);
+    announce(`/theses/${slug}`);
   }
   revalidatePublicPath("/theses");
   revalidateTag(TAGS.homeTheses, "max");
@@ -234,9 +268,11 @@ export function revalidatePublication(slug?: string | null) {
   // An article save can move it between issues or journals (0148's trigger
   // re-resolves the mapping), so every journal surface is stale with it.
   revalidateTag(TAGS.journals, "max");
+  revalidateSitemaps();
   if (slug) {
     revalidateTag(TAGS.publication(slug), "max");
     revalidatePublicPath(articlePath(slug));
+    announce(articlePath(slug));
   }
   revalidatePublicPath(JOURNALS_PATH);
   revalidateTag(TAGS.homePublications, "max");
@@ -252,6 +288,7 @@ export function revalidatePublication(slug?: string | null) {
 export function revalidateJournals(journalSlug?: string | null) {
   revalidateTag(TAGS.journals, "max");
   revalidateTag(TAGS.publications, "max");
+  revalidateSitemaps();
   revalidatePublicPath(JOURNALS_PATH);
   if (journalSlug) revalidatePublicPath(journalPath(journalSlug));
 }
@@ -268,6 +305,7 @@ export function revalidateJournals(journalSlug?: string | null) {
  * name matching) and would otherwise keep serving the pre-rename page.
  */
 export function revalidateAuthorProfile(...slugs: (string | null | undefined)[]) {
+  revalidateSitemaps();
   for (const slug of slugs) {
     if (slug) revalidatePublicPath(`/authors/${slug}`);
   }
@@ -275,9 +313,11 @@ export function revalidateAuthorProfile(...slugs: (string | null | undefined)[])
 
 export function revalidatePost(slug?: string | null) {
   revalidateTag(TAGS.posts, "max");
+  revalidateSitemaps();
   if (slug) {
     revalidateTag(TAGS.post(slug), "max");
     revalidatePublicPath(`/posts/${slug}`);
+    announce(`/posts/${slug}`);
   }
   revalidatePublicPath("/posts");
   revalidateTag(TAGS.homePosts, "max");
@@ -285,9 +325,11 @@ export function revalidatePost(slug?: string | null) {
 
 export function revalidateLearningPath(slug?: string | null) {
   revalidateTag(TAGS.paths, "max");
+  revalidateSitemaps();
   if (slug) {
     revalidateTag(TAGS.path(slug), "max");
     revalidatePublicPath(`/paths/${slug}`);
+    announce(`/paths/${slug}`);
   }
   revalidatePublicPath("/paths");
   revalidatePublicPath("/"); // paths are rendered in StartWithGoal
@@ -296,12 +338,14 @@ export function revalidateLearningPath(slug?: string | null) {
 
 export function revalidateTeam() {
   revalidateTag(TAGS.team, "max");
+  revalidateSitemaps();
   revalidatePublicPath("/about/team");
 }
 
 export function revalidateTaxonomy() {
   revalidateTag(TAGS.categories, "max");
   revalidateTag(TAGS.departments, "max");
+  revalidateSitemaps();
   revalidatePublicPath("/");
   revalidatePublicPath("/books");
   revalidatePublicPath("/catalogs");

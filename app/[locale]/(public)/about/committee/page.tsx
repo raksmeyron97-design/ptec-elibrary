@@ -5,7 +5,6 @@ import { Clock, Landmark, MessageCircle, Phone } from "lucide-react";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
-import JsonLd from "@/components/seo/JsonLd";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import { getPublicCommitteeData } from "@/lib/committee/data";
 import { publishedCount, type PublicCommitteeMember } from "@/lib/committee/public";
@@ -21,6 +20,8 @@ import {
   InformationCard,
   NoticePanel,
 } from "@/components/about/primitives";
+import { siteNameFor } from "@/lib/seo/brand";
+import { LIBRARY_ID } from "@/lib/seo/entity-ids";
 
 // The committee changes rarely and every admin mutation revalidates this path
 // (app/(admin)/admin/(protected)/team/committee/actions.ts), as does every edit
@@ -40,7 +41,7 @@ export async function generateMetadata({
   // `title` must not repeat it; an OG title travels alone into a social card.
   const title = t("metaTitle");
   const description = t("metaDescription");
-  const socialTitle = `${title} · ${org.siteName}`;
+  const socialTitle = `${title} · ${siteNameFor(org, locale)}`;
 
   const openGraph = buildOpenGraph({
     locale,
@@ -76,10 +77,9 @@ export default async function LibraryCommitteePage({
 
   const t = await getTranslations("about");
   const tc = await getTranslations("about.committee");
-  const [{ groups, unavailable }, cfg, org] = await Promise.all([
+  const [{ groups, unavailable }, cfg] = await Promise.all([
     getPublicCommitteeData(),
     getSiteConfig(),
-    getOrgIdentity(),
   ]);
 
   const members = groups.flatMap((group) => group.members);
@@ -96,7 +96,7 @@ export default async function LibraryCommitteePage({
      claim this page has no basis for: sitting on the committee is a role, and
      some holders of it are college staff rather than library staff.
 
-     Names are admin-authored, so this goes through <JsonLd> (which escapes a
+     Names are admin-authored, so this goes through <PageJsonLd> (which escapes a
      "</script>" breakout), never a raw JSON.stringify. */
   const jsonLd =
     total > 0
@@ -107,15 +107,10 @@ export default async function LibraryCommitteePage({
           description: tc("metaDescription"),
           url: pageUrl,
           inLanguage: ["en", "km"],
+          // The library, by reference: the page's graph declares it (and its
+          // parent college) once. The member list is what this page adds.
           about: {
-            "@type": "Organization",
-            name: org.siteName,
-            url: SITE_URL,
-            parentOrganization: {
-              "@type": "CollegeOrUniversity",
-              name: cfg.name.en,
-              sameAs: [...cfg.sameAs],
-            },
+            "@id": LIBRARY_ID,
             member: members.map((m) => ({
               "@type": "Person",
               name: m.name_en || m.name_km,
@@ -164,6 +159,7 @@ export default async function LibraryCommitteePage({
     <AboutPageShell
       page="committee"
       locale={locale}
+      jsonLd={[jsonLd, itemListJsonLd]}
       hero={{
         category: tc("category"),
         title: tc("title"),
@@ -230,8 +226,6 @@ export default async function LibraryCommitteePage({
         </div>
       }
     >
-      {jsonLd && <JsonLd data={jsonLd} />}
-      {itemListJsonLd && <JsonLd data={itemListJsonLd} />}
 
       {/* ── What the committee is ────────────────────────────────────── */}
       <AboutSection id="purpose" title={tc("purpose.heading")}>

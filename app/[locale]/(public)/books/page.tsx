@@ -17,13 +17,14 @@ import {
 import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
 import { ClientNavWrapper, FilterLink, FilterSelect, SortSelect } from "@/components/ui/books/ClientNavWrapper";
 import { buttonClasses } from "@/components/ui/core/Button";
-import BookRequestForm from "@/components/ui/books/BookRequestForm";
+import RequestBookButton from "@/components/ui/books/RequestBookButton";
 import FeaturedShelf from "@/components/ui/books/FeaturedShelf";
 import MobileFilterSheet from "@/components/ui/books/MobileFilterSheet";
 import { getTranslations } from 'next-intl/server';
 import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
 import { booksCollectionJsonLd, FALLBACK_OG_IMAGE } from "@/lib/seo/book-seo";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
+import HubIntro from "@/components/seo/HubIntro";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { getCollectionStats } from "@/lib/collection-stats";
 import { chooseCountLabel } from "@/lib/listing-count";
@@ -173,7 +174,7 @@ export default async function BooksPage({
 
   return (
     <ClientNavWrapper>
-    {collectionSchema && <JsonLd data={collectionSchema} />}
+    <PageJsonLd nodes={[collectionSchema ? collectionSchema : null]} />
     <div className="min-h-screen bg-bg-body">
       {/* ── Header ── */}
       <div className="border-b border-divider bg-bg-surface px-4 py-4 md:px-12 md:py-7">
@@ -183,6 +184,7 @@ export default async function BooksPage({
             <div>
               <h1 className="font-khmer-serif text-2xl font-bold text-text-heading">{t('h1')}</h1>
               <p className="mt-0.5 text-sm text-text-muted">{t('subtitle')}</p>
+              <HubIntro hub="books" locale={locale} show={!hasFilters && requestedPage === 1} className="mt-3" />
             </div>
             <div className="flex items-center gap-3">
               {/* Hidden on mobile — the MobileFilterSheet toolbar owns the
@@ -191,7 +193,7 @@ export default async function BooksPage({
                 {countLabel}
                 {params.q && <> {t('resultsFor')} &ldquo;{params.q}&rdquo;</>}
               </p>
-              <BookRequestForm />
+              <RequestBookButton />
             </div>
           </div>
           {/* Search bar */}

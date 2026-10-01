@@ -8,6 +8,12 @@ import { Field, FormSection, SlugField } from "@/components/admin/kit/form";
 import { LICENSE_OPTIONS } from "@/lib/book-utils";
 import { THESIS_TYPES, THESIS_LANGUAGES, slugify, type ThesisType, type ThesisLanguage } from "@/lib/admin/theses-shared";
 import { checkThesisSlugAvailable } from "@/app/actions/theses";
+import { capSlug } from "@/lib/slug";
+
+// A slug derived from the title is capped to its first words (SEO Phase 2.8,
+// D8). SlugField derives only while the record has no slug of its own, so an
+// existing record's slug — and one typed by hand — is never touched.
+const derivedSlug = (value: string) => capSlug(slugify(value));
 
 /**
  * Step 1 — two groups rather than one flat column of six.
@@ -111,7 +117,7 @@ export default function BasicInfoStep({
           source={title}
           routePrefix="/theses"
           siteUrl={siteUrl}
-          slugify={slugify}
+          slugify={derivedSlug}
           // Closed over the thesis's own id so editing never reports its own
           // slug as taken.
           checkAvailability={(candidate) => checkThesisSlugAvailable(candidate, thesisId)}

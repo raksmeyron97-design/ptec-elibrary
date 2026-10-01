@@ -5,7 +5,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getPublishedPaths, getFeaturedPath, getPathBySlug } from "@/app/actions/learning-paths";
 import { getCollectionStats } from "@/lib/collection-stats";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import PathsCatalogueClient from "./_components/PathsCatalogueClient";
 import PathJourneyVisual from "./_components/PathJourneyVisual";
@@ -26,10 +26,18 @@ export const revalidate = 3600;
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<Metadata> {
   const { locale } = await params;
+  // Any filter, search or sort parameter makes this a permutation of the hub.
+  const raw = searchParams ? await searchParams : undefined;
+  const hasFilters = ["level", "q", "sort"].some((key) => {
+    const v = raw?.[key];
+    return Array.isArray(v) ? v.some(Boolean) : Boolean(v);
+  });
   const [t, stats, org] = await Promise.all([
     getTranslations({ locale, namespace: "paths" }),
     getCollectionStats(),
@@ -41,6 +49,7 @@ export async function generateMetadata({
       title: t("seoTitle"),
       description: t("seoDescription"),
       isEmpty: stats?.learningPaths === 0,
+      hasFilters,
     },
     org,
   );
@@ -113,8 +122,7 @@ export default async function LearningPathsPage({
 
   return (
     <div className="paths-page min-h-screen bg-bg-body">
-      {paths.length > 0 && <JsonLd data={collectionSchema} />}
-      <JsonLd data={breadcrumbs} />
+      <PageJsonLd nodes={[paths.length > 0 ? collectionSchema : null, breadcrumbs]} />
       <div className="mx-auto max-w-[1200px] px-4 py-8 md:px-8 md:py-10">
         {/* Semantic Breadcrumb */}
         <BreadcrumbNav
@@ -131,14 +139,18 @@ export default async function LearningPathsPage({
         <header className="mb-8 border-b border-divider pb-7">
           <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)] lg:gap-12">
             <div>
-              <span className="inline-flex items-center gap-2 rounded-full border border-brand/25 bg-brand/8 px-3.5 py-1.5 text-[11.5px] font-bold uppercase tracking-[0.16em] text-brand">
+              {/* The H1 is the pill: it names the page ("Teacher Learning
+                  Paths", the same words as the <title>), while the slogan
+                  below keeps its display size as a paragraph (SEO N5). Same
+                  look as before; only the elements swapped. */}
+              <h1 className="m-0 inline-flex items-center gap-2 rounded-full border border-brand/25 bg-brand/8 px-3.5 py-1.5 text-[11.5px] font-bold uppercase tracking-[0.16em] text-brand">
                 <GraduationCap className="h-4 w-4" aria-hidden="true" />
                 {t("eyebrow")}
-              </span>
-
-              <h1 className="mt-4 font-khmer-serif text-[clamp(26px,4.2vw,38px)] font-bold leading-[1.18] text-text-heading">
-                {t("h1")}
               </h1>
+
+              <p className="mt-4 font-khmer-serif text-[clamp(26px,4.2vw,38px)] font-bold leading-[1.18] text-text-heading">
+                {t("h1")}
+              </p>
 
               <p className="mt-3 max-w-[58ch] text-[15.5px] leading-[1.7] text-text-body">
                 {t("heroValueProp")}

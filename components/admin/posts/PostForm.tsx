@@ -29,6 +29,12 @@ import { slugify } from "@/lib/admin/posts-shared";
 import { makeUid, postFolder } from "@/lib/book-utils";
 import { validatePost, firstValidationError, type PostValidationErrors } from "@/lib/admin/post-validation";
 import type { PostCategory, PostStatus, PostVisibility } from "@/lib/admin/posts-shared";
+import { capSlug } from "@/lib/slug";
+
+// A slug derived from the title is capped to its first words (SEO Phase 2.8,
+// D8). SlugField derives only while the record has no slug of its own, so an
+// existing record's slug — and one typed by hand — is never touched.
+const derivedSlug = (value: string) => capSlug(slugify(value));
 
 type Phase = "idle" | "uploading" | "saving";
 type AutosaveStatus = "idle" | "unsaved" | "saving" | "saved" | "error";
@@ -556,7 +562,7 @@ export default function PostForm({
           source={title}
           routePrefix="/posts"
           siteUrl={SITE_URL}
-          slugify={slugify}
+          slugify={derivedSlug}
           // Closed over the post's own id so editing a post never reports its
           // own slug as taken.
           checkAvailability={(candidate) => checkSlugAvailableAction(candidate, initial?.id)}

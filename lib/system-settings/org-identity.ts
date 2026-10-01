@@ -58,6 +58,9 @@ export type OrgIdentity = {
    *  https://www.ptec.edu.kh). schema.org EducationalOrganization.url — never
    *  this library's origin. */
   institutionUrl: string;
+  /** Published <title> template ("%s · PTEC Library"). Optional so literals in
+   *  tests need not repeat it; lib/seo/brand.ts derives the default. */
+  titleTemplate?: string;
 };
 
 /** Pure projection: published site configuration → public identity. */
@@ -75,6 +78,7 @@ export function orgIdentityFrom(cfg: SiteConfig): OrgIdentity {
     // only if an admin has cleared the field, so the node never emits an
     // empty url.
     institutionUrl: cfg.links.website || SITE_URL,
+    titleTemplate: cfg.seo.titleTemplate,
   };
 }
 
@@ -93,6 +97,7 @@ export const EMERGENCY_ORG_IDENTITY: OrgIdentity = {
   contactEmail: DEFAULT_SECTION_DOCS.contact.email,
   url: SITE_URL,
   institutionUrl: DEFAULT_SECTION_DOCS.links.website,
+  titleTemplate: DEFAULT_SECTION_DOCS.seo.titleTemplate,
 };
 
 let warned = false;

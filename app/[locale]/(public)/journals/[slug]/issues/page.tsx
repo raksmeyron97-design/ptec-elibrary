@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import JournalBreadcrumb from "@/components/ui/journals/JournalBreadcrumb";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { buildIssuesListMetadata, issuesListJsonLd, type JournalPageSeoInput } from "@/lib/seo/journal-seo";
@@ -95,24 +95,24 @@ export default async function JournalIssuesPage({ params }: PageProps) {
 
   return (
     <section className="min-h-screen bg-bg-body px-4 py-6 sm:px-6 sm:py-10 md:px-12">
-      <JsonLd
-        data={issuesListJsonLd(
-          toSeo(journal),
-          locale,
-          overview.issues.map((i) => ({ slug: i.slug, label: issueLabel(i, locale) })),
-          t("issuesTitle", { journal: name }),
-        )}
-      />
-      <JsonLd
-        data={breadcrumbSchema(
-          [
-            { name: crumbs[0].label, path: "/" },
-            { name: crumbs[1].label, path: JOURNALS_PATH },
-            { name, path: journalPath(journal.slug) },
-            { name: crumbs[3].label, path: journalIssuesPath(journal.slug) },
-          ],
-          { locale },
-        )}
+      <PageJsonLd
+        nodes={[
+          issuesListJsonLd(
+            toSeo(journal),
+            locale,
+            overview.issues.map((i) => ({ slug: i.slug, label: issueLabel(i, locale) })),
+            t("issuesTitle", { journal: name }),
+          ),
+          breadcrumbSchema(
+            [
+              { name: crumbs[0].label, path: "/" },
+              { name: crumbs[1].label, path: JOURNALS_PATH },
+              { name, path: journalPath(journal.slug) },
+              { name: crumbs[3].label, path: journalIssuesPath(journal.slug) },
+            ],
+            { locale },
+          ),
+        ]}
       />
       <div className="mx-auto max-w-[1000px]">
         <JournalBreadcrumb crumbs={crumbs} />

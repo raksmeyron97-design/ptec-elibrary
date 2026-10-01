@@ -9,7 +9,6 @@ import { ContextPanel } from "@/components/admin/kit/form";
 import type { RecordHealthCheck } from "@/lib/catalogs/record-health";
 
 const MESSAGE: Record<RecordHealthCheck["id"], { ok: string; bad: string }> = {
-  "search-visibility": { ok: "visibilityOk", bad: "visibilityRecordOnly" },
   copies: { ok: "copiesOk", bad: "copiesBad" },
   "call-number": { ok: "callNumberOk", bad: "callNumberBad" },
   subject: { ok: "subjectOk", bad: "subjectBad" },
@@ -19,12 +18,7 @@ const MESSAGE: Record<RecordHealthCheck["id"], { ok: string; bad: string }> = {
 };
 
 function messageKey(check: RecordHealthCheck): string {
-  if (check.ok) return MESSAGE[check.id].ok;
-  if (check.id === "search-visibility") {
-    if (check.reason === "derived-description") return "visibilityDerived";
-    if (check.reason === "unchecked-description") return "visibilityUnchecked";
-  }
-  return MESSAGE[check.id].bad;
+  return check.ok ? MESSAGE[check.id].ok : MESSAGE[check.id].bad;
 }
 
 export default function RecordHealthPanel({ checks }: { checks: RecordHealthCheck[] }) {

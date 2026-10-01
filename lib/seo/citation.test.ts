@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   bookScholarMeta,
   thesisScholarMeta,
+  thesisCitationLocale,
+  citationLocale,
+  isCohortLabel,
   publicationScholarMeta,
   formatScholarDate,
   splitAuthorNames,
@@ -18,8 +21,14 @@ describe("formatScholarDate", () => {
     expect(formatScholarDate(null, "not-a-date", "2025-12-25")).toBe("2025/12/25");
   });
 
-  it("falls back to the current year when nothing parses", () => {
-    expect(formatScholarDate(null, undefined)).toBe(String(new Date().getFullYear()));
+  it("publishes a 1 January date as its year: a stored year, not a known day", () => {
+    expect(formatScholarDate("2016-01-01")).toBe("2016");
+    expect(formatScholarDate("2023-01-01T00:00:00+00:00")).toBe("2023");
+  });
+
+  it("publishes no date when nothing parses, never the current year", () => {
+    // No date is published rather than an invented one (docs/seo F3/F9).
+    expect(formatScholarDate(null, undefined)).toBeUndefined();
   });
 });
 
@@ -63,16 +72,13 @@ describe("bookScholarMeta", () => {
     expect(meta).toMatchObject({
       citation_title: "PISA-D Assessment Framework",
       citation_author: ["Jane Doe"],
-      citation_publication_date: "2024-06-15",
+      citation_publication_date: "2024/06/15",
       citation_isbn: "978-1-234567-89-0",
       citation_language: "English",
       citation_keywords: "Assessment; PISA",
     });
-    // Must point at the anonymously-readable file route, not a download
-    // endpoint that would redirect or require auth for a crawler.
-    expect(meta.citation_pdf_url).toBe(
-      "https://library.ptec.edu.kh/api/books/163f853f-e68c-4ae9-a23f-1f18ffa3e8b7/file",
-    );
+    // Phase 3.7: a book's PDF needs a sign-in, so no PDF is named to Scholar.
+    expect(meta.citation_pdf_url).toBeUndefined();
   });
 
   it("does NOT assert PTEC as citation_publisher (PTEC is the provider)", () => {
@@ -126,12 +132,41 @@ describe("thesisScholarMeta", () => {
     expect(meta.citation_doi).toBeUndefined();
   });
 
-  it("points citation_pdf_url at /file (not /file.pdf, which 404s)", () => {
-    const meta = thesisScholarMeta(sampleRow);
-    expect(meta.citation_pdf_url).toBe(
-      "https://library.ptec.edu.kh/api/theses/0338d7db-1b27-41bf-a0ab-dfc4d15efcb3/file",
-    );
-    expect(meta.citation_pdf_url).not.toMatch(/\.pdf$/);
+  it("names a PDF only when the caller hands it a public full text", () => {
+    // Phase 3.4: the old /api/theses/<id>/file answered 401 anonymously and
+    // sits under a robots-blocked path — never a URL Scholar could fetch.
+    expect(thesisScholarMeta(sampleRow).citation_pdf_url).toBeUndefined();
+    const pdfUrl = "https://library.ptec.edu.kh/theses/my-thesis/fulltext.pdf";
+    expect(thesisScholarMeta(sampleRow, undefined, { pdfUrl }).citation_pdf_url).toBe(pdfUrl);
+  });
+
+  it("never lists a cohort label as an author", () => {
+    const meta = thesisScholarMeta({ ...sampleRow, author_names: "គរុនិស្សិត ១២+៤ ជំនាន់ទី២, Sok San" });
+    expect(meta.citation_author).toEqual(["Sok San"]);
+    expect(isCohortLabel("Cohort 2023")).toBe(true);
+    expect(isCohortLabel("Sok Dara")).toBe(false);
+  });
+
+  it("emits tags only on the page in the work's language", () => {
+    const km = { ...sampleRow, language: "km" };
+    expect(thesisScholarMeta(km, undefined, { locale: "en" })).toEqual({});
+    expect(thesisScholarMeta(km, undefined, { locale: "km" }).citation_title).toBe(sampleRow.title);
+    expect(thesisScholarMeta(km, undefined, { locale: "km" }).citation_language).toBe("km");
+    expect(thesisCitationLocale({ language: "km_en", title: "x" })).toBe("km");
+    expect(thesisCitationLocale({ language: null, title: "ការស្រាវជ្រាវ" })).toBe("km");
+    expect(thesisCitationLocale({ language: null, title: "Research" })).toBe("en");
+  });
+
+  it("a research report carries the technical-report tags instead of the dissertation tag", () => {
+    const meta = thesisScholarMeta({ ...sampleRow, thesis_type: "research_report", report_number: "PTEC-RR-2024-03" });
+    expect(meta.citation_dissertation_institution).toBeUndefined();
+    expect(meta.citation_technical_report_institution).toBe("Phnom Penh Teacher Education College");
+    expect(meta.citation_technical_report_number).toBe("PTEC-RR-2024-03");
+  });
+
+  it("names the abstract page it sits on", () => {
+    const abstractUrl = "https://library.ptec.edu.kh/theses/my-thesis";
+    expect(thesisScholarMeta(sampleRow, undefined, { abstractUrl }).citation_abstract_html_url).toBe(abstractUrl);
   });
 
   it("falls back to created_at when published_at is missing", () => {
@@ -203,9 +238,10 @@ describe("publicationScholarMeta", () => {
       citation_publisher: "PTEC Press",
       citation_abstract: "An evaluation of inquiry-based chemistry instruction.",
     });
-    expect(meta.citation_pdf_url).toBe(
-      "https://library.ptec.edu.kh/api/publications/journal-of-chemical-education/file",
-    );
+    // Phase 3.7: no PDF unless the caller hands over a public full text.
+    expect(meta.citation_pdf_url).toBeUndefined();
+    const pdfUrl = "https://library.ptec.edu.kh/journals/articles/journal-of-chemical-education/fulltext.pdf";
+    expect(publicationScholarMeta(samplePub, { pdfUrl }).citation_pdf_url).toBe(pdfUrl);
   });
 
   it("emits a validated ISSN, never a reviewed-book ISBN, and drops a bad DOI", () => {
@@ -227,5 +263,16 @@ describe("publicationScholarMeta", () => {
       subjects: ["Overlap", "Science Education"],
     });
     expect(meta.citation_keywords).toBe("Chemistry Education; Overlap; Science Education");
+  });
+});
+
+describe("citationLocale", () => {
+  it("files Khmer — code, name or bilingual — under /km and every other language under English", () => {
+    for (const km of ["km", "Khmer", "khm", "km_en"]) expect(citationLocale(km)).toBe("km");
+    for (const en of ["en", "English", "fr", "French"]) expect(citationLocale(en)).toBe("en");
+  });
+  it("with no language, the title's script decides", () => {
+    expect(citationLocale(null, "ការស្រាវជ្រាវ")).toBe("km");
+    expect(citationLocale("", "Research")).toBe("en");
   });
 });

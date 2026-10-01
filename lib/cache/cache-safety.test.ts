@@ -161,7 +161,9 @@ describe("public cache safety", () => {
         "/journals/[slug]",
         "/journals/[slug]/issues",
         "/journals/[slug]/issues/[issue]",
-        "/subjects/[slug]",
+        // Not /subjects/[slug]: since SEO Phase 2.1 it lists every book of the
+        // subject under ?page=N, so it is dynamic by its own URL, like /books,
+        // and its reads are cached in lib/subjects/index.ts instead.
         "/theses/[slug]",
       ]),
     );

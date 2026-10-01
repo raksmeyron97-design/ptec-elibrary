@@ -57,6 +57,7 @@ import {
   type ReviewPriority,
   type RightsClass,
 } from "../lib/rights/publisher-signals";
+import { fetchMergedSitemap } from "../lib/verify/sitemap";
 
 // `export {}` at the foot of this file is load-bearing: without it TypeScript
 // treats a script with no top-level import as a GLOBAL script, and its consts
@@ -169,9 +170,11 @@ async function auditBook(slug: string): Promise<void> {
   outcomes.push("ok");
 
   const node = bookNode(html);
-  // `citation_pdf_url` is emitted only when the file may be handed over
-  // (lib/seo/citation.ts), so its presence IS the downloadable verdict as the
-  // public page states it — not an inference about the database.
+  // `citation_pdf_url` is emitted only for a PUBLIC full text (lib/seo/citation.ts).
+  // Since SEO Phase 3.7 no book carries one — a book's PDF needs a sign-in —
+  // so this column reads "no" for every book: nothing is advertised to
+  // crawlers any more. Signed-in downloads remain, and are decided by
+  // lib/books/access.ts; this public-page audit cannot see them.
   const downloadable = /<meta name="citation_pdf_url"/.test(html);
 
   const title = node?.name ?? metaContent(html, "citation_title") ?? "";
@@ -286,7 +289,8 @@ async function run(): Promise<void> {
   console.log(`\nRights-exposure audit — ${BASE}`);
   console.log(`READ-ONLY. Public pages only. Nothing is changed.\n`);
 
-  const sitemap = await fetchText(`${BASE}/sitemap.xml`);
+  // /sitemap.xml is an index since Phase 1.5; read every child as one urlset.
+  const sitemap = await fetchMergedSitemap(BASE, (u) => fetchText(u));
   const all = [...sitemap.matchAll(/<loc>([^<]*\/books\/[^<]+)<\/loc>/g)]
     .map((m) => m[1].split("/books/")[1])
     .filter((s) => s && !s.includes("/"));

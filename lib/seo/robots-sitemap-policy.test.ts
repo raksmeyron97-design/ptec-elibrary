@@ -228,8 +228,8 @@ describe("robots.txt — evaluated the way a crawler evaluates it", () => {
   });
 });
 
-describe("app/sitemap.ts — a hub earns its entry by having something to list", () => {
-  const src = sourceWithoutComments("app/sitemap.ts");
+describe("lib/seo/sitemap-entries.ts — a hub earns its entry by having something to list", () => {
+  const src = sourceWithoutComments("lib/seo/sitemap-entries.ts");
 
   // Every collection listing, with the array whose length gates it. An empty
   // one renders only an empty state, which is the same soft-404 that already

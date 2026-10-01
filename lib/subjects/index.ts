@@ -87,6 +87,9 @@ export type SubjectSummary = {
    *  answer as zero and must never demote a subject on its own; see
    *  {@link subjectVisibility}. */
   fullText: number | null;
+  /** The librarian-approved English name (0161), or null. Optional so a
+   *  summary built without it (tests, older cache entries) reads as "none". */
+  nameEn?: string | null;
 };
 
 export type SubjectItem = {
@@ -117,7 +120,25 @@ export type SubjectDetail = {
   parent: SubjectHierarchyRef | null;
   /** Direct child subjects in the canonical hierarchy, with their resource counts. */
   children: SubjectChildSummary[];
+  /** The librarian-approved English name (0161), or null: English pages then
+   *  show the Khmer name rather than a guessed translation. */
+  nameEn: string | null;
+  /** The approved introduction per language, or null when none is approved.
+   *  A draft never reaches a page (docs/seo Phase 2.1). */
+  intro: { en: string | null; km: string | null } | null;
 };
+
+/** One page of every published book in a subject, most-read first. */
+export type SubjectBooksPage = {
+  items: SubjectItem[];
+  /** Every published book in the subject — the pagination's denominator. */
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+/** Books per page of a subject's full, paginated list (Phase 2.1). */
+export const SUBJECT_BOOKS_PAGE_SIZE = 24;
 
 const EMPTY_COUNTS: SubjectCounts = { book: 0, thesis: 0, publication: 0, catalog: 0, total: 0 };
 
@@ -136,7 +157,7 @@ const INDEXABLE_RECORD_TYPES = new Set(["book", "research", "publication"]);
 
 // ── Subject index (all subjects + their public resource counts) ──────────────
 
-type CategoryRow = { id: string; name: string; slug: string; created_at: string | null };
+type CategoryRow = { id: string; name: string; slug: string; created_at: string | null; name_en?: string | null };
 
 /**
  * Ceiling on how far one of these scans will PAGE.
@@ -189,7 +210,18 @@ async function loadSubjectIndex(): Promise<SubjectSummary[]> {
   // is indistinguishable from a book that is not in the subject.
   const [categories, bookScan, thesisScan, publicationScan, catalogScan, indexScan] =
     await Promise.all([
-      supabase.from("categories").select("id, name, slug, created_at").order("name"),
+      // `name_en` (0161) first, the old select as the retry: naming a column
+      // the database does not have yet fails the whole read, and an empty
+      // subject index hides every hub.
+      supabase
+        .from("categories")
+        .select("id, name, slug, created_at, name_en")
+        .order("name")
+        .then(async (withName) =>
+          withName.error
+            ? await supabase.from("categories").select("id, name, slug, created_at").order("name")
+            : withName,
+        ),
       pagedScan<{ id: string; category_id: string | null }>(
         (from, to) =>
           supabase
@@ -313,7 +345,7 @@ async function loadSubjectIndex(): Promise<SubjectSummary[]> {
           : [...bookIds, ...thesisIds, ...publicationIds].filter((id) => fullTextIds.has(id))
               .length;
 
-      return { id: c.id, name: c.name, slug: c.slug, counts, fullText };
+      return { id: c.id, name: c.name, slug: c.slug, counts, fullText, nameEn: c.name_en?.trim() || null };
     });
 }
 
@@ -328,7 +360,7 @@ async function loadSubjectIndex(): Promise<SubjectSummary[]> {
  * — a v1 entry would carry `undefined` there and read as "criterion 2 not
  * evaluated" for as long as it lived.
  */
-const cachedSubjectIndex = unstable_cache(loadSubjectIndex, ["subject-index-v2"], {
+const cachedSubjectIndex = unstable_cache(loadSubjectIndex, ["subject-index-v3"], {
   revalidate: 3600,
   tags: [
     TAGS.categories,
@@ -447,130 +479,237 @@ function clean(value: string | null | undefined): string | null {
  * One subject with the resources attached to it, its counts, its canonical
  * parent/children in the topic hierarchy, and the subjects it genuinely
  * co-occurs with.
- *
- * React-cached: generateMetadata and the page body call this for the same slug
- * in one request and must not issue the queries twice.
+ */
+async function loadSubjectDetail(slug: string, locale: string | null): Promise<SubjectDetail | null> {
+  const supabase = createServiceClient();
+
+  // The 0161 columns are asked for first, and the old select is the retry:
+  // naming a column the database does not have yet fails the whole query,
+  // and a null here is a 404 for every subject during a deploy window.
+  type CategoryRow = {
+    id: string;
+    name: string;
+    slug: string;
+    name_en?: string | null;
+    intro_en?: string | null;
+    intro_km?: string | null;
+    intro_status?: string | null;
+  };
+  const withHubFields = await supabase
+    .from("categories")
+    .select("id, name, slug, name_en, intro_en, intro_km, intro_status")
+    .eq("slug", slug)
+    .maybeSingle();
+  const category = (
+    withHubFields.error
+      ? (await supabase.from("categories").select("id, name, slug").eq("slug", slug).maybeSingle()).data
+      : withHubFields.data
+  ) as CategoryRow | null;
+
+  if (!category) return null;
+  const approved = category.intro_status === "approved";
+  const introEn = approved ? clean(category.intro_en) : null;
+  const introKm = approved ? clean(category.intro_km) : null;
+
+  const name = category.name as string;
+  // PostgREST parses `.or()` as a comma-separated mini-language: a subject
+  // named "Maths, Science" would silently re-partition the filter rather than
+  // error. Names are admin-entered, so this is a correctness guard, not a
+  // user-input one — but the failure mode is identical.
+  const filterName = sanitizeFilterTerm(name);
+
+  const [{ data: books }, { data: theses }, { data: publications }, { data: catalog }] =
+    await Promise.all([
+      supabase
+        .from("books")
+        .select("id, slug, title, description, authors(name)")
+        .eq("is_published", true)
+        .eq("category_id", category.id)
+        .order("download_count", { ascending: false })
+        .limit(ITEMS_PER_TYPE),
+      supabase
+        .from("research_reports")
+        .select("id, slug, title, abstract, author_names")
+        .eq("is_published", true)
+        .or(
+          `subject.ilike.%${filterName}%,program.ilike.%${filterName}%,faculty.ilike.%${filterName}%`,
+        )
+        .order("view_count", { ascending: false })
+        .limit(ITEMS_PER_TYPE),
+      supabase
+        .from("publications_with_stats")
+        .select("id, slug, title, abstract, author_names")
+        .eq("is_published", true)
+        .contains("subjects", [name])
+        .order("view_count", { ascending: false })
+        .limit(ITEMS_PER_TYPE),
+      supabase
+        .from("catalog_books")
+        .select("id, slug, title, description, author")
+        .eq("is_active", true)
+        .ilike("category", `%${filterName}%`)
+        .order("title", { ascending: true })
+        .limit(ITEMS_PER_TYPE),
+    ]);
+
+  type Row = Record<string, any>;
+  const items: SubjectItem[] = [
+    ...((books ?? []) as Row[]).map((r) => ({
+      type: "book" as const,
+      title: r.title,
+      href: `/books/${r.slug}`,
+      author: clean(r.authors?.name),
+      excerpt: clean(r.description),
+    })),
+    ...((theses ?? []) as Row[]).map((r) => ({
+      type: "thesis" as const,
+      title: r.title,
+      href: `/theses/${r.slug ?? r.id}`,
+      author: clean(r.author_names),
+      excerpt: clean(r.abstract),
+    })),
+    ...((publications ?? []) as Row[]).map((r) => ({
+      type: "publication" as const,
+      title: r.title,
+      href: articlePath(r.slug),
+      author: clean(r.author_names),
+      excerpt: clean(r.abstract),
+    })),
+    ...((catalog ?? []) as Row[]).map((r) => ({
+      type: "catalog" as const,
+      title: r.title,
+      href: `/catalogs/${r.slug ?? r.id}`,
+      author: clean(r.author),
+      excerpt: clean(r.description),
+    })),
+  ].filter((i) => Boolean(i.title));
+
+  const [index, hierarchy] = await Promise.all([
+    getSubjectIndex(),
+    getSubjectHierarchy(locale ?? undefined),
+  ]);
+  const self = index.find((s) => s.slug === category.slug);
+  const counts = self?.counts ?? EMPTY_COUNTS;
+
+  const node =
+    hierarchy.bySlug.get(category.slug) ?? hierarchy.byCategoryId.get(category.id);
+  const parent = node?.parent ?? null;
+  const children: SubjectChildSummary[] = (node?.children ?? []).map((c) => {
+    const childSummary = index.find((s) => s.slug === c.slug);
+    return {
+      id: c.id,
+      slug: c.slug,
+      name: c.name,
+      counts: childSummary?.counts ?? EMPTY_COUNTS,
+    };
+  });
+
+  return {
+    id: category.id,
+    name,
+    slug: category.slug,
+    counts,
+    // undefined only when the index read failed entirely; `null` then keeps
+    // §5.2 unevaluated rather than asserting this subject has no full text.
+    fullText: self ? self.fullText : null,
+    items,
+    related: await relatedSubjects(name, index),
+    parent,
+    children,
+    nameEn: clean(category.name_en),
+    intro: introEn || introKm ? { en: introEn, km: introKm } : null,
+  };
+}
+
+/**
+ * Cached across requests since Phase 2.1: the subject page reads ?page and is
+ * rendered per request, so the page cache no longer stands in front of these
+ * queries. Same lifetime and tags as the subject index, which already decides
+ * this page's counts — so the two cannot disagree for longer than they did.
+ */
+const cachedSubjectDetail = unstable_cache(loadSubjectDetail, ["subject-detail-v1"], {
+  revalidate: 3600,
+  tags: [
+    TAGS.categories,
+    TAGS.books,
+    TAGS.theses,
+    TAGS.publications,
+    TAGS.catalogBooks,
+  ],
+});
+
+/**
+ * React-cached as well: generateMetadata and the page body call this for the
+ * same slug in one request and must not read the cache twice.
  */
 export const getSubjectDetail = cache(
-  async (slug: string, locale?: string): Promise<SubjectDetail | null> => {
-    const supabase = createServiceClient();
-
-    const { data: category } = await supabase
-      .from("categories")
-      .select("id, name, slug")
-      .eq("slug", slug)
-      .maybeSingle();
-
-    if (!category) return null;
-
-    const name = category.name as string;
-    // PostgREST parses `.or()` as a comma-separated mini-language: a subject
-    // named "Maths, Science" would silently re-partition the filter rather than
-    // error. Names are admin-entered, so this is a correctness guard, not a
-    // user-input one — but the failure mode is identical.
-    const filterName = sanitizeFilterTerm(name);
-
-    const [{ data: books }, { data: theses }, { data: publications }, { data: catalog }] =
-      await Promise.all([
-        supabase
-          .from("books")
-          .select("id, slug, title, description, authors(name)")
-          .eq("is_published", true)
-          .eq("category_id", category.id)
-          .order("download_count", { ascending: false })
-          .limit(ITEMS_PER_TYPE),
-        supabase
-          .from("research_reports")
-          .select("id, slug, title, abstract, author_names")
-          .eq("is_published", true)
-          .or(
-            `subject.ilike.%${filterName}%,program.ilike.%${filterName}%,faculty.ilike.%${filterName}%`,
-          )
-          .order("view_count", { ascending: false })
-          .limit(ITEMS_PER_TYPE),
-        supabase
-          .from("publications_with_stats")
-          .select("id, slug, title, abstract, author_names")
-          .eq("is_published", true)
-          .contains("subjects", [name])
-          .order("view_count", { ascending: false })
-          .limit(ITEMS_PER_TYPE),
-        supabase
-          .from("catalog_books")
-          .select("id, slug, title, description, author")
-          .eq("is_active", true)
-          .ilike("category", `%${filterName}%`)
-          .order("title", { ascending: true })
-          .limit(ITEMS_PER_TYPE),
-      ]);
-
-    type Row = Record<string, any>;
-    const items: SubjectItem[] = [
-      ...((books ?? []) as Row[]).map((r) => ({
-        type: "book" as const,
-        title: r.title,
-        href: `/books/${r.slug}`,
-        author: clean(r.authors?.name),
-        excerpt: clean(r.description),
-      })),
-      ...((theses ?? []) as Row[]).map((r) => ({
-        type: "thesis" as const,
-        title: r.title,
-        href: `/theses/${r.slug ?? r.id}`,
-        author: clean(r.author_names),
-        excerpt: clean(r.abstract),
-      })),
-      ...((publications ?? []) as Row[]).map((r) => ({
-        type: "publication" as const,
-        title: r.title,
-        href: articlePath(r.slug),
-        author: clean(r.author_names),
-        excerpt: clean(r.abstract),
-      })),
-      ...((catalog ?? []) as Row[]).map((r) => ({
-        type: "catalog" as const,
-        title: r.title,
-        href: `/catalogs/${r.slug ?? r.id}`,
-        author: clean(r.author),
-        excerpt: clean(r.description),
-      })),
-    ].filter((i) => Boolean(i.title));
-
-    const [index, hierarchy] = await Promise.all([
-      getSubjectIndex(),
-      getSubjectHierarchy(locale),
-    ]);
-    const self = index.find((s) => s.slug === category.slug);
-    const counts = self?.counts ?? EMPTY_COUNTS;
-
-    const node =
-      hierarchy.bySlug.get(category.slug) ?? hierarchy.byCategoryId.get(category.id);
-    const parent = node?.parent ?? null;
-    const children: SubjectChildSummary[] = (node?.children ?? []).map((c) => {
-      const childSummary = index.find((s) => s.slug === c.slug);
-      return {
-        id: c.id,
-        slug: c.slug,
-        name: c.name,
-        counts: childSummary?.counts ?? EMPTY_COUNTS,
-      };
-    });
-
-    return {
-      id: category.id,
-      name,
-      slug: category.slug,
-      counts,
-      // undefined only when the index read failed entirely; `null` then keeps
-      // §5.2 unevaluated rather than asserting this subject has no full text.
-      fullText: self ? self.fullText : null,
-      items,
-      related: await relatedSubjects(name, index),
-      parent,
-      children,
-    };
-  },
+  (slug: string, locale?: string): Promise<SubjectDetail | null> => cachedSubjectDetail(slug, locale ?? null),
 );
+
+/**
+ * One page of EVERY published book in the subject, most-read first
+ * (Phase 2.1). A subject page used to list the twelve most-downloaded books
+ * and link "Browse all" to the unfiltered /books, so the other ~430 books of
+ * Mathematics had no crawl path from their own subject. Ordered by downloads
+ * then id, so pages are stable: a tie cannot move a book across a page edge.
+ */
+async function loadSubjectBooksPage(
+  categoryId: string,
+  page: number,
+  pageSize: number,
+): Promise<SubjectBooksPage> {
+  const supabase = createServiceClient();
+  const from = (Math.max(1, page) - 1) * pageSize;
+  const { data, count, error } = await supabase
+    .from("books")
+    .select("id, slug, title, description, authors(name)", { count: "exact" })
+    .eq("is_published", true)
+    .eq("category_id", categoryId)
+    .order("download_count", { ascending: false })
+    .order("id", { ascending: true })
+    .range(from, from + pageSize - 1);
+  // A page past the end is not a failure: PostgREST answers 416 (PGRST103)
+  // for an offset beyond the last row. The page renders with no books and
+  // `noindex` (the out-of-range rule every listing follows), so it needs only
+  // the true total, from a count that reads no rows.
+  if (error?.code === "PGRST103") {
+    const { count: total, error: countError } = await supabase
+      .from("books")
+      .select("id", { count: "exact", head: true })
+      .eq("is_published", true)
+      .eq("category_id", categoryId);
+    if (countError) throw new Error(`subject books count: ${countError.message}`);
+    return { items: [], total: total ?? 0, page: Math.max(1, page), pageSize };
+  }
+  // Any other failed read THROWS: returned as an empty page it would be cached
+  // for an hour as "this subject has no books" (the rule every cached reader
+  // here follows). The page's error boundary shows the reader what happened.
+  if (error) throw new Error(`subject books page: ${error.message}`);
+  type Row = { slug: string; title: string; description: string | null; authors: { name: string | null } | null };
+  const items: SubjectItem[] = ((data ?? []) as unknown as Row[])
+    .filter((r) => Boolean(r.title))
+    .map((r) => ({
+      type: "book" as const,
+      title: r.title,
+      href: `/books/${r.slug}`,
+      author: clean(r.authors?.name),
+      excerpt: clean(r.description),
+    }));
+  return { items, total: count ?? 0, page: Math.max(1, page), pageSize };
+}
+
+const cachedSubjectBooksPage = unstable_cache(loadSubjectBooksPage, ["subject-books-page-v1"], {
+  revalidate: 3600,
+  tags: [TAGS.categories, TAGS.books],
+});
+
+export function getSubjectBooksPage(
+  categoryId: string,
+  page: number,
+  pageSize: number = SUBJECT_BOOKS_PAGE_SIZE,
+): Promise<SubjectBooksPage> {
+  return cachedSubjectBooksPage(categoryId, page, pageSize);
+}
 
 /**
  * Subjects that appear alongside `name` on the same publication.

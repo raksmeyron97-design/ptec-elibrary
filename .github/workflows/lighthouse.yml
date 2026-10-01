@@ -40,8 +40,11 @@ jobs:
       - name: Resolve a live book + thesis detail URL from the sitemap
         id: urls
         run: |
-          BOOK=$(curl -sL "$SITE/sitemap.xml" | grep -o "$SITE/books/[^<]*" | head -1 || true)
-          THESIS=$(curl -sL "$SITE/sitemap.xml" | grep -o "$SITE/theses/[^<]*" | grep -v "/theses/summary" | head -1 || true)
+          # /sitemap.xml is an index since SEO Phase 1.5; the records are in
+          # its per-type children. The old single file is kept as a fallback
+          # so this step works on either side of that deploy.
+          BOOK=$(curl -sL "$SITE/sitemaps/books.xml" "$SITE/sitemap.xml" | grep -o "$SITE/books/[^<]*" | head -1 || true)
+          THESIS=$(curl -sL "$SITE/sitemaps/theses.xml" "$SITE/sitemap.xml" | grep -o "$SITE/theses/[^<]*" | grep -v "/theses/summary" | head -1 || true)
           echo "book=${BOOK:-$SITE/books}" >> "$GITHUB_OUTPUT"
           echo "thesis=${THESIS:-$SITE/theses}" >> "$GITHUB_OUTPUT"
           # The same record in Khmer: its title page, access panel and facts

@@ -26,7 +26,22 @@ const withSerwist = withSerwistInit({
 // CSP is set per-request in proxy.ts (includes a per-request nonce).
 // Only set the non-CSP security headers here — having two CSP headers causes
 // the browser to enforce the intersection (most restrictive) of both.
+/**
+ * When THIS build was made, on every response (`X-PTEC-Build`).
+ *
+ * On 2026-09-30 an outside audit was served a copy of /books at least 24 days
+ * old — an older build's footer over a pre-cutover count — and nothing in the
+ * response could say which build produced it, so the copy could not be traced
+ * (docs/seo/AUDIT-VERIFICATION.md F1). headers() is evaluated at build time
+ * and baked into the routes manifest, so this is the build's own timestamp
+ * even after a restart. A timestamp only: no commit, no framework version —
+ * /api/health withholds versions on purpose, and a date is enough to tell an
+ * old copy from the current one.
+ */
+const BUILD_STAMP = `${new Date().toISOString().slice(0, 16)}Z`;
+
 const securityHeaders = [
+  { key: "X-PTEC-Build",              value: BUILD_STAMP },
   // DENY matches the CSP's frame-ancestors 'none' (nothing on the site is
   // framed; the only iframes are outbound embeds like Google Maps).
   { key: "X-Frame-Options",           value: "DENY" },
@@ -278,6 +293,18 @@ const nextConfig: NextConfig = {
         // Its retired second name is a redirect, in redirects() — see
         // lib/koha/opac-proxy.ts for why it is not proxied.
         ...kohaOpacRewriteRules(kohaDestination),
+      ],
+      // After real files and before dynamic routes: a file someone adds to
+      // public/ later always wins over this pattern.
+      afterFiles: [
+        // The IndexNow key file (SEO Phase 7.2): engines fetch /{key}.txt at
+        // the host root. The route answers only the configured INDEXNOW_KEY
+        // (404 otherwise, and always while it is unset). Eight characters at
+        // least, so /robots.txt and /llms.txt can never match.
+        {
+          source: "/:key([A-Za-z0-9-]{8,128}).txt",
+          destination: "/api/indexnow-key/:key",
+        },
       ],
     };
   },

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { jsonLdNodes } from "./utils/jsonld";
 
 /**
  * The public Library Committee page, against the seeded local stack
@@ -99,8 +100,7 @@ test.describe("Library Committee — public page", () => {
 
   test("describes only the people it actually published, in JSON-LD", async ({ page }) => {
     await page.goto("/about/committee");
-    const blocks = await page.locator('script[type="application/ld+json"]').allTextContents();
-    const itemList = blocks.map((b) => JSON.parse(b)).find((b) => b["@type"] === "ItemList");
+    const itemList = (await jsonLdNodes(page)).find((b) => b["@type"] === "ItemList");
     expect(itemList).toBeTruthy();
     // Two published seats, and the draft is in neither the page nor the markup.
     expect(itemList.numberOfItems).toBe(2);

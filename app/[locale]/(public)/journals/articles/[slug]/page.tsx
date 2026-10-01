@@ -9,6 +9,7 @@ import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import { getPublicationBySlug, getPublicationFigures } from "@/app/actions/publications";
 import { resolveDownloadAccess } from "@/lib/publications/access";
+import { articleIsOpenAccess } from "@/lib/journals/open-access";
 import type { PublicationAffiliation } from "@/lib/publications";
 import { toCitationLine, citationYear, authorList } from "@/lib/citations";
 import PublicationViewPing from "@/components/ui/publications/PublicationViewPing";
@@ -55,10 +56,10 @@ import {
 } from "@/lib/publications/article-layout";
 import { reviewsEnabled, aggregateRatingAllowed } from "@/lib/reviews/policy";
 import Icon from "@/components/ui/core/Icon";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import ResourceConnections from "@/components/seo/ResourceConnections";
 import { breadcrumbSchema } from "@/lib/seo/schema";
-import { publicationScholarMeta } from "@/lib/seo/citation";
+import { citationLocale, publicationScholarMeta } from "@/lib/seo/citation";
 import { doiUrl, isValidIssn, normalizeDoi, normalizeIssn } from "@/lib/seo/identifiers";
 import {
   buildPublicationMetadata,
@@ -166,7 +167,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     { seoTitle: pub.seo_title, seoDescription: pub.seo_description, ogImage: pub.og_image },
     metaOrg,
   );
-  return { ...base, other: publicationScholarMeta(pub) };
+  // A PDF is named to Google Scholar only when the article's licence lets
+  // anyone have it (SEO Phase 3.7) — then at its own public full-text URL, in
+  // this page's directory. Otherwise no citation_pdf_url at all.
+  const canonical = typeof base.alternates?.canonical === "string" ? base.alternates.canonical : null;
+  const publicPdf = canonical && articleIsOpenAccess(pub) ? `${canonical}/fulltext.pdf` : null;
+  // One Scholar record per work: citation_* only on the page in the article's
+  // own language (SEO Phase 3.3; lib/seo/citation.ts citationLocale).
+  const scholar =
+    citationLocale(pub.language, pub.title) === locale ? publicationScholarMeta(pub, { pdfUrl: publicPdf }) : {};
+  return { ...base, other: scholar };
 }
 
 /** Two strings that say the same thing, once trimmed and case-folded. */
@@ -463,9 +473,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
 
   return (
     <>
-      <JsonLd data={scholarlyArticleSchema} />
-      <JsonLd data={pubBreadcrumbSchema} />
-      {faqSchema && <JsonLd data={faqSchema} />}
+      <PageJsonLd nodes={[scholarlyArticleSchema, pubBreadcrumbSchema, faqSchema ? faqSchema : null]} />
       <PublicationViewPing id={pub.id} />
 
       {/* ── The article: one reading surface, header and body ───────────── */}

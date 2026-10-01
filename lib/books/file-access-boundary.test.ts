@@ -78,11 +78,12 @@ describe("every route that can emit book bytes resolves through the one gate", (
 
   it("the public file route decides the policy before it reads the session", () => {
     // The policy is a property of the BOOK, not of who is asking, so the
-    // answer must not depend on session state — a signed-in reader, an
-    // anonymous visitor and the verified crawler all get the same 403.
+    // answer must not depend on session state — a signed-in reader and an
+    // anonymous visitor get the same 403.
     const src = bodyOnly(read("app/api/books/[slug]/file/route.ts"));
     expect(src.indexOf("canServeBytes")).toBeLessThan(src.indexOf("auth.getUser"));
-    expect(src.indexOf("canServeBytes")).toBeLessThan(src.indexOf("isVerifiedGoogleCrawler"));
+    // And there is no crawler exception to order it against (SEO P3-1).
+    expect(src).not.toContain("isVerifiedGoogleCrawler");
   });
 
   it("the public download route grants NO override past catalogue_only", () => {

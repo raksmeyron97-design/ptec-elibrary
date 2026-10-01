@@ -87,10 +87,10 @@ describe("a description that says something", () => {
     "សៀវភៅណែនាំសម្រាប់គ្រូបង្រៀនអំពីវិធីសាស្ត្របង្រៀនគណិតវិទ្យាកម្រិតបឋមសិក្សា ដោយមានឧទាហរណ៍ជាក់ស្តែងនិងលំហាត់អនុវត្ត។",
   ];
 
-  it.each(REAL)("survives and is indexed: %s", (description) => {
+  it.each(REAL)("survives as a real description (a finding aid since P2-1): %s", (description) => {
     const row = { ...LIVE[0], description };
     expect(isDerivedDescription(row)).toBe(false);
-    expect(assessCatalogIndexability(row).visibility).toBe("index");
+    expect(assessCatalogIndexability(row).reason).toBe("finding-aid");
   });
 
   it("still counts a real sentence that happens to name the author", () => {

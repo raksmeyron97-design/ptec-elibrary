@@ -11,8 +11,9 @@ import { getReadingProgress } from "@/app/actions/reading-progress";
 import PDFViewer from "@/components/ui/reader/PDFViewerClient";
 import ReaderOpenPing from "@/components/ui/reader/ReaderOpenPing";
 import ReaderViewportFill from "@/components/ui/reader/ReaderViewportFill";
-import { localeAlternates } from "@/lib/seo/alternates";
+import { localeAlternates, dropHreflangWhenNoindex } from "@/lib/seo/alternates";
 import { getSiteConfig } from "@/lib/system-settings/config";
+import { getTranslations } from "next-intl/server";
 
 // Dedicated, chrome-light reading surface. The book detail page embeds the
 // same viewer as a preview; long reading sessions belong here, where the
@@ -84,12 +85,14 @@ export async function generateMetadata({ params }: Pick<ReadPageProps, "params">
   const slug = decodeSlugParam(rawSlug);
   const book = await getReadableBook(slug);
   if (!book) return {};
-  return {
-    title: `${book.title} — Read online`,
+  // " — Read online" was English on /km too (AUDIT N2); the reader's own label.
+  const t = await getTranslations({ locale, namespace: "reader" });
+  return dropHreflangWhenNoindex({
+    title: `${book.title} — ${t("readOnline")}`,
     // The canonical document is the book detail page; the reader is a view.
     alternates: localeAlternates(`/books/${slug}`, locale),
     robots: { index: false },
-  };
+  });
 }
 
 export default async function BookReadPage({ params, searchParams }: ReadPageProps) {

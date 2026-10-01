@@ -4,7 +4,7 @@ import { localeAlternates } from "@/lib/seo/alternates";
 import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { breadcrumbSchema } from "@/lib/seo/schema";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import {
   chapterAnchor,
   POLICY_VERSIONS,
@@ -105,7 +105,7 @@ export default async function PrivacyPage({
 
   return (
     <>
-      <JsonLd data={breadcrumb} />
+      <PageJsonLd nodes={[breadcrumb]} />
       <PrivacyHero km={km} readingTime={t("hero.readingTime", { minutes })} />
 
       <PolicyLayout

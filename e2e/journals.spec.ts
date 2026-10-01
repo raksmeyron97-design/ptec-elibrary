@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { PTEC_PUBLICATIONS_URL } from "../lib/journals/urls";
+import { mergedSitemap } from "./utils/sitemap";
+import { jsonLdNodes } from "./utils/jsonld";
 
 /**
  * Publications → Journals (migration 0148, docs/JOURNALS-ARCHITECTURE.md).
@@ -64,8 +66,7 @@ test.describe("the article sits inside the journal graph", () => {
     await expect(page.locator('meta[name="citation_journal_title"]')).toHaveAttribute("content", "Cambodian Journal of Teacher Education");
     await expect(page.locator('meta[name="citation_volume"]')).toHaveAttribute("content", "7");
     await expect(page.locator('meta[name="citation_issue"]')).toHaveAttribute("content", "2");
-    const blocks = await page.locator('script[type="application/ld+json"]').allTextContents();
-    const article = blocks.map((b) => JSON.parse(b)).find((b) => b["@type"] === "ScholarlyArticle");
+    const article = (await jsonLdNodes(page)).find((b) => b["@type"] === "ScholarlyArticle");
     expect(article.isPartOf["@type"]).toBe("PublicationIssue");
     expect(article.isPartOf.isPartOf["@type"]).toBe("PublicationVolume");
     expect(article.isPartOf.isPartOf.isPartOf["@type"]).toBe("Periodical");
@@ -77,8 +78,7 @@ test.describe("the article sits inside the journal graph", () => {
   test("the journal page is a Periodical and links its issues", async ({ page }) => {
     await page.goto(`/journals/${CJTE}`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Cambodian Journal of Teacher Education");
-    const blocks = await page.locator('script[type="application/ld+json"]').allTextContents();
-    expect(blocks.map((b) => JSON.parse(b)).some((b) => b["@type"] === "Periodical")).toBe(true);
+    expect((await jsonLdNodes(page)).some((b) => b["@type"] === "Periodical")).toBe(true);
     await expect(page.locator(`a[href="/journals/${CJTE}/issues/vol-7-issue-2"]`).first()).toBeVisible();
     // The invalid fixture ISSN (2789-0001) is never displayed.
     await expect(page.getByText("2789-0001")).toHaveCount(0);
@@ -106,7 +106,7 @@ test.describe("navigation: Journals inside, Publications ↗ outside", () => {
 
 test.describe("sitemap", () => {
   test("advertises journal, issue and article URLs and no /publications URL", async ({ request }) => {
-    const xml = await (await request.get("/sitemap.xml")).text();
+    const xml = await mergedSitemap(request);
     expect(xml).toContain(`/journals/${CJTE}</loc>`);
     expect(xml).toContain(`/journals/${CJTE}/issues/vol-7-issue-2</loc>`);
     expect(xml).toContain(`/journals/articles/${ARTICLE}</loc>`);

@@ -1,3 +1,4 @@
+import { phnomPenhIso } from "@/lib/seo/dates";
 import { libraryNode, organizationNode } from "@/lib/seo/org-nodes";
 import {
   resolveOrgIdentity,
@@ -117,7 +118,7 @@ export function postEventJsonLd({
     "@context": "https://schema.org",
     "@type": "Event",
     name: title,
-    startDate: event.startAt,
+    startDate: phnomPenhIso(event.startAt),
     url,
     eventStatus: event.statusOverride
       ? EVENT_STATUS_SCHEMA[event.statusOverride]
@@ -125,7 +126,7 @@ export function postEventJsonLd({
     organizer: organizationNode(org),
     isAccessibleForFree: true,
   };
-  if (event.endAt) schema.endDate = event.endAt;
+  if (event.endAt) schema.endDate = phnomPenhIso(event.endAt);
   if (description) schema.description = description;
   if (image) schema.image = image;
   if (event.format) schema.eventAttendanceMode = EVENT_ATTENDANCE_SCHEMA[event.format];

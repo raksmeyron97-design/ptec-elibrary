@@ -46,6 +46,13 @@ export type AuthorSitemapDecision<T> = {
 export function authorUrlsWithWorks<T>(
   candidates: ReadonlyMap<string, T>,
   listedSlugs: ReadonlySet<string>,
+  /**
+   * Phase 2.6: whether a LISTED author's page is indexable
+   * (lib/authors/indexability.ts). Applied only when the roster is trusted —
+   * an empty indexable set is a real answer ("no author qualifies"), an
+   * empty roster is not, so the degraded branch never consults it.
+   */
+  isIndexable: (slug: string) => boolean = () => true,
 ): AuthorSitemapDecision<T> {
   const entries = [...candidates.entries()];
   // The one case where an empty roster IS the answer: there are no authors at
@@ -53,5 +60,8 @@ export function authorUrlsWithWorks<T>(
   if (listedSlugs.size === 0 && entries.length > 0) {
     return { entries, degraded: true };
   }
-  return { entries: entries.filter(([slug]) => listedSlugs.has(slug)), degraded: false };
+  return {
+    entries: entries.filter(([slug]) => listedSlugs.has(slug) && isIndexable(slug)),
+    degraded: false,
+  };
 }

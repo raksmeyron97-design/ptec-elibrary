@@ -7,7 +7,7 @@ import { CATALOG_SCAN_CAP, type CatalogBook, type CopyStatusRow } from "@/lib/ca
 import { pagedScan } from "@/lib/db/paged-scan";
 import CatalogCard from "@/components/ui/books/CatalogCard";
 import CatalogSearchForm from "@/components/ui/search/CatalogSearchForm";
-import BookRequestForm from "@/components/ui/books/BookRequestForm";
+import RequestBookButton from "@/components/ui/books/RequestBookButton";
 import LibraryVisitStrip from "@/components/ui/books/LibraryVisitStrip";
 import CatalogAvailabilityNotice from "@/components/ui/books/CatalogAvailabilityNotice";
 import { resolveLibraryStatus } from "@/lib/about/status";
@@ -36,6 +36,8 @@ import {
   type FacetSelection,
   type FacetSourceRow,
 } from "@/lib/catalogs/facets";
+import HubIntro from "@/components/seo/HubIntro";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 
 export const revalidate = 3600;
 
@@ -399,6 +401,8 @@ export default async function CatalogsPage({
 
   return (
     <ClientNavWrapper>
+      {/* The page's one JSON-LD document: the site graph (SEO Phase 4). */}
+      <PageJsonLd />
     <div className="min-h-screen bg-paper">
 
       {/* ── Header ── */}
@@ -412,6 +416,7 @@ export default async function CatalogsPage({
               <p className="mt-0.5 text-sm text-text-muted">
                 {t('subtitle')}
               </p>
+              <HubIntro hub="catalogs" locale={locale} show={!hasFilters && page === 1} className="mt-3" />
             </div>
             {/* "0 books" with no context reads as broken — the empty state
                 below explains the situation instead. */}
@@ -659,7 +664,7 @@ export default async function CatalogsPage({
                       {t('emptySearchDigital')}
                     </Link>
                   )}
-                  <BookRequestForm />
+                  <RequestBookButton />
                 </div>
               </>
             )}

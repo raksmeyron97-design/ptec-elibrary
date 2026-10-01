@@ -13,6 +13,7 @@ import {
   TONE_DOT,
 } from "@/lib/catalog";
 import SmartBookCover from "@/components/ui/books/SmartBookCover";
+import { catalogDisplayTitle } from "@/lib/catalogs/display-title";
 
 // 700-scale in light mode: the 600s fail WCAG AA (4.5:1) at this text size.
 const TONE_TEXT: Record<string, string> = {
@@ -56,7 +57,7 @@ export default function CatalogCard({ book }: Props) {
       <div className="relative aspect-[3/4] w-full overflow-hidden">
         <SmartBookCover
           coverUrl={book.cover_url}
-          title={book.title}
+          title={catalogDisplayTitle(book.title)}
           author={book.author}
           category={book.category}
           seed={book.slug}
@@ -86,7 +87,7 @@ export default function CatalogCard({ book }: Props) {
       {/* Info */}
       <div className="flex flex-1 flex-col gap-1 p-3">
         <p className="font-khmer-serif line-clamp-2 text-sm font-bold leading-snug text-text-heading">
-          {book.title}
+          {catalogDisplayTitle(book.title)}
         </p>
         <p className="truncate text-xs text-text-muted">
           {/* A null author used to render as nothing, leaving the year behind

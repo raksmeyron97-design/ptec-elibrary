@@ -61,6 +61,7 @@ import {
   fetchWithRetry,
 } from "../lib/verify/http";
 import { normalizeCrawlUrl, parseRobotsDisallow, routeFamily } from "../lib/verify/crawl-policy";
+import { fetchMergedSitemap } from "../lib/verify/sitemap";
 
 const argv = process.argv.slice(2);
 const flag = (name: string, fallback?: string) => {
@@ -297,7 +298,8 @@ async function main() {
   }
 
   // The sitemap is the set of promises to check the graph against.
-  const sitemapXml = await fetchText(`${BASE}/sitemap.xml`);
+  // /sitemap.xml is an index since Phase 1.5; read every child as one urlset.
+  const sitemapXml = await fetchMergedSitemap(BASE, (u) => fetchText(u));
   const sitemap = [...sitemapXml.matchAll(/<loc>([^<]+)<\/loc>/g)]
     .map((m) => normalize(m[1].trim(), BASE))
     .filter((u): u is string => Boolean(u));

@@ -24,6 +24,8 @@ export interface AdminAuthorRow {
   research_gate_url: string | null;
   research_interests: string[];
   is_published: boolean;
+  /** PTEC staff (0162); false on a database without the column. */
+  is_ptec_staff: boolean;
   /** How many publications this record is attached to. */
   publicationCount: number;
   /** 0–100. See completeness() for what it counts and why. */

@@ -20,6 +20,7 @@ import { normalizeTaxonomyValue } from "@/lib/books/duplicate-detection/normaliz
 import { getSession, transition } from "@/lib/uploads/session";
 import { ensureAuthorSlug } from "@/lib/authors/slug";
 import { uploadLog } from "@/lib/uploads/log";
+import { capSlug } from "@/lib/slug";
 
 /** Parse comma-separated tag string from FormData into a clean string[] */
 function parseTags(fd: FormData, field: "tags" | "keywords"): string[] {
@@ -39,16 +40,26 @@ function requiredText(formData: FormData, key: string) {
 }
 
 // Publication years must be plausible: no earlier than 1900 and at most one
-// year in the future (forthcoming titles). Blank/invalid input defaults to
-// the current year, matching previous behaviour.
-function validatedYear(raw: unknown): number {
+// year in the future (forthcoming titles). A BLANK year is unknown and stays
+// unknown (null). It used to default to the current year, which is how books
+// imported with no year were published to Google Scholar and in JSON-LD as
+// "2026-01-01" (docs/seo/AUDIT-VERIFICATION.md F3/N3, decision D11) — and a
+// fabricated year also made unrelated records look like same-year duplicates.
+function validatedYear(raw: unknown): number | null {
   const current = new Date().getFullYear();
+  if (raw === null || raw === undefined || String(raw).trim() === "") return null;
   const year = Number(raw);
-  if (!raw || Number.isNaN(year)) return current;
+  if (Number.isNaN(year)) return null;
   if (!Number.isInteger(year) || year < 1900 || year > current + 1) {
     throw new Error(`Publication year must be between 1900 and ${current + 1}`);
   }
   return year;
+}
+
+/** Books store a year as `YYYY-01-01` (lib/seo/dates.ts publishes it as the
+ *  year alone); an unknown year is stored as null, never as today. */
+function yearDate(year: number | null): string | null {
+  return year === null ? null : `${year}-01-01`;
 }
 
 function pickCoverColor(title: string): string {
@@ -195,7 +206,7 @@ async function assertNotDuplicate(
   supabase: Awaited<ReturnType<typeof requirePermission>>["supabase"],
   userId: string,
   input: BookInput,
-  resolved: { title: string; author: string; year: number },
+  resolved: { title: string; author: string; year: number | null },
 ): Promise<{ status: "published" | "pending_review"; overrodeBookId: string | null }> {
   const requestedStatus = input.status === "pending_review" ? "pending_review" : "published";
 
@@ -420,7 +431,9 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
   const fileSizeKb = Number(input.fileSizeKb) || 0;
   const coverUrl   = input.coverUrl?.trim() || null;
 
-  let slug       = slugify(title);
+  // A NEW book's slug is capped to its first words (SEO Phase 2.8, D8);
+  // existing slugs are never recomputed.
+  let slug       = capSlug(slugify(title));
   const coverColor = pickCoverColor(title);
 
   let slugIsUnique = false;
@@ -555,7 +568,7 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
       category_id:  categoryId,
       department_id: departmentId,
       language,
-      published_at: `${year}-01-01`,
+      published_at: yearDate(year),
       is_published: effectiveStatus !== "pending_review",
       // Only reference the status/license columns (migrations 0061/0062)
       // when actually set — keeps this insert working even pre-migration.
@@ -955,7 +968,10 @@ export async function updateBook(
         category_id:  categoryId,
         department_id: departmentId,
         language,
-        published_at: `${year}-01-01`,
+        // Only when the form sent the field: a caller that does not post a
+        // year must not erase the stored one (nor, as before, overwrite it
+        // with the current year).
+        ...(formData.has("year") ? { published_at: yearDate(year) } : {}),
         department, // keep text column for now during transition
         isbn,
         publisher,

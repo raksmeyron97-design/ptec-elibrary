@@ -34,7 +34,16 @@ export default getRequestConfig(async ({ requestLocale, locale }) => {
   let resolved: string | undefined = locale ?? (await requestLocale);
 
   if (!isLocale(resolved)) {
-    resolved = await rootLocale();
+    const root = await rootLocale();
+    // Inside the [locale] tree with a segment that is NOT a locale, the
+    // request is a 404 (the layout calls notFound()): a missing root file like
+    // /ads.txt or /apple-touch-icon-precomposed.png skips middleware's locale
+    // rewrite, as static files must, and lands here with the FILENAME as its
+    // locale. Reading cookies() then would turn a prerendered tree dynamic at
+    // runtime, and Next answers that with a 500 instead of the 404 (SEO
+    // decision P7-3). Such a request renders in the default locale; only a
+    // request with no locale segment at all (/admin, /auth) reads the cookie.
+    resolved = root === undefined || isLocale(root) ? root : routing.defaultLocale;
   }
 
   if (!isLocale(resolved)) {

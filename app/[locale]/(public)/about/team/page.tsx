@@ -4,7 +4,6 @@ import { ArrowDown, Clock, MessageCircle, Phone } from "lucide-react";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
-import JsonLd from "@/components/seo/JsonLd";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import { getPublicTeamData } from "@/lib/team/data";
 import type { PublicTeamMember } from "@/lib/team/public";
@@ -20,6 +19,8 @@ import {
   ContentLastUpdated,
   EmptyContentState,
 } from "@/components/about/primitives";
+import { siteNameFor } from "@/lib/seo/brand";
+import { LIBRARY_ID } from "@/lib/seo/entity-ids";
 
 // Published team data is public and changes rarely; the admin actions call
 // revalidatePath("/about/team") on every change, so a long window is safe.
@@ -44,7 +45,7 @@ export async function generateMetadata({
   // travels alone into a social card, so that one is branded explicitly.
   const title = t("metaTitle");
   const description = t("metaDescription");
-  const socialTitle = `${title} · ${org.siteName}`;
+  const socialTitle = `${title} · ${siteNameFor(org, locale)}`;
 
   // One builder, so this block cannot drift from its four identical siblings
   // again: all five hand-wrote siteName + locale and none of them carried
@@ -84,10 +85,9 @@ export default async function TeamPage({
 
   const t = await getTranslations("about");
   const tt = await getTranslations("about.team");
-  const [{ members, sections }, cfg, org] = await Promise.all([
+  const [{ members, sections }, cfg] = await Promise.all([
     getPublicTeamData(),
     getSiteConfig(),
-    getOrgIdentity(),
   ]);
 
   const sectionsWithMembers = sections.filter((s) => members.some((m) => m.section_id === s.id));
@@ -132,7 +132,7 @@ export default async function TeamPage({
   ].filter((item) => item.value !== "");
 
   // Structured data — public, non-contact fields only. Admin-authored names
-  // flow in here, so it must go through <JsonLd> (which escapes "<" and
+  // flow in here, so it must go through <PageJsonLd> (which escapes "<" and
   // neutralises a "</script>" breakout), never a raw JSON.stringify.
   const pageUrl = `${SITE_URL}${locale === "km" ? "/km" : ""}/about/team`;
   const profileUrl = (slug: string) =>
@@ -145,15 +145,10 @@ export default async function TeamPage({
     description: tt("metaDescription"),
     url: pageUrl,
     inLanguage: ["en", "km"],
+    // The library, by reference: the page's graph declares it (and its
+    // parent college) once. The staff list is what this page adds.
     about: {
-      "@type": "Organization",
-      name: org.siteName,
-      url: SITE_URL,
-      parentOrganization: {
-        "@type": "CollegeOrUniversity",
-        name: cfg.name.en,
-        sameAs: [...cfg.sameAs],
-      },
+      "@id": LIBRARY_ID,
       employee: members.map((m) => ({
         "@type": "Person",
         name: m.name_en || m.name_km,
@@ -162,7 +157,7 @@ export default async function TeamPage({
         // markup connected this page to the profile pages it links to. Giving
         // each an @id/url lets a crawler resolve the two as one entity.
         ...(m.slug ? { "@id": profileUrl(m.slug), url: profileUrl(m.slug) } : {}),
-        worksFor: { "@type": "Organization", name: org.siteName },
+        worksFor: { "@id": LIBRARY_ID },
       })),
     },
   };
@@ -204,6 +199,7 @@ export default async function TeamPage({
     <AboutPageShell
       page="team"
       locale={locale}
+      jsonLd={[jsonLd, itemListJsonLd]}
       hero={{
         category: tt("title"),
         // `heroHeading` — "Meet the people behind PTEC Library" — has existed
@@ -275,8 +271,6 @@ export default async function TeamPage({
         </div>
       }
     >
-      <JsonLd data={jsonLd} />
-      {itemListJsonLd && <JsonLd data={itemListJsonLd} />}
 
       {/* ── The people ───────────────────────────────────────────────────
           One client island owns both the "Meet the Library Team" section and

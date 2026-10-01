@@ -5,6 +5,7 @@ import { TOP_N_PROTECTED } from "@/lib/theses/access";
 import type { ThesisRecord } from "@/lib/theses/record";
 import { scriptOf } from "@/lib/theses/script";
 import { LABEL } from "./styles";
+import { Link } from "@/i18n/navigation";
 
 /**
  * The record's title page: what a printed thesis puts on its first leaf, in
@@ -78,7 +79,12 @@ export default function ThesisTitleBlock({ record }: { record: ThesisRecord }) {
           {record.authors.length > 0 && (
             <p>
               <span className="text-text-muted">{t("byline")} </span>
-              <Name text={record.authors.join(", ")} />
+              {record.authors.map((author, i) => (
+                <span key={`${author}-${i}`}>
+                  {i > 0 && ", "}
+                  <Name text={author} href={record.personLinks?.[author]} />
+                </span>
+              ))}
             </p>
           )}
           {(record.advisor || record.coAdvisor) && (
@@ -86,14 +92,14 @@ export default function ThesisTitleBlock({ record }: { record: ThesisRecord }) {
               {record.advisor && (
                 <>
                   <span className="text-text-muted">{t("metaAdvisor")} </span>
-                  <Name text={record.advisor} />
+                  <Name text={record.advisor} href={record.personLinks?.[record.advisor]} />
                 </>
               )}
               {record.advisor && record.coAdvisor && <span className="text-text-muted"> · </span>}
               {record.coAdvisor && (
                 <>
                   <span className="text-text-muted">{t("metaCoAdvisor")} </span>
-                  <Name text={record.coAdvisor} />
+                  <Name text={record.coAdvisor} href={record.personLinks?.[record.coAdvisor]} />
                 </>
               )}
             </p>
@@ -115,11 +121,24 @@ export default function ThesisTitleBlock({ record }: { record: ThesisRecord }) {
 }
 
 /** A person's name, spoken and set in its own script. Khmer names are
- *  family-name first and are never re-ordered here. */
-function Name({ text }: { text: string }) {
+ *  family-name first and are never re-ordered here. With `href`, a link to
+ *  their author page (SEO Phase 3.2). */
+function Name({ text, href }: { text: string; href?: string }) {
   const lang = scriptOf(text);
+  const className = `font-semibold text-text-heading ${lang === "km" ? "font-kh" : ""}`;
+  if (href) {
+    return (
+      <Link
+        href={href}
+        lang={lang}
+        className={`${className} focus-field rounded-sm underline decoration-divider underline-offset-4 transition-colors hover:text-brand hover:decoration-brand`}
+      >
+        {text}
+      </Link>
+    );
+  }
   return (
-    <span lang={lang} className={`font-semibold text-text-heading ${lang === "km" ? "font-kh" : ""}`}>
+    <span lang={lang} className={className}>
       {text}
     </span>
   );

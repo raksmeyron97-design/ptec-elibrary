@@ -14,6 +14,11 @@ vi.mock("next/cache", () => ({
   revalidatePath: (...args: unknown[]) => revalidatePath(...args),
 }));
 
+const announcePublicChange = vi.fn();
+vi.mock("@/lib/seo/indexnow.server", () => ({
+  announcePublicChange: (...args: unknown[]) => announcePublicChange(...args),
+}));
+
 import {
   TAGS,
   revalidateBook,
@@ -24,6 +29,11 @@ import {
   revalidateLearningPath,
   revalidateCollectionStats,
   revalidateLocalizedPath,
+  revalidatePost,
+  revalidateJournals,
+  revalidateAuthorProfile,
+  revalidateTeam,
+  revalidateTaxonomy,
 } from "./revalidate";
 
 const tags = () => revalidateTag.mock.calls.map((c) => c[0]);
@@ -101,5 +111,65 @@ describe("entity helpers", () => {
     revalidateThesis();
     expect(tags()).toContain(TAGS.theses);
     expect(paths()).toEqual(expect.arrayContaining(["/en/theses", "/km/theses"]));
+  });
+});
+
+// SEO Phase 7.2 — a publish reaches the sitemaps on the next request, and,
+// only when the owner has switched IndexNow on, the engines that use it.
+describe("sitemaps follow every record change", () => {
+  it.each([
+    ["revalidateBook", () => revalidateBook("b")],
+    ["revalidateThesis", () => revalidateThesis("t")],
+    ["revalidatePublication", () => revalidatePublication("a")],
+    ["revalidateJournals", () => revalidateJournals("j")],
+    ["revalidatePost", () => revalidatePost("p")],
+    ["revalidateLearningPath", () => revalidateLearningPath("l")],
+    ["revalidateAuthorProfile", () => revalidateAuthorProfile("x")],
+    ["revalidateTeam", () => revalidateTeam()],
+    ["revalidateTaxonomy", () => revalidateTaxonomy()],
+  ])("%s fires the sitemap tag", (_name, run) => {
+    run();
+    expect(tags()).toContain(TAGS.sitemap);
+  });
+
+  it("the sitemap entry cache is tagged with that same tag", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const src = readFileSync(join(__dirname, "../seo/sitemap-entries.ts"), "utf8");
+    expect(src).toMatch(/tags: \[TAGS\.sitemap\]/);
+  });
+});
+
+describe("IndexNow announcements", () => {
+  const settle = () => new Promise((r) => setTimeout(r, 0));
+  beforeEach(() => announcePublicChange.mockClear());
+
+  it("load nothing and send nothing while INDEXNOW_KEY is unset", async () => {
+    vi.stubEnv("INDEXNOW_KEY", "");
+    revalidateBook("b");
+    revalidateThesis("t");
+    await settle();
+    expect(announcePublicChange).not.toHaveBeenCalled();
+    vi.unstubAllEnvs();
+  });
+
+  it("announce each record's own locale-free path when a key is set", async () => {
+    vi.stubEnv("INDEXNOW_KEY", "0123456789abcdef");
+    revalidateBook("b");
+    revalidateThesis("t");
+    revalidatePublication("a");
+    revalidatePost("p");
+    revalidateLearningPath("l");
+    revalidateBook(null); // a listing-only change names no record
+    await vi.waitFor(() => expect(announcePublicChange).toHaveBeenCalledTimes(5));
+    await settle();
+    expect(announcePublicChange.mock.calls.map((c) => c[0]).sort()).toEqual([
+      ["/books/b"],
+      ["/journals/articles/a"],
+      ["/paths/l"],
+      ["/posts/p"],
+      ["/theses/t"],
+    ]);
+    vi.unstubAllEnvs();
   });
 });

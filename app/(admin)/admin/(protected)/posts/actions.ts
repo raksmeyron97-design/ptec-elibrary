@@ -24,6 +24,7 @@ import {
 import { validatePost, firstValidationError } from "@/lib/admin/post-validation";
 import { eventColumnsAvailable } from "@/lib/posts-data";
 import { clientIpOrUndefined } from "@/lib/client-ip";
+import { capSlug } from "@/lib/slug";
 
 /** Server Action wrapper — lets client components call the lib helper directly. */
 export async function checkSlugAvailableAction(slug: string, ignoreId?: string): Promise<boolean> {
@@ -184,7 +185,9 @@ export async function createPost(
     const featured = readFeatured(formData);
 
     const requestedSlug = formData.get("slug")?.toString().trim();
-    const slugBase = slugify(requestedSlug || title);
+    // Create: a title-derived slug is capped to its first words (SEO Phase
+    // 2.8, D8); a slug the editor gave is kept as given.
+    const slugBase = requestedSlug ? slugify(requestedSlug) : capSlug(slugify(title));
 
     const errors = validatePost({
       title, slug: slugBase || "post", category, content, excerpt, tags, status, scheduledAt,
@@ -421,7 +424,7 @@ export async function duplicatePost(postId: string) {
   if (fetchError || !source) throw new Error("Post not found");
 
   const copyTitle = `${source.title} (Copy)`;
-  const slug = await uniqueSlug(supabase, slugify(copyTitle));
+  const slug = await uniqueSlug(supabase, capSlug(slugify(copyTitle)));
 
   const { data: copy, error: insertError } = await supabase
     .from("posts")

@@ -18,7 +18,7 @@ import {
   parsePageParam,
 } from "@/lib/seo/listing-metadata";
 import { getCollectionStats } from "@/lib/collection-stats";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import Pagination from "@/components/ui/core/Pagination";
 import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
 import SummaryToolbar from "@/components/ui/theses/SummaryToolbar";
@@ -76,16 +76,20 @@ export async function generateMetadata({
     getCollectionStats(),
     getOrgIdentity(),
   ]);
+  const tSummary = await getTranslations({ locale, namespace: "thesisSummary" });
   const page = parsePageParam(params.page);
   return buildListingMetadata({
     org,
     path: "/theses/summary",
     locale,
-    title: "Student Theses Summary Index",
-    description:
-      `Browse student theses from ${org.institutionName} by academic year, cohort, author, advisor, program, and research topic.`,
+    // Localized (it was hard-coded English on /km too — AUDIT N2); the same
+    // approved strings the page's own heading and intro use.
+    title: tSummary("title"),
+    description: tSummary("description"),
     page,
     outOfRange: isPageOutOfRange(page, stats?.theses, resolvePageSize(undefined)),
+    // An empty collection is a soft-404, like /journals (SEO Phase 3.8).
+    isEmpty: stats?.theses === 0,
     hasFilters: !!(
       params.q ||
       params.year ||
@@ -367,8 +371,7 @@ export default async function ThesesSummaryPage({
 
   return (
     <ClientNavWrapper>
-      <JsonLd data={crumbs} />
-      <JsonLd data={collectionSchema} />
+      <PageJsonLd nodes={[crumbs, collectionSchema]} />
       <div className="min-h-screen bg-bg-body">
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="border-b border-divider bg-bg-surface px-4 py-6 md:px-12 md:py-8">

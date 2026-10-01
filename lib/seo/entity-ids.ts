@@ -2,8 +2,8 @@
 //
 // The stable `@id` anchors for the three entities this site declares about
 // itself. ONE definition, imported by both the producer of the full nodes
-// (components/layout/RootShell.tsx) and every builder that needs to point at
-// them (lib/seo/org-nodes.ts).
+// (lib/seo/jsonld.ts siteGraphNodes(), since SEO Phase 4; RootShell before)
+// and every builder that needs to point at them (lib/seo/org-nodes.ts).
 //
 // Why this module exists
 // ──────────────────────
@@ -32,8 +32,13 @@
 
 import { SITE_URL } from "@/lib/seo/site";
 
-/** The institution: PTEC itself. Declared once by RootShell's site graph. */
-export const ORGANIZATION_ID = `${SITE_URL}/#organization`;
+/**
+ * The institution: PTEC itself. On the institution's OWN origin (SEO Phase 4):
+ * the college is www.ptec.edu.kh, and an identifier under the library's host
+ * read as the library naming itself. An identifier, not a displayed URL — it
+ * must not move when a setting is edited, so it is not read from settings.
+ */
+export const ORGANIZATION_ID = "https://www.ptec.edu.kh/#org";
 
 /** The library service operated by that institution. */
 export const LIBRARY_ID = `${SITE_URL}/#library`;

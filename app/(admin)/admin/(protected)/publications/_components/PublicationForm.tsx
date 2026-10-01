@@ -71,6 +71,12 @@ import ContentWorkspace from "./workspace/ContentWorkspace";
 import SaveBar, { type AutosaveState } from "./workspace/SaveBar";
 import ReviewPublishPanel from "./workspace/ReviewPublishPanel";
 import { articlePath, ARTICLES_BASE_PATH } from "@/lib/journals/urls";
+import { capSlug } from "@/lib/slug";
+
+// A slug derived from the title is capped to its first words (SEO Phase 2.8,
+// D8). SlugField derives only while the record has no slug of its own, so an
+// existing record's slug — and one typed by hand — is never touched.
+const derivedSlug = (value: string) => capSlug(slugify(value));
 
 type StepKey = ReviewStep | "review";
 
@@ -985,7 +991,7 @@ export default function PublicationForm({
                     source={title}
                     routePrefix={ARTICLES_BASE_PATH}
                     siteUrl={SITE_URL}
-                    slugify={slugify}
+                    slugify={derivedSlug}
                     // Closed over this publication's own id so editing never
                     // reports its own slug as taken.
                     checkAvailability={(candidate) =>

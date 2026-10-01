@@ -1,0 +1,454 @@
+# seo-check  base=https://library.ptec.edu.kh  site=https://library.ptec.edu.kh  phase≤7  urls=69  started=2026-09-30T10:36:06.561Z
+
+| level | phase | finding | check | URL | detail |
+|---|---|---|---|---|---|
+| ERROR | 1 | F7 | desc-no-ellipsis | `/about/team/vong-savoeun` | … with a particular focus on Action Rese… |
+| ERROR | 1 | F7 | desc-no-ellipsis | `/books/រលក` | …ទ្រឹស្តីវិទ្យាសាស្ត្រ ការពិសោធន៍ និងក... |
+| ERROR | 1 | F7 | desc-no-ellipsis | `/books/លីមីតនៃអនុគមន៍` | …ៀវភៅនេះផ្តោតលើទ្រឹស្តីគណិតវិទ្យា រូបម... |
+| ERROR | 1 | F7 | desc-no-ellipsis | `/books/introduction-to-qualitative-research-methods-4th-edition` | …nts, research ethics, analysis and wr... |
+| ERROR | 1 | F7 | desc-no-ellipsis | `/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | …or thin films such as polypyrrole (Pp... |
+| ERROR | 1 | F7 | desc-no-ellipsis | `/journals/journal-of-chemical-education` | …e ACS Division of Chemical Education,... |
+| ERROR | 1 | F7 | desc-no-ellipsis | `/journals/journal-of-chemical-education/issues/vol-91-issue-11` | … and handmade measurement devices by ... |
+| ERROR | 1 | F7 | desc-no-ellipsis | `/km/books/រលក` | …ទ្រឹស្តីវិទ្យាសាស្ត្រ ការពិសោធន៍ និងក... |
+| ERROR | 1 | F7 | desc-no-ellipsis | `/km/books/introduction-to-qualitative-research-methods-4th-edition` | …nts, research ethics, analysis and wr... |
+| ERROR | 1 | F7 | desc-no-ellipsis | `/km/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | …or thin films such as polypyrrole (Pp... |
+| ERROR | 1 | F2 | footer-headings | `/` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/about` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/about/rules` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/about/team` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/about/team/vong-savoeun` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/authors` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/authors/a-michael-huberman` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/authors/unesco` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/books` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/books?page=1` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/books?page=2` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/books?page=9999` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/books?sort=downloads` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/books/រលក` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/books/លីមីតនៃអនុគមន៍` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/books/introduction-to-qualitative-research-methods-4th-edition` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/books/introduction-to-qualitative-research-methods-4th-edition/read` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/catalogs` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/catalogs/teacher-noticing-bridging-and-broadening-perspectives-contexts-and-frameworks-schack-edna-o` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/contact` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/journals` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/journals/journal-of-chemical-education` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/journals/journal-of-chemical-education/issues` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/journals/journal-of-chemical-education/issues/vol-91-issue-11` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/km` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/km/about` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/km/about/rules` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/km/authors` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/km/authors/unesco` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/km/books` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/km/books?page=2` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/km/books?sort=downloads` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/km/books/រលក` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/km/books/introduction-to-qualitative-research-methods-4th-edition` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/km/catalogs` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/km/contact` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/km/journals` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/km/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/km/paths` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/km/paths/early-grade-reading` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/km/posts` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/km/subjects` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/km/subjects/គណិតវិទ្យា` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/km/theses` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/km/theses/គុណភាពនៃការបង្រៀន-និង-រៀន-របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស-គរុនិស្សិត១២-៤-ជំនាន់ទី២-ឆ្នាំសិក្សា-២០២២-២០២៣` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/km/theses/summary` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/paths` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/paths/early-grade-reading` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/policy` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/posts` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/posts/សិក្ខាសាលាស្តីពី-ការសរសេរនិងការបោះពុម្ពអត្ថបទស្រាវជ្រាវ` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/privacy` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/search?q=mathematics` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/subjects` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/subjects/គណិតវិទ្យា` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/theses` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/theses/គុណភាពនៃការបង្រៀន-និង-រៀន-របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស-គរុនិស្សិត១២-៤-ជំនាន់ទី២-ឆ្នាំសិក្សា-២០២២-២០២៣` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | footer-headings | `/theses/summary` | 6 heading element(s) in the site footer |
+| ERROR | 1 | F2 | h1-visible-without-js | `/` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/about` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/about/rules` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/about/team` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/about/team/vong-savoeun` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/authors` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/authors/unesco` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/books` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/books?page=1` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/books?page=2` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/books/រលក` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/books/លីមីតនៃអនុគមន៍` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/books/introduction-to-qualitative-research-methods-4th-edition` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/catalogs` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/contact` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/journals` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/journals/journal-of-chemical-education` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/journals/journal-of-chemical-education/issues` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/journals/journal-of-chemical-education/issues/vol-91-issue-11` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/km` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/km/about` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/km/about/rules` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/km/authors` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/km/authors/unesco` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/km/books` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/km/books?page=2` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/km/books/រលក` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/km/books/introduction-to-qualitative-research-methods-4th-edition` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/km/catalogs` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/km/contact` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/km/journals` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/km/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/km/paths` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/km/paths/early-grade-reading` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/km/posts` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/km/subjects` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/km/subjects/គណិតវិទ្យា` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/km/theses` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/km/theses/គុណភាពនៃការបង្រៀន-និង-រៀន-របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស-គរុនិស្សិត១២-៤-ជំនាន់ទី២-ឆ្នាំសិក្សា-២០២២-២០២៣` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/km/theses/summary` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/paths` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/paths/early-grade-reading` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/policy` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/posts` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/posts/សិក្ខាសាលាស្តីពី-ការសរសេរនិងការបោះពុម្ពអត្ថបទស្រាវជ្រាវ` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/privacy` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/subjects` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/subjects/គណិតវិទ្យា` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/theses` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/theses/គុណភាពនៃការបង្រៀន-និង-រៀន-របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស-គរុនិស្សិត១២-៤-ជំនាន់ទី២-ឆ្នាំសិក្សា-២០២២-២០២៣` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F2 | h1-visible-without-js | `/theses/summary` | h1 is inside a hidden streaming container |
+| ERROR | 1 | F5 | hreflang-on-noindex | `/books?page=9999` | 3 hreflang link(s) on a noindex page |
+| ERROR | 1 | F5 | hreflang-on-noindex | `/books?sort=downloads` | 3 hreflang link(s) on a noindex page |
+| ERROR | 1 | F5 | hreflang-on-noindex | `/books/introduction-to-qualitative-research-methods-4th-edition/read` | 3 hreflang link(s) on a noindex page |
+| ERROR | 1 | F5 | hreflang-on-noindex | `/catalogs/teacher-noticing-bridging-and-broadening-perspectives-contexts-and-frameworks-schack-edna-o` | 3 hreflang link(s) on a noindex page |
+| ERROR | 1 | F5 | hreflang-on-noindex | `/km/books?sort=downloads` | 3 hreflang link(s) on a noindex page |
+| ERROR | 1 | F5 | hreflang-on-noindex | `/search?q=mathematics` | 3 hreflang link(s) on a noindex page |
+| ERROR | 1 | F9 | og-type | `/books/រលក` | og:type=article (expected book) |
+| ERROR | 1 | F9 | og-type | `/books/លីមីតនៃអនុគមន៍` | og:type=article (expected book) |
+| ERROR | 1 | F9 | og-type | `/books/introduction-to-qualitative-research-methods-4th-edition` | og:type=article (expected book) |
+| ERROR | 1 | F9 | og-type | `/km/books/រលក` | og:type=article (expected book) |
+| ERROR | 1 | F9 | og-type | `/km/books/introduction-to-qualitative-research-methods-4th-edition` | og:type=article (expected book) |
+| ERROR | 1 | F1 | results-total-attr | `/books` | no [data-results-total] |
+| ERROR | 1 | F1 | results-total-attr | `/km/books` | no [data-results-total] |
+| ERROR | 1 |  | robots | `/~offline` | index [meta: index, follow; header: none] |
+| ERROR | 1 | F6 | sitemap-index | `/sitemap.xml` | one urlset of 2395 URLs |
+| ERROR | 1 | F6 | sitemap-lastmod-placeholder | `/sitemap.xml` | 2023-01-01T00:00:00+00:00 https://library.ptec.edu.kh/theses/គុណភាពនៃការបង្រៀន-និង-រៀន-របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិ |
+| ERROR | 1 | F6 | sitemap-loc-encoding | `/sitemap.xml` | 1851 of 2395 <loc> carry raw non-ASCII (canonicals are percent-encoded) |
+| ERROR | 1 | F6 | sitemap-sample-loc-exact | `/authors/មិញ-សាវ៉ាន` | loc and canonical differ in bytes |
+| ERROR | 1 | F6 | sitemap-sample-loc-exact | `/books/របៀបដំឡើងប្រព័ន្ធប្រតិបត្តិការ` | loc and canonical differ in bytes |
+| ERROR | 1 | F6 | sitemap-sample-loc-exact | `/books/សិស្សពូកែថ្នាក់ទី៩-១៩៩៧ដល់២០២៣` | loc and canonical differ in bytes |
+| ERROR | 1 | F6 | sitemap-sample-loc-exact | `/posts/សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍` | loc and canonical differ in bytes |
+| ERROR | 1 | F6 | sitemap-sample-loc-exact | `/posts/សិក្ខាសាលាស្តីពី-ការសរសេរនិងការបោះពុម្ពអត្ថបទស្រាវជ្រាវ` | loc and canonical differ in bytes |
+| ERROR | 1 | F6 | sitemap-sample-loc-exact | `/subjects/គរុកោសល្យ` | loc and canonical differ in bytes |
+| ERROR | 1 | F6 | sitemap-sample-loc-exact | `/subjects/ភាសា` | loc and canonical differ in bytes |
+| ERROR | 1 | F6 | sitemap-sample-loc-exact | `/subjects/ស្រាវជ្រាវបែបគុណភាព` | loc and canonical differ in bytes |
+| ERROR | 1 | F6 | sitemap-sample-loc-exact | `/theses/គុណភាពនៃការបង្រៀន-និង-រៀន-របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស-គរុនិស្សិត១២-៤-ជំនាន់ទី២-ឆ្នាំសិក្សា-២០២២-២០២៣` | loc and canonical differ in bytes |
+| ERROR | 1 | F6 | sitemap-xdefault | `/sitemap.xml` | 2395 of 2395 entries have no x-default alternate |
+| ERROR | 1 | F7 | title-contains-item | `/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | title "Development of a Handmade Conductivity Measurement Device… · PTEC Library" vs H1 "Development of a Handmade Conductivity Measurement Device for a Thin-Film Semiconductor and Its Application to Polypyrrole" |
+| ERROR | 1 | F7 | title-contains-item | `/km/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | title "ការអភិវឌ្ឍឧបករណ៍វាស់ចរន្តអគ្គិសនីធ្វើដោយដៃសម្រាប់សារធាតុពាក់… · PTEC Library" vs H1 "Development of a Handmade Conductivity Measurement Device for a Thin-Film Semiconductor and Its Application to Polypyrrole" |
+| ERROR | 1 | F7 | title-contains-item | `/km/theses/គុណភាពនៃការបង្រៀន-និង-រៀន-របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស-គរុនិស្សិត១២-៤-ជំនាន់ទី២-ឆ្នាំសិក្សា-២០២២-២០២៣` | title "គុណភាពនៃការបង្រៀន និង រៀន \| របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិ PTEC · PTEC Library" vs H1 "គុណភាពនៃការបង្រៀន និង រៀន៖ របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស គរុនិស្សិត១២+៤ ជំនាន់ទី២ ឆ្នាំសិក្សា ២០២២-២០២៣" |
+| ERROR | 1 | F7 | title-contains-item | `/theses/គុណភាពនៃការបង្រៀន-និង-រៀន-របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស-គរុនិស្សិត១២-៤-ជំនាន់ទី២-ឆ្នាំសិក្សា-២០២២-២០២៣` | title "គុណភាពនៃការបង្រៀន និង រៀន \| របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិ PTEC · PTEC Library" vs H1 "គុណភាពនៃការបង្រៀន និង រៀន៖ របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស គរុនិស្សិត១២+៤ ជំនាន់ទី២ ឆ្នាំសិក្សា ២០២២-២០២៣" |
+| ERROR | 1 | F9 | title-km-brand | `/km` | "បណ្ណាល័យឌីជីថលឥតគិតថ្លៃសម្រាប់គ្រូបង្រៀន · PTEC Library" |
+| ERROR | 1 | F9 | title-km-brand | `/km/about` | "អំពីបណ្ណាល័យ — PTEC e-Library · PTEC Library" |
+| ERROR | 1 | F9 | title-km-brand | `/km/about/rules` | "បទបញ្ជាបណ្ណាល័យ · PTEC Library" |
+| ERROR | 1 | F9 | title-km-brand | `/km/authors` | "អ្នកនិពន្ធ — បុគ្គលនៅពីក្រោយបណ្ដុំឯកសារ · PTEC Library" |
+| ERROR | 1 | F9 | title-km-brand | `/km/authors/unesco` | "UNESCO — អ្នកនិពន្ធ · PTEC Library" |
+| ERROR | 1 | F9 | title-km-brand | `/km/books` | "សៀវភៅអប់រំ និងធនធានបង្រៀនឥតគិតថ្លៃ · PTEC Library" |
+| ERROR | 1 | F9 | title-km-brand | `/km/books?page=2` | "សៀវភៅអប់រំ និងធនធានបង្រៀនឥតគិតថ្លៃ — ទំព័រ 2 · PTEC Library" |
+| ERROR | 1 | F9 | title-km-brand | `/km/books?sort=downloads` | "សៀវភៅអប់រំ និងធនធានបង្រៀនឥតគិតថ្លៃ · PTEC Library" |
+| ERROR | 1 | F9 | title-km-brand | `/km/books/រលក` | "រលក · PTEC Library" |
+| ERROR | 1 | F9 | title-km-brand | `/km/books/introduction-to-qualitative-research-methods-4th-edition` | "Introduction to Qualitative Research Methods (4th Edition) · PTEC Library" |
+| ERROR | 1 | F9 | title-km-brand | `/km/catalogs` | "សៀវភៅក្នុងបណ្ណាល័យ · PTEC Library" |
+| ERROR | 1 | F9 | title-km-brand | `/km/contact` | "ទំនាក់ទំនង · PTEC Library" |
+| ERROR | 1 | F9 | title-km-brand | `/km/journals` | "ទស្សនាវដ្ដី និងអត្ថបទសិក្សា · PTEC Library" |
+| ERROR | 1 | F9 | title-km-brand | `/km/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | "ការអភិវឌ្ឍឧបករណ៍វាស់ចរន្តអគ្គិសនីធ្វើដោយដៃសម្រាប់សារធាតុពាក់… · PTEC Library" |
+| ERROR | 1 | F9 | title-km-brand | `/km/paths` | "ផ្លូវសិក្សាសម្រាប់គ្រូបង្រៀន · PTEC Library" |
+| ERROR | 1 | F9 | title-km-brand | `/km/paths/early-grade-reading` | "កញ្ចប់អំណានថ្នាក់ដំបូង ភាសាខ្មែរ (ថ្នាក់ទី១ ទី២ និងទី៣) · PTEC Library" |
+| ERROR | 1 | F9 | title-km-brand | `/km/posts` | "ព័ត៌មាន និងព្រឹត្តិការណ៍ · PTEC Library" |
+| ERROR | 1 | F9 | title-km-brand | `/km/subjects` | "មុខវិជ្ជា — រកមើលបណ្ណាល័យតាមប្រធានបទ · PTEC Library" |
+| ERROR | 1 | F9 | title-km-brand | `/km/subjects/គណិតវិទ្យា` | "គណិតវិទ្យា · PTEC Library" |
+| ERROR | 1 | F9 | title-km-brand | `/km/theses` | "និក្ខេបបទ និងរបាយការណ៍ស្រាវជ្រាវរបស់និស្សិត · PTEC Library" |
+| ERROR | 1 | F9 | title-km-brand | `/km/theses/គុណភាពនៃការបង្រៀន-និង-រៀន-របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស-គរុនិស្សិត១២-៤-ជំនាន់ទី២-ឆ្នាំសិក្សា-២០២២-២០២៣` | "គុណភាពនៃការបង្រៀន និង រៀន \| របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិ PTEC · PTEC Library" |
+| ERROR | 1 | F9 | title-km-brand | `/km/theses/summary` | "Student Theses Summary Index · PTEC Library" |
+| ERROR | 1 | F7 | title-no-ellipsis | `/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | "Development of a Handmade Conductivity Measurement Device… · PTEC Library" |
+| ERROR | 1 | F7 | title-no-ellipsis | `/km/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | "ការអភិវឌ្ឍឧបករណ៍វាស់ចរន្តអគ្គិសនីធ្វើដោយដៃសម្រាប់សារធាតុពាក់… · PTEC Library" |
+| ERROR | 2 |  | robots | `/authors/a-michael-huberman` | index [meta: index, follow; header: none] |
+| ERROR | 3 | F4 | citation-locale | `/books/រលក` | citation_language="khmer" on the en page |
+| ERROR | 3 | F4 | citation-locale | `/books/លីមីតនៃអនុគមន៍` | citation_language="khmer" on the en page |
+| ERROR | 3 | F4 | citation-locale | `/km/books/introduction-to-qualitative-research-methods-4th-edition` | citation_language="english" on the km page |
+| ERROR | 3 | F4 | citation-locale | `/km/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | citation_language="en" on the km page |
+| ERROR | 3 | F4 | citation-pdf | `/books/រលក` | /api/books/faf09cf8-552b-4576-b275-380e62ff934d/file is outside /books/; robots.txt: Disallow: /api/; anonymous GET: 401 text/plain;charset=UTF-8 |
+| ERROR | 3 | F4 | citation-pdf | `/books/លីមីតនៃអនុគមន៍` | /api/books/28def80d-7c28-4608-9cbb-4afeb9a98ea0/file is outside /books/; robots.txt: Disallow: /api/; anonymous GET: 401 text/plain;charset=UTF-8 |
+| ERROR | 3 | F4 | citation-pdf | `/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | /api/publications/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole/file is outside /journals/articles/; robots.txt: Disallow: /api/ |
+| ERROR | 3 | F4 | citation-pdf | `/km/books/រលក` | /api/books/faf09cf8-552b-4576-b275-380e62ff934d/file is outside /km/books/; robots.txt: Disallow: /api/; anonymous GET: 401 text/plain;charset=UTF-8 |
+| ERROR | 3 | F4 | citation-pdf | `/km/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | /api/publications/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole/file is outside /km/journals/articles/; robots.txt: Disallow: /api/ |
+| ERROR | 3 | F4 | citation-pdf | `/km/theses/គុណភាពនៃការបង្រៀន-និង-រៀន-របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស-គរុនិស្សិត១២-៤-ជំនាន់ទី២-ឆ្នាំសិក្សា-២០២២-២០២៣` | /api/theses/2d52c28f-a66e-47d5-a546-90b7aa45532b/file is outside /km/theses/; robots.txt: Disallow: /api/; anonymous GET: 401 text/plain;charset=UTF-8 |
+| ERROR | 3 | F4 | citation-pdf | `/theses/គុណភាពនៃការបង្រៀន-និង-រៀន-របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស-គរុនិស្សិត១២-៤-ជំនាន់ទី២-ឆ្នាំសិក្សា-២០២២-២០២៣` | /api/theses/2d52c28f-a66e-47d5-a546-90b7aa45532b/file is outside /theses/; robots.txt: Disallow: /api/; anonymous GET: 401 text/plain;charset=UTF-8 |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/~offline` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/about` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/about/rules` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/about/team` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/about/team/vong-savoeun` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/authors` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/authors/a-michael-huberman` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/authors/unesco` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/books` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/books?page=1` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/books?page=2` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/books?page=9999` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/books?sort=downloads` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/books/រលក` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/books/លីមីតនៃអនុគមន៍` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/books/introduction-to-qualitative-research-methods-4th-edition` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/books/introduction-to-qualitative-research-methods-4th-edition/read` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/catalogs` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/catalogs/teacher-noticing-bridging-and-broadening-perspectives-contexts-and-frameworks-schack-edna-o` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/contact` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/journals` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/journals/journal-of-chemical-education` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/journals/journal-of-chemical-education/issues` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/journals/journal-of-chemical-education/issues/vol-91-issue-11` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/km` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/km/about` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/km/about/rules` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/km/authors` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/km/authors/unesco` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/km/books` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/km/books?page=2` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/km/books?sort=downloads` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/km/books/រលក` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/km/books/introduction-to-qualitative-research-methods-4th-edition` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/km/catalogs` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/km/contact` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/km/journals` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/km/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/km/paths` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/km/paths/early-grade-reading` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/km/posts` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/km/subjects` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/km/subjects/គណិតវិទ្យា` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/km/theses` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/km/theses/គុណភាពនៃការបង្រៀន-និង-រៀន-របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស-គរុនិស្សិត១២-៤-ជំនាន់ទី២-ឆ្នាំសិក្សា-២០២២-២០២៣` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/km/theses/summary` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/paths` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/paths/early-grade-reading` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/policy` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/posts` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/posts/សិក្ខាសាលាស្តីពី-ការសរសេរនិងការបោះពុម្ពអត្ថបទស្រាវជ្រាវ` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/privacy` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/search?q=mathematics` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/subjects` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/subjects/គណិតវិទ្យា` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/theses` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/theses/គុណភាពនៃការបង្រៀន-និង-រៀន-របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស-គរុនិស្សិត១២-៤-ជំនាន់ទី២-ឆ្នាំសិក្សា-២០២២-២០២៣` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-no-searchaction | `/theses/summary` | SearchAction present |
+| ERROR | 4 | F10 | jsonld-single-block | `/` | 2 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/about/rules` | 2 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/about/team` | 4 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/about/team/vong-savoeun` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/authors` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/authors/a-michael-huberman` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/authors/unesco` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/books` | 2 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/books?page=1` | 2 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/books?page=2` | 2 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/books?page=9999` | 2 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/books/រលក` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/books/លីមីតនៃអនុគមន៍` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/books/introduction-to-qualitative-research-methods-4th-edition` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/catalogs/teacher-noticing-bridging-and-broadening-perspectives-contexts-and-frameworks-schack-edna-o` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/journals` | 2 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/journals/journal-of-chemical-education` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/journals/journal-of-chemical-education/issues` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/journals/journal-of-chemical-education/issues/vol-91-issue-11` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/km` | 2 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/km/about/rules` | 2 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/km/authors` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/km/authors/unesco` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/km/books` | 2 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/km/books?page=2` | 2 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/km/books/រលក` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/km/books/introduction-to-qualitative-research-methods-4th-edition` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/km/journals` | 2 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/km/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/km/paths` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/km/paths/early-grade-reading` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/km/posts` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/km/subjects` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/km/subjects/គណិតវិទ្យា` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/km/theses` | 2 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/km/theses/គុណភាពនៃការបង្រៀន-និង-រៀន-របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស-គរុនិស្សិត១២-៤-ជំនាន់ទី២-ឆ្នាំសិក្សា-២០២២-២០២៣` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/km/theses/summary` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/paths` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/paths/early-grade-reading` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/policy` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/posts` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/posts/សិក្ខាសាលាស្តីពី-ការសរសេរនិងការបោះពុម្ពអត្ថបទស្រាវជ្រាវ` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/privacy` | 2 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/subjects` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/subjects/គណិតវិទ្យា` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/theses` | 2 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/theses/គុណភាពនៃការបង្រៀន-និង-រៀន-របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស-គរុនិស្សិត១២-៤-ជំនាន់ទី២-ឆ្នាំសិក្សា-២០២២-២០២៣` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-single-block | `/theses/summary` | 3 blocks (0 in head) |
+| ERROR | 4 | F10 | jsonld-target-types | `/` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/~offline` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/about` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/about/rules` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/authors` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/authors/a-michael-huberman` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/authors/unesco` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/books` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/books?page=1` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/books?page=2` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/books?page=9999` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/books?sort=downloads` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/books/រលក` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/books/លីមីតនៃអនុគមន៍` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/books/introduction-to-qualitative-research-methods-4th-edition` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/books/introduction-to-qualitative-research-methods-4th-edition/read` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/catalogs` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/catalogs/teacher-noticing-bridging-and-broadening-perspectives-contexts-and-frameworks-schack-edna-o` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/contact` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/journals` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/journals/journal-of-chemical-education` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/journals/journal-of-chemical-education/issues` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/journals/journal-of-chemical-education/issues/vol-91-issue-11` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/km` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/km/about` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/km/about/rules` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/km/authors` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/km/authors/unesco` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/km/books` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/km/books?page=2` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/km/books?sort=downloads` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/km/books/រលក` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/km/books/introduction-to-qualitative-research-methods-4th-edition` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/km/catalogs` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/km/contact` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/km/journals` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/km/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/km/paths` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/km/paths/early-grade-reading` | missing CollegeOrUniversity, ItemList |
+| ERROR | 4 | F10 | jsonld-target-types | `/km/posts` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/km/subjects` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/km/subjects/គណិតវិទ្យា` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/km/theses` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/km/theses/គុណភាពនៃការបង្រៀន-និង-រៀន-របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស-គរុនិស្សិត១២-៤-ជំនាន់ទី២-ឆ្នាំសិក្សា-២០២២-២០២៣` | missing CollegeOrUniversity, Thesis |
+| ERROR | 4 | F10 | jsonld-target-types | `/km/theses/summary` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/paths` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/paths/early-grade-reading` | missing CollegeOrUniversity, ItemList |
+| ERROR | 4 | F10 | jsonld-target-types | `/policy` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/posts` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/posts/សិក្ខាសាលាស្តីពី-ការសរសេរនិងការបោះពុម្ពអត្ថបទស្រាវជ្រាវ` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/privacy` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/search?q=mathematics` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/subjects` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/subjects/គណិតវិទ្យា` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/theses` | missing CollegeOrUniversity |
+| ERROR | 4 | F10 | jsonld-target-types | `/theses/គុណភាពនៃការបង្រៀន-និង-រៀន-របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស-គរុនិស្សិត១២-៤-ជំនាន់ទី២-ឆ្នាំសិក្សា-២០២២-២០២៣` | missing CollegeOrUniversity, Thesis |
+| ERROR | 4 | F10 | jsonld-target-types | `/theses/summary` | missing CollegeOrUniversity |
+| WARN | 1 | F9 | citation-date-precision | `/books/រលក` | date="2026-01-01" |
+| WARN | 1 | F9 | citation-date-precision | `/books/លីមីតនៃអនុគមន៍` | date="2026-01-01" |
+| WARN | 1 | F9 | citation-date-precision | `/books/introduction-to-qualitative-research-methods-4th-edition` | date="2016-01-01" |
+| WARN | 1 | F9 | citation-date-precision | `/km/books/រលក` | date="2026-01-01" |
+| WARN | 1 | F9 | citation-date-precision | `/km/books/introduction-to-qualitative-research-methods-4th-edition` | date="2016-01-01" |
+| WARN | 1 | F9 | citation-date-precision | `/km/theses/គុណភាពនៃការបង្រៀន-និង-រៀន-របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស-គរុនិស្សិត១២-៤-ជំនាន់ទី២-ឆ្នាំសិក្សា-២០២២-២០២៣` | date="2023/01/01" |
+| WARN | 1 | F9 | citation-date-precision | `/theses/គុណភាពនៃការបង្រៀន-និង-រៀន-របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស-គរុនិស្សិត១២-៤-ជំនាន់ទី២-ឆ្នាំសិក្សា-២០២២-២០២៣` | date="2023/01/01" |
+| WARN | 1 | F7 | desc-length | `/authors/a-michael-huberman` | 49 characters |
+| WARN | 1 | F7 | desc-length | `/authors/unesco` | 36 characters |
+| WARN | 1 | F7 | desc-length | `/catalogs/teacher-noticing-bridging-and-broadening-perspectives-contexts-and-frameworks-schack-edna-o` | 226 characters |
+| WARN | 1 | F7 | desc-length | `/km/authors/unesco` | 38 characters |
+| WARN | 1 | F7 | desc-length | `/km/paths/early-grade-reading` | 329 characters |
+| WARN | 1 | F7 | desc-length | `/paths/early-grade-reading` | 259 characters |
+| WARN | 1 | F7 | desc-length | `/subjects/គណិតវិទ្យា` | 69 characters |
+| WARN | 1 | F7 | desc-sentence-end | `/about/team/vong-savoeun` | …rticular focus on Action Rese… |
+| WARN | 1 | F7 | desc-sentence-end | `/books/រលក` | …ទ្យាសាស្ត្រ ការពិសោធន៍ និងក... |
+| WARN | 1 | F7 | desc-sentence-end | `/books/លីមីតនៃអនុគមន៍` | …ោតលើទ្រឹស្តីគណិតវិទ្យា រូបម... |
+| WARN | 1 | F7 | desc-sentence-end | `/books/introduction-to-qualitative-research-methods-4th-edition` | …rch ethics, analysis and wr... |
+| WARN | 1 | F7 | desc-sentence-end | `/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | …lms such as polypyrrole (Pp... |
+| WARN | 1 | F7 | desc-sentence-end | `/journals/journal-of-chemical-education` | …sion of Chemical Education,... |
+| WARN | 1 | F7 | desc-sentence-end | `/journals/journal-of-chemical-education/issues/vol-91-issue-11` | …ade measurement devices by ... |
+| WARN | 1 | F7 | desc-sentence-end | `/km/books/រលក` | …ទ្យាសាស្ត្រ ការពិសោធន៍ និងក... |
+| WARN | 1 | F7 | desc-sentence-end | `/km/books/introduction-to-qualitative-research-methods-4th-edition` | …rch ethics, analysis and wr... |
+| WARN | 1 | F7 | desc-sentence-end | `/km/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | …lms such as polypyrrole (Pp... |
+| WARN | 1 | F7 | title-length | `/books/introduction-to-qualitative-research-methods-4th-edition` | 73 graphemes |
+| WARN | 1 | F7 | title-length | `/books/introduction-to-qualitative-research-methods-4th-edition/read` | 87 graphemes |
+| WARN | 1 | F7 | title-length | `/catalogs/teacher-noticing-bridging-and-broadening-perspectives-contexts-and-frameworks-schack-edna-o` | 114 graphemes |
+| WARN | 1 | F7 | title-length | `/journals/articles/handmade-conductivity-measurement-device-thin-film-semiconductor-polypyrrole` | 73 graphemes |
+| WARN | 1 | F7 | title-length | `/km/books/introduction-to-qualitative-research-methods-4th-edition` | 73 graphemes |
+| WARN | 1 | F7 | title-length | `/paths/early-grade-reading` | 83 graphemes |
+
+## Summary by check
+
+| check | phase | finding | ok | error | todo | warn | unknown | rule |
+|---|---|---|---|---|---|---|---|---|
+| status | 0 |  | 69 | 0 | 0 | 0 | 0 | HTTP status as expected (200, 404, or the redirect under test) |
+| redirect-target | 0 |  | 4 | 0 | 0 | 0 | 0 | a redirect under test lands where expected, in one hop |
+| html-lang | 0 |  | 60 | 0 | 0 | 0 | 0 | <html lang> is en at the root and km under /km |
+| title-present | 0 |  | 60 | 0 | 0 | 0 | 0 | exactly one non-empty <title>, in <head> |
+| title-no-ellipsis | 1 | F7 | 58 | 2 | 0 | 0 | 0 | no trailing … or ... unless the item title has one |
+| title-contains-item | 1 | F7 | 15 | 4 | 0 | 0 | 0 | a record's <title> contains its full item title (the H1) |
+| title-length | 1 | F7 | 54 | 0 | 0 | 6 | 0 | title ≤ 70 graphemes |
+| title-km-brand | 1 | F9 | 0 | 22 | 0 | 0 | 0 | a /km title does not end in the Latin brand |
+| desc-present | 0 |  | 60 | 0 | 0 | 0 | 0 | exactly one non-empty meta description |
+| desc-no-ellipsis | 1 | F7 | 50 | 10 | 0 | 0 | 0 | no trailing … or ... (a cut mid-word or mid-sentence) |
+| desc-length | 1 | F7 | 53 | 0 | 0 | 7 | 0 | description 70–165 characters |
+| desc-sentence-end | 1 | F7 | 50 | 0 | 0 | 10 | 0 | description ends at sentence punctuation |
+| canonical | 0 |  | 59 | 0 | 0 | 0 | 0 | one absolute https canonical: self on indexable pages, the base list on filters |
+| robots | 0 |  | 58 | 2 | 0 | 0 | 0 | robots matches the template's expectation (meta + X-Robots-Tag) |
+| hreflang-set | 0 | F5 | 51 | 0 | 0 | 0 | 0 | indexable pages list en, km and x-default (x-default = en) |
+| hreflang-reciprocal | 0 | F5 | 51 | 0 | 0 | 0 | 0 | every hreflang target answers 200, is indexable and lists the page back |
+| hreflang-on-noindex | 1 | F5 | 0 | 6 | 0 | 0 | 0 | a noindex page carries no hreflang |
+| h1-single | 0 | F2 | 52 | 0 | 0 | 0 | 0 | exactly one non-empty <h1> in the document |
+| h1-visible-without-js | 1 | F2 | 0 | 52 | 0 | 0 | 0 | the <h1> is not inside a hidden streaming container |
+| footer-headings | 1 | F2 | 1 | 59 | 0 | 0 | 0 | the site footer uses no heading elements |
+| jsonld-parse | 0 | F10 | 60 | 0 | 0 | 0 | 0 | every application/ld+json block parses |
+| jsonld-types | 0 | F10 | 60 | 0 | 0 | 0 | 0 | the template's current JSON-LD @types are present |
+| jsonld-target-types | 4 | F10 | 2 | 58 | 0 | 0 | 0 | the Phase 4 target @types are present |
+| jsonld-single-block | 4 | F10 | 11 | 49 | 0 | 0 | 0 | one ld+json block holding an @graph |
+| jsonld-no-searchaction | 4 | F10 | 0 | 60 | 0 | 0 | 0 | no SearchAction in the graph |
+| jsonld-empty-values | 4 | F10 | 60 | 0 | 0 | 0 | 0 | no null, empty or 'undefined' value in any node |
+| citation-required | 0 | F4 | 9 | 0 | 0 | 0 | 0 | scholarly records: citation_title, ≥1 citation_author, valid date |
+| citation-date-precision | 1 | F9 | 2 | 0 | 0 | 7 | 0 | citation date not padded to 01/01 |
+| citation-locale | 3 | F4 | 3 | 4 | 0 | 0 | 0 | citation_* only on the locale matching citation_language |
+| citation-pdf | 3 | F4 | 0 | 7 | 0 | 0 | 0 | citation_pdf_url in the abstract's directory, robots-allowed, anonymous 200 application/pdf |
+| og-type | 0 | F9 | 7 | 5 | 0 | 0 | 0 | og:type matches the template |
+| og-url | 0 |  | 53 | 0 | 0 | 0 | 0 | og:url equals the canonical |
+| card-links | 0 | F4 | 14 | 0 | 0 | 0 | 0 | listing cards are <a href> links to detail URLs |
+| results-total-attr | 1 | F1 | 0 | 2 | 0 | 0 | 0 | listings expose data-results-total |
+| totals-parity | 0 | F1 | 1 | 0 | 0 | 0 | 0 | /books, /books?page=1 and /km/books report the same total |
+| robots-txt | 0 |  | 1 | 0 | 0 | 0 | 0 | robots.txt parses, has no directive Google rejects, and names a sitemap |
+| robots-protected | 0 |  | 1 | 0 | 0 | 0 | 0 | private paths are disallowed in both locales for every group |
+| robots-public | 0 |  | 1 | 0 | 0 | 0 | 0 | public URLs are allowed for Googlebot and the AI crawlers |
+| robots-ai-group | 0 |  | 1 | 0 | 0 | 0 | 0 | an explicit AI-crawler group exists |
+| llms-txt | 0 |  | 1 | 0 | 0 | 0 | 0 | /llms.txt answers 200 |
+| sitemap-fetch | 0 | F6 | 1 | 0 | 0 | 0 | 0 | every sitemap named by robots.txt answers 200 and parses |
+| sitemap-index | 1 | F6 | 0 | 1 | 0 | 0 | 0 | a sitemap index with one child per type |
+| sitemap-limits | 0 | F6 | 1 | 0 | 0 | 0 | 0 | ≤ 50,000 URLs and ≤ 50 MB per file |
+| sitemap-locs | 0 | F6 | 1 | 0 | 0 | 0 | 0 | every <loc> is absolute https on the site, unique, query-free and robots-allowed |
+| sitemap-loc-encoding | 1 | F6 | 0 | 1 | 0 | 0 | 0 | <loc> is percent-encoded, byte-identical to the canonical |
+| sitemap-lastmod-format | 0 | F6 | 1 | 0 | 0 | 0 | 0 | every lastmod is ISO 8601 with a timezone, not in the future |
+| sitemap-lastmod-placeholder | 1 | F6 | 0 | 1 | 0 | 0 | 0 | no placeholder lastmod (YYYY-01-01T00:00:00) |
+| sitemap-xdefault | 1 | F6 | 0 | 1 | 0 | 0 | 0 | every entry's alternates include x-default |
+| sitemap-no-catalog-records | 2 | F12 | 1 | 0 | 0 | 0 | 0 | catalogue records are not in the sitemap |
+| sitemap-books-vs-listing | 0 | F6 | 1 | 0 | 0 | 0 | 0 | sitemap book count equals the /books total |
+| sitemap-sample | 0 | F6 | 29 | 0 | 0 | 0 | 0 | sampled URLs: 200, indexable, self-canonical |
+| sitemap-sample-alternates | 0 | F6 | 29 | 0 | 0 | 0 | 0 | sampled URLs: sitemap alternates equal the page's hreflang |
+| sitemap-sample-loc-exact | 1 | F6 | 20 | 9 | 0 | 0 | 0 | sampled URLs: <loc> byte-identical to the page canonical |
+
+Sitemap sections: books 1957, authors 362, subjects 31, about 19, paths 10, journals 5, theses 3, posts 3, (home) 1, catalogs 1, contact 1, policy 1, privacy 1
+
+1176 ok, 355 error, 0 todo (later phase), 30 warn, 0 could not be checked — 104 requests, 0 5xx, 80 s
+phase 0: 0 failing · phase 1: 176 failing · phase 2: 1 failing · phase 3: 11 failing · phase 4: 167 failing
+JSON written to ../out/baseline.json
+exit=1

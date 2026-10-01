@@ -4,12 +4,12 @@ import { getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
 import { decodeSlugParam } from "@/lib/slug";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import Icon from "@/components/ui/core/Icon";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { SITE_URL } from "@/lib/seo/site";
 import { getOrgIdentity } from "@/lib/system-settings/config";
-import { localeAlternates } from "@/lib/seo/alternates";
+import { localeAlternates, dropHreflangWhenNoindex } from "@/lib/seo/alternates";
 import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 import {
   contributorNodes,
@@ -27,6 +27,10 @@ import AuthorAbout from "@/components/ui/authors/AuthorAbout";
 import ResearchInterests from "@/components/ui/authors/ResearchInterests";
 import AuthorWorksList from "@/components/ui/authors/AuthorWorksList";
 import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
+import { fitDescription } from "@/lib/seo/text-fit";
+import { authorIsIndexable } from "@/lib/authors/indexability";
+import { authorIndexMinWorks } from "@/lib/seo/seo-flags";
+import { getAuthorDirectory } from "@/lib/authors/directory";
 
 export const revalidate = 3600;
 
@@ -39,9 +43,9 @@ export function generateStaticParams() {
 
 type PageProps = { params: Promise<{ slug: string; locale: string }> };
 
-function truncate(text: string | null | undefined, max = 155): string {
-  const clean = text?.replace(/\s+/g, " ").trim() ?? "";
-  return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
+/** Fitted at a sentence or word boundary, never "…" (lib/seo/text-fit.ts). */
+function truncate(text: string | null | undefined, locale: string, max?: number): string {
+  return fitDescription(text, locale, max);
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -52,13 +56,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     getTranslations({ locale, namespace: "authors" }),
   ]);
   if (!author) return { title: t("notFoundTitle"), robots: { index: false, follow: true } };
+  const directoryEntry = (await getAuthorDirectory()).find((a) => a.slug === author.slug) ?? null;
 
   const org = await getOrgIdentity();
   const title = `${author.name} — ${t("eyebrow")}`;
   // The biography when there is one; otherwise a factual sentence, never an
   // invented description of who this person is.
-  const description =
-    truncate(author.bio) || t("metaDescription", { name: author.name });
+  // The biography in the page's language when the profile has one (the /km
+  // page used the English bio even when a Khmer one existed).
+  const bio = locale === "km" && author.bioKm ? author.bioKm : author.bio;
+  const description = truncate(bio, locale) || t("metaDescription", { name: author.name });
   const alternates = localeAlternates(`/authors/${author.slug}`, locale);
 
   // Production, 2026-09-20: an author with no portrait published NO og:image
@@ -81,7 +88,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     imageAlt: author.name,
   });
 
-  return {
+  return dropHreflangWhenNoindex({
     title,
     description,
     alternates,
@@ -125,7 +132,18 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     // qualifies (Kenneth N. Berk, Patrick Carey), and the moment a librarian
     // attaches a work the directory's cache tag refreshes and the page returns
     // to the index with no deploy.
-    ...(author.works.length === 0 ? { robots: { index: false, follow: true } } : {}),
+    //
+    // Phase 2.6 (D2) extends it: a page with fewer than SEO_AUTHOR_MIN_WORKS
+    // works (default 3) and no approved biography is withdrawn the same way.
+    // The figures are the DIRECTORY's, which the sitemap filter reads too, so
+    // the page and the sitemap answer one question with one set of numbers;
+    // the page's own list stands in only when the directory has no entry.
+    ...(authorIsIndexable(
+      directoryEntry ?? { workCount: author.works.length, hasApprovedBio: author.hasApprovedBio },
+      authorIndexMinWorks(),
+    )
+      ? {}
+      : { robots: { index: false, follow: true } }),
     openGraph,
     twitter: buildTwitter({
       // A PORTRAIT is a square thumbnail, not a large_image hero — that part
@@ -138,7 +156,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       description,
       images: openGraph.images,
     }),
-  };
+  });
 }
 
 export default async function AuthorPage({ params }: PageProps) {
@@ -262,7 +280,10 @@ export default async function AuthorPage({ params }: PageProps) {
             // was harmless as an identifier but read as a contradiction in
             // the one place a reader looks to check the type.
             "@id": `${canonical}#${entityNode["@type"] === "Organization" ? "organization" : "person"}`,
-            ...(author.bio ? { description: truncate(author.bio, 300) } : {}),
+            // The name in its other script, when the profile records one
+            // (SEO Phase 4) — how the same person is written on a Khmer page.
+            ...(author.nameKm && author.nameKm !== author.name ? { alternateName: author.nameKm } : {}),
+            ...(author.bio ? { description: truncate(author.bio, "en", 300) } : {}),
             ...(author.photoUrl ? { image: author.photoUrl } : {}),
             // jobTitle and affiliation describe a human; an organisation has
             // neither, and asserting them of one would be a new false claim.
@@ -300,8 +321,7 @@ export default async function AuthorPage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-bg-body px-4 py-8 sm:px-6 sm:py-10 md:px-12">
-      <JsonLd data={personSchema} />
-      <JsonLd data={breadcrumbs} />
+      <PageJsonLd nodes={[personSchema, breadcrumbs]} />
 
       <div className="mx-auto max-w-5xl">
         <BreadcrumbNav
@@ -435,6 +455,37 @@ export default async function AuthorPage({ params }: PageProps) {
             }}
           />
         </section>
+
+        {/* PTEC staff (0162): the theses they advised. Matched by exact name on
+            the thesis's advisor fields, like the works above; a thesis is
+            listed here, not claimed as their work. */}
+        {author.isPtecStaff && author.advisedTheses.length > 0 && (
+          <section aria-labelledby="author-advised-heading" className="mt-10 border-t border-divider pt-8">
+            <h2
+              id="author-advised-heading"
+              className="mb-6 text-[20px] font-bold tracking-tight text-text-heading sm:text-[22px]"
+            >
+              {t("advisedHeading")}
+            </h2>
+            <ul className="grid gap-3">
+              {author.advisedTheses.map((work) => (
+                <li key={work.id} className="rounded-xl border border-divider bg-bg-surface p-4">
+                  <Link
+                    href={work.href}
+                    className="focus-field rounded-sm font-semibold text-text-heading transition-colors hover:text-brand"
+                  >
+                    {work.title}
+                  </Link>
+                  {(work.byline || work.year) && (
+                    <p className="mt-1 text-[13px] text-text-muted">
+                      {[work.byline, work.year].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
     </main>
   );

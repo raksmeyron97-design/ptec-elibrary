@@ -36,6 +36,10 @@ const PROTECTED_PREFIXES = ["/dashboard", "/profile"];
 // reads nothing.
 const NOT_FOUND_PATH = "/_ptec/not-found";
 
+// Open-access full texts (SEO Phase 3.4): a route under [locale], not a file
+// in /public, so the static-asset bypass below must not claim it.
+const FULLTEXT_PATH_RE = /^(?:\/km)?\/(?:theses|journals\/articles)\/[^/]+\/fulltext\.pdf$/;
+
 // Legacy thesis detail URLs were /theses/<uuid>; they 301 to /theses/<slug>.
 // (research_reports ids are uuids — there were never numeric thesis ids.)
 const LEGACY_THESIS_RE =
@@ -361,9 +365,14 @@ export async function middleware(request: NextRequest) {
   // default-locale rewrite below asked the router for /en/~offline, which does
   // not exist, so the PWA's document fallback answered 404: going offline got
   // the browser's own error page instead of the branded offline screen.
+  //
+  // The one filename that IS a locale route: an open-access full text at
+  // /theses/<slug>/fulltext.pdf or /journals/articles/<slug>/fulltext.pdf
+  // (SEO Phase 3.4). It sits in its abstract page's directory, as Google
+  // Scholar requires, so it must take the same locale rewrite that page does.
   const lastSegment = pathname.slice(pathname.lastIndexOf("/") + 1);
   if (
-    lastSegment.includes(".") ||
+    (lastSegment.includes(".") && !FULLTEXT_PATH_RE.test(pathname)) ||
     pathname.startsWith("/pdf/") ||
     pathname === "/~offline"
   ) {
@@ -636,6 +645,9 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon\\.ico|sitemap\\.xml|robots\\.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|js|json)$).*)",
+    // `xml` is excluded with the other file types: the sitemap index and its
+    // children (/sitemaps/<type>.xml) are route handlers outside [locale], and
+    // a locale rewrite would send them to /en/sitemaps/… — a 404.
+    "/((?!_next/static|_next/image|favicon\\.ico|sitemap\\.xml|robots\\.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|js|json|xml)$).*)",
   ],
 };

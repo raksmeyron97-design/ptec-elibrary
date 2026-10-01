@@ -9,20 +9,18 @@
 // records the same score and say nothing about which gap to fill first.
 //
 // Two tiers, because the consequences are not equal:
-//   • `action` — a reader or a search engine is affected TODAY: the page is
-//     `noindex`, the public page says "no copies", nothing says where the book
-//     is shelved, or it appears under no subject;
+//   • `action` — a reader is affected TODAY: the public page says "no
+//     copies", nothing says where the book is shelved, or it appears under no
+//     subject;
 //   • `info`   — worth filling, nothing visible breaks without it.
 //
-// Search visibility is not re-derived here: it is `assessCatalogIndexability()`,
-// the same decision the public page's robots meta and the sitemap make, so the
-// panel can never promise indexing the page does not get.
+// There is no search-visibility check: since SEO decision P2-1 no catalogue
+// record is indexed (lib/catalogs/indexability.ts), so it would be an
+// action-tier failure no edit could fix.
 
-import { assessCatalogIndexability, type CatalogIndexability } from "./indexability";
 import type { CatalogBook, CopyStats } from "@/lib/catalog";
 
 export type RecordHealthCheckId =
-  | "search-visibility"
   | "copies"
   | "call-number"
   | "subject"
@@ -34,8 +32,6 @@ export type RecordHealthCheck = {
   id: RecordHealthCheckId;
   tier: "action" | "info";
   ok: boolean;
-  /** For `search-visibility` only: why the gate answered as it did. */
-  reason?: CatalogIndexability["reason"];
 };
 
 export type RecordHealthInput = Pick<
@@ -57,21 +53,7 @@ const present = (v: string | number | null | undefined) =>
   v != null && String(v).trim() !== "";
 
 export function assessCatalogRecordHealth(book: RecordHealthInput, stats: Pick<CopyStats, "total">): RecordHealthCheck[] {
-  // The identity fields go with the description, exactly as the public page
-  // passes them — without them the gate cannot tell a template from prose.
-  const index = assessCatalogIndexability({
-    description: book.description,
-    title: book.title,
-    author: book.author,
-    category: book.category,
-    department: book.department,
-    ddc: book.ddc,
-    publisher: book.publisher,
-    shelfLocation: book.shelf_location,
-  });
-
   return [
-    { id: "search-visibility", tier: "action", ok: index.visibility === "index", reason: index.reason },
     // Withdrawn copies are already excluded from `total`: the public page shows
     // "no copies" for a record whose every copy is withdrawn.
     { id: "copies", tier: "action", ok: stats.total > 0 },

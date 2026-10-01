@@ -25,13 +25,15 @@ import {
   isPageOutOfRange,
   parsePageParam,
 } from "@/lib/seo/listing-metadata";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import { thesesCollectionJsonLd } from "@/lib/seo/thesis-seo";
 import { getYear } from "@/lib/theses/report-fields";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { getCollectionStats } from "@/lib/collection-stats";
 import { chooseCountLabel } from "@/lib/listing-count";
 import { citationNames } from "@/lib/resources/contributor-identity";
+import HubIntro from "@/components/seo/HubIntro";
+import ThesisBrowseLinks from "@/components/ui/theses/ThesisBrowseLinks";
 
 export const dynamic = "force-dynamic";
 
@@ -83,6 +85,9 @@ export async function generateMetadata({
     pageLabel: t("pageLabel"),
     page,
     outOfRange: isPageOutOfRange(page, stats?.theses, resolvePageSize(undefined)),
+    // An empty collection is a soft-404, like /journals (SEO Phase 3.8). A
+    // NULL stats read is "unknown", never empty.
+    isEmpty: stats?.theses === 0,
     hasFilters: !!(
       params.q ||
       params.cohort ||
@@ -355,7 +360,7 @@ export default async function ThesesPage({
 
   return (
     <ClientNavWrapper>
-      {collectionSchema && <JsonLd data={collectionSchema} />}
+      <PageJsonLd nodes={[collectionSchema ? collectionSchema : null]} />
       <div className="min-h-screen bg-bg-app pb-16">
         {/* Same container as the record page: a reader moving from a result to
             the record should not see the page's measure change under them. */}
@@ -378,6 +383,8 @@ export default async function ThesesPage({
             advisors={advisors}
             keywords={keywords}
           />
+          <HubIntro hub="theses" locale={locale} show={!hasFilters && page === 1} className="mb-6" />
+          <ThesisBrowseLinks locale={locale} show={!hasFilters && page === 1} />
 
           {/* Facet rail | results. The rail is a fixed 264px column so the
               results measure stays constant as facet labels change length. */}
@@ -496,6 +503,14 @@ export default async function ThesesPage({
                     </p>
                     <p className="mt-1 max-w-[62ch] text-[13.5px] leading-[1.6] text-text-muted">
                       {tTheses("growingNote")}
+                    </p>
+                    {/* Where the rest of the library is (SEO Phase 3.8). */}
+                    <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[13.5px]">
+                      {([["/books", "eBooks"], ["/journals", "journals"], ["/paths", "learningPaths"]] as const).map(([href, key]) => (
+                        <Link key={href} href={href} className="focus-field rounded-sm text-brand hover:underline">
+                          {t(key)}
+                        </Link>
+                      ))}
                     </p>
                   </div>
                   <Link

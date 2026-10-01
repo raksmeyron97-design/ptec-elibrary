@@ -237,6 +237,7 @@ of them on `/admin/roles`.
 | `/admin/storage` | `storage.browse` | `storage` / **read** | ✅ | ✅ | ✅ | ✅ | `storage/page.tsx` |
 | `/admin/search-insights` | `insights.search` | `books` / **read** | ✅ | ✅ | ✅ | ✅ | `search-insights/page.tsx` |
 | `/admin/data-quality` | `insights.dataQuality` | `books` / **read** | ✅ | ✅ | ✅ | ✅ | `data-quality/page.tsx` |
+| `/admin/data-quality/descriptions` | `books.descriptions` | `books` / **read** | ✅ | ✅ | ✅ | ✅ | `data-quality/descriptions/page.tsx` (SEO Phase 5.2; mutations need `books.description.review` = `books` / **write**) |
 | `/admin/users` | `users.manage` | `users` / **read** | — | — | ✅ | ✅ | `users/page.tsx` |
 | `/admin/team` | `team.manage` | `users` / **read** | — | — | ✅ | ✅ | `team/page.tsx` |
 | `/admin/team/new` | `team.create` | `users` / **write** | — | — | ✅ | ✅ | `team/new/page.tsx` |

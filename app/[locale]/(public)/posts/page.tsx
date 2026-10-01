@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
 import { postsCollectionJsonLd, POSTS_FALLBACK_OG_IMAGE } from "@/lib/seo/posts-seo";
@@ -29,6 +29,8 @@ import PostsMobileFilters from "@/components/ui/posts/PostsMobileFilters";
 import PostsEmptyState from "@/components/ui/posts/PostsEmptyState";
 import { CloseIcon } from "@/components/ui/posts/icons";
 import { getOrgIdentity } from "@/lib/system-settings/config";
+import HubIntro from "@/components/seo/HubIntro";
+import SparseCollectionNotice from "@/components/seo/SparseCollectionNotice";
 
 type SearchParams = {
   q?: string;
@@ -64,6 +66,13 @@ export async function generateMetadata({
     const { items } = await getPostsPage({}, page, resolvePostsPageSize(sp.size));
     outOfRange = items.length === 0;
   }
+  // An empty collection is a soft-404, like /journals (SEO Phase 3.8). The
+  // first page is the cached read the page itself makes.
+  let isEmpty = false;
+  if (!filters) {
+    const { total } = await getPostsPage({}, 1, resolvePostsPageSize(sp.size));
+    isEmpty = total === 0 && !(await getFeaturedPost());
+  }
 
   return buildListingMetadata({
     org: await getOrgIdentity(),
@@ -77,6 +86,7 @@ export async function generateMetadata({
     imageAlt: t("title"),
     pageLabel: t("pageLabel"),
     outOfRange,
+    isEmpty,
   });
 }
 
@@ -170,8 +180,7 @@ export default async function PostsPage({
 
   return (
     <ClientNavWrapper>
-      <JsonLd data={listingBreadcrumb} />
-      {collectionSchema && <JsonLd data={collectionSchema} />}
+      <PageJsonLd nodes={[listingBreadcrumb, collectionSchema ? collectionSchema : null]} />
 
       <div className="min-h-screen bg-bg-app">
         {/* ── Masthead ──
@@ -200,6 +209,7 @@ export default async function PostsPage({
                 <p className="mt-3 text-[15px] leading-[1.75] text-text-body">
                   {t("pageDescription")}
                 </p>
+                <HubIntro hub="posts" locale={locale} show={cleanView && requestedPage === 1} className="mt-3" />
               </div>
               <div className="w-full lg:max-w-sm">
                 <PostsSearch
@@ -332,6 +342,14 @@ export default async function PostsPage({
             searchParams={sp as Record<string, string | undefined>}
             basePath={basePath}
             pageSizeOptions={[...POSTS_PAGE_SIZE_OPTIONS]}
+          />
+          {/* A young collection says what the library is for and where the
+              rest of it is (SEO Phase 3.8) — on the unfiltered list only. */}
+          <SparseCollectionNotice
+            hub="posts"
+            total={cleanView ? total + (showFeatured ? 1 : 0) : null}
+            locale={locale}
+            show={cleanView && requestedPage === 1}
           />
         </div>
       </div>

@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 import { getOrgIdentity } from "@/lib/system-settings/config";
+import { getTranslations } from "next-intl/server";
+import { libraryNameFor } from "@/lib/seo/brand";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 
 export async function generateMetadata({
   params,
@@ -9,9 +12,20 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const [{ locale }, org] = await Promise.all([params, getOrgIdentity()]);
+  const t = await getTranslations({ locale, namespace: "about" });
   const alternates = localeAlternates("/about", locale);
-  const socialTitle = "About — PTEC Library";
-  const socialDescription = "Mission, vision, and values of the PTEC Library.";
+  // Per-locale title and description (docs/seo/AUDIT-VERIFICATION.md N2): the
+  // English URL carried a hard-coded Khmer title with the brand twice
+  // ("អំពីបណ្ណាល័យ — PTEC e-Library · PTEC Library"), and /km an English
+  // description. Both now come from approved copy: the "About the library"
+  // eyebrow, and the heading and tagline this page already shows.
+  const title = t("eyebrow");
+  const description =
+    locale === "km"
+      ? "បណ្ណាល័យវិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ — ប្រភពចំណេះដឹង និងការស្រាវជ្រាវ សម្រាប់ឧត្តមភាពគរុកោសល្យសតវត្សទី២១។"
+      : "The Library of Phnom Penh Teacher Education College — knowledge, research, and innovation for 21st-century teacher education.";
+  const socialTitle = `${title} — ${libraryNameFor(org, locale)}`;
+  const socialDescription = description;
   const openGraph = buildOpenGraph({
     locale,
     org,
@@ -21,9 +35,8 @@ export async function generateMetadata({
     url: alternates.canonical,
   });
   return {
-    title: "អំពីបណ្ណាល័យ — PTEC e-Library",
-    description:
-      "The Library of Phnom Penh Teacher Education College — knowledge, research, and innovation for 21st-century teacher education.",
+    title,
+    description,
     alternates,
     openGraph,
     twitter: buildTwitter({
@@ -80,6 +93,8 @@ function SectionHeading({ id, km, en }: { id: string; km: string; en: string }) 
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-paper">
+      {/* The page's one JSON-LD document: the site graph (SEO Phase 4). */}
+      <PageJsonLd />
       {/* ── Hero ──────────────────────────────────────────────── */}
       <section
         className="relative overflow-hidden"

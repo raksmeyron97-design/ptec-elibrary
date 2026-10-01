@@ -14,6 +14,7 @@
 // browser-safety note in CLAUDE.md both depend on that).
 
 import "server-only";
+import { parseAuthorMinWorks } from "@/lib/authors/indexability";
 
 /**
  * Pure, so the rule is testable without stubbing the environment.
@@ -36,4 +37,22 @@ export function resolveSeoFlag(raw: string | undefined): boolean {
  */
 export function pdfTitleSuffixEnabled(): boolean {
   return resolveSeoFlag(process.env.SEO_PDF_TITLE_SUFFIX);
+}
+
+/**
+ * Works an author needs for an indexable page without an approved biography
+ * (SEO Phase 2.6, D2). SEO_AUTHOR_MIN_WORKS, a whole number ≥ 1; default 3.
+ */
+export function authorIndexMinWorks(): number {
+  return parseAuthorMinWorks(process.env.SEO_AUTHOR_MIN_WORKS);
+}
+
+/**
+ * The description indexing gate (SEO Phase 5.4): books with no readable file
+ * and an empty or templated description become `noindex, follow` and leave
+ * the sitemap. OFF unless SEO_DESCRIPTION_GATE is exactly "on" — it stays off
+ * until the owner approves it.
+ */
+export function descriptionGateEnabled(): boolean {
+  return resolveSeoFlag(process.env.SEO_DESCRIPTION_GATE);
 }

@@ -71,7 +71,7 @@ describe("the SEO 3.3 §5 depth gate", () => {
 // surface grows its own rule again.
 describe("every subject surface reads the same gate", () => {
   it("the sitemap filters with getIndexableSubjects", () => {
-    expect(read("app/sitemap.ts")).toContain("getIndexableSubjects()");
+    expect(read("lib/seo/sitemap-entries.ts")).toContain("getIndexableSubjects()");
   });
 
   it("the page's robots meta is decided by subjectVisibility, not by a count", () => {

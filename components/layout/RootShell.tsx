@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { toInternationalKhPhone } from "@/lib/seo/phone";
 import { getMessages, getTranslations } from "next-intl/server";
 
 // The site stylesheet. This used to be imported by app/layout.tsx; when that
@@ -10,7 +9,6 @@ import { getMessages, getTranslations } from "next-intl/server";
 import "@/app/globals.css";
 
 import { angkor, inter, hanuman, crimsonPro, koulen } from "@/app/fonts";
-import JsonLd from "@/components/seo/JsonLd";
 import SearchModal from "@/components/ui/search/SearchModalLazy";
 import NavigationProgress from "@/components/ui/NavigationProgress";
 import PushNotificationOnboarding from "@/components/ui/notifications/PushNotificationOnboarding";
@@ -23,10 +21,7 @@ import PTECBootScreen, {
 import UpdateAvailable from "@/components/pwa/UpdateAvailable";
 import { iosLaunchLinks } from "@/lib/pwa/launch";
 import { THEME_INIT_SCRIPT } from "@/lib/csp";
-import { SITE_URL } from "@/lib/seo/site";
-import { LIBRARY_ID, ORGANIZATION_ID, WEBSITE_ID, ref } from "@/lib/seo/entity-ids";
 import { getSiteConfig } from "@/lib/system-settings/config";
-import type { SiteConfig } from "@/lib/system-settings/types";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The <html>/<body> shell, shared by every root layout.
@@ -49,111 +44,11 @@ import type { SiteConfig } from "@/lib/system-settings/types";
 // nonce policy and rides 'unsafe-inline' in the public policy — see lib/csp.ts.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// One canonical institutional identity, emitted site-wide as a single @graph
-// with stable @id anchors. Nothing else may declare an Organization/Library/
-// WebSite node — duplicates with diverging names/URLs read as conflicting
-// entities to search engines (the home page used to).
-//
-// The anchors come from lib/seo/entity-ids.ts so the resource builders in
-// lib/seo/* can POINT AT these nodes instead of re-declaring them. They used
-// to re-declare them, anonymously and with the wrong organization url — see
-// docs/SEO-V3-AUDIT.md D-2.
-//
-// Values come from the PUBLISHED system settings (cached under "site-config"
-// — no cookies/headers, so the public tree keeps prerendering).
-/**
- * `sameAs` is "other web presences of THIS entity". A node may therefore
- * never list its own `url`, nor its parent's.
- *
- * `cfg.sameAs` is built from the published settings as
- * `[website, facebook, youtube, telegram]`, so before this rule BOTH nodes
- * carried `https://www.ptec.edu.kh`:
- *
- *   EducationalOrganization  url = www.ptec.edu.kh   sameAs included itself
- *   Library                  url = library.ptec…     sameAs claimed the
- *                                                    institution's site as
- *                                                    its own profile
- *
- * The second is the library/institution conflation the SEO skill's rule 3
- * exists for, and a shipped defect once already. The first is a self-
- * reference that asserts nothing.
- *
- * The social profiles STAY on both, which is a recorded owner decision: PTEC
- * runs one Facebook page, one YouTube channel and one Telegram channel, and
- * the footer links them from the library brand block.
- */
-function profilesFor(cfg: SiteConfig, selfUrl: string, parentUrl?: string): string[] {
-  const excluded = new Set([selfUrl, parentUrl].filter(Boolean).map((u) => u!.replace(/\/$/, "")));
-  return cfg.sameAs.filter((u) => !excluded.has(u.replace(/\/$/, "")));
-}
-
-function buildSiteGraph(cfg: SiteConfig) {
-  const address = {
-    "@type": "PostalAddress",
-    streetAddress: cfg.address.streetAddress,
-    addressLocality: cfg.address.city,
-    addressCountry: cfg.address.country,
-  };
-
-  return {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "EducationalOrganization",
-        "@id": ORGANIZATION_ID,
-        name: cfg.name.en,
-        alternateName: cfg.name.short,
-        url: cfg.links.website,
-        logo: `${SITE_URL}/logo.png`,
-        telephone: toInternationalKhPhone(cfg.phone),
-        email: cfg.email,
-        // Its own site is `url` above; repeating it here says nothing.
-        sameAs: profilesFor(cfg, cfg.links.website),
-        description: `${cfg.name.en} (${cfg.name.short}) is a public teacher training institution in Cambodia providing free digital teaching resources and research materials.`,
-        address,
-      },
-      {
-        "@type": "Library",
-        "@id": LIBRARY_ID,
-        name: cfg.seo.siteName,
-        url: SITE_URL,
-        image: `${SITE_URL}/logo.png`,
-        telephone: toInternationalKhPhone(cfg.phone),
-        email: cfg.email,
-        // The published site description — same text search engines see in
-        // the meta description, so the two can never disagree.
-        description: cfg.seo.siteDescription.en,
-        inLanguage: ["km", "en"],
-        isAccessibleForFree: true,
-        openingHours: cfg.hours.openingHoursSpec,
-        // The structured twin of `openingHours`, derived from the same weekly
-        // grouping (lib/system-settings/hours.ts) so the two cannot disagree.
-        // Closures are dated exceptions and are deliberately not here.
-        openingHoursSpecification: cfg.hours.openingHoursSpecification,
-        // The library's own profiles are the institution's: PTEC runs one
-        // Facebook page and one YouTube channel, and the footer links them
-        // from the library brand block. The institution's WEBSITE is not one
-        // of them — that is the parent entity, referenced by @id below.
-        sameAs: profilesFor(cfg, SITE_URL, cfg.links.website),
-        address,
-        parentOrganization: ref(ORGANIZATION_ID),
-      },
-      {
-        "@type": "WebSite",
-        "@id": WEBSITE_ID,
-        name: cfg.seo.siteName,
-        url: SITE_URL,
-        inLanguage: ["km", "en"],
-        publisher: ref(ORGANIZATION_ID),
-        potentialAction: {
-          "@type": "SearchAction",
-          target: `${SITE_URL}/search?q={search_term_string}`,
-          "query-input": "required name=search_term_string",
-        },
-      },
-    ],
-  };
-}
+// The institutional identity (the college, the library, the website) is no
+// longer emitted here. Since SEO Phase 4 every public page renders ONE JSON-LD
+// block holding those nodes and its own (components/seo/PageJsonLd.tsx,
+// lib/seo/jsonld.ts); a second, layout-level block is what made each page two
+// to four separate documents.
 
 export default async function RootShell({
   locale,
@@ -225,7 +120,6 @@ export default async function RootShell({
           organizationNameKm={siteConfig.name.km}
         />
         <IntlProvider locale={locale} messages={messages}>
-          <JsonLd data={buildSiteGraph(siteConfig)} />
           <Suspense fallback={null}>
             <NavigationProgress />
           </Suspense>

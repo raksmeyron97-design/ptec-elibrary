@@ -163,7 +163,9 @@ describe("bookJsonLd", () => {
     expect(s.inLanguage).toBe("en");
     expect(s.isbn).toBe("978-0-7879-7962-2");
     expect(s.numberOfPages).toBe(480);
-    expect(s.datePublished).toBe("2010-01-01");
+    // A stored year (YYYY-01-01) is published as the year: the library knows
+    // the year, not the day (lib/seo/dates.ts; docs/seo F3/F9).
+    expect(s.datePublished).toBe("2010");
     expect(s.publisher).toEqual({ "@type": "Organization", name: "Jossey-Bass" });
     expect(s.provider["@type"]).toBe("Library");
     expect(s.aggregateRating.reviewCount).toBe(3);

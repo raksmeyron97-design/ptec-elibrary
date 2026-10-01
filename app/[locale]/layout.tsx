@@ -6,6 +6,7 @@ import { routing } from "@/i18n/routing";
 import { rootMetadata, rootViewport } from "@/app/root-metadata";
 import { getSiteConfig } from "@/lib/system-settings/config";
 import { defaultRobots } from "@/lib/seo/indexing";
+import { localizedTitleTemplate, siteNameFor } from "@/lib/seo/brand";
 
 export const viewport = rootViewport;
 
@@ -22,16 +23,20 @@ export async function generateMetadata({
   const description =
     locale === "km" ? cfg.seo.siteDescription.km : cfg.seo.siteDescription.en;
   const { google, bing } = cfg.seo.verification;
+  // One brand in two scripts: /km titles end in the Khmer library name, not
+  // the Latin one (lib/seo/brand.ts; docs/seo/AUDIT-VERIFICATION.md F9).
+  const names = { en: cfg.libraryName.en, km: cfg.libraryName.km };
+  const brand = { libraryName: cfg.libraryName.en, libraryNameKm: cfg.libraryName.km, siteName: cfg.seo.siteName };
   return {
     ...rootMetadata,
     title: {
-      default: cfg.seo.siteTitle,
-      template: cfg.seo.titleTemplate,
+      default: localizedTitleTemplate(cfg.seo.siteTitle, names, locale),
+      template: localizedTitleTemplate(cfg.seo.titleTemplate, names, locale),
     },
     description,
     // Identity fields — all published, none compiled in (see app/root-metadata.ts).
     applicationName: cfg.libraryName.en,
-    openGraph: { ...rootMetadata.openGraph, siteName: cfg.seo.siteName },
+    openGraph: { ...rootMetadata.openGraph, siteName: siteNameFor(brand, locale) },
     // Environment gate AND admin kill switch — either can force noindex,
     // neither can force indexing of a non-production deployment.
     robots: defaultRobots({ indexingEnabled: cfg.seo.indexingEnabled }),

@@ -4,8 +4,7 @@
 // the pages stay thin call sites and this module stays unit-testable without
 // a database. Browser-safe — no server-only imports.
 
-import { SITE_URL } from "@/lib/seo/site";
-import { resolveBookDownloadAccess } from "@/lib/books/access";
+import { scholarDateAtPrecision } from "@/lib/seo/dates";
 import {
   resolveOrgIdentity,
   type OrgIdentity,
@@ -19,24 +18,16 @@ import { citationNames } from "@/lib/resources/contributor-identity";
 export type ScholarMeta = Record<string, string | string[]>;
 
 /**
- * First valid date among the candidates, formatted `YYYY/MM/DD` (the format
- * Highwire tags require). Falls back to the current year if none parse —
- * matches the pre-existing per-page behavior this replaces.
+ * First valid date among the candidates, in the Highwire form Google Scholar
+ * reads, AT THE PRECISION THE LIBRARY KNOWS: "2023" for a date on 1 January
+ * (books store a year as `YYYY-01-01`), "2023/05/12" otherwise, read in UTC
+ * (lib/seo/dates.ts). Undefined when nothing parses: the old fallback to the
+ * CURRENT year published an invented date, and a missing tag is honest.
  */
 export function formatScholarDate(
   ...candidates: Array<string | null | undefined>
-): string {
-  for (const raw of candidates) {
-    if (!raw) continue;
-    const d = new Date(raw);
-    if (!isNaN(d.getTime())) {
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
-      return `${yyyy}/${mm}/${dd}`;
-    }
-  }
-  return String(new Date().getFullYear());
+): string | undefined {
+  return scholarDateAtPrecision(...candidates);
 }
 
 /**
@@ -83,12 +74,13 @@ export interface BookCitationRow {
   file_access?: string | null;
 }
 
-/** citation_pdf_url points at /api/books/[id]/file, which serves
- * Content-Type: application/pdf directly — no presigned-URL redirect — and is
- * readable by a DNS-verified Google crawler without a session so Scholar can
- * index the full text.
- *
- * It is OMITTED for a read-online-only book (0131) and for a catalogue-only
+/** No citation_pdf_url for a book (SEO Phase 3.7, D12). A book's PDF is
+ * served only to a signed-in reader, from /api/books/[id]/file — a path
+ * robots.txt disallows and that answers 401 anonymously — so the tag named a
+ * URL Google Scholar could not fetch. Only a PUBLIC full text is named: an
+ * open-access thesis or an openly licensed article (their own fulltext.pdf
+ * routes). The rest of this note records why, even before, it was
+ * OMITTED for a read-online-only book (0131) and for a catalogue-only
  * one (0151). The tag exists to tell a crawler "here is the file, take it",
  * and Scholar then hosts a cached copy of what it fetches — which is the one
  * thing both settings say not to do. The landing page, and every other
@@ -101,20 +93,11 @@ export interface BookCitationRow {
  * factual misattribution. */
 export function bookScholarMeta(book: BookCitationRow, authors: string[]): ScholarMeta {
   const tags: ScholarMeta = { citation_title: book.title };
-  // One resolver decides, so a drawn button, a served stream and a crawler
-  // hint cannot disagree about the same book.
-  const access = resolveBookDownloadAccess({
-    file_access: book.file_access,
-    allow_download: book.allow_download,
-    fileUrl: "present",
-  });
-  if (access.canAdvertiseFile) {
-    tags.citation_pdf_url = `${SITE_URL}/api/books/${book.id}/file`;
-  }
   const publisher = book.publisher?.trim();
   if (publisher) tags.citation_publisher = publisher;
   if (authors.length > 0) tags.citation_author = authors;
-  if (book.published_at) tags.citation_publication_date = book.published_at;
+  const date = scholarDateAtPrecision(book.published_at);
+  if (date) tags.citation_publication_date = date;
   if (book.isbn && book.isbn !== "N/A") tags.citation_isbn = book.isbn;
   if (book.language) tags.citation_language = book.language;
   const keywords = Array.isArray(book.tags) ? book.tags.filter(Boolean) : [];
@@ -133,47 +116,108 @@ export interface ThesisCitationRow {
   doi?: string | null;
   published_at?: string | null;
   created_at?: string | null;
+  /** 'km' | 'en' | 'km_en' — research_reports.language, set by a librarian. */
+  language?: string | null;
+  /** 'research_report' gets the technical-report tags; anything else is a thesis. */
+  thesis_type?: string | null;
+  /** 0163: the report's own number, for citation_technical_report_number. */
+  report_number?: string | null;
 }
 
-/** citation_pdf_url points at /api/theses/[id]/file (NOT /file.pdf — that
- * route segment doesn't exist and 404s). Anonymously readable, serves
- * Content-Type: application/pdf directly. */
+/**
+ * A credit that names a GROUP, not a person: the cohort label a byline
+ * sometimes opens with ("គរុនិស្សិត ១២+៤ ជំនាន់ទី២" — student teachers,
+ * 12+4, cohort 2 — was production's first `citation_author` on 2026-09-30).
+ * Narrow on purpose: it looks for the words a cohort label is made of, so a
+ * person's name is never dropped for resembling one.
+ */
+export function isCohortLabel(name: string): boolean {
+  return /ជំនាន់|គរុនិស្សិត|\bcohort\b|\bbatch\b|\bclass of\b|\bgeneration\b/iu.test(name);
+}
+
+/**
+ * The page locale a work's Scholar tags belong on (Phase 3.3): Google Scholar
+ * should see ONE record per work, so `citation_*` go on the page in the work's
+ * own language and nowhere else. Khmer — as a code ("km"), a name ("Khmer")
+ * or bilingual ("km_en") — is the /km page; any other language is the English
+ * page, the site's default; with no language recorded, the title's script
+ * decides. One rule for theses, books and journal articles.
+ */
+export function citationLocale(language: string | null | undefined, title?: string | null): "km" | "en" {
+  const value = language?.trim().toLowerCase() ?? "";
+  if (value) return /^(km|khm|khmer)/.test(value) ? "km" : "en";
+  return /[\u1780-\u17FF]/u.test(title ?? "") ? "km" : "en";
+}
+
+/** citationLocale for a thesis row. */
+export function thesisCitationLocale(row: Pick<ThesisCitationRow, "language" | "title">): "km" | "en" {
+  return citationLocale(row.language, row.title);
+}
+
+export type ThesisScholarOptions = {
+  /** The page's locale. When given, tags are emitted only if it is the work's. */
+  locale?: string;
+  /** This page's canonical URL — citation_abstract_html_url. */
+  abstractUrl?: string;
+  /** The PUBLIC full text (lib/theses/open-access.ts), or null/absent: then
+   *  no citation_pdf_url at all — a PDF behind a sign-in is not one Scholar
+   *  can fetch, and pointing it at one teaches it the site's PDFs fail. */
+  pdfUrl?: string | null;
+};
+
 export function thesisScholarMeta(
   report: ThesisCitationRow,
   orgArg?: OrgIdentity,
+  options: ThesisScholarOptions = {},
 ): ScholarMeta {
+  if (options.locale && options.locale !== thesisCitationLocale(report)) return {};
   const org = resolveOrgIdentity(orgArg);
-  const authors = splitAuthorNames(report.author_names);
+  // Authors only: the caller passes author-role credits, and a cohort label
+  // that rode in on the byline is still not a person.
+  const authors = splitAuthorNames(report.author_names).filter((name) => !isCohortLabel(name));
   const keywords = normalizeKeywords(report.keywords);
-  const tags: ScholarMeta = {
-    citation_title: report.title,
-    citation_publication_date: formatScholarDate(report.published_at, report.created_at),
-    // Dissertation tag (not citation_technical_report_institution) is the
-    // semantically correct Highwire tag for a student thesis/dissertation.
-    citation_dissertation_institution: org.institutionName,
-    citation_pdf_url: `${SITE_URL}/api/theses/${report.id}/file`,
-  };
+  const tags: ScholarMeta = { citation_title: report.title };
+  if (report.thesis_type === "research_report") {
+    tags.citation_technical_report_institution = org.institutionName;
+    const number = report.report_number?.trim();
+    if (number) tags.citation_technical_report_number = number;
+  } else {
+    // The dissertation tag is the semantically correct Highwire tag for a
+    // student thesis.
+    tags.citation_dissertation_institution = org.institutionName;
+  }
+  const date = formatScholarDate(report.published_at, report.created_at);
+  if (date) tags.citation_publication_date = date;
   if (authors.length > 0) tags.citation_author = authors;
+  const language = report.language?.trim().toLowerCase();
+  if (language === "km" || language === "en") tags.citation_language = language;
+  else if (language === "km_en") tags.citation_language = "km";
   if (report.abstract) tags.citation_abstract = report.abstract;
   if (keywords.length > 0) tags.citation_keywords = keywords.join("; ");
   // Only a structurally-valid, non-placeholder DOI reaches Google Scholar.
   const doi = normalizeDoi(report.doi);
   if (doi) tags.citation_doi = doi;
+  if (options.abstractUrl) tags.citation_abstract_html_url = options.abstractUrl;
+  if (options.pdfUrl) tags.citation_pdf_url = options.pdfUrl;
   return tags;
 }
 
 // ── Publications (journal articles) ─────────────────────────────────────
 
-/** citation_pdf_url points at /api/publications/[slug]/file, which is
- * anonymously readable and serves Content-Type: application/pdf directly. */
-export function publicationScholarMeta(pub: Publication): ScholarMeta {
+/** citation_pdf_url names the article's PUBLIC full text,
+ * /journals/articles/<slug>/fulltext.pdf, and only when its licence allows it
+ * to be redistributed (`options.pdfUrl`, decided by the caller through
+ * lib/publications/access.ts). It used to name /api/publications/<slug>/file
+ * for every article — a robots-blocked path, emitted even with no PDF. */
+export function publicationScholarMeta(pub: Publication, options: { pdfUrl?: string | null } = {}): ScholarMeta {
   const authors = authorList(pub);
   const tags: ScholarMeta = {
     citation_title: pub.title,
-    citation_publication_date: formatScholarDate(pub.publication_date, pub.published_at, pub.created_at),
-    citation_pdf_url: `${SITE_URL}/api/publications/${pub.slug}/file`,
     citation_language: pub.language,
   };
+  if (options.pdfUrl) tags.citation_pdf_url = options.pdfUrl;
+  const date = formatScholarDate(pub.publication_date, pub.published_at, pub.created_at);
+  if (date) tags.citation_publication_date = date;
   if (authors.length > 0) tags.citation_author = authors;
   if (pub.journal_name) tags.citation_journal_title = pub.journal_name;
   if (pub.volume) tags.citation_volume = pub.volume;

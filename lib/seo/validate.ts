@@ -146,8 +146,9 @@ export type SitemapLikeEntry = {
  * Validate ONE sitemap entry: valid canonical URL, not a private surface, real
  * `lastmod` when present, and alternates covering both locales.
  *
- * `x-default` is not required here — `MetadataRoute.Sitemap` alternates are
- * xhtml:link elements where en/km reciprocity is the requirement.
+ * `x-default` is not REQUIRED here (en/km reciprocity is the requirement),
+ * but the sitemap does emit it since SEO Phase 1.5 — the same set every page
+ * head carries (lib/seo/sitemap-entries.ts withAlternates).
  */
 export function validateSitemapEntry(entry: SitemapLikeEntry): SeoIssue[] {
   const issues: SeoIssue[] = [];

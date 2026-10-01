@@ -8,7 +8,7 @@ import SubscribeButton from "@/components/ui/books/SubscribeButton";
 import type { Publication } from "@/lib/publications";
 import { academicTextToPlainText } from "@/lib/publications/citations";
 import { citationYear, authorList } from "@/lib/citations";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import { publicationsCollectionJsonLd } from "@/lib/seo/publication-seo";
 import PublicationCard from "@/components/ui/publications/PublicationCard";
 import PublicationListItem from "@/components/ui/publications/PublicationListItem";
@@ -33,6 +33,8 @@ import { getPublicJournals, type JournalSummary } from "@/lib/journals/data";
 import { JOURNALS_PATH, PTEC_PUBLICATIONS_URL } from "@/lib/journals/urls";
 import { ExternalLink } from "lucide-react";
 import JournalShelf from "@/components/ui/journals/JournalShelf";
+import HubIntro from "@/components/seo/HubIntro";
+import SparseCollectionNotice from "@/components/seo/SparseCollectionNotice";
 
 export const dynamic = "force-dynamic";
 
@@ -311,7 +313,7 @@ export default async function PublicationsPage({
 
   return (
     <ClientNavWrapper>
-      {collectionSchema && <JsonLd data={collectionSchema} />}
+      <PageJsonLd nodes={[collectionSchema ? collectionSchema : null]} />
       <div className="min-h-screen bg-bg-body">
         <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-10 md:py-8">
           {/* ── Hero: search-first header (Scholar-style) ── */}
@@ -353,6 +355,7 @@ export default async function PublicationsPage({
             }
             formAction={basePath}
           />
+          <HubIntro hub="journals" locale={locale} show={!hasFilters && page === 1} className="mb-6" />
 
           {/* Every public journal, each a link to its own page. This is what
               makes /journals/<journal> reachable from the collection hub —
@@ -530,6 +533,14 @@ export default async function PublicationsPage({
                    navigation only, matching the theses listing. */
               />
             )}
+            {/* SEO Phase 3.8: a young collection says what the library is for,
+                how to add to it and where the rest is — unfiltered list only. */}
+            <SparseCollectionNotice
+              hub="journals"
+              total={stats?.publications ?? null}
+              locale={locale}
+              show={!hasFilters && page === 1}
+            />
           </div>
         </div>
       </div>

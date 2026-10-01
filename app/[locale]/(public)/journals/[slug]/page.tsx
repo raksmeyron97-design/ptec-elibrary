@@ -11,7 +11,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { ArrowRight, ExternalLink, Search } from "lucide-react";
-import JsonLd from "@/components/seo/JsonLd";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 import JournalBreadcrumb from "@/components/ui/journals/JournalBreadcrumb";
 import PublicationListItem from "@/components/ui/publications/PublicationListItem";
 import { breadcrumbSchema } from "@/lib/seo/schema";
@@ -139,16 +139,18 @@ export default async function JournalPage({ params }: PageProps) {
 
   return (
     <section className="min-h-screen bg-bg-body px-4 py-6 sm:px-6 sm:py-10 md:px-12">
-      <JsonLd data={journalJsonLd(toSeo(journal), locale, org)} />
-      <JsonLd
-        data={breadcrumbSchema(
-          [
-            { name: crumbs[0].label, path: "/" },
-            { name: crumbs[1].label, path: JOURNALS_PATH },
-            { name: title, path: journalPath(journal.slug) },
-          ],
-          { locale },
-        )}
+      <PageJsonLd
+        nodes={[
+          journalJsonLd(toSeo(journal), locale, org),
+          breadcrumbSchema(
+            [
+              { name: crumbs[0].label, path: "/" },
+              { name: crumbs[1].label, path: JOURNALS_PATH },
+              { name: title, path: journalPath(journal.slug) },
+            ],
+            { locale },
+          ),
+        ]}
       />
       <div className="mx-auto max-w-[1200px]">
         <JournalBreadcrumb crumbs={crumbs} />

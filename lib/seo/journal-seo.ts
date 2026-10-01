@@ -17,16 +17,17 @@
 
 import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/seo/site";
-import { localeAlternates, localeUrls } from "@/lib/seo/alternates";
+import { localeAlternates, localeUrls, dropHreflangWhenNoindex } from "@/lib/seo/alternates";
 import { normalizeDoi, normalizeIssn } from "@/lib/seo/identifiers";
 import { libraryNode } from "@/lib/seo/org-nodes";
 import { buildOpenGraph, buildTwitter, OG_FALLBACK_IMAGE } from "@/lib/seo/open-graph";
 import { resolveOrgIdentity, type OrgIdentity } from "@/lib/system-settings/org-identity";
 import { issuePath, journalIssuesPath, journalPath, articlePath } from "@/lib/journals/urls";
+import { fitDescription, fitTitle } from "@/lib/seo/text-fit";
+import { brandSuffixFor } from "@/lib/seo/brand";
 
 /** Re-exported so existing importers keep one constant, not a second copy. */
 export const FALLBACK_JOURNAL_OG_IMAGE = OG_FALLBACK_IMAGE;
-const MAX_META_DESCRIPTION = 157;
 
 // ── Inputs ───────────────────────────────────────────────────────────────────
 
@@ -79,8 +80,9 @@ function compact(schema: Record<string, unknown>): Record<string, unknown> {
   );
 }
 
-function truncate(text: string): string {
-  return text.length > MAX_META_DESCRIPTION ? `${text.slice(0, MAX_META_DESCRIPTION)}...` : text;
+/** Meta descriptions end on a sentence or word boundary, never "..." (text-fit.ts). */
+function truncate(text: string, locale: string): string {
+  return fitDescription(text, locale);
 }
 
 /** Every valid, distinct ISSN a journal carries, linking ISSN first. */
@@ -156,12 +158,13 @@ export type JournalPageSeoInput = JournalSeoRef & {
 
 export function journalDescription(j: JournalPageSeoInput, locale: string): string {
   const own = clean(locale === "km" ? j.descriptionKm || j.description : j.description);
-  if (own) return truncate(own);
+  if (own) return truncate(own, locale);
   const title = clean(locale === "km" && j.titleKm ? j.titleKm : j.title);
   return truncate(
     locale === "km"
       ? `${title} — ទស្សនាវដ្ដីក្នុងបណ្ណាល័យ វ.គ.ភ។ អានអត្ថបទ លេខផ្សាយ និងព័ត៌មានបោះពុម្ព។`
       : `${title} — a scholarly journal in the PTEC Library. Browse its issues and articles.`,
+    locale,
   );
 }
 
@@ -180,8 +183,8 @@ export function buildJournalMetadata(j: JournalPageSeoInput, locale: string, org
     image: j.coverUrl,
     imageAlt: title,
   });
-  return {
-    title,
+  return dropHreflangWhenNoindex({
+    title: fitTitle(title, { locale, brandSuffix: brandSuffixFor(org, locale) }),
     description,
     alternates,
     // A journal page with no public article is an empty shell; one that asked
@@ -189,7 +192,7 @@ export function buildJournalMetadata(j: JournalPageSeoInput, locale: string, org
     robots: !j.isIndexable || j.articleCount === 0 ? { index: false, follow: true } : undefined,
     openGraph,
     twitter: buildTwitter({ card: "summary_large_image", title, description, images: openGraph.images }),
-  };
+  });
 }
 
 export function journalJsonLd(j: JournalPageSeoInput, locale: string, orgArg?: OrgIdentity): Record<string, unknown> {
@@ -224,7 +227,7 @@ export function buildIssuesListMetadata(
   // on production 2026-09-20 while the journal page one path segment up had
   // both. buildOpenGraph owns all three now, so the three builders in this file
   // cannot drift from each other again.
-  const description = truncate(labels.description);
+  const description = truncate(labels.description, locale);
   const openGraph = buildOpenGraph({
     locale,
     org,
@@ -235,7 +238,7 @@ export function buildIssuesListMetadata(
     image: j.coverUrl,
     imageAlt: labels.title,
   });
-  return {
+  return dropHreflangWhenNoindex({
     title: labels.title,
     description,
     alternates,
@@ -247,7 +250,7 @@ export function buildIssuesListMetadata(
       description,
       images: openGraph.images,
     }),
-  };
+  });
 }
 
 export function issuesListJsonLd(
@@ -296,6 +299,7 @@ export function buildIssueMetadata(
       (locale === "km"
         ? `${issue.label} នៃ ${journalTitle}៖ បញ្ជីអត្ថបទ និងព័ត៌មានលេខផ្សាយ។`
         : `${issue.label} of ${journalTitle}: table of contents and issue details.`),
+    locale,
   );
   const openGraph = buildOpenGraph({
     locale,
@@ -307,14 +311,14 @@ export function buildIssueMetadata(
     image: j.coverUrl,
     imageAlt: title,
   });
-  return {
-    title,
+  return dropHreflangWhenNoindex({
+    title: fitTitle(title, { locale, brandSuffix: brandSuffixFor(org, locale) }),
     description,
     alternates,
     robots: !j.isIndexable ? { index: false, follow: true } : undefined,
     openGraph,
     twitter: buildTwitter({ card: "summary_large_image", title, description, images: openGraph.images }),
-  };
+  });
 }
 
 export function issueJsonLd(

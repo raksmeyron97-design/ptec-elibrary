@@ -61,7 +61,7 @@ describe("addressableAuthorSlug", () => {
 });
 
 describe("author URL advertisers agree with the gate", () => {
-  const readers = ["app/sitemap.ts", "lib/authors/directory.ts"];
+  const readers = ["lib/seo/sitemap-entries.ts", "lib/authors/directory.ts"];
 
   it.each(readers)("%s derives author slugs through addressableAuthorSlug()", (file) => {
     const src = readFileSync(join(ROOT, file), "utf8");

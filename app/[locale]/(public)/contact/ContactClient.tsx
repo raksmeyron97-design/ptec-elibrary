@@ -131,6 +131,7 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
   const t = useTranslations("contact");
   const contactItems = buildContactItems(site, t);
   const socialLinks = buildSocialLinks(site);
+  const [showMap, setShowMap] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -548,17 +549,37 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
             </div>
             {site.links.mapEmbed && (
             <div className="overflow-hidden rounded-2xl border border-divider shadow-sm">
-              <iframe
-                src={site.links.mapEmbed}
-                width="100%"
-                height="340"
-                style={{ border: 0, display: "block" }}
-                allowFullScreen
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                sandbox="allow-scripts allow-popups allow-forms"
-                title={t("mapTitle")}
-              />
+              {/* Loaded on request (SEO decision P6-1): the embed pulls ~420 KB
+                  of Google Maps script, and an iframe's lazy threshold on a slow
+                  connection reaches it from the first screen anyway. The
+                  placeholder keeps the iframe's exact height, so nothing moves
+                  when it appears; "Get directions" below works without it. */}
+              {showMap ? (
+                <iframe
+                  src={site.links.mapEmbed}
+                  width="100%"
+                  height="340"
+                  style={{ border: 0, display: "block" }}
+                  allowFullScreen
+                  referrerPolicy="no-referrer-when-downgrade"
+                  sandbox="allow-scripts allow-popups allow-forms"
+                  title={t("mapTitle")}
+                />
+              ) : (
+                <div className="flex h-[340px] flex-col items-center justify-center gap-3 bg-paper px-6 text-center">
+                  <svg className="h-8 w-8 text-brand" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                  <button
+                    type="button"
+                    onClick={() => setShowMap(true)}
+                    className="rounded-xl border border-divider bg-bg-surface px-5 py-2.5 text-sm font-semibold text-text-heading transition-colors hover:border-brand/50 hover:text-brand"
+                  >
+                    {t("showMap")}
+                  </button>
+                </div>
+              )}
             </div>
             )}
             <a

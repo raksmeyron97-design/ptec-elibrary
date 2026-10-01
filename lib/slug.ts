@@ -67,3 +67,68 @@ export function unicodeSlug(value: string): string {
 export function isValidSlug(value: string): boolean {
   return value === value.toLowerCase() && /^[\p{L}\p{M}\p{N}]+(-[\p{L}\p{M}\p{N}]+)*$/u.test(value);
 }
+
+// ── New-record slugs (SEO Phase 2.8, finding F16, decision D8) ──────────────
+//
+// A slug derived from a whole title can be enormous: one production thesis
+// URL is 953 characters percent-encoded, because a Khmer letter is nine
+// encoded characters and the title ran to a paragraph, and 320 sitemap URLs
+// exceed 500. A NEW record's slug is therefore capped to its first few words.
+// Existing slugs are never recomputed (D8): these helpers are called only
+// where a record is CREATED from its title, never on edit and never for a
+// lookup — `slugify()`/`unicodeSlug()` also identify existing rows, and
+// changing them would move every one of those URLs.
+
+/** Default word cap for a new record's slug. NEXT_PUBLIC_SEO_SLUG_MAX_WORDS
+ *  overrides it — public because the admin forms derive a slug in the
+ *  browser and the server must agree with them. The ICU word dictionary
+ *  counts Khmer words, which have no spaces between them. */
+export const NEW_SLUG_MAX_WORDS = 8;
+/** Hard ceiling in characters, for a single "word" too long on its own. At
+ *  nine encoded characters per Khmer letter, 60 keeps a slug under ~540. */
+export const NEW_SLUG_MAX_CHARS = 60;
+
+function configuredMaxWords(): number {
+  // A direct `process.env.NEXT_PUBLIC_…` reference, which Next inlines into
+  // the client bundle at build time.
+  const raw = process.env.NEXT_PUBLIC_SEO_SLUG_MAX_WORDS;
+  const n = Number(raw?.trim());
+  return Number.isInteger(n) && n >= 1 ? n : NEW_SLUG_MAX_WORDS;
+}
+
+/**
+ * The first `maxWords` words of a slug, and never more than `maxChars`
+ * characters, cut at a word boundary where one exists and at a grapheme
+ * boundary otherwise — never inside a Khmer cluster, never on a hyphen.
+ */
+export function capSlug(
+  slug: string,
+  { maxWords = configuredMaxWords(), maxChars = NEW_SLUG_MAX_CHARS }: { maxWords?: number; maxChars?: number } = {},
+): string {
+  if (!slug) return slug;
+  const tidy = (s: string) => s.replace(/-+$/u, "");
+  const words = new Intl.Segmenter(/\p{Script=Khmer}/u.test(slug) ? "km" : "en", { granularity: "word" });
+  let end = 0;
+  let count = 0;
+  for (const seg of words.segment(slug)) {
+    if (!seg.isWordLike) continue;
+    const segEnd = seg.index + seg.segment.length;
+    if (count + 1 > maxWords || [...slug.slice(0, segEnd)].length > maxChars) break;
+    count += 1;
+    end = segEnd;
+  }
+  if (end > 0) return tidy(slug.slice(0, end));
+  // One word longer than the ceiling: cut on a grapheme boundary.
+  let out = "";
+  for (const { segment } of new Intl.Segmenter("km", { granularity: "grapheme" }).segment(slug)) {
+    if ([...out + segment].length > maxChars) break;
+    out += segment;
+  }
+  return tidy(out) || slug;
+}
+
+/** The slug for a record being created from `title`, capped; "" when the
+ *  title yields none (callers keep their own fallback). */
+export function newRecordSlug(title: string): string {
+  return capSlug(unicodeSlug(title));
+}

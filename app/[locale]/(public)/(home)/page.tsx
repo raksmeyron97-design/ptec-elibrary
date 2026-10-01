@@ -10,7 +10,7 @@ import { toBookCardList } from "@/lib/books/card-data";
 import { getPublishedPaths } from "@/app/actions/learning-paths";
 import { getHomepagePhotos } from "@/lib/homepage-photos";
 import HeroBookStack from "@/components/ui/home/HeroBookStack";
-import { getTranslations, getLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 // ── Feature components ───────────────────────────────────────────────────────
 import AskLibraryHero from "@/components/ui/home/AskLibraryHero";
 import HeroConstellation from "@/components/ui/home/HeroConstellation";
@@ -30,7 +30,7 @@ import LibraryNow from "@/components/ui/home/LibraryNow";
 import HeroPhotoGallery, { HERO_PHOTO_COUNT } from "@/components/ui/home/HeroPhotoGallery";
 import NarrativeCards, { NARRATIVE_PHOTO_COUNT } from "@/components/ui/home/NarrativeCards";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
-import FaqSection from "@/components/ui/home/FaqSection";
+import FaqSection, { homeFaqNode } from "@/components/ui/home/FaqSection";
 import SignupCta from "@/components/ui/home/SignupCta";
 import SignedOutOnly from "@/components/ui/home/SignedOutOnly";
 import ContinueReadingSwap from "@/components/ui/home/ContinueReadingSwap";
@@ -39,6 +39,7 @@ import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 
 import BrowseBooksSkeleton from "@/components/ui/home/skeletons/BrowseBooksSkeleton";
 import LatestPostsSkeleton from "@/components/ui/home/skeletons/LatestPostsSkeleton";
+import PageJsonLd from "@/components/seo/PageJsonLd";
 
 export const revalidate = 60;
 
@@ -121,7 +122,17 @@ export async function generateMetadata({
 // <SessionProvider>, and this page prerenders.
 
 // ── Page ─────────────────────────────────────────────────────────────────────
-export default async function HomePage() {
+export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
+  // The locale comes from the route, and next-intl is told it here, in the
+  // page itself. Without this, getTranslations()/getLocale() fall back to
+  // reading request headers whenever the layout's setRequestLocale() has not
+  // reached this segment — a dynamic API that turned the whole homepage into
+  // a per-request render once the route-level loading boundary was removed
+  // (SEO Phase 1, D9). next-intl's static-rendering rule: every page that
+  // reads translations on the server calls setRequestLocale().
+  const { locale } = await params;
+  setRequestLocale(locale);
+
   // LCP: preload the hero photo (AVIF branch — ~95% of browsers; the rest
   // simply fetch it via <picture> without the head start).
   // MUST stay byte-identical to the <source sizes> below, or the browser
@@ -136,9 +147,8 @@ export default async function HomePage() {
     fetchPriority: "high",
   });
 
-  const [t, locale, trendingBooks, trendingTerms, paths, siteConfig] = await Promise.all([
-    getTranslations("home"),
-    getLocale(),
+  const [t, trendingBooks, trendingTerms, paths, siteConfig] = await Promise.all([
+    getTranslations({ locale, namespace: "home" }),
     getTrendingBooksCached(),
     getTrendingTermsCached(),
     getPublishedPaths(),
@@ -175,8 +185,10 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen bg-paper">
-      {/* Institutional JSON-LD (organization / library / website @graph) is
-          emitted site-wide by app/layout.tsx — do not re-declare it here. */}
+      {/* The page's one JSON-LD document (SEO Phase 4): the college, library
+          and website nodes, plus the FAQ below, which is read from the same
+          strings as the visible accordion. */}
+      <PageJsonLd nodes={[await homeFaqNode(locale)]} />
 
       {/* ════════ HERO ════════ */}
       <section className="hero-ink relative isolate z-40 text-white">

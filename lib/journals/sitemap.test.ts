@@ -47,7 +47,7 @@ describe("journalSitemapPaths — the pages' own robots rule, stated once", () =
   });
 
   it("the sitemap keeps article URLs independent of the journal read, and the hub gated on its count", () => {
-    const src = fs.readFileSync(path.resolve(__dirname, "..", "..", "app", "sitemap.ts"), "utf8");
+    const src = fs.readFileSync(path.resolve(__dirname, "..", "seo", "sitemap-entries.ts"), "utf8");
     expect(src).toContain("entry(articlePath(p.slug)");
     expect(src).toContain("journalSitemapPaths(");
     expect(src).toContain("hub('/journals', publications.length");

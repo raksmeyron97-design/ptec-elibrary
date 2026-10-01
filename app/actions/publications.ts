@@ -739,6 +739,9 @@ export async function upsertPublicationAuthor(author: {
   research_gate_url?: string | null;
   research_interests?: string[];
   is_published?: boolean;
+  /** PTEC staff (0162). Written separately so an older database still saves
+   *  everything else. */
+  is_ptec_staff?: boolean;
 }): Promise<{ data: PublicationAuthor | null; error: string | null }> {
   let admin: Awaited<ReturnType<typeof requirePermission>>;
   try {
@@ -827,12 +830,26 @@ export async function upsertPublicationAuthor(author: {
     return { data: null, error: error.message };
   }
 
+  // The staff flag (0162) is its own update: folding it into the payload
+  // above would add a third fallback tier, and on a database without the
+  // column the profile would then save without its 0125 fields.
+  let staffError: string | null = null;
+  if (author.is_ptec_staff !== undefined) {
+    const { data: flagged, error: flagError } = await supabase
+      .from("publication_authors")
+      .update({ is_ptec_staff: author.is_ptec_staff })
+      .eq("id", (data as unknown as PublicationAuthor).id)
+      .select("id");
+    if (flagError && !isMissingColumnError(flagError)) staffError = flagError.message;
+    else if (!flagError && (flagged ?? []).length !== 1) staffError = "the staff flag matched no row";
+  }
+
   await logAdminAction(
     userId,
     author.id ? "publication_author.update" : "publication_author.create",
     "publication_authors",
     (data as unknown as PublicationAuthor).id,
-    { full_name },
+    { full_name, ...(author.is_ptec_staff !== undefined ? { is_ptec_staff: author.is_ptec_staff } : {}) },
   );
 
   // /authors/[slug] is ISR'd for an hour, so without this a biography edit
@@ -846,6 +863,9 @@ export async function upsertPublicationAuthor(author: {
   // links to this slug.
   revalidatePublication(null);
 
+  if (staffError) {
+    return { data: data as unknown as PublicationAuthor, error: `Profile saved, but "PTEC staff" was not: ${staffError}` };
+  }
   return { data: data as unknown as PublicationAuthor, error: null };
 }
 

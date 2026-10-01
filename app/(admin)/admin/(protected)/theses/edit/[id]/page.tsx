@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { getThesisById } from "@/app/actions/theses";
 import ThesisForm, { type ThesisInitial } from "@/components/admin/theses/form/ThesisForm";
 import DownloadAccessCard from "@/components/admin/theses/DownloadAccessCard";
+import OpenAccessCard from "@/components/admin/theses/OpenAccessCard";
 import ThesisVerifyPanel from "@/components/admin/theses/ThesisVerifyPanel";
 import { normalizeStatus, STATUS_LABELS, STATUS_TONES } from "@/lib/admin/theses-shared";
 import type { SupplementaryFile } from "@/lib/admin/thesis-file-validation";
@@ -158,6 +159,16 @@ export default async function EditThesisPage({ params }: { params: Promise<{ id:
             reason={report.download_override_reason ?? null}
             updatedAt={report.download_override_updated_at ?? null}
             updatedByName={updatedByName}
+          />
+          <OpenAccessCard
+            thesisId={report.id}
+            slug={report.slug ?? null}
+            isPublished={isLive}
+            hasFile={Boolean(report.file_url)}
+            hasLicense={Boolean(report.license && report.license !== "unknown")}
+            blocked={report.download_override === "block"}
+            currentAccess={report.access === "open" ? "open" : "restricted"}
+            consentAt={report.access_consent_at ?? null}
           />
         </div>
       }

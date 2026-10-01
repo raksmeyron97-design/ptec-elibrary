@@ -25,6 +25,8 @@ import { buildOpenGraph, buildTwitter, OG_FALLBACK_IMAGE } from "@/lib/seo/open-
 import { normalizeDoi } from "@/lib/seo/identifiers";
 import { schemaCitations } from "@/lib/seo/references";
 import { languageCode } from "@/lib/seo/book-seo";
+import { fitDescription, fitTitle } from "@/lib/seo/text-fit";
+import { brandSuffixFor } from "@/lib/seo/brand";
 
 /** Re-exported so existing importers keep one constant, not a second copy. */
 export const FALLBACK_OG_IMAGE = OG_FALLBACK_IMAGE;
@@ -124,18 +126,25 @@ export type ThesisSeoInput = {
   /** Human-readable language name ("Khmer" / "English" / …). */
   language?: string | null;
   references?: string[];
+  /** Advisor and co-advisor as printed — schema.org `contributor` (Phase 4). */
+  advisors?: (string | null | undefined)[];
+  /** The degree the work was written for, as printed ("Bachelor of
+   *  Education (12+4)") — schema.org `inSupportOf`. */
+  degree?: string | null;
+  /** The PUBLIC full text (lib/theses/open-access.ts), or null — then no
+   *  `encoding` is claimed. */
+  openPdfUrl?: string | null;
+  /** The licence deed of an OPEN-ACCESS thesis — schema.org `license` (SEO
+   *  Phase 7.3). Null for every other thesis: llms.txt tells consumers a
+   *  `license` is a reuse permission, and a rights statement on a closed
+   *  thesis is not one. */
+  licenseUrl?: string | null;
 };
 
 // ── Description fallbacks (localized, factual) ────────────────────────────────
 
-const MAX_META_DESCRIPTION = 157;
-
 function clean(value: string | null | undefined): string {
   return value?.replace(/\s+/g, " ").trim() ?? "";
-}
-
-function truncate(text: string): string {
-  return text.length > MAX_META_DESCRIPTION ? `${text.slice(0, MAX_META_DESCRIPTION)}...` : text;
 }
 
 /** Factual one-liner built only from verified fields — localized, no invention. */
@@ -164,13 +173,14 @@ export function thesisMetaDescription(
   org?: OrgIdentity,
 ): string {
   const abstract = clean(thesis.abstract);
-  if (abstract.length >= 70) return truncate(abstract);
+  if (abstract.length >= 70) return fitDescription(abstract, locale);
   if (abstract) {
-    return truncate(
+    return fitDescription(
       `${abstract.replace(/[.。។]\s*$/, "")}. ${thesisFallbackDescription(thesis, locale, org)}`,
+      locale,
     );
   }
-  return truncate(thesisFallbackDescription(thesis, locale, org));
+  return fitDescription(thesisFallbackDescription(thesis, locale, org), locale);
 }
 
 // ── Detail metadata (generateMetadata) ───────────────────────────────────────
@@ -216,7 +226,7 @@ export function buildThesisMetadata(
   };
 
   return {
-    title,
+    title: fitTitle(title, { locale, brandSuffix: brandSuffixFor(org, locale) }),
     description,
     keywords: keywords.length > 0 ? keywords : undefined,
     // Only real authors — never a fabricated "Unknown Author".
@@ -263,9 +273,14 @@ export function thesisJsonLd(
   const citations = schemaCitations(thesis.references);
   const abstract = clean(thesis.abstract);
 
+  const advisors = (thesis.advisors ?? []).map((a) => clean(a)).filter(Boolean);
+
+  // `Thesis` (SEO Phase 4): what a thesis is, not the ScholarlyArticle a
+  // journal article is. Authors are the author-role credits; advisors are
+  // contributors; the degree is what it was written in support of.
   return compact({
     "@context": "https://schema.org",
-    "@type": "ScholarlyArticle",
+    "@type": "Thesis",
     "@id": `${url}#thesis`,
     headline: thesis.title,
     alternativeHeadline:
@@ -276,6 +291,11 @@ export function thesisJsonLd(
     url,
     mainEntityOfPage: url,
     author: contributorNodes.length > 0 ? contributorNodes : undefined,
+    // Through the byline classifier like every other credit — a name is
+    // typed by lib/seo/contributor.ts, never by hand.
+    contributor: advisors.length > 0 ? resolveContributorNodes(null, advisors, org) : undefined,
+    inSupportOf: clean(thesis.degree) || undefined,
+    sourceOrganization: organizationNode(org),
     publisher: organizationNode(org),
     provider: libraryNode(org),
     isPartOf: {
@@ -296,6 +316,11 @@ export function thesisJsonLd(
     citation: citations.length > 0 ? citations : undefined,
     identifier: doi ? { "@type": "PropertyValue", propertyID: "DOI", value: doi } : undefined,
     isAccessibleForFree: true,
+    license: thesis.licenseUrl || undefined,
+    // Only a PUBLIC full text is a media object anyone can fetch.
+    encoding: thesis.openPdfUrl
+      ? { "@type": "MediaObject", encodingFormat: "application/pdf", contentUrl: thesis.openPdfUrl }
+      : undefined,
     potentialAction: { "@type": "ReadAction", target: { "@type": "EntryPoint", urlTemplate: url } },
   });
 }

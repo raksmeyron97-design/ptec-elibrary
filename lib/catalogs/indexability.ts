@@ -51,13 +51,15 @@ export interface CatalogRecordSignals extends CatalogDescriptionSource {
   /** The record's OWN description — never the generated meta description. */
   description?: string | null;
   /**
-   * The slug of a digital book that is the same work, when one is known.
+   * The slug of a digital book that is the same work, when one is known
+   * (lib/catalogs/digital-twin.ts, SEO Phase 2.7).
    *
-   * A record that leads to full text is a useful search result whatever else
-   * it carries, because the page is then an entry point rather than a
-   * terminus. Nothing populates this yet — see the note in §Digital link
-   * below — and the parameter exists so the gate does not have to change
-   * shape when something does.
+   * Such a record is NOT indexed, whatever it carries: the e-book page is the
+   * same work with its full text, and two pages for one work compete for one
+   * query. The record links to the e-book instead, so a reader who lands on
+   * the shelf copy is one click from the text. (Before a twin could be
+   * found, this field was reserved to do the opposite — index the record as
+   * an entry point — and nothing ever set it.)
    */
   digitalBookSlug?: string | null;
 }
@@ -73,12 +75,26 @@ export const CATALOG_MIN_DESCRIPTION_CHARS = 40;
 
 export type CatalogVisibility = "index" | "noindex";
 
+/**
+ * SEO decision P2-1 (2026-10-01): NO catalogue record is indexed. A record is
+ * a finding aid for a shelf copy; the page a search result should land on is
+ * the e-book when one exists, and the collection pages otherwise. Before this,
+ * a record with a librarian-written description was `index` but in no sitemap
+ * — a page asserting it was worth ranking while the site declined to say so.
+ * The description rules below still run, so the reason stays an honest
+ * diagnostic of the record; they no longer decide visibility.
+ */
+export const CATALOG_RECORDS_INDEXABLE = false;
+
 export interface CatalogIndexability {
   visibility: CatalogVisibility;
   /** Why, for the report and for the admin data-quality surface. */
   reason:
     | "has-description"
-    | "links-to-full-text"
+    /** A described record under P2-1: a finding aid, never a search result. */
+    | "finding-aid"
+    /** The same work is an e-book in the digital library; that page ranks. */
+    | "has-digital-twin"
     | "record-only"
     /** Long enough, but it only restates the record. See derived-description.ts. */
     | "derived-description"
@@ -103,7 +119,7 @@ export function assessCatalogIndexability(
   record: CatalogRecordSignals,
 ): CatalogIndexability {
   if (record.digitalBookSlug?.trim()) {
-    return { visibility: "index", reason: "links-to-full-text" };
+    return { visibility: "noindex", reason: "has-digital-twin" };
   }
   const description = record.description?.trim() ?? "";
   if (description.length < CATALOG_MIN_DESCRIPTION_CHARS) {
@@ -120,7 +136,9 @@ export function assessCatalogIndexability(
   if (isDerivedDescription(record)) {
     return { visibility: "noindex", reason: "derived-description" };
   }
-  return { visibility: "index", reason: "has-description" };
+  return CATALOG_RECORDS_INDEXABLE
+    ? { visibility: "index", reason: "has-description" }
+    : { visibility: "noindex", reason: "finding-aid" };
 }
 
 /**

@@ -15,8 +15,11 @@ import {
   resolveOrgIdentity,
   type OrgIdentity,
 } from "@/lib/system-settings/org-identity";
-import { localeAlternates } from "@/lib/seo/alternates";
+import { localeAlternates, dropHreflangWhenNoindex } from "@/lib/seo/alternates";
 import { buildOpenGraph, buildTwitter, OG_FALLBACK_IMAGE } from "@/lib/seo/open-graph";
+import { libraryNameFor } from "@/lib/seo/brand";
+import { fitDescription, fitTitle } from "@/lib/seo/text-fit";
+import { brandSuffixFor } from "@/lib/seo/brand";
 
 /** Re-exported so existing importers keep one constant, not a second copy. */
 export const FALLBACK_OG_IMAGE = OG_FALLBACK_IMAGE;
@@ -93,7 +96,9 @@ export function buildPathMetadata(
   const alternates = localeAlternates(`/paths/${path.slug}`, locale);
   const canonicalUrl = alternates.canonical;
   const title = pathLocalizedTitle(path, locale);
-  const description = pathLocalizedDescription(path, locale);
+  // A curriculum description is long-form prose; the meta tag had no cap at
+  // all (259 and 329 characters measured live). Fitted, never cut mid-word.
+  const description = fitDescription(pathLocalizedDescription(path, locale), locale);
   const imageAlt = locale === "km" ? `ផ្លូវសិក្សា៖ ${title}` : `Learning path: ${title}`;
 
   const openGraph = {
@@ -113,7 +118,7 @@ export function buildPathMetadata(
   };
 
   return {
-    title,
+    title: fitTitle(title, { locale, brandSuffix: brandSuffixFor(org, locale) }),
     description,
     alternates,
     openGraph,
@@ -137,6 +142,11 @@ export function buildPathMetadata(
  *    the table held zero rows. Same rule as empty subjects and empty entity
  *    hubs: `noindex, follow`, so the links are still crawled but the empty page
  *    is not indexed.
+ *
+ *  * `hasFilters`. Filtered and sorted views (?level=, ?q=, ?sort=) are the
+ *    same near-duplicate permutations every other listing keeps out of the
+ *    index; /paths was the one hub whose filtered views answered `index`
+ *    (docs/seo/AUDIT-VERIFICATION.md F13/N4).
  */
 export function buildPathsListingMetadata(
   locale: string,
@@ -144,12 +154,13 @@ export function buildPathsListingMetadata(
     title,
     description,
     isEmpty = false,
-  }: { title: string; description: string; isEmpty?: boolean },
+    hasFilters = false,
+  }: { title: string; description: string; isEmpty?: boolean; hasFilters?: boolean },
   orgArg?: OrgIdentity,
 ): Metadata {
   const org = resolveOrgIdentity(orgArg);
   const alternates = localeAlternates("/paths", locale);
-  const socialTitle = `${title} | ${org.libraryName}`;
+  const socialTitle = `${title} | ${libraryNameFor(org, locale)}`;
   const openGraph = buildOpenGraph({
     locale,
     org,
@@ -158,11 +169,11 @@ export function buildPathsListingMetadata(
     type: "website" as const,
     url: alternates.canonical,
   });
-  return {
+  return dropHreflangWhenNoindex({
     title,
     description,
     alternates,
-    ...(isEmpty ? { robots: { index: false, follow: true } } : {}),
+    ...(isEmpty || hasFilters ? { robots: { index: false, follow: true } } : {}),
     openGraph,
     twitter: buildTwitter({
       card: "summary_large_image",
@@ -170,7 +181,7 @@ export function buildPathsListingMetadata(
       description,
       images: openGraph.images,
     }),
-  };
+  });
 }
 
 // ── JSON-LD ──────────────────────────────────────────────────────────────────
@@ -238,6 +249,35 @@ export function pathCourseJsonLd(
         )
       : undefined,
   });
+}
+
+/**
+ * The path's steps, in order, as an ItemList beside its Course (SEO Phase 4):
+ * the reading order is what the page is — the Course node says what it is
+ * for, this says what it consists of. Only steps with a title are listed; a
+ * step's url is made absolute when it is a path on this site.
+ */
+export function pathStepsItemList(path: LearningPathSeoInput, locale: string): Record<string, unknown> | null {
+  const url = pathCanonicalUrl(path.slug, locale);
+  const steps = (path.modules ?? []).flatMap((m) => m.steps ?? []).filter((st) => clean(st.title));
+  if (steps.length === 0) return null;
+  return {
+    "@type": "ItemList",
+    "@id": `${url}#steps`,
+    name: pathLocalizedTitle(path, locale),
+    about: { "@id": `${url}#course` },
+    itemListOrder: "https://schema.org/ItemListOrderAscending",
+    numberOfItems: steps.length,
+    itemListElement: steps.map((st, i) => {
+      const href = clean(st.url);
+      return compact({
+        "@type": "ListItem",
+        position: i + 1,
+        name: clean(st.title),
+        url: href ? (href.startsWith("/") ? `${SITE_URL}${href}` : href) : undefined,
+      });
+    }),
+  };
 }
 
 /** CollectionPage + ItemList for /paths (and /km/paths). */
