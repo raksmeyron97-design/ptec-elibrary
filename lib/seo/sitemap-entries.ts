@@ -10,6 +10,7 @@
 
 import type { MetadataRoute } from 'next';
 import { unstable_cache } from 'next/cache';
+import { TAGS } from '@/lib/cache/revalidate';
 import { createServiceClient } from '@/lib/supabase/server';
 import { sitemapLastmod } from '@/lib/seo/book-seo';
 import { localeUrls } from '@/lib/seo/alternates';
@@ -659,6 +660,6 @@ export function getSitemapEntries(type: SitemapType): Promise<MetadataRoute.Site
   return unstable_cache(
     async () => validateSitemapEntries(type, await buildEntries(type)),
     ['sitemap-entries', type],
-    { revalidate: SITEMAP_REVALIDATE_SECONDS, tags: ['sitemap'] },
+    { revalidate: SITEMAP_REVALIDATE_SECONDS, tags: [TAGS.sitemap] },
   )();
 }

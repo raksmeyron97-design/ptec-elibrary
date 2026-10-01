@@ -294,6 +294,18 @@ const nextConfig: NextConfig = {
         // lib/koha/opac-proxy.ts for why it is not proxied.
         ...kohaOpacRewriteRules(kohaDestination),
       ],
+      // After real files and before dynamic routes: a file someone adds to
+      // public/ later always wins over this pattern.
+      afterFiles: [
+        // The IndexNow key file (SEO Phase 7.2): engines fetch /{key}.txt at
+        // the host root. The route answers only the configured INDEXNOW_KEY
+        // (404 otherwise, and always while it is unset). Eight characters at
+        // least, so /robots.txt and /llms.txt can never match.
+        {
+          source: "/:key([A-Za-z0-9-]{8,128}).txt",
+          destination: "/api/indexnow-key/:key",
+        },
+      ],
     };
   },
   async headers() {
