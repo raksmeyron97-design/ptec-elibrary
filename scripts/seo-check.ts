@@ -5,6 +5,7 @@
 //   npx tsx scripts/seo-check.ts --base https://library.ptec.edu.kh          # BASELINE only
 //   npx tsx scripts/seo-check.ts --base <url> --json reports/seo/check.json   # or --json alone: stdout
 //   npx tsx scripts/seo-check.ts --base <url> --inventory                    # head facts per URL
+//   npx tsx scripts/seo-check.ts --base <url> --description-gate             # the origin runs SEO_DESCRIPTION_GATE=on
 //
 // READ-ONLY. Fetches server HTML (no browser, no JavaScript) for a fixed list of
 // URLs, one per public template in each locale (scripts/seo-urls.json), plus a
@@ -77,6 +78,9 @@ type Args = {
   inventory: boolean;
   verbose: boolean;
   strict: boolean;
+  /** The origin runs SEO_DESCRIPTION_GATE=on (Phase 5.4): withheld books stay
+   *  on /books but leave the sitemap, so the sitemap may hold FEWER. */
+  descriptionGate: boolean;
 };
 
 function parseArgs(argv: string[]): Args {
@@ -107,6 +111,7 @@ function parseArgs(argv: string[]): Args {
     inventory: has("inventory"),
     verbose: has("verbose"),
     strict: has("strict"),
+    descriptionGate: has("description-gate"),
   };
 }
 
@@ -169,7 +174,7 @@ const CHECKS: Record<string, CheckDef> = {
   "sitemap-lastmod-placeholder": { phase: 1, finding: "F6", about: "no placeholder lastmod (YYYY-01-01T00:00:00)" },
   "sitemap-xdefault": { phase: 1, finding: "F6", about: "every entry's alternates include x-default" },
   "sitemap-no-catalog-records": { phase: 2, finding: "F12", about: "catalogue records are not in the sitemap" },
-  "sitemap-books-vs-listing": { phase: 0, finding: "F6", about: "sitemap book count equals the /books total" },
+  "sitemap-books-vs-listing": { phase: 0, finding: "F6", about: "sitemap book count equals the /books total (with --description-gate: at most it, the gap reported)" },
   "sitemap-sample": { phase: 0, finding: "F6", about: "sampled URLs: 200, indexable, self-canonical" },
   "sitemap-sample-alternates": { phase: 0, finding: "F6", about: "sampled URLs: sitemap alternates equal the page's hreflang" },
   "sitemap-sample-loc-exact": { phase: 1, finding: "F6", about: "sampled URLs: <loc> byte-identical to the page canonical" },
@@ -958,7 +963,13 @@ async function checkSitemaps(booksTotal: number | null): Promise<void> {
     sections.set(s, [...(sections.get(s) ?? []), u]);
   }
   const bookRecords = all.filter((u) => /^\/books\/[^/]+$/.test(new URL(u.loc).pathname)).length;
-  if (booksTotal !== null) judge("/sitemap.xml", "sitemap-books-vs-listing", bookRecords === booksTotal, `${bookRecords} book records in the sitemap vs ${booksTotal} on /books`);
+  if (booksTotal !== null) {
+    // With the description gate on, the books it withholds are still listed
+    // on /books (a reader can browse to them) but are not offered to crawlers.
+    const ok = args.descriptionGate ? bookRecords <= booksTotal : bookRecords === booksTotal;
+    const gap = args.descriptionGate ? ` (${booksTotal - bookRecords} withheld by the description gate)` : "";
+    judge("/sitemap.xml", "sitemap-books-vs-listing", ok, `${bookRecords} book records in the sitemap vs ${booksTotal} on /books${gap}`);
+  }
   sectionCounts = [...sections].map(([s, list]) => [s, list.length] as [string, number]).sort((a, b) => b[1] - a[1]);
 
   // Samples: evenly spaced, deterministic, per section

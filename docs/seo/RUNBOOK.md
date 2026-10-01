@@ -193,5 +193,8 @@ brings it back within the hour (the gate is cached under the `books` tag).
 Books with a file are never withheld. Measured 2026-09-30: the gate would
 withhold **2** of 1,956 books. Check after the restart, sequentially:
 `curl -s https://library.ptec.edu.kh/sitemaps/books.xml | grep -c '<loc>'`
-should drop by that number, and nothing else should change.
+should drop by that number, and
+`npx tsx scripts/seo-check.ts --base https://library.ptec.edu.kh --description-gate --delay 1500`
+should pass — the flag lets the books sitemap hold fewer records than `/books`
+and prints the gap. Without the flag that check fails while the gate is on.
 
