@@ -221,6 +221,12 @@ six concurrent requests.
    nothing here. Confirm each with one query in the box's SQL console
    (read-only):
    `select count(*) from information_schema.columns where table_name = 'books' and column_name = 'description_status';` → 1.
+   If the deploy log says `canceling statement due to lock timeout`, the
+   database was busy: nothing was applied, the old image is still serving,
+   and the next timer tick retries. If the new image failed its health check
+   while the site was already down for another reason, `deploy.sh` marks it
+   known-bad and stops retrying: run `sudo ./deploy/deploy.sh --force` once
+   the box is healthy.
 2. `npx tsx scripts/seo-check.ts --base https://library.ptec.edu.kh --delay 1500`
    — every phase. A `fail` is a regression; `unknown` is the network.
 3. `scripts/seo-lighthouse.sh`, then

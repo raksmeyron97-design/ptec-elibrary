@@ -40,20 +40,22 @@ stored as the current year) by D11 in Phase 1; N5 (hub title vs H1) in
 Phase 2; N6 (year-long `stale-while-revalidate`) and N7 (ISR memory-only?)
 are runbook checks.
 
-## Decisions waiting for you
+## Decisions (all approved 2026-10-01)
 
-| ID | Question | Recommendation |
+| ID | Decision | Outcome |
 |---|---|---|
-| P2-1 | A described catalogue record without an e-book is `index` but not in the sitemap | (a) make every catalogue record noindex |
-| P2-2 | 40 catalogue/e-book pairs share a title but cannot be confirmed as one work | (a) leave them unlinked until a librarian checks them |
-| P3-1 | Remove the dormant verified-Google-crawler exception from `/api/books/*/file` and `/api/theses/*/file` (it touches file access) | Yes |
-| P5-1 | Switch the description gate on | Yes, after deploy; it withholds 2 books, both without a file |
-| P5-2 | Run the description draft generator on production | A dry run of `--limit 50` on the box first |
-| P6-1 | `/contact`: load the map on click (~420 KB less) | Yes, if the map is not why people open that page |
-| P6-2 | Replace `BookRequestForm` with the homepage's `ContributeDialog` | Yes, as its own change |
-| P7-1 | Make the CI `seo-check` job gating | Yes, after its first green run on GitHub |
-| P7-2 | Switch IndexNow on (`INDEXNOW_KEY`) | Yes, after Bing Webmaster Tools is set up |
-| P7-3 | A missing root file with a dot (`/ads.txt`) answers 500, not 404 (found in Phase 7; predates the programme) | Fix with `dynamicParams = false` on `[locale]`, as its own change |
+| P2-1 | No catalogue record is indexed | **Done** — `CATALOG_RECORDS_INDEXABLE = false`; every record is a `noindex, follow` finding aid; the editor's search-visibility check is gone |
+| P2-2 | Leave the 40 same-title pairs unlinked | **No change needed** — they stay unlinked until a librarian checks them |
+| P3-1 | Remove the crawler exception from the book and thesis file routes | **Done** — both require a signed-in reader for everyone; open full texts are only served at `…/fulltext.pdf` |
+| P5-1 | Switch the description gate on | **After deploy, on the box**: `SEO_DESCRIPTION_GATE=on` in `.env`, restart (RUNBOOK "Phase 5") |
+| P5-2 | Dry run of the draft generator | **After deploy, on the box**: `--limit 50 --confirm-host <host>`, no `--apply` (RUNBOOK "Phase 5") |
+| P6-1 | `/contact` map on click | **Done** — a same-height placeholder with "Show the map"; nothing is fetched from Google until pressed |
+| P6-2 | "Request a book" is the homepage's dialog | **Done** — `RequestBookButton` renders `ContributeDialog`; `BookRequestForm` deleted |
+| P7-1 | Make the CI `seo-check` job gating | **After its first green run** on the release PR |
+| P7-2 | Switch IndexNow on | **After Bing Webmaster Tools is set up**: `INDEXNOW_KEY` in the box's `.env` (RUNBOOK §4–§5) |
+| P7-3 | A missing root file answers 404, not 500 | **Done, differently from the proposal** — `dynamicParams = false` on `[locale]` would have 404'd every book, thesis and article page not prerendered at build time (Next ANDs it across all segments of a route). The fix is in `i18n/request.ts`: an invalid locale segment resolves to the default locale instead of reading cookies |
+
+Also added for the deploy: migrations 0161–0164 now `SET LOCAL lock_timeout = '10s'`, so on a database as slow as production was on 2026-10-01 a migration fails cleanly (and the next deploy tick retries) instead of queueing every read of `books` behind its lock.
 
 ## Follow-ups found along the way (not done)
 
