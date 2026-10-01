@@ -59,6 +59,7 @@ import { breadcrumbSchema } from "@/lib/seo/schema";
 // nothing personal is ever baked into a shared cache.
 
 import { SITE_URL } from "@/lib/seo/site";
+import { trustedPublicationDate } from "@/lib/seo/dates";
 import { bookScholarMeta, citationLocale } from "@/lib/seo/citation";
 import { bookToCitationWork, hasCitableMetadata } from "@/lib/books/citation";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
@@ -82,7 +83,7 @@ function authorNamesFromRelation(authors: any): string[] {
 const getBookMeta = unstable_cache(
   async (slug: string) => {
     const supabase = createServiceClient();
-    const COLUMNS = "id, title, description, cover_url, language, published_at, isbn, publisher, department, tags, seo_title, seo_description, og_image, authors(name), categories(name), departments(name)";
+    const COLUMNS = "id, title, description, cover_url, language, published_at, created_at, isbn, publisher, department, tags, seo_title, seo_description, og_image, authors(name), categories(name), departments(name)";
     const load = (columns: string) =>
       supabase
         .from("books")
@@ -100,11 +101,17 @@ const getBookMeta = unstable_cache(
     if (first.error && (first.error.code === "42703" || first.error.code === "PGRST204")) {
       data = (await load(COLUMNS)).data;
     }
+    // An import placeholder date (1 January of the import year) is "unknown"
+    // everywhere this page publishes a date (SEO Phase 5.5).
+    if (data) {
+      const row = data as any;
+      row.published_at = trustedPublicationDate(row.published_at, row.created_at);
+    }
     // The column list is built at runtime, so PostgREST's inferred row type
     // degenerates to GenericStringError.
     return data as any;
   },
-  ["book-meta-v2"],
+  ["book-meta-v3"],
   { revalidate: 3600, tags: ["books"] }
 );
 
@@ -214,7 +221,7 @@ const getBook = unstable_cache(
     const COLUMNS = `
         id, title, slug, description,
         cover_color, cover_url,
-        language, department, pages, published_at, isbn, publisher, rating, tags,
+        language, department, pages, published_at, created_at, isbn, publisher, rating, tags,
         download_count, license, verified_at,
         authors ( name, bio ),
         categories ( name ),
@@ -247,6 +254,8 @@ const getBook = unstable_cache(
     if (data) {
       // Same reason as getBookMeta: a runtime column list defeats inference.
       const row = data as any;
+      // Phase 5.5: an import placeholder date is shown and emitted as nothing.
+      row.published_at = trustedPublicationDate(row.published_at, row.created_at);
       const [{ data: files }, { data: revs }] = await Promise.all([
         supabase.from("book_files").select("id, format, file_url, file_size_kb").eq("book_id", row.id),
         supabase.from("reviews").select("rating").eq("book_id", row.id),
@@ -263,7 +272,7 @@ const getBook = unstable_cache(
 
     return null;
   },
-  ["book-detail"],
+  ["book-detail-v2"],
   { revalidate: 3600, tags: ["books"] }
 );
 

@@ -62,10 +62,5 @@ export function clusterSizes(keys: readonly string[]): Map<string, number> {
   return sizes;
 }
 
-/** Is a stored date the year-only placeholder of an import (1 January of the
- *  year the record was created)? It flags; it never corrects. */
-export function isPlaceholderDate(publishedAt: string | null | undefined, createdAt: string | null | undefined): boolean {
-  const m = publishedAt?.match(/^(\d{4})-01-01/);
-  if (!m || !createdAt) return false;
-  return Number(m[1]) === new Date(createdAt).getUTCFullYear();
-}
+/** Re-exported for the audit script: one definition, in lib/seo/dates.ts. */
+export { isPlaceholderDate } from "@/lib/seo/dates";

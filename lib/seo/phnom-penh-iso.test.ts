@@ -12,3 +12,13 @@ describe("phnomPenhIso", () => {
     expect(phnomPenhIso(null)).toBeNull();
   });
 });
+
+describe("trustedPublicationDate (SEO Phase 5.5)", () => {
+  it("treats 1 January of the import year as unknown, and keeps any other date", async () => {
+    const { trustedPublicationDate } = await import("./dates");
+    expect(trustedPublicationDate("2026-01-01T00:00:00Z", "2026-09-12T10:00:00Z")).toBeNull();
+    expect(trustedPublicationDate("2019-01-01", "2026-09-12T10:00:00Z")).toBe("2019-01-01");
+    expect(trustedPublicationDate("2026-03-04", "2026-09-12T10:00:00Z")).toBe("2026-03-04");
+    expect(trustedPublicationDate(null, "2026-09-12")).toBeNull();
+  });
+});

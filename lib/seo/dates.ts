@@ -79,3 +79,29 @@ export function phnomPenhIso(value: string | null | undefined): string | null {
   return `${local}+07:00`;
 }
 
+/**
+ * Is a stored date the year-only placeholder an import wrote (1 January of
+ * the year the record was created)? Until Phase 1 (D11) a blank year was
+ * saved as the current year, so "2026" on a book imported in 2026 is most
+ * likely "unknown". It flags; it never corrects.
+ */
+export function isPlaceholderDate(publishedAt: string | null | undefined, createdAt: string | null | undefined): boolean {
+  const m = publishedAt?.match(/^(\d{4})-01-01/);
+  if (!m || !createdAt) return false;
+  return Number(m[1]) === new Date(createdAt).getUTCFullYear();
+}
+
+/**
+ * The publication date a page may show and emit (SEO Phase 5.5): the stored
+ * date, or null when it is an import placeholder — "the year alone or
+ * nothing; never guess". A librarian's correction (any other date) is shown
+ * as stored. docs/seo/suspect-publication-years.csv lists the records.
+ */
+export function trustedPublicationDate(
+  publishedAt: string | null | undefined,
+  createdAt: string | null | undefined,
+): string | null {
+  if (!publishedAt) return null;
+  return isPlaceholderDate(publishedAt, createdAt) ? null : publishedAt;
+}
+
