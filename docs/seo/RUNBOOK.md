@@ -207,3 +207,145 @@ should drop by that number, and
 should pass — the flag lets the books sitemap hold fewer records than `/books`
 and prints the gap. Without the flag that check fails while the gate is on.
 
+
+## Phase 7: after the programme deploys
+
+Everything below happens outside the repository. Read-only checks against
+production go **one request at a time** (`--delay 1500`): it 502s under about
+six concurrent requests.
+
+### 1. Verify the deploy (the same day)
+
+1. Migrations 0161–0164 reach production through the box's `migrate.sh` on
+   deploy (`supabase/MIGRATIONS.md`); `migrate.yml` going green applies
+   nothing here. Confirm each with one query in the box's SQL console
+   (read-only):
+   `select count(*) from information_schema.columns where table_name = 'books' and column_name = 'description_status';` → 1.
+2. `npx tsx scripts/seo-check.ts --base https://library.ptec.edu.kh --delay 1500`
+   — every phase. A `fail` is a regression; `unknown` is the network.
+3. `scripts/seo-lighthouse.sh`, then
+   `npx tsx scripts/seo-lighthouse-summary.ts reports/lh`, and compare the
+   table with the baseline in `docs/seo/perf-baseline.md` (the baseline's raw
+   reports are not committed; keep this run's `reports/lh` as the next one). Expect the record cover's image bytes and
+   `/books` / `/catalogs` script bytes to drop as measured locally, and the
+   thesis and subject LCP render delay to shrink (the H1 is no longer in a
+   hidden streaming container).
+
+### 2. Cloudflare (dashboard for `ptec.edu.kh`)
+
+1. **Caching → Cache Rules**: confirm there is still no rule caching HTML
+   (see "Cloudflare: before anyone adds an HTML cache rule" above). Nothing
+   needs purging on deploy while that is true: static files are content-hashed
+   and HTML is `DYNAMIC`.
+2. **Security → Bots**: keep the AI-crawler setting that *instructs via
+   robots.txt* **off**. When on, Cloudflare prepends its own robots.txt to the
+   app's, which is how the September 2026 robots override happened. Check:
+   `curl -s https://library.ptec.edu.kh/robots.txt | head -3` must start
+   with the app's own comment, not Cloudflare's.
+3. **Bot Fight Mode**: verified bots (Googlebot, Bingbot) must stay allowed.
+   If Bot Fight Mode is on, Security → Events filtered on `Googlebot` should
+   show no blocks.
+4. **Caching → Configuration → Crawler Hints**: leave **off** if the app's
+   IndexNow is switched on (step 5). Both notify the same engines; the app's
+   pings fire on publish, Cloudflare's on cache changes this site does not
+   make (HTML is not cached).
+
+### 3. Google Search Console
+
+1. **Property.** Prefer a *Domain* property for `ptec.edu.kh` (DNS TXT record
+   in Cloudflare) so the library and the main site sit under one owner. The
+   existing URL-prefix verification (`/googlee89036a09f36e87d.html`, 200)
+   keeps working; do not delete that file while it is the only method.
+2. **Sitemaps.** Submit `https://library.ptec.edu.kh/sitemap.xml` (an index
+   since Phase 1). Remove anything else listed there that is not this URL.
+3. **URL Inspection → Request indexing**, about ten a day: `/`, `/km`,
+   `/books`, `/theses`, `/journals`, `/subjects`, `/paths`, then the most-viewed
+   records (`docs/seo/description-quality.csv` is sorted by views).
+4. **Pages report**, every two weeks for two months. Expected and fine:
+   - "Excluded by noindex": catalogue records, thin author pages (D2),
+     filtered and sorted listings, and books withheld by the description gate
+     if it is on.
+   - "Alternate page with proper canonical tag": filtered listing URLs.
+
+   Not fine:
+   - "Duplicate, Google chose different canonical than user" on a record.
+   - Any record in "Crawled – currently not indexed" in large numbers. Note
+     the template and add it to the next SEO review.
+5. **Crawl stats** (Settings → Crawl stats), monthly: export *By response*,
+   *By file type* and *By purpose*. It feeds the F13 / D6 review (section 8).
+6. Google Scholar has no console; see "Phase 3".
+
+### 4. Bing Webmaster Tools
+
+1. **Add site → Import from Google Search Console** (fastest), or verify with
+   the `msvalidate.01` token: System Settings → SEO → Bing verification →
+   publish (the token is rendered on every public page).
+2. **Sitemaps**: submit `https://library.ptec.edu.kh/sitemap.xml`.
+3. **IndexNow** (only if switched on, section 5): after the next publish,
+   *IndexNow → Submitted URLs* lists the record's English and Khmer URLs.
+
+### 5. IndexNow (optional; off until a key is set)
+
+The app notifies IndexNow engines (Bing, Yandex, Seznam, Naver; Google does
+not use it) when a book, thesis, journal article, post or learning path is
+created, edited, published, unpublished or deleted. Off until a key exists.
+
+1. Generate a key:
+   `node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"`.
+2. Add `INDEXNOW_KEY=<key>` to the box's `.env`, restart the app container.
+3. `curl -s https://library.ptec.edu.kh/<key>.txt` must print the key; any
+   other `/<hex>.txt` must answer 404.
+4. Publish or edit one record. The container log shows one `[indexnow]` line
+   with the HTTP status (200 or 202). Nothing is sent from a non-production
+   environment, and nothing while the SEO switch in System Settings is off.
+5. To stop: remove the variable and restart.
+
+### 6. www.ptec.edu.kh (the college website team)
+
+1. Add a **Library** item to the main menu (header) and footer of every page,
+   linking to `https://library.ptec.edu.kh/`, and a Khmer label
+   (`បណ្ណាល័យ`) to `https://library.ptec.edu.kh/km` on the Khmer pages. It
+   must be a plain `<a href>` in the server HTML, not a script-built menu.
+   Check: `curl -s https://www.ptec.edu.kh/ | grep -o 'href="https://library.ptec.edu.kh[^"]*"' | sort -u`.
+2. Where the main site lists research or publications, link the theses
+   collection (`/theses`) and the journals (`/journals`).
+3. If the main site adds JSON-LD for the college, ask for
+   `"@id": "https://www.ptec.edu.kh/#org"`: the library's pages already refer
+   to that id (Phase 4), and the two then describe one entity.
+
+### 7. The old Google Site (research archive)
+
+1. Leave it up until the migrated records are indexed: Google Sites cannot
+   301, and deleting first loses the only copy Google knows.
+2. For each item the librarians moved into `/theses`
+   (`docs/seo/research-migration.csv`, `decision = move`), replace the page body
+   with one sentence and a link to the new record. Add a banner on the site's
+   home page linking to `https://library.ptec.edu.kh/theses`.
+3. When Search Console shows a new record indexed (URL Inspection), unpublish
+   the old page. After every item is moved, unpublish the site.
+
+### 8. F13: crawl budget and decision D6
+
+D6 keeps `?sort=` and `?view=` crawlable: those URLs answer
+`noindex, follow` with a canonical to the base list, and blocking them in
+robots.txt would hide that signal. Revisit only on data. The monthly
+Crawl stats export lists example requests; from them, estimate the share of
+Googlebot requests that went to listing URLs carrying `sort`, `view` or a
+filter parameter:
+
+- **Under 20%**: no change.
+- **Over 20% for two consecutive months, or record pages growing in "Discovered
+  – currently not indexed" at the same time**: bring D6 back for a decision.
+  A robots.txt `Disallow` change needs the owner's approval, and must never
+  block `page`.
+
+### 9. Google Business Profile
+
+1. Find the college's profile (or the library's own, if one exists). Its
+   **Website** field: the college site for the college's profile; for a
+   library profile, `https://library.ptec.edu.kh/`.
+2. Hours and phone must match System Settings (the footer and the
+   structured data's `openingHoursSpecification` come from there). Update the
+   profile whenever the settings change, and vice versa.
+3. Category for a library profile: *Library* (or *Academic library*), with the
+   college as the parent location in the description.

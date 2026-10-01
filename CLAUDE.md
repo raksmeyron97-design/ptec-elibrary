@@ -389,6 +389,64 @@ Located at `/admin`, all sections under `(protected)/`, each gated by the permis
 - **Deployment region**: `vercel.json` pins functions to `sin1` next to the Supabase instance (Singapore) — removing it moves functions to `iad1` and wrecks TTFB. Hero images under `public/hero/` are served immutable — rename the file when changing one.
 - **Monitoring**: `/api/health` (DB + storage probes) for uptime monitors; alerts + incident runbooks in `docs/MONITORING.md`; `x-request-id` correlation is set by middleware on every request.
 
+### SEO invariants (the 2026-09/10 SEO programme)
+
+The programme's reports, decisions (D1–D14) and runbook live in `docs/seo/`
+(`AUDIT-VERIFICATION.md` is the findings ledger F1–F16, `PHASE-N-REPORT.md`
+what each phase changed and measured, `RUNBOOK.md` everything outside the
+repo). The rules that must keep holding:
+
+- **Check every SEO change with the harness, against a production build.**
+  `SEO_INDEXING=on npm run build` (it must be set at BUILD time), `next start`,
+  then `npx tsx scripts/seo-check.ts --base http://localhost:<port> --urls scripts/seo-urls.local.json`.
+  Production is a baseline only: `--delay 1500`, one request at a time — it
+  502s under about six concurrent requests. CI's `seo-check` job runs the same
+  on a fresh seed (non-gating until its first green run).
+- **Never change a public URL** (Khmer Unicode slugs included) without a
+  301/308 map, a test per redirect and the owner's approval. New slugs are
+  capped on CREATE only (`capSlug`/`newRecordSlug`, D8); `slugify()` also
+  identifies existing rows and must not change.
+- **One H1, in the shell.** Indexable routes have no route `loading.tsx` (D9,
+  `lib/seo/no-route-loading.test.ts`); a page that adds one hides its H1 in a
+  hidden streaming container.
+- **What a sitemap lists and what a page's robots say come from ONE
+  predicate per type**: subject depth (`lib/subjects/indexability.ts`), author
+  works or an approved bio (D2, `lib/authors/indexability.ts`,
+  `SEO_AUTHOR_MIN_WORKS`), catalogue records never in a sitemap and noindex
+  when they have a digital twin or no librarian description
+  (`lib/catalogs/indexability.ts`), the description gate
+  (`lib/seo/description-gate.ts`, `SEO_DESCRIPTION_GATE`, off by default). A
+  withheld page keeps `follow`, and noindex pages carry no hreflang.
+- **Every record helper in `lib/cache/revalidate.ts` fires `TAGS.sitemap`**, so
+  a publish reaches the sitemaps on the next request. A new record type needs
+  the same, plus an `announce()` for IndexNow (`INDEXNOW_KEY`, off by default).
+- **One JSON-LD document per page** (`<PageJsonLd>`, `lib/seo/jsonld.ts`): the
+  college (`https://www.ptec.edu.kh/#org`), library and website are declared
+  there and only referenced elsewhere; empty values are pruned; no
+  SearchAction (D10). Theses are `Thesis`, with `license` only when open
+  access.
+- **Scholar tags appear once**, on the page in the work's own language
+  (`citationLocale`). `citation_pdf_url` points only at a full text anyone may
+  fetch: an open-access thesis or openly licensed article at
+  `…/fulltext.pdf`, outside `/api/` (D12). Books never get one.
+- **Never guess metadata.** A placeholder date publishes nothing
+  (`trustedPublicationDate`, D11); English subject names, subject and hub
+  introductions, and book descriptions are drafts until a librarian approves
+  them. Unreviewed description text lives in `book_description_drafts`,
+  service-role only, because `books` is anon-readable. Approval refuses a
+  draft still carrying `TODO`/`needs_review`. New Khmer copy is marked
+  `TODO(km-review)` and listed in `docs/seo/KM-REVIEW.md`.
+- **Performance.** A cover's `sizes` describes its slot; a bare `NNvw`
+  anywhere in it makes next/image drop every srcset width below 640
+  (`pdf-cover-sizes.test.ts`). The listing pages must not reach the Supabase
+  browser client (`lib/seo/listing-js.test.ts`); read the viewer from
+  `useSession()`. Measure with `scripts/seo-lighthouse.sh` (sequential) against
+  the baseline in `docs/seo/perf-baseline.md`.
+- **Flags** (all off or default unless set): `SEO_INDEXING`,
+  `SEO_DESCRIPTION_GATE`, `SEO_AUTHOR_MIN_WORKS` (default 3),
+  `SEO_PDF_TITLE_SUFFIX`, `THESIS_BROWSE_MIN_WORKS`,
+  `NEXT_PUBLIC_SEO_SLUG_MAX_WORDS`, `INDEXNOW_KEY`.
+
 ## Invariant Tests (they read your source, not just your functions)
 
 A dozen unit tests enforce architecture rules by scanning files. When one fails, the fix is almost always in the code it scanned — not in the test:
@@ -435,6 +493,13 @@ A dozen unit tests enforce architecture rules by scanning files. When one fails,
 | `lib/seo/open-graph.test.ts` | one Open Graph contract — no public page or SEO builder hand-writes an `openGraph` block, none hardcodes the site name, an og locale code or the fallback asset's path; the fallback's declared dimensions match the committed PNG's real ones; an unknown image's size is omitted rather than guessed, and the fallback never wears the missing image's alt |
 | `lib/seo/entity-graph.test.ts` | only `lib/seo/jsonld.ts` may DECLARE the college/Library/WebSite nodes — everything else references them by `@id` (a second, anonymous copy carrying the library origin as the institution's url shipped to production; the About pages carried two more until SEO Phase 4) |
 | `lib/seo/jsonld.test.ts` | ONE JSON-LD block per page (SEO Phase 4): every public page renders `<PageJsonLd>` exactly once (directly, or via `AboutPageShell`/`ThesisBrowseView`), nothing else renders `<JsonLd>`, `RootShell` emits none; the graph has one `@context`, no SearchAction, no empty values, and no item-less ItemList |
+| `lib/seo/no-route-loading.test.ts` | no indexable public route has a route-level `loading.tsx` (D9) — the H1 must not stream inside a hidden container |
+| `lib/seo/llms-txt.test.ts` | `/llms.txt` states only what the code does — canonicals per locale, which records carry a licence, which catalogue records may be indexed, the JSON-LD types |
+| `lib/seo/description-review-boundary.test.ts` | description drafts are never public (own table, RLS on, revoked from anon/authenticated); every queue mutation goes through one registry action; only approval writes `books.description`, and it refuses a draft carrying a review marker first |
+| `lib/seo/description-gate.test.ts` | the description gate is off unless `SEO_DESCRIPTION_GATE=on`, never withholds a book with a file, and the book page's robots and the books sitemap read ONE withheld set |
+| `lib/seo/listing-js.test.ts` | `/books` and `/catalogs` never reach the Supabase browser client through their static import graph (negative-controlled against the post page, which does) |
+| `components/ui/reader/pdf-cover-sizes.test.ts` | the record cover's `sizes` describes its 220px phone slot and holds no bare `NNvw` (next/image's own regex) |
+| `lib/seo/indexnow.test.ts` | IndexNow sends nothing without a key, from a non-indexable environment, or while the settings switch is off; the key file answers only the configured key, through an `afterFiles` rewrite |
 | `lib/seo/breadcrumbs.test.ts` | breadcrumb items are locale-correct, carry no query string and no redirecting path; call sites pass locale-less paths and a `locale` |
 | `lib/seo/institution.test.ts` | PTEC's real faculty/department vocabulary; `research_faculties` is never labelled a bare "Faculty"; public filter chips are translated |
 | `lib/books/card-data.test.ts` | a book card is handed only what it draws — every call site goes through the mapper, nothing casts its way to the branded type, the brand is type-only and reaches no payload, and no file address is declared or emitted. It exists because narrowing the prop type alone enforced NOTHING: excess-property checks fire only on object literals, and every call site passes a variable |
@@ -499,6 +564,7 @@ Required variables (see `.env.example`):
 - Security monitoring thresholds and retention (`SECURITY_ALERT_MIN_SEVERITY`, `AUTH_ATTACK_THRESHOLD`, `ALERT_COOLDOWN_SECONDS`, `SECURITY_ALERTING_ENABLED`, …) — all optional with safe defaults; the full list is in `.env.example` and `docs/SECURITY-MONITORING.md` §Configuration
 - `UPLOAD_STAGING_DIR` (**required in production**) — durable directory for chunked-upload parts. Unset, it falls back to `os.tmpdir()`, which the production container mounts as a tmpfs: RAM, erased on every deploy, and the reason a restart mid-upload surfaced as "Missing chunk 0". `docker-compose.yml` mounts the `upload-staging` volume here. `UPLOAD_INSTANCE_ID` is optional and defaults to `hostname:pid`.
 - `CATALOG_AVAILABILITY_LIVE=on` (optional; OFF until the PMB loans are re-issued in Koha — until then every print copy reads "available", so `/catalogs` shows its notice and `/search` says "Ask at the desk for availability"; `lib/catalogs/availability-live.ts`)
+- SEO programme flags, all optional and off/default unless set: `SEO_DESCRIPTION_GATE`, `SEO_AUTHOR_MIN_WORKS`, `SEO_PDF_TITLE_SUFFIX`, `THESIS_BROWSE_MIN_WORKS`, `NEXT_PUBLIC_SEO_SLUG_MAX_WORDS`, `INDEXNOW_KEY` — what each does is under "SEO invariants" above and in `.env.example`
 - `CANONICAL_HOST_REDIRECT=off` (optional escape hatch — disables middleware's 308 from the tunnel's fallback hostname to `library.ptec.edu.kh`; only for a DNS cutover window)
 
 <!-- BEGIN:nextjs-agent-rules -->
