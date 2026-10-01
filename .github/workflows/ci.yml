@@ -211,15 +211,15 @@ jobs:
   # target here: it 502s under light concurrency, and a PR must be judged on
   # its own code.
   #
-  # NON-GATING until its first green run on GitHub. The URL list
+  # GATING (SEO decision P7-1). Its first run on a fresh seed — main at
+  # a27a279, 2026-10-01 — passed every phase (1,541 ok, 0 failing), the same
+  # result as the developer database the URL list was built on. A failure
+  # here is an SEO invariant broken by the PR, not a data problem: the list
   # (scripts/seo-urls.local.json) names only records supabase/seed.sql
-  # creates, but it was exercised on a developer database holding the seed
-  # plus more, never on a fresh seed. Once this job has passed here, set
-  # `continue-on-error: false` and add it to the branch protection checks.
+  # creates. Required by branch protection on main.
   seo-check:
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    continue-on-error: true
     steps:
     - uses: actions/checkout@v4
 

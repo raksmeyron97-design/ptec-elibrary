@@ -51,7 +51,7 @@ are runbook checks.
 | P5-2 | Dry run of the draft generator | **After deploy, on the box**: `--limit 50 --confirm-host <host>`, no `--apply` (RUNBOOK "Phase 5") |
 | P6-1 | `/contact` map on click | **Done** — a same-height placeholder with "Show the map"; nothing is fetched from Google until pressed |
 | P6-2 | "Request a book" is the homepage's dialog | **Done** — `RequestBookButton` renders `ContributeDialog`; `BookRequestForm` deleted |
-| P7-1 | Make the CI `seo-check` job gating | **After its first green run** on the release PR |
+| P7-1 | Make the CI `seo-check` job gating | **Done** — first green run on a fresh seed on `main` (a27a279): 1,541 ok, 0 failing; `continue-on-error` removed and the job required on `main` |
 | P7-2 | Switch IndexNow on | **After Bing Webmaster Tools is set up**: `INDEXNOW_KEY` in the box's `.env` (RUNBOOK §4–§5) |
 | P7-3 | A missing root file answers 404, not 500 | **Done, differently from the proposal** — `dynamicParams = false` on `[locale]` would have 404'd every book, thesis and article page not prerendered at build time (Next ANDs it across all segments of a route). The fix is in `i18n/request.ts`: an invalid locale segment resolves to the default locale instead of reading cookies |
 
