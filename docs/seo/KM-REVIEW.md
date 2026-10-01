@@ -48,3 +48,4 @@ System Settings (the /km title suffix and `og:site_name`).
   leaves it out rather than inventing one, so the Khmer drafts are shorter.
   No page reads this file; an approved pair is copied into
   `content/hub-intros.json`.
+| 6 | `/contact` map placeholder button (`contact.showMap`, decision P6-1) | `បង្ហាញផែនទី` | "Show the map" | sits under the existing `ទីតាំង` ("Find us") heading; the map loads only after the press |
