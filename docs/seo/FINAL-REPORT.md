@@ -78,9 +78,11 @@ Also added for the deploy: migrations 0161–0164 now `SET LOCAL lock_timeout = 
 - Migrations 0161–0164 are live: each new column answers on production with
   its default, and `book_description_drafts` exists and refuses anon
   (`permission denied`).
-- Production had been unreachable from about 11:40 to 14:50 Phnom Penh time
-  (the app, file storage, and then its database), before this deploy and
-  unrelated to it. It recovered on its own; the cause is on the box.
+- Production was unreachable from about 11:40 Phnom Penh time (the app and
+  file storage; by 14:05 its database too), hours before this merge. By 14:54
+  everything answered again, with the new image already serving. Whether the
+  box recovered first or the deploy's restart helped is not visible from
+  outside; the cause is on the box and still unknown.
 - `seo-check` against production (sequential): 1,590 ok and 5 errors.
   - 3 were books whose only date is the import placeholder: since Phase 5.5
     they publish no citation date (D11), and the harness now treats that as a
