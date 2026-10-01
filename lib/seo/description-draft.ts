@@ -24,11 +24,13 @@
 // Pure: the script (scripts/seo-draft-book-descriptions.ts) does the I/O.
 
 import { assessPageText } from "@/lib/ai/page-quality";
+import { toKhmerDigits } from "@/lib/ai/citations";
+import { countOrthographicViolations } from "@/lib/text/khmer-reassemble";
 import { citationNames } from "@/lib/resources/contributor-identity";
 import { isUnidentifiedContributorName } from "@/lib/resources/contributor-trust";
 import { citationLocale } from "@/lib/seo/citation";
 import { countWords, SUBJECT_INTRO_WORDS } from "@/lib/seo/intro-drafts";
-import { bookGrade } from "@/lib/seo/record-title";
+import { bookGrade, gradeLabel } from "@/lib/seo/record-title";
 import { subjectLabel } from "@/lib/subjects/display";
 
 /** Fewest informative chapter headings a draft needs to say anything a
@@ -97,6 +99,23 @@ function longestRun(entries: readonly Entry[]): Entry[] {
   return best;
 }
 
+/**
+ * Is this heading legal Khmer (or not Khmer at all)?
+ *
+ * A Khmer PDF whose font has no usable character map extracts with marks cut
+ * loose from their syllables — `គីម្ី` (a coeng followed by a vowel, which
+ * Khmer never allows) or `រ ៀន` (a dependent vowel after a space, which cannot
+ * begin a syllable). The first production dry run drafted a Khmer description
+ * from exactly such headings. Khmer's own orthography rules decide it, through
+ * the same checker the text-repair module uses
+ * (lib/text/khmer-reassemble.ts): any impossible sequence and the heading is
+ * not used. It cannot catch a legacy font that swapped one valid letter for
+ * another; nothing structural can.
+ */
+export function isReadableHeading(text: string): boolean {
+  return countOrthographicViolations(text).violations === 0;
+}
+
 /** Is this page the book's table of contents (not its list of figures)? */
 export function isContentsPage(text: string): boolean {
   return CONTENTS_MARKER.some((re) => re.test(text)) && assessPageText(text).kind === "front_matter";
@@ -108,6 +127,18 @@ export function isContentsPage(text: string): boolean {
  * chapters can be read from it — never a guess.
  */
 export function contentsHeadings(pages: readonly { pageNo: number; content: string }[]): string[] {
+  return readContents(pages).headings;
+}
+
+/**
+ * The headings a draft may use, and how many were found but refused as
+ * unreadable Khmer — so a book that falls short for that reason says so
+ * (`unreadable_contents`) rather than reading as having no contents page.
+ */
+export function readContents(pages: readonly { pageNo: number; content: string }[]): {
+  headings: string[];
+  unreadable: number;
+} {
   const contents = [...pages]
     .filter((p) => p.pageNo <= CONTENTS_PAGE_LIMIT)
     .sort((a, b) => a.pageNo - b.pageNo)
@@ -115,16 +146,18 @@ export function contentsHeadings(pages: readonly { pageNo: number; content: stri
     // running head ("c o n t e n t s") but not always; keep the page after a
     // contents page while it still reads as front matter.
     .filter((p, i, all) => isContentsPage(p.content) || (i > 0 && isContentsPage(all[i - 1].content) && assessPageText(p.content).kind !== "prose"));
-  if (contents.length === 0) return [];
+  if (contents.length === 0) return { headings: [], unreadable: 0 };
   const text = contents.map((p) => p.content).join(" ");
   const labelled = longestRun(entriesOf(text, LABELLED));
   const run = labelled.length >= 2 ? labelled : longestRun(entriesOf(text, NUMBERED));
-  if (run.length < 2) return [];
+  if (run.length < 2) return { headings: [], unreadable: 0 };
   const seen = new Set<string>();
-  return run
+  const informative = run
     .map((e) => e.title)
     .filter((t) => !UNINFORMATIVE.has(t.toLowerCase()))
     .filter((t) => (seen.has(t.toLowerCase()) ? false : (seen.add(t.toLowerCase()), true)));
+  const headings = informative.filter(isReadableHeading);
+  return { headings, unreadable: informative.length - headings.length };
 }
 
 export type DraftFacts = {
@@ -140,11 +173,13 @@ export type DraftFacts = {
   readable: boolean;
   downloadable: boolean;
   headings: readonly string[];
+  /** Headings found but refused as unreadable Khmer (readContents). */
+  unreadableHeadings?: number;
 };
 
 export type DescriptionDraft =
   | { status: "drafted"; locale: "en" | "km"; text: string; words: number; short: boolean; headings: number }
-  | { status: "skipped"; reason: "no_contents" | "too_few_headings"; headings: number };
+  | { status: "skipped"; reason: "no_contents" | "too_few_headings" | "unreadable_contents"; headings: number };
 
 /** Marks a draft whose wording a Khmer reader has not checked (KM-REVIEW.md). */
 export const KM_REVIEW_MARKER = "TODO(km-review)";
@@ -166,8 +201,15 @@ function people(byline: string | null): string[] {
  * approval uses — lib/seo/description-review.ts), or why there is none.
  */
 export function composeDescriptionDraft(facts: DraftFacts): DescriptionDraft {
-  if (facts.headings.length === 0) return { status: "skipped", reason: "no_contents", headings: 0 };
-  if (facts.headings.length < MIN_HEADINGS) return { status: "skipped", reason: "too_few_headings", headings: facts.headings.length };
+  if (facts.headings.length < MIN_HEADINGS) {
+    // Short because the contents page's Khmer is broken, not because it has
+    // too few chapters: a different fix (OCR), so a different reason.
+    if ((facts.unreadableHeadings ?? 0) > 0) {
+      return { status: "skipped", reason: "unreadable_contents", headings: facts.headings.length };
+    }
+    if (facts.headings.length === 0) return { status: "skipped", reason: "no_contents", headings: 0 };
+    return { status: "skipped", reason: "too_few_headings", headings: facts.headings.length };
+  }
   const headings = facts.headings.slice(0, MAX_HEADINGS);
   const locale = citationLocale(facts.language, facts.title);
   const authors = people(facts.author);
@@ -180,10 +222,12 @@ export function composeDescriptionDraft(facts: DraftFacts): DescriptionDraft {
     const lang = facts.language === "km" ? "ភាសាខ្មែរ" : facts.language === "en" ? "ភាសាអង់គ្លេស" : null;
     sentences.push(
       `${facts.title} គឺជាសៀវភៅ${lang ? lang : ""}${authors.length ? ` ដោយ ${listKm(authors)}` : ""}` +
-        `${facts.publisher ? ` បោះពុម្ពដោយ ${facts.publisher}` : ""}${facts.year ? ` ឆ្នាំ ${facts.year}` : ""}។`,
+        `${facts.publisher ? ` បោះពុម្ពដោយ ${facts.publisher}` : ""}${facts.year ? ` ឆ្នាំ ${toKhmerDigits(facts.year)}` : ""}។`,
     );
-    if (subject) sentences.push(`សៀវភៅនេះស្ថិតក្នុងប្រធានបទ ${subject}${grade ? ` សម្រាប់ថ្នាក់ទី ${grade}` : ""}។`);
-    if (pages) sentences.push(`សៀវភៅនេះមាន ${pages} ទំព័រ។`);
+    // Khmer digits in Khmer prose (ថ្នាក់ទី១១, ២១០ ទំព័រ), as every Khmer page
+    // on the site writes them; the first dry run printed "ថ្នាក់ទី 11".
+    if (subject) sentences.push(`សៀវភៅនេះស្ថិតក្នុងប្រធានបទ ${subject}${grade ? ` សម្រាប់${gradeLabel(grade, "km")}` : ""}។`);
+    if (pages) sentences.push(`សៀវភៅនេះមាន ${toKhmerDigits(pages)} ទំព័រ។`);
     sentences.push(`ជំពូកនានារួមមាន៖ ${listKm(headings)}។`);
     if (facts.readable) {
       sentences.push(`អ្នកអានអាចអានអត្ថបទពេញតាមអនឡាញដោយឥតគិតថ្លៃ${facts.downloadable ? " និងអាចទាញយកបាន" : ""}។`);
@@ -195,7 +239,7 @@ export function composeDescriptionDraft(facts: DraftFacts): DescriptionDraft {
         `${authors.length ? ` by ${listEn(authors)}` : ""}${facts.publisher ? `, published by ${facts.publisher}` : ""}` +
         `${facts.year ? ` in ${facts.year}` : ""}.`,
     );
-    if (subject) sentences.push(`It is catalogued under ${subject}${grade ? `, for Grade ${grade}` : ""}.`);
+    if (subject) sentences.push(`It is catalogued under ${subject}${grade ? `, for ${gradeLabel(grade, "en")}` : ""}.`);
     if (pages) sentences.push(`It runs to ${pages} ${pages === 1 ? "page" : "pages"}.`);
     sentences.push(`Its chapters cover ${listEn(headings)}.`);
     if (facts.readable) {

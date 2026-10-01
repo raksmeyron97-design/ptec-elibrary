@@ -32,7 +32,7 @@
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { composeDescriptionDraft, contentsHeadings, CONTENTS_PAGE_LIMIT } from "../lib/seo/description-draft";
+import { composeDescriptionDraft, readContents, CONTENTS_PAGE_LIMIT } from "../lib/seo/description-draft";
 import { clusterSizes, templateKey } from "../lib/seo/description-template";
 import { TEMPLATED_CLUSTER_MIN } from "../lib/seo/description-gate";
 import { trustedPublicationDate } from "../lib/seo/dates";
@@ -163,6 +163,7 @@ async function main(): Promise<void> {
     );
     const readable = (b.book_files?.length ?? 0) > 0 && b.file_access !== "catalogue_only";
     const date = trustedPublicationDate(b.published_at, b.created_at);
+    const contents = readContents(pages.map((p) => ({ pageNo: p.page_no, content: p.content })));
     const draft = composeDescriptionDraft({
       title: b.title,
       author: b.authors?.name ?? null,
@@ -175,7 +176,8 @@ async function main(): Promise<void> {
       tags: b.tags,
       readable,
       downloadable: readable && b.allow_download !== false,
-      headings: contentsHeadings(pages.map((p) => ({ pageNo: p.page_no, content: p.content }))),
+      headings: contents.headings,
+      unreadableHeadings: contents.unreadable,
     });
     const base = {
       url: `/books/${b.slug}`,
@@ -184,6 +186,7 @@ async function main(): Promise<void> {
       views: b.view_count ?? 0,
       template_cluster_size: template === "empty" ? 0 : sizes.get(template) ?? 0,
       pages_read: pages.length,
+      unreadable_headings: contents.unreadable,
     };
     if (draft.status === "skipped") {
       entries.push({ ...base, status: "skipped", reason: draft.reason, headings: draft.headings });
