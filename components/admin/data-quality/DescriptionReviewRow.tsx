@@ -98,6 +98,9 @@ export default function DescriptionReviewRow({
           {draftSource === "extracted" && (
             <span className="rounded-full border border-divider px-2 py-0.5">{t("sourceExtracted")}</span>
           )}
+          {draftSource === "claude_cowork" && (
+            <span className="rounded-full border border-divider px-2 py-0.5">{t("sourceClaude")}</span>
+          )}
           <a href={`/books/${slug}`} target="_blank" rel="noreferrer" className="font-semibold text-brand hover:underline">
             {t("openBook")}
           </a>

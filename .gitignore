@@ -94,3 +94,6 @@ scripts/ai-answer-benchmark/results/20*.json
 infra/ocr/data/*
 !infra/ocr/data/.gitkeep
 !infra/ocr/.env.ocr.example
+
+# Claude-written description batches: unpublished page text (scripts/seo-cowork-descriptions.ts)
+content/drafts/cowork-*.json

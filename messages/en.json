@@ -5783,6 +5783,7 @@
       "errorNoDraft": "Write a draft in the book's own language first.",
       "errorNeedsReview": "A draft still carries a review marker (TODO or needs_review). Check the wording, remove the marker and save before approving.",
       "sourceExtracted": "Rule-built from the book's contents page — check every sentence",
+      "sourceClaude": "Written by Claude from the book's metadata and pages — check every fact before approving",
       "errorNotFound": "This book no longer exists.",
       "errorFailed": "Could not save. Try again."
     }
