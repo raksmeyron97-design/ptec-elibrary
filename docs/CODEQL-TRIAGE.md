@@ -45,6 +45,14 @@ reason its rule was already dismissed under twice — apply it in the Security
 tab, it is not closed by a scan. The section is
 [Fixed in code — 2026-09-23](#fixed-in-code--2026-09-23-2-of-3).
 
+### 2026-10-01 — the thirteen alerts open after the SEO programme
+
+`#153`–`#163`, plus `#149` and `#152` from earlier. Eleven came from the SEO
+programme's scripts and one test (PR #285); `#163` from the cowork-drafts work
+(PR #291). Six are fixed in code, five dismissed under the rule's existing
+reason, and two are recommended for dismissal by whoever owns them. The
+section is [Triage — 2026-10-01](#triage--2026-10-01).
+
 ## What CodeQL does and does not recognise here
 
 Three facts about this codebase's interaction with the JS queries, learned the
@@ -391,6 +399,53 @@ neutralises a leading `=`, `+`, `-` or `@`. That matters more here than almost
 anywhere else in the repo — the file is opened in Excel by a librarian, so a
 book whose title begins with `=` would otherwise be a formula executing on
 their machine.
+
+## Triage — 2026-10-01
+
+### Fixed in code (6) — #153, #154, #155, #156, #157, #158
+
+- **`js/incomplete-sanitization` × 5** — `scripts/seo-check.ts:1027, 1087`
+  (×2) and `scripts/seo-description-quality.ts:128, 129`. Markdown table cells
+  escaped `|` but not `\` first, so an input `\|` came out as `\\|` — an
+  escaped backslash and a live pipe, which splits the row. A real (if
+  cosmetic) defect in two report writers. Both now use `mdCell()`
+  (backslash, then pipe — the shape `scripts/ai-answer-benchmark.ts` already
+  uses unflagged); `scripts/seo-check.test.ts` pins it, with the old escape as
+  a negative control that does split the row.
+- **`js/file-system-race`** — `lib/seo/hub-intros.test.ts:60`. `statSync()`
+  then `readFileSync()` on the same path. Now `readdirSync(…, { withFileTypes:
+  true })`: the entry carries its type, so nothing is checked and then used —
+  the shape `lib/error-boundaries.test.ts` and four other tests already use.
+
+### Dismissed — not a defect (5) — #149, #159, #160, #161, #162
+
+`js/http-to-file-access`, under the reason already applied to `#34`, `#35`
+and recorded for `#149`: a read-only report script writes what it read to a
+local review file, which is what it is for, and the rule cannot be satisfied by
+any code shape (see `#149` above — the pack ships no sanitizer). The scripts
+are `seo-catalogue-twin-candidates.ts`, `seo-research-migration.ts`,
+`seo-scholar-pdf-report.ts` and `seo-suspect-years.ts`.
+
+The substance `#149`'s dismissal relied on did NOT hold for these, and is now
+fixed: the six SEO report scripts (the four above plus
+`seo-description-quality.ts` and `seo-name-cleanup.ts`) carried their own CSV
+writer, which quoted cells but had no formula guard. They now use
+`escapeCsvCell` from `lib/export/csv.ts` (RFC 4180 quoting plus the OWASP
+leading-quote neutralisation of `=`, `+`, `-`, `@`, tab, CR). A scan of every
+CSV committed under `docs/seo/` found **no** non-empty cell beginning with a
+trigger character, so nothing was exposed before the fix.
+
+### Recommended for dismissal by their owners (2) — #152, #163
+
+- **#152 `js/superfluous-trailing-arguments`** —
+  `components/admin/kit/form/FormShell.tsx:94`. `new FormData(form,
+  submitter)` is the two-argument constructor every current browser supports
+  (Chrome 112, Firefox 111, Safari 16.4); CodeQL's model of `FormData`
+  predates the `submitter` parameter. False positive.
+- **#163 `js/file-access-to-http`** — `scripts/seo-cowork-descriptions.ts:144`.
+  The script's `apply` step sends a drafts file, written and checked in a
+  supervised session, to the database. Same reason as the 20 dismissed under
+  this rule on 2026-09-11: the file is the script's input.
 
 ## Re-triaging
 

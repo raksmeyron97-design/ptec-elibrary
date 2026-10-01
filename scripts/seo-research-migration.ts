@@ -19,6 +19,7 @@
 //      librarian fills it in from the site itself.
 
 import { writeFileSync } from "node:fs";
+import { escapeCsvCell } from "../lib/export/csv";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -77,10 +78,11 @@ async function fetchAll<T>(q: string): Promise<T[]> {
   }
 }
 
-const csv = (v: string | number | null | undefined) => {
-  const s = String(v ?? "");
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-};
+// The shared cell writer (lib/export/csv.ts): RFC 4180 quoting AND the
+// formula guard. These files are opened in Excel or Sheets by librarians, and a
+// title or name beginning with =, +, - or @ would otherwise run as a formula.
+const csv = (v: string | number | boolean | null | undefined) =>
+  escapeCsvCell(typeof v === "boolean" ? String(v) : v);
 
 async function main(): Promise<void> {
   console.log(`Reading from ${new URL(url!).host} (anon, read-only, sequential)`);

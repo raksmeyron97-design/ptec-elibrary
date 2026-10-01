@@ -14,6 +14,7 @@
 import { writeFileSync } from "node:fs";
 import { clusterSizes, isPlaceholderDate, templateKey } from "../lib/seo/description-template";
 import { TEMPLATED_CLUSTER_MIN } from "../lib/seo/description-gate";
+import { escapeCsvCell } from "../lib/export/csv";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -55,10 +56,14 @@ async function fetchAll<T>(q: string): Promise<T[]> {
   }
 }
 
-const csv = (v: string | number | boolean | null | undefined) => {
-  const s = String(v ?? "");
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-};
+/** One Markdown table cell: backslashes escaped before pipes (CodeQL #153, #154). */
+const mdCell = (s: string) => s.replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
+
+// The shared cell writer (lib/export/csv.ts): RFC 4180 quoting AND the
+// formula guard. These files are opened in Excel or Sheets by librarians, and a
+// title or name beginning with =, +, - or @ would otherwise run as a formula.
+const csv = (v: string | number | boolean | null | undefined) =>
+  escapeCsvCell(typeof v === "boolean" ? String(v) : v);
 
 async function main(): Promise<void> {
   console.log(`Reading from ${new URL(url!).host} (anon, read-only, sequential)`);
@@ -125,8 +130,8 @@ async function main(): Promise<void> {
     "|---:|---|---|",
     ...top.map(([k, n]) => {
       const b = example(k);
-      const d = (b?.description ?? "").replace(/\s+/g, " ").replace(/\|/g, "\\|").slice(0, 140);
-      return `| ${n} | \`${k}\` | ${(b?.title ?? "").replace(/\|/g, "\\|").slice(0, 60)} → ${d} |`;
+      const d = mdCell((b?.description ?? "").replace(/\s+/g, " ").slice(0, 140));
+      return `| ${n} | \`${k}\` | ${mdCell((b?.title ?? "").slice(0, 60))} → ${d} |`;
     }),
     "",
   ].join("\n");
