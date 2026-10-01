@@ -87,8 +87,13 @@ export default function DescriptionReviewRow({
         <p className="flex flex-wrap items-center gap-2 text-[12.5px] text-text-muted">
           <span>{t("views", { count: views })}</span>
           <span aria-hidden="true">·</span>
-          <span>{t("template", { count: sameTemplate })}</span>
-          <span aria-hidden="true">·</span>
+          {/* An empty description has no template to share; the body says so. */}
+          {description?.trim() && (
+            <>
+              <span>{t("template", { count: sameTemplate })}</span>
+              <span aria-hidden="true">·</span>
+            </>
+          )}
           <span className="rounded-full border border-divider px-2 py-0.5 font-semibold">{statusLabel}</span>
           {draftSource === "extracted" && (
             <span className="rounded-full border border-divider px-2 py-0.5">{t("sourceExtracted")}</span>
