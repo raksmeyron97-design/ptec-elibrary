@@ -111,6 +111,17 @@ describe("GET /api/books/[slug]/file", () => {
     expect(zimaFetch).not.toHaveBeenCalled();
   });
 
+  it("has no crawler exception: a request that would pass the Google-crawler check is refused too (P3-1)", async () => {
+    // Books publish no citation_pdf_url (SEO Phase 3), so nothing points a
+    // crawler here; the exception that let one in without a session is gone.
+    getUser.mockResolvedValue({ data: { user: null } });
+    isVerifiedGoogleCrawler.mockResolvedValue(true);
+    const res = await GET(req("/api/books/abc-123/file"), { params: params("abc-123") });
+    expect(res.status).toBe(401);
+    expect(isVerifiedGoogleCrawler).not.toHaveBeenCalled();
+    expect(zimaFetch).not.toHaveBeenCalled();
+  });
+
   // ── Large-PDF delivery (docs/LARGE-PDF-PERFORMANCE-AUDIT.md) ───────────
   //
   // pdf.js reads a book in byte ranges, so this route is hit many times for one
@@ -294,11 +305,11 @@ describe("GET /api/books/[slug]/file — file_access = catalogue_only", () => {
     expect(zimaFetch).not.toHaveBeenCalled();
   });
 
-  it("refuses the VERIFIED GOOGLE CRAWLER too", async () => {
-    // The crawler exception exists so Scholar can fetch citation_pdf_url. A
-    // catalogue-only book publishes no citation_pdf_url, and if the crawler
-    // could still fetch the file, Scholar would host a cached copy of the
-    // very thing the setting withholds.
+  it("refuses a request that would pass the Google-crawler check too", async () => {
+    // There is no crawler exception any more (P3-1), and the catalogue-only
+    // refusal sits above the session check regardless: a crawler fetching the
+    // file would let a search engine host a cached copy of the very thing the
+    // setting withholds.
     catalogueOnly();
     getUser.mockResolvedValue({ data: { user: null } });
     isVerifiedGoogleCrawler.mockResolvedValue(true);

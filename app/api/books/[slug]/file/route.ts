@@ -27,7 +27,6 @@ import { ratePolicy } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 import { zimaFetch } from "@/lib/zima";
 import { clientIp } from "@/lib/client-ip";
-import { isVerifiedGoogleCrawler } from "@/lib/security/crawler";
 import { resolveBookDownloadAccess } from "@/lib/books/access";
 import { placeholderPdfResponse } from "@/lib/dev/placeholder-pdf";
 import { lockdownResponse } from "@/lib/security/lockdown";
@@ -172,9 +171,8 @@ export async function GET(
   // A catalogue-record-only book is one the library has chosen not to
   // distribute, usually because it cannot establish the right to. That is a
   // property of the BOOK, not of who is asking, so this sits ABOVE the
-  // session check and above the verified-crawler exception: a signed-in
-  // reader, an anonymous visitor and Googlebot all get the same answer, and
-  // the answer does not depend on session state.
+  // session check: a signed-in reader and an anonymous visitor get the same
+  // answer, and the answer does not depend on session state.
   //
   // It is also above every storage call, so a restricted book costs no
   // request to Zima and its URL is never constructed on this path.
@@ -197,16 +195,13 @@ export async function GET(
   const { data: { user } } = await supabase.auth.getUser();
 
   // Both inline viewing and downloading require a signed-in reader, so access
-  // to book PDFs is tied to a user (tracking). The one exception is a
-  // DNS-verified Google crawler: published books are public content, and the
-  // Google Scholar `citation_pdf_url` must resolve for full-text indexing.
-  // A spoofed User-Agent can't pass isVerifiedGoogleCrawler (rDNS + forward
-  // confirm), so this is not a gate bypass for ordinary anonymous callers.
+  // to book PDFs is tied to a user (tracking). There is no crawler exception
+  // (SEO decision P3-1, D12): it existed so Google Scholar could fetch a
+  // book's citation_pdf_url, and books publish none since SEO Phase 3 — a
+  // full text anyone may fetch is served at its own /…/fulltext.pdf URL, to
+  // every visitor alike, and only when it is open access.
   if (!user) {
-    const verifiedCrawler = await isVerifiedGoogleCrawler(ip, request.headers.get("user-agent"));
-    if (!verifiedCrawler) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    return new NextResponse("Unauthorized", { status: 401 });
   }
 
   const fileUrl = book.fileUrl;

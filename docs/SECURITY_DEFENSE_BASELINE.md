@@ -29,9 +29,10 @@ code. Complements (does not replace) `SECURITY.md`, `docs/SECURITY.md`,
 5. Constant-time bearer comparison (`lib/security/bearer.ts`) on cron, health
    deep-probe, backfill-embeddings.
 6. Book + thesis file routes gated: auth required for inline view AND download;
-   theses also enforce the Top-10/admin-block policy on the inline route;
-   DNS-verified Google crawlers (`lib/security/crawler.ts`) may fetch published,
-   unrestricted items so `citation_pdf_url` keeps resolving for Scholar.
+   theses also enforce the Top-10/admin-block policy on the inline route.
+   No crawler exception (SEO decision P3-1, 2026-10): Scholar's
+   `citation_pdf_url` points at `/…/fulltext.pdf`, which serves an open-access
+   thesis or openly licensed article to every visitor alike, outside `/api/`.
 7. Push subscribe refuses to rebind another user's endpoint unless the crypto
    keys match (shared-device handoff allowed, remote hijack blocked).
 8. `getPermissionsForRole` fails **closed** (deny-all) on a `role_permissions`

@@ -82,31 +82,21 @@ describe("GET /api/theses/[id]/file", () => {
     expect(zimaFetch).not.toHaveBeenCalled();
   });
 
-  it("rejects an anonymous (non-crawler) inline request with 401 and never touches storage", async () => {
+  it("rejects an anonymous inline request with 401 and never touches storage", async () => {
     getUser.mockResolvedValue({ data: { user: null } });
     const res = await GET(req("/api/theses/abc-123/file"), { params: params("abc-123") });
     expect(res.status).toBe(401);
     expect(zimaFetch).not.toHaveBeenCalled();
   });
 
-  it("serves a published, unrestricted thesis to a DNS-verified Google crawler", async () => {
+  it("has no crawler exception: a request that would pass the Google-crawler check is refused too (P3-1)", async () => {
+    // Scholar is pointed at /theses/<slug>/fulltext.pdf, which serves an
+    // OPEN-ACCESS thesis to every visitor alike. This route never asks.
     getUser.mockResolvedValue({ data: { user: null } });
     isVerifiedGoogleCrawler.mockResolvedValue(true);
     const res = await GET(req("/api/theses/abc-123/file"), { params: params("abc-123") });
-    expect(res.status).toBe(200);
-    expect(res.headers.get("content-disposition")).toContain("inline");
-  });
-
-  it("still blocks a restricted thesis even for a verified crawler", async () => {
-    getUser.mockResolvedValue({ data: { user: null } });
-    isVerifiedGoogleCrawler.mockResolvedValue(true);
-    evaluateThesisDownload.mockResolvedValue({
-      allowed: false,
-      reason: "ADMIN_BLOCKED",
-      effectivePolicy: "blocked",
-    });
-    const res = await GET(req("/api/theses/abc-123/file"), { params: params("abc-123") });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(401);
+    expect(isVerifiedGoogleCrawler).not.toHaveBeenCalled();
     expect(zimaFetch).not.toHaveBeenCalled();
   });
 

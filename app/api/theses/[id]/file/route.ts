@@ -7,7 +7,6 @@ import { ratePolicy } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 import { zimaFetch } from "@/lib/zima";
 import { clientIp } from "@/lib/client-ip";
-import { isVerifiedGoogleCrawler } from "@/lib/security/crawler";
 import { lockdownResponse } from "@/lib/security/lockdown";
 import { evaluateThesisDownload, type ThesisPolicyRow } from "@/lib/theses/download-permission";
 import { resolveThesisAccess } from "@/lib/theses/access";
@@ -67,27 +66,22 @@ export async function GET(
   // remains a download-only gate; a signed-in reader may still open an
   // unrestricted thesis in the reader without completing it.)
   //
-  // Exception: a DNS-verified Google crawler is allowed through so Google
-  // Scholar can index the full text (citation_pdf_url). It still passes the
-  // permission engine below, so a restricted (Top-10 / admin-blocked) thesis is
-  // never served to it — only published, unrestricted ones. A spoofed
-  // User-Agent cannot pass isVerifiedGoogleCrawler.
+  // No crawler exception (SEO decision P3-1, D12). Google Scholar is pointed at
+  // /theses/<slug>/fulltext.pdf, which serves an OPEN-ACCESS thesis to every
+  // visitor alike; this route is the signed-in reader's, for everyone.
   const authClient = await createClient();
   const { data: { user } } = await authClient.auth.getUser();
   const ip = clientIp(request.headers);
 
   if (!user) {
-    const verifiedCrawler = await isVerifiedGoogleCrawler(ip, request.headers.get("user-agent"));
-    if (!verifiedCrawler) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    return new NextResponse("Unauthorized", { status: 401 });
   }
 
   // A ranged request continues a document the caller already opened; an
   // unranged one opens it. pdf.js reads a thesis in chunks, so metering every
   // chunk as a fresh "file read" made one reader exceed their own limit while
   // opening one large document. See ratePolicy("fileRange").
-  const rlId = user ? user.id : `crawler:${ip}`;
+  const rlId = user.id;
   const isRangeRequest = !!request.headers.get("range");
   const { limit, windowMs } = ratePolicy(isRangeRequest ? "fileRange" : "fileRead");
   const rl = await rateLimit(
@@ -124,11 +118,7 @@ export async function GET(
     report: report as ThesisPolicyRow,
     userId: user?.id ?? null,
   });
-  // `authenticated` is false for a verified crawler, which the projection
-  // reads as "sign in" — that is correct for a person and irrelevant here:
-  // the gate above has already let the crawler through, and the two states
-  // this route refuses (unavailable, protected) do not depend on it.
-  const access = resolveThesisAccess({ decision, hasFile: true, authenticated: !!user });
+  const access = resolveThesisAccess({ decision, hasFile: true, authenticated: true });
   if (access.state === "unavailable") {
     return new NextResponse("Not found", { status: 404 });
   }
