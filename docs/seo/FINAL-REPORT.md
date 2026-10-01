@@ -71,7 +71,25 @@ Also added for the deploy: migrations 0161–0164 now `SET LOCAL lock_timeout = 
 - **Migrations 0161–0164** are applied only to the local stack. They reach
   production through the box's `migrate.sh` on deploy.
 
-## How to ship it
+## Deployed (2026-10-01)
+
+- Merged as #285 (`a27a279`, 07:01 UTC); image built 07:47 UTC. The site
+  serves it (`x-ptec-build: 2026-10-01T07:47Z`).
+- Migrations 0161–0164 are live: each new column answers on production with
+  its default, and `book_description_drafts` exists and refuses anon
+  (`permission denied`).
+- Production had been unreachable from about 11:40 to 14:50 Phnom Penh time
+  (the app, file storage, and then its database), before this deploy and
+  unrelated to it. It recovered on its own; the cause is on the box.
+- `seo-check` against production (sequential): 1,590 ok and 5 errors.
+  - 3 were books whose only date is the import placeholder: since Phase 5.5
+    they publish no citation date (D11), and the harness now treats that as a
+    warning for books.
+  - 2 are one thesis whose admin-entered SEO title override shortens its
+    title (already failing in the 2026-09-30 baseline). Content: edit or clear
+    the SEO title on that thesis.
+
+
 
 1. Merge the eight branches in order, or `seo/phase-7-handover` alone (it
    contains all of them). Your call; nothing is pushed.

@@ -150,7 +150,7 @@ const CHECKS: Record<string, CheckDef> = {
   "jsonld-single-block": { phase: 4, finding: "F10", about: "one ld+json block holding an @graph" },
   "jsonld-no-searchaction": { phase: 4, finding: "F10", about: "no SearchAction in the graph" },
   "jsonld-empty-values": { phase: 4, finding: "F10", about: "no null, empty or 'undefined' value in any node" },
-  "citation-required": { phase: 0, finding: "F4", about: "scholarly records: citation_title, ≥1 citation_author, valid date — on the page in the work's own language" },
+  "citation-required": { phase: 0, finding: "F4", about: "scholarly records: citation_title, ≥1 citation_author, valid date — on the page in the work's own language (a book with no trusted year warns, D11)" },
   "citation-date-precision": { phase: 1, finding: "F9", warnOnly: true, about: "citation date not padded to 01/01" },
   "citation-locale": { phase: 3, finding: "F4", about: "citation_* only on the locale matching citation_language" },
   "citation-pdf": { phase: 3, finding: "F4", about: "citation_pdf_url in the abstract's directory, robots-allowed, anonymous 200 application/pdf" },
@@ -740,8 +740,18 @@ async function checkUrl(entry: UrlEntry): Promise<void> {
     const authors = cites.get("citation_author") ?? [];
     const date = cites.get("citation_publication_date")?.[0] ?? cites.get("citation_date")?.[0] ?? "";
     const validDate = /^\d{4}(?:[/-]\d{1,2}(?:[/-]\d{1,2})?)?$/.test(date);
-    judge(label, "citation-required", Boolean(ct) && authors.length > 0 && validDate,
-      `title=${ct ? "yes" : "NO"} authors=${authors.length} date="${date}"${where}`);
+    const detail = `title=${ct ? "yes" : "NO"} authors=${authors.length} date="${date}"${where}`;
+    if (entry.template === "book" && Boolean(ct) && authors.length > 0 && !date) {
+      // D11 (Phase 5.5): a book whose only date is the import placeholder
+      // publishes NO date rather than a false one, so Scholar skips it until a
+      // librarian records the real year (docs/seo/suspect-publication-years.csv).
+      // That is the approved trade, so it is a warning, not a defect. A date
+      // that is present but malformed, and any thesis or article without one,
+      // still fail.
+      record(label, "citation-required", "warn", `${detail} — no trusted year yet (D11)`);
+    } else {
+      judge(label, "citation-required", Boolean(ct) && authors.length > 0 && validDate, detail);
+    }
     if (date) record(label, "citation-date-precision", /^\d{4}[/-]0?1[/-]0?1$/.test(date) ? "warn" : "ok", `date="${date}"`);
     const lang = (page.citations.get("citation_language")?.[0] ?? "").toLowerCase();
     if (lang) {
