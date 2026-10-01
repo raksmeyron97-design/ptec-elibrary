@@ -12,7 +12,8 @@
 //
 //        NEXT_PUBLIC_SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… \
 //          npx tsx scripts/seo-cowork-descriptions.ts export --limit 20 \
-//            --confirm-host <host> [--out content/drafts/cowork-bundle.json]
+//            --confirm-host <host> [--out content/drafts/cowork-bundle.json] \
+//            [--exclude skipped.json]   (a JSON array of slugs a previous round skipped)
 //
 //   2. Claude reads the bundle and writes a drafts file:
 //        { "bundle": "<bundle.generated>", "drafts": [{ "book_id", "slug", "draft_km", "draft_en"? }] }
@@ -207,8 +208,17 @@ async function exportBundle(): Promise<void> {
     .filter(({ template }) => template === "empty" || (sizes.get(template) ?? 0) >= TEMPLATED_CLUSTER_MIN)
     .sort((a, c) => (c.b.view_count ?? 0) - (a.b.view_count ?? 0) || a.b.id.localeCompare(c.b.id));
 
+  // Books an earlier round looked at and could not describe (not a book, no
+  // readable text) have no draft, so without this every export starts with them.
+  const excludePath = arg("--exclude");
+  const excluded = new Set<string>(
+    excludePath ? (JSON.parse(readFileSync(excludePath, "utf8")) as string[]) : [],
+  );
+  const eligible = ranked.filter(({ b }) => !excluded.has(b.slug));
+  if (excluded.size) console.log(`Excluding ${ranked.length - eligible.length} book(s) listed in ${excludePath}.`);
+
   // Over-read, then drop books that already hold a draft (any source).
-  const pool = ranked.slice(0, limit * 2);
+  const pool = eligible.slice(0, limit * 2);
   const existing = new Set<string>();
   for (let i = 0; i < pool.length; i += 100) {
     const ids = pool.slice(i, i + 100).map((c) => c.b.id).join(",");
