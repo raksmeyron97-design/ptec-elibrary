@@ -25,6 +25,14 @@
 -- existing `categories` RLS policy and the 0117 anon/authenticated grant
 -- govern the new columns — they are public copy, like `name`.
 
+-- Give up rather than queue. On the box each migration runs in ONE
+-- transaction (infra/supabase/scripts/migrate.sh), so this lasts exactly as
+-- long as this file. Under load, an ALTER waiting for its lock makes every
+-- read of the table wait behind it; failing after 10 s instead aborts the
+-- deploy cleanly (the old image keeps serving) and the next deploy tick
+-- retries. Outside a transaction it is a warning and changes nothing.
+set local lock_timeout = '10s';
+
 alter table public.categories
   add column if not exists name_en text,
   add column if not exists intro_en text,

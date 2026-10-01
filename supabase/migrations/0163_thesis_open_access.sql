@@ -21,6 +21,14 @@
 -- whatever writes it. Every existing row takes the default, 'restricted', so
 -- nothing becomes public by this migration.
 
+-- Give up rather than queue. On the box each migration runs in ONE
+-- transaction (infra/supabase/scripts/migrate.sh), so this lasts exactly as
+-- long as this file. Under load, an ALTER waiting for its lock makes every
+-- read of the table wait behind it; failing after 10 s instead aborts the
+-- deploy cleanly (the old image keeps serving) and the next deploy tick
+-- retries. Outside a transaction it is a warning and changes nothing.
+set local lock_timeout = '10s';
+
 alter table public.research_reports
   add column if not exists access text not null default 'restricted',
   add column if not exists access_consent_at timestamptz,

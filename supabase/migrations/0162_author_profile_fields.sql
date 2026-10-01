@@ -27,6 +27,14 @@
 -- and grants on both tables govern the new columns, which are public profile
 -- copy like `bio`.
 
+-- Give up rather than queue. On the box each migration runs in ONE
+-- transaction (infra/supabase/scripts/migrate.sh), so this lasts exactly as
+-- long as this file. Under load, an ALTER waiting for its lock makes every
+-- read of the table wait behind it; failing after 10 s instead aborts the
+-- deploy cleanly (the old image keeps serving) and the next deploy tick
+-- retries. Outside a transaction it is a warning and changes nothing.
+set local lock_timeout = '10s';
+
 alter table public.authors
   add column if not exists bio_km text,
   add column if not exists bio_status text not null default 'draft',

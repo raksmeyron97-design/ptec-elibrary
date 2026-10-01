@@ -29,6 +29,14 @@
 -- Additive and defaulted: every existing reader and writer keeps working,
 -- and every book starts as 'none'.
 
+-- Give up rather than queue. On the box each migration runs in ONE
+-- transaction (infra/supabase/scripts/migrate.sh), so this lasts exactly as
+-- long as this file. Under load, an ALTER waiting for its lock makes every
+-- read of the table wait behind it; failing after 10 s instead aborts the
+-- deploy cleanly (the old image keeps serving) and the next deploy tick
+-- retries. Outside a transaction it is a warning and changes nothing.
+set local lock_timeout = '10s';
+
 alter table public.books
   add column if not exists description_status text not null default 'none',
   add column if not exists description_reviewed_by uuid,
