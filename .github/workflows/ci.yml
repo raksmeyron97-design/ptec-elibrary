@@ -204,3 +204,84 @@ jobs:
         name: playwright-report
         path: playwright-report/
         retention-days: 7
+
+  # The SEO invariants (scripts/seo-check.ts, docs/seo/) on a PRODUCTION build
+  # of this commit, against the seeded local Supabase — the exact shape every
+  # phase of the SEO programme exited on (D13). Production itself is never the
+  # target here: it 502s under light concurrency, and a PR must be judged on
+  # its own code.
+  #
+  # NON-GATING until its first green run on GitHub. The URL list
+  # (scripts/seo-urls.local.json) names only records supabase/seed.sql
+  # creates, but it was exercised on a developer database holding the seed
+  # plus more, never on a fresh seed. Once this job has passed here, set
+  # `continue-on-error: false` and add it to the branch protection checks.
+  seo-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    continue-on-error: true
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - uses: supabase/setup-cli@v1
+      with:
+        version: 2.116.0
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Start local Supabase (applies migrations + seed)
+      run: supabase start -x studio,imgproxy,logflare,vector
+
+    # SEO_INDEXING=on at BUILD time as well as at start: it decides the
+    # sitemap and robots output that gets prerendered, and it makes SITE_URL
+    # resolve to the production origin (a loopback site URL is refused in an
+    # indexable environment), which is what the canonical checks compare to.
+    - name: Export local Supabase credentials
+      run: |
+        eval "$(supabase status -o env)"
+        {
+          echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
+          echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          echo "NEXT_PUBLIC_SITE_URL=http://localhost:3000"
+          echo "SEO_INDEXING=on"
+          echo "AI_MOCK_PROVIDER=1"
+        } >> "$GITHUB_ENV"
+
+    - name: Production build
+      run: npm run build
+      env:
+        NODE_OPTIONS: --max-old-space-size=4096
+
+    - name: Start the production server
+      run: |
+        npx next start -p 3000 > next-start.log 2>&1 &
+        for i in $(seq 1 60); do
+          curl -sf -o /dev/null http://localhost:3000/robots.txt && exit 0
+          sleep 2
+        done
+        echo "server did not come up"; cat next-start.log; exit 1
+
+    - name: seo-check (every phase)
+      run: |
+        mkdir -p reports
+        npx tsx scripts/seo-check.ts --base http://localhost:3000 \
+          --urls scripts/seo-urls.local.json --delay 50 --json reports/seo-check.json
+
+    - name: Upload the seo-check report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: seo-check
+        path: |
+          reports/seo-check.json
+          next-start.log
+        retention-days: 14
