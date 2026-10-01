@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect, useId } from "react";
+import { useState, useRef, useId } from "react";
 import { useTranslations } from "next-intl";
 // Plain next/link (not i18n/navigation): /auth/* lives outside the locale scheme.
 import Link from "next/link";
 import { BookPlus, X, CheckCircle, AlertCircle } from "lucide-react";
 import { submitBookRequest } from "@/app/actions/book-requests";
-import { createClient } from "@/lib/supabase/client";
+import { useSession } from "@/components/providers/SessionProvider";
 
 // Every string comes from the homepage's request dialog (home.grow*), so the
 // /books door and the homepage door say the same thing in both languages.
@@ -20,16 +20,15 @@ export default function BookRequestForm() {
   const [result, setResult] = useState<{ success?: boolean; error?: string } | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
-  // Resolved client-side (local session read, no network) so the server page
-  // stays free of cookie reads and its data can be cached for all users.
+  // From <SessionProvider>'s one shared /api/me read, like the homepage's
+  // ContributeDialog, so the server page stays free of cookie reads. This used
+  // to create the Supabase browser client at mount — 45 KB of JavaScript on
+  // every /books and /catalogs load (SEO Phase 6, F15) to answer a question
+  // that only matters once the dialog opens.
   // null = unknown yet; only show the sign-in prompt once we KNOW it's false —
   // the Server Action re-checks auth on submit regardless.
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
-  useEffect(() => {
-    createClient()
-      .auth.getSession()
-      .then(({ data }) => setIsLoggedIn(!!data.session));
-  }, []);
+  const { user, loading } = useSession();
+  const isLoggedIn: boolean | null = loading ? null : !!user;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
