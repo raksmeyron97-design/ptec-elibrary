@@ -60,6 +60,7 @@ import { breadcrumbSchema } from "@/lib/seo/schema";
 
 import { SITE_URL } from "@/lib/seo/site";
 import { trustedPublicationDate } from "@/lib/seo/dates";
+import { descriptionGateWithheldSlugs } from "@/lib/seo/description-gate.server";
 import { bookScholarMeta, citationLocale } from "@/lib/seo/citation";
 import { bookToCitationWork, hasCitableMetadata } from "@/lib/books/citation";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
@@ -169,6 +170,11 @@ export async function generateMetadata({
     }).canDownload,
   };
 
+  // SEO Phase 5.4 — OFF unless SEO_DESCRIPTION_GATE=on: a book with no
+  // readable file and an empty or templated description is not offered as a
+  // search result until a librarian approves a description of its own.
+  const withheld = (await descriptionGateWithheldSlugs()).has(slug);
+
   return {
     ...buildBookMetadata(
       seoInput,
@@ -194,6 +200,7 @@ export async function generateMetadata({
       "dc.type": "Book",
       ...(book.publisher ? { "dc.publisher": book.publisher } : {}),
     },
+    ...(withheld ? { robots: { index: false, follow: true } } : {}),
   };
 }
 

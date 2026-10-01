@@ -23,6 +23,7 @@ import { authorUrlsWithWorks } from '@/lib/authors/sitemap-filter';
 import { authorIsIndexable } from '@/lib/authors/indexability';
 import { authorIndexMinWorks } from '@/lib/seo/seo-flags';
 import { getThesisProgramGroups, getThesisYearGroups } from '@/lib/theses/browse.server';
+import { descriptionGateWithheldSlugs } from '@/lib/seo/description-gate.server';
 import { normalizeByline } from '@/lib/resources/contributor-identity';
 import { articlePath } from '@/lib/journals/urls';
 import { journalSitemapPaths, type SitemapIssue, type SitemapJournal } from '@/lib/journals/sitemap';
@@ -246,7 +247,10 @@ async function bookEntries(supabase: Supabase): Promise<MetadataRoute.Sitemap> {
   );
   // Books gained updated_at + a BEFORE UPDATE trigger in migration 0077, so it
   // reflects the last real admin edit; fall back to publication, then creation.
-  const bookUrls: MetadataRoute.Sitemap = books.map((book) =>
+  // SEO Phase 5.4 (off unless SEO_DESCRIPTION_GATE=on): the books the
+  // description gate withholds leave the sitemap with their pages' noindex.
+  const withheld = await descriptionGateWithheldSlugs();
+  const bookUrls: MetadataRoute.Sitemap = books.filter((book) => !withheld.has(book.slug)).map((book) =>
     entry(`/books/${book.slug}`, {
       lastModified: sitemapLastmod(book.updated_at, book.published_at, book.created_at),
       changeFrequency: 'monthly',

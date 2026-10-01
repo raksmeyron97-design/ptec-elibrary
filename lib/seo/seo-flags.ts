@@ -46,3 +46,13 @@ export function pdfTitleSuffixEnabled(): boolean {
 export function authorIndexMinWorks(): number {
   return parseAuthorMinWorks(process.env.SEO_AUTHOR_MIN_WORKS);
 }
+
+/**
+ * The description indexing gate (SEO Phase 5.4): books with no readable file
+ * and an empty or templated description become `noindex, follow` and leave
+ * the sitemap. OFF unless SEO_DESCRIPTION_GATE is exactly "on" — it stays off
+ * until the owner approves it.
+ */
+export function descriptionGateEnabled(): boolean {
+  return resolveSeoFlag(process.env.SEO_DESCRIPTION_GATE);
+}
