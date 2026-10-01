@@ -134,7 +134,11 @@ describe("mdCell", () => {
   });
 
   it("the old pipe-only escape split a cell holding a backslash-pipe (negative control)", () => {
-    const old = (s: string) => s.replace(/\|/g, "\\|");
-    expect(liveBreaks(`| ${old("a\\|b")} |`)).toBe(3);
+    // What the old escape (pipes only, s.replace(/\|/g, "\\|")) produced for
+    // the input `a\|b`, written out rather than re-implemented: a copy of the
+    // defective escape in a test is itself a CodeQL finding (#164).
+    const oldOutput = "a\\\\|b"; // a, two backslashes, pipe, b
+    expect(mdCell("a\\|b")).not.toBe(oldOutput);
+    expect(liveBreaks(`| ${oldOutput} |`)).toBe(3);
   });
 });
