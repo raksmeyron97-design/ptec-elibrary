@@ -185,6 +185,32 @@ More than 50 books on production also needs `--approved-over-50` — the
 owner's decision, not the operator's. A book whose contents page has no
 numbered chapters gets no draft; it stays in the queue for a librarian.
 
+**Claude-written drafts (`source = 'claude_cowork'`, approved 2026-10-01).**
+The owner overrode D7 on 2026-10-01: model-written description drafts are
+allowed in this pipeline. They are still DRAFTS — stored in the RLS-closed
+drafts table, published only by a librarian's *Approve and publish*, labelled
+in the queue as written by Claude. Needs migration 0165. Three steps, with a
+file between each:
+
+```
+# 1. read-only export: metadata + readable front/body page text
+NEXT_PUBLIC_SUPABASE_URL=<url> SUPABASE_SERVICE_ROLE_KEY=<key> \
+  npx tsx scripts/seo-cowork-descriptions.ts export --limit 20 --confirm-host <host> --out cowork-bundle.json
+# 2. Claude writes cowork-drafts.json from the bundle, checking as it goes (offline, no env):
+npx tsx scripts/seo-cowork-descriptions.ts check --bundle cowork-bundle.json --drafts cowork-drafts.json
+# 3. dry run, then --apply to store them
+… seo-cowork-descriptions.ts apply --bundle cowork-bundle.json --drafts cowork-drafts.json --confirm-host <host> [--apply]
+```
+
+The check (`lib/seo/cowork-description.ts`) refuses any number the book's
+own material does not contain, the wrong language for the book, Arabic
+digits or broken orthography in Khmer, and lengths outside the band. It
+cannot tell whether a sentence is TRUE: that is the review. These drafts
+carry no `TODO(km-review)` marker (owner decision), so one click approves.
+Export in pages of 250 rows: a 1,000-row books page with embeds hit
+production's statement timeout. The bundle holds page text: keep it out of
+git (`content/drafts/cowork-*.json` is ignored) and delete it after apply.
+
 **Switching the indexing gate on (owner decision, after review has started).**
 `SEO_DESCRIPTION_GATE=on` in the box's `.env`, then restart the container.
 A book with NO readable file and an empty or templated description becomes

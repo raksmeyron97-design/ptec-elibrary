@@ -484,7 +484,7 @@ Runbook, `CLAUDE.md` invariants.
 | D4 | Public full text for theses and reports | **Restricted by default (default)**; `open` only with a recorded licence and consent |
 | D5 | Anonymous preview of first pages | **Design and measurement plan only (default)** |
 | D6 | Block `sort`/`view` in robots.txt | **No (default).** They are already `noindex` + canonical, and blocking them would hide that signal. Never block `page` |
-| D7 | LLM-assisted description drafts | **Off (default)**; cost estimate first |
+| D7 | LLM-assisted description drafts | **Off (default)**; cost estimate first. **Overridden by the owner 2026-10-01:** model-written drafts allowed, as drafts only (`claude_cowork`, RUNBOOK.md) |
 | D8 | Existing very long slugs | **Leave them (default)**; cap new slugs only. 320 URLs exceed 500 characters, but renaming ~1,850 Khmer URLs costs redirects and ranking churn |
 | **D9** (new) | How to make the H1 and intro visible without JavaScript (F2) | **Render each page's header outside the Suspense boundary**: remove the route-level `loading.tsx` from ISR routes, where a cached page has no loading state worth showing, and wrap only the data sections in inner `<Suspense>` on dynamic routes. This reverses a documented design ("every public route owns its `loading.tsx`"), so it needs your approval; measured on CLS/LCP before and after |
 | **D10** (new) | Existing `SearchAction` and `FAQPage` | **Remove `SearchAction`** (Google retired the sitelinks search box in 2024; it is on 60/60 pages). **Keep existing `FAQPage` where the Q&A is visible, add none**, or drop it to simplify the single `@graph`. Your call |
