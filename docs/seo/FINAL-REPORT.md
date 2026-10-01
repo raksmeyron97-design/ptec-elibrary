@@ -47,12 +47,12 @@ are runbook checks.
 | P2-1 | No catalogue record is indexed | **Done** — `CATALOG_RECORDS_INDEXABLE = false`; every record is a `noindex, follow` finding aid; the editor's search-visibility check is gone |
 | P2-2 | Leave the 40 same-title pairs unlinked | **No change needed** — they stay unlinked until a librarian checks them |
 | P3-1 | Remove the crawler exception from the book and thesis file routes | **Done** — both require a signed-in reader for everyone; open full texts are only served at `…/fulltext.pdf` |
-| P5-1 | Switch the description gate on | **After deploy, on the box**: `SEO_DESCRIPTION_GATE=on` in `.env`, restart (RUNBOOK "Phase 5") |
-| P5-2 | Dry run of the draft generator | **After deploy, on the box**: `--limit 50 --confirm-host <host>`, no `--apply` (RUNBOOK "Phase 5") |
+| P5-1 | Switch the description gate on | **Done** (2026-10-01) — `SEO_DESCRIPTION_GATE=on` on the box; the two file-less books with copy-paste descriptions answer `noindex, follow`, a control book with a file stays `index, follow` |
+| P5-2 | Dry run of the draft generator | **Done** (2026-10-01) — 50 most-viewed candidates, nothing stored: 2 drafts, and the Khmer one was built from broken extraction. Fixed in #289 (broken Khmer refused, Khmer digits); re-run with the fix: 1 draft, 3 `unreadable_contents`, 1 too few headings, 45 no contents page. **Do not `--apply`** before #289 is merged; the yield is low either way |
 | P6-1 | `/contact` map on click | **Done** — a same-height placeholder with "Show the map"; nothing is fetched from Google until pressed |
 | P6-2 | "Request a book" is the homepage's dialog | **Done** — `RequestBookButton` renders `ContributeDialog`; `BookRequestForm` deleted |
 | P7-1 | Make the CI `seo-check` job gating | **Done** — first green run on a fresh seed on `main` (a27a279): 1,541 ok, 0 failing; `continue-on-error` removed and the job required on `main` |
-| P7-2 | Switch IndexNow on | **After Bing Webmaster Tools is set up**: `INDEXNOW_KEY` in the box's `.env` (RUNBOOK §4–§5) |
+| P7-2 | Switch IndexNow on | **Done** (2026-10-01) — `INDEXNOW_KEY` on the box; `/<key>.txt` answers the key, any other key 404s. Bing Webmaster Tools registered and `sitemap.xml` submitted (status: Success) |
 | P7-3 | A missing root file answers 404, not 500 | **Done, differently from the proposal** — `dynamicParams = false` on `[locale]` would have 404'd every book, thesis and article page not prerendered at build time (Next ANDs it across all segments of a route). The fix is in `i18n/request.ts`: an invalid locale segment resolves to the default locale instead of reading cookies |
 
 Also added for the deploy: migrations 0161–0164 now `SET LOCAL lock_timeout = '10s'`, so on a database as slow as production was on 2026-10-01 a migration fails cleanly (and the next deploy tick retries) instead of queueing every read of `books` behind its lock.
@@ -68,8 +68,9 @@ Also added for the deploy: migrations 0161–0164 now `SET LOCAL lock_timeout = 
   made.
 - **Khmer review.** Every new Khmer string is in `docs/seo/KM-REVIEW.md`,
   marked `TODO(km-review)`.
-- **Migrations 0161–0164** are applied only to the local stack. They reach
-  production through the box's `migrate.sh` on deploy.
+- **The thesis SEO title.** One thesis's admin-entered SEO title override
+  shortens its title (`seo-check`'s only remaining production error). Edit or
+  clear it in the thesis's SEO fields.
 
 ## Deployed (2026-10-01)
 
@@ -83,6 +84,12 @@ Also added for the deploy: migrations 0161–0164 now `SET LOCAL lock_timeout = 
   everything answered again, with the new image already serving. Whether the
   box recovered first or the deploy's restart helped is not visible from
   outside; the cause is on the box and still unknown.
+- #288 merged (`bfecc91`): `seo-check` is a required check on `main`.
+- Box steps (16:20 Phnom Penh time), through `ssh -J root@100.96.43.103
+  p565sanet@10.1.1.146`: `.env` backed up to `.env.bak-seo-20261001-102057`,
+  `SEO_DESCRIPTION_GATE=on` and `INDEXNOW_KEY` set, the app recreated under
+  `deploy.sh`'s lock and healthy. No IndexNow ping has been sent yet: one goes
+  out on the next save of a book, thesis, article, post or path.
 - `seo-check` against production (sequential): 1,590 ok and 5 errors.
   - 3 were books whose only date is the import placeholder: since Phase 5.5
     they publish no citation date (D11), and the harness now treats that as a
@@ -91,10 +98,26 @@ Also added for the deploy: migrations 0161–0164 now `SET LOCAL lock_timeout = 
     title (already failing in the 2026-09-30 baseline). Content: edit or clear
     the SEO title on that thesis.
 
+## What remains
 
+Everything in the repository has shipped. What is left is content and
+accounts, all with steps in `RUNBOOK.md`:
 
-1. Merge the eight branches in order, or `seo/phase-7-handover` alone (it
-   contains all of them). Your call; nothing is pushed.
-2. Deploy, then follow `RUNBOOK.md` "Phase 7" §1. The migrations come first
-   in that list.
-3. Then the external steps (RUNBOOK §2–§9) and the decisions above.
+- **Librarians.**
+  - Descriptions in Admin → Data Quality → Book descriptions (1,530 books,
+    by traffic).
+  - The subject and hub introductions and English subject names (RUNBOOK
+    "Phase 2").
+  - The Khmer strings in `KM-REVIEW.md`.
+  - The year corrections in `suspect-publication-years.csv` and the names in
+    `name-cleanup.csv`.
+  - The thesis SEO title above.
+- **Search Console** (RUNBOOK §3): domain property, the sitemap index,
+  requests for indexing, and the Pages report every two weeks for two months.
+- **The college website** (RUNBOOK §6): a Library link in its menu and
+  footer.
+- **The old Google Site** (RUNBOOK §7): link each migrated item to its new
+  record, and unpublish it once the new record is indexed.
+- **Google Business Profile** (RUNBOOK §9).
+- **Monthly:** the Crawl stats export, against the F13 rule for D6
+  (RUNBOOK §8).
