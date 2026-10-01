@@ -17,6 +17,7 @@
 // read as IF a librarian confirms it is inverted, and `decision` is left blank.
 
 import { writeFileSync } from "node:fs";
+import { escapeCsvCell } from "../lib/export/csv";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -49,10 +50,11 @@ async function fetchAll(): Promise<Row[]> {
 const LATIN_NAME = /^[\p{Script=Latin}][\p{Script=Latin}.'’\-]*(?:\s+[\p{Script=Latin}][\p{Script=Latin}.'’\-]*){1,3}$/u;
 const NOT_A_PERSON = /\b(ministry|department|university|college|institute|unesco|unicef|oecd|organization|organisation|association|press|publishing|publisher|council|foundation|centre|center|team|group|committee|school|office|library|bank|agency|program|programme|project|world|national|international)\b/i;
 
-function csv(value: string | number): string {
-  const s = String(value);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
+// The shared cell writer (lib/export/csv.ts): RFC 4180 quoting AND the
+// formula guard. These files are opened in Excel or Sheets by librarians, and a
+// title or name beginning with =, +, - or @ would otherwise run as a formula.
+const csv = (v: string | number | boolean | null | undefined) =>
+  escapeCsvCell(typeof v === "boolean" ? String(v) : v);
 
 async function main(): Promise<void> {
   const rows = await fetchAll();
