@@ -59,11 +59,16 @@ export default function DescriptionReviewRow({
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const run = (action: () => Promise<DescriptionReviewResult>, okKey: "saved" | "approved" | "discarded") => {
+  const run = (
+    action: () => Promise<DescriptionReviewResult>,
+    okKey: "saved" | "approved" | "discarded",
+    onSuccess?: () => void,
+  ) => {
     setMessage(null);
     startTransition(async () => {
       const result = await action();
       if (result.success) {
+        onSuccess?.();
         setMessage({ ok: true, text: t(okKey) });
         router.refresh();
       } else {
@@ -129,17 +134,24 @@ export default function DescriptionReviewRow({
             <button
               type="button"
               disabled={pending}
-              onClick={() => run(() => discardBookDescriptionDraft(bookId), "discarded")}
+              onClick={() =>
+                run(() => discardBookDescriptionDraft(bookId), "discarded", () => {
+                  // The fields are seeded from the stored draft once; a
+                  // discard must empty them, or the text it removed stays.
+                  setEn("");
+                  setKm("");
+                })
+              }
               className="h-9 rounded-lg px-3 text-[13px] font-semibold text-danger-text hover:underline disabled:opacity-50"
             >
               {t("discard")}
             </button>
           )}
-          {message && (
-            <span role="status" className={`text-[13px] ${message.ok ? "text-success-text" : "text-danger-text"}`}>
-              {message.text}
-            </span>
-          )}
+          {/* Always mounted: a live region inserted together with its text is
+              often not announced. */}
+          <span role="status" className={`text-[13px] ${message?.ok ? "text-success-text" : "text-danger-text"}`}>
+            {message?.text}
+          </span>
         </div>
       )}
     </article>

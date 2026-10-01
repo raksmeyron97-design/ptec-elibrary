@@ -13,6 +13,7 @@
 
 import { writeFileSync } from "node:fs";
 import { clusterSizes, isPlaceholderDate, templateKey } from "../lib/seo/description-template";
+import { TEMPLATED_CLUSTER_MIN } from "../lib/seo/description-gate";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -101,7 +102,7 @@ async function main(): Promise<void> {
 
   // Summary: how many records share each template, largest first.
   const empty = rows.filter((r) => r.template === "empty").length;
-  const templated = rows.filter((r) => r.template !== "empty" && (sizes.get(r.template) ?? 0) >= 5);
+  const templated = rows.filter((r) => r.template !== "empty" && (sizes.get(r.template) ?? 0) >= TEMPLATED_CLUSTER_MIN);
   const top = [...sizes.entries()].filter(([k]) => k !== "empty").sort((a, c) => c[1] - a[1]).slice(0, 15);
   const example = (k: string) => rows.find((r) => r.template === k)?.b;
   const md = [
@@ -115,7 +116,7 @@ async function main(): Promise<void> {
     `- Sharing a template with 4 or more other books: **${templated.length}**`,
     `- Date that looks like an import placeholder: **${rows.filter((r) => r.placeholderDate).length}**`,
     `- No file AND empty or templated description (what the 5.4 gate would withhold, if switched on): **${
-      rows.filter((r) => !r.hasFile && (r.template === "empty" || (sizes.get(r.template) ?? 0) >= 5)).length
+      rows.filter((r) => !r.hasFile && (r.template === "empty" || (sizes.get(r.template) ?? 0) >= TEMPLATED_CLUSTER_MIN)).length
     }**`,
     "",
     "## Largest templates",

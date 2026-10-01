@@ -6,13 +6,13 @@ import { requireRouteAccess } from "@/lib/admin/route-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { pagedScan } from "@/lib/db/paged-scan";
 import { clusterSizes, templateKey } from "@/lib/seo/description-template";
+import { TEMPLATED_CLUSTER_MIN } from "@/lib/seo/description-gate";
 
 // The book description review queue (SEO Phase 5.2). Books whose description
 // is missing or repeats a template, most-viewed first, each with its draft.
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 20;
-const TEMPLATED_MIN = 5;
 const VIEWS = ["templated", "drafts", "all"] as const;
 type View = (typeof VIEWS)[number];
 
@@ -51,18 +51,22 @@ async function loadBooks() {
   return { books: books.data, drafts: drafts.error ? [] : drafts.data, complete: !books.error && !books.truncated };
 }
 
+const href = (v: View, p = 1) => `/admin/data-quality/descriptions?view=${v}${p > 1 ? `&page=${p}` : ""}`;
+
 export default async function DescriptionReviewPage({
   searchParams,
 }: {
   searchParams: Promise<{ view?: string; page?: string }>;
 }) {
+  // The guard first: nothing is read for someone the registry refuses.
   await requireRouteAccess("books.descriptions");
-  const sp = await searchParams;
+  const [sp, t, { books, drafts, complete }] = await Promise.all([
+    searchParams,
+    getTranslations("adminDataQuality.descriptions"),
+    loadBooks(),
+  ]);
   const view: View = (VIEWS as readonly string[]).includes(sp.view ?? "") ? (sp.view as View) : "templated";
   const page = Math.max(1, Number(sp.page) || 1);
-  const t = await getTranslations("adminDataQuality.descriptions");
-
-  const { books, drafts, complete } = await loadBooks();
   const draftsById = new Map(drafts.map((d) => [d.book_id, d]));
   const keyed = books.map((b) => ({
     b,
@@ -73,14 +77,13 @@ export default async function DescriptionReviewPage({
     .filter(({ b, key }) => {
       if (view === "drafts") return b.description_status === "draft";
       if (view === "templated") {
-        return b.description_status !== "approved" && (key === "empty" || (sizes.get(key) ?? 0) >= TEMPLATED_MIN);
+        return b.description_status !== "approved" && (key === "empty" || (sizes.get(key) ?? 0) >= TEMPLATED_CLUSTER_MIN);
       }
       return true;
     })
     .sort((a, c) => (c.b.view_count ?? 0) - (a.b.view_count ?? 0) || a.b.id.localeCompare(c.b.id));
   const pageRows = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-  const href = (v: View, p = 1) => `/admin/data-quality/descriptions?view=${v}${p > 1 ? `&page=${p}` : ""}`;
 
   return (
     <div className="w-full space-y-6">

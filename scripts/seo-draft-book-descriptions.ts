@@ -34,6 +34,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { composeDescriptionDraft, contentsHeadings, CONTENTS_PAGE_LIMIT } from "../lib/seo/description-draft";
 import { clusterSizes, templateKey } from "../lib/seo/description-template";
+import { TEMPLATED_CLUSTER_MIN } from "../lib/seo/description-gate";
 import { trustedPublicationDate } from "../lib/seo/dates";
 
 const arg = (name: string) => {
@@ -48,7 +49,6 @@ const limit = Number(arg("--limit"));
 const apply = flag("--apply");
 const OUT = arg("--out") ?? "content/drafts/book-descriptions.json";
 const DELAY_MS = 300;
-const TEMPLATED_MIN = 5;
 const REMOTE_APPLY_MAX = 50;
 
 if (!Number.isInteger(limit) || limit <= 0) {
@@ -133,7 +133,7 @@ async function main(): Promise<void> {
   const candidates = books
     .map((b, i) => ({ b, template: keys[i] }))
     .filter(({ b }) => (b.description_status ?? "none") === "none")
-    .filter(({ template }) => template === "empty" || (sizes.get(template) ?? 0) >= TEMPLATED_MIN)
+    .filter(({ template }) => template === "empty" || (sizes.get(template) ?? 0) >= TEMPLATED_CLUSTER_MIN)
     .sort((a, c) => (c.b.view_count ?? 0) - (a.b.view_count ?? 0) || a.b.id.localeCompare(c.b.id))
     .slice(0, limit);
 
