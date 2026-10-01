@@ -165,6 +165,13 @@ export default async function DataQualityPage({ searchParams }: { searchParams: 
         title={t("title")}
         description={t("description")}
         actions={
+          <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/admin/data-quality/descriptions"
+            className="inline-flex items-center gap-1.5 rounded-full border border-divider px-3 py-1.5 text-[12px] font-semibold text-brand hover:border-brand/40"
+          >
+            {t("descriptions.link")} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </Link>
           <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-semibold ${
             urgentCount > 0
               ? "border-danger/25 bg-danger/5 text-danger"
@@ -174,6 +181,7 @@ export default async function DataQualityPage({ searchParams }: { searchParams: 
               ? <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />
               : <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />}
             {urgentCount > 0 ? t("urgent", { count: urgentCount }) : t("noUrgent")}
+          </div>
           </div>
         }
       />

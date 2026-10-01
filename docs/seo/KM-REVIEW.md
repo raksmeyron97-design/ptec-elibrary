@@ -23,6 +23,8 @@ built from words the site already publishes, but the combination is new.
 | 3 | `/km/theses/program/<programme>` title/H1 (`theses.browseProgramTitle`) | `{program}៖ និក្ខេបបទ និងរបាយការណ៍ស្រាវជ្រាវ` | "{programme}: theses and research reports" | as above |
 | 3 | its description (`theses.browseProgramDescription`) | `និក្ខេបបទ និងរបាយការណ៍ស្រាវជ្រាវ {count} របស់គរុនិស្សិត វ.គ.ភ ក្នុងកម្មវិធីសិក្សា {program}។` | "…in {programme}." | `កម្មវិធីសិក្សា` (theses.seoDescription) |
 | 3 | hub link labels (`theses.browseByYear`, `theses.browseByProgram`) | `រកមើលតាមឆ្នាំ`, `រកមើលតាមកម្មវិធីសិក្សា` | "Browse by year", "Browse by programme" | `subjects.hubTitle` "រកមើលតាមមុខវិជ្ជា" with the noun changed |
+| 5 | Admin → Data Quality → Book descriptions (`adminDataQuality.descriptions.*`, 28 strings incl. `errorNeedsReview`, `sourceExtracted`) | e.g. `ការពិពណ៌នាសៀវភៅ`, `សេចក្តីព្រាង`, `អនុម័ត និងផ្សព្វផ្សាយ` | "Book descriptions", "Draft", "Approve and publish" | admin vocabulary already in km.json (`ការពិពណ៌នា`, `អនុម័ត`, `បោះបង់`, `រក្សាទុក`); staff-only screen |
+| 5 | Rule-built Khmer description drafts (`lib/seo/description-draft.ts`, the `locale === "km"` branch) | `…គឺជាសៀវភៅភាសាខ្មែរ ដោយ …`, `សៀវភៅនេះស្ថិតក្នុងប្រធានបទ …`, `ជំពូកនានារួមមាន៖ …`, `អ្នកអានអាចអានអត្ថបទពេញតាមអនឡាញដោយឥតគិតថ្លៃ…` | "… is a Khmer-language book by …", "It is catalogued under …", "Its chapters cover …", "The full text can be read online free of charge" | every draft carries `TODO(km-review)` and approval refuses it until a reviewer removes the marker; fix the wording here once and every later draft inherits it |
 
 Approved keys reused as-is (no review needed): `about.eyebrow` (the /about
 title), `thesisSummary.title` / `thesisSummary.description` (the theses
