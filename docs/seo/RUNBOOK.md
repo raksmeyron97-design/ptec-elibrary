@@ -151,3 +151,47 @@ Every public page now carries ONE `application/ld+json` block holding an
   a drop in "Sitelinks search box" items is expected (D10 removed it).
 Then, read-only and sequential:
 `npx tsx scripts/seo-check.ts --base https://library.ptec.edu.kh --phase 4 --delay 1500`.
+
+## Phase 5: book descriptions
+
+**Before anything:** migration `0164_book_description_review.sql` must be on
+production (it reaches the box with the merge — check `/admin/data-quality/descriptions`
+opens and lists books). It adds three columns to `books` and the service-role-only
+`book_description_drafts` table; it changes no existing description.
+
+**Writing and approving descriptions (librarians).** Admin → Data Quality →
+*Book descriptions* lists, most-viewed first, the books whose description is
+empty or shared with four or more others (`docs/seo/description-quality.md`
+has the counts). For each book: write the description in the book's own
+language (the field the page shows is the one approval copies), *Save draft*,
+then *Approve and publish* — two separate acts on purpose. Approval needs
+`books: write`; the draft is visible to nobody outside the admin panel until
+then. A draft that still contains `TODO`, `needs_review` or `TBD` is refused
+at approval: remove the marker once the wording has been checked.
+
+**Rule-built drafts (optional, off by default).** On the box, where the
+service-role key lives (never from a laptop against production):
+
+```
+NEXT_PUBLIC_SUPABASE_URL=<internal Supabase URL> SUPABASE_SERVICE_ROLE_KEY=<key> \
+  npx tsx scripts/seo-draft-book-descriptions.ts --limit 20 --confirm-host <host>
+```
+
+That is a dry run: it reads one request at a time, prints the time it will
+take (no paid API is used), and writes `content/drafts/book-descriptions.json`.
+Read the file; if the drafts are worth a librarian's time, add `--apply` to
+store them as drafts (`source = 'extracted'`, never over an existing draft).
+More than 50 books on production also needs `--approved-over-50` — the
+owner's decision, not the operator's. A book whose contents page has no
+numbered chapters gets no draft; it stays in the queue for a librarian.
+
+**Switching the indexing gate on (owner decision, after review has started).**
+`SEO_DESCRIPTION_GATE=on` in the box's `.env`, then restart the container.
+A book with NO readable file and an empty or templated description becomes
+`noindex, follow` and leaves `/sitemaps/books.xml`; approving a description
+brings it back within the hour (the gate is cached under the `books` tag).
+Books with a file are never withheld. Measured 2026-09-30: the gate would
+withhold **2** of 1,956 books. Check after the restart, sequentially:
+`curl -s https://library.ptec.edu.kh/sitemaps/books.xml | grep -c '<loc>'`
+should drop by that number, and nothing else should change.
+
