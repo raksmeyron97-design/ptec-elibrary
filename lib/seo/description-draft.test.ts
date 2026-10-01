@@ -3,6 +3,8 @@ import {
   composeDescriptionDraft,
   contentsHeadings,
   isContentsPage,
+  isReadableHeading,
+  readContents,
   KM_REVIEW_MARKER,
   MIN_HEADINGS,
   type DraftFacts,
@@ -149,5 +151,72 @@ describe("composeDescriptionDraft", () => {
       reason: "too_few_headings",
       headings: MIN_HEADINGS - 1,
     });
+  });
+});
+
+// The first production dry run (2026-10-01) drafted a Khmer description from
+// these headings, exactly as `book_pages` holds them for a Grade 11 chemistry
+// exercise book. Its PDF font has no usable character map, so marks were cut
+// loose from their syllables: `គីម្ី` is a coeng followed by a vowel and
+// `រ ៀន` a dependent vowel after a space, neither of which Khmer allows.
+const BROKEN_PRODUCTION_HEADINGS = [
+  "ការគណនាកន៊ុងគីម្ី រមរ ៀនទ្យី",
+  "សោហៈ រមរ ៀនទ្យី",
+  "អ៊ុក ៊ុី តកម្ម សរដ៊ុកម្ម និងសអឡិចត្តូគីម្ី រមរ ៀនទ្យី",
+  "មា ធាត៊ុអ រីរាងគ រមរ ៀនទ្យី",
+  "ស េ សរ៉េអូគីម្ី រមរ ៀនទ្យី",
+  "គីម្ី រីរាងគ រមរ ៀនទ្យី",
+];
+
+describe("Khmer that spells nothing is not a heading", () => {
+  it("refuses every heading from the broken production contents page", () => {
+    for (const h of BROKEN_PRODUCTION_HEADINGS) expect(isReadableHeading(h), h).toBe(false);
+  });
+
+  it("keeps legal Khmer, subscripts and register shifters included, and Latin", () => {
+    for (const h of ["វិធីសាស្ត្រ", "ការពិភាក្សា", "ស្រាវជ្រាវ", "សេចក្តីផ្តើម", "ក្នុងថ្នាក់រៀន", "ប៊ិច និងសៀវភៅ", "Relational Model", "SQL"]) {
+      expect(isReadableHeading(h), h).toBe(true);
+    }
+  });
+
+  it("a contents page made of them yields no headings, and says they were unreadable", () => {
+    const page = `មាតិកា ${BROKEN_PRODUCTION_HEADINGS.map((h, i) => `ជំពូកទី${"១២៣៤៥៦"[i]} ${h} ${"១២៣៤៥៦"[i]}០`).join(" ")}`;
+    const { headings, unreadable } = readContents([{ pageNo: 3, content: page }]);
+    expect(headings).toEqual([]);
+    expect(unreadable).toBeGreaterThan(0);
+  });
+
+  it("no draft for that book — skipped as unreadable_contents, not as having no contents", () => {
+    expect(composeDescriptionDraft(facts({ headings: [], unreadableHeadings: 6 }))).toEqual({
+      status: "skipped",
+      reason: "unreadable_contents",
+      headings: 0,
+    });
+  });
+});
+
+describe("numbers in a Khmer draft are Khmer digits", () => {
+  it("writes the grade, the page count and the year in Khmer digits", () => {
+    const d = composeDescriptionDraft(
+      facts({
+        title: "សៀវភៅលំហាត់ គីមីវិទ្យា ថ្នាក់ទី១១",
+        language: "km",
+        year: 2019,
+        pages: 210,
+        subject: { name: "គីមីវិទ្យា" },
+        headings: ["វិធីសាស្ត្រ", "លទ្ធផល", "ការពិភាក្សា"],
+      }),
+    );
+    expect(d.status === "drafted" && d.text).toContain("សម្រាប់ថ្នាក់ទី១១");
+    expect(d.status === "drafted" && d.text).toContain("សៀវភៅនេះមាន ២១០ ទំព័រ");
+    expect(d.status === "drafted" && d.text).toContain("ឆ្នាំ ២០១៩");
+    // Outside the title and the headings, which are quoted as printed.
+    expect(d.status === "drafted" && d.text.replace("TODO(km-review)", "")).not.toMatch(/[0-9]/);
+  });
+
+  it("leaves an English draft's digits alone", () => {
+    const d = composeDescriptionDraft(facts({ title: "Chemistry Grade 11", pages: 210 }));
+    expect(d.status === "drafted" && d.text).toContain("It runs to 210 pages.");
+    expect(d.status === "drafted" && d.text).toContain("for Grade 11");
   });
 });
