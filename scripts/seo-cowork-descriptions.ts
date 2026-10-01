@@ -19,6 +19,9 @@
 //      Khmer always; English as well when the book is English (that is the
 //      draft approval publishes). 80–150 words, Khmer numerals in Khmer.
 //
+//      Check them while writing — offline, no environment needed:
+//        npx tsx scripts/seo-cowork-descriptions.ts check --bundle … --drafts …
+//
 //   3. apply — checks every draft against the bundle (lib/seo/cowork-description.ts:
 //      language, length, Khmer digits and orthography, and no number the
 //      source material does not contain). Dry run by default: prints the
@@ -66,9 +69,35 @@ const PAGE_CHARS = 1400;
 /** Body pages sampled, as fractions of the book. */
 const BODY_SAMPLES = [0.2, 0.45, 0.7];
 
-if (command !== "export" && command !== "apply") {
-  console.error("Usage: seo-cowork-descriptions.ts export --limit N … | apply --bundle F --drafts F [--apply] …");
+if (command !== "export" && command !== "apply" && command !== "check") {
+  console.error("Usage: seo-cowork-descriptions.ts export --limit N … | check --bundle F --drafts F | apply --bundle F --drafts F [--apply] …");
   process.exit(2);
+}
+
+// `check` is the writer's loop: the same checks apply runs, on the two files
+// alone. No database, no environment, nothing written.
+if (command === "check") {
+  const bundlePath = arg("--bundle");
+  const draftsPath = arg("--drafts");
+  if (!bundlePath || !draftsPath) {
+    console.error("Pass --bundle <export file> and --drafts <drafts file>.");
+    process.exit(2);
+  }
+  const bundle = JSON.parse(readFileSync(bundlePath, "utf8")) as { generated: string; books: CoworkBook[] };
+  const file = JSON.parse(readFileSync(draftsPath, "utf8")) as { bundle?: string; drafts: CoworkDraft[] };
+  const books = new Map(bundle.books.map((b) => [b.book_id, b]));
+  let refused = file.bundle && file.bundle !== bundle.generated ? 1 : 0;
+  if (refused) console.log(`FAIL drafts were written from bundle ${file.bundle}, not ${bundle.generated}`);
+  for (const draft of file.drafts) {
+    const v = checkCoworkDraft(draft, books);
+    if (!v.ok) refused += 1;
+    console.log(
+      `${v.ok ? "ok  " : "FAIL"} ${draft.slug} km ${v.words.km ?? "-"} / en ${v.words.en ?? "-"} words` +
+        `${v.ok ? "" : ` — ${v.problems.map((p) => p.problem + (p.detail ? ` (${p.detail})` : "")).join("; ")}`}`,
+    );
+  }
+  console.log(refused ? `${refused} refused` : `all ${file.drafts.length} pass`);
+  process.exit(refused ? 1 : 0);
 }
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
