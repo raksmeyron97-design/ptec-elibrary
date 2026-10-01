@@ -23,6 +23,7 @@ import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { isCohortLabel, thesisScholarMeta, type ThesisCitationRow } from "@/lib/seo/citation";
 import { thesisIsOpenAccess } from "@/lib/theses/open-access";
+import { thesisLicense } from "@/lib/theses/license";
 
 /**
  * A thesis's AUTHORS (SEO Phase 3.3): author-role credits, without a cohort
@@ -234,6 +235,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
       openPdfUrl: thesisIsOpenAccess(report)
         ? `${SITE_URL}${locale === "km" ? "/km" : ""}/theses/${encodeURIComponent(record.slug)}/fulltext.pdf`
         : null,
+      licenseUrl: thesisIsOpenAccess(report) ? (thesisLicense(report.license)?.url ?? null) : null,
     },
     locale,
     org,

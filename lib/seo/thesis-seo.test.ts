@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, it, expect } from "vitest";
 import {
   isGenericThesisTitle,
@@ -113,6 +115,21 @@ describe("thesisJsonLd", () => {
   it("omits an invalid DOI", () => {
     const schema = thesisJsonLd({ slug: "x", title: "T", doi: "10.1234/eds" }, "en");
     expect(schema.identifier).toBeUndefined();
+  });
+
+  it("states a licence only for an open-access thesis, and only as given (Phase 7.3)", () => {
+    const open = thesisJsonLd(
+      { slug: "x", title: "T", openPdfUrl: "https://x/theses/x/fulltext.pdf", licenseUrl: "https://creativecommons.org/licenses/by/4.0/" },
+      "en",
+    );
+    expect(open.license).toBe("https://creativecommons.org/licenses/by/4.0/");
+    expect(thesisJsonLd({ slug: "x", title: "T" }, "en").license).toBeUndefined();
+    expect(thesisJsonLd({ slug: "x", title: "T", licenseUrl: null }, "en").license).toBeUndefined();
+  });
+
+  it("the thesis page passes a licence only behind thesisIsOpenAccess()", () => {
+    const page = readFileSync(path.resolve(__dirname, "../../app/[locale]/(public)/theses/[slug]/page.tsx"), "utf8");
+    expect(page).toMatch(/licenseUrl: thesisIsOpenAccess\(report\) \? \(thesisLicense\(report\.license\)\?\.url \?\? null\) : null/);
   });
 
   it("emits a validated DOI", () => {

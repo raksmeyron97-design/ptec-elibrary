@@ -134,6 +134,11 @@ export type ThesisSeoInput = {
   /** The PUBLIC full text (lib/theses/open-access.ts), or null — then no
    *  `encoding` is claimed. */
   openPdfUrl?: string | null;
+  /** The licence deed of an OPEN-ACCESS thesis — schema.org `license` (SEO
+   *  Phase 7.3). Null for every other thesis: llms.txt tells consumers a
+   *  `license` is a reuse permission, and a rights statement on a closed
+   *  thesis is not one. */
+  licenseUrl?: string | null;
 };
 
 // ── Description fallbacks (localized, factual) ────────────────────────────────
@@ -311,6 +316,7 @@ export function thesisJsonLd(
     citation: citations.length > 0 ? citations : undefined,
     identifier: doi ? { "@type": "PropertyValue", propertyID: "DOI", value: doi } : undefined,
     isAccessibleForFree: true,
+    license: thesis.licenseUrl || undefined,
     // Only a PUBLIC full text is a media object anyone can fetch.
     encoding: thesis.openPdfUrl
       ? { "@type": "MediaObject", encodingFormat: "application/pdf", contentUrl: thesis.openPdfUrl }

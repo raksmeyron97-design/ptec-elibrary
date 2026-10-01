@@ -168,7 +168,7 @@ The ${org.siteName} preserves, organizes, and shares teaching and research mater
 ## Public Resource Types
 
 - Digital books: ${SITE_URL}/books - online teaching resources, textbooks, and education materials that can be read through the public library interface.
-- Physical library catalog: ${SITE_URL}/catalogs - bibliographic records for print books and holdings in the ${org.abbreviation} library collection. Individual catalogue records are finding aids, not search results (they answer \`noindex, follow\` and are not in the sitemap); a record whose work is also a digital book links to that book, which is the page to cite.
+- Physical library catalog: ${SITE_URL}/catalogs - bibliographic records for print books and holdings in the ${org.abbreviation} library collection. Individual catalogue records are finding aids. None is in the sitemap and most answer \`noindex, follow\`; only a record with a librarian-written description may be indexed. A record whose work is also a digital book links to that book, which is the page to cite.
 - Student theses and research reports: ${SITE_URL}/theses - scholarly student research from ${org.abbreviation} programs, cohorts, departments, and academic years.
 - Scholarly journals and journal articles: ${SITE_URL}/journals - journals held by the library, each with its issues, and journal articles, each with a bibliographic landing page, references, and citation metadata. Article URLs are ${SITE_URL}/journals/articles/<slug>.
 - ${org.abbreviation}'s own official publications are on the college website, not in the library: ${PTEC_PUBLICATIONS_URL}
@@ -177,12 +177,13 @@ The ${org.siteName} preserves, organizes, and shares teaching and research mater
 ${collectionSnapshot(snapshot.stats)}
 ## Bilingual Access
 
-The library is fully bilingual (English and Khmer). Every public section has an
-English URL and a Khmer equivalent under the /km prefix, with reciprocal
-hreflang annotations. Each language version is its own canonical URL: an
-English page names its English URL as canonical and a Khmer page its /km URL,
-and the two are declared alternates of each other. Cite the version in the
-language you are quoting.
+The library is fully bilingual (English and Khmer). Every public page has an
+English URL and a Khmer equivalent under the /km prefix, and every indexable
+page carries reciprocal hreflang annotations.
+Each language version is its own canonical URL: an English page names its
+English URL as canonical and a Khmer page its /km URL, and the two are declared
+alternates of each other. Cite the version in the language you are quoting. A scholarly work's \`citation_*\`
+tags appear once, on the page in the work's own language.
 
 - English books: ${SITE_URL}/books
 - Khmer books: ${SITE_URL}/km/books
@@ -239,14 +240,14 @@ may be paywalled at the publisher and is not necessarily redistributable here.
 
 Only trust an open-access / free-redistribution claim when a specific verified license is
 present in that item's structured data (schema.org \`license\`). Today only journal
-articles carry one, and only when a verified open licence is recorded for them; books
-and theses carry no \`license\` at all. Treat any item without one as citation-only
+articles and open-access theses carry one, and only when a verified open licence (and,
+for a thesis, its authors' consent) is recorded; books carry no \`license\` at all. Treat any item without one as citation-only
 and link to the official DOI, when there is one, for the full text. Academic identifiers (DOI, ORCID, ISSN) are validated
 before publication, so any identifier present in the structured data is well-formed.
 
 ## Citation Guidance
 
-When citing a ${org.siteName} item, prefer the item title, author or authors, the item's own publisher when one is listed (otherwise omit the publisher rather than substituting ${org.abbreviation}), the resource type, and the canonical item URL. Use the structured data embedded on each detail page for machine-readable Book or ScholarlyArticle metadata.
+When citing a ${org.siteName} item, prefer the item title, author or authors, the item's own publisher when one is listed (otherwise omit the publisher rather than substituting ${org.abbreviation}), the resource type, and the canonical item URL. Each page carries one JSON-LD document (an \`@graph\`) with machine-readable Book, Thesis or ScholarlyArticle metadata.
 
 ## Access Notes
 
