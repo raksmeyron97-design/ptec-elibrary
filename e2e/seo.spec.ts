@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { mergedSitemap } from "./utils/sitemap";
+import { jsonLdNodes } from "./utils/jsonld";
 
 // SEO foundation assertions. The dev server runs with SEO_INDEXING=on
 // (playwright.config.ts) so these verify the production-shaped output;
@@ -202,10 +203,7 @@ test.describe("subject and author hubs", () => {
     await expect(page.locator('nav[aria-label="Breadcrumb"] a[href$="/subjects"]')).toHaveCount(1);
 
     // …and the emitted BreadcrumbList agrees with it.
-    const blocks = await page.locator('script[type="application/ld+json"]').allTextContents();
-    const crumbs = blocks
-      .map((b) => JSON.parse(b))
-      .find((d) => d["@type"] === "BreadcrumbList");
+    const crumbs = (await jsonLdNodes(page)).find((d) => d["@type"] === "BreadcrumbList");
     expect(crumbs, "BreadcrumbList JSON-LD").toBeTruthy();
     const items: string[] = crumbs.itemListElement.map((i: { item?: string }) => i.item ?? "");
     expect(items).toContain(`${PROD}/subjects`);
