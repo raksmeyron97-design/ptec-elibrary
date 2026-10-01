@@ -7,7 +7,7 @@ import { CATALOG_SCAN_CAP, type CatalogBook, type CopyStatusRow } from "@/lib/ca
 import { pagedScan } from "@/lib/db/paged-scan";
 import CatalogCard from "@/components/ui/books/CatalogCard";
 import CatalogSearchForm from "@/components/ui/search/CatalogSearchForm";
-import BookRequestForm from "@/components/ui/books/BookRequestForm";
+import RequestBookButton from "@/components/ui/books/RequestBookButton";
 import LibraryVisitStrip from "@/components/ui/books/LibraryVisitStrip";
 import CatalogAvailabilityNotice from "@/components/ui/books/CatalogAvailabilityNotice";
 import { resolveLibraryStatus } from "@/lib/about/status";
@@ -664,7 +664,7 @@ export default async function CatalogsPage({
                       {t('emptySearchDigital')}
                     </Link>
                   )}
-                  <BookRequestForm />
+                  <RequestBookButton />
                 </div>
               </>
             )}

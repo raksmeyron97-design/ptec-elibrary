@@ -9,8 +9,9 @@
 //
 // Built on the native <dialog> element rather than a hand-rolled overlay: it
 // brings the focus trap, the ESC handler, the inert background and the top-layer
-// stacking with it. components/ui/books/BookRequestForm.tsx predates this and
-// reimplements a modal without any of the four — prefer this one.
+// stacking with it. It is also the "Request a book" door on /books and
+// /catalogs (components/ui/books/RequestBookButton.tsx, SEO decision P6-2),
+// which replaced a hand-rolled modal that had none of the four.
 //
 // Auth is read from <SessionProvider> (a single shared /api/me call), never from
 // the server: the homepage must not read cookies() or it stops prerendering.

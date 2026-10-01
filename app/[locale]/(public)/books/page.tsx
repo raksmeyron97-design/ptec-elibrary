@@ -17,7 +17,7 @@ import {
 import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
 import { ClientNavWrapper, FilterLink, FilterSelect, SortSelect } from "@/components/ui/books/ClientNavWrapper";
 import { buttonClasses } from "@/components/ui/core/Button";
-import BookRequestForm from "@/components/ui/books/BookRequestForm";
+import RequestBookButton from "@/components/ui/books/RequestBookButton";
 import FeaturedShelf from "@/components/ui/books/FeaturedShelf";
 import MobileFilterSheet from "@/components/ui/books/MobileFilterSheet";
 import { getTranslations } from 'next-intl/server';
@@ -193,7 +193,7 @@ export default async function BooksPage({
                 {countLabel}
                 {params.q && <> {t('resultsFor')} &ldquo;{params.q}&rdquo;</>}
               </p>
-              <BookRequestForm />
+              <RequestBookButton />
             </div>
           </div>
           {/* Search bar */}
