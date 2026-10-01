@@ -137,3 +137,17 @@ created as new thesis records with librarian-checked metadata.
 - `npx tsx scripts/seo-check.ts --base https://library.ptec.edu.kh --phase 3 --delay 1500`.
 Inclusion takes weeks; check with a `site:library.ptec.edu.kh` search on
 scholar.google.com, not before a month.
+
+## Phase 4: checking the structured data after deploy
+
+Every public page now carries ONE `application/ld+json` block holding an
+`@graph`. After deploy, one URL per template, by hand:
+- validator.schema.org — paste the URL; expect no errors, and the college,
+  library and website nodes plus the page's own.
+- Google's Rich Results Test — books, articles, posts/events and the two FAQ
+  pages (`/` and `/policy`); FAQ rich results are no longer shown by Google
+  (May 2026), so "not eligible" there is expected, not a defect.
+- Search Console → Enhancements: the counts move over the following weeks;
+  a drop in "Sitelinks search box" items is expected (D10 removed it).
+Then, read-only and sequential:
+`npx tsx scripts/seo-check.ts --base https://library.ptec.edu.kh --phase 4 --delay 1500`.
