@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import approved from "@/content/hub-intros.json";
@@ -52,12 +52,14 @@ describe("drafts are never read by a page", () => {
   });
 });
 
+// Directory entries carry their own type, so nothing is stat()ed and then
+// read — the check-then-use CodeQL flags as a race (js/file-system-race, #158).
 function grepDrafts(dir: string): string[] {
   const out: string[] = [];
-  for (const name of readdirSync(dir)) {
-    const full = path.join(dir, name);
-    if (statSync(full).isDirectory()) out.push(...grepDrafts(full));
-    else if (/\.(ts|tsx)$/.test(name) && /(from\s+|import\(\s*|require\(\s*)["'][^"']*content\/drafts/.test(readFileSync(full, "utf8"))) out.push(full);
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...grepDrafts(full));
+    else if (/\.(ts|tsx)$/.test(entry.name) && /(from\s+|import\(\s*|require\(\s*)["'][^"']*content\/drafts/.test(readFileSync(full, "utf8"))) out.push(full);
   }
   return out;
 }

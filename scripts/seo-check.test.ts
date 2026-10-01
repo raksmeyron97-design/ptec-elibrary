@@ -18,6 +18,7 @@ import {
   robotsAllows,
   stripBrand,
   totalFromText,
+  mdCell,
 } from "./seo-check";
 
 describe("robots.txt, read as Googlebot reads it", () => {
@@ -118,5 +119,22 @@ describe("JSON-LD empty values", () => {
   });
   it("passes a complete node", () => {
     expect(emptyValuePaths({ "@graph": [{ "@type": "Book", name: "រលក", author: { "@type": "Person", name: "លឹង ថុល" } }] })).toEqual([]);
+  });
+});
+
+// CodeQL js/incomplete-sanitization (#155–#157): a Markdown cell must escape
+// backslashes before pipes, or an input "\\|" re-opens the pipe.
+describe("mdCell", () => {
+  // A pipe is a column break unless an ODD number of backslashes precede it.
+  const liveBreaks = (row: string) => [...row.matchAll(/(\\*)\|/g)].filter((m) => m[1].length % 2 === 0).length;
+
+  it.each(["plain", "a|b", "a\\|b", "a\\\\|b", "trailing\\", "|||", "\\|\\|"])("keeps %j inside one cell", (value) => {
+    const row = `| ${mdCell(value)} |`;
+    expect(liveBreaks(row)).toBe(2);
+  });
+
+  it("the old pipe-only escape split a cell holding a backslash-pipe (negative control)", () => {
+    const old = (s: string) => s.replace(/\|/g, "\\|");
+    expect(liveBreaks(`| ${old("a\\|b")} |`)).toBe(3);
   });
 });

@@ -61,6 +61,16 @@ function jsdom(): JSDOMModule {
   return jsdomModule;
 }
 
+/**
+ * A value for one cell of a Markdown table. Backslashes are escaped FIRST:
+ * escaping only `|` turns an input `\|` into `\\|`, which is an escaped
+ * backslash followed by a live pipe — the cell splits (CodeQL
+ * js/incomplete-sanitization, #155–#157).
+ */
+export function mdCell(s: string): string {
+  return s.replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
+}
+
 // ── Arguments ────────────────────────────────────────────────────────────────
 
 type Args = {
@@ -1024,7 +1034,7 @@ async function inventory(entries: UrlEntry[]): Promise<string> {
   for (const e of entries) {
     const page = await loadPage(siteUrl(e.path));
     const r = page.res;
-    const esc = (s: string) => s.replace(/\|/g, "\\|");
+    const esc = mdCell;
     if (!page.doc) {
       lines.push(`| \`${esc(e.path)}\` | ${r.status}${r.headers.get("location") ? " → " + decodeURI(r.headers.get("location")!) : ""} | | | | | | | | | | | ${r.headers.get("cache-control") ?? ""} |`);
       continue;
@@ -1084,7 +1094,7 @@ async function main(): Promise<void> {
   shown.sort((a, b) => order[a.level] - order[b.level] || a.phase - b.phase || a.check.localeCompare(b.check) || a.url.localeCompare(b.url));
   console.log("\n| level | phase | finding | check | URL | detail |\n|---|---|---|---|---|---|");
   for (const r of shown) {
-    console.log(`| ${r.level.toUpperCase()} | ${r.phase} | ${r.finding} | ${r.check} | \`${decodeURI(r.url).replace(/\|/g, "\\|")}\` | ${r.detail.replace(/\|/g, "\\|").replace(/\n/g, " ")} |`);
+    console.log(`| ${r.level.toUpperCase()} | ${r.phase} | ${r.finding} | ${r.check} | \`${mdCell(decodeURI(r.url))}\` | ${mdCell(r.detail).replace(/\n/g, " ")} |`);
   }
 
   console.log("\n## Summary by check\n\n| check | phase | finding | ok | error | todo | warn | unknown | rule |\n|---|---|---|---|---|---|---|---|---|");
