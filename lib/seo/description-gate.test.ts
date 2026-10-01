@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { TEMPLATED_CLUSTER_MIN, withheldByDescriptionGate } from "./description-gate";
 
@@ -15,5 +17,26 @@ describe("withheldByDescriptionGate", () => {
     expect(withheldByDescriptionGate({ ...base, hasFile: true, descriptionEmpty: true }, true)).toBe(false);
     expect(withheldByDescriptionGate({ ...base, descriptionEmpty: true, descriptionStatus: "approved" }, true)).toBe(false);
     expect(withheldByDescriptionGate({ ...base, templateClusterSize: TEMPLATED_CLUSTER_MIN - 1 }, true)).toBe(false);
+  });
+});
+
+// The page's robots and the sitemap read ONE set, so a book can never be
+// noindex while advertised, or advertised while noindex, for longer than the
+// sitemap's own cache window (RUNBOOK, Phase 5).
+describe("one withheld set for both consumers", () => {
+  const ROOT = path.resolve(__dirname, "../..");
+  const src = (f: string) => readFileSync(path.join(ROOT, f), "utf8");
+  it("the book page's robots and the books sitemap both read descriptionGateWithheldSlugs()", () => {
+    const page = src("app/[locale]/(public)/books/[slug]/page.tsx");
+    expect(page).toMatch(/\(await descriptionGateWithheldSlugs\(\)\)\.has\(slug\)/);
+    expect(page).toMatch(/withheld \? \{ robots: \{ index: false, follow: true \} \}/);
+    const sitemap = src("lib/seo/sitemap-entries.ts");
+    expect(sitemap).toMatch(/const withheld = await descriptionGateWithheldSlugs\(\);[\s\S]{0,200}books\.filter\(\(book\) => !withheld\.has\(book\.slug\)\)/);
+  });
+  it("an unreadable set withholds nothing, and the gate is read from the environment only", () => {
+    const server = src("lib/seo/description-gate.server.ts");
+    expect(server).toMatch(/if \(!descriptionGateEnabled\(\)\) return new Set\(\);/);
+    expect(server).toMatch(/catch \(error\) \{[\s\S]{0,300}return new Set\(\);/);
+    expect(src("lib/seo/seo-flags.ts")).toMatch(/resolveSeoFlag\(process\.env\.SEO_DESCRIPTION_GATE\)/);
   });
 });

@@ -188,10 +188,19 @@ numbered chapters gets no draft; it stays in the queue for a librarian.
 **Switching the indexing gate on (owner decision, after review has started).**
 `SEO_DESCRIPTION_GATE=on` in the box's `.env`, then restart the container.
 A book with NO readable file and an empty or templated description becomes
-`noindex, follow` and leaves `/sitemaps/books.xml`; approving a description
-brings it back within the hour (the gate is cached under the `books` tag).
-Books with a file are never withheld. Measured 2026-09-30: the gate would
-withhold **2** of 1,956 books. Check after the restart, sequentially:
+`noindex, follow` and leaves `/sitemaps/books.xml`. Books with a file are
+never withheld. Measured 2026-09-30: the gate would withhold **2** of 1,956
+books.
+
+Timing, measured on a local production build: a book PAGE follows the gate on
+its next render (an hour at most for a page already in the ISR cache). The
+SITEMAP takes longer — its entries are cached for an hour (`unstable_cache`,
+tag `sitemap`) inside a route that itself revalidates hourly, so allow up to
+two hours. In that window a withheld book is still in the sitemap while its
+page says noindex; Google tolerates this, and it ends on its own. Approving a
+description reverses it on the same clock (the gate set is cached under the
+`books` tag, which approval fires). Check two hours after the restart,
+sequentially:
 `curl -s https://library.ptec.edu.kh/sitemaps/books.xml | grep -c '<loc>'`
 should drop by that number, and
 `npx tsx scripts/seo-check.ts --base https://library.ptec.edu.kh --description-gate --delay 1500`
