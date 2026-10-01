@@ -88,6 +88,22 @@ export function numbersIn(text: string): string[] {
   return (toArabic(text).match(/\d+/g) ?? []).map((n) => String(Number(n)));
 }
 
+/**
+ * Arabic digits in Khmer prose, except inside a Latin name: "Excel 2013",
+ * "Orange 3", "5E", "ISO-9001". Khmer numbers are written in Khmer numerals;
+ * a product or model name keeps its own spelling ("Excel ២០១៣" is wrong).
+ */
+export function arabicDigitsInKhmerProse(text: string): string[] {
+  return [...text.matchAll(/[0-9]+/g)]
+    .filter((m) => {
+      const before = text.slice(0, m.index);
+      const after = text.slice((m.index ?? 0) + m[0].length);
+      const inLatinName = /[A-Za-z][A-Za-z.\-]*[ \-]?$/.test(before) || /^[A-Za-z]/.test(after);
+      return !inLatinName;
+    })
+    .map((m) => m[0]);
+}
+
 /** Everything the export put in front of the writer, as one string. */
 export function sourceMaterial(book: CoworkBook): string {
   return [
@@ -152,7 +168,8 @@ export function checkCoworkDraft(draft: CoworkDraft, books: ReadonlyMap<string, 
   const words = { km: km ? countWords(km, "km") : null, en: en ? countWords(en, "en") : null };
 
   if (km) {
-    if (/[0-9]/.test(km)) problems.push({ problem: "km_has_arabic_digits", detail: km.match(/[0-9]+/g)?.join(", ") });
+    const stray = arabicDigitsInKhmerProse(km);
+    if (stray.length) problems.push({ problem: "km_has_arabic_digits", detail: stray.join(", ") });
     // An English book's title stays in Latin inside Khmer prose; the rest is Khmer.
     if (khmerShare(km) < 0.5) problems.push({ problem: "km_not_khmer", detail: khmerShare(km).toFixed(2) });
     const ortho = countOrthographicViolations(km);
