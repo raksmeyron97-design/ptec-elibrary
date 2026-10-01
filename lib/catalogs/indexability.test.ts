@@ -6,6 +6,7 @@ import {
   catalogRobots,
   isCatalogRecordIndexable,
   CATALOG_MIN_DESCRIPTION_CHARS,
+  CATALOG_RECORDS_INDEXABLE,
 } from "./indexability";
 
 const REAL_DESCRIPTION =
@@ -27,10 +28,14 @@ const RECORD = {
 } as const;
 
 describe("assessCatalogIndexability", () => {
-  it("indexes a record that says something a result could be about", () => {
+  it("never indexes a catalogue record, however well described (decision P2-1)", () => {
+    // A record is a finding aid for a shelf copy. A real description is still
+    // recognised — the reason says so — but it no longer earns `index`.
     const v = assessCatalogIndexability({ ...RECORD, description: REAL_DESCRIPTION });
-    expect(v.visibility).toBe("index");
-    expect(v.reason).toBe("has-description");
+    expect(CATALOG_RECORDS_INDEXABLE).toBe(false);
+    expect(v.visibility).toBe("noindex");
+    expect(v.reason).toBe("finding-aid");
+    expect(isCatalogRecordIndexable({ ...RECORD, description: REAL_DESCRIPTION })).toBe(false);
   });
 
   // The whole point of the gate. The PMB export is No., Title, Author, DDC,
@@ -70,13 +75,13 @@ describe("assessCatalogIndexability", () => {
     expect(isCatalogRecordIndexable({})).toBe(false);
   });
 
-  it("keeps every record FOLLOW, indexed or not", () => {
+  it("keeps every record FOLLOW, and indexes none", () => {
     // The record's links to its subject and its copies stay worth crawling,
     // and the page still answers 200 to a reader who lands on it.
     expect(catalogRobots({}).follow).toBe(true);
     expect(catalogRobots({ ...RECORD, description: REAL_DESCRIPTION }).follow).toBe(true);
     expect(catalogRobots({}).index).toBe(false);
-    expect(catalogRobots({ ...RECORD, description: REAL_DESCRIPTION }).index).toBe(true);
+    expect(catalogRobots({ ...RECORD, description: REAL_DESCRIPTION }).index).toBe(false);
   });
 
   it("puts the threshold where a label stops and a sentence starts", () => {
@@ -85,9 +90,10 @@ describe("assessCatalogIndexability", () => {
     expect(
       assessCatalogIndexability({ ...RECORD, description: justUnder }).visibility,
     ).toBe("noindex");
-    expect(
-      assessCatalogIndexability({ ...RECORD, description: justOver }).visibility,
-    ).toBe("index");
+    // Above the floor a description is recognised as one (the diagnostic), and
+    // the record is still a finding aid (P2-1).
+    expect(assessCatalogIndexability({ ...RECORD, description: justUnder }).reason).toBe("record-only");
+    expect(assessCatalogIndexability({ ...RECORD, description: justOver }).reason).toBe("finding-aid");
   });
 
   // ── A test that was wrong, kept as a corrected record ─────────────────
@@ -103,11 +109,11 @@ describe("assessCatalogIndexability", () => {
   // The real strings, and the rule that now refuses them, are in
   // derived-description.test.ts. What stays here is the narrower claim this
   // file can actually make.
-  it("indexes a record whose description is longer than the floor AND novel", () => {
+  it("recognises a description longer than the floor AND novel (a finding aid since P2-1)", () => {
     expect(REAL_DESCRIPTION.length).toBeGreaterThan(CATALOG_MIN_DESCRIPTION_CHARS);
     expect(
       assessCatalogIndexability({ ...RECORD, description: REAL_DESCRIPTION }).reason,
-    ).toBe("has-description");
+    ).toBe("finding-aid");
   });
 });
 

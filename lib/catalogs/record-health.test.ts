@@ -1,7 +1,8 @@
 /**
  * Record health in the catalogue editor: facts about the saved record, each
- * naming a consequence — and search visibility is the public page's own gate,
- * never a second opinion.
+ * naming a consequence a reader feels. Search visibility is not among them:
+ * since SEO decision P2-1 no catalogue record is indexed, so it would be a
+ * check no edit could pass.
  */
 import { describe, it, expect } from "vitest";
 import { assessCatalogRecordHealth, type RecordHealthInput } from "@/lib/catalogs/record-health";
@@ -26,9 +27,8 @@ const byId = (checks: ReturnType<typeof assessCatalogRecordHealth>) =>
   Object.fromEntries(checks.map((c) => [c.id, c]));
 
 describe("assessCatalogRecordHealth", () => {
-  it("reads a PMB row as it is: shelved and filed, but hidden from search and missing its bibliographic details", () => {
+  it("reads a PMB row as it is: shelved and filed, but missing its bibliographic details", () => {
     const h = byId(assessCatalogRecordHealth(PMB, { total: 5 }));
-    expect(h["search-visibility"]).toMatchObject({ ok: false, tier: "action", reason: "derived-description" });
     expect(h.copies.ok).toBe(true);
     expect(h["call-number"].ok).toBe(true);
     expect(h.subject.ok).toBe(true);
@@ -37,20 +37,11 @@ describe("assessCatalogRecordHealth", () => {
     expect(h.cover).toMatchObject({ ok: false, tier: "info" });
   });
 
-  it("agrees with the public page's indexing gate for the same record", () => {
-    const records: RecordHealthInput[] = [
-      PMB,
-      { ...PMB, description: null },
-      { ...PMB, description: "A practical guide to classroom assessment for primary teachers, with worked rubrics and case studies from Cambodian schools." },
-    ];
-    for (const r of records) {
-      const gate = assessCatalogIndexability({
-        description: r.description, title: r.title, author: r.author, category: r.category,
-        department: r.department, ddc: r.ddc, publisher: r.publisher, shelfLocation: r.shelf_location,
-      });
-      const check = byId(assessCatalogRecordHealth(r, { total: 1 }))["search-visibility"];
-      expect(check.ok).toBe(gate.visibility === "index");
-      expect(check.reason).toBe(gate.reason);
+  it("offers no search-visibility check, because no record can pass one (P2-1)", () => {
+    const described = { ...PMB, description: "A practical guide to classroom assessment for primary teachers, with worked rubrics and case studies from Cambodian schools." };
+    expect(assessCatalogIndexability({ ...described, shelfLocation: null }).visibility).toBe("noindex");
+    for (const r of [PMB, { ...PMB, description: null }, described]) {
+      expect(assessCatalogRecordHealth(r, { total: 1 }).map((c) => c.id)).not.toContain("search-visibility");
     }
   });
 
@@ -73,7 +64,6 @@ describe("assessCatalogRecordHealth", () => {
     const en = (await import("@/messages/en.json")).default.adminCatalog.edit.health as Record<string, string>;
     const km = (await import("@/messages/km.json")).default.adminCatalog.edit.health as Record<string, string>;
     const keys = [
-      "visibilityOk", "visibilityRecordOnly", "visibilityDerived", "visibilityUnchecked",
       "copiesOk", "copiesBad", "callNumberOk", "callNumberBad", "subjectOk", "subjectBad",
       "isbnOk", "isbnBad", "publicationOk", "publicationBad", "coverOk", "coverBad",
     ];

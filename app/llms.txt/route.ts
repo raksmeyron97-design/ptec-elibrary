@@ -168,7 +168,7 @@ The ${org.siteName} preserves, organizes, and shares teaching and research mater
 ## Public Resource Types
 
 - Digital books: ${SITE_URL}/books - online teaching resources, textbooks, and education materials that can be read through the public library interface.
-- Physical library catalog: ${SITE_URL}/catalogs - bibliographic records for print books and holdings in the ${org.abbreviation} library collection. Individual catalogue records are finding aids. None is in the sitemap and most answer \`noindex, follow\`; only a record with a librarian-written description may be indexed. A record whose work is also a digital book links to that book, which is the page to cite.
+- Physical library catalog: ${SITE_URL}/catalogs - bibliographic records for print books and holdings in the ${org.abbreviation} library collection. Individual catalogue records are finding aids, not search results: every one answers \`noindex, follow\` and none is in the sitemap. A record whose work is also a digital book links to that book, which is the page to cite.
 - Student theses and research reports: ${SITE_URL}/theses - scholarly student research from ${org.abbreviation} programs, cohorts, departments, and academic years.
 - Scholarly journals and journal articles: ${SITE_URL}/journals - journals held by the library, each with its issues, and journal articles, each with a bibliographic landing page, references, and citation metadata. Article URLs are ${SITE_URL}/journals/articles/<slug>.
 - ${org.abbreviation}'s own official publications are on the college website, not in the library: ${PTEC_PUBLICATIONS_URL}

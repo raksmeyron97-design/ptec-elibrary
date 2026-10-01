@@ -412,9 +412,9 @@ repo). The rules that must keep holding:
 - **What a sitemap lists and what a page's robots say come from ONE
   predicate per type**: subject depth (`lib/subjects/indexability.ts`), author
   works or an approved bio (D2, `lib/authors/indexability.ts`,
-  `SEO_AUTHOR_MIN_WORKS`), catalogue records never in a sitemap and noindex
-  when they have a digital twin or no librarian description
-  (`lib/catalogs/indexability.ts`), the description gate
+  `SEO_AUTHOR_MIN_WORKS`), catalogue records never indexed and never in a
+  sitemap — finding aids, decision P2-1 (`CATALOG_RECORDS_INDEXABLE` in
+  `lib/catalogs/indexability.ts`), the description gate
   (`lib/seo/description-gate.ts`, `SEO_DESCRIPTION_GATE`, off by default). A
   withheld page keeps `follow`, and noindex pages carry no hreflang.
 - **Every record helper in `lib/cache/revalidate.ts` fires `TAGS.sitemap`**, so

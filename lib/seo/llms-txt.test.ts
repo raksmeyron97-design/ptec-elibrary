@@ -20,9 +20,9 @@ describe("/llms.txt says only what is true", () => {
     expect(src).toMatch(/books carry no \\`license\\` at all/);
     expect(src).not.toMatch(/books\s+and theses carry no/);
   });
-  it("does not claim every catalogue record is noindex — a described one may be indexed (P2-1)", () => {
-    expect(src).not.toMatch(/they answer \\`noindex, follow\\` and are not in the sitemap/);
-    expect(src).toMatch(/None is in the sitemap and most answer/);
+  it("says every catalogue record is a noindex finding aid — true since decision P2-1", () => {
+    expect(src).toMatch(/every one answers \\`noindex, follow\\` and none is in the sitemap/);
+    expect(src).not.toMatch(/may be indexed/);
   });
   it("names the structured-data types the pages actually emit (Phase 4)", () => {
     expect(src).toMatch(/Book, Thesis or ScholarlyArticle/);

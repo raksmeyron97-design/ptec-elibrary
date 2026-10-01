@@ -75,11 +75,24 @@ export const CATALOG_MIN_DESCRIPTION_CHARS = 40;
 
 export type CatalogVisibility = "index" | "noindex";
 
+/**
+ * SEO decision P2-1 (2026-10-01): NO catalogue record is indexed. A record is
+ * a finding aid for a shelf copy; the page a search result should land on is
+ * the e-book when one exists, and the collection pages otherwise. Before this,
+ * a record with a librarian-written description was `index` but in no sitemap
+ * — a page asserting it was worth ranking while the site declined to say so.
+ * The description rules below still run, so the reason stays an honest
+ * diagnostic of the record; they no longer decide visibility.
+ */
+export const CATALOG_RECORDS_INDEXABLE = false;
+
 export interface CatalogIndexability {
   visibility: CatalogVisibility;
   /** Why, for the report and for the admin data-quality surface. */
   reason:
     | "has-description"
+    /** A described record under P2-1: a finding aid, never a search result. */
+    | "finding-aid"
     /** The same work is an e-book in the digital library; that page ranks. */
     | "has-digital-twin"
     | "record-only"
@@ -123,7 +136,9 @@ export function assessCatalogIndexability(
   if (isDerivedDescription(record)) {
     return { visibility: "noindex", reason: "derived-description" };
   }
-  return { visibility: "index", reason: "has-description" };
+  return CATALOG_RECORDS_INDEXABLE
+    ? { visibility: "index", reason: "has-description" }
+    : { visibility: "noindex", reason: "finding-aid" };
 }
 
 /**

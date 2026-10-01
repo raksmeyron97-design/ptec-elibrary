@@ -298,8 +298,7 @@
       "cacheable": false
     },
     "catalog-record-described": {
-      "robots": "index",
-      "hreflang": true,
+      "robots": "noindex",
       "record": true,
       "jsonld": [
         "Book",
