@@ -9,6 +9,7 @@ import type { Publication } from "@/lib/publications";
 import { citationYear } from "@/lib/citations";
 import { academicTextToPlainText } from "@/lib/publications/citations";
 import { articlePath } from "@/lib/journals/urls";
+import { doiUrl } from "@/lib/seo/identifiers";
 
 // Keys in the `publications` namespace; the labels were English literals,
 // so a Khmer journal listing read "Article" / "Review" / "Editorial".
@@ -44,6 +45,7 @@ export default function PublicationListItem({
   const t = useTranslations("publications");
   const year = citationYear(publication);
   const snippet = academicTextToPlainText(publication.abstract, publication.references);
+  const doiHref = doiUrl(publication.doi);
 
   // "Journal of Chemical Education · 91(6) · 776–777 · 2014" — assembled from
   // whatever the record actually has, never printed with empty slots.
@@ -138,11 +140,18 @@ export default function PublicationListItem({
               downloads={publication.download_count || 0}
               size="xs"
             />
-            {publication.doi && (
-              <span className="inline-flex items-center gap-1 font-mono text-[11px] text-text-muted">
-                <Fingerprint className="h-3 w-3" aria-hidden="true" />
-                {publication.doi.replace(/^https?:\/\/doi\.org\//, "")}
-              </span>
+            {/* Crossref's display guideline: a DOI is shown as its full
+                https://doi.org link. `relative z-10` lifts it above the
+                row-wide title link so it stays its own target. */}
+            {doiHref && (
+              <a
+                href={doiHref}
+                rel="noopener noreferrer"
+                className="relative z-10 inline-flex min-h-6 items-center gap-1 break-all font-mono text-[11px] text-text-muted hover:text-brand hover:underline"
+              >
+                <Fingerprint className="h-3 w-3 shrink-0" aria-hidden="true" />
+                {doiHref}
+              </a>
             )}
           </div>
         </div>

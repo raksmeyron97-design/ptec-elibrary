@@ -123,6 +123,8 @@ export interface Publication {
   issue_id?: string | null;
   page_start: string | null;
   page_end: string | null;
+  /** The librarian's table-of-contents position inside its issue (0166). Null = printed order. */
+  issue_position?: number | null;
   article_no: string | null;
   doi: string | null;
   /** Journal ISSN (migration 0092). Distinct from a reviewed book's ISBN. */
@@ -260,6 +262,7 @@ export function mapRowToPublication(row: any): Publication {
     ...("volume_id" in row ? { volume_id: row.volume_id ?? null } : {}),
     ...("issue_id" in row ? { issue_id: row.issue_id ?? null } : {}),
     page_start: row.page_start ?? null,
+    issue_position: typeof row.issue_position === "number" ? row.issue_position : null,
     page_end: row.page_end ?? null,
     article_no: row.article_no ?? null,
     doi: row.doi ?? null,

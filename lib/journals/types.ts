@@ -4,6 +4,18 @@
 // `publications` table was deliberately not renamed; see
 // docs/JOURNALS-ARCHITECTURE.md.
 
+import {
+  isAccessModel,
+  isIndexServiceId,
+  isMetadataSource,
+  isPeerReviewType,
+  isTitleKmSource,
+  type AccessModel,
+  type MetadataSource,
+  type PeerReviewType,
+  type TitleKmSource,
+} from "@/lib/journals/vocab";
+
 export interface Journal {
   id: string;
   slug: string;
@@ -31,6 +43,19 @@ export interface Journal {
   is_published: boolean;
   is_indexable: boolean;
   updated_at: string | null;
+  // ── Reader-facing profile (0166). Every field may be unknown. ──
+  /** Whose Khmer title this is. NULL is read as a library translation. */
+  title_km_source: TitleKmSource | null;
+  access_model: AccessModel | null;
+  default_license: string | null;
+  peer_review: PeerReviewType | null;
+  indexed_in: string[];
+  start_year: number | null;
+  subjects: string[];
+  issn_l: string | null;
+  author_guidelines_url: string | null;
+  editorial_board_url: string | null;
+  metadata_source: MetadataSource | null;
 }
 
 export interface JournalVolume {
@@ -65,11 +90,19 @@ export interface JournalIssue {
   volume?: JournalVolume | null;
 }
 
-export const JOURNAL_SELECT =
+/** The 0148 columns — every database the app may meet has these. */
+export const JOURNAL_SELECT_BASE =
   "id, slug, code, title, title_km, short_title, description, description_km, " +
   "publisher_name, publisher_name_km, issn, e_issn, print_issn, language, country, " +
   "frequency, logo_url, cover_url, aims_scope, aims_scope_km, website_url, " +
   "contact_email, aliases, is_published, is_indexable, updated_at";
+
+/** The 0166 profile columns. A read that fails on them retries with the base (lib/journals/data.ts). */
+export const JOURNAL_PROFILE_COLUMNS =
+  "title_km_source, access_model, default_license, peer_review, indexed_in, start_year, " +
+  "subjects, issn_l, author_guidelines_url, editorial_board_url, metadata_source";
+
+export const JOURNAL_SELECT = `${JOURNAL_SELECT_BASE}, ${JOURNAL_PROFILE_COLUMNS}`;
 
 export const VOLUME_SELECT =
   "id, journal_id, volume_number, label, year, start_date, end_date, cover_url, description, is_published";
@@ -108,6 +141,17 @@ export function mapRowToJournal(row: any): Journal {
     is_published: row.is_published === true,
     is_indexable: row.is_indexable !== false,
     updated_at: row.updated_at ?? null,
+    title_km_source: isTitleKmSource(row.title_km_source) ? row.title_km_source : null,
+    access_model: isAccessModel(row.access_model) ? row.access_model : null,
+    default_license: str(row.default_license),
+    peer_review: isPeerReviewType(row.peer_review) ? row.peer_review : null,
+    indexed_in: Array.isArray(row.indexed_in) ? row.indexed_in.filter(isIndexServiceId) : [],
+    start_year: typeof row.start_year === "number" ? row.start_year : null,
+    subjects: Array.isArray(row.subjects) ? row.subjects.filter((v: unknown) => typeof v === "string" && v.trim() !== "") : [],
+    issn_l: str(row.issn_l),
+    author_guidelines_url: str(row.author_guidelines_url),
+    editorial_board_url: str(row.editorial_board_url),
+    metadata_source: isMetadataSource(row.metadata_source) ? row.metadata_source : null,
   };
 }
 
@@ -147,9 +191,27 @@ export function mapRowToIssue(row: any): JournalIssue {
   };
 }
 
-/** The journal title in the reader's language, falling back to the English one. */
-export function journalTitle(journal: Pick<Journal, "title" | "title_km">, locale: string): string {
-  return locale === "km" && journal.title_km ? journal.title_km : journal.title;
+type KhmerTitled = Pick<Journal, "title_km"> & { title_km_source?: TitleKmSource | null };
+
+/**
+ * The journal's Khmer title when the PUBLISHER uses it, else null. A library
+ * translation (or a title whose source was never stated) is not a name of the
+ * journal: it is never the H1, the <title>, a filter label or a JSON-LD
+ * `alternateName` (decision 2026-10-02). See translatedTitleKm().
+ */
+export function officialTitleKm(journal: KhmerTitled): string | null {
+  return journal.title_km && journal.title_km_source === "official" ? journal.title_km : null;
+}
+
+/** The library's own Khmer translation of the title — shown, but labelled as one. */
+export function translatedTitleKm(journal: KhmerTitled): string | null {
+  return journal.title_km && journal.title_km_source !== "official" ? journal.title_km : null;
+}
+
+/** The journal's name in the reader's language when the publisher has one, else its own title. */
+export function journalTitle(journal: Pick<Journal, "title"> & KhmerTitled, locale: string): string {
+  const km = officialTitleKm(journal);
+  return locale === "km" && km ? km : journal.title;
 }
 
 /**
@@ -176,6 +238,56 @@ export function issueLabel(
   }
   if (parts.length > 0) return parts.join(locale === "km" ? " " : ", ");
   return (locale === "km" && issue.title_km) || issue.title || "";
+}
+
+const KHMER_DIGITS = "០១២៣៤៥៦៧៨៩";
+const toLatinDigits = (s: string) => s.replace(/[០-៩]/g, (d) => String(KHMER_DIGITS.indexOf(d)));
+
+/**
+ * True when an issue title only restates the issue's own numbering —
+ * "Volume 91, Issue 11", "Vol. 7 No. 2 (2025)", "ភាគ ៧ លេខ ២". Such a title
+ * printed under the label "Vol. 91, No. 11" says the same thing twice, which
+ * is what the journal page did for the only issue production holds.
+ *
+ * Conservative: a title is a restatement only when, after removing the
+ * numbering words, every token left is the volume number, the issue number or
+ * a year. Any other word ("Special issue on assessment") keeps it.
+ */
+export function titleRestatesNumbering(
+  title: string,
+  volumeNumber: string | null | undefined,
+  issueNumber: string | null | undefined,
+): boolean {
+  const numbers = new Set(
+    [volumeNumber, issueNumber].filter((v): v is string => !!v?.trim()).map((v) => toLatinDigits(v.trim().toLowerCase())),
+  );
+  const rest = toLatinDigits(title.toLowerCase())
+    .replace(/(?<!\p{L})(?:vol(?:ume)?|issue|iss|numbers?|nos?|n°)(?!\p{L})/gu, " ")
+    .replace(/ភាគ(?:ទី)?|លេខ/g, " ")
+    .replace(/[^\p{L}\p{M}\p{N}]+/gu, " ")
+    .trim();
+  if (!rest) return numbers.size > 0;
+  return rest.split(" ").every((tok) => numbers.has(tok) || (/^\d{4}$/.test(tok) && Number(tok) >= 1800 && Number(tok) <= 2100));
+}
+
+/**
+ * The issue's own title, when it says something its label does not. Null for
+ * a title that only restates the numbering, and for a title-only issue (whose
+ * label already IS its title).
+ */
+export function issueSubtitle(
+  issue: Pick<JournalIssue, "issue_number" | "issue_label" | "title" | "title_km"> & {
+    volume?: Pick<JournalVolume, "volume_number"> | null;
+  },
+  locale: string,
+): string | null {
+  const title = (locale === "km" && issue.title_km) || issue.title;
+  if (!title) return null;
+  if (title === issueLabel(issue, locale)) return null;
+  const restates =
+    titleRestatesNumbering(title, issue.volume?.volume_number, issue.issue_number) ||
+    (issue.title ? titleRestatesNumbering(issue.title, issue.volume?.volume_number, issue.issue_number) : false);
+  return restates ? null : title;
 }
 
 /** "18 June 2025" / Khmer month names with Latin digits (the site's numerals). */

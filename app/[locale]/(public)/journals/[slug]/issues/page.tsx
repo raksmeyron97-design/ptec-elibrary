@@ -10,7 +10,7 @@ import JournalBreadcrumb from "@/components/ui/journals/JournalBreadcrumb";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { buildIssuesListMetadata, issuesListJsonLd, type JournalPageSeoInput } from "@/lib/seo/journal-seo";
 import { getJournalBySlug, getJournalOverview, type JournalSummary } from "@/lib/journals/data";
-import { formatJournalDate, issueLabel, journalTitle, type JournalIssue } from "@/lib/journals/types";
+import { formatJournalDate, issueLabel, issueSubtitle, journalTitle, officialTitleKm, type JournalIssue } from "@/lib/journals/types";
 import { issuePath, journalIssuesPath, journalPath, JOURNALS_PATH } from "@/lib/journals/urls";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { decodeSlugParam } from "@/lib/slug";
@@ -30,7 +30,7 @@ function toSeo(j: JournalSummary): JournalPageSeoInput {
   return {
     slug: j.slug,
     title: j.title,
-    titleKm: j.title_km,
+    titleKm: officialTitleKm(j),
     issn: j.issn,
     eIssn: j.e_issn,
     printIssn: j.print_issn,
@@ -152,10 +152,8 @@ export default async function JournalIssuesPage({ params }: PageProps) {
                               </span>
                             )}
                           </span>
-                          {issue.title && issue.issue_number && (
-                            <span className="mt-0.5 text-[13.5px] text-text-body">
-                              {(locale === "km" && issue.title_km) || issue.title}
-                            </span>
+                          {issueSubtitle(issue, locale) && (
+                            <span className="mt-0.5 text-[13.5px] text-text-body">{issueSubtitle(issue, locale)}</span>
                           )}
                           <span className="mt-1 text-[12.5px] text-text-muted">
                             {[

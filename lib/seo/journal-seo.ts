@@ -154,6 +154,10 @@ export type JournalPageSeoInput = JournalSeoRef & {
   coverUrl?: string | null;
   articleCount: number;
   isIndexable: boolean;
+  /** 0166. Only an OPEN journal is claimed free to read; hybrid/subscription/unknown claim nothing. */
+  accessModel?: string | null;
+  /** 0166. First year of publication → `startDate`. */
+  startYear?: number | null;
 };
 
 export function journalDescription(j: JournalPageSeoInput, locale: string): string {
@@ -203,6 +207,8 @@ export function journalJsonLd(j: JournalPageSeoInput, locale: string, orgArg?: O
     description: clean(locale === "km" ? j.descriptionKm || j.description : j.description) || undefined,
     inLanguage: clean(j.language) || undefined,
     image: j.coverUrl || undefined,
+    startDate: j.startYear ? String(j.startYear) : undefined,
+    isAccessibleForFree: j.accessModel === "open" ? true : undefined,
     provider: libraryNode(org),
   });
 }

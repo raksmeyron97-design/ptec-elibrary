@@ -951,6 +951,45 @@ UPDATE public.publication_authors
  WHERE slug IS NULL;
 
 
+-- ── Journal profiles (0166) and a PTEC author ───────────────────────────────
+-- What the journal page's "Quality and access" rail and "PTEC authors" block
+-- read. Guarded so the seed still loads on a database before 0166.
+--   * CJTE — its Khmer title is the journal's OWN (official); open access,
+--     double-blind review, a licence, a start year.
+--   * Journal of Chemical Education — a foreign journal: the Khmer title the
+--     library gives it is a TRANSLATION and must be labelled as one; hybrid
+--     access and several indexes, as the publisher states them.
+--   * Sok Dara — flagged PTEC staff, so CJTE lists him as a PTEC author.
+DO $journal_profiles$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'journals' AND column_name = 'title_km_source'
+  ) THEN
+    RAISE NOTICE 'seed: journal profile columns absent (pre-0166) — skipping';
+    RETURN;
+  END IF;
+
+  UPDATE public.journals
+     SET title_km_source = 'official', access_model = 'open', default_license = 'CC-BY-4.0',
+         peer_review = 'double_blind', indexed_in = '{google_scholar}', start_year = 2019
+   WHERE slug = 'cambodian-journal-of-teacher-education';
+
+  UPDATE public.journals
+     SET title_km = 'ទស្សនាវដ្ដីអប់រំគីមីវិទ្យា', title_km_source = 'library_translation',
+         access_model = 'hybrid', peer_review = 'single_blind',
+         indexed_in = '{scopus,wos_scie,eric}', start_year = 1924, frequency = 'monthly',
+         country = 'US', e_issn = '1938-1328', print_issn = '0021-9584', issn = NULL,
+         website_url = 'https://pubs.acs.org/journal/jceda8'
+   WHERE slug = 'journal-of-chemical-education';
+
+  UPDATE public.publication_authors
+     SET is_ptec_staff = true
+   WHERE id = '99999999-9999-4999-8999-999999990001';
+END
+$journal_profiles$;
+
+
 -- ============================================================================
 -- 13. Extracted page text, so retrieval has something to retrieve
 -- ============================================================================

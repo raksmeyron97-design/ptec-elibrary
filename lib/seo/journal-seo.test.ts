@@ -86,6 +86,17 @@ describe("journal and issue pages", () => {
     expect(ld["@id"]).toBe(periodicalId(CJTE.slug));
   });
 
+  it("claims free access only for an OPEN journal, and a start date only when stated", () => {
+    const base = journalJsonLd(CJTE, "en") as any;
+    expect(base.isAccessibleForFree).toBeUndefined();
+    expect(base.startDate).toBeUndefined();
+    expect((journalJsonLd({ ...CJTE, accessModel: "hybrid" }, "en") as any).isAccessibleForFree).toBeUndefined();
+    expect((journalJsonLd({ ...CJTE, accessModel: "subscription" }, "en") as any).isAccessibleForFree).toBeUndefined();
+    const open = journalJsonLd({ ...CJTE, accessModel: "open", startYear: 2019 }, "en") as any;
+    expect(open.isAccessibleForFree).toBe(true);
+    expect(open.startDate).toBe("2019");
+  });
+
   it("issue JSON-LD lists its articles at their canonical /journals/articles URLs", () => {
     const ld = issueJsonLd(CJTE, { slug: "vol-7-issue-2", issueNumber: "2", volumeNumber: "7" }, [
       { slug: "a", title: "A", doi: "10.5281/zenodo.9000001", pageStart: "114", pageEnd: "139" },

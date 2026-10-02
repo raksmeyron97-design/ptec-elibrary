@@ -9320,7 +9320,7 @@
     "breadcrumbIssues": "Issues",
     "eyebrow": "Journal",
     "issn": "ISSN",
-    "eIssn": "E-ISSN",
+    "eIssn": "Online ISSN",
     "printIssn": "Print ISSN",
     "publisher": "Publisher",
     "language": "Language",
@@ -9352,7 +9352,65 @@
     "backToJournal": "Back to the journal",
     "officialPublicationsNote": "Looking for PTEC's own official publications? They are published on the college website.",
     "officialPublicationsLink": "PTEC Publications",
-    "opensNewTab": "Opens in a new tab"
+    "opensNewTab": "Opens in a new tab",
+    "eyebrowIndexed": "Journal · in the PTEC Library",
+    "titleTranslation": "Library translation",
+    "titleTranslationHint": "The PTEC Library's Khmer translation of the title. The publisher does not use it.",
+    "since": "Since {year}",
+    "issnL": "ISSN-L",
+    "accessModel": {
+      "open": "Open access",
+      "hybrid": "Hybrid access",
+      "subscription": "Subscription"
+    },
+    "accessModelHint": {
+      "open": "Every article is free to read at the publisher.",
+      "hybrid": "Some articles are free to read; the rest need a subscription.",
+      "subscription": "Articles need a subscription or a purchase from the publisher."
+    },
+    "peerReview": {
+      "double_blind": "Double-blind peer review",
+      "single_blind": "Single-blind peer review",
+      "open": "Open peer review",
+      "editorial": "Editorial review"
+    },
+    "frequencyValue": {
+      "annual": "Annual",
+      "semiannual": "Twice a year",
+      "triannual": "Three times a year",
+      "quarterly": "Quarterly",
+      "bimonthly": "Every two months",
+      "monthly": "Monthly",
+      "semimonthly": "Twice a month",
+      "weekly": "Weekly",
+      "continuous": "Continuous publication",
+      "irregular": "Irregular"
+    },
+    "trustHeading": "Quality and access",
+    "peerReviewLabel": "Peer review",
+    "indexedInLabel": "Indexed in",
+    "licenseLabel": "Licence",
+    "accessLabel": "Access",
+    "publisherTerms": "Publisher's own terms",
+    "startYearLabel": "Publishing since",
+    "subjectsLabel": "Subjects",
+    "linksHeading": "At the publisher",
+    "authorGuidelines": "Author guidelines",
+    "editorialBoard": "Editorial board",
+    "atAGlance": "At a glance",
+    "howToReadHeading": "How to read these articles",
+    "howToRead": {
+      "open": "Open access: read and download the full text here.",
+      "restricted": "Licensed: the publisher holds the copyright. Read it here when the library holds the file, or follow the DOI to the publisher.",
+      "unknown": "Rights not stated: the library has not confirmed the licence, so treat the article as copyrighted."
+    },
+    "howToReadHelp": "Can't get a copy?",
+    "askLibrarian": "Ask a librarian",
+    "viewFullIssue": "See all {count} articles in this issue",
+    "earlierIssues": "Earlier issues",
+    "moreArticles": "More articles from this journal",
+    "ptecAuthorsHeading": "PTEC authors in this journal",
+    "ptecAuthorsIntro": "Lecturers and staff of the college whose work appears here."
   },
   "adminJournals": {
     "title": "Journals",

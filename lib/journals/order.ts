@@ -37,10 +37,17 @@ export type OrderableArticle = {
   page_start: string | null;
   article_no: string | null;
   publication_date: string | null;
+  /** The librarian's explicit position (0166); outranks every printed signal. */
+  issue_position?: number | null;
 };
 
 /**
  * The order articles are printed in an issue's table of contents.
+ *
+ * A position the librarian SET (`issue_position`, 0166) comes first: it is the
+ * journal's own table of contents, which is not always page order (an
+ * editorial on unnumbered pages, a continuous-publication journal). Articles
+ * without one follow, in the printed order below.
  *
  * `page_start` first — it is the printed position, and every seeded and
  * real-world issue carries it. `article_no` next: continuous-publication
@@ -50,6 +57,7 @@ export type OrderableArticle = {
  */
 export function compareArticlesInIssue(a: OrderableArticle, b: OrderableArticle): number {
   return (
+    cmpNullableNumber(a.issue_position ?? null, b.issue_position ?? null) ||
     cmpNullableNumber(leadingInt(a.page_start), leadingInt(b.page_start)) ||
     cmpNullableNumber(leadingInt(a.article_no), leadingInt(b.article_no)) ||
     cmpTextNullsLast(a.article_no, b.article_no) ||

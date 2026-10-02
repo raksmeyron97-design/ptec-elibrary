@@ -22,6 +22,16 @@ describe("compareArticlesInIssue — the printed table of contents", () => {
     expect(list.sort(compareArticlesInIssue).map((r) => r.id)).toEqual(["p", "n1", "n2", "e2", "none"]);
   });
 
+  it("a librarian's position outranks the printed order; unpositioned articles follow in printed order", () => {
+    const list = [
+      a("p1", { page_start: "1" }),
+      a("p9", { page_start: "9" }),
+      a("second", { page_start: "40", issue_position: 2 }),
+      a("first", { page_start: "70", issue_position: 1 }),
+    ];
+    expect(list.sort(compareArticlesInIssue).map((r) => r.id)).toEqual(["first", "second", "p1", "p9"]);
+  });
+
   it("is total: identical positions end in the id, so two runs agree", () => {
     const one = [a("b", { page_start: "5", title: "Same" }), a("a", { page_start: "5", title: "Same" })];
     const two = [...one].reverse();
