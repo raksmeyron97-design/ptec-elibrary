@@ -41,6 +41,9 @@ import {
 } from "@/lib/publications/abstract-language";
 
 const WORDS_PER_MINUTE = 200;
+/** Reading tools (text size, reading time, word count) appear above this length. */
+const LONG_ABSTRACT_WORDS = 250;
+const LONG_KHMER_CHARS = 1500;
 // Only a genuinely long abstract is ever clipped, and the decision is made on
 // its LENGTH, not on how many lines it happens to wrap to.
 //
@@ -286,7 +289,12 @@ export default function PublicationAbstractSection({
   const plain = meterText ? academicTextToPlainText(meterText, references) : "";
   const words = plain ? plain.split(/\s+/).filter(Boolean).length : 0;
   const readingMinutes = words > 0 ? Math.max(1, Math.round(words / WORDS_PER_MINUTE)) : 0;
-  const showMeter = words > 0 && wordCountIsMeaningful(activeLang);
+  // Reading tools are for reading LONG text (articles redesign): an 86-word
+  // abstract carried a text-size control, "1 min read" and a word count, which
+  // cost a row above the one paragraph a reader came for. Khmer has no
+  // whitespace word boundaries, so its length is judged in characters.
+  const longText = activeLang === "km" ? (abstractKm?.length ?? 0) > LONG_KHMER_CHARS : words > LONG_ABSTRACT_WORDS;
+  const showMeter = longText && words > 0 && wordCountIsMeaningful(activeLang);
 
   const englishBlock = abstract ? (
     <ExpandableAcademicBlock
@@ -323,7 +331,7 @@ export default function PublicationAbstractSection({
         id="abstract-heading"
         className="mb-3"
         aside={
-          <ReaderToolbar
+          longText && <ReaderToolbar
             textSize={textSize}
             canDecrease={canDecrease}
             canIncrease={canIncrease}

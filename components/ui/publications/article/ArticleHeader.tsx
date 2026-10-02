@@ -1,12 +1,9 @@
 import { getTranslations } from "next-intl/server";
-import { ArrowLeft } from "lucide-react";
-import { Link } from "@/i18n/navigation";
 import AccessBadge from "@/components/ui/publications/AccessBadge";
 import PublicationAccessNotice from "@/components/ui/publications/PublicationAccessNotice";
 import ArticleAuthors from "@/components/ui/publications/article/ArticleAuthors";
 import ArticleActions from "@/components/ui/publications/article/ArticleActions";
 import ArticleDoi from "@/components/ui/publications/article/ArticleDoi";
-import ArticlePrevNext, { type ArticleNeighbour } from "@/components/ui/publications/article/ArticlePrevNext";
 import { EYEBROW, KHMER_RE } from "@/components/ui/publications/article/styles";
 import { secondaryValue } from "@/lib/publications/integrity";
 import type { DownloadAccess } from "@/lib/publications/access";
@@ -16,24 +13,29 @@ import type { NumberedAffiliation } from "@/lib/publications/article-layout";
 export const ARTICLE_TITLE_ID = "article-title";
 
 /**
- * The journal article's masthead.
+ * The journal article's masthead — compact, so the abstract starts on the
+ * first screen (articles redesign, 2026-10-02).
  *
- * Built to answer, in this order: what is this, who wrote it, where and when
- * was it published, what is its DOI, and how do I read it. It is deliberately
- * NOT a card — the old masthead was a 788 px rounded box that pushed the
- * abstract below a laptop's fold — but an editorial header on the page's
- * reading surface, closed by a hairline.
+ * Measured before: the header block was 928 px tall at 1440×1000 and the
+ * abstract began at 1,158 px (1,566 px on a 375×812 phone). It stacked a back
+ * link, a journal block, an eyebrow, a display-size title, numbered
+ * affiliations, a corresponding-author line, a five-row identity list, a view
+ * count, the buttons and an access notice box. Now:
  *
- * Everything here is a fact the record carries. A missing volume, issue,
- * date, DOI or affiliation removes its line; nothing is filled in. The one
- * rights claim is AccessBadge (derived from the licence, never asserted), and
- * the buttons come from the resolved access decision.
+ *   type · title · translated title · authors (affiliations folded) ·
+ *   ONE citation line · ONE line of DOI / access / date · the primary action
+ *   and one line saying how the reader gets the text.
+ *
+ * Journal and issue are no longer restated here: the page's visible
+ * breadcrumb names them (and links them), and "Publication details" at the
+ * end of the article carries every remaining fact. Previous / next stay at
+ * the end of the article, where a reader who finished it looks.
+ *
+ * Everything here is a fact the record carries; a missing DOI, date or
+ * affiliation removes its piece, and nothing is filled in.
  */
 export default async function ArticleHeader({
   pub,
-  back,
-  journal,
-  issue,
   typeLabel,
   authorships,
   markerFor,
@@ -46,14 +48,9 @@ export default async function ArticleHeader({
   access,
   fileHref,
   shareUrl,
-  neighbours,
-  locale,
+  publisherHref,
 }: {
   pub: Publication;
-  back: { href: string; label: string };
-  journal: { name: string | null; href: string | null };
-  /** "Vol. 91, No. 11" and its issue page, and the year it belongs to. */
-  issue: { label: string | null; href: string | null; year: string | null };
   typeLabel: string;
   authorships: PublicationAuthorship[];
   markerFor: Map<string, number>;
@@ -61,15 +58,19 @@ export default async function ArticleHeader({
   fallbackNames: string[];
   citationLine: string;
   /** Already formatted in the reader's locale. */
-  dates: { published: string | null; issue: string | null };
+  dates: { published: string | null };
   /** From publicationMetrics(): null means "do not show", never zero. */
   counts: { views: number | null; downloads: number | null };
   doi: { value: string; href: string } | null;
   access: DownloadAccess;
   fileHref: string;
   shareUrl: string;
-  neighbours: { previous: ArticleNeighbour | null; next: ArticleNeighbour | null };
-  locale: string;
+  /**
+   * Where a CITATION-ONLY record's full text lives — its DOI, else the
+   * article's page at the publisher (0167). Null when the library holds the
+   * file, or when the record links nowhere.
+   */
+  publisherHref: string | null;
 }) {
   const t = await getTranslations("publicationDetail");
   const translatedTitle = secondaryValue(pub.title, pub.title_km);
@@ -77,69 +78,24 @@ export default async function ArticleHeader({
   // follow the words rather than the page: an English title on /km is still
   // English.
   const titleLang = KHMER_RE.test(pub.title) ? "km" : pub.language && pub.language !== "km" ? pub.language : "en";
-  const issueLine = [issue.label, issue.year].filter(Boolean);
-  // The title is never truncated, so a very long one steps down a size rather
-  // than filling a screen: ~280 characters at 42 px is eight lines on a laptop.
+  // A step below the old display sizes (42 / 38 / 34 px at lg): a 125-character
+  // title was four lines at 38 px. The title is never truncated, so a very long
+  // one steps down again rather than filling a screen.
   const titleSize =
     pub.title.length > 200
-      ? "text-[25px] sm:text-[30px] lg:text-[34px]"
+      ? "text-[22px] sm:text-[26px] lg:text-[28px]"
       : pub.title.length > 120
-        ? "text-[27px] sm:text-[33px] lg:text-[38px]"
-        : "text-[29px] sm:text-[36px] lg:text-[42px]";
+        ? "text-[23px] sm:text-[28px] lg:text-[32px]"
+        : "text-[24px] sm:text-[31px] lg:text-[35px]";
 
   return (
     <header id="publication-masthead" className="scroll-mt-24">
-      {/* ── Wayfinding: back to the issue, and along it ── */}
-      <div className="-mx-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-        <Link
-          href={back.href}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1 text-[14px] font-semibold text-brand transition-colors hover:underline"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          {back.label}
-        </Link>
-        <ArticlePrevNext {...neighbours} locale={locale} variant="compact" />
-      </div>
-
-      {/* ── Journal context: the article's home shelf ── */}
-      {(journal.name || issueLine.length > 0) && (
-        <div className="mt-3 border-l-2 border-accent-line pl-3.5">
-          {journal.name &&
-            (journal.href ? (
-              <Link
-                href={journal.href}
-                className="font-khmer-serif text-[16px] font-bold leading-snug text-text-heading transition-colors hover:text-brand hover:underline sm:text-[17px]"
-              >
-                {journal.name}
-              </Link>
-            ) : (
-              <p className="font-khmer-serif text-[16px] font-bold leading-snug text-text-heading sm:text-[17px]">
-                {journal.name}
-              </p>
-            ))}
-          {issueLine.length > 0 && (
-            <p className="mt-0.5 text-[14px] text-text-muted">
-              {issue.label &&
-                (issue.href ? (
-                  <Link href={issue.href} className="font-medium text-text-body transition-colors hover:text-brand hover:underline">
-                    {issue.label}
-                  </Link>
-                ) : (
-                  <span className="font-medium text-text-body">{issue.label}</span>
-                ))}
-              {issue.label && issue.year && <span aria-hidden="true"> · </span>}
-              {issue.year && <span>{issue.year}</span>}
-            </p>
-          )}
-        </div>
-      )}
-
       {/* ── What is this ── */}
-      <p className={`mt-6 text-accent-text ${EYEBROW}`}>{typeLabel}</p>
+      <p className={`text-accent-text ${EYEBROW}`}>{typeLabel}</p>
       <h1
         id={ARTICLE_TITLE_ID}
         lang={titleLang}
-        className={`mt-2 max-w-[980px] text-balance break-words font-khmer-serif font-bold leading-[1.2] tracking-[-0.012em] text-text-heading hyphens-auto [&:lang(km)]:leading-[1.55] [&:lang(km)]:tracking-normal ${titleSize}`}
+        className={`mt-1.5 max-w-[980px] text-balance break-words font-khmer-serif font-bold leading-[1.22] tracking-[-0.01em] text-text-heading hyphens-auto [&:lang(km)]:leading-[1.55] [&:lang(km)]:tracking-normal ${titleSize}`}
       >
         {pub.title}
       </h1>
@@ -148,7 +104,7 @@ export default async function ArticleHeader({
       {translatedTitle && (
         <p
           lang={KHMER_RE.test(translatedTitle) ? "km" : "en"}
-          className="mt-3 max-w-[980px] font-khmer-serif text-[18px] font-semibold leading-[1.7] text-text-muted sm:text-[20px]"
+          className="mt-2 max-w-[980px] font-khmer-serif text-[16px] leading-[1.7] text-text-muted sm:text-[17px]"
         >
           {translatedTitle}
         </p>
@@ -162,72 +118,41 @@ export default async function ArticleHeader({
         fallbackNames={fallbackNames}
       />
 
-      {/* ── Where, when, and its identifier ──────────────────────────────
-          One identity block, not four sentences. These used to be three
-          stacked lines at three sizes with three alignments — a citation line,
-          a date-and-rights line, a DOI line — which read as unrelated facts
-          rather than as the record's identity. A label→value list is how a
-          scholarly index presents them, and it survives a long journal name,
-          a missing DOI and a record with no issue date, because each row is
-          drawn only when its value exists. */}
-      <dl className="mt-4 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-5 gap-y-2 border-t border-divider pt-3.5">
-        {citationLine && (
-          <>
-            <dt className={`text-text-muted ${EYEBROW}`}>{t("fieldCiteThis")}</dt>
-            <dd className="min-w-0 text-[14.5px] leading-6 text-text-body">
+      {/* ── Where it appeared: one citation line, one line of identifiers ── */}
+      {(citationLine || doi || dates.published) && (
+        <div className="mt-4 space-y-1 border-t border-divider pt-3">
+          {citationLine && (
+            <p className="text-[14.5px] leading-6 text-text-body">
+              <span className="sr-only">{t("fieldCiteThis")}: </span>
               <cite className="not-italic">{citationLine}</cite>
-            </dd>
-          </>
-        )}
-        {dates.published && (
-          <>
-            <dt className={`text-text-muted ${EYEBROW}`}>{t("fieldPublished")}</dt>
-            <dd className="min-w-0 text-[14.5px] leading-6 text-text-body">{dates.published}</dd>
-          </>
-        )}
-        {/* Only when the issue carries a date of its own AND it is not the
-            same fact already stated above. */}
-        {dates.issue && dates.issue !== dates.published && (
-          <>
-            <dt className={`text-text-muted ${EYEBROW}`}>{t("fieldIssueDate")}</dt>
-            <dd className="min-w-0 text-[14.5px] leading-6 text-text-body">{dates.issue}</dd>
-          </>
-        )}
-        {doi && (
-          <>
-            <dt className={`text-text-muted ${EYEBROW}`}>DOI</dt>
-            <dd className="min-w-0">
-              <ArticleDoi doi={doi.value} href={doi.href} showLabel={false} />
-            </dd>
-          </>
-        )}
-        {/* Always present: the rights badge states "not stated" rather than
-            leaving the question open. */}
-        <dt className={`text-text-muted ${EYEBROW}`}>{t("fieldAccess")}</dt>
-        <dd className="min-w-0">
-          <AccessBadge
-            license={pub.license}
-            labels={{
-              openAccess: t("openAccess"),
-              licensed: t("accessLicensed"),
-              rightsUnstated: t("accessRightsUnstated"),
-            }}
-          />
-        </dd>
-      </dl>
-
-      {/* Usage is not identity, so it sits under the block rather than in it —
-          and `publicationMetrics` returns null rather than zero, so a record
-          nobody has opened yet says nothing at all. */}
-      {(counts.views !== null || counts.downloads !== null) && (
-        <p className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-text-muted">
-          {counts.views !== null && <span>{t("srViews", { count: counts.views })}</span>}
-          {counts.downloads !== null && <span>{t("srDownloads", { count: counts.downloads })}</span>}
-        </p>
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-text-muted">
+            {doi && <ArticleDoi doi={doi.value} href={doi.href} />}
+            <AccessBadge
+              license={pub.license}
+              labels={{
+                openAccess: t("openAccess"),
+                licensed: t("accessLicensed"),
+                rightsUnstated: t("accessRightsUnstated"),
+              }}
+            />
+            {dates.published && (
+              <span>
+                {t("fieldPublished")} {dates.published}
+              </span>
+            )}
+            {/* Usage is not identity, but it costs no line of its own here.
+                publicationMetrics() returns null rather than zero, so a record
+                nobody has opened yet says nothing. */}
+            {counts.views !== null && <span>{t("srViews", { count: counts.views })}</span>}
+            {counts.downloads !== null && <span>{t("srDownloads", { count: counts.downloads })}</span>}
+          </div>
+        </div>
       )}
 
       {/* ── How do I read it ── */}
-      <div className="mt-5">
+      <div className="mt-4">
         <ArticleActions
           id={pub.id}
           title={pub.title}
@@ -235,19 +160,20 @@ export default async function ArticleHeader({
           shareUrl={shareUrl}
           canRead={access.canReadOnline}
           canDownload={access.canDownload}
+          publisherHref={publisherHref}
         />
-        <div>
-          <PublicationAccessNotice
-            access={access}
-            labels={{
-              unavailableHeading: t("downloadUnavailable"),
-              readOnlyBody: t("downloadReadOnlyBody"),
-              rightsBody: t("downloadRightsBody"),
-              noFileHeading: t("noFileHeading"),
-              noFileBody: t("noFileBody"),
-            }}
-          />
-        </div>
+        <PublicationAccessNotice
+          access={access}
+          citationOnly={!!publisherHref}
+          labels={{
+            unavailableHeading: t("downloadUnavailable"),
+            readOnlyBody: t("downloadReadOnlyBody"),
+            rightsBody: t("downloadRightsNote"),
+            noFileHeading: t("noFileHeading"),
+            noFileBody: t("noFileBody"),
+            citationOnlyBody: t("citationOnlyNote"),
+          }}
+        />
       </div>
     </header>
   );

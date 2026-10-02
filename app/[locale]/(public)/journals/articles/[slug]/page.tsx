@@ -70,6 +70,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { SITE_URL } from "@/lib/seo/site";
 import { Pencil } from "lucide-react";
+import { safeExternalUrl } from "@/lib/authors/links";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import type { OrgIdentity } from "@/lib/system-settings/org-identity";
 import { publicationContributorViews } from "@/lib/publications/contributors";
@@ -300,11 +301,6 @@ export default async function PublicationDetailPage({ params }: PageProps) {
         ) || null
       : null;
   const neighbours = issueDetail ? issueNeighbours(issueDetail.articles, pub.id) : { previous: null, next: null };
-  const back = issueHref
-    ? { href: issueHref, label: t("backToIssue") }
-    : journalHref
-      ? { href: journalHref, label: t("backToJournal") }
-      : { href: JOURNALS_PATH, label: t("backToJournals") };
 
   // ── Header facts ─────────────────────────────────────────────────────────
   const { markerFor, ordered: orderedAffiliations } = affiliationMarkers(authorships, affiliations);
@@ -333,6 +329,11 @@ export default async function PublicationDetailPage({ params }: PageProps) {
   // The same validation JSON-LD and the Scholar tags apply: a placeholder or
   // malformed DOI is never presented as a resolvable identifier.
   const doi = normalizeDoi(pub.doi);
+  // A citation-only record (no PDF; decision 2026-10-02) sends readers to the
+  // publisher: its DOI, or the article's own page when it has none (0167).
+  const publisherHref = pub.pdf_url
+    ? null
+    : (doi ? doiUrl(doi) : null) ?? safeExternalUrl(pub.source_url ?? null);
   // The file API keeps its /api/publications path: it is not part of the
   // information architecture, and it is the ONE place the rights gate runs.
   const fileHref = `/api/publications/${slug}/file`;
@@ -408,8 +409,13 @@ export default async function PublicationDetailPage({ params }: PageProps) {
   // ── The record's remaining facts, for the "Published in" block ──────────
   const issn = [journalCtx?.journal.issn, pub.issn].find((v) => isValidIssn(v));
   const pages = pub.page_start ? [pub.page_start, pub.page_end].filter(Boolean).join("–") : null;
+  const publishedLabel = formatJournalDate(dates.published, locale);
+  const issueDateLabel = formatJournalDate(dates.issue, locale);
   const details: ArticleDetail[] = [
     { label: t("fieldType"), value: typeLabel },
+    ...(publishedLabel ? [{ label: t("fieldPublished"), value: publishedLabel }] : []),
+    // Only when the issue carries a date of its own that is not the same fact.
+    ...(issueDateLabel && issueDateLabel !== publishedLabel ? [{ label: t("fieldIssueDate"), value: issueDateLabel }] : []),
     ...(pages ? [{ label: t("fieldPages"), value: pages }] : []),
     ...(!pages && pub.article_no ? [{ label: t("fieldArticleNumber"), value: pub.article_no }] : []),
     // A publication with no publisher of its own is published by the
@@ -477,7 +483,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
       <PublicationViewPing id={pub.id} />
 
       {/* ── The article: one reading surface, header and body ───────────── */}
-      <section className="bg-bg-surface px-4 pb-16 pt-5 sm:px-6 sm:pt-7 md:px-12">
+      <section className="bg-bg-surface px-4 pb-16 pt-4 sm:px-6 sm:pt-5 md:px-12">
         <div className="mx-auto max-w-[1200px]">
           {/* Quiet trail + the admin's edit link.
               The visible trail stops at "Journals" on purpose. Journal and
@@ -491,14 +497,45 @@ export default async function PublicationDetailPage({ params }: PageProps) {
             <BreadcrumbNav
               className="flex min-w-0 flex-wrap items-center gap-1.5 text-[13px] font-medium text-text-muted"
             >
-              <Link href="/" className="transition-colors hover:text-brand">{t("breadcrumbHome")}</Link>
-              <Icon name="chevron-right" className="text-[15px] text-divider" />
-              <Link href={JOURNALS_PATH} className="transition-colors hover:text-brand">{t("breadcrumbPublications")}</Link>
-              {/* Heard, not seen: the levels the masthead states below. */}
-              <span className="sr-only">
-                {journalName ? ` › ${journalName}` : ""}
-                {issueHref && journalCtx?.issue ? ` › ${issueLabel(journalCtx.issue, locale)}` : ""}
+              {/* "Home" only from sm: on a phone the top bar's ‹ and the logo
+                  already go home, and the crumb pushed the trail to 3 lines. */}
+              <span className="hidden items-center gap-1.5 sm:inline-flex">
+                <Link href="/" className="transition-colors hover:text-brand">{t("breadcrumbHome")}</Link>
+                <Icon name="chevron-right" className="text-[15px] text-divider" />
               </span>
+              <Link href={JOURNALS_PATH} className="transition-colors hover:text-brand">{t("breadcrumbPublications")}</Link>
+              {/* The trail now CARRIES the journal and issue (articles redesign):
+                  the masthead's separate journal block and "Back to issue"
+                  row are gone, so this is where the article's home shelf is
+                  named and linked. An unmapped journal is named, not linked. */}
+              {journalName && (
+                <>
+                  <Icon name="chevron-right" className="text-[15px] text-divider" />
+                  {journalHref ? (
+                    <Link href={journalHref} className="max-w-[260px] truncate transition-colors hover:text-brand" title={journalName}>
+                      {journalName}
+                    </Link>
+                  ) : (
+                    <span className="max-w-[260px] truncate">{journalName}</span>
+                  )}
+                </>
+              )}
+              {issueName && (
+                <>
+                  <Icon name="chevron-right" className="text-[15px] text-divider" />
+                  {issueHref ? (
+                    <Link href={issueHref} className="transition-colors hover:text-brand">
+                      {issueName}
+                      {issueYear ? ` (${issueYear})` : ""}
+                    </Link>
+                  ) : (
+                    <span>
+                      {issueName}
+                      {issueYear ? ` (${issueYear})` : ""}
+                    </span>
+                  )}
+                </>
+              )}
               <span className="sr-only" aria-current="page">
                 {" › "}
                 {pub.title}
@@ -546,32 +583,22 @@ export default async function PublicationDetailPage({ params }: PageProps) {
             >
             <ArticleHeader
               pub={pub}
-              back={back}
-              journal={{ name: journalName, href: journalHref }}
-              issue={{ label: issueName, href: issueHref, year: issueYear }}
               typeLabel={typeLabel}
               authorships={authorships}
               markerFor={markerFor}
               affiliations={orderedAffiliations}
               fallbackNames={authorList(pub)}
               citationLine={citationLine}
-              dates={{
-                published: formatJournalDate(dates.published, locale),
-                issue: formatJournalDate(dates.issue, locale),
-              }}
+              dates={{ published: publishedLabel }}
               counts={{ views: metrics.views, downloads: metrics.downloads }}
               doi={doi ? { value: doi, href: doiUrl(doi) as string } : null}
               access={access}
               fileHref={fileHref}
               shareUrl={shareUrl}
-              neighbours={neighbours}
-              locale={locale}
+              publisherHref={publisherHref}
             />
 
-            <div className="mt-7 border-t border-divider pt-7">
-              <div className="lg:hidden">
-                <ArticleSectionNav sections={sections} variant="inline" />
-              </div>
+            <div className="mt-5 border-t border-divider pt-5">
 
               <div className="space-y-14">
                   {/* Says plainly that the full text is not in the reader's
@@ -593,6 +620,16 @@ export default async function PublicationDetailPage({ params }: PageProps) {
                   ) : (
                     // No abstract: the keywords still lead the body.
                     <ArticleKeywords keywords={pub.keywords} subjects={pub.subjects} />
+                  )}
+
+                  {/* Phones: "Jump to" comes AFTER the abstract (articles
+                      redesign). Above it, it was 170 px between the header and
+                      the one section a reader came for. The rail carries the
+                      same list from lg. */}
+                  {sections.filter((s) => s.id !== "abstract").length > 1 && (
+                    <div className="lg:hidden">
+                      <ArticleSectionNav sections={sections.filter((s) => s.id !== "abstract")} variant="inline" />
+                    </div>
                   )}
 
                   {has.toc && (
@@ -755,7 +792,12 @@ export default async function PublicationDetailPage({ params }: PageProps) {
         </div>
       </div>
 
-      <ArticleMobileDock canRead={access.canReadOnline} canDownload={access.canDownload} fileHref={fileHref} />
+      <ArticleMobileDock
+        canRead={access.canReadOnline}
+        canDownload={access.canDownload}
+        fileHref={fileHref}
+        publisherHref={publisherHref}
+      />
       <CiteArticleDialog publication={pub} labels={{ title: t("citeArticle"), close: t("close") }} />
     </>
   );

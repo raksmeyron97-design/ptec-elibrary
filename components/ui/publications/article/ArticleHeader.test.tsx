@@ -12,6 +12,7 @@ import ArticleSectionNav from "./ArticleSectionNav";
 import ArticleToolRail from "./ArticleToolRail";
 import CiteArticleDialog from "./CiteArticleDialog";
 import ArticleScholarship from "./ArticleScholarship";
+import ArticlePrevNext from "./ArticlePrevNext";
 import { resolveServerTree } from "./test-utils";
 
 // Server components read their strings through next-intl/server. Serve them
@@ -130,10 +131,8 @@ async function renderHeader(
   p: Publication,
   opts: {
     affiliations?: PublicationAffiliation[];
-    journal?: { name: string | null; href: string | null };
-    issue?: { label: string | null; href: string | null; year: string | null };
-    neighbours?: { previous: { slug: string; title: string; title_km: null } | null; next: { slug: string; title: string; title_km: null } | null };
     doi?: { value: string; href: string } | null;
+    publisherHref?: string | null;
   } = {},
 ) {
   const authorships = p.authorships ?? [];
@@ -142,23 +141,19 @@ async function renderHeader(
   const tree = await resolveServerTree(
     <ArticleHeader
       pub={p}
-      back={{ href: "/journals/jce/issues/vol-91-issue-11", label: "Back to issue" }}
-      journal={opts.journal ?? { name: "Journal of Chemical Education", href: "/journals/jce" }}
-      issue={opts.issue ?? { label: "Vol. 91, No. 11", href: "/journals/jce/issues/vol-91-issue-11", year: "2014" }}
       typeLabel="Article"
       authorships={authorships}
       markerFor={markerFor}
       affiliations={ordered}
       fallbackNames={[]}
       citationLine="Journal of Chemical Education 2014, 91 (11), 1971–1975"
-      dates={{ published: "11 November 2014", issue: null }}
+      dates={{ published: "11 November 2014" }}
       counts={{ views: null, downloads: null }}
       doi={opts.doi === undefined ? { value: "10.1021/ed500287q", href: "https://doi.org/10.1021/ed500287q" } : opts.doi}
       access={access}
       fileHref="/api/publications/handmade-conductivity/file"
       shareUrl="https://library.example/journals/articles/handmade-conductivity"
-      neighbours={opts.neighbours ?? { previous: null, next: null }}
-      locale="en"
+      publisherHref={opts.publisherHref ?? null}
     />,
   );
   return render(
@@ -172,24 +167,24 @@ async function renderHeader(
 const before = (a: Element, b: Element) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
 
 describe("ArticleHeader — hierarchy", () => {
-  it("answers what / who / where / DOI / how, in that order", async () => {
+  it("answers what / who / where / DOI / how, in that order — and nothing before the type", async () => {
     const affs = [aff("x", "Phnom Penh Teacher Education College")];
-    await renderHeader(pub({ authorships: [person(1, ["x"], true), person(2, ["x"])] }), { affiliations: affs });
+    const { container } = await renderHeader(pub({ authorships: [person(1, ["x"], true), person(2, ["x"])] }), { affiliations: affs });
 
-    const back = screen.getByRole("link", { name: /Back to issue/ });
-    const journal = screen.getByRole("link", { name: "Journal of Chemical Education" });
-    const issue = screen.getByRole("link", { name: "Vol. 91, No. 11" });
     const type = screen.getByText("Article");
     const title = screen.getByRole("heading", { level: 1 });
     const authors = screen.getByRole("list", { name: "Authors" });
+    const cite = screen.getByText("Journal of Chemical Education 2014, 91 (11), 1971–1975");
     const doi = screen.getByRole("link", { name: /10\.1021\/ed500287q/ });
     const read = screen.getByRole("link", { name: "Read article" });
 
-    for (const [a, b] of [[back, journal], [journal, issue], [issue, type], [type, title], [title, authors], [authors, doi], [doi, read]] as const) {
+    for (const [a, b] of [[type, title], [title, authors], [authors, cite], [cite, doi], [doi, read]] as const) {
       expect(before(a, b)).toBe(true);
     }
-    expect(journal).toHaveAttribute("href", "/journals/jce");
-    expect(issue).toHaveAttribute("href", "/journals/jce/issues/vol-91-issue-11");
+    // The journal and issue are the BREADCRUMB's now (the page's); the
+    // masthead no longer restates them, nor carries a back link.
+    expect(screen.queryByRole("link", { name: /Back to issue/ })).toBeNull();
+    expect(container.querySelector("header")?.firstElementChild).toBe(type);
   });
 
   it("has exactly one h1 — the title, whole — and marks a translated title's language", async () => {
@@ -228,7 +223,10 @@ describe("ArticleHeader — authors", () => {
     expect(screen.queryByText(/et al/)).toBeNull();
   });
 
-  it("folds more than four affiliations behind a disclosure, and renders none when there are none", async () => {
+  it("folds the affiliations behind a disclosure — even one — and renders none when there are none", async () => {
+    await renderHeader(pub({ authorships: [person(1, ["one"])] }), { affiliations: [aff("one", "PTEC")] });
+    expect(screen.getByText("Affiliations (1)").closest("details")).not.toHaveAttribute("open");
+    cleanup();
     const affs = Array.from({ length: 6 }, (_, i) => aff(`f${i}`, `Institution ${i}`));
     await renderHeader(pub({ authorships: [person(1, affs.map((a) => a.id))] }), { affiliations: affs });
     expect(screen.getByText("Affiliations (6)").closest("details")).not.toHaveAttribute("open");
@@ -240,11 +238,7 @@ describe("ArticleHeader — authors", () => {
 
 describe("ArticleHeader — never fabricates metadata", () => {
   it("drops a missing journal, issue, DOI and date rather than filling them in", async () => {
-    await renderHeader(pub({ journal_name: null, volume: null, issue_no: null, doi: null }), {
-      journal: { name: null, href: null },
-      issue: { label: null, href: null, year: null },
-      doi: null,
-    });
+    await renderHeader(pub({ journal_name: null, volume: null, issue_no: null, doi: null }), { doi: null });
     expect(screen.queryByText("DOI")).toBeNull();
     expect(screen.queryByRole("button", { name: "Copy DOI" })).toBeNull();
     expect(screen.queryByText(/Vol\./)).toBeNull();
@@ -277,6 +271,16 @@ describe("ArticleHeader — actions follow the access decision", () => {
     expect(screen.queryByRole("link", { name: "Download PDF" })).toBeNull();
   });
 
+  it("citation-only: the primary action is the publisher, and the page says where the text is", async () => {
+    await renderHeader(pub({ pdf_url: null }), { publisherHref: "https://doi.org/10.1021/ed500287q" });
+    const read = screen.getByRole("link", { name: /Read at the publisher/ });
+    expect(read).toHaveAttribute("href", "https://doi.org/10.1021/ed500287q");
+    expect(read).toHaveAttribute("target", "_blank");
+    expect(screen.queryByRole("link", { name: "Read article" })).toBeNull();
+    expect(screen.getByRole("note")).toHaveTextContent("full text is on the publisher's site");
+    expect(screen.getByRole("note")).not.toHaveTextContent("No file attached");
+  });
+
   it("no file: neither Read nor PDF, and the page says so", async () => {
     await renderHeader(pub({ pdf_url: null }));
     expect(screen.queryByRole("link", { name: "Read article" })).toBeNull();
@@ -287,9 +291,12 @@ describe("ArticleHeader — actions follow the access decision", () => {
   });
 });
 
-describe("ArticleHeader — previous / next", () => {
+describe("ArticlePrevNext — at the end of the article", () => {
   it("links only the neighbours that exist", async () => {
-    await renderHeader(pub(), { neighbours: { previous: null, next: { slug: "later", title: "Later", title_km: null } } });
+    const tree = await resolveServerTree(
+      <ArticlePrevNext previous={null} next={{ slug: "later", title: "Later", title_km: null }} locale="en" variant="full" />,
+    );
+    render(<NextIntlClientProvider locale="en" messages={enMessages}>{tree}</NextIntlClientProvider>);
     expect(screen.queryByRole("link", { name: /Previous article/ })).toBeNull();
     expect(screen.getByRole("link", { name: /Next article/ })).toHaveAttribute("href", "/journals/articles/later");
   });

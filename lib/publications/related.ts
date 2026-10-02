@@ -220,59 +220,37 @@ const BOOK_SELECT = `
 ` as const;
 
 /**
- * Library books to offer once related *publications* run out.
+ * Library books that share a KEYWORD with this article — or none.
  *
- * Ranked by real signal — books whose tags overlap this article's subjects and
- * keywords come first — and only then topped up with the collection's most
- * downloaded titles. The heading the caller renders says "More from the
- * library" rather than "Similar", because the top-up tier is honestly just
- * popular, not similar.
+ * Articles redesign (2026-10-02): this used to match on subjects as well and
+ * then top up with the collection's most-downloaded titles, so a paper on
+ * conductivity devices listed Grade 10–12 physics textbooks because both are
+ * "Chemistry" / "Physics". A broad subject is not a reason to read a book
+ * next to an article, and a popularity top-up is not related at all. A shelf
+ * the page cannot justify is hidden (the caller renders nothing for []).
+ *
+ * `subjects` is still accepted so callers need not change, and ignored.
+ * `matchedOnTopic` is kept for SimilarBooks' heading; it is now true whenever
+ * anything is returned.
  */
 export async function getLibraryFallbackBooks({
   keywords,
-  subjects,
 }: {
   keywords: string[];
-  subjects: string[];
+  subjects?: string[];
 }): Promise<{ books: Book[]; matchedOnTopic: boolean }> {
+  const terms = [...new Set(keywords.map((s) => s.trim()).filter(Boolean))];
+  if (terms.length === 0) return { books: [], matchedOnTopic: false };
+
   const supabase = createServiceClient();
-  const terms = [...new Set([...subjects, ...keywords].map((s) => s.trim()).filter(Boolean))];
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rows: any[] = [];
-  const seen = new Set<string>();
-  let matchedOnTopic = false;
-
-  if (terms.length > 0) {
-    const { data } = await supabase
-      .from("books")
-      .select(BOOK_SELECT)
-      .eq("is_published", true)
-      .overlaps("tags", terms)
-      .order("view_count", { ascending: false })
-      .limit(TARGET);
-    for (const row of data ?? []) {
-      if (seen.has(row.id)) continue;
-      seen.add(row.id);
-      rows.push(row);
-    }
-    matchedOnTopic = rows.length > 0;
-  }
-
-  if (rows.length < TARGET) {
-    const { data } = await supabase
-      .from("books")
-      .select(BOOK_SELECT)
-      .eq("is_published", true)
-      .order("download_count", { ascending: false })
-      .limit(TARGET * 2);
-    for (const row of data ?? []) {
-      if (rows.length >= TARGET) break;
-      if (seen.has(row.id)) continue;
-      seen.add(row.id);
-      rows.push(row);
-    }
-  }
-
-  return { books: rows.map((row) => mapRowToBook(row)), matchedOnTopic };
+  const { data } = await supabase
+    .from("books")
+    .select(BOOK_SELECT)
+    .eq("is_published", true)
+    .overlaps("tags", terms)
+    .order("view_count", { ascending: false })
+    .order("id", { ascending: true })
+    .limit(TARGET);
+  const rows = data ?? [];
+  return { books: rows.map((row) => mapRowToBook(row)), matchedOnTopic: rows.length > 0 };
 }
