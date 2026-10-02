@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  arabicDigitsInKhmerProse,
   checkCoworkDraft,
   numbersIn,
   unsupportedNumbers,
@@ -69,6 +70,13 @@ describe("checkCoworkDraft", () => {
 
   it("refuses Arabic digits in Khmer prose", () => {
     expect(problems(run({ draft_km: KM.replace("២១០", "210") }))).toContain("km_has_arabic_digits");
+  });
+
+  it("keeps a Latin name's own digits — Excel 2013, 5E — but not a bare number", () => {
+    expect(arabicDigitsInKhmerProse("ការប្រើ Excel 2013 និង Office-2016")).toEqual([]);
+    expect(arabicDigitsInKhmerProse("គំរូ 5E ក្នុងថ្នាក់")).toEqual([]);
+    expect(arabicDigitsInKhmerProse("សៀវភៅមាន 210 ទំព័រ")).toEqual(["210"]);
+    expect(arabicDigitsInKhmerProse("ថ្នាក់ទី5")).toEqual(["5"]);
   });
 
   it("refuses an invented number — the failure a reviewer is least likely to notice", () => {
