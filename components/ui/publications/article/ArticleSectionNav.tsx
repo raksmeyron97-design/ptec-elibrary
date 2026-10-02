@@ -70,9 +70,13 @@ function useActiveSection(idList: string[]): string | null {
 export default function ArticleSectionNav({
   sections,
   variant,
+  topId = "publication-masthead",
 }: {
-  sections: ArticleSectionLink[];
+  /** Any page's sections; the journal page reuses this nav with its own ids. */
+  sections: readonly (ArticleSectionLink | { id: string; label: string })[];
   variant: "rail" | "inline";
+  /** The element "Back to top" jumps to. */
+  topId?: string;
 }) {
   const t = useTranslations("publicationDetail");
   const ids = sections.map((s) => s.id);
@@ -133,7 +137,7 @@ export default function ArticleSectionNav({
           the masthead, rather than below ten section links. What is left is
           the one control that belongs to navigation itself. */}
       <div className="mt-5 border-t border-divider pt-3.5">
-        <a href="#publication-masthead" className={quiet}>
+        <a href={`#${topId}`} className={quiet}>
           <ArrowUp className="h-4 w-4" aria-hidden="true" />
           {t("backToTop")}
         </a>

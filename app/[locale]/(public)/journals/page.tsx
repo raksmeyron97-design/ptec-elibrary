@@ -30,6 +30,7 @@ import { getOrgIdentity } from "@/lib/system-settings/config";
 import { getCollectionStats } from "@/lib/collection-stats";
 import { chooseCountLabel } from "@/lib/listing-count";
 import { getPublicJournals, type JournalSummary } from "@/lib/journals/data";
+import { journalTitle } from "@/lib/journals/types";
 import { JOURNALS_PATH, PTEC_PUBLICATIONS_URL } from "@/lib/journals/urls";
 import { ExternalLink } from "lucide-react";
 import JournalShelf from "@/components/ui/journals/JournalShelf";
@@ -211,7 +212,7 @@ export default async function PublicationsPage({
   const journalOptions = new Map<string, string>();
   for (const p of all) {
     const j = p.journal_id ? journalById.get(p.journal_id) : undefined;
-    if (j) journalOptions.set(j.slug, locale === "km" && j.title_km ? j.title_km : j.title);
+    if (j) journalOptions.set(j.slug, journalTitle(j, locale));
     else if (p.journal_name) journalOptions.set(p.journal_name, p.journal_name);
   }
   const journals = [...journalOptions.entries()]

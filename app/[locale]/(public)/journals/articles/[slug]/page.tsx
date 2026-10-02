@@ -76,7 +76,7 @@ import { publicationContributorViews } from "@/lib/publications/contributors";
 import { getArticleJournalContext, getIssue, type ArticleJournalContext as JournalContext } from "@/lib/journals/data";
 import { issueNeighbours } from "@/lib/journals/order";
 import { articlePath, issuePath, journalFilterPath, journalPath, JOURNALS_PATH } from "@/lib/journals/urls";
-import { formatJournalDate, issueLabel, journalTitle, languageName } from "@/lib/journals/types";
+import { formatJournalDate, issueLabel, journalTitle, languageName, officialTitleKm } from "@/lib/journals/types";
 import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
 
 /**
@@ -100,7 +100,7 @@ function toPublicationSeoInput(
       ? {
           slug: ctx.journal.slug,
           title: ctx.journal.title,
-          titleKm: ctx.journal.title_km,
+          titleKm: officialTitleKm(ctx.journal),
           issn: ctx.journal.issn,
           eIssn: ctx.journal.e_issn,
           printIssn: ctx.journal.print_issn,

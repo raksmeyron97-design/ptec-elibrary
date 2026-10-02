@@ -50,7 +50,7 @@ information architecture, and the file route is the ONE place the rights gate
 | URL | Page | Gate (soft-404 → real 404) |
 |---|---|---|
 | `/journals` | article discovery: search, filters (journal, year, type, language, keyword, subject), journal shelf | — |
-| `/journals/<journal>` | the journal: identifiers, description, aims & scope, current issue, latest articles, issues | `RESOURCE_GATES.journals` |
+| `/journals/<journal>` | the journal: identity, the current issue's table of contents, earlier issues, about, PTEC authors, and a rail of facts / quality and access / publisher links (redesign: `docs/JOURNALS-REDESIGN.md`) | `RESOURCE_GATES.journals` |
 | `/journals/<journal>/issues` | all public issues, grouped by volume | same gate (widened pattern) |
 | `/journals/<journal>/issues/<issue>` | one issue and its table of contents | `RESOURCE_GATES["journals/issues"]` → `journal_issues_public` |
 | `/journals/articles/<slug>` | the article (the former `/publications/<slug>` page, moved not rebuilt) | `RESOURCE_GATES["journals/articles"]` → `publications` |
@@ -175,8 +175,10 @@ because `/journals` accepts a journal name as well as a slug. An unknown slug
 
 ## 8. Admin
 
-`/admin/journals` (list + mapping report), `/admin/journals/new`,
-`/admin/journals/[id]` (journal form + volume years + issue details). Access
+`/admin/journals` (Journals / Unmatched article names tabs), `/admin/journals/new`
+(`?title=` prefills from an unmatched name), `/admin/journals/[id]` (Details
+with ISSN prefill and a Readiness panel; `?tab=issues` for volumes, issue
+details and table-of-contents order — `docs/JOURNALS-REDESIGN.md`). Access
 is the `publications` resource via the registry (`journals.manage/create/edit`
 routes, `journals.create/edit/delete` actions). Issue *numbers* are not
 editable in the admin — they come from the articles, and renumbering would move

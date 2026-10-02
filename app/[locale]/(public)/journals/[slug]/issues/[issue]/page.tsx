@@ -16,13 +16,12 @@ import { Link } from "@/i18n/navigation";
 import { ArrowLeft } from "lucide-react";
 import PageJsonLd from "@/components/seo/PageJsonLd";
 import JournalBreadcrumb from "@/components/ui/journals/JournalBreadcrumb";
+import IssueToc from "@/components/ui/journals/IssueToc";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { buildIssueMetadata, issueJsonLd, type JournalPageSeoInput } from "@/lib/seo/journal-seo";
 import { getIssue, getJournalBySlug, type JournalSummary } from "@/lib/journals/data";
-import { formatJournalDate, issueLabel, journalTitle, type JournalIssue } from "@/lib/journals/types";
-import { articlePath, issuePath, journalIssuesPath, journalPath, JOURNALS_PATH } from "@/lib/journals/urls";
-import { authorList } from "@/lib/citations";
-import { doiUrl, normalizeDoi } from "@/lib/seo/identifiers";
+import { formatJournalDate, issueLabel, issueSubtitle, journalTitle, officialTitleKm, type JournalIssue } from "@/lib/journals/types";
+import { issuePath, journalIssuesPath, journalPath, JOURNALS_PATH } from "@/lib/journals/urls";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { decodeSlugParam } from "@/lib/slug";
 
@@ -41,7 +40,7 @@ function toSeo(j: JournalSummary): JournalPageSeoInput {
   return {
     slug: j.slug,
     title: j.title,
-    titleKm: j.title_km,
+    titleKm: officialTitleKm(j),
     issn: j.issn,
     eIssn: j.e_issn,
     printIssn: j.print_issn,
@@ -86,7 +85,7 @@ export default async function JournalIssuePage({ params }: PageProps) {
 
   const name = journalTitle(journal, locale);
   const label = issueLabel(issue, locale);
-  const issueTitle = issue.issue_number ? (locale === "km" && issue.title_km) || issue.title : null;
+  const issueTitle = issueSubtitle(issue, locale);
   const description = (locale === "km" && issue.description_km) || issue.description;
   const published = formatJournalDate(issue.published_date, locale);
   const crumbs = [
@@ -150,42 +149,9 @@ export default async function JournalIssuePage({ params }: PageProps) {
           <h2 id="issue-toc" className="font-khmer-serif text-[20px] font-bold text-text-heading">
             {t("issueArticlesHeading")}
           </h2>
-          <ol className="mt-4 divide-y divide-divider overflow-hidden rounded-2xl border border-divider bg-bg-surface">
-            {articles.map((a) => {
-              const authors = authorList(a);
-              const pages = a.page_start
-                ? t("pages", { range: a.page_end ? `${a.page_start}–${a.page_end}` : a.page_start })
-                : a.article_no
-                  ? t("articleNumber", { n: a.article_no })
-                  : null;
-              const doi = normalizeDoi(a.doi);
-              const articleTitle = locale === "km" && a.title_km ? a.title_km : a.title;
-              return (
-                <li key={a.id} className="px-5 py-4">
-                  <h3 className="text-[16px] font-semibold leading-snug text-text-heading">
-                    <Link href={articlePath(a.slug)} className="hover:text-brand hover:underline">
-                      {articleTitle}
-                    </Link>
-                  </h3>
-                  {authors.length > 0 && <p className="mt-1 text-[13.5px] text-text-body">{authors.join(", ")}</p>}
-                  {(pages || doi) && (
-                    <p className="mt-1 flex flex-wrap gap-x-3 text-[12.5px] text-text-muted">
-                      {pages && <span>{pages}</span>}
-                      {doi && (
-                        <a
-                          href={doiUrl(doi) ?? undefined}
-                          className="font-mono hover:text-brand hover:underline"
-                          rel="noopener noreferrer"
-                        >
-                          doi:{doi}
-                        </a>
-                      )}
-                    </p>
-                  )}
-                </li>
-              );
-            })}
-          </ol>
+          <div className="mt-4">
+            <IssueToc articles={articles} locale={locale} />
+          </div>
         </section>
 
         <p className="mt-8">
