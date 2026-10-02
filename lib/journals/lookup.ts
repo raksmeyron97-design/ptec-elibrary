@@ -85,13 +85,28 @@ export function parseCrossrefJournal(body: unknown): JournalSuggestion | null {
   return Object.keys(out).length > 0 ? out : null;
 }
 
-function decodeEntities(s: string): string {
-  return s
-    .replace(/&amp;/g, "&")
+/**
+ * The plain text of an HTML fragment from the portal's page. This text only
+ * ever becomes a form field's VALUE (rendered by React as text), but it is
+ * made safe as text anyway, in an order that cannot be undone:
+ *   1. tags are replaced by spaces;
+ *   2. entities are decoded with `&amp;` LAST, so `&amp;lt;` becomes the
+ *      literal text `&lt;`, never `<` (decoding it first would unescape twice);
+ *   3. any angle bracket left over — from a malformed tag, or decoded from
+ *      `&lt;` — is removed, so no tag can survive in any form.
+ * A journal title, a country or a medium never legitimately contains `<`/`>`.
+ */
+function plainText(fragment: string): string {
+  return fragment
+    .replace(/<[^>]*>/g, " ")
     .replace(/&quot;/g, '"')
     .replace(/&#0?39;|&apos;/g, "'")
     .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">");
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/[<>]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /**
@@ -107,11 +122,11 @@ export function parseIssnPortalRecord(html: string, lookedUp: string): JournalSu
   const fields = new Map<string, { text: string; html: string }>();
   const re = /<dt[^>]*>([\s\S]*?)<\/dt>\s*<dd[^>]*>([\s\S]*?)<\/dd>/g;
   for (let m = re.exec(html); m; m = re.exec(html)) {
-    const label = decodeEntities(m[1].replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim().replace(/:$/, "").toLowerCase();
+    const label = plainText(m[1]).replace(/:$/, "").toLowerCase();
     if (!label || fields.has(label)) continue;
     fields.set(label, {
       html: m[2],
-      text: decodeEntities(m[2].replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim(),
+      text: plainText(m[2]),
     });
   }
   if (fields.size === 0) return null;

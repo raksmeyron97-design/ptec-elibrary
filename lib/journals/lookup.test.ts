@@ -103,6 +103,17 @@ describe("parseIssnPortalRecord", () => {
     expect(r?.country).toBeUndefined();
   });
 
+  it("decodes entities once, and no tag survives in any spelling", () => {
+    const record = (title: string) =>
+      `<dl><dt>Title proper:</dt><dd>${title}</dd></dl><dl><dt>Medium:</dt><dd>Print</dd></dl>`;
+    // &amp;lt; is the literal text "&lt;" — never unescaped a second time into "<".
+    expect(parseIssnPortalRecord(record("A &amp;lt;b&amp;gt; journal"), "0021-9584")?.title).toBe("A &lt;b&gt; journal");
+    // An escaped tag decodes to text with its brackets removed; a malformed tag leaves no "<".
+    expect(parseIssnPortalRecord(record("A &lt;script&gt; journal"), "0021-9584")?.title).toBe("A script journal");
+    expect(parseIssnPortalRecord(record("A <scr<script>ipt> journal"), "0021-9584")?.title).not.toMatch(/[<>]/);
+    expect(parseIssnPortalRecord(record("Science &amp; Education"), "0021-9584")?.title).toBe("Science & Education");
+  });
+
   it("null for a page with no record", () => {
     expect(parseIssnPortalRecord("<html><body>No result</body></html>", "0021-9584")).toBeNull();
   });
