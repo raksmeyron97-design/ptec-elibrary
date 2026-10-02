@@ -74,12 +74,12 @@ test.describe("journal article: header", () => {
     await open(page, FLAGSHIP);
     const order = await page.evaluate(() => {
       const top = (el: Element | null) => (el ? el.getBoundingClientRect().top + window.scrollY : -1);
-      // Scoped to the masthead: the breadcrumb above it names the journal too.
-      const header = document.getElementById("publication-masthead")!;
-      const byText = (t: string) => [...header.querySelectorAll("a, p, h1")].find((e) => e.textContent?.trim() === t) ?? null;
+      // The breadcrumb now names (and links) the journal and the issue; the
+      // masthead no longer repeats them (articles redesign).
+      const trail = document.querySelector('nav[aria-label="Breadcrumb"]')!;
+      const inTrail = (t: string) => [...trail.querySelectorAll("a")].find((e) => e.textContent?.trim() === t) ?? null;
       return {
-        back: top(byText("Back to issue")),
-        journal: top(byText("Cambodian Journal of Teacher Education")),
+        journal: top(inTrail("Cambodian Journal of Teacher Education")),
         title: top(document.querySelector("h1")),
         authors: top(document.querySelector('ul[aria-label="Authors"]')),
         doi: top(document.querySelector('a[href="https://doi.org/10.5281/zenodo.9000001"]')),
@@ -87,9 +87,14 @@ test.describe("journal article: header", () => {
         abstract: top(document.getElementById("abstract")),
       };
     });
-    const sequence = [order.back, order.journal, order.title, order.authors, order.doi, order.actions, order.abstract];
+    const sequence = [order.journal, order.title, order.authors, order.doi, order.actions, order.abstract];
     expect(sequence.every((y) => y >= 0)).toBe(true);
     expect([...sequence].sort((a, b) => a - b)).toEqual(sequence);
+    // The point of the compact masthead: before, it was 928 px tall and the
+    // abstract began below a laptop's fold.
+    const masthead = await page.locator("#publication-masthead").boundingBox();
+    if (!isPhone(page)) expect(masthead!.height).toBeLessThan(520);
+    await expect(page.locator("#publication-masthead").getByRole("link", { name: "Back to issue" })).toHaveCount(0);
   });
 
   test("one h1, then h2 sections — no skipped level", async ({ page }) => {
@@ -107,9 +112,10 @@ test.describe("journal article: header", () => {
       "href",
       "https://doi.org/10.5281/zenodo.9000001",
     );
-    const back = page.getByRole("link", { name: "Back to issue" });
-    await expect(back).toHaveAttribute("href", "/journals/cambodian-journal-of-teacher-education/issues/vol-7-issue-2");
-    const res = await page.request.get((await back.getAttribute("href"))!, { maxRedirects: 0 });
+    // The issue is a crumb now — linked, with its year.
+    const issue = page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: /Vol\. 7, No\. 2/ });
+    await expect(issue).toHaveAttribute("href", "/journals/cambodian-journal-of-teacher-education/issues/vol-7-issue-2");
+    const res = await page.request.get((await issue.getAttribute("href"))!, { maxRedirects: 0 });
     expect(res.status()).toBe(200);
   });
 });
@@ -143,11 +149,18 @@ test.describe("journal article: actions follow the access decision", () => {
     expect(await page.locator('a[href$="?download=1"]').count()).toBe(0);
   });
 
-  test("no file: nothing to read or download, and the page says why", async ({ page }) => {
+  test("citation-only (no PDF, has a DOI): the primary action is the publisher", async ({ page }) => {
+    // Decision 2026-10-02: the library indexes articles; one it does not hold
+    // links to the publisher rather than reading as a record with nothing in it.
     await open(page, NO_FILE);
-    await expect(page.locator("#article-actions").getByRole("link", { name: "Read article" })).toHaveCount(0);
+    const actions = page.locator("#article-actions");
+    await expect(actions.getByRole("link", { name: "Read article" })).toHaveCount(0);
+    await expect(actions.getByRole("link", { name: /Read at the publisher/ })).toHaveAttribute(
+      "href",
+      "https://doi.org/10.5281/zenodo.9000005",
+    );
     expect(await page.locator('a[href$="?download=1"]').count()).toBe(0);
-    await expect(page.getByRole("note")).toContainText("No file attached");
+    await expect(page.getByRole("note")).toContainText("publisher's site");
     await expect(page.locator("#fulltext")).toHaveCount(0);
   });
 });
@@ -218,7 +231,7 @@ test.describe("journal article: citation dialog", () => {
 test.describe("journal article: locales and accessibility", () => {
   test("Khmer: the page is translated, the English title keeps its own language", async ({ page }) => {
     await open(page, `/km${FLAGSHIP}`);
-    await expect(page.getByRole("link", { name: "ត្រឡប់ទៅលេខផ្សាយ" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: /./ }).getByRole("link", { name: "ទស្សនាវដ្ដី" }).first()).toBeVisible();
     await expect(page.getByRole("heading", { level: 1 })).toHaveAttribute("lang", "en");
     await expect(page.getByRole("button", { name: "ដកស្រង់", exact: true })).toBeVisible();
   });

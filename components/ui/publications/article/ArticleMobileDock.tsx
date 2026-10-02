@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { BookOpenText, Download, Quote, Sparkles } from "lucide-react";
+import { BookOpenText, Download, ExternalLink, Quote, Sparkles } from "lucide-react";
 import FloatingDock from "@/components/ui/glass/FloatingDock";
 import { ARTICLE_ACTIONS_ID } from "@/components/ui/publications/article/ArticleActions";
 import { activatePublicationPreview } from "@/lib/publications/preview-bus";
@@ -26,10 +26,13 @@ export default function ArticleMobileDock({
   canRead,
   canDownload,
   fileHref,
+  publisherHref = null,
 }: {
   canRead: boolean;
   canDownload: boolean;
   fileHref: string;
+  /** A citation-only record's full text at the publisher. */
+  publisherHref?: string | null;
 }) {
   const t = useTranslations("publicationDetail");
 
@@ -46,6 +49,17 @@ export default function ArticleMobileDock({
         >
           <BookOpenText className="h-5 w-5 shrink-0" aria-hidden="true" />
           <span className="truncate">{t("readArticle")}</span>
+        </a>
+      ) : publisherHref ? (
+        <a
+          href={publisherHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex min-h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-[16px] bg-brand px-4 text-[15px] font-bold text-brand-contrast transition-colors hover:bg-brand-hover"
+        >
+          <ExternalLink className="h-5 w-5 shrink-0" aria-hidden="true" />
+          <span className="truncate">{t("readAtPublisher")}</span>
+          <span className="sr-only"> ({t("opensPublisherNewTab")})</span>
         </a>
       ) : (
         <button
@@ -65,7 +79,7 @@ export default function ArticleMobileDock({
           <span className="sr-only"> — {t("downloadPdf")}</span>
         </a>
       )}
-      {canRead && (
+      {(canRead || !!publisherHref) && (
         <button
           type="button"
           onClick={() => openCiteDialog()}

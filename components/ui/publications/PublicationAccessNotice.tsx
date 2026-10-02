@@ -1,4 +1,4 @@
-import { BookOpenText, FileX2, Lock } from "lucide-react";
+import { BookOpenText, ExternalLink, FileX2, Lock } from "lucide-react";
 import type { DownloadAccess } from "@/lib/publications/access";
 
 /**
@@ -25,41 +25,45 @@ import type { DownloadAccess } from "@/lib/publications/access";
 export default function PublicationAccessNotice({
   access,
   labels,
+  citationOnly = false,
 }: {
   access: DownloadAccess;
+  /**
+   * A citation-only record (no PDF, decision 2026-10-02) that links to the
+   * publisher. Not a missing file: the full text is THERE, and the page says
+   * so instead of "no file attached".
+   */
+  citationOnly?: boolean;
   labels: {
     unavailableHeading: string;
     readOnlyBody: string;
     rightsBody: string;
     noFileHeading: string;
     noFileBody: string;
+    citationOnlyBody: string;
   };
 }) {
   if (access.canDownload || access.reason === null) return null;
 
   const isMissing = access.reason === "no-file";
-  const Icon = isMissing ? FileX2 : access.reason === "policy" ? BookOpenText : Lock;
+  const Icon = isMissing ? (citationOnly ? ExternalLink : FileX2) : access.reason === "policy" ? BookOpenText : Lock;
 
-  const heading = isMissing ? labels.noFileHeading : labels.unavailableHeading;
+  // One line under the buttons, not a boxed notice: the sentence is what a
+  // reader needs, and the box was ~80 px of the header (articles redesign).
   const body = isMissing
-    ? labels.noFileBody
+    ? citationOnly
+      ? labels.citationOnlyBody
+      : `${labels.noFileHeading}. ${labels.noFileBody}`
     : access.reason === "policy"
       ? // The librarian's own words when they wrote any, because they can say
-        // something specific ("print embargo until June") that no generic
-        // sentence can.
+        // why ("embargoed until print") where the generic line cannot.
         access.message ?? labels.readOnlyBody
       : labels.rightsBody;
 
   return (
-    <div
-      role="note"
-      className="mt-4 flex items-start gap-3 rounded-xl border border-divider bg-paper px-4 py-3"
-    >
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
-      <div className="min-w-0">
-        <p className="text-[13.5px] font-bold text-text-heading">{heading}</p>
-        <p className="mt-0.5 text-[13px] leading-6 text-text-muted">{body}</p>
-      </div>
-    </div>
+    <p role="note" className="mt-2.5 flex items-start gap-2 text-[13px] leading-6 text-text-muted">
+      <Icon className="mt-1 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span className="min-w-0">{body}</span>
+    </p>
   );
 }

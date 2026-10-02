@@ -17,10 +17,14 @@ const references: PublicationReference[] = [
   { id: "ref-water", index: 1, text: "A reference about water." },
 ];
 
+// Long enough for the reading tools (text size, reading time, word count),
+// which a short abstract does not carry — see "a short abstract…" below.
+const longEnglishTail = Array.from({ length: 260 }, (_, i) => `finding${i}`).join(" ");
+const longKhmerTail = "កថាខណ្ឌសម្រាប់សាកល្បងការអាន".repeat(60);
 const englishAbstract =
-  "**Water** is H<sub>2</sub>O and the result is significant [cite:ref-water].\n\nA second paragraph keeps the reading sample realistic.";
+  `**Water** is H<sub>2</sub>O and the result is significant [cite:ref-water].\n\nA second paragraph keeps the reading sample realistic.\n\n${longEnglishTail}`;
 const khmerAbstract =
-  "**ទឹក** មានរូបមន្ត H<sub>2</sub>O និងមានឯកសារយោង [cite:ref-water]។\n\nកថាខណ្ឌទីពីរសម្រាប់សាកល្បងការអាន។";
+  `**ទឹក** មានរូបមន្ត H<sub>2</sub>O និងមានឯកសារយោង [cite:ref-water]។\n\nកថាខណ្ឌទីពីរសម្រាប់សាកល្បងការអាន។\n\n${longKhmerTail}`;
 
 class ResizeObserverMock {
   observe = vi.fn();
@@ -370,18 +374,17 @@ describe("Abstract fullscreen reader", () => {
   it("renders only available languages and shows one empty state when neither exists", async () => {
     const khmerOnly = renderAbstract("km", { abstract: "", abstractKm: khmerAbstract });
     fireEvent.click(screen.getByRole("button", { name: "បើកផ្ទាំងអានសេចក្តីសង្ខេប" }));
-    let dialog = await screen.findByRole("dialog");
+    const dialog = await screen.findByRole("dialog");
     expect(dialog.querySelectorAll("article > section")).toHaveLength(1);
     expect(dialog.querySelector("article > section")).toHaveAttribute("lang", "km");
     expect(within(dialog).queryByText("មិនមានសេចក្តីសង្ខេបទេ។")).not.toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole("button", { name: "បិទផ្ទាំងអានសេចក្តីសង្ខេប" }));
     khmerOnly.unmount();
 
+    // With nothing to read there is no reader to open — one empty state, inline.
     renderAbstract("en", { abstract: "", abstractKm: null });
-    fireEvent.click(screen.getByRole("button", { name: "Open abstract reader" }));
-    dialog = await screen.findByRole("dialog");
-    expect(dialog.querySelector("article > section")).not.toBeInTheDocument();
-    expect(within(dialog).getAllByText("No abstract provided.")).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Open abstract reader" })).not.toBeInTheDocument();
+    expect(screen.getAllByText("No abstract provided.")).toHaveLength(1);
   });
 });
 
@@ -457,6 +460,12 @@ describe("Abstract language switch", () => {
 
     await waitFor(() => expect(kmPanel().hidden).toBe(false));
     expect(enPanel().hidden).toBe(true);
+  });
+
+  it("a short abstract carries no reading tools — no text-size control, no reading time", () => {
+    renderAbstract("en", { abstract: "An 86-word abstract is one paragraph.", abstractKm: null });
+    expect(screen.queryByRole("button", { name: "Open abstract reader" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/min read/)).not.toBeInTheDocument();
   });
 
   it("measures the text on show, and stays silent where a word count would be a fiction", () => {

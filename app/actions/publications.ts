@@ -112,6 +112,8 @@ export interface PublicationData {
   language?: string;
   cover_url?: string | null;
   pdf_url?: string | null;
+  /** The article's page at its publisher (0167); https only. Omitted → unchanged on update. */
+  source_url?: string | null;
   references?: PublicationReference[];
   is_published?: boolean;
   /** Library-policy download switch (0125). Omitted → column default (true). */
@@ -127,7 +129,7 @@ const PUBLICATION_FIELDS = [
   "issue_no", "page_start", "page_end", "article_no", "doi",
   "publication_date", "abstract", "abstract_km", "keywords", "publisher",
   "isbn", "subjects", "table_of_contents", "learning_outcomes", "faqs",
-  "license", "copyright", "language", "cover_url", "pdf_url", "references",
+  "license", "copyright", "language", "cover_url", "pdf_url", "source_url", "references",
   "is_published", "allow_download", "download_disabled_reason",
 ] as const satisfies readonly (keyof PublicationData)[];
 

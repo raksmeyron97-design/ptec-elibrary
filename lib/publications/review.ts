@@ -49,6 +49,8 @@ export interface PublicationReviewInput {
   cover_url?: string | null;
   /** True when an article PDF exists or is queued for upload. */
   hasPdf: boolean;
+  /** The article's page at its publisher (0167). */
+  sourceUrl?: string | null;
   authorshipCount: number;
   references: unknown;
 }
@@ -259,8 +261,18 @@ export function buildPublicationReview(
   }
 
   // ── Files ────────────────────────────────────────────────────────────────
-  if (!input.hasPdf) {
-    push("error", "missing_pdf", "The article PDF is required before publishing.", "files", "pdf");
+  // The library INDEXES articles (decision 2026-10-02): a record without a
+  // PDF is a citation-only record that links to the publisher. It must link
+  // SOMEWHERE — a DOI or the article's page — or a reader has no way to it.
+  const hasLink = (!!doi && isValidDoi(normalizeDoi(doi) ?? "")) || /^https?:\/\//i.test(text(input.sourceUrl));
+  if (!input.hasPdf && !hasLink) {
+    push(
+      "error",
+      "missing_full_text_link",
+      "Add the article PDF, or link to the article at its publisher with a DOI or a publisher URL.",
+      "files",
+      "pdf",
+    );
   }
   if (!text(input.cover_url)) {
     push(

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { BookOpenText, Download, Quote } from "lucide-react";
+import { BookOpenText, Download, ExternalLink, Quote } from "lucide-react";
 import BookmarkButton from "@/components/ui/detail/BookmarkButton";
 import ReadingListButton from "@/components/ui/books/ReadingListButton";
 import ShareButton from "@/components/ui/books/ShareButton";
@@ -17,8 +17,10 @@ const primarySolid =
   "inline-flex min-h-12 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-brand px-3 text-[15px] font-bold text-brand-contrast shadow-sm transition-colors duration-150 hover:bg-brand-hover sm:flex-none sm:px-6";
 const primaryOutline =
   "inline-flex min-h-12 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-brand bg-bg-surface px-3 text-[15px] font-bold text-brand transition-colors duration-150 hover:bg-brand/5 sm:flex-none sm:px-6";
+// Tighter on a phone so the four utilities share one row (the 2 × 2 grid
+// they replaced was 92 px above the abstract). Still 44 px tall targets.
 const secondary =
-  "inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 text-[14px] font-semibold text-text-body transition-colors duration-150 hover:bg-paper hover:text-brand";
+  "inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg px-2 text-[13.5px] font-semibold text-text-body transition-colors duration-150 hover:bg-paper hover:text-brand sm:gap-2 sm:px-3 sm:text-[14px]";
 // In the rail the same controls are a column of quiet entries, so they read as
 // a tool list beside the article rather than a second set of buttons competing
 // with the two that matter.
@@ -55,9 +57,9 @@ export function ArticleUtilityActions({
       className={
         orientation === "column"
           ? `flex flex-col items-start gap-0.5 ${className}`
-          : // 2 × 2 on a phone, so no action is left alone on a second row;
-            // one wrapping row from `sm`.
-            `grid grid-cols-2 gap-1 sm:-ml-3 sm:flex sm:flex-wrap sm:items-center ${className}`
+          : // One row on a phone (articles redesign): the 2 × 2 grid was 92 px
+            // between the Read button and the abstract.
+            `-ml-2 flex flex-wrap items-center gap-x-0.5 sm:-ml-3 ${className}`
       }
     >
       <button type="button" onClick={() => openCiteDialog()} aria-haspopup="dialog" className={item}>
@@ -101,6 +103,7 @@ export default function ArticleActions({
   shareUrl,
   canRead,
   canDownload,
+  publisherHref = null,
 }: {
   id: string;
   title: string;
@@ -108,11 +111,24 @@ export default function ArticleActions({
   shareUrl: string;
   canRead: boolean;
   canDownload: boolean;
+  /** A citation-only record's full text at the publisher (DOI or article page). */
+  publisherHref?: string | null;
 }) {
   const t = useTranslations("publicationDetail");
 
   return (
     <div id={ARTICLE_ACTIONS_ID} className="flex flex-col gap-3">
+      {/* A citation-only record (decision 2026-10-02): the full text is at the
+          publisher, so that is the primary action — not an absent button. */}
+      {!canRead && !canDownload && publisherHref && (
+        <div className="flex gap-2">
+          <a href={publisherHref} target="_blank" rel="noopener noreferrer" className={primarySolid}>
+            <ExternalLink className="h-[18px] w-[18px]" aria-hidden="true" />
+            {t("readAtPublisher")}
+            <span className="sr-only"> ({t("opensPublisherNewTab")})</span>
+          </a>
+        </div>
+      )}
       {(canRead || canDownload) && (
         <div className="flex gap-2">
           {canRead && (

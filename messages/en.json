@@ -1196,7 +1196,9 @@
     "viewMode": "View mode",
     "viewList": "List view",
     "viewGrid": "Grid view",
-    "subjectLabel": "Subject"
+    "subjectLabel": "Subject",
+    "ptecFilterLabel": "Authors",
+    "ptecFilterValue": "PTEC staff"
   },
   "publicationDetail": {
     "breadcrumbHome": "Home",
@@ -1362,7 +1364,11 @@
     "toolsHeading": "Tools",
     "fieldCiteThis": "Cite this",
     "fieldIssueDate": "Issue date",
-    "fieldAccess": "Access"
+    "fieldAccess": "Access",
+    "readAtPublisher": "Read at the publisher",
+    "opensPublisherNewTab": "opens the publisher's site in a new tab",
+    "citationOnlyNote": "The library lists this article; its full text is on the publisher's site and may need a subscription.",
+    "downloadRightsNote": "Read online here. The full text is under the publisher's copyright, so it cannot be downloaded."
   },
   "dashboard": {
     "admin": "Admin",
@@ -9410,7 +9416,12 @@
     "earlierIssues": "Earlier issues",
     "moreArticles": "More articles from this journal",
     "ptecAuthorsHeading": "PTEC authors in this journal",
-    "ptecAuthorsIntro": "Lecturers and staff of the college whose work appears here."
+    "ptecAuthorsIntro": "Lecturers and staff of the college whose work appears here.",
+    "ptecResearchHeading": "By PTEC authors",
+    "ptecResearchIntro": "Articles by the college's lecturers and staff, in journals the library indexes.",
+    "ptecResearchAll": "See all {count}",
+    "contributeTitle": "Published in a journal? Tell the library",
+    "contributeBody": "PTEC lecturers and staff: send the DOI or the link to your article, and the library will list it here under your name."
   },
   "adminJournals": {
     "title": "Journals",

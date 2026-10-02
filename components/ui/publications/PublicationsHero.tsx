@@ -22,6 +22,9 @@ type HeroLabels = {
   statDownloads: string;
 };
 
+/** Popular topics and the stats band appear from this many articles. */
+const POPULAR_MIN = 10;
+
 function compact(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
@@ -62,8 +65,11 @@ export default function PublicationsHero({
   preservedParams,
   labels,
   badge,
+  note,
   formAction = JOURNALS_PATH,
 }: {
+  /** One quiet line under the subtitle (the "PTEC's own publications" pointer). */
+  note?: React.ReactNode;
   /**
    * Locale-prefixed listing path for the GET search form. A plain <form> is
    * not locale-aware, so the page passes "/km/journals" on the Khmer listing —
@@ -77,127 +83,90 @@ export default function PublicationsHero({
   labels: HeroLabels;
   badge?: React.ReactNode;
 }) {
+  // "Popular" needs a collection to be popular IN: six chips taken from one
+  // article's keywords are that article's keywords. Same threshold as the
+  // stats band below.
+  const showPopular = popularKeywords.length > 0 && stats.publications >= POPULAR_MIN;
+
   return (
-    <section className="relative overflow-hidden rounded-[28px] border border-divider bg-bg-surface px-4 py-8 shadow-sm sm:px-8 sm:py-10 md:py-12">
-      {/* Decorative background — pure CSS, theme-token driven */}
-      <div aria-hidden className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-24 -top-24 h-64 w-64 rounded-full bg-brand/10 blur-3xl" />
-        <div className="absolute -bottom-28 -right-20 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
-        <div
-          className="absolute inset-0 opacity-[0.35]"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 1px 1px, var(--color-divider) 1px, transparent 0)",
-            backgroundSize: "26px 26px",
-            maskImage: "radial-gradient(ellipse 80% 60% at 50% 40%, black, transparent)",
-            WebkitMaskImage: "radial-gradient(ellipse 80% 60% at 50% 40%, black, transparent)",
-          }}
-        />
-      </div>
-
-      <div className="relative mx-auto flex max-w-3xl flex-col items-center text-center">
-        {/* Eyebrow */}
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/20 bg-brand/5 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-brand">
-          <BookOpen className="h-3 w-3" />
-          {labels.eyebrow}
-        </span>
-
-        <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
-          <h1 className="font-khmer-serif text-[clamp(26px,4.5vw,40px)] font-bold leading-tight text-text-heading">
-            {labels.title}
-          </h1>
-          {badge}
+    // Articles redesign (2026-10-02): a compact, left-aligned header in the
+    // same card style. The centred hero with decorative glow was ~300 px and
+    // put the first article at 967 px on desktop, 1,143 px on a phone.
+    <section className="rounded-[24px] border border-divider bg-bg-surface px-4 py-5 shadow-sm sm:px-6 sm:py-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
+        <div className="min-w-0 lg:max-w-xl">
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-brand">
+            <BookOpen className="h-3 w-3" aria-hidden="true" />
+            {labels.eyebrow}
+          </span>
+          <div className="mt-1.5 flex flex-wrap items-center gap-3">
+            <h1 className="font-khmer-serif text-[26px] font-bold leading-tight text-text-heading sm:text-[30px]">
+              {labels.title}
+            </h1>
+            {badge}
+          </div>
+          <p className="mt-1.5 text-sm leading-6 text-text-muted sm:text-[15px]">{labels.subtitle}</p>
+          {note && <div className="mt-1.5 text-[13px] text-text-muted">{note}</div>}
         </div>
 
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-text-muted sm:text-[15px]">
-          {labels.subtitle}
-        </p>
-
-        {/* Primary search */}
-        <form action={formAction} method="get" role="search" className="mt-6 w-full">
+        {/* Primary search (plain GET — works without JS) */}
+        <form action={formAction} method="get" role="search" className="w-full lg:max-w-md">
           {Object.entries(preservedParams).map(([key, value]) =>
             value ? <input key={key} type="hidden" name={key} value={value} /> : null,
           )}
-          <div className="focus-shell group relative flex h-13 items-center rounded-full border border-divider bg-bg-body shadow-sm hover:border-border-strong">
-            <Search className="pointer-events-none ml-4 h-5 w-5 shrink-0 text-text-muted" />
+          <div className="focus-shell group relative flex h-12 items-center rounded-full border border-divider bg-bg-body shadow-sm hover:border-border-strong">
+            <Search className="pointer-events-none ml-4 h-5 w-5 shrink-0 text-text-muted" aria-hidden="true" />
             <input
               type="search"
               name="q"
               defaultValue={currentQuery}
               placeholder={labels.searchPlaceholder}
-              className="h-12 w-full min-w-0 bg-transparent px-3 text-base text-text-body sm:text-[15px] outline-none placeholder:text-text-muted"
+              aria-label={labels.searchPlaceholder}
+              className="h-11 w-full min-w-0 bg-transparent px-3 text-base text-text-body sm:text-[15px] outline-none placeholder:text-text-muted"
             />
             <button
               type="submit"
               className="mr-1.5 inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-brand px-4 text-sm font-semibold text-brand-contrast transition-colors hover:bg-brand-hover sm:px-5"
             >
               <span className="hidden sm:inline">{labels.searchButton}</span>
-              <Search className="h-4 w-4 sm:hidden" />
+              <Search className="h-4 w-4 sm:hidden" aria-hidden="true" />
+              <span className="sr-only sm:hidden">{labels.searchButton}</span>
             </button>
           </div>
         </form>
-
-        {/* Popular topics */}
-        {popularKeywords.length > 0 && (
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
-            <span className="text-[11px] font-medium uppercase tracking-wide text-text-muted">
-              {labels.popular}
-            </span>
-            {popularKeywords.map((kw) => (
-              <Link
-                key={kw}
-                href={`${JOURNALS_PATH}?keyword=${encodeURIComponent(kw)}`}
-                className="rounded-full border border-divider bg-bg-surface px-2.5 py-1 text-[11.5px] font-medium text-text-body transition-colors hover:border-brand/40 hover:bg-brand/5 hover:text-brand"
-              >
-                {kw}
-              </Link>
-            ))}
-          </div>
-        )}
-
-        {/* Repository stats — hidden while the repository is small. A hero
-            announcing "1 Publications · 1 Journals" undermines credibility;
-            show the band only once the numbers are worth bragging about. */}
-        {stats.publications >= 10 && (
-          <div className="mt-7 flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
-            <StatTile
-              icon={<BookOpen className="h-4 w-4" />}
-              value={compact(stats.publications)}
-              label={labels.statPublications}
-            />
-            {stats.journals > 1 && (
-              <>
-                <span aria-hidden className="hidden h-8 w-px bg-divider sm:block" />
-                <StatTile
-                  icon={<Library className="h-4 w-4" />}
-                  value={compact(stats.journals)}
-                  label={labels.statJournals}
-                />
-              </>
-            )}
-            {stats.years > 1 && (
-              <>
-                <span aria-hidden className="hidden h-8 w-px bg-divider sm:block" />
-                <StatTile
-                  icon={<CalendarRange className="h-4 w-4" />}
-                  value={compact(stats.years)}
-                  label={labels.statYears}
-                />
-              </>
-            )}
-            {stats.downloads >= 10 && (
-              <>
-                <span aria-hidden className="hidden h-8 w-px bg-divider sm:block" />
-                <StatTile
-                  icon={<Download className="h-4 w-4" />}
-                  value={compact(stats.downloads)}
-                  label={labels.statDownloads}
-                />
-              </>
-            )}
-          </div>
-        )}
       </div>
+
+      {showPopular && (
+        <div className="mt-4 flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-text-muted">{labels.popular}</span>
+          {popularKeywords.map((kw) => (
+            <Link
+              key={kw}
+              href={`${JOURNALS_PATH}?keyword=${encodeURIComponent(kw)}`}
+              className="rounded-full border border-divider bg-bg-surface px-2.5 py-1 text-[11.5px] font-medium text-text-body transition-colors hover:border-brand/40 hover:bg-brand/5 hover:text-brand"
+            >
+              {kw}
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* Repository stats — hidden while the repository is small. A hero
+          announcing "1 Publications · 1 Journals" undermines credibility. */}
+      {stats.publications >= POPULAR_MIN && (
+        <div className="mt-5 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-divider pt-4">
+          <StatTile icon={<BookOpen className="h-4 w-4" />} value={compact(stats.publications)} label={labels.statPublications} />
+          {stats.journals > 1 && (
+            <StatTile icon={<Library className="h-4 w-4" />} value={compact(stats.journals)} label={labels.statJournals} />
+          )}
+          {stats.years > 1 && (
+            <StatTile icon={<CalendarRange className="h-4 w-4" />} value={compact(stats.years)} label={labels.statYears} />
+          )}
+          {stats.downloads >= 10 && (
+            <StatTile icon={<Download className="h-4 w-4" />} value={compact(stats.downloads)} label={labels.statDownloads} />
+          )}
+        </div>
+      )}
     </section>
   );
 }

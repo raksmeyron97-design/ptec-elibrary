@@ -15,6 +15,7 @@
 
 import { normalizeIssn } from "@/lib/seo/identifiers";
 import { countryCode } from "@/lib/journals/vocab";
+import { plainText } from "@/lib/text/plain-text";
 
 export type JournalSuggestion = {
   title?: string;
@@ -83,30 +84,6 @@ export function parseCrossrefJournal(body: unknown): JournalSuggestion | null {
     : [];
   if (subjects.length > 0) out.subjects = [...new Set(subjects)];
   return Object.keys(out).length > 0 ? out : null;
-}
-
-/**
- * The plain text of an HTML fragment from the portal's page. This text only
- * ever becomes a form field's VALUE (rendered by React as text), but it is
- * made safe as text anyway, in an order that cannot be undone:
- *   1. tags are replaced by spaces;
- *   2. entities are decoded with `&amp;` LAST, so `&amp;lt;` becomes the
- *      literal text `&lt;`, never `<` (decoding it first would unescape twice);
- *   3. any angle bracket left over — from a malformed tag, or decoded from
- *      `&lt;` — is removed, so no tag can survive in any form.
- * A journal title, a country or a medium never legitimately contains `<`/`>`.
- */
-function plainText(fragment: string): string {
-  return fragment
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;|&apos;/g, "'")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&")
-    .replace(/[<>]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 /**

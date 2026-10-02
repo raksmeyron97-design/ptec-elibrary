@@ -14,6 +14,7 @@ import { createAdminNotification } from "@/lib/admin-notifications";
 import { indexPdfPagesSafe } from "@/lib/pdf-page-index";
 import { rateLimit } from "@/lib/rate-limit";
 import { SITE_URL } from "@/lib/seo/site";
+import { safeExternalUrl } from "@/lib/authors/links";
 import { queuePublicationEmbedding } from "@/lib/publications/admin-side-effects";
 import {
   upgradeLegacyCitationTokens,
@@ -113,6 +114,9 @@ function buildRpcPayload(data: PublicationData, references: unknown): Record<str
     language: data.language ?? "en",
     cover_url: data.cover_url ?? null,
     pdf_url: data.pdf_url ?? null,
+    // Only when the editor expressed one (0167 writes the column only when the
+    // key is present), and only an http(s) URL.
+    ...(data.source_url !== undefined ? { source_url: safeExternalUrl(data.source_url) } : {}),
     references,
     // Library download policy (0125). Only sent when the caller actually
     // expressed one: the RPC coalesces an absent key to the record's current
@@ -527,6 +531,7 @@ export async function publishPublicationValidated(id: string): Promise<PublishVa
     license: record.license as string | null,
     cover_url: record.cover_url as string | null,
     hasPdf: !!record.pdf_url,
+    sourceUrl: (record.source_url as string | null | undefined) ?? null,
     authorshipCount: Array.isArray(record.publication_authorships)
       ? record.publication_authorships.length
       : 0,

@@ -43,6 +43,7 @@ export default function ResultToolbar({
   sortDefaultLabel,
   pageSizeId = "listing-page-size",
   viewLabels,
+  total,
 }: {
   /** Pre-resolved, translated count text from the server page — e.g.
    *  "12 theses" or "3 of 12 theses". Built once by the page via
@@ -66,6 +67,13 @@ export default function ResultToolbar({
    *  in one test run, and a duplicated id breaks label association. */
   pageSizeId?: string;
   viewLabels?: { group: string; list: string; grid: string };
+  /**
+   * How many results the listing holds. When given, controls that cannot
+   * change anything are left out: sort and the list/grid switch below two
+   * results, rows-per-page while everything already fits on one page.
+   * Omitted → every control, as before (other listings are unchanged).
+   */
+  total?: number;
 }) {
   const t = useTranslations("listing");
   const tPagination = useTranslations("pagination");
@@ -90,8 +98,12 @@ export default function ResultToolbar({
 
       <div className="flex flex-wrap items-center gap-2">
         {/* Items per page */}
-        <RowsPerPageSelect value={pageSize} options={pageSizeOptions} basePath={basePath} id={pageSizeId} label={tPagination("rowsPerPage")} />
+        {(total === undefined || total > Math.min(...pageSizeOptions)) && (
+          <RowsPerPageSelect value={pageSize} options={pageSizeOptions} basePath={basePath} id={pageSizeId} label={tPagination("rowsPerPage")} />
+        )}
 
+        {total === undefined || total >= 2 ? (
+        <>
         {/* Sort */}
         <SortSelect
           value={sort}
@@ -120,6 +132,8 @@ export default function ResultToolbar({
             <LayoutGrid className="h-4 w-4" />
           </FilterLink>
         </div>
+        </>
+        ) : null}
 
         {/* No "Reset filters" here any more. <AppliedFilters> sits directly
             above this row, names every active facet and carries its own

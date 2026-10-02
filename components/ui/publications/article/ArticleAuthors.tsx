@@ -6,9 +6,6 @@ import { secondaryValue } from "@/lib/publications/integrity";
 import type { PublicationAuthorship } from "@/lib/publications";
 import type { NumberedAffiliation } from "@/lib/publications/article-layout";
 
-/** Above this many affiliations the list folds behind a disclosure. */
-const OPEN_AFFILIATIONS = 4;
-
 /**
  * The byline as a list of people, then the institutions their markers point to.
  *
@@ -79,7 +76,7 @@ export default async function ArticleAuthors({
   );
 
   return (
-    <div className="mt-5">
+    <div className="mt-3.5">
       <ul aria-label={t("authorsLabel")} className="flex flex-wrap gap-y-1 text-[16px] leading-7 sm:text-[17px]">
         {authorships.map((a, i) => {
           const markers = a.affiliation_ids.map((id) => markerFor.get(id)).filter((n): n is number => !!n);
@@ -117,31 +114,32 @@ export default async function ArticleAuthors({
         })}
       </ul>
 
+      {/* Always folded (articles redesign): the numbered list and the
+          corresponding-author line cost ~70 px above the abstract, and the
+          superscripts already say who belongs where. One click shows both. */}
       {(affiliations.length > 0 || corresponding.length > 0) && (
-        <div className="mt-3 max-w-[80ch]">
-          {affiliations.length > OPEN_AFFILIATIONS ? (
-            <details className="group">
-              <summary className="inline-flex min-h-9 cursor-pointer select-none list-none items-center gap-1 text-[13.5px] font-semibold text-text-body hover:text-brand [&::-webkit-details-marker]:hidden">
-                {t("affiliationsLabel")} ({affiliations.length})
-                <ChevronDown
-                  aria-hidden="true"
-                  className="h-4 w-4 transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none"
-                />
-              </summary>
-              <div className="mt-2">{affiliationList}</div>
-            </details>
-          ) : (
-            affiliations.length > 0 && affiliationList
-          )}
-          {corresponding.length > 0 && (
-            <p className="mt-1.5 flex gap-2 text-[13px] leading-6 text-text-muted">
-              <span aria-hidden="true" className="w-3 shrink-0 text-right font-bold text-brand">*</span>
-              <span>
-                {t("correspondingNote")}: {corresponding.map((a) => a.author.full_name).join(", ")}
-              </span>
-            </p>
-          )}
-        </div>
+        <details className="group mt-2 max-w-[80ch]">
+          <summary className="inline-flex min-h-9 cursor-pointer select-none list-none items-center gap-1 text-[13.5px] font-semibold text-text-body hover:text-brand [&::-webkit-details-marker]:hidden">
+            {affiliations.length > 0
+              ? `${t("affiliationsLabel")} (${affiliations.length})`
+              : t("correspondingNote")}
+            <ChevronDown
+              aria-hidden="true"
+              className="h-4 w-4 transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none"
+            />
+          </summary>
+          <div className="mt-2">
+            {affiliations.length > 0 && affiliationList}
+            {corresponding.length > 0 && (
+              <p className="mt-1.5 flex gap-2 text-[13px] leading-6 text-text-muted">
+                <span aria-hidden="true" className="w-3 shrink-0 text-right font-bold text-brand">*</span>
+                <span>
+                  {t("correspondingNote")}: {corresponding.map((a) => a.author.full_name).join(", ")}
+                </span>
+              </p>
+            )}
+          </div>
+        </details>
       )}
     </div>
   );

@@ -70,13 +70,16 @@ import PublicationContext from "./workspace/PublicationContext";
 import ContentWorkspace from "./workspace/ContentWorkspace";
 import SaveBar, { type AutosaveState } from "./workspace/SaveBar";
 import ReviewPublishPanel from "./workspace/ReviewPublishPanel";
+import DoiStart, { type DoiApplyPayload } from "./workspace/DoiStart";
 import { articlePath, ARTICLES_BASE_PATH } from "@/lib/journals/urls";
 import { capSlug } from "@/lib/slug";
 
 // A slug derived from the title is capped to its first words (SEO Phase 2.8,
 // D8). SlugField derives only while the record has no slug of its own, so an
 // existing record's slug — and one typed by hand — is never touched.
-const derivedSlug = (value: string) => capSlug(slugify(value));
+// No title, no slug: slugify("") falls back to "book-<timestamp>", which the
+// field then reported as an "Available" URL before anything was typed.
+const derivedSlug = (value: string) => (value.trim() ? capSlug(slugify(value)) : "");
 
 type StepKey = ReviewStep | "review";
 
@@ -289,6 +292,21 @@ export default function PublicationForm({
   const [existingSiFiles, setExistingSiFiles] = useState<PublicationFile[]>(initial?.files ?? []);
   const [newSiFiles, setNewSiFiles] = useState<NewSiFile[]>([]);
   const [pdfUrl, setPdfUrl] = useState<string | null>(initial?.pdf_url ?? null);
+  /**
+   * How readers reach the full text (decision 2026-10-02: the library INDEXES
+   * articles). "link" is a citation-only record — the DOI or the publisher's
+   * page; "pdf" is a file the library may share. Switching to "link" keeps an
+   * existing PDF in state until Save, so switching back loses nothing.
+   */
+  const [fullText, setFullText] = useState<"pdf" | "link">(initial?.pdf_url ? "pdf" : "link");
+  const [sourceUrl, setSourceUrl] = useState<string>(initial?.source_url ?? "");
+
+  // ── Start from a DOI (new records only) ──
+  const [doiStepOpen, setDoiStepOpen] = useState<boolean>(!initial);
+  const [prefilledFrom, setPrefilledFrom] = useState<string | null>(null);
+  // The journal name as typed — the field is uncontrolled, this only drives
+  // the "linked to a journal record" line under it.
+  const [journalTyped, setJournalTyped] = useState<string>(initial?.journal_name ?? "");
 
   // ── Workspace deep links ──
   const [contentFocus, setContentFocus] = useState<{ target: string; nonce: number } | null>(null);
@@ -361,7 +379,8 @@ export default function PublicationForm({
       copyright: scalars.copyright.trim() || null,
       language: scalars.language || "en",
       cover_url: uploaded.coverUrl,
-      pdf_url: uploaded.pdfUrl,
+      pdf_url: fullText === "pdf" ? uploaded.pdfUrl : null,
+      source_url: sourceUrl.trim() || null,
       allow_download: allowDownload,
       // Only meaningful while downloads are off. Clearing it when they are on
       // stops a stale explanation from reappearing if the switch is flipped
@@ -369,7 +388,7 @@ export default function PublicationForm({
       download_disabled_reason: allowDownload ? null : downloadReason.trim() || null,
       references: referenceRows.filter((r) => r.text.trim() || r.doi || r.url),
     }),
-    [title, slug, abstract, abstractKm, referenceRows, allowDownload, downloadReason],
+    [title, slug, abstract, abstractKm, referenceRows, allowDownload, downloadReason, fullText, sourceUrl],
   );
 
   // ── Live review (drives step states, save-bar chips, review panel) ─────
@@ -393,13 +412,14 @@ export default function PublicationForm({
       subjects: splitList(scalars.subjects, 12),
       license: scalars.license,
       cover_url: coverRemoved ? null : coverPreview ?? initialCoverUrl,
-      hasPdf: !!pdfFile || !!pdfUrl,
+      hasPdf: fullText === "pdf" && (!!pdfFile || !!pdfUrl),
+      sourceUrl,
       authorshipCount: authorRows.length,
       references: referenceRows.filter((r) => r.text.trim() || r.doi || r.url),
     });
   }, [
     collectScalars, title, slug, abstract, abstractKm, coverRemoved, coverPreview,
-    initialCoverUrl, pdfFile, pdfUrl, authorRows, referenceRows,
+    initialCoverUrl, pdfFile, pdfUrl, authorRows, referenceRows, fullText, sourceUrl,
   ]);
 
   const [review, setReview] = useState<PublicationReviewResult>(() =>
@@ -422,6 +442,7 @@ export default function PublicationForm({
       license: initial?.license,
       cover_url: initial?.cover_url,
       hasPdf: !!initial?.pdf_url,
+      sourceUrl: initial?.source_url ?? null,
       authorshipCount: initial?.authorships?.length ?? 0,
       references: initial?.references ?? [],
     }),
@@ -465,6 +486,8 @@ export default function PublicationForm({
       references: referenceRows,
       authorRows,
       existingSiFiles,
+      fullText,
+      sourceUrl,
       pendingUploads: {
         pdf: !!pdfFile,
         cover: !!coverFile,
@@ -483,7 +506,7 @@ export default function PublicationForm({
     else setAutosave("error");
   }, [
     collectScalars, title, slug, abstract, abstractKm, referenceRows, authorRows,
-    existingSiFiles, pdfFile, coverFile, newSiFiles.length, draftTarget, revision,
+    existingSiFiles, fullText, sourceUrl, pdfFile, coverFile, newSiFiles.length, draftTarget, revision,
   ]);
 
   const markDirty = useCallback(() => {
@@ -584,6 +607,8 @@ export default function PublicationForm({
     if (Array.isArray(payload.existingSiFiles)) {
       setExistingSiFiles(payload.existingSiFiles as PublicationFile[]);
     }
+    if (payload.fullText === "pdf" || payload.fullText === "link") setFullText(payload.fullText);
+    if (typeof payload.sourceUrl === "string") setSourceUrl(payload.sourceUrl);
     setDraftBanner(null);
     markDirty();
   }, [draftBanner, markDirty]);
@@ -592,6 +617,57 @@ export default function PublicationForm({
     setDraftBanner(null);
     void discardPublicationDraft(draftTarget());
   }, [draftTarget]);
+
+  /**
+   * "Use these details" from the DOI step. Same mechanism as a draft restore:
+   * uncontrolled fields get new defaults and remount (epoch), controlled
+   * state is set directly. Only facts Crossref stated are written — an empty
+   * suggestion leaves the field as it was.
+   */
+  const applyFromDoi = useCallback(
+    ({ article, journalName, authorships }: DoiApplyPayload) => {
+      const keep = (next: string | null | undefined, prev: string) => (next && next.trim() ? next : prev);
+      setDefaults((prev) => ({
+        ...prev,
+        journal_name: keep(journalName, prev.journal_name),
+        volume: keep(article.volume, prev.volume),
+        issue_no: keep(article.issue, prev.issue_no),
+        page_start: keep(article.pageStart, prev.page_start),
+        page_end: keep(article.pageEnd, prev.page_end),
+        article_no: keep(article.articleNo, prev.article_no),
+        publication_date: keep(article.publicationDate, prev.publication_date),
+        doi: article.doi,
+        publisher: keep(article.publisher, prev.publisher),
+        license: keep(article.license, prev.license),
+        language: keep(article.language, prev.language),
+      }));
+      setEpoch((e) => e + 1);
+      if (article.title) {
+        setTitle(article.title);
+        setSlug(derivedSlug(article.title));
+      }
+      setJournalTyped(journalName ?? "");
+      if (article.abstract) setAbstract(article.abstract);
+      if (article.references.length > 0) {
+        setReferenceRows(normalizePublicationReferences(article.references.map((r) => ({ text: r.text, doi: r.doi }))));
+      }
+      if (authorships.length > 0) setAuthorRows(authorships);
+      // A DOI is a link to the full text: start as a citation-only record.
+      setFullText("link");
+      setPrefilledFrom(article.doi);
+      setDoiStepOpen(false);
+      markDirty();
+    },
+    [markDirty],
+  );
+
+  // markDirty() above scheduled a review from the closure of the render BEFORE
+  // these values existed (it still saw an empty title and slug, so the save
+  // bar read "2 blocking" on a complete record). Review again once the filled
+  // values have rendered.
+  useEffect(() => {
+    if (prefilledFrom) scheduleReview();
+  }, [prefilledFrom, scheduleReview]);
 
   // ── Save ───────────────────────────────────────────────────────────────
   const failTo = useCallback((message: string, step: StepKey) => {
@@ -627,8 +703,9 @@ export default function PublicationForm({
       // segments must be ASCII and ≤ 80 chars (lib/storage/folder-name.ts).
       const folder = publicationFolder(finalSlug, uid);
 
-      let nextPdfUrl = pdfUrl;
-      if (pdfFile) {
+      // A citation-only record saves no PDF, even one still held in state.
+      let nextPdfUrl = fullText === "pdf" ? pdfUrl : null;
+      if (fullText === "pdf" && pdfFile) {
         nextPdfUrl = await uploadViaAdminApi(pdfFile, `${folder}/article.pdf`);
       }
 
@@ -692,6 +769,7 @@ export default function PublicationForm({
       setPublicationId(result.id);
       setRevision(result.revision);
       setPdfUrl(nextPdfUrl);
+      setPrefilledFrom(null);
       if (uploadedSi.length > 0) {
         // Uploaded rows are persisted; fold them into "existing" so a second
         // save cannot duplicate them.
@@ -732,7 +810,7 @@ export default function PublicationForm({
       savingRef.current = false;
     }
   }, [
-    title, slug, referenceRows, abstract, abstractKm, pdfUrl, pdfFile, coverRemoved,
+    title, slug, referenceRows, abstract, abstractKm, pdfUrl, pdfFile, fullText, coverRemoved,
     initialCoverUrl, coverFile, newSiFiles, existingSiFiles, collectScalars, buildData,
     authorRows, publicationId, revision, computeReview, failTo,
   ]);
@@ -797,7 +875,14 @@ export default function PublicationForm({
   }, [handleSave]);
 
   // ── Step rail ──────────────────────────────────────────────────────────
+  // A brand-new, untouched article has nothing wrong with it yet. Before this,
+  // the save bar opened on "3 blocking · 4 warnings" for an empty form.
+  const quiet = !isEdit && !dirty && !showFieldIssues;
+
   const stepStates = useMemo<Record<StepKey, StepState>>(() => {
+    if (quiet) {
+      return { basic: "empty", authors: "empty", content: "empty", details: "empty", files: "empty", review: "empty" };
+    }
     const scalarsStarted =
       defaults.publisher || defaults.isbn || defaults.subjects ||
       defaults.table_of_contents || defaults.learning_outcomes || defaults.faqs;
@@ -811,10 +896,10 @@ export default function PublicationForm({
       authors: byStep("authors", authorRows.length > 0),
       content: byStep("content", !!abstract.trim() || referenceRows.length > 0),
       details: byStep("details", !!scalarsStarted),
-      files: byStep("files", !!pdfFile || !!pdfUrl),
+      files: byStep("files", fullText === "pdf" ? !!pdfFile || !!pdfUrl : !!sourceUrl.trim() || !!defaults.doi.trim()),
       review: review.publishable && !dirty && isEdit ? "complete" : "empty",
     };
-  }, [review, title, authorRows.length, abstract, referenceRows.length, defaults, pdfFile, pdfUrl, dirty, isEdit]);
+  }, [quiet, review, title, authorRows.length, abstract, referenceRows.length, defaults, pdfFile, pdfUrl, fullText, sourceUrl, dirty, isEdit]);
 
   const goToReview = useCallback(() => {
     setReview(computeReview());
@@ -884,7 +969,7 @@ export default function PublicationForm({
           subjects={collectScalars().subjects}
           authorCount={authorRows.length}
           referenceCount={referenceRows.length}
-          hasPdf={!!pdfFile || !!pdfUrl}
+          hasPdf={fullText === "pdf" && (!!pdfFile || !!pdfUrl)}
           hasCover={!!coverPreview && !coverRemoved}
           review={review}
         />
@@ -895,8 +980,8 @@ export default function PublicationForm({
           saving={saving}
           lastSavedAt={lastSavedAt}
           autosave={autosave}
-          errorCount={review.errors.length}
-          warningCount={review.warnings.length}
+          errorCount={quiet ? 0 : review.errors.length}
+          warningCount={quiet ? 0 : review.warnings.length}
           isEdit={isEdit}
           onPreview={openPreview}
           onReview={goToReview}
@@ -950,6 +1035,25 @@ export default function PublicationForm({
 
       {/* Panels stay mounted so field values survive a step switch. */}
             <div id="pub-panel-basic" role="tabpanel" aria-labelledby="pub-tab-basic" tabIndex={-1} hidden={activeStep !== "basic"} className="space-y-8">
+              {!isEdit && doiStepOpen && <DoiStart onApply={applyFromDoi} onSkip={() => setDoiStepOpen(false)} />}
+              {!isEdit && !doiStepOpen && !prefilledFrom && (
+                <button
+                  type="button"
+                  className="text-sm font-medium text-brand underline-offset-2 hover:underline"
+                  onClick={() => setDoiStepOpen(true)}
+                >
+                  Fill from a DOI instead
+                </button>
+              )}
+              {prefilledFrom && (
+                <div role="status" className="flex items-start gap-3 rounded-lg border border-success-line bg-success-soft px-4 py-3 text-sm text-success-text">
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                  <p>
+                    Filled from Crossref (DOI <span className="font-mono">{prefilledFrom}</span>). Check each step —
+                    especially Authors and Content — then save.
+                  </p>
+                </div>
+              )}
               <div className="space-y-4" key={`basic-${epoch}`}>
                 <Field
                   label="Title (EN)"
@@ -1052,9 +1156,25 @@ export default function PublicationForm({
                     error={fieldIssues.journal_name}
                     className="md:col-span-2"
                     hint={
-                      journalOptions.length > 0
-                        ? "Choose a journal from the suggestions to link the article to its journal and issue pages. Any other name is saved as text only."
-                        : "No journals exist yet — create one under Journals to give articles a journal page."
+                      journalTyped.trim() === "" ? (
+                        journalOptions.length > 0
+                          ? "Choose a journal from the suggestions to link the article to its journal and issue pages."
+                          : "No journals exist yet — create one under Journals to give articles a journal page."
+                      ) : journalOptions.some((o) => o.trim().toLowerCase() === journalTyped.trim().toLowerCase()) ? (
+                        <span className="text-success-text">Linked to the journal record of this name.</span>
+                      ) : (
+                        <>
+                          No journal record has this name, so it is saved as text only.{" "}
+                          <a
+                            href={`/admin/journals/new?title=${encodeURIComponent(journalTyped.trim())}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-brand underline-offset-2 hover:underline"
+                          >
+                            Create the journal
+                          </a>
+                        </>
+                      )
                     }
                   >
                     {(p) => (
@@ -1066,6 +1186,7 @@ export default function PublicationForm({
                           placeholder="e.g. PTEC Journal of Education"
                           list="pf-journal-options"
                           autoComplete="off"
+                          onChange={(e) => setJournalTyped(e.target.value)}
                         />
                         <datalist id="pf-journal-options">
                           {journalOptions.map((name) => (
@@ -1122,8 +1243,9 @@ export default function PublicationForm({
               <div key={`rights-${epoch}`}>
                 <h3 className="text-sm font-semibold text-text-heading">Identifiers &amp; rights</h3>
                 <p className="mb-4 mt-0.5 text-xs text-text-muted">
-                  A license is required to publish, because harvesters (BASE, CORE, OpenAIRE)
-                  only take openly-licensed records.
+                  Copy these from the publisher. An open licence (for example CC BY 4.0) lets
+                  harvesters such as BASE, CORE and OpenAIRE take the record; leave it blank
+                  when the publisher states none.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Field
@@ -1146,7 +1268,7 @@ export default function PublicationForm({
                     label="License"
                     htmlFor="pf-field-license"
                     error={fieldIssues.license}
-                    hint="Required before publishing."
+                    hint="As the publisher states it, e.g. CC BY 4.0. Blank when none is stated."
                   >
                     {(p) => (
                       <input {...p} name="license" defaultValue={defaults.license} placeholder="CC BY 4.0" />
@@ -1193,11 +1315,10 @@ export default function PublicationForm({
                 data-invalid={fieldIssues.keywords ? "true" : undefined}
               >
                 <Field
-                  label="Keywords / Tags (ពាក្យគន្លឹះ)"
-                  required
+                  label="Keywords"
                   htmlFor="pf-field-keywords-input"
                   error={fieldIssues.keywords}
-                  hint="ចុច Enter ឬ , ដើម្បីបន្ថែម tag — max 20."
+                  hint="Press Enter or a comma to add one. Up to 20. Recommended: they drive search and related reading."
                 >
                   <TagInput
                     name="keywords"
@@ -1318,31 +1439,98 @@ export default function PublicationForm({
             </div>
 
             <div id="pub-panel-files" role="tabpanel" aria-labelledby="pub-tab-files" tabIndex={-1} hidden={activeStep !== "files"} className="space-y-6">
-              <div
+              <fieldset
                 id="pf-field-pdf"
                 tabIndex={-1}
-                className="scroll-mt-24"
+                className="scroll-mt-24 space-y-3"
                 data-invalid={fieldIssues.pdf ? "true" : undefined}
               >
-                <Field
-                  label="Article PDF"
-                  required
-                  htmlFor="pf-field-pdf-input"
-                  error={fieldIssues.pdf}
-                  hint="PDF only. You can save a draft without it; publishing requires it."
-                >
-                  <PdfDropzone
-                    file={pdfFile}
-                    onChange={(file) => {
-                      setPdfFile(file);
-                      markDirty();
-                    }}
-                    existingLabel={
-                      isEdit && pdfUrl ? "A PDF is already attached — upload to replace it" : null
+                <legend className={LABEL_CLASS}>How readers get the full text</legend>
+                {fieldIssues.pdf && (
+                  <p role="alert" className="text-sm text-danger-text">{fieldIssues.pdf}</p>
+                )}
+                {(
+                  [
+                    {
+                      key: "link",
+                      title: "Citation only — link to the publisher",
+                      body: "Readers follow the DOI or the publisher's page. Use this for any article the library has no right to share in full.",
+                    },
+                    {
+                      key: "pdf",
+                      title: "PDF held by the library",
+                      body: "Only when the full text may be shared: an open licence, PTEC's own work, or the publisher's permission.",
+                    },
+                  ] as const
+                ).map((opt) => (
+                  <label
+                    key={opt.key}
+                    className={`flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3 transition-colors ${
+                      fullText === opt.key ? "border-brand bg-brand/5" : "border-divider hover:bg-paper"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="full_text_mode"
+                      value={opt.key}
+                      className="focus-field mt-1 h-4 w-4"
+                      checked={fullText === opt.key}
+                      disabled={saving}
+                      onChange={() => {
+                        setFullText(opt.key);
+                        markDirty();
+                      }}
+                    />
+                    <span>
+                      <span className="block text-sm font-semibold text-text-heading">{opt.title}</span>
+                      <span className="mt-0.5 block text-xs text-text-muted">{opt.body}</span>
+                    </span>
+                  </label>
+                ))}
+
+                {fullText === "link" ? (
+                  <Field
+                    label="Article page at the publisher"
+                    htmlFor="pf-field-source_url"
+                    hint={
+                      isEdit && pdfUrl
+                        ? "The PDF attached to this record stops being served when you save. Readers follow the DOI, or this page when there is no DOI."
+                        : "Needed when the article has no DOI (many regional journals). With a DOI, readers are sent to doi.org."
                     }
-                  />
-                </Field>
-              </div>
+                  >
+                    {(p) => (
+                      <input
+                        {...p}
+                        type="url"
+                        className={MONO_INPUT_CLASS}
+                        value={sourceUrl}
+                        onChange={(e) => {
+                          setSourceUrl(e.target.value);
+                          markDirty();
+                        }}
+                        placeholder="https://so08.tci-thaijo.org/index.php/jhuso/article/view/2379"
+                      />
+                    )}
+                  </Field>
+                ) : (
+                  <Field
+                    label="Article PDF"
+                    htmlFor="pf-field-pdf-input"
+                    hint="PDF only. You can save a draft without it."
+                  >
+                    <PdfDropzone
+                      file={pdfFile}
+                      onChange={(file) => {
+                        setPdfFile(file);
+                        markDirty();
+                      }}
+                      existingLabel={
+                        isEdit && pdfUrl ? "A PDF is already attached — upload to replace it" : null
+                      }
+                    />
+                  </Field>
+                )}
+              </fieldset>
 
               <div
                 id="pf-field-cover"
@@ -1481,6 +1669,7 @@ export default function PublicationForm({
                 rights gate in lib/publications/access.ts — a third party's
                 copyrighted full text stays undownloadable regardless of what
                 is set here, and turning this on cannot override that. */}
+            {fullText === "pdf" && (
             <FormSection
               title="Access & file"
               description="Who may take the PDF away. Online reading is unaffected by this setting."
@@ -1531,6 +1720,7 @@ export default function PublicationForm({
                 </Field>
               )}
             </FormSection>
+            )}
 
             {/* ── Figures ─────────────────────────────────────────────────
                 Saves through its own action — see FiguresEditor for why the

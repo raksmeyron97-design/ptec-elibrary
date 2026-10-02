@@ -144,6 +144,8 @@ export interface Publication {
   language: string;
   cover_url: string | null;
   pdf_url: string | null;
+  /** The article's page at its publisher (0167). A citation-only record links here or to its DOI. */
+  source_url?: string | null;
   /**
    * Library-policy download switch (migration 0125). Optional in the type
    * because a row read before the migration has no such column; every reader
@@ -282,6 +284,7 @@ export function mapRowToPublication(row: any): Publication {
     language: row.language ?? "en",
     cover_url: row.cover_url ?? null,
     pdf_url: row.pdf_url ?? null,
+    source_url: typeof row.source_url === "string" && row.source_url.trim() ? row.source_url : null,
     // Same rule as the author profile fields: only carry what was selected.
     ...(typeof row.allow_download === "boolean" ? { allow_download: row.allow_download } : {}),
     ...("download_disabled_reason" in row

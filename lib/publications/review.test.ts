@@ -36,12 +36,13 @@ describe("buildPublicationReview", () => {
     expect(review.references).toHaveLength(2);
   });
 
-  it("blocks on missing title, slug, PDF, and dangling citations", () => {
+  it("blocks on missing title, slug, any way to the full text, and dangling citations", () => {
     const review = buildPublicationReview({
       ...validInput,
       title: " ",
       slug: "",
       hasPdf: false,
+      doi: "",
       abstract: "Dangling [cite:ref-missing].",
     });
 
@@ -50,12 +51,36 @@ describe("buildPublicationReview", () => {
       expect.arrayContaining([
         "missing_title",
         "missing_slug",
-        "missing_pdf",
+        "missing_full_text_link",
         "missing_citation_target",
       ]),
     );
     const titleItem = review.errors.find((item) => item.code === "missing_title");
     expect(titleItem).toMatchObject({ step: "basic", field: "title" });
+  });
+
+  it("a citation-only record (no PDF) is publishable when it links to the publisher", () => {
+    // Decision 2026-10-02: the library indexes articles; a third-party
+    // copyrighted article is listed and linked, never required to be hosted.
+    const byDoi = buildPublicationReview({ ...validInput, hasPdf: false });
+    expect(byDoi.errors).toEqual([]);
+    expect(byDoi.publishable).toBe(true);
+
+    const byUrl = buildPublicationReview({
+      ...validInput,
+      hasPdf: false,
+      doi: "",
+      sourceUrl: "https://so08.tci-thaijo.org/index.php/jhuso/article/view/2379",
+    });
+    expect(byUrl.publishable).toBe(true);
+  });
+
+  it("a citation-only record with no DOI and no URL has nowhere to send a reader", () => {
+    const review = buildPublicationReview({ ...validInput, hasPdf: false, doi: "", sourceUrl: "javascript:alert(1)" });
+    expect(review.errors.map((item) => item.code)).toContain("missing_full_text_link");
+    // An invalid DOI is not a link either.
+    const badDoi = buildPublicationReview({ ...validInput, hasPdf: false, doi: "not-a-doi" });
+    expect(badDoi.errors.map((item) => item.code)).toContain("missing_full_text_link");
   });
 
   it("blocks invalid article DOI and out-of-range dates", () => {
