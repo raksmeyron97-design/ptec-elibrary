@@ -29,9 +29,9 @@ import {
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { getCollectionStats } from "@/lib/collection-stats";
 import { chooseCountLabel } from "@/lib/listing-count";
-import { getPublicJournals, type JournalSummary } from "@/lib/journals/data";
+import { getPtecAuthoredPublicationIds, getPublicJournals, type JournalSummary } from "@/lib/journals/data";
 import { journalTitle } from "@/lib/journals/types";
-import { JOURNALS_PATH, PTEC_PUBLICATIONS_URL } from "@/lib/journals/urls";
+import { articlePath, JOURNALS_PATH, PTEC_PUBLICATIONS_URL } from "@/lib/journals/urls";
 import { ExternalLink } from "lucide-react";
 import JournalShelf from "@/components/ui/journals/JournalShelf";
 import HubIntro from "@/components/seo/HubIntro";
@@ -47,6 +47,8 @@ type SP = {
   journal?: string;
   year?: string;
   language?: string;
+  /** "1" — only articles with a PTEC-staff author (the "By PTEC authors" row's "See all"). */
+  ptec?: string;
   page?: string;
   size?: string;
   sort?: string;
@@ -98,6 +100,7 @@ export async function generateMetadata({
       params.journal ||
       params.year ||
       params.language ||
+      params.ptec ||
       params.size ||
       params.sort ||
       params.view
@@ -177,14 +180,20 @@ export default async function PublicationsPage({
   // Journals are read beside the articles, not per article. A failed journal
   // read is NOT "there are no journals": the listing still lists every
   // article, it only loses the journal shelf and the canonical facet labels.
-  const [{ data }, stats, journalList] = await Promise.all([
+  const [{ data }, stats, journalList, ptecIdList] = await Promise.all([
     getPublications({}),
     getCollectionStats(),
     getPublicJournals().catch((e): JournalSummary[] | null => {
       console.warn("[journals] listing: journals unavailable:", e instanceof Error ? e.message : e);
       return null;
     }),
+    // Supplementary: a failed read hides the row and the filter, never the listing.
+    getPtecAuthoredPublicationIds().catch((e): string[] | null => {
+      console.warn("[journals] listing: PTEC-authored articles unavailable:", e instanceof Error ? e.message : e);
+      return null;
+    }),
   ]);
+  const ptecIds = new Set(ptecIdList ?? []);
   const all = data ?? [];
   const journalById = new Map((journalList ?? []).map((j) => [j.id, j]));
   // `?journal=` takes a journal SLUG (the facet writes one) or, for links
@@ -203,6 +212,7 @@ export default async function PublicationsPage({
     }
     if (params.year && citationYear(pub) !== params.year) return false;
     if (params.language && pub.language !== params.language) return false;
+    if (params.ptec === "1" && !ptecIds.has(pub.id)) return false;
     return true;
   });
 
@@ -247,7 +257,18 @@ export default async function PublicationsPage({
   const page = Math.min(Math.max(1, Number(params.page) || 1), totalPages);
   const paged = sorted.slice((page - 1) * pageSize, page * pageSize);
 
-  const hasFilters = !!(params.q || params.keyword || params.subject || params.type || params.journal || params.year || params.language);
+  const hasFilters = !!(
+    params.q || params.keyword || params.subject || params.type || params.journal || params.year || params.language || params.ptec
+  );
+
+  // "By PTEC authors": the college's own research, newest first. The row
+  // shows a few; "See all" applies the ptec filter to the listing below.
+  const PTEC_ROW = 4;
+  const ptecArticles = [...all].filter((p) => ptecIds.has(p.id)).sort(SORTERS.newest);
+  // Facets offer only what the collection holds (a facet with one value
+  // narrows nothing).
+  const typesPresent = [...new Set(all.map((p) => p.article_type))];
+  const languagesPresent = [...new Set(all.map((p) => p.language).filter(Boolean))];
 
   const typeLabels: Record<string, string> = {
     article: t("typeArticle"),
@@ -266,7 +287,8 @@ export default async function PublicationsPage({
       ? {
           key: "journal",
           label: t("journalLabel"),
-          value: journalFilter ? (locale === "km" && journalFilter.title_km ? journalFilter.title_km : journalFilter.title) : params.journal,
+          // A library translation of the title is not the journal's name (decision 2026-10-02).
+          value: journalFilter ? journalTitle(journalFilter, locale) : params.journal,
         }
       : null,
     params.year ? { key: "year", label: t("yearLabel"), value: params.year } : null,
@@ -275,6 +297,7 @@ export default async function PublicationsPage({
       : null,
     params.keyword ? { key: "keyword", label: t("keywordLabel"), value: params.keyword } : null,
     params.subject ? { key: "subject", label: t("subjectLabel"), value: params.subject } : null,
+    params.ptec === "1" ? { key: "ptec", label: t("ptecFilterLabel"), value: t("ptecFilterValue") } : null,
   ].filter((f): f is AppliedFilter => f !== null);
 
   // `total` is the filtered count. The denominator is the canonical published
@@ -355,6 +378,21 @@ export default async function PublicationsPage({
               </Suspense>
             }
             formAction={basePath}
+            note={
+              <span className="inline-flex flex-wrap items-center gap-x-1.5">
+                <span>{tJ("officialPublicationsNote")}</span>
+                <a
+                  href={PTEC_PUBLICATIONS_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 font-semibold text-brand underline-offset-2 hover:underline"
+                >
+                  {tJ("officialPublicationsLink")}
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span className="sr-only"> {tJ("opensNewTab")}</span>
+                </a>
+              </span>
+            }
           />
           <HubIntro hub="journals" locale={locale} show={!hasFilters && page === 1} className="mb-6" />
 
@@ -362,26 +400,49 @@ export default async function PublicationsPage({
               makes /journals/<journal> reachable from the collection hub —
               a journal page no hub links to is an orphan. Hidden while a
               filter or search narrows the listing. */}
-          {!hasFilters && journalList && journalList.length > 0 && (
-            <JournalShelf journals={journalList} locale={locale} />
+          {/* Only when it adds something: while every article in the collection
+              is a PTEC article, the list below already shows exactly these. */}
+          {!hasFilters && page === 1 && ptecArticles.length > 0 && all.length > ptecArticles.length && (
+            <section aria-labelledby="ptec-research-heading" className="mt-5">
+              <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+                <div>
+                  <h2 id="ptec-research-heading" className="text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
+                    {tJ("ptecResearchHeading")}
+                  </h2>
+                  <p className="mt-0.5 text-[13px] text-text-muted">{tJ("ptecResearchIntro")}</p>
+                </div>
+                {ptecArticles.length > PTEC_ROW && (
+                  <Link href={`${JOURNALS_PATH}?ptec=1`} className="text-[13px] font-semibold text-brand hover:underline">
+                    {tJ("ptecResearchAll", { count: ptecArticles.length })}
+                  </Link>
+                )}
+              </div>
+              {/* A horizontal row on a phone (one card tall, swipe for more);
+                  two columns from sm. Stacked, three cards were ~570 px above
+                  the article list. */}
+              <ul className="-mx-4 mt-3 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0">
+                {ptecArticles.slice(0, PTEC_ROW).map((p) => (
+                  <li key={p.id} className="w-[82%] shrink-0 snap-start sm:w-auto">
+                    <Link
+                      href={articlePath(p.slug)}
+                      className="group flex h-full flex-col rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm transition-colors hover:border-brand/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+                    >
+                      <span className="font-khmer-serif text-[15px] font-bold leading-snug text-text-heading group-hover:text-brand">
+                        {locale === "km" && p.title_km ? p.title_km : p.title}
+                      </span>
+                      {authorList(p).length > 0 && (
+                        <span className="mt-1 text-[12.5px] text-text-body">{authorList(p).join(", ")}</span>
+                      )}
+                      <span className="mt-auto pt-2 text-[12px] text-text-muted">
+                        {[p.journal_name, citationYear(p)].filter(Boolean).join(" · ")}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
 
-          {/* The IA distinction, stated where a reader who came for
-              "Publications" lands: the college's own publications are on its
-              website, not in this collection. */}
-          <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-divider bg-bg-surface px-4 py-3 text-[13px] text-text-muted">
-            <span>{tJ("officialPublicationsNote")}</span>
-            <a
-              href={PTEC_PUBLICATIONS_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 font-semibold text-brand underline-offset-2 hover:underline"
-            >
-              {tJ("officialPublicationsLink")}
-              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-              <span className="sr-only"> {tJ("opensNewTab")}</span>
-            </a>
-          </p>
 
           <div className="mt-5 space-y-4">
             <PublicationFilters
@@ -395,6 +456,8 @@ export default async function PublicationsPage({
               }}
               journals={journals}
               years={years}
+              types={typesPresent}
+              languages={languagesPresent}
               labels={{
                 searchPlaceholder: t("searchPlaceholder"),
                 allTypes: t("allTypes"),
@@ -450,6 +513,7 @@ export default async function PublicationsPage({
               ]}
               sortDefaultLabel={t("sortNewest")}
               viewLabels={{ group: t("viewMode"), list: t("viewList"), grid: t("viewGrid") }}
+              total={total}
             />
 
             {/* Results */}
@@ -534,6 +598,14 @@ export default async function PublicationsPage({
                    navigation only, matching the theses listing. */
               />
             )}
+            {/* Every public journal, each a link to its own page — what keeps
+                /journals/<journal> from being an orphan. After the results
+                (articles redesign): the articles are what a reader came for,
+                and the shelf above them put the first one below the fold. */}
+            {!hasFilters && journalList && journalList.length > 0 && (
+              <JournalShelf journals={journalList} locale={locale} />
+            )}
+
             {/* SEO Phase 3.8: a young collection says what the library is for,
                 how to add to it and where the rest is — unfiltered list only. */}
             <SparseCollectionNotice
@@ -541,6 +613,8 @@ export default async function PublicationsPage({
               total={stats?.publications ?? null}
               locale={locale}
               show={!hasFilters && page === 1}
+              title={tJ("contributeTitle")}
+              body={tJ("contributeBody")}
             />
           </div>
         </div>

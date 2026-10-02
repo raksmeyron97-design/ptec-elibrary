@@ -310,3 +310,25 @@ async function loadJournalPtecAuthors(journalId: string): Promise<JournalPtecAut
 export const getJournalPtecAuthors = cache(
   unstable_cache(loadJournalPtecAuthors, ["journal-ptec-authors-v1"], { revalidate: 3600, tags: TAG_LIST }),
 );
+
+/**
+ * Ids of published articles with at least one PTEC-staff author — the hub's
+ * "By PTEC authors" row (decision 2026-10-02: PTEC research published
+ * elsewhere is recorded here). The librarian's explicit is_ptec_staff flag
+ * (0162), never an affiliation guess. One bounded read for the whole hub.
+ */
+async function loadPtecAuthoredPublicationIds(): Promise<string[]> {
+  const db = createPublicClient();
+  const { data, error } = await db
+    .from("publication_authorships")
+    .select("publication_id, publication_authors!inner(is_ptec_staff), publications!inner(is_published)")
+    .eq("publication_authors.is_ptec_staff", true)
+    .eq("publications.is_published", true)
+    .limit(ISSUE_ARTICLE_CAP);
+  if (error) fail("PTEC-authored articles", error);
+  return [...new Set(((data ?? []) as { publication_id: string }[]).map((r) => r.publication_id))];
+}
+
+export const getPtecAuthoredPublicationIds = cache(
+  unstable_cache(loadPtecAuthoredPublicationIds, ["ptec-authored-publications-v1"], { revalidate: 3600, tags: TAG_LIST }),
+);

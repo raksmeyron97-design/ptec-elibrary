@@ -38,8 +38,13 @@ export default async function SparseCollectionNotice({
   total,
   locale,
   show = true,
+  title,
+  body,
 }: {
   hub: Hub;
+  /** A hub-specific ask in place of the homepage's generic copy (journals: "tell the library about your article"). */
+  title?: string;
+  body?: string;
   /** Items in the whole collection, or null when the count could not be read. */
   total: number | null;
   locale: string;
@@ -54,9 +59,9 @@ export default async function SparseCollectionNotice({
     <aside className="mt-8 rounded-2xl border border-divider bg-bg-surface p-5 sm:p-6" aria-labelledby={`sparse-${hub}`}>
       <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-brand">{tHome("growEyebrow")}</p>
       <h2 id={`sparse-${hub}`} className="mt-1.5 text-[18px] font-bold text-text-heading">
-        {tHome("growTitle")}
+        {title ?? tHome("growTitle")}
       </h2>
-      <p className="mt-2 max-w-2xl text-[14.5px] leading-relaxed text-text-body">{tHome("growBody")}</p>
+      <p className="mt-2 max-w-2xl text-[14.5px] leading-relaxed text-text-body">{body ?? tHome("growBody")}</p>
       <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[14px]">
         <Link href="/?action=deposit#contribute" className="focus-field rounded-sm font-semibold text-brand hover:underline">
           {tHome("growDepositCta")} →

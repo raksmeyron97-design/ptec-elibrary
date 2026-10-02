@@ -44,9 +44,20 @@ export default function PublicationFilters({
   filters,
   journals,
   years,
+  types,
+  languages,
   labels,
 }: {
   filters: PublicationFilterValues;
+  /**
+   * The article types / languages the collection actually holds. A facet is
+   * shown only when it can narrow something — two or more values — or when it
+   * is already applied (so it can be changed back). Articles redesign: four
+   * facets that each offered one value sat over a single result.
+   * Omitted → every option is offered, as before.
+   */
+  types?: string[];
+  languages?: string[];
   /**
    * Journal facet options. `value` is the journal SLUG for a canonical journal
    * (0148) and the raw name for an article that is not mapped to one — the
@@ -81,6 +92,14 @@ export default function PublicationFilters({
     router.push(`${JOURNALS_PATH}?${params.toString()}`);
   };
 
+  const useful = (present: number, active: string) => present >= 2 || !!active;
+  const showType = useful(types ? types.length : Object.keys(labels.types).length, filters.type);
+  const showJournal = useful(journals.length, filters.journal);
+  const showYear = useful(years.length, filters.year);
+  const showLanguage = useful(languages ? languages.length : 2, filters.language);
+  if (!showType && !showJournal && !showYear && !showLanguage) return null;
+  const typeOptions = Object.entries(labels.types).filter(([value]) => !types || types.includes(value) || value === filters.type);
+
   return (
     // Each facet is labelled. The bar was four visually identical dropdowns
     // behind a lone slider icon — "All types", "All journals", "All years",
@@ -90,6 +109,7 @@ export default function PublicationFilters({
     // flex-wrap left the last facet stranded on its own row at 390px because
     // the four controls have three different widths.
     <div className="grid grid-cols-2 items-end gap-x-3 gap-y-3 sm:flex sm:flex-wrap">
+      {showType && (
       <Facet label={labels.typeLabel} htmlFor="pub-filter-type">
         <SearchableSelect
           name="type"
@@ -97,13 +117,14 @@ export default function PublicationFilters({
           onChange={(v) => update("type", v)}
           options={[
             { value: "", label: labels.allTypes },
-            ...Object.entries(labels.types).map(([value, label]) => ({ value, label }))
+            ...typeOptions.map(([value, label]) => ({ value, label }))
           ]}
           ariaLabel={labels.typeLabel}
         />
       </Facet>
+      )}
 
-      {journals.length > 0 && (
+      {showJournal && (
         <Facet label={labels.journalLabel} htmlFor="pub-filter-journal">
           <SearchableSelect
             name="journal"
@@ -118,7 +139,7 @@ export default function PublicationFilters({
         </Facet>
       )}
 
-      {years.length > 0 && (
+      {showYear && (
         <Facet label={labels.yearLabel} htmlFor="pub-filter-year" width="sm:w-[140px]">
           <SearchableSelect
             name="year"
@@ -133,6 +154,7 @@ export default function PublicationFilters({
         </Facet>
       )}
 
+      {showLanguage && (
       <Facet label={labels.languageLabel} htmlFor="pub-filter-language" width="sm:w-[140px]">
         <SearchableSelect
           name="language"
@@ -146,6 +168,7 @@ export default function PublicationFilters({
           ariaLabel={labels.languageLabel}
         />
       </Facet>
+      )}
 
       {/* No "Clear filters" button here any more: <AppliedFilters> renders
           directly below, names every active facet and carries its own

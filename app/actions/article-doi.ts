@@ -31,6 +31,7 @@ import {
 } from "@/lib/publications";
 import { upsertPublicationAffiliation, upsertPublicationAuthor } from "@/app/actions/publications";
 import { logAdminAction } from "@/app/actions/audit";
+import { revalidateJournals } from "@/lib/cache/revalidate";
 
 export type DoiAuthorMatch = { id: string; fullName: string; by: "orcid" | "name" | "reversed-name" };
 
@@ -271,5 +272,8 @@ export async function setAuthorPtecStaff(id: string, value: boolean): Promise<{ 
   if (error) return { ok: false, error: error.message };
   if (!data || data.length === 0) return { ok: false, error: "That author no longer exists." };
   await logAdminAction(userId, "publication_author.ptec_staff", "publication_authors", id, { value });
+  // The flag is read by every journal page's "PTEC authors" block and the
+  // hub's "By PTEC authors" row, both cached under the journal tags.
+  revalidateJournals();
   return { ok: true };
 }
