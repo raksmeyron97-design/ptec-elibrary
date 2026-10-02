@@ -218,15 +218,17 @@ A book with NO readable file and an empty or templated description becomes
 never withheld. Measured 2026-09-30: the gate would withhold **2** of 1,956
 books.
 
-Timing, measured on a local production build: a book PAGE follows the gate on
-its next render (an hour at most for a page already in the ISR cache). The
-SITEMAP takes longer — its entries are cached for an hour (`unstable_cache`,
-tag `sitemap`) inside a route that itself revalidates hourly, so allow up to
-two hours. In that window a withheld book is still in the sitemap while its
-page says noindex; Google tolerates this, and it ends on its own. Approving a
-description reverses it on the same clock (the gate set is cached under the
-`books` tag, which approval fires). Check two hours after the restart,
-sequentially:
+Timing: a book PAGE follows the gate on its next render (an hour at most for
+a page already in the ISR cache). The SITEMAPS are rendered on every request
+from entries cached for an hour (`unstable_cache`, tag `sitemap`). A restart
+starts with an empty cache, so the first request after it already reflects
+the gate. Approving a description fires the `books` and `sitemap` tags
+(`revalidateBook()`), so the book is back in the sitemap within a request or
+two. Until 2026-10-01 both sitemap routes were prerendered while the image
+was built in CI, where `SEO_DESCRIPTION_GATE` does not exist, so every deploy
+put the withheld books back in `books.xml` for about an hour while their
+pages said noindex. They now render at request time, pinned by
+`lib/seo/description-gate.test.ts`. Check after the restart, sequentially:
 `curl -s https://library.ptec.edu.kh/sitemaps/books.xml | grep -c '<loc>'`
 should drop by that number, and
 `npx tsx scripts/seo-check.ts --base https://library.ptec.edu.kh --description-gate --delay 1500`

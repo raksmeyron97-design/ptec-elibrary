@@ -97,6 +97,11 @@ Also added for the deploy: migrations 0161–0164 now `SET LOCAL lock_timeout = 
   - 2 are one thesis whose admin-entered SEO title override shortens its
     title (already failing in the 2026-09-30 baseline). Content: edit or clear
     the SEO title on that thesis.
+- After the 13:52 UTC deploy, `books.xml` again listed the 2 withheld books
+  while their pages said noindex. The sitemap routes were prerendered while
+  the image was built in CI, which has no `SEO_DESCRIPTION_GATE`, and the
+  result was served for an hour after every deploy. Fixed by rendering both
+  sitemap routes at request time (the entries keep their hour-long cache).
 
 ## What remains
 

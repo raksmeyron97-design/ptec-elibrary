@@ -21,8 +21,8 @@ describe("withheldByDescriptionGate", () => {
 });
 
 // The page's robots and the sitemap read ONE set, so a book can never be
-// noindex while advertised, or advertised while noindex, for longer than the
-// sitemap's own cache window (RUNBOOK, Phase 5).
+// noindex while advertised, or advertised while noindex, for longer than one
+// cache refresh (RUNBOOK, Phase 5).
 describe("one withheld set for both consumers", () => {
   const ROOT = path.resolve(__dirname, "../..");
   const src = (f: string) => readFileSync(path.join(ROOT, f), "utf8");
@@ -38,5 +38,16 @@ describe("one withheld set for both consumers", () => {
     expect(server).toMatch(/if \(!descriptionGateEnabled\(\)\) return new Set\(\);/);
     expect(server).toMatch(/catch \(error\) \{[\s\S]{0,300}return new Set\(\);/);
     expect(src("lib/seo/seo-flags.ts")).toMatch(/resolveSeoFlag\(process\.env\.SEO_DESCRIPTION_GATE\)/);
+  });
+  // The gate is a RUNTIME flag and the image is built in CI, which does not
+  // have it: a sitemap prerendered at build put the withheld books back after
+  // every deploy (2026-10-01). A `fetchCache` export is refused too — set to
+  // force-no-store it would silently bypass getSitemapEntries()'s cache.
+  it("the sitemap routes render at request time, never at build", () => {
+    for (const route of ["app/sitemap.xml/route.ts", "app/sitemaps/[file]/route.ts"]) {
+      const code = src(route).replace(/\/\/.*$/gm, "");
+      expect(code, route).toMatch(/export const dynamic = "force-dynamic";/);
+      expect(code, route).not.toMatch(/generateStaticParams|export const (revalidate|fetchCache)\b/);
+    }
   });
 });

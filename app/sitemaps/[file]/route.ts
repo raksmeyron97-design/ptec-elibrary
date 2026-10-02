@@ -2,16 +2,19 @@
 // Every <loc> is percent-encoded exactly as the page's canonical is, and every
 // entry carries en, km and x-default alternates (lib/seo/sitemap-xml.ts).
 
-import { getSitemapEntries, isSitemapType, sitemapIsPublished, SITEMAP_TYPES } from "@/lib/seo/sitemap-entries";
+import { getSitemapEntries, isSitemapType, sitemapIsPublished } from "@/lib/seo/sitemap-entries";
 import { renderUrlset, SITEMAP_HEADERS } from "@/lib/seo/sitemap-xml";
 
-export const dynamic = "force-static";
-export const dynamicParams = false;
-export const revalidate = 3600;
-
-export function generateStaticParams() {
-  return SITEMAP_TYPES.map((type) => ({ file: `${type}.xml` }));
-}
+// Rendered at REQUEST time, never prerendered at build. The entries depend on
+// the box's runtime environment (SEO_DESCRIPTION_GATE, SEO_AUTHOR_MIN_WORKS…),
+// which the CI image build does not have: prerendered there, every deploy
+// shipped a sitemap built WITHOUT those flags and served it as a cache hit for
+// an hour (seen 2026-10-01: the two gated books back in books.xml after a
+// deploy while their pages said noindex). The hour of caching that matters is
+// kept — getSitemapEntries() is an unstable_cache under the `sitemap` tag, and
+// a route handler's `fetchCache` is only ever its own export, so
+// force-dynamic does not bypass it. Each request renders XML from that cache.
+export const dynamic = "force-dynamic";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ file: string }> }): Promise<Response> {
   const { file } = await params;

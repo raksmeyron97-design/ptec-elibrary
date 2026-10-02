@@ -8,8 +8,9 @@
 import { getSitemapEntries, sitemapChildUrl, sitemapIsPublished, SITEMAP_TYPES } from "@/lib/seo/sitemap-entries";
 import { renderSitemapIndex, SITEMAP_HEADERS } from "@/lib/seo/sitemap-xml";
 
-export const dynamic = "force-static";
-export const revalidate = 3600;
+// Request time, for the reason app/sitemaps/[file]/route.ts gives: the index
+// lists only non-empty children, and a child's contents depend on runtime flags.
+export const dynamic = "force-dynamic";
 
 export async function GET(): Promise<Response> {
   if (!(await sitemapIsPublished())) {
