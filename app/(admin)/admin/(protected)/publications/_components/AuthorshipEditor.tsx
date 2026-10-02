@@ -9,6 +9,7 @@ import {
   getPublicationAffiliations,
   upsertPublicationAffiliation,
 } from "@/app/actions/publications";
+import { getPtecStaffFlags, setAuthorPtecStaff } from "@/app/actions/article-doi";
 import type { PublicationAuthor, PublicationAffiliation } from "@/lib/publications";
 import { INPUT_CLASS, LABEL_CLASS } from "../../theses/_components/form-styles";
 import {
@@ -58,6 +59,33 @@ export default function AuthorshipEditor({
   useEffect(() => {
     getPublicationAffiliations().then(({ data }) => setAffiliations(data ?? []));
   }, []);
+
+  // PTEC staff (0162) is a fact about the PERSON — it lists them under "PTEC
+  // authors in this journal" on every journal page — so it is read and saved
+  // per author, at once, not with this article.
+  const [ptecFlags, setPtecFlags] = useState<Record<string, boolean>>({});
+  const [ptecError, setPtecError] = useState("");
+  const authorIdsKey = value.map((r) => r.author.id).sort().join(",");
+  useEffect(() => {
+    if (!authorIdsKey) return;
+    let cancelled = false;
+    getPtecStaffFlags(authorIdsKey.split(",")).then((flags) => {
+      if (!cancelled) setPtecFlags((prev) => ({ ...prev, ...flags }));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [authorIdsKey]);
+
+  async function togglePtec(id: string, next: boolean) {
+    setPtecError("");
+    setPtecFlags((prev) => ({ ...prev, [id]: next }));
+    const res = await setAuthorPtecStaff(id, next);
+    if (!res.ok) {
+      setPtecFlags((prev) => ({ ...prev, [id]: !next }));
+      setPtecError(res.error ?? "Could not update the PTEC staff flag.");
+    }
+  }
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -153,6 +181,9 @@ export default function AuthorshipEditor({
 
   return (
     <div className="space-y-4">
+      {ptecError && (
+        <p role="alert" className="rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-xs text-danger-text">{ptecError}</p>
+      )}
       {error && (
         <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>
       )}
@@ -328,6 +359,20 @@ export default function AuthorshipEditor({
                         className="h-3.5 w-3.5 accent-[var(--color-brand,#172554)]"
                       />
                       Corresponding author
+                    </label>
+
+                    <label
+                      className="inline-flex items-center gap-1.5 text-xs text-text-body cursor-pointer"
+                      title="Lists this person under “PTEC authors” on every journal page. Saved immediately, for all their articles."
+                    >
+                      <input
+                        type="checkbox"
+                        checked={ptecFlags[row.author.id] === true}
+                        disabled={disabled || !(row.author.id in ptecFlags)}
+                        onChange={(e) => void togglePtec(row.author.id, e.target.checked)}
+                        className="h-3.5 w-3.5 accent-[var(--color-brand,#172554)]"
+                      />
+                      PTEC staff
                     </label>
 
                     {affiliations.map((aff) => (

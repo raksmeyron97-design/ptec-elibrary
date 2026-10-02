@@ -1,0 +1,152 @@
+{
+ "status": "ok",
+ "message": {
+  "DOI": "10.1021/ed500287q",
+  "title": [
+   "Development of a Handmade Conductivity Measurement Device for a Thin-Film Semiconductor and Its Application to Polypyrrole"
+  ],
+  "subtitle": [],
+  "container-title": [
+   "Journal of Chemical Education"
+  ],
+  "issn-type": [
+   {
+    "value": "0021-9584",
+    "type": "print"
+   },
+   {
+    "value": "1938-1328",
+    "type": "electronic"
+   }
+  ],
+  "publisher": "American Chemical Society (ACS)",
+  "volume": "91",
+  "issue": "11",
+  "page": "1971-1975",
+  "published-print": {
+   "date-parts": [
+    [
+     2014,
+     11,
+     11
+    ]
+   ]
+  },
+  "published-online": {
+   "date-parts": [
+    [
+     2014,
+     8,
+     12
+    ]
+   ]
+  },
+  "issued": {
+   "date-parts": [
+    [
+     2014,
+     8,
+     12
+    ]
+   ]
+  },
+  "language": "en",
+  "author": [
+   {
+    "given": "Set",
+    "family": "Seng",
+    "sequence": "first",
+    "affiliation": [
+     {
+      "name": "Faculty of Education, Okayama University, Okayama 700-8530, Japan"
+     }
+    ],
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ]
+   },
+   {
+    "given": "Tomita",
+    "family": "Shinpei",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "Faculty of Education, Okayama University, Okayama 700-8530, Japan"
+     }
+    ],
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ]
+   },
+   {
+    "given": "Inada",
+    "family": "Yoshihiko",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "Faculty of Education, Okayama University, Okayama 700-8530, Japan"
+     }
+    ],
+    "role": [
+     {
+      "role": "author",
+      "vocabulary": "crossref"
+     }
+    ]
+   }
+  ],
+  "reference": [
+   {
+    "key": "ref1/cit1",
+    "unstructured": "The Nobel Prize in Chemistry 2000.http://www.nobelprize.org/nobel_prizes/chemistry/laureates/2000/(accessed Jul 2014) ."
+   },
+   {
+    "key": "ref2/cit2",
+    "doi-asserted-by": "crossref",
+    "first-page": "1212",
+    "DOI": "10.1021/ed083p1212",
+    "volume": "83",
+    "author": "Ramanaviciene A.",
+    "year": "2006",
+    "journal-title": "J. Chem. Educ."
+   },
+   {
+    "key": "ref3/cit3",
+    "first-page": "599",
+    "volume": "3",
+    "author": "Street G. B.",
+    "year": "1983",
+    "journal-title": "J. Phys."
+   },
+   {
+    "issue": "18",
+    "key": "ref4/cit4",
+    "doi-asserted-by": "crossref",
+    "first-page": "6931",
+    "DOI": "10.1016/S0032-3861(00)00116-6",
+    "volume": "41",
+    "author": "Kang H. C.",
+    "year": "2000",
+    "journal-title": "Polymer"
+   },
+   {
+    "issue": "1",
+    "key": "ref5/cit5",
+    "doi-asserted-by": "crossref",
+    "first-page": "C605",
+    "DOI": "10.1016/0379-6779(89)90580-8",
+    "volume": "28",
+    "author": "Rhee H. W.",
+    "year": "1989",
+    "journal-title": "Synth. Met."
+   }
+  ],
+  "type": "journal-article"
+ }
+}

@@ -1,0 +1,155 @@
+{
+ "status": "ok",
+ "message": {
+  "DOI": "10.1097/js9.0000000000004101",
+  "title": [
+   "AFP/PIVKA-II double-positive status indicates a high-risk subtype of hepatocellular carcinoma in liver transplantation: retrospective cohort study and phosphoproteome evaluation"
+  ],
+  "subtitle": [],
+  "container-title": [
+   "International Journal of Surgery"
+  ],
+  "issn-type": [
+   {
+    "value": "1743-9159",
+    "type": "electronic"
+   }
+  ],
+  "publisher": "Ovid Technologies (Wolters Kluwer Health)",
+  "volume": "112",
+  "issue": "3",
+  "page": "7373-7389",
+  "published-print": {
+   "date-parts": [
+    [
+     2026,
+     3
+    ]
+   ]
+  },
+  "published-online": {
+   "date-parts": [
+    [
+     2025,
+     11,
+     27
+    ]
+   ]
+  },
+  "issued": {
+   "date-parts": [
+    [
+     2025,
+     11,
+     27
+    ]
+   ]
+  },
+  "language": "en",
+  "license": [
+   {
+    "start": {
+     "date-parts": [
+      [
+       2025,
+       11,
+       27
+      ]
+     ],
+     "date-time": "2025-11-27T00:00:00Z",
+     "timestamp": 1764201600000
+    },
+    "content-version": "unspecified",
+    "delay-in-days": 0,
+    "URL": "http://creativecommons.org/licenses/by-sa/4.0/"
+   }
+  ],
+  "abstract": "<jats:sec>\n                    <jats:title>Introduction:</jats:title>\n                    <jats:p>Liver transplantation (LT) is one of the therapeutic options for hepatocellular carcinoma (HCC). α-fetoprotein (AFP) and protein induced by vitamin K absence or antagonist II (PIVKA-II) serologic levels are commonly used in monitoring HCC and have been reported to correlate with LT prognosis. This study aimed to evaluate the overall survival (OS) and tumor-free survival (TFS) after LT in HCC recipients with different preoperative AFP and PIVKA-II status, and to profile HCC molecular characteristics based on phosphoproteome.</jats:p>\n                  </jats:sec>\n                  <jats:sec>\n                    <jats:title>Methods:</jats:title>\n                    <jats:p>HCC patients undergoing LT from 2015 to 2022 were identified in a clinical multicenter database of the Chinese Liver Transplant Registry. HCC recipients with different AFP and PIVKA-II statuses (A+P+, A−P−, A+P−, A−P+) were compared after propensity score matching. Meanwhile, we collected six pairs of tumors and adjacent normal tissues to characterize the HCC samples using 4D label-free quantitative proteome and phosph",
+  "author": [
+   {
+    "ORCID": "https://orcid.org/0009-0001-3621-6351",
+    "authenticated-orcid": false,
+    "given": "Chenhao",
+    "family": "Xu",
+    "sequence": "first",
+    "affiliation": [
+     {
+      "name": "Department of Hepatobiliary and Pancreatic Surgery, Affiliated Hangzhou First People’s Hospital, School of Medicine, Westlake University, Hangzhou, China"
+     },
+     {
+      "name": "Institute of Translational Medicine, Zhejiang University School of Medicine, Hangzhou, China"
+     },
+     {
+      "name": "Key Laboratory of Integrated Oncology and Intelligent Medicine of Zhejiang Province, Hangzhou, China"
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "Xingyu",
+    "family": "Luo",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "Department of Liver Transplantation & HPB Surgery, Key Laboratory of Artificial Organs and Computational Medicine in Zhejiang Province, Shulan (Hangzhou) Hospital, Shulan International Medical College, Zhejiang Shuren University, Hangzhou, China"
+     },
+     {
+      "name": "Department of Hepatobiliary and Pancreatic Surgery, Shulan (Boao) Hospital, Boao, China"
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "Xixi",
+    "family": "Fang",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "Hangzhou Normal University, Hangzhou, China"
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   }
+  ],
+  "reference": [
+   {
+    "key": "R1-20260417",
+    "doi-asserted-by": "crossref",
+    "first-page": "4–13",
+    "DOI": "10.1002/hep.31288",
+    "article-title": "Epidemiology of hepatocellular carcinoma",
+    "volume": "73",
+    "author": "McGlynn",
+    "year": "2021",
+    "journal-title": "Hepatology"
+   },
+   {
+    "key": "R2-20260417",
+    "doi-asserted-by": "crossref",
+    "first-page": "554–66",
+    "DOI": "10.21147/j.issn.1000-9604.2022.06.02",
+    "article-title": "Burden of liver cancer: from epidemiology to prevention",
+    "volume": "34",
+    "author": "Li",
+    "year": "2022",
+    "journal-title": "Chin J Cancer Res"
+   }
+  ],
+  "type": "journal-article"
+ }
+}
