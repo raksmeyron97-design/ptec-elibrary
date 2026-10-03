@@ -18,8 +18,6 @@ import LatestPostsSection from "@/components/ui/home/LatestPostsSection";
 import LibraryNow from "@/components/ui/home/LibraryNow";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import FaqSection, { homeFaqNode } from "@/components/ui/home/FaqSection";
-import SignupCta from "@/components/ui/home/SignupCta";
-import SignedOutOnly from "@/components/ui/home/SignedOutOnly";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 
@@ -88,9 +86,11 @@ export async function generateMetadata({
 // Public list data comes from lib/home-data.ts (unstable_cache, 5-min TTL).
 // NOTHING in this route may read cookies() or headers(). Suspense does not
 // buy an exemption: without PPR, one cookie read anywhere in the tree makes the
-// whole route render per request — which is exactly what the old
-// <SignupCta>/<ForYouShelf> auth checks did. Both are now client islands fed by
-// <SessionProvider>, and this page prerenders.
+// whole route render per request — which is exactly what the old sign-up
+// banner and For-you shelf auth checks did. Everything per-reader is now a
+// client island fed by <SessionProvider> (<SignedOutOnly> around the FAQ's
+// sign-up card, <ContinueReadingStrip> above the shelf), and this page
+// prerenders.
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
@@ -286,19 +286,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         />
       </div>
 
-      {/* ════════ FAQ — six real front-desk questions + FAQPage schema ════════
+      {/* ════════ FAQ — six real front-desk questions + FAQPage schema, with the
+          sign-up card (signed-out only) in its left column ════════
           (JSON-LD inside stays in the HTML — content-visibility only skips
           rendering work, not markup, so the FAQPage schema is still crawled) */}
-      <div className="cv-auto [--cv-reserve:760px] lg:[--cv-reserve:560px]">
+      <div className="cv-auto [--cv-reserve:1110px] lg:[--cv-reserve:660px]">
         <FaqSection />
       </div>
-
-      {/* ════════ CTA BANNER — logged-out visitors only ════════
-          Public content; hidden client-side for signed-in users rather than
-          gated on a server auth read (which would make this page dynamic). */}
-      <SignedOutOnly>
-        <SignupCta />
-      </SignedOutOnly>
     </div>
   );
 }

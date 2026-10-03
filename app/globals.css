@@ -982,8 +982,6 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 
 /* ── Modern UI utilities (home page) ────────────────────────────── */
 /* ── Homepage hero redesign ─────────────────────────────────────── */
-.hero-ink { background-color: #060B1A; }
-
 .hero-stagger > * {
   opacity: 0; transform: translateY(14px);
   /* 300 ms, 40 ms apart. The hero is the first thing painted and it starts
