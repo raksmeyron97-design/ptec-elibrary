@@ -998,6 +998,29 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 .hero-stagger > *:nth-child(6){animation-delay:.2s}
 @keyframes hero-rise { to { opacity:1; transform:translateY(0); } }
 
+/* Homepage FAQ: the answer's height animates open and shut (320 ms) where the
+   browser supports ::details-content; elsewhere it snaps, which is fine.
+   `interpolate-size` is scoped to these <details> rather than set on :root —
+   on :root it would start animating every height:auto transition on the
+   site. Off entirely under reduced motion. */
+@layer components {
+  @media (prefers-reduced-motion: no-preference) {
+    details[name="home-faq"] {
+      interpolate-size: allow-keywords;
+    }
+    details[name="home-faq"]::details-content {
+      block-size: 0;
+      overflow-y: clip;
+      transition:
+        block-size 320ms cubic-bezier(.22, 1, .36, 1),
+        content-visibility 320ms allow-discrete;
+    }
+    details[name="home-faq"][open]::details-content {
+      block-size: auto;
+    }
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hero-stagger > * { opacity:1; transform:none; animation:none; }
   .skeleton, .skeleton::after, .ptec-reveal { animation: none !important; }
