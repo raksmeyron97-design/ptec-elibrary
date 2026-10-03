@@ -6,6 +6,7 @@
 import "server-only";
 import { createKohaClient, type KohaClient } from "./client";
 import { resolveKohaConfig, type KohaConfig } from "./config";
+import { kohaCoverConfig, type KohaCoverConfig } from "./covers";
 
 let cached: { config: KohaConfig; client: KohaClient } | null = null;
 
@@ -25,4 +26,9 @@ export function getKohaConfig(): KohaConfig {
 /** One client per process, so its token is shared by every request. */
 export function getKohaClient(): KohaClient {
   return state().client;
+}
+
+/** Covers from Koha (covers.ts): KOHA_COVERS, KOHA_COVER_REPORT_ID, KOHA_OPAC_INTERNAL_URL. Holds no secret. */
+export function getKohaCoverConfig(): KohaCoverConfig {
+  return kohaCoverConfig(process.env);
 }
