@@ -205,7 +205,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 trending={trendingTerms.slice(0, 5)}
                 prompts={[t("prompt1"), t("prompt2"), t("prompt3")]}
                 askLabel={t("searchButton")}
-                hint={t("askHint")}
                 hintKeyboard={t("askHintKeyboard")}
               />
             </div>
