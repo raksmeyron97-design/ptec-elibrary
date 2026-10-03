@@ -11,12 +11,10 @@ import { getHomepagePhotos } from "@/lib/homepage-photos";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 // ── Feature components ───────────────────────────────────────────────────────
 import AskLibraryHero from "@/components/ui/home/AskLibraryHero";
-import StartWithGoal from "@/components/ui/home/StartWithGoal";
-import CollectionGrid from "@/components/ui/home/CollectionGrid";
 import TrustBar from "@/components/ui/home/TrustBar";
 import GrowTheCollection from "@/components/ui/home/GrowTheCollection";
 import BrowseBooksSection from "@/components/ui/home/BrowseBooksSection";
-import CategoryGrid from "@/components/ui/home/CategoryGrid";
+import StartHere from "@/components/ui/home/StartHere";
 import LatestPostsSection from "@/components/ui/home/LatestPostsSection";
 import LibraryNow from "@/components/ui/home/LibraryNow";
 import HeroPhotoGallery, { HERO_PHOTO_COUNT } from "@/components/ui/home/HeroPhotoGallery";
@@ -247,11 +245,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           at render time which neighbours survive; where one does hide, two
           same-coloured bands meet and their divider still separates them. */}
 
-      {/* ════════ START WITH YOUR GOAL — task-first discovery ════════════════
-          Wired to real learning paths (or curated routes); no data round-trip
-          beyond the paths already fetched above, so it renders immediately. */}
-      <StartWithGoal paths={paths} />
-
       {/* Below-the-fold sections are wrapped in .cv-auto (content-visibility)
           so the browser skips their layout/paint work until scrolled near.
           Each reserves roughly its real height (--cv-reserve, phone / lg):
@@ -260,14 +253,14 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           see .cv-auto in globals.css — so when a section grows, raise its
           number rather than trimming it. */}
 
-      {/* ════════ BROWSE BY COLLECTION — the four collections as equal cards ══
-          Answers "what is actually in here?" for the reader who cannot yet
-          name what they want and so has nothing to type into the hero search.
-          Collections and counts are read from the nav config and
-          getCollectionStats() respectively — see the component header. */}
-      <div className="cv-auto [--cv-reserve:1000px] lg:[--cv-reserve:560px]">
-        <Suspense fallback={<div className="h-96 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
-          <CollectionGrid />
+      {/* ════════ START HERE — collections (7/12) beside goals (5/12) ════════
+          Collections are read from the nav config, counts from
+          getCollectionStats(), goals from the published learning paths
+          already fetched above. Replaces three bands: Start with your goal,
+          Browse by Collection and Browse by Subject. */}
+      <div className="cv-auto [--cv-reserve:1500px] lg:[--cv-reserve:780px]">
+        <Suspense fallback={<div className="h-[780px] animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
+          <StartHere paths={paths} />
         </Suspense>
       </div>
 
@@ -279,13 +272,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       <div className="cv-auto [--cv-reserve:900px] lg:[--cv-reserve:1020px]">
         <Suspense fallback={<BrowseBooksSkeleton />}>
           <BrowseBooksSection trendingBooks={trendingCards} />
-        </Suspense>
-      </div>
-
-      {/* ════════ BROWSE BY SUBJECT ════════ */}
-      <div className="cv-auto [--cv-reserve:580px] lg:[--cv-reserve:600px]">
-        <Suspense fallback={<div className="h-48 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
-          <CategoryGrid />
         </Suspense>
       </div>
 
