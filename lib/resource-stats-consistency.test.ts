@@ -208,11 +208,22 @@ describe("display defects stay fixed", () => {
   });
 
   it("the homepage states the resource count under exactly one label", () => {
-    const src = read("components/ui/home/SignupCta.tsx");
     // "N educational resources" in prose PLUS "N Digital resources" in the
-    // stat strip read as two different, disagreeing metrics.
-    expect(src).not.toContain('t("ctaBody"');
-    expect(src).toContain('t("statDigitalResources")');
+    // stat strip read as two different, disagreeing metrics. Since the
+    // 2026-10 redesign the total is stated once, in the hero's figure row
+    // (<TrustBar variant="hero" />), and the sign-up banner states none.
+    const cta = read("components/ui/home/SignupCta.tsx");
+    expect(cta).not.toContain('t("ctaBody"');
+    expect(cta).not.toContain("getCollectionStats");
+    expect(cta).not.toContain('t("statDigitalResources")');
+
+    const trust = read("components/ui/home/TrustBar.tsx");
+    expect(trust).toContain("stats.totalDigitalResources");
+    expect(trust).toContain('t("trustDigitalLabel")');
+
+    const page = read("app/[locale]/(public)/(home)/page.tsx");
+    expect(page.match(/<TrustBar\b/g) ?? []).toHaveLength(1);
+    expect(page).toContain('<TrustBar variant="hero" />');
   });
 
   it("the retired count-bearing message keys are gone from both locales", () => {
