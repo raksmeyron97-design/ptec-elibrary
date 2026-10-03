@@ -53,6 +53,23 @@ describe("create", () => {
     expect(mock.records.size).toBe(2);
   });
 
+  it("942 $c follows the language: BK for a Khmer record, BKEN for every other language", async () => {
+    const itemTypeOf = (mock: MockKoha, id: number) => {
+      const f = mock.records.get(id)!.fields.find((x) => "942" in x);
+      return (f?.["942"] as MarcDataField | undefined)?.subfields.find((s) => "c" in s)?.c;
+    };
+    const cases: [WritableBookFields["language"], string][] = [["km", "BK"], ["en", "BKEN"], ["fr", "BKEN"], ["zh", "BKEN"], ["other", "BKEN"]];
+    for (const [language, want] of cases) {
+      const { mock, koha } = setup();
+      const r = await createBiblio(koha, { ...BOOK, isbn: null, title: `${BOOK.title} (${language})`, language });
+      expect(r.kind, language).toBe("created");
+      if (r.kind === "created") expect(itemTypeOf(mock, r.biblioId), language).toBe(want);
+    }
+    const { mock, koha } = setup();
+    const r = await createBiblio(koha, BOOK, { itemType: "REF" });
+    expect(r.kind === "created" && itemTypeOf(mock, r.biblioId)).toBe("REF");
+  });
+
   it("an API user without edit_catalogue is a configuration problem, not an ambiguous write", async () => {
     const { koha } = setup({ canWrite: false });
     const r = await createBiblio(koha, BOOK);

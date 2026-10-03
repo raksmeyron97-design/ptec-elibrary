@@ -32,9 +32,7 @@ import { kohaPath } from "./client";
 import { KohaError } from "./errors";
 import { copyStatusOf, isKohaItem, isKohaItemList, projectItem, type KohaItem } from "./projection";
 import { isAmbiguous } from "./biblio-write";
-
-/** Koha item type for new copies — the one the PMB import gave every item (`--itemtype BK`). */
-export const KOHA_DEFAULT_ITEM_TYPE = "BK";
+import { kohaItemTypeFor } from "./item-types";
 
 /** One entry of Koha's shelving-location list. */
 export interface KohaLocation { code: string; label: string }
@@ -171,7 +169,17 @@ export async function createItem(
   koha: KohaClient,
   biblioId: number,
   fields: WritableCopyFields,
-  opts: { libraryId: string | null; locations: KohaLocation[]; itemType?: string },
+  opts: {
+    libraryId: string | null;
+    locations: KohaLocation[];
+    /**
+     * The record's language (the catalog row's `language`): it decides the
+     * copy's item type, and so its loan period (item-types.ts). Required, so
+     * that no caller falls back to the Khmer type by forgetting it.
+     */
+    language: string | null;
+    itemType?: string;
+  },
 ): Promise<CreateItemOutcome> {
   if (!tidy(fields.barcode)) {
     return { kind: "failed", ambiguous: false, error: new KohaError("invalid_request", "A copy in Koha needs a barcode.") };
@@ -188,7 +196,7 @@ export async function createItem(
     callnumber: tidy(fields.callNumber),
     location,
     inventory_number: tidy(fields.accessionNumber),
-    item_type_id: opts.itemType ?? KOHA_DEFAULT_ITEM_TYPE,
+    item_type_id: opts.itemType ?? kohaItemTypeFor(opts.language),
     ...statusPatch({ withdrawn: 0, lost_status: 0, damaged_status: 0, not_for_loan_status: 0, restricted_status: 0 }, fields.status),
   };
   if (opts.libraryId) {

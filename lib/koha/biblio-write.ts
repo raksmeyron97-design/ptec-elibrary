@@ -24,11 +24,9 @@ import type { KohaClient } from "./client";
 import { kohaPath } from "./client";
 import { KohaError } from "./errors";
 import { editBiblioMarc, newBiblioMarc, WRITABLE_BOOK_FIELDS, type WritableBookFields, type WritableField } from "./marc-write";
+import { kohaItemTypeFor } from "./item-types";
 import { isMarcInJson, projectBiblio, type MarcInJson } from "./projection";
 import { isKohaBiblioList, isKohaBiblioSummary } from "./types";
-
-/** The item type new records carry in 942$c — the one the PMB import used (`--itemtype BK`). */
-export const KOHA_DEFAULT_ITEM_TYPE = "BK";
 
 const isIdBody = (v: unknown): v is { id: number } =>
   !!v && typeof v === "object" && Number.isInteger((v as { id: unknown }).id) && (v as { id: number }).id > 0;
@@ -110,6 +108,7 @@ export async function createBiblio(
     /** The previous attempt's outcome was unknown: first look for the record it may have made. */
     recheckExisting?: boolean;
     entered?: Date;
+    /** 942 $c. Default: from the record's language (item-types.ts). */
     itemType?: string;
   } = {},
 ): Promise<CreateOutcome> {
@@ -123,7 +122,7 @@ export async function createBiblio(
       return { kind: "failed", error, ambiguous: true };
     }
   }
-  const record = newBiblioMarc(fields, { itemType: opts.itemType ?? KOHA_DEFAULT_ITEM_TYPE, entered: opts.entered ?? new Date() });
+  const record = newBiblioMarc(fields, { itemType: opts.itemType ?? kohaItemTypeFor(fields.language), entered: opts.entered ?? new Date() });
   try {
     const r = await koha.write("POST", "/biblios", record, isIdBody, { confirmNotDuplicate: opts.confirmNotDuplicate });
     const biblioId = r.data.id;
