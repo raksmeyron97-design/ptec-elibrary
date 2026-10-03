@@ -125,7 +125,7 @@ export default function BookShowcaseTabs({
   ).slice(0, SHELF_MAX_ITEMS);
 
   const viewAllHref = activeDept
-    ? `/books?department=${encodeURIComponent(activeDept)}`
+    ? `/books?dept=${encodeURIComponent(activeDept)}`
     : TAB_HREFS[tab];
 
   const listLabel = activeDept
