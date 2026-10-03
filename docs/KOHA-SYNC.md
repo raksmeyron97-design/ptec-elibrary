@@ -234,6 +234,22 @@ e-Library's `.env`; restart. The next applied sync run fills the covers.
 writes no cover (paths already written fall back to the generated cover; a
 full clean-up is a one-line SQL update on `cover_url like '/api/catalog-covers/%'`).
 
+## Known data to fix
+
+- **`catalog_books` "Miss Peregrine's Home for Peculiar Children"** (slug
+  `miss-peregrine-s-home-for-peculiar-children`, id
+  `2fe1f825-9cf7-4621-a701-589083222b70`, ISBN 9781594746031) still links to
+  **Koha record 2639, which Koha deleted on 2026-10-01 19:10 (+07)**. The
+  record was created in Koha on 2026-09-27, the same minute as the e-Library
+  row; the row is unlisted (`is_active = false`) but keeps the link and a
+  cover. Found 2026-10-03 when the e-Library's covers were copied into Koha
+  (ptec-koha-deployment, docs/10, 2.8): Koha refused the cover because the
+  record is gone. Fix one way or the other:
+  - the book is on PTEC's shelves → create it again (in Koha, or from the
+    admin, which writes to Koha first), link the row to the new record, and
+    re-run the cover backfill (`scripts/backfill-elibrary-covers.cjs`); or
+  - it is not → clear `koha_biblio_id` and leave the row unlisted, or delete it.
+
 ## What Phase 2 does not do
 
 No writes to Koha (Phase 5+). No patrons, loans or holds (Phases 7–8).
