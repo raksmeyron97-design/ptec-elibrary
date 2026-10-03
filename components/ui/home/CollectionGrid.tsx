@@ -19,11 +19,12 @@
 // the supporting detail; the four links are the point, and a reader who cannot
 // see "380 theses" can still get to the theses.
 //
-// A count of ZERO is dropped too, the same rule <TrustBar> applies to its
-// tiles. The card still links — the collection exists and the nav lists it —
-// but "0 items" printed under two of four collections on the homepage told
-// every first-time visitor the library was mostly empty shelves, which is
-// neither the message nor, as the collection grows, the truth for long.
+// A count under COLLECTION_COUNT_MIN_DISPLAY is dropped too, the same kind of
+// floor <TrustBar> applies to its tiles. The card still links — the
+// collection exists and the nav lists it — but "0 items" printed under two of
+// four collections told every first-time visitor the library was mostly empty
+// shelves, and "1 item" beside "1,734 items" undersold it just as badly. The
+// figure returns on its own once the collection clears the floor.
 import { Link } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
 import { getCollectionStats } from "@/lib/collection-stats";
@@ -32,6 +33,14 @@ import {
   type DigitalLibraryLabelKey,
 } from "@/components/layout/digital-library-nav";
 import { HomeSection, SectionHeader } from "./HomeSection";
+
+/**
+ * Minimum count for a collection tile to print its figure.
+ *
+ * Exported so the test states the boundary in terms of the shipped value
+ * rather than re-typing it — same convention as PHYSICAL_CATALOG_MIN_DISPLAY.
+ */
+export const COLLECTION_COUNT_MIN_DISPLAY = 5;
 
 /** Collection → the getCollectionStats() field that counts it. `svaLibrary` is
  *  absent deliberately: it is somebody else's catalogue and we do not know (or
@@ -93,7 +102,8 @@ export default async function CollectionGrid() {
         {internal.map((item) => {
           const { labelKey, descriptionKey, href, icon: Icon } = item;
           const field = COUNT_FIELD[labelKey];
-          const count = stats && field ? stats[field] : null;
+          const raw = stats && field ? stats[field] : null;
+          const count = raw !== null && raw >= COLLECTION_COUNT_MIN_DISPLAY ? raw : null;
           const label = tNav(labelKey);
 
           return (
@@ -119,7 +129,7 @@ export default async function CollectionGrid() {
 
                 <span className="mt-auto flex items-center justify-between gap-2 pt-3 sm:pt-4">
                   {/* No count line when the stats view is down OR the count
-                      is zero — see the header comment. */}
+                      is under the floor — see the header comment. */}
                   {/* data-collection-count: read by e2e/resource-stats.spec.ts
                       to reconcile this figure with the collection's listing. */}
                   <span

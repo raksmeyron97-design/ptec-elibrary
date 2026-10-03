@@ -257,14 +257,14 @@ export default function BookShowcaseTabs({
             <StaggerRevealContainer className="grid grid-cols-2 gap-4 sm:gap-5 sm:grid-cols-3 lg:grid-cols-4">
               {books.map((book) => (
                 <StaggerRevealItem key={book.slug} className="h-full">
-                  <BookCard book={book} />
+                  <BookCard book={book} showMetrics={false} />
                 </StaggerRevealItem>
               ))}
             </StaggerRevealContainer>
           ) : (
             <BookCarousel aria-label={listLabel}>
               {books.map((book) => (
-                <BookCard key={book.slug} book={book} />
+                <BookCard key={book.slug} book={book} showMetrics={false} />
               ))}
             </BookCarousel>
           )}

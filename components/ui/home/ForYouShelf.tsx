@@ -51,7 +51,7 @@ export default async function ForYouShelf({ popularBooks }: { popularBooks: Book
 
       <BookCarousel aria-label={t("popularTitle")} edgeClassName="from-bg-surface">
         {shelf.map((book) => (
-          <BookCard key={book.slug} book={book} />
+          <BookCard key={book.slug} book={book} showMetrics={false} />
         ))}
       </BookCarousel>
 

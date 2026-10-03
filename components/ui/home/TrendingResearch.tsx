@@ -1,19 +1,11 @@
 // components/ui/home/TrendingResearch.tsx
 // Homepage — ranked top-5 theses by real reader behavior (views + weighted
-// downloads). A numbered <ol>, not a card grid: rank is the information, and
-// usage numbers beside each row are the social proof (IEEE "most popular").
+// downloads). A numbered <ol>, not a card grid: rank is the information. The
+// usage figures themselves are not printed — the homepage shows none.
 import { Link } from "@/i18n/navigation";
 import { getTrendingThesesCached } from "@/lib/home-data";
-import ResourceMetrics from "@/components/ui/core/ResourceMetrics";
 import { getTranslations } from "next-intl/server";
 import { HomeSection, SectionHeader, SectionMobileLink } from "./HomeSection";
-
-const formatCount = (n: number) =>
-  n >= 1_000_000
-    ? `${(n / 1_000_000).toFixed(1)}M`
-    : n >= 1_000
-      ? `${(n / 1_000).toFixed(1)}K`
-      : String(n);
 
 export default async function TrendingResearch() {
   const theses = await getTrendingThesesCached();
@@ -36,8 +28,6 @@ export default async function TrendingResearch() {
         {/* ── Ranked list ── */}
         <ol className="divide-y divide-divider rounded-2xl border border-divider bg-paper">
           {theses.map((thesis, i) => {
-            const views = thesis.view_count ?? 0;
-            const downloads = thesis.download_count ?? 0;
             return (
               <li key={thesis.id} className="relative flex items-center gap-4 px-5 py-4 transition-colors hover:bg-brand/[0.03] sm:gap-6 sm:px-7">
                 {/* Ordinal */}
@@ -63,24 +53,6 @@ export default async function TrendingResearch() {
                   </p>
                 </div>
 
-                {/* Usage stats */}
-                <ResourceMetrics
-                  views={views}
-                  downloads={downloads}
-                  size="md"
-                  className="hidden shrink-0 font-semibold sm:flex"
-                />
-
-                {/* Compact mobile stat */}
-                <span
-                  className="shrink-0 text-[12px] font-semibold text-text-muted tabular-nums sm:hidden"
-                  title={t("trendingResearchViews", { count: views })}
-                >
-                  <span aria-hidden="true">
-                    {formatCount(views)} {t("trendingResearchReads")}
-                  </span>
-                  <span className="sr-only">{t("trendingResearchViews", { count: views })}</span>
-                </span>
               </li>
             );
           })}

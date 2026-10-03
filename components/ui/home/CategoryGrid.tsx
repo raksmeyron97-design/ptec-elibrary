@@ -16,6 +16,7 @@ import { getDepartmentCountsCached } from "@/lib/home-data";
 import { getTranslations } from "next-intl/server";
 import { StaggerGrid, StaggerItem } from "@/components/ui/animations/StaggerGrid";
 import { HomeSection, SectionHeader } from "./HomeSection";
+import { COLLECTION_COUNT_MIN_DISPLAY } from "./CollectionGrid";
 import {
   GraduationCap,
   FlaskConical,
@@ -125,9 +126,12 @@ export default async function CategoryGrid() {
                   <span className="block font-khmer-serif text-[14px] font-bold leading-snug text-text-heading line-clamp-2 transition-colors group-hover:text-brand sm:text-[15px]">
                     {name}
                   </span>
-                  <span className="mt-0.5 block text-[12.5px] font-medium text-text-muted">
-                    {t("categoriesItemCount", { count })}
-                  </span>
+                  {/* Same floor as the collection tiles: "1 item" undersells. */}
+                  {count >= COLLECTION_COUNT_MIN_DISPLAY && (
+                    <span className="mt-0.5 block text-[12.5px] font-medium text-text-muted">
+                      {t("categoriesItemCount", { count })}
+                    </span>
+                  )}
                 </span>
                 <svg
                   className="hidden h-4 w-4 shrink-0 text-text-muted transition-all group-hover:translate-x-0.5 group-hover:text-brand sm:block"
