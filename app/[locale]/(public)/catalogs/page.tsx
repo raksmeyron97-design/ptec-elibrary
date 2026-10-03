@@ -9,6 +9,7 @@ import CatalogCard from "@/components/ui/books/CatalogCard";
 import CatalogSearchForm from "@/components/ui/search/CatalogSearchForm";
 import RequestBookButton from "@/components/ui/books/RequestBookButton";
 import LibraryVisitStrip from "@/components/ui/books/LibraryVisitStrip";
+import LibraryAccountStrip from "@/components/ui/books/LibraryAccountStrip";
 import CatalogAvailabilityNotice from "@/components/ui/books/CatalogAvailabilityNotice";
 import { resolveLibraryStatus } from "@/lib/about/status";
 import Pagination from "@/components/ui/core/Pagination";
@@ -427,6 +428,13 @@ export default async function CatalogsPage({
               </p>
             )}
           </div>
+
+          {/* Loans, due dates and holds live in the Koha OPAC. On the landing
+              view only, like the intro above: once a reader is searching or
+              filtering, the facets below matter more, and every record page
+              and the footer still link to the account. Shown even while the
+              catalogue is empty: a reader's account exists either way. */}
+          {!hasFilters && page === 1 && <LibraryAccountStrip />}
 
           {catalogEmpty ? null : (
           <>

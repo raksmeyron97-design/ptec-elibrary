@@ -32,7 +32,11 @@
 // koha.storage-ptec.online. A rule matching only that name never sees them.
 // opac-proxy.test.ts pins that no redirect matches the public name.
 
-export const KOHA_OPAC_PUBLIC_HOST = "koha.ptec.edu.kh";
+// The public name lives with the outbound links to it (lib/opac/links.ts), so
+// the name the proxy answers and the name the site links to cannot diverge.
+import { KOHA_OPAC_PUBLIC_HOST } from "../opac/links";
+
+export { KOHA_OPAC_PUBLIC_HOST };
 
 /** Other public names for the OPAC. Each is redirected to KOHA_OPAC_PUBLIC_HOST. */
 export const KOHA_OPAC_RETIRED_HOSTS = ["koha.storage-ptec.online"] as const;

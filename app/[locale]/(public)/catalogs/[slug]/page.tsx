@@ -39,6 +39,8 @@ import SmartBookCover from "@/components/ui/books/SmartBookCover";
 import CatalogAvailabilityNotice from "@/components/ui/books/CatalogAvailabilityNotice";
 import CatalogHoldAction from "@/components/ui/books/CatalogHoldAction";
 import { kohaHoldsForReaders } from "@/lib/koha/patron-server";
+import { kohaOpacRecordUrl } from "@/lib/opac/links";
+import { BookMarked, ExternalLink } from "lucide-react";
 import BreadcrumbNav from "@/components/ui/core/BreadcrumbNav";
 import { digitalTwinSlug } from "@/lib/catalogs/digital-twin-index";
 
@@ -236,9 +238,10 @@ export default async function CatalogBookPage({
   // getOrgIdentity() is cache()d, so resolving it here costs no extra query —
   // it is needed so a byline naming PTEC itself resolves to an @id reference
   // to #organization rather than minting a second node for the institution.
-  const [record, t, org] = await Promise.all([
+  const [record, t, tNav, org] = await Promise.all([
     fetchCatalogRecord(slug),
     getTranslations("catalogs"),
+    getTranslations("nav"),
     getOrgIdentity(),
   ]);
 
@@ -259,6 +262,9 @@ export default async function CatalogBookPage({
   // Koha Phase 10.2: "Place a hold" only on a Koha title with no copy on the
   // shelf, and only while holds are on (which needs live availability).
   const offerHold = b.koha_biblio_id != null && titleMayBeHeld(stats) && kohaHoldsForReaders();
+  // This record's page in the Koha OPAC, by its stored Koha id — never a title
+  // search. Null (no link) for a record Koha does not know.
+  const kohaRecordUrl = kohaOpacRecordUrl(b.koha_biblio_id);
   const tone = AVAILABILITY_TONE[availability];
 
   const sortedCopies = [
@@ -435,6 +441,24 @@ export default async function CatalogBookPage({
                     {t("detail.shelf")}: <span className="font-mono font-bold text-text-heading">{b.shelf_location}</span>
                   </span>
                 </div>
+              )}
+
+              {/* The same record in the Koha OPAC, where a reader signs in for
+                  loans and holds. nofollow: this page is `noindex, follow`, and
+                  the OPAC (two Plack workers, noindex itself) has no use for a
+                  crawler walking every record into it. */}
+              {kohaRecordUrl && (
+                <a
+                  href={kohaRecordUrl}
+                  target="_blank"
+                  rel="nofollow noopener noreferrer"
+                  className="mt-3 flex min-h-10 items-center gap-2 rounded-xl bg-white/60 px-3 py-2 text-[12.5px] font-semibold text-brand underline-offset-4 transition-colors hover:text-brand-hover hover:underline dark:bg-black/15"
+                >
+                  <BookMarked className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  {t("detail.viewInOpac")}
+                  <ExternalLink className="ml-auto h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <span className="sr-only">({tNav("opensNewTab")})</span>
+                </a>
               )}
             </div>
 

@@ -266,6 +266,13 @@ VALUES
   ('55555555-5555-4555-8555-5555555c0302', '55555555-5555-4555-8555-555555555503', 'on_loan',   'BC-000000302', '519.5 PIC',   'PTEC Main Library', 'Shelf C-2', 'Due back at end of term.')
 ON CONFLICT (id) DO NOTHING;
 
+-- One record that Koha knows, so the record page's "View in the library
+-- catalogue" link (lib/opac/links.ts) is exercised; the other two have no Koha
+-- id and must show none. Koha ownership in the admin is gated on
+-- KOHA_INTEGRATION, which is off wherever this seed runs.
+UPDATE public.catalog_books SET koha_biblio_id = 1
+WHERE id = '55555555-5555-4555-8555-555555555503' AND koha_biblio_id IS NULL;
+
 
 -- ============================================================================
 -- 7. Theses / research reports (4, rich abstracts)
