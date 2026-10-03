@@ -25,6 +25,7 @@
 // <MobileBottomNav> reads the viewer from <SessionProvider> instead.
 
 import { JOURNALS_PATH, PTEC_PUBLICATIONS_URL } from "@/lib/journals/urls";
+import { KOHA_OPAC_ACCOUNT_URL } from "@/lib/opac/links";
 import type { ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -191,6 +192,9 @@ export default async function Footer() {
     { label: navT("journals"), href: JOURNALS_PATH },
     { label: navT("learningPaths"), href: "/paths" },
     { label: navT("booksInLibrary"), href: "/catalogs" },
+    // Loans, due dates and holds: the reader's account in the Koha OPAC.
+    // Beside the Physical Library it serves, marked external.
+    { label: navT("libraryAccount"), href: KOHA_OPAC_ACCOUNT_URL, external: true },
     // The two hub pages. Every /subjects/* and /authors/* URL was an orphan
     // before these existed (docs/SEO-V2-AUDIT.md F-4); the footer is what makes
     // both taxonomies reachable by a crawler, pinned by e2e/seo.spec.ts.

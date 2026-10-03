@@ -53,11 +53,13 @@ import {
   Settings,
   SunMoon,
   Tags,
+  UserRound,
   type LucideProps,
 } from "lucide-react";
 import { ADMIN_PANEL_ROLES, ROLE_META } from "@/lib/types/roles";
 import { useSession } from "@/components/providers/SessionProvider";
 import { clearPrivateBrowserState } from "@/lib/sw-client";
+import { KOHA_OPAC_ACCOUNT_URL } from "@/lib/opac/links";
 import GlassSheet from "@/components/ui/glass/GlassSheet";
 import ThemeToggle from "@/components/ui/core/ThemeToggle";
 import LanguageSwitcher from "@/components/ui/core/LanguageSwitcher";
@@ -286,6 +288,21 @@ export default function MobileNavSheets({
                 hours ? <PhysicalLibraryStatus hours={hours} /> : t("physicalLibraryDescription")
               }
               current={isCurrent("/catalogs")}
+              onNavigate={closeSheet}
+            />
+          </li>
+          {/* The reader's library account is in the Koha OPAC, so it opens
+              there, labelled external like the libraries further down. Kept
+              beside the Physical Library rather than in that group: it is
+              this library's own service, not another library. */}
+          <li>
+            <SheetRow
+              href={KOHA_OPAC_ACCOUNT_URL}
+              Icon={UserRound}
+              label={t("libraryAccount")}
+              description={t("libraryAccountDescription")}
+              external
+              externalLabel={t("opensNewTab")}
               onNavigate={closeSheet}
             />
           </li>

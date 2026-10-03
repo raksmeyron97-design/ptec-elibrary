@@ -30,6 +30,56 @@ and **place and cancel** their own holds (Phase 10.1/10.2,
 [Reader services](KOHA-READER-SERVICES.md)) through a PTEC Koha plugin that
 can do nothing else; checking out and in stay at the desk.
 
+## Public OPAC links — where a reader's library account is
+
+The Koha OPAC is public at `https://koha.ptec.edu.kh` (reverse-proxied by this
+app, `lib/koha/opac-proxy.ts`, PR #263) and never indexed
+(ptec-koha-deployment `docs/SEO-URL-POLICY.md`). The e-Library is the
+catalogue readers search; the OPAC is where a reader **signs in** to see their
+loans, due dates and holds. The e-Library links there, and nothing else
+couples the two: no iframe, no shared session, no request to Koha to draw a
+link.
+
+| Where | Link | Rule |
+|---|---|---|
+| `/catalogs`, landing view only (no query, no filter, page 1) | "Borrowing printed books?" strip → **My Library Account ↗** | `components/ui/books/LibraryAccountStrip.tsx` |
+| `/catalogs/<slug>`, the `#where` card | **View in the library catalogue ↗** → `/bib/<koha_biblio_id>` | only for a positive integer id; `rel="nofollow"` (below) |
+| Phone Explore sheet | **My Library Account ↗**, right after the Physical Library row | `components/layout/MobileNavSheets.tsx` |
+| Footer, library links | **My Library Account ↗** | `components/layout/Footer.tsx` |
+| Dashboard, Library loans panel | **Full account ↗** in the card header, every state | `components/ui/dashboard/LibraryLoans.tsx` |
+
+Rules (`lib/opac/links.ts`, pinned by `lib/opac/links.test.ts`):
+
+- **One module writes OPAC URLs.** It lives outside `lib/koha` because client
+  components render the links and no client component may import `lib/koha`
+  (`lib/koha/boundary.test.ts`). `opac-proxy.ts` takes the host from it, so
+  the name the proxy answers and the name the site links to are one constant.
+- **Absolute, https, never locale-prefixed.** A relative URL would pass
+  through the locale-aware `Link` and become `/km/…`. The links are plain
+  `<a target="_blank" rel="noopener noreferrer">` with the site's "opens in a
+  new tab" wording, like every other external link here.
+- **A record link only from a stored Koha id.** `kohaOpacRecordUrl()` accepts
+  a positive safe integer and nothing else — never a title search, never a
+  string. `/bib/N` is the OPAC's canonical record address. A record Koha has
+  since deleted answers Koha's own 404; the sync unlists such a record here.
+- **`nofollow` on record links.** Catalogue records are `noindex, follow`
+  (decision P2-1), so a crawler would otherwise walk ~2,600 record links into
+  an OPAC that runs two Plack workers and is itself `noindex`.
+- **No live check, by design.** A Koha that is down costs the e-Library
+  nothing: the link opens a tab that fails, and the page a reader is on is
+  untouched. The reverse is not true — the OPAC's public name is served
+  through this app's container, so the e-Library being down takes the public
+  OPAC with it (the LAN port is unaffected).
+- **Khmer readers are told the OPAC's menus are in English** (Koha's
+  interface is English; the PTEC content on it is bilingual).
+
+Deliberately not built: a `/physical-library` page (`/catalogs` is that
+page), a desktop dropdown, a "search Koha" form (the CSP's
+`form-action 'self'` would refuse it, rightly), click analytics, and the
+homepage link (it waits for the homepage redesign, PR #297).
+
+To roll back, revert the commit: no data, setting or Koha change is involved.
+
 ## Modes — `KOHA_INTEGRATION`
 
 | Value | Meaning |

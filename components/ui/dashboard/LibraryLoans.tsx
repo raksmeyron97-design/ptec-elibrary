@@ -11,7 +11,7 @@
 // the desk confirms, because the copy was already pulled for this reader.
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { BookMarked, Library } from "lucide-react";
+import { BookMarked, ExternalLink, Library } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { Badge } from "@/components/ui/core/Badge";
 import { CARD, CardHeader, EmptyState } from "@/components/ui/dashboard/primitives";
@@ -19,6 +19,7 @@ import {
   holdMessageKey, renewalMessageKey, type HoldResult, type HoldState, type MyHold, type MyLibrary, type MyLoan, type RenewResult,
 } from "@/lib/dashboard/library-loans";
 import { cancelLibraryHold, renewLibraryLoan } from "@/app/actions/library-loans";
+import { KOHA_OPAC_ACCOUNT_URL } from "@/lib/opac/links";
 
 /** Where one hold's cancellation stands on this screen: asking "are you sure?", sending, or answered. */
 type HoldUi = { phase: "confirm" } | { phase: "sending" } | { phase: "done"; result: HoldResult };
@@ -42,6 +43,7 @@ const DANGER_ACTION_CLASS = `${ACTION_BASE} border-danger-line bg-danger-soft te
 
 export default function LibraryLoans() {
   const t = useTranslations("dashboard");
+  const tNav = useTranslations("nav");
   const locale = useLocale();
   const [data, setData] = useState<MyLibrary | "loading">("loading");
   // Per loan: being sent, or what pressing Renew did — shown in place of the button.
@@ -263,7 +265,28 @@ export default function LibraryLoans() {
 
   return (
     <section aria-labelledby="library-loans-heading" aria-busy={data === "loading"} className={CARD}>
-      <CardHeader id="library-loans-heading" title={t("libraryLoans")} icon={Library} meta={meta} />
+      <CardHeader
+        id="library-loans-heading"
+        title={t("libraryLoans")}
+        icon={Library}
+        meta={meta}
+        action={
+          // The reader's whole account is in the Koha OPAC; this panel shows
+          // current loans and holds only. A plain link: shown in
+          // every state, including "unavailable", because the OPAC may still
+          // answer when this panel's read did not.
+          <a
+            href={KOHA_OPAC_ACCOUNT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-lg px-2 text-[12.5px] font-semibold text-brand underline-offset-4 hover:underline sm:min-h-8"
+          >
+            {t("loansFullAccount")}
+            <span className="sr-only"> {t("loansFullAccountWhere")} ({tNav("opensNewTab")})</span>
+            <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          </a>
+        }
+      />
 
       {data === "loading" ? (
         <p className="border-t border-divider px-5 py-4 text-[13px] text-text-muted">{t("loansLoading")}</p>

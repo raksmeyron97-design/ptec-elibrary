@@ -15,6 +15,7 @@ describe("the tab bar's sheets carry everything the drawer did", () => {
   it.each([
     ["the digital collections", "DIGITAL_LIBRARY_ITEMS"],
     ["the physical library", 'href="/catalogs"'],
+    ["the library account (Koha OPAC)", "href={KOHA_OPAC_ACCOUNT_URL}"],
     ["subjects", 'href="/subjects"'],
     ["authors", 'href="/authors"'],
     ["News & Events", 'href="/posts"'],
