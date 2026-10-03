@@ -50,3 +50,6 @@ System Settings (the /km title suffix and `og:site_name`).
   No page reads this file; an approved pair is copied into
   `content/hub-intros.json`.
 | 6 | `/contact` map placeholder button (`contact.showMap`, decision P6-1) | `បង្ហាញផែនទី` | "Show the map" | sits under the existing `ទីតាំង` ("Find us") heading; the map loads only after the press |
+| Home 2026-10 | Homepage shelf, third tab (`home.tabTheses`) | `សារណា` | "Theses" | `home.recentTypeThesis` verbatim |
+| Home 2026-10 | the same tab's list label, read by screen readers (`home.browseListTheses`) | `សារណាដែលគេអានច្រើនជាងគេ` | "Most-read theses" | `សារណា` + `ដែលគេអានច្រើនជាងគេ` (new phrasing — "most read") |
+| Home 2026-10 | the same tab when empty (`home.browseEmptyTheses`) | `មិនទាន់មានសារណាផ្សាយនៅឡើយទេ។` | "No theses published yet." | `home.browseEmptyTrending` with `ធនធាន` → `សារណា` |
