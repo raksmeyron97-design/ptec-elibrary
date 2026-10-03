@@ -9,9 +9,10 @@
 // page HTML was cached; the digital side and all links are meaningful
 // without JS.
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { Link } from "@/i18n/navigation";
 import { useTranslations, useLocale } from "next-intl";
-import { Globe, MapPin, Clock, Navigation, Phone, ArrowRight, Dot, Library } from "lucide-react";
+import { Globe, MapPin, Navigation, Dot, Library } from "lucide-react";
 import {
   getLibraryStatus,
   zonedNow,
@@ -21,17 +22,24 @@ import {
 } from "@/lib/library-hours";
 import { activeClosure } from "@/lib/system-settings/hours";
 import type { HoursClosure } from "@/lib/system-settings/types";
+import type { PublicHomepagePhoto } from "@/lib/types/homepage-photo";
 import { HomeSection, SectionHeader } from "./HomeSection";
+
+/** Monday first: the week as a Cambodian timetable prints it. JS weekdays. */
+const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0] as const;
 
 export default function LibraryNow({
   openingHoursSpec,
   closures = [],
   mapPlaceUrl,
+  photo = null,
 }: {
   /** schema.org opening-hours spec from the published settings. */
   openingHoursSpec: string[];
   closures?: HoursClosure[];
   mapPlaceUrl: string;
+  /** The first admin-managed homepage photo; null falls back to the building. */
+  photo?: PublicHomepagePhoto | null;
 }) {
   const t = useTranslations("home");
   const locale = useLocale();
@@ -93,122 +101,168 @@ export default function LibraryNow({
   const isOpen = status?.isOpen ?? false;
   const statusKnown = status !== null || closure !== null;
 
-  const linkClass =
-    "inline-flex min-h-[40px] items-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-semibold text-brand transition-colors hover:bg-brand/8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand";
+  const rangesLabel = (ranges: { open: number; close: number }[]) =>
+    ranges.length > 0
+      ? ranges.map((r) => `${formatTimeLabel(r.open, locale)} – ${formatTimeLabel(r.close, locale)}`).join(", ")
+      : t("libraryNowClosed");
+
+  // The whole week, Monday first. Today's row is marked (aria-current="date")
+  // and, on a closure day, says why instead of the regular hours.
+  const week = WEEK_ORDER.map((weekday) => {
+    const offset = (weekday - zoned.weekday + 7) % 7;
+    const isToday = offset === 0;
+    return {
+      weekday,
+      isToday,
+      day: weekdayLabel(scheduleNow, offset, locale),
+      hours: isToday ? todayLabel : rangesLabel(sched[weekday] ?? []),
+    };
+  });
+
+  const panel = "rounded-xl border border-border bg-paper p-5";
+  const pill = "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-bold";
 
   return (
     <HomeSection surface="surface" labelledBy="library-now-title">
-      <SectionHeader
-        id="library-now-title"
-        eyebrow={t("libraryNowEyebrow")}
-        title={t("libraryNowTitle")}
-        lede={t("libraryNowBody")}
-      />
+      <div className="grid gap-10 lg:grid-cols-[5fr_7fr] lg:gap-12">
+        <div className="min-w-0">
+          <SectionHeader
+            id="library-now-title"
+            eyebrow={t("libraryNowEyebrow")}
+            title={t("libraryNowTitle")}
+            lede={t("libraryNowBody")}
+          />
 
-        <div className="grid gap-4 md:grid-cols-2">
-          {/* ── Digital ── */}
-          <div className="flex flex-col rounded-2xl border border-divider bg-paper p-6">
-            <div className="flex items-start justify-between gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand/8 text-brand" aria-hidden>
-                <Globe className="h-[22px] w-[22px]" strokeWidth={1.9} />
-              </span>
-              {/* Status surface tokens, not a hand-written green triplet: the old
-                  pair measured 4.37:1 in light mode, under the 4.5:1 floor for 12 px
-                  bold. The tokens resolve per theme, which is also why there is no
-                  `dark:` variant here — see lib/status-tokens.test.ts. */}
-              <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2.5 py-1 text-[12px] font-bold text-success-text">
-                <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden />
-                {t("libraryNowDigitalStatus")}
-              </span>
+          <div className="space-y-3">
+            {/* ── E-Library ── */}
+            <div className={panel}>
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/8 text-brand" aria-hidden>
+                  <Globe className="h-5 w-5" strokeWidth={1.9} />
+                </span>
+                <h3 className="min-w-0 flex-1 font-record text-[17px] font-bold text-text-heading">{t("libraryNowDigital")}</h3>
+                {/* Status surface tokens, not a hand-written green triplet — see
+                    lib/status-tokens.test.ts. A word and a dot, never colour alone. */}
+                <span className={`${pill} bg-success-soft text-success-text`}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden />
+                  {t("libraryNowDigitalStatus")}
+                </span>
+              </div>
+              <p className="mt-2 text-[13.5px] leading-relaxed text-text-muted">{t("libraryNowDigitalBody")}</p>
             </div>
-            <h3 className="mt-4 font-khmer-serif text-[18px] font-bold text-text-heading">{t("libraryNowDigital")}</h3>
-            <p className="mt-1.5 text-[13.5px] leading-relaxed text-text-muted">{t("libraryNowDigitalBody")}</p>
-            <div className="mt-auto pt-4">
-              <Link
-                href="/books"
-                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-brand px-5 text-[13.5px] font-bold text-brand-contrast transition-colors hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-              >
-                {t("libraryNowDigitalCta")}
-                <ArrowRight className="h-4 w-4" aria-hidden />
-              </Link>
+
+            {/* ── Physical library ── */}
+            <div className={panel}>
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/12 text-accent-text" aria-hidden>
+                  <MapPin className="h-5 w-5" strokeWidth={1.9} />
+                </span>
+                <h3 className="min-w-0 flex-1 font-record text-[17px] font-bold text-text-heading">{t("libraryNowPhysical")}</h3>
+                {/* Live status — a word and a dot. Placeholder pre-mount. */}
+                {statusKnown ? (
+                  <span className={`${pill} ${isOpen ? "bg-success-soft text-success-text" : "bg-text-muted/12 text-text-body"}`}>
+                    <Dot className={`h-4 w-4 ${isOpen ? "text-success" : "text-text-muted"}`} aria-hidden strokeWidth={6} />
+                    {isOpen ? t("libraryNowOpen") : t("libraryNowClosed")}
+                  </span>
+                ) : (
+                  <span className="h-[26px] w-20 animate-pulse rounded-full bg-divider" aria-hidden />
+                )}
+              </div>
+              {statusLine && <p className="mt-2 text-[13px] text-text-muted">{statusLine}</p>}
+
+              {/* The week's hours. The schedule text is available from first
+                  render (see scheduleNow above); only the live status waits
+                  for mount. */}
+              <table className="mt-3 w-full text-[13.5px]">
+                <caption className="sr-only">{t("libraryNowWeekLabel")}</caption>
+                <tbody>
+                  {week.map(({ weekday, isToday, day, hours }) => (
+                    <tr
+                      key={weekday}
+                      aria-current={isToday ? "date" : undefined}
+                      className={isToday ? "bg-bg-surface font-semibold text-text-heading" : "text-text-body"}
+                    >
+                      <th scope="row" className="w-24 rounded-l-md py-1 pl-2 text-left font-medium">
+                        {day}
+                        {isToday && <span className="sr-only"> ({t("libraryNowTodayLabel")})</span>}
+                      </th>
+                      <td className="rounded-r-md py-1 pr-2 text-right tabular-nums">{hours}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="mt-2 text-[12px] text-text-muted">{t("libraryNowHoursNote")}</p>
             </div>
           </div>
 
-          {/* ── Physical ── */}
-          <div className="flex flex-col rounded-2xl border border-divider bg-paper p-6">
-            <div className="flex items-start justify-between gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/12 text-accent-text" aria-hidden>
-                <MapPin className="h-[22px] w-[22px]" strokeWidth={1.9} />
-              </span>
-              {/* Live status — icon + text, not colour alone. Placeholder pre-mount. */}
-              {statusKnown ? (
-                <span
-                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-bold ${
-                    isOpen
-                      ? "bg-success-soft text-success-text"
-                      : "bg-text-muted/12 text-text-body"
-                  }`}
-                >
-                  <Dot className={`h-4 w-4 ${isOpen ? "text-success" : "text-text-muted"}`} aria-hidden strokeWidth={6} />
-                  {isOpen ? t("libraryNowOpen") : t("libraryNowClosed")}
-                </span>
-              ) : (
-                <span className="h-[26px] w-20 animate-pulse rounded-full bg-divider" aria-hidden />
-              )}
-            </div>
-            <h3 className="mt-4 font-khmer-serif text-[18px] font-bold text-text-heading">{t("libraryNowPhysical")}</h3>
-
-            <dl className="mt-3 space-y-1.5 text-[13.5px]">
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 shrink-0 text-text-muted" aria-hidden />
-                <dt className="sr-only">{t("libraryNowTodayLabel")}</dt>
-                <dd className="text-text-body">
-                  <span className="font-semibold">{t("libraryNowTodayLabel")}:</span>{" "}
-                  {/* Schedule text (todayLabel) is available from first render —
-                      see scheduleNow above. Only the live "closes at"/"opens at"
-                      addendum waits for client mount, and simply isn't appended
-                      until then (no skeleton needed: todayLabel alone is a
-                      complete, correct sentence). */}
-                  {todayLabel}
-                  {statusLine && <span className="text-text-muted"> · {statusLine}</span>}
-                </dd>
-              </div>
-            </dl>
-            <p className="mt-1 text-[12px] text-text-muted">{t("libraryNowHoursNote")}</p>
-
-            {/* Primary action, mirroring the digital card's CTA so the bridge
-                works in BOTH directions — the physical side previously offered
-                hours, directions and a phone number but no way to see what is
-                actually on the shelves. Accent-outlined rather than solid: a
-                visit is a bigger ask than opening a PDF, so it stays visually
-                subordinate to the digital CTA. */}
-            <div className="mt-auto pt-4">
-              <Link
-                href="/catalogs"
-                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border-2 border-accent/40 px-5 text-[13.5px] font-bold text-accent-text transition-colors hover:border-accent hover:bg-accent/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              >
-                <Library className="h-4 w-4" aria-hidden />
-                {t("libraryNowCatalogCta")}
-              </Link>
-            </div>
-
-            <div className="mt-3 flex flex-wrap gap-1">
-              <Link href="/about/timings" className={linkClass}>
-                <Clock className="h-4 w-4" aria-hidden />
-                {t("libraryNowHoursLink")}
-              </Link>
-              <a href={mapPlaceUrl} target="_blank" rel="noopener noreferrer" className={linkClass}>
-                <Navigation className="h-4 w-4" aria-hidden />
-                {t("libraryNowDirections")}
-                <span className="sr-only">({t("partnersOpensNewTab")})</span>
-              </a>
-              <Link href="/contact" className={linkClass}>
-                <Phone className="h-4 w-4" aria-hidden />
-                {t("libraryNowContact")}
-              </Link>
-            </div>
+          {/* ── Actions ── */}
+          <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <a
+              href={mapPlaceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-brand px-5 text-[14px] font-semibold text-brand-contrast transition-colors hover:bg-brand-hover"
+            >
+              <Navigation className="h-4 w-4" aria-hidden />
+              {t("libraryNowDirections")}
+              <span className="sr-only">({t("partnersOpensNewTab")})</span>
+            </a>
+            <Link
+              href="/catalogs"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-lg px-2 text-[14px] font-semibold text-brand transition-colors hover:text-brand-hover hover:underline"
+            >
+              <Library className="h-4 w-4" aria-hidden />
+              {t("libraryNowCatalogCta")}
+            </Link>
           </div>
         </div>
+
+        {/* ── One photograph of the place ──
+            The first admin-managed homepage photo, or the building when the
+            gallery is empty. Lazy: it is far below the fold, and the hero no
+            longer fetches any image. The caption sits on glass, which is a
+            control surface here (it carries a button), never behind a cover. */}
+        <figure className="relative m-0 min-h-[360px] overflow-hidden rounded-2xl bg-paper shadow-md">
+          {photo ? (
+            <Image
+              src={photo.url}
+              alt={photo.alt}
+              fill
+              // Pixel widths only (no bare vw — see pdf-cover-sizes.test.ts):
+              // the column is ~760 px at lg, the full phone width below.
+              sizes="(min-width: 1024px) 760px, 420px"
+              className="object-cover"
+              {...(photo.blurDataUrl ? { placeholder: "blur" as const, blurDataURL: photo.blurDataUrl } : {})}
+            />
+          ) : (
+            <picture>
+              <source type="image/avif" srcSet="/hero/ptec-library-640.avif 640w, /hero/ptec-library-960.avif 960w, /hero/ptec-library-1440.avif 1440w" sizes="(min-width: 1024px) 760px, 100vw" />
+              <source type="image/webp" srcSet="/hero/ptec-library-640.webp 640w, /hero/ptec-library-960.webp 960w, /hero/ptec-library-1440.webp 1440w" sizes="(min-width: 1024px) 760px, 100vw" />
+              <img
+                src="/hero/ptec-library-960.jpg"
+                alt={t("photosEyebrow")}
+                width={1440}
+                height={959}
+                loading="lazy"
+                decoding="async"
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            </picture>
+          )}
+          <figcaption className="glass-surface glass-surface--sheet absolute inset-x-3 bottom-3 rounded-xl p-4 sm:inset-x-4 sm:bottom-4 sm:p-5">
+            <p className="text-[11.5px] font-bold text-accent-text">{t("photosEyebrow")}</p>
+            <p className="mt-1 font-record text-[17px] font-bold leading-snug text-text-heading sm:text-[19px]">
+              {photo?.caption || t("photosTitle")}
+            </p>
+            <Link
+              href="/books"
+              className="mt-3 inline-flex min-h-[40px] items-center rounded-lg border border-border-strong px-4 text-[13.5px] font-semibold text-text-heading transition-colors hover:bg-paper"
+            >
+              {t("browseSectionTitle")}
+            </Link>
+          </figcaption>
+        </figure>
+      </div>
     </HomeSection>
   );
 }

@@ -476,6 +476,7 @@
     "libraryNowOpensLabel": "Opens",
     "libraryNowClosesLabel": "Closes",
     "libraryNowTodayLabel": "Today",
+    "libraryNowWeekLabel": "Opening hours this week",
     "libraryNowHoursNote": "Regular hours — public holidays may differ.",
     "libraryNowHoursLink": "All opening hours",
     "libraryNowDirections": "Get directions",

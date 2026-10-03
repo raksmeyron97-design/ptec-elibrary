@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 
 import enMessages from "@/messages/en.json";
@@ -58,5 +58,39 @@ describe("LibraryNow — today's hours SSR default (audit 2026-07-26, issue #7)"
     // synchronously too.
     renderLibraryNow();
     expect(screen.queryByText(/open now|closed now/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("LibraryNow — the week's hours and the photo (homepage redesign 2026-10)", () => {
+  it("lists all seven days, Monday first, with exactly one marked as today", () => {
+    renderLibraryNow();
+    const table = screen.getByRole("table", { name: enMessages.home.libraryNowWeekLabel });
+    const rows = within(table).getAllByRole("row");
+    expect(rows).toHaveLength(7);
+    expect(within(rows[0]).getByRole("rowheader")).toHaveTextContent(/^Mon/);
+    expect(within(rows[6]).getByRole("rowheader")).toHaveTextContent(/^Sun/);
+    expect(rows.filter((r) => r.getAttribute("aria-current") === "date")).toHaveLength(1);
+  });
+
+  it("prints each day's regular hours, and Closed for a day with none", () => {
+    renderLibraryNow();
+    const rows = within(screen.getByRole("table")).getAllByRole("row");
+    // Sunday has no window in SPEC; unless today IS Sunday (then it shows
+    // today's label, which is also "Closed"), the row says Closed.
+    expect(rows[6]).toHaveTextContent(/Closed/);
+  });
+
+  it("falls back to the building photograph, lazily, when the gallery is empty", () => {
+    const { container } = renderLibraryNow();
+    const img = container.querySelector("figure img");
+    expect(img).toHaveAttribute("src", "/hero/ptec-library-960.jpg");
+    expect(img).toHaveAttribute("loading", "lazy");
+    expect(container.querySelectorAll("figure img")).toHaveLength(1);
+  });
+
+  it("offers directions as the primary action and the physical catalogue beside it", () => {
+    renderLibraryNow();
+    expect(screen.getByRole("link", { name: /Get directions/ })).toHaveAttribute("href", "https://maps.example/ptec");
+    expect(screen.getByRole("link", { name: /Browse physical catalog/ })).toHaveAttribute("href", "/catalogs");
   });
 });

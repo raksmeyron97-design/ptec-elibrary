@@ -17,8 +17,6 @@ import BrowseBooksSection from "@/components/ui/home/BrowseBooksSection";
 import StartHere from "@/components/ui/home/StartHere";
 import LatestPostsSection from "@/components/ui/home/LatestPostsSection";
 import LibraryNow from "@/components/ui/home/LibraryNow";
-import HeroPhotoGallery, { HERO_PHOTO_COUNT } from "@/components/ui/home/HeroPhotoGallery";
-import NarrativeCards, { NARRATIVE_PHOTO_COUNT } from "@/components/ui/home/NarrativeCards";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import FaqSection, { homeFaqNode } from "@/components/ui/home/FaqSection";
 import SignupCta from "@/components/ui/home/SignupCta";
@@ -115,16 +113,10 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     getSiteConfig(),
   ]);
 
-  // Admin-managed gallery (/admin/homepage-photos). One fetch, sliced by
-  // position: the first three photos build the mosaic, the next three the
-  // narrative cards. Both components return null when their slice is short,
-  // so an empty or partly-filled gallery simply removes its own section.
+  // Admin-managed gallery (/admin/homepage-photos). The Visit band shows
+  // ONE photograph — the first in the admin's order — and falls back to the
+  // building when the gallery is empty.
   const galleryPhotos = await getHomepagePhotos(locale);
-  const mosaicPhotos = galleryPhotos.slice(0, HERO_PHOTO_COUNT);
-  const narrativePhotos = galleryPhotos.slice(
-    HERO_PHOTO_COUNT,
-    HERO_PHOTO_COUNT + NARRATIVE_PHOTO_COUNT,
-  );
 
   // The shelf's covers are client components, so this is the homepage's
   // serialisation boundary: `trendingBooks` is a full `Book[]`, and the card
@@ -298,29 +290,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </Suspense>
       </div>
 
-      {/* ════════ LIFE AT THE LIBRARY — admin-managed photo mosaic ════════
-          Editorial, not decorative: it answers "is this place actually used?"
-          Content comes from /admin/homepage-photos, so a new term's photos
-          need no deploy. The section removes itself entirely when no photos
-          are active. Together with <NarrativeCards> below it, it introduces
-          <LibraryNow> — these are photographs of the room that section is
-          inviting the reader into. */}
-      <div className="cv-auto [--cv-reserve:1000px] lg:[--cv-reserve:650px]">
-        <HeroPhotoGallery photos={mosaicPhotos} totalCount={galleryPhotos.length} />
-      </div>
-
-      {/* ════════ FOCUS / DISCOVER / CONNECT — the gallery's second half ════
-          Needs all three slots filled or it renders nothing. */}
-      <div className="cv-auto [--cv-reserve:1000px] lg:[--cv-reserve:700px]">
-        <NarrativeCards photos={narrativePhotos} />
-      </div>
-
-      {/* ════════ LIBRARY NOW — digital ↔ physical bridge (live open/closed) ════════ */}
-      <div className="cv-auto [--cv-reserve:920px] lg:[--cv-reserve:620px]">
+      {/* ════════ VISIT — e-library + physical library status and hours, one photo ════════ */}
+      <div className="cv-auto [--cv-reserve:1400px] lg:[--cv-reserve:940px]">
         <LibraryNow
           openingHoursSpec={[...siteConfig.hours.openingHoursSpec]}
           closures={siteConfig.hours.closures}
           mapPlaceUrl={siteConfig.links.mapPlace}
+          photo={galleryPhotos[0] ?? null}
         />
       </div>
 
