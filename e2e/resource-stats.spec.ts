@@ -44,7 +44,7 @@ const HERO_FIGURES = "ul:has(> li[data-stat])";
 
 // The hero figures count up from 0 once on screen; reduced motion renders the
 // real value at once, so a read can never land mid-animation.
-test.use({ reducedMotion: "reduce" });
+test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 const NO_DATA =
   "Public collection statistics are unavailable in this environment " +
