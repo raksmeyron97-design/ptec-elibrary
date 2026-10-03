@@ -50,9 +50,18 @@ test.describe("Physical Library → library account", () => {
   test("a search or filter hides the strip; the footer still links to the account", async ({ page }) => {
     await page.goto("/catalogs?q=Teaching");
     await expect(page.getByText("Borrowing printed books?")).toHaveCount(0);
-    const footerLink = page.getByRole("contentinfo").getByRole("link", { name: /My Library Account/ });
-    await expect(footerLink).toHaveAttribute("href", ACCOUNT);
+    // By address, not by role: below md the footer folds its link groups
+    // behind "More links" (FooterMoreLinks), so the link is in the DOM but
+    // hidden — and out of the accessibility tree — until that is opened.
+    const footer = page.locator("footer");
+    const footerLink = footer.locator(`a[href="${ACCOUNT}"]`);
+    await expect(footerLink).toHaveCount(1);
     await expect(footerLink).toHaveAttribute("target", "_blank");
+    await expect(footerLink).toHaveAttribute("rel", "noopener noreferrer");
+    const more = footer.locator("details.footer-more summary");
+    if (await more.isVisible()) await more.click();
+    await expect(footerLink).toBeVisible();
+    await expect(footerLink).toHaveAccessibleName(/My Library Account.*Opens in a new tab/);
   });
 
   test("the keyboard reaches the account link", async ({ page }) => {
