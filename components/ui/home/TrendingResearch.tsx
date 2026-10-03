@@ -28,7 +28,6 @@ export default async function TrendingResearch() {
     <HomeSection surface="surface" labelledBy="trending-research-title">
       <SectionHeader
         id="trending-research-title"
-        tone="accent"
         eyebrow={t("trendingResearchEyebrow")}
         title={t("trendingResearchTitle")}
         action={viewAll}

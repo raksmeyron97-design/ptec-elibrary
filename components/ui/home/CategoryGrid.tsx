@@ -100,7 +100,6 @@ export default async function CategoryGrid() {
     <HomeSection surface="surface" labelledBy="category-grid-title">
       <SectionHeader
         id="category-grid-title"
-        tone="accent"
         eyebrow={t("categoriesEyebrow")}
         title={t("categoriesSectionTitle")}
       />

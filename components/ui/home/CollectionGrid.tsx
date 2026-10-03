@@ -82,7 +82,6 @@ export default async function CollectionGrid() {
     <HomeSection surface="paper" labelledBy="collection-grid-title">
       <SectionHeader
         id="collection-grid-title"
-        tone="accent"
         eyebrow={t("collectionsGridEyebrow")}
         title={t("collectionsGridTitle")}
       />

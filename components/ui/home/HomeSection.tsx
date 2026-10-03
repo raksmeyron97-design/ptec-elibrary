@@ -49,7 +49,7 @@ export function HomeSection({
       className={`scroll-mt-20 border-b border-divider/60 ${SURFACE_CLASS[surface]} ${className}`}
       aria-labelledby={labelledBy}
     >
-      <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-14 md:px-12 md:py-16">
+      <div className="mx-auto max-w-[1400px] px-4 py-12 md:px-12 md:py-16 lg:py-20">
         {children}
       </div>
     </section>
@@ -74,36 +74,36 @@ export function SectionHeader({
   eyebrow,
   title,
   lede,
-  tone = "brand",
   action,
 }: {
   id: string;
   eyebrow: string;
   title: string;
   lede?: string;
-  /** brand = navy eyebrow (discovery bands); accent = gold (orientation bands). */
-  tone?: "brand" | "accent";
   /** Desktop "view all" link, right-aligned. Pair with <SectionMobileLink>. */
   action?: SectionAction;
 }) {
   const locale = useLocale();
+  const km = locale === "km";
   // Letter-spaced capitals are a Latin convention; Khmer has no case, and its
-  // stacked vowel signs collide when tracked.
-  const latinEyebrow = locale === "en" ? "uppercase tracking-[0.2em]" : "tracking-normal";
-  const rule = tone === "brand" ? "from-brand to-accent" : "from-accent to-brand";
-  const eyebrowColor = tone === "brand" ? "text-brand" : "text-accent-text";
+  // stacked vowel signs collide when tracked — so Khmer gets a larger size
+  // and normal tracking instead.
+  const eyebrowType = km ? "text-[14px] tracking-normal" : "text-[11.5px] uppercase tracking-[0.18em]";
 
   return (
     <div className="mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
       <div className="min-w-0 max-w-2xl">
-        <div className="mb-2 flex items-center gap-3">
-          <span className={`h-[3px] w-7 shrink-0 rounded-full bg-gradient-to-r ${rule}`} aria-hidden />
-          <span className={`text-[11px] font-bold ${eyebrowColor} ${latinEyebrow}`}>{eyebrow}</span>
-        </div>
+        <p className={`mb-2 font-bold text-accent-text ${eyebrowType}`}>{eyebrow}</p>
+        {/* One serif for every band title: `font-record` is Crimson Pro for
+            Latin with Hanuman behind it for Khmer — the same stack the record
+            pages use. `font-khmer-serif` put Hanuman first, so English titles
+            rendered in a Khmer face's Latin glyphs. */}
         <h2
           id={id}
-          className="font-khmer-serif font-bold leading-tight tracking-tight text-text-heading"
-          style={{ fontSize: "clamp(22px, 2.4vw, 32px)" }}
+          className={`font-record font-bold text-text-heading [text-wrap:balance] ${
+            km ? "leading-[1.45] tracking-normal" : "leading-[1.15]"
+          }`}
+          style={{ fontSize: "clamp(24px, 2.6vw, 34px)" }}
         >
           {title}
         </h2>

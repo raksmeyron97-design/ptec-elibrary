@@ -64,7 +64,6 @@ export default async function FaqSection() {
     <HomeSection id="faq" surface="paper" labelledBy="faq-title">
       <SectionHeader
         id="faq-title"
-        tone="accent"
         eyebrow={t("faqEyebrow")}
         title={t("faqTitle")}
       />

@@ -1,18 +1,15 @@
 import { getRecentlyAddedCached, getDeptBooksCached } from "@/lib/home-data";
 import BookShowcaseTabs from "./BookShowcaseTabs";
 import { toBookCardList, type BookCardData } from "@/lib/books/card-data";
-import { SectionTitle } from "@/components/ui/core/SectionTitle";
-import { getTranslations, getLocale } from "next-intl/server";
-import { ScrollRevealWrapper } from "@/components/ui/animations/ScrollRevealWrapper";
+import { getTranslations } from "next-intl/server";
+import { HomeSection, SectionHeader } from "./HomeSection";
 
 export default async function BrowseBooksSection({ trendingBooks }: { trendingBooks: BookCardData[] }) {
-  const [recentlyAdded, { depts, deptBooks }, t, locale] = await Promise.all([
+  const [recentlyAdded, { depts, deptBooks }, t] = await Promise.all([
     getRecentlyAddedCached(),
     getDeptBooksCached(),
     getTranslations("home"),
-    getLocale(),
   ]);
-  const latinEyebrow = locale === "en" ? "uppercase tracking-[0.22em]" : "tracking-normal";
 
   // Homepage preview keeps a tight, readable set — no more than 8 cards per tab
   // (brief), rendered 4-per-row on desktop. Only the shown slice is serialized
@@ -29,33 +26,23 @@ export default async function BrowseBooksSection({ trendingBooks }: { trendingBo
   );
 
   return (
-    // overflow-CLIP, not overflow-hidden: both clip, but `hidden` makes the
-    // section a scroll container, and a scroll-driven reveal (`.reveal`,
-    // animation-timeline: view()) follows its NEAREST scroll container — a
-    // section that never scrolls, so every card in it silently never
-    // revealed. `clip` scrolls nothing and is not a container.
-    <section className="border-y border-divider/70 bg-gradient-to-b from-paper via-bg-surface to-paper overflow-clip">
-      <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-16 md:px-12 md:py-20">
-        <ScrollRevealWrapper className="mb-6 sm:mb-9">
-          <div className="mb-2 flex items-center gap-3">
-            <span className="h-[3px] w-7 rounded-full bg-gradient-to-r from-brand to-accent" aria-hidden />
-            <span className={`text-[11px] font-bold text-brand ${latinEyebrow}`}>{t("browseSectionEyebrow")}</span>
-          </div>
-          <SectionTitle as="h2" className="!mb-0 mt-1">{t("browseSectionTitle")}</SectionTitle>
-        </ScrollRevealWrapper>
-        {/* Not a reveal: the block is ~1,500 px tall, and its cards reveal
-            one by one inside it (StaggerRevealItem). */}
-        <div>
-          <BookShowcaseTabs
-            trending={trendingPreview}
-            recent={recentPreview}
-            depts={depts}
-            deptBooks={deptBooksPreview}
-            layout="grid"
-            maxItems={PREVIEW}
-          />
-        </div>
-      </div>
-    </section>
+    // The shared band shell and header, like every other band: the header
+    // used to be drawn here by hand with <SectionTitle>, in Hanuman, while
+    // the rest of the page's titles were the record serif.
+    <HomeSection surface="surface" labelledBy="browse-books-title">
+      <SectionHeader
+        id="browse-books-title"
+        eyebrow={t("browseSectionEyebrow")}
+        title={t("browseSectionTitle")}
+      />
+      <BookShowcaseTabs
+        trending={trendingPreview}
+        recent={recentPreview}
+        depts={depts}
+        deptBooks={deptBooksPreview}
+        layout="grid"
+        maxItems={PREVIEW}
+      />
+    </HomeSection>
   );
 }
