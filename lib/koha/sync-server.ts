@@ -16,8 +16,9 @@ import "server-only";
 import { after } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { revalidateCatalogBook } from "@/lib/cache/revalidate";
-import { getKohaClient, getKohaConfig } from "@/lib/koha";
+import { getKohaClient, getKohaConfig, getKohaCoverConfig } from "@/lib/koha";
 import { kohaCanRead } from "./config";
+import { readKohaCoverList, refreshKohaCovers, type CoverDb } from "./cover-sync";
 import { runKohaSync, SYNC_STREAM } from "./sync-run";
 import type { SyncMode } from "./sync-plan";
 
@@ -116,6 +117,7 @@ export async function startKohaSync(opts: {
       if (result.status === "ok" || result.status === "failed") {
         console.info(`[koha-sync] ${opts.trigger} ${opts.mode} ${opts.apply ? "apply" : "preview"}: ${result.status}`, JSON.stringify(result.counts));
         if (result.applied && !result.noop) revalidateCatalogBook();
+        if (result.applied) await refreshCoversAfterSync();
       } else {
         console.info(`[koha-sync] ${opts.trigger} ${opts.mode}: ${result.status}`);
       }
@@ -124,4 +126,25 @@ export async function startKohaSync(opts: {
     }
   });
   return { started: true };
+}
+
+/**
+ * Covers from Koha (covers.ts, docs/KOHA-SYNC.md → Covers from Koha), after an
+ * applied run: one read of Koha's public cover report, then only the covers
+ * the sync owns. Its own failure never touches the sync's outcome.
+ */
+async function refreshCoversAfterSync(): Promise<void> {
+  const cfg = getKohaCoverConfig();
+  if (!cfg.enabled) return;
+  try {
+    const r = await refreshKohaCovers(createServiceClient() as unknown as CoverDb, () => readKohaCoverList(fetch, cfg));
+    if (r.status === "unavailable") {
+      console.warn("[koha-sync] covers:", r.reason);
+      return;
+    }
+    console.info("[koha-sync] covers:", JSON.stringify(r));
+    if (r.set + r.changed + r.cleared > 0) revalidateCatalogBook();
+  } catch (e) {
+    console.error("[koha-sync] covers failed:", e instanceof Error ? e.message : e);
+  }
 }
