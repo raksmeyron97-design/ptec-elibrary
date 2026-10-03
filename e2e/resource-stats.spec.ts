@@ -36,47 +36,66 @@ test.beforeAll(async ({ request }) => {
   }
 });
 
-const STATS_SECTION = 'section[aria-labelledby="home-library-statistics"]';
+// The homepage states its figures in two places since the 2026-10 redesign:
+// the TOTAL in the hero's figure row (TrustBar variant="hero"), and each
+// collection's count on its tile in "Start here" (CollectionGrid). The old
+// "PTEC Library in numbers" block that held all four is gone.
+const HERO_FIGURES = "ul:has(> li[data-stat])";
+
+// The hero figures count up from 0 once on screen; reduced motion renders the
+// real value at once, so a read can never land mid-animation.
+test.use({ reducedMotion: "reduce" });
 
 const NO_DATA =
   "Public collection statistics are unavailable in this environment " +
-  "(getCollectionStats() returned null, so the block is correctly omitted). " +
+  "(getCollectionStats() returned null, so the figures are correctly omitted). " +
   "These are cross-surface CONSISTENCY assertions and are vacuous without data.";
 
+const BELOW_FLOOR =
+  "This collection's count is under the homepage's display floor " +
+  "(COLLECTION_COUNT_MIN_DISPLAY), so the tile shows no figure to reconcile.";
+
 /**
- * The statistics block sits at the very bottom of the homepage, behind
- * Suspense boundaries that stream in after DOMContentLoaded — wait for it
- * explicitly rather than assuming it is there the moment the shell is.
- *
- * Skips rather than fails when the block is absent. That is not papering over
- * a bug: by design, a page whose stats cannot be read omits the figure
- * entirely instead of rendering a zero or an invented total, and the local
- * e2e Supabase stack denies anon access to the content tables (`permission
- * denied for table books`, which predates this suite). A regression that
- * renders the block with WRONG numbers still fails every assertion below.
+ * The hero figure row. Skips rather than fails when it is absent: by design,
+ * a page whose stats cannot be read omits the figures entirely instead of
+ * rendering a zero or an invented total, and the local e2e Supabase stack
+ * denies anon access to the content tables (`permission denied for table
+ * books`, which predates this suite). A regression that renders WRONG numbers
+ * still fails every assertion below.
  */
-async function statsSection(page: Page) {
-  const section = page.locator(STATS_SECTION);
-  await section.waitFor({ state: "attached", timeout: 20_000 }).catch(() => {});
-  test.skip((await section.count()) === 0, NO_DATA);
-  return section;
+async function heroFigures(page: Page) {
+  const list = page.locator(HERO_FIGURES).first();
+  await list.waitFor({ state: "attached", timeout: 20_000 }).catch(() => {});
+  test.skip((await page.locator(HERO_FIGURES).count()) === 0, NO_DATA);
+  return list;
 }
 
-type StatKey = "total" | "books" | "theses" | "publications";
+type CollectionKey = "books" | "theses" | "publications";
 
-/** Read the <dd> for one metric. Keyed on data-stat rather than on the
- *  translated label, so the same helper works in English and Khmer. */
-async function homepageStat(page: Page, key: StatKey): Promise<number> {
-  await statsSection(page);
-  const dd = page.locator(`${STATS_SECTION} [data-stat="${key}"] dd`);
-  await expect(dd).toHaveCount(1, { timeout: 15_000 });
-  return Number((await dd.innerText()).replace(/[^\d]/g, ""));
+/** The digital total, from the hero. Keyed on data-stat, not on label text,
+ *  so the same helper works in English and Khmer. */
+async function homepageTotal(page: Page): Promise<number> {
+  const list = await heroFigures(page);
+  const value = list.locator('li[data-stat="digital"] [data-stat-value]');
+  await expect(value).toHaveCount(1, { timeout: 15_000 });
+  return Number((await value.innerText()).replace(/[^\d]/g, ""));
 }
 
-/** The visible label for one metric, to assert it is translated at all. */
-async function homepageStatLabel(page: Page, key: StatKey): Promise<string> {
-  await statsSection(page);
-  return (await page.locator(`${STATS_SECTION} [data-stat="${key}"] dt`).innerText()).trim();
+/** The visible label of the total, to assert it is translated at all. */
+async function homepageTotalLabel(page: Page): Promise<string> {
+  const list = await heroFigures(page);
+  const item = list.locator('li[data-stat="digital"]');
+  const value = (await item.locator("[data-stat-value]").innerText()).trim();
+  return (await item.innerText()).replace(value, "").trim();
+}
+
+/** One collection's count, from its tile. Skips when the tile shows none. */
+async function collectionCount(page: Page, key: CollectionKey): Promise<number> {
+  await heroFigures(page);
+  const span = page.locator(`[data-collection-count="${key}"]`);
+  await span.waitFor({ state: "attached", timeout: 15_000 }).catch(() => {});
+  test.skip((await span.count()) === 0, BELOW_FLOOR);
+  return Number((await span.innerText()).replace(/[^\d]/g, ""));
 }
 
 function toInt(raw: string): number {
@@ -112,7 +131,7 @@ const BOOKS_NOUN = /(?:resources?|e-books?)\b/;
  * paragraph arrives after DOMContentLoaded, so a single snapshot on a slow
  * render can miss it and make this suite flaky. Poll instead, then skip only
  * if the page genuinely never states a count — same reasoning as
- * statsSection(): an empty environment cannot demonstrate consistency
+ * heroFigures(): an empty environment cannot demonstrate consistency
  * between two numbers.
  */
 async function requireListingCount(page: Page, noun: RegExp, scope = "body") {
@@ -133,18 +152,15 @@ async function requireListingCount(page: Page, noun: RegExp, scope = "body") {
 }
 
 test.describe("homepage statistics", () => {
-  test("the total equals the sum of the categories shown beside it", async ({ page }) => {
+  test("the total equals the sum of the collections shown on the page", async ({ page }) => {
     await visit(page, "/");
-    const section = await statsSection(page);
-    await section.scrollIntoViewIfNeeded();
-    await expect(section).toBeVisible();
+    const list = await heroFigures(page);
+    await expect(list).toBeVisible();
 
-    const [total, books, theses, publications] = await Promise.all([
-      homepageStat(page, "total"),
-      homepageStat(page, "books"),
-      homepageStat(page, "theses"),
-      homepageStat(page, "publications"),
-    ]);
+    const total = await homepageTotal(page);
+    const books = await collectionCount(page, "books");
+    const theses = await collectionCount(page, "theses");
+    const publications = await collectionCount(page, "publications");
 
     expect(total).toBe(books + theses + publications);
     expect(total).toBeGreaterThan(0);
@@ -158,49 +174,53 @@ test.describe("homepage statistics", () => {
     const body = await page.locator("body").innerText();
     expect(body).not.toMatch(/\d+\+\d/);
 
-    const section = await statsSection(page);
-    for (const dd of await section.locator("dd").all()) {
+    const list = await heroFigures(page);
+    for (const value of await list.locator("[data-stat-value]").all()) {
       // Each value cell holds exactly one number and nothing else.
-      expect((await dd.innerText()).trim()).toMatch(/^[\d,]+$/);
+      expect((await value.innerText()).trim()).toMatch(/^[\d,]+$/);
     }
   });
 
-  test("statistics are a labelled description list for assistive tech", async ({ page }) => {
+  test("the figures are a labelled list, one label per number", async ({ page }) => {
     await visit(page, "/");
-    const section = await statsSection(page);
-    await expect(section.locator("dl")).toHaveCount(1);
-    // One <dt> per <dd> — no orphan value without a label.
-    const dts = await section.locator("dt").count();
-    const dds = await section.locator("dd").count();
-    expect(dts).toBe(dds);
-    expect(dts).toBeGreaterThanOrEqual(4);
+    const list = await heroFigures(page);
+    await expect(list).toHaveAttribute("aria-label", /.+/);
+    const items = list.locator("li[data-stat]");
+    const n = await items.count();
+    expect(n).toBeGreaterThanOrEqual(2);
+    await expect(list.locator("[data-stat-value]")).toHaveCount(n);
+    for (const item of await items.all()) {
+      const value = (await item.locator("[data-stat-value]").innerText()).trim();
+      // A label beside the number, not a bare figure.
+      expect((await item.innerText()).replace(value, "").trim().length).toBeGreaterThan(0);
+    }
   });
 
   test("renders in Khmer with the same figures", async ({ page }) => {
     await visit(page, "/");
-    const enTotal = await homepageStat(page, "total");
+    const enTotal = await homepageTotal(page);
 
     await visit(page, "/km");
-    const section = await statsSection(page);
-    await expect(section).toBeVisible();
-    const kmTotal = await homepageStat(page, "total");
+    const list = await heroFigures(page);
+    await expect(list).toBeVisible();
+    const kmTotal = await homepageTotal(page);
     expect(kmTotal).toBe(enTotal);
 
     // Khmer must render a real translated label, not the English string, a
     // raw ICU placeholder, or the message key itself.
-    const kmLabel = await homepageStatLabel(page, "total");
+    const kmLabel = await homepageTotalLabel(page);
     expect(kmLabel).not.toBe("Digital resources");
     expect(kmLabel).not.toContain("{");
-    expect(kmLabel).not.toContain("statDigitalResources");
+    expect(kmLabel).not.toContain("trustDigitalLabel");
     expect(kmLabel.length).toBeGreaterThan(0);
-    expect(await section.innerText()).not.toContain("{");
+    expect(await list.innerText()).not.toContain("{");
   });
 });
 
 test.describe("listing totals match the homepage categories", () => {
   test("/books total equals the homepage E-books figure", async ({ page }) => {
     await visit(page, "/");
-    const homepageBooks = await homepageStat(page, "books");
+    const homepageBooks = await collectionCount(page, "books");
 
     await visit(page, "/books");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
@@ -212,7 +232,7 @@ test.describe("listing totals match the homepage categories", () => {
 
   test("/theses total equals the homepage Theses figure", async ({ page }) => {
     await visit(page, "/");
-    const homepageTheses = await homepageStat(page, "theses");
+    const homepageTheses = await collectionCount(page, "theses");
 
     await visit(page, "/theses");
     const eyebrow = page.getByText(/PTEC Digital Repository/);
@@ -224,7 +244,7 @@ test.describe("listing totals match the homepage categories", () => {
 
   test("/journals total equals the homepage journal-articles figure", async ({ page }) => {
     await visit(page, "/");
-    const homepagePublications = await homepageStat(page, "publications");
+    const homepagePublications = await collectionCount(page, "publications");
 
     await visit(page, "/journals");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
@@ -267,7 +287,7 @@ test.describe("filtered counts are distinguished from global totals", () => {
 
   test("the physical catalog is counted separately from digital resources", async ({ page }) => {
     await visit(page, "/");
-    const digitalTotal = await homepageStat(page, "total");
+    const digitalTotal = await homepageTotal(page);
 
     await visit(page, "/catalogs");
     const catalogCount = await requireListingCount(page, /books?\b/);
@@ -279,7 +299,7 @@ test.describe("filtered counts are distinguished from global totals", () => {
 test.describe("search results reflect the query, not the collection", () => {
   test("a narrow query does not report the global total", async ({ page }) => {
     await visit(page, "/");
-    const digitalTotal = await homepageStat(page, "total");
+    const digitalTotal = await homepageTotal(page);
 
     await visit(page, "/books?q=zzzqqqxxnotarealterm");
     const body = await page.locator("body").innerText();

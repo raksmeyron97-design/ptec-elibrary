@@ -121,7 +121,12 @@ export default async function CollectionGrid() {
                 <span className="mt-auto flex items-center justify-between gap-2 pt-3 sm:pt-4">
                   {/* No count line when the stats view is down OR the count
                       is zero — see the header comment. */}
-                  <span className="text-[12.5px] font-semibold text-text-muted">
+                  {/* data-collection-count: read by e2e/resource-stats.spec.ts
+                      to reconcile this figure with the collection's listing. */}
+                  <span
+                    data-collection-count={count ? field : undefined}
+                    className="text-[12.5px] font-semibold text-text-muted"
+                  >
                     {count ? t("collectionsGridItemCount", { count }) : ""}
                   </span>
                   {ArrowIcon}

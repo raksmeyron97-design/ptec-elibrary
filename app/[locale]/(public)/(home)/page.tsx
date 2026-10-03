@@ -208,6 +208,10 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 hintKeyboard={t("askHintKeyboard")}
               />
             </div>
+
+            {/* The three verified figures — the TrustBar band, folded into
+                the hero. Every number is getCollectionStats(), floors and all. */}
+            <TrustBar variant="hero" />
           </div>
 
           {/* Desktop column for the cover fan (Phase 2). Empty until then. */}
@@ -222,7 +226,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           Three passes over one question: what does a reader who just landed
           need next?
 
-          1. ORIENT — TrustBar (how big is this?), StartWithGoal (what am I
+          1. ORIENT — the hero's figures (how big is this?), StartWithGoal (what am I
              here to do?), CollectionGrid (what is in it?).
           2. DISCOVER — the shelves, in decreasing generality: popular, the
              full tabbed browse, by subject, newest, most-read research.
@@ -247,13 +251,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           because the optional bands hide themselves and the page cannot know
           at render time which neighbours survive; where one does hide, two
           same-coloured bands meet and their divider still separates them. */}
-
-      {/* ════════ TRUST BAR — verifiable figures, directly under the hero ════
-          Deliberately NOT wrapped in .cv-auto: it sits in the initial viewport
-          on most desktops, where content-visibility would defer work the
-          browser is about to need anyway. Every figure comes from
-          getCollectionStats(); nothing here is estimated. */}
-      <TrustBar />
 
       {/* ════════ START WITH YOUR GOAL — task-first discovery ════════════════
           Wired to real learning paths (or curated routes); no data round-trip

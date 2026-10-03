@@ -2,53 +2,21 @@
 // Bottom-of-homepage signup banner.
 //
 // It is shown to logged-out visitors only, but that is a *presentation* rule,
-// not a data-access one: everything in it is public marketing copy plus public
-// stats. It used to enforce the rule with a server-side supabase.auth.getUser()
-// — a cookie read that, even behind Suspense, made the whole homepage dynamic.
+// not a data-access one: everything in it is public marketing copy. It used
+// to enforce the rule with a server-side supabase.auth.getUser() — a cookie
+// read that, even behind Suspense, made the whole homepage dynamic.
+// The figures it once carried ("PTEC Library in numbers") now live in the
+// hero (<TrustBar variant="hero" />), so the page states them once.
 // The banner is now always rendered (so it is in the prerendered HTML and
 // visible to crawlers) and hidden after hydration for signed-in users by
 // <SignedOutOnly>.
 import { Link } from "@/i18n/navigation";
-import { getCollectionStats, formatCount } from "@/lib/collection-stats";
 import { getTranslations, getLocale } from "next-intl/server";
-import { JOURNALS_PATH } from "@/lib/journals/urls";
 
 export default async function SignupCta() {
-  const [t, locale, stats] = await Promise.all([
-    getTranslations("home"),
-    getLocale(),
-    getCollectionStats(),
-  ]);
+  const [t, locale] = await Promise.all([getTranslations("home"), getLocale()]);
 
   const latinEyebrow = locale === "en" ? "uppercase tracking-[0.22em]" : "tracking-normal";
-
-  // Every figure below is the shared counting rule (lib/collection-stats.ts),
-  // never a hardcoded claim. When stats can't be loaded the whole statistics
-  // block is omitted rather than rendering a stale, zero or invented total.
-  //
-  // EXACT numbers, not "110+". The rounded form used to be shown to sighted
-  // users with the exact figure beside it in an .sr-only span, which is what
-  // produced "110+115 Digital resources" wherever text content was read
-  // instead of pixels. One number, one label, one element.
-  //
-  // A category at ZERO is left out — the same rule <TrustBar> and
-  // <CollectionGrid> apply. The arithmetic below the total still holds
-  // without it (a zero contributes nothing to the sum), and a closing banner
-  // that says "0 Publications" is an argument against the sign-up it is
-  // asking for. The total is always shown.
-  const figures =
-    stats === null
-      ? null
-      : (
-          [
-            // Total first, then the categories that sum to it — so the
-            // arithmetic is visible and checkable on the page itself.
-            { key: "total", value: stats.totalDigitalResources, label: t("statDigitalResources"), href: "/books" },
-            { key: "books", value: stats.books, label: t("statEbooks"), href: "/books" },
-            { key: "theses", value: stats.theses, label: t("statTheses"), href: "/theses" },
-            { key: "publications", value: stats.publications, label: t("statPublications"), href: JOURNALS_PATH },
-          ] as const
-        ).filter((f) => f.key === "total" || f.value > 0);
 
   return (
     <section className="hero-ink relative overflow-hidden">
@@ -153,41 +121,6 @@ export default async function SignupCta() {
             </svg>
           </Link>
         </div>
-
-        {/* ── Library statistics ──
-            Every figure comes from the shared collection-stats service. The
-            categories below the total are exactly the ones that sum to it, so
-            "digital resources" is verifiable rather than asserted. Rendered
-            as a description list: each number is the <dd> for its own <dt>,
-            which is what stops a screen reader (or a copy/paste) from running
-            two figures together. */}
-        {figures !== null && (
-          <section aria-labelledby="home-library-statistics" className="mt-10">
-            <h3 id="home-library-statistics" className="sr-only">
-              {t("statsHeading")}
-            </h3>
-            <dl className="mx-auto flex max-w-3xl flex-wrap items-start justify-center gap-x-10 gap-y-6">
-              {figures.map(({ key, value, label, href }) => (
-                // data-stat names the metric so tests (and anyone reading the
-                // DOM) can tell which figure is which without matching on
-                // translated label text.
-                <div key={key} data-stat={key} className="min-w-[92px]">
-                  <dd className="text-[26px] font-bold leading-none tabular-nums text-white">
-                    {formatCount(value, locale)}
-                  </dd>
-                  <dt className="mt-1.5 text-[12.5px] text-blue-200/80">
-                    <Link
-                      href={href}
-                      className="rounded transition-colors hover:text-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
-                    >
-                      {label}
-                    </Link>
-                  </dt>
-                </div>
-              ))}
-            </dl>
-          </section>
-        )}
 
         {/* Non-numeric proof points — kept separate from the statistics list
             so no label/number pairing can be misread across the two. */}

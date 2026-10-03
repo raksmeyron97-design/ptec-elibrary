@@ -70,7 +70,17 @@ type Tile = {
   minimum?: number;
 };
 
-export default async function TrustBar() {
+/**
+ * `band` — the standalone strip under the hero (icon plates, its own
+ *          section). Kept for any page that wants the figures as a band.
+ * `hero` — the same tiles, floors and figures as a quiet row inside the
+ *          homepage hero, on the plate. No icons and no section of its own:
+ *          the hero already has a heading, and three figures under the search
+ *          bar are a fact line, not a band.
+ */
+export type TrustBarVariant = "band" | "hero";
+
+export default async function TrustBar({ variant = "band" }: { variant?: TrustBarVariant } = {}) {
   const [stats, t, locale] = await Promise.all([
     getCollectionStats(),
     getTranslations("home"),
@@ -108,6 +118,31 @@ export default async function TrustBar() {
       animate: false,
     },
   ].filter((tile) => tile.minimum === undefined || tile.value >= tile.minimum);
+
+  if (variant === "hero") {
+    // `data-stat` names each figure so e2e/resource-stats.spec.ts can read it
+    // without matching on translated label text.
+    return (
+      <ul
+        aria-label={t("trustTitle")}
+        className="mt-10 grid grid-cols-3 gap-3 border-t border-white/15 pt-5 sm:flex sm:gap-10"
+      >
+        {tiles.map(({ key, value, label, animate }) => (
+          <li key={key} data-stat={key} className="flex min-w-0 flex-col gap-1.5">
+            <span
+              data-stat-value
+              className="font-serif text-[22px] font-semibold leading-none tabular-nums text-white sm:text-[28px]"
+            >
+              {/* Years are printed raw: formatCount() would group them into
+                  "2,017". Only quantities get separators. */}
+              {animate ? <AnimatedStat targetValue={value} locale={locale} /> : String(value)}
+            </span>
+            <span className="text-[12px] leading-snug text-blue-100 sm:text-[13px]">{label}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
 
   // One row at every width, as many columns as figures survived the filter.
   // Three stacked figures measured ~230 px on a 390 px phone — most of a
