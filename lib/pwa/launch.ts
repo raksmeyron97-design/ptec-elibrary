@@ -6,7 +6,7 @@
 //   Android splash   → manifest background_color   (app/manifest.ts)
 //   iOS splash       → apple-touch-startup-image   (IOS_LAUNCH_IMAGES below)
 //   status bar       → manifest theme_color + <meta name="theme-color">
-//   first app paint  → the boot screen (components/pwa/…)
+//   first app paint  → the boot screen + .hero-ink (components/pwa/…)
 //
 // Before this file existed the manifest said #ffffff while the app painted
 // #060B1A, so every cold launch went white → near-black. Change PWA_INK and all
@@ -39,9 +39,8 @@ export const PWA_SPLASH_DARK = "#0E1220";
  */
 export const PWA_THEME_COLOR = "#172554";
 
-/** PTEC ink — the colour the maskable icons and iOS launch images are plated
- *  with. (The homepage hero painted it as `.hero-ink` until the 2026-10
- *  redesign moved the hero to the plate navy.) */
+/** PTEC ink — `.hero-ink`. Still the colour the homepage hero paints, and what
+ *  the maskable icons and iOS launch images are plated with. */
 export const PWA_INK = "#060B1A";
 
 /**

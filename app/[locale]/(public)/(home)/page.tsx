@@ -4,6 +4,7 @@
 // Legacy /home URLs 308-redirect here in middleware.ts.
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import { preload } from "react-dom";
 import { getTrendingBooksCached, getTrendingTermsCached } from "@/lib/home-data";
 import { toBookCardList } from "@/lib/books/card-data";
 import { getPublishedPaths } from "@/app/actions/learning-paths";
@@ -11,10 +12,13 @@ import { getHomepagePhotos } from "@/lib/homepage-photos";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 // ── Feature components ───────────────────────────────────────────────────────
 import AskLibraryHero from "@/components/ui/home/AskLibraryHero";
+import HeroConstellation from "@/components/ui/home/HeroConstellation";
+import HeroBookStack from "@/components/ui/home/HeroBookStack";
+import MobileFeaturedStrip from "@/components/ui/home/MobileFeaturedStrip";
+import QuickAccessRow from "@/components/ui/home/QuickAccessRow";
 import TrustBar from "@/components/ui/home/TrustBar";
 import BrowseBooksSection from "@/components/ui/home/BrowseBooksSection";
 import StartHere from "@/components/ui/home/StartHere";
-import HeroShelf from "@/components/ui/home/HeroShelf";
 import LatestPostsSection from "@/components/ui/home/LatestPostsSection";
 import LibraryNow from "@/components/ui/home/LibraryNow";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
@@ -27,6 +31,21 @@ import LatestPostsSkeleton from "@/components/ui/home/skeletons/LatestPostsSkele
 import PageJsonLd from "@/components/seo/PageJsonLd";
 
 export const revalidate = 60;
+
+// Hero `sizes`, deliberately UNDER-declared on phones.
+//
+// The honest layout answer is "100vw" — the photo is a full-bleed background.
+// But `sizes` is multiplied by devicePixelRatio when the browser resolves the
+// srcset, so 100vw asked a 3x phone for ~1100 px and it picked the 1440w AVIF:
+// 100 KB, fetched at high priority, contending for bandwidth with the 41 KB
+// render-blocking stylesheet that gates first paint. It was the single biggest
+// item on the launch critical path.
+//
+// 320px caps every phone at the 960w variant (52 KB) — 320x3 = 960 exactly, and
+// 320x2.625 = 840 rounds up to the same file. The image is decorative
+// (aria-hidden, alt="") and sits under two ink gradients at 95%/85%/60% opacity,
+// so the difference is not visible; the 48 KB is.
+const HERO_SIZES = "(max-width: 767px) 320px, 100vw";
 
 export async function generateMetadata({
   params,
@@ -105,6 +124,20 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   setRequestLocale(locale);
 
+  // LCP: preload the hero photo (AVIF branch — ~95% of browsers; the rest
+  // simply fetch it via <picture> without the head start).
+  // MUST stay byte-identical to the <source sizes> below, or the browser
+  // resolves a different candidate than the one it preloaded and downloads the
+  // hero twice.
+  preload("/hero/ptec-library-960.avif", {
+    as: "image",
+    type: "image/avif",
+    imageSrcSet:
+      "/hero/ptec-library-640.avif 640w, /hero/ptec-library-960.avif 960w, /hero/ptec-library-1440.avif 1440w",
+    imageSizes: HERO_SIZES,
+    fetchPriority: "high",
+  });
+
   const [t, trendingBooks, trendingTerms, paths, siteConfig] = await Promise.all([
     getTranslations({ locale, namespace: "home" }),
     getTrendingBooksCached(),
@@ -118,14 +151,21 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   // building when the gallery is empty.
   const galleryPhotos = await getHomepagePhotos(locale);
 
+  const heroBooks = trendingBooks.slice(0, 8).map((b) => ({
+    slug: b.slug,
+    title: b.title,
+    author: b.author,
+    coverUrl: b.coverUrl ?? null,
+    coverColor: b.cover,
+    department: b.department,
+  }));
+
   // The shelf's covers are client components, so this is the homepage's
   // serialisation boundary: `trendingBooks` is a full `Book[]`, and the card
   // type keeps only the fields a card may draw.
   const trendingCards = toBookCardList(trendingBooks);
 
-  // Phones get tighter tracking so the college name stays on one line in its
-  // pill at 375 px; from sm the full 0.22em.
-  const latinEyebrow = locale === "en" ? "uppercase tracking-[0.1em] sm:tracking-[0.22em]" : "tracking-normal";
+  const latinEyebrow = locale === "en" ? "uppercase tracking-[0.22em]" : "tracking-normal";
 
   return (
     <div className="min-h-screen bg-paper">
@@ -134,97 +174,198 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           strings as the visible accordion. */}
       <PageJsonLd nodes={[await homeFaqNode(locale)]} />
 
-      {/* ════════ HERO — the front desk, with the open shelf behind it ════════
-          One column, centred from md: the headline, the search bar as the one
-          obvious action, the topics people search for, the three verified
-          figures as a single line — and, on desktop, the most-downloaded books
-          standing on the hero's gold seam. No photograph or canvas: the H1 is
-          the largest thing painted, so it is the LCP element. */}
-      <section className="relative isolate z-40 overflow-clip bg-plate text-white">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_80%_at_50%_-20%,rgba(58,95,196,.38),transparent_65%),linear-gradient(180deg,transparent_45%,#060B1A_150%)]"
-        />
-        <div className="mx-auto max-w-[1400px] px-4 pb-9 pt-9 sm:px-8 sm:pt-14 md:px-12 md:text-center lg:pb-0 lg:pt-11">
-          <div className="hero-stagger mx-auto min-w-0 max-w-[980px]">
-            {/* Gold eyebrow — pill badge */}
-            <div className="inline-flex items-center gap-2 rounded-full border border-gold-400/30 bg-gold-400/[0.09] px-3 py-1.5 backdrop-blur-sm">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-gold-400" aria-hidden />
-              <span className={`text-[11px] font-bold text-gold-400 ${latinEyebrow}`}>
-                {t("tagline", { institution: locale === "km" ? siteConfig.name.km : siteConfig.name.en })}
-              </span>
-            </div>
+      {/* ════════ HERO ════════ */}
+      <section className="hero-ink relative isolate z-40 text-white">
 
-            {/* Headline — the only element on the site that uses Koulen.
-                `font-bold` deliberately lives on the English branch rather
-                than the shared base: Koulen ships a single 400 weight, and a
-                `font-bold` it cannot satisfy makes the browser synthesise one
-                by smearing the outline, which blurs the thin connecting
-                strokes of ក ត ភ on an already-heavy display face.
-                Khmer also gets its own leading (1.3, well clear of the ~1.25
-                floor where the stacked vowel signs and the subscript ជើង of
-                "បណ្ណាល័យឌីជីថល" start to clip) and no negative tracking, which
-                would collide those subscripts with the next base glyph.
-                [text-wrap:balance] keeps the English two lines even, with no
-                word left alone on a third. Not staggered (see .hero-stagger):
-                it is the LCP element and must be visible on first paint. */}
-            <h1
-              className={`mx-auto mt-4 max-w-[21ch] text-white [text-wrap:balance] drop-shadow-[0_2px_16px_rgba(0,0,0,0.55)] md:max-w-none ${
-                locale === "km"
-                  ? "font-khmer-display font-normal leading-[1.3] tracking-normal"
-                  : "font-serif font-bold leading-[1.08] tracking-[-0.02em]"
-              }`}
-              style={{
-                fontSize:
-                  locale === "km"
-                    ? "clamp(34px, 4.6vw, 60px)"
-                    : "clamp(32px, 4.3vw, 58px)",
-              }}
-            >
-              {t("headline")}
-            </h1>
-
-            <p className="mt-4 max-w-[38em] text-[16px] leading-[1.65] text-blue-100 md:mx-auto md:text-[18px]">
-              {t("description")}
-            </p>
-
-            <div className="relative z-50 mx-auto mt-7 max-w-[720px] md:text-left">
-              <AskLibraryHero
-                trending={trendingTerms.slice(0, 5)}
-                prompts={[t("prompt1"), t("prompt2"), t("prompt3")]}
-                askLabel={t("searchButton")}
-                hintKeyboard={t("askHintKeyboard")}
-                centered
+        {/* Background wrapper with overflow-hidden so blurs/scales don't leak */}
+        <div className="absolute inset-0 -z-30 overflow-hidden pointer-events-none">
+          {/* 1. Photo background — LCP image.
+              Pre-generated variants (scripts/optimize-hero.mjs): AVIF/WebP at
+              640/960/1440w — no runtime transform (images.unoptimized). The
+              image is decorative (gradient overlays carry the text contrast),
+              so alt="" + aria-hidden wrapper is intentional. */}
+          <div className="absolute inset-0" aria-hidden>
+            <picture>
+              <source
+                type="image/avif"
+                srcSet="/hero/ptec-library-640.avif 640w, /hero/ptec-library-960.avif 960w, /hero/ptec-library-1440.avif 1440w"
+                sizes={HERO_SIZES}
               />
-            </div>
-
-            {/* The three verified figures, as one line. Every number is
-                getCollectionStats(), floors and all. */}
-            <TrustBar variant="hero" />
+              <source
+                type="image/webp"
+                srcSet="/hero/ptec-library-640.webp 640w, /hero/ptec-library-960.webp 960w, /hero/ptec-library-1440.webp 1440w"
+                sizes={HERO_SIZES}
+              />
+              <img
+                src="/hero/ptec-library-960.jpg"
+                alt=""
+                width={1440}
+                height={959}
+                fetchPriority="high"
+                decoding="async"
+                className="absolute inset-0 h-full w-full object-cover object-center"
+              />
+            </picture>
           </div>
 
-          {/* Desktop only: the most-downloaded books, on the gold seam. */}
-          <HeroShelf books={trendingCards} />
+          {/* 2a. Left-to-right ink overlay: text column reads clearly, photo shows on right */}
+          <div
+            aria-hidden
+            className="absolute inset-0 bg-gradient-to-r from-[#060B1A]/95 via-[#0A1430]/85 to-[#0D1B3E]/60"
+          />
+          {/* 2b. Bottom fade: photo melts into the next section */}
+          <div
+            aria-hidden
+            className="absolute inset-0 bg-gradient-to-t from-[#060B1A]/90 via-transparent to-[#060B1A]/40"
+          />
+
+          {/* 3. Subtle dot grid — depth texture */}
+          <div
+            aria-hidden
+            className="absolute inset-0 opacity-40"
+            style={{
+              backgroundImage: "radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px)",
+              backgroundSize: "28px 28px",
+            }}
+          />
+
+          {/* 4. CSS aurora overlay */}
+          <div className="aurora absolute inset-0 opacity-50" aria-hidden />
+
+          {/* 4. Interactive mouse-tracking glow (client island, page stays RSC) */}
+          {/* <InteractiveAurora className="absolute inset-0" /> */}
         </div>
 
-        {/* The gold seam — on desktop, the shelf the books stand on. */}
-        <div aria-hidden className="h-px w-full bg-gradient-to-r from-transparent via-gold-400/80 to-transparent" />
+        {/* 5. Constellation canvas — client island between the background and
+            the content: a drifting star network whose trending-term nodes
+            light up while the search field is focused. */}
+        <HeroConstellation
+          terms={trendingTerms.slice(0, 4)}
+          className="absolute inset-0 -z-10"
+        />
+
+        <div className="relative mx-auto max-w-[1400px] px-4 py-14 sm:py-20 md:px-12 md:py-24 lg:py-28">
+          <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12">
+
+            {/* ── Left column ── */}
+            <div className="hero-stagger min-w-0 w-full max-w-2xl">
+              {/* Gold eyebrow — pill badge */}
+              <div className="inline-flex items-center gap-2 rounded-full border border-gold-400/30 bg-gold-400/[0.09] px-3 py-1.5 backdrop-blur-sm">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-gold-400" aria-hidden />
+                <span className={`text-[11px] font-bold text-gold-400 ${latinEyebrow}`}>
+                  {t("tagline", { institution: locale === "km" ? siteConfig.name.km : siteConfig.name.en })}
+                </span>
+              </div>
+
+              {/* Headline — the only element on the site that uses Koulen.
+                  `font-bold` deliberately lives on the English branch rather
+                  than the shared base: Koulen ships a single 400 weight, and a
+                  `font-bold` it cannot satisfy makes the browser synthesise one
+                  by smearing the outline, which blurs the thin connecting
+                  strokes of ក ត ភ on an already-heavy display face.
+                  Khmer also gets its own leading (1.3, well clear of the ~1.25
+                  floor where the stacked vowel signs and the subscript ជើង of
+                  "បណ្ណាល័យឌីជីថល" start to clip) and no negative tracking, which
+                  would collide those subscripts with the next base glyph.
+                  The slightly larger clamp compensates for Koulen being more
+                  condensed than Hanuman at the same pixel size. */}
+              <h1
+                className={`mt-3 text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.55)] ${
+                  locale === "km"
+                    ? "font-khmer-display font-normal leading-[1.3] tracking-normal"
+                    : "font-serif font-bold leading-[1.06] tracking-[-0.025em]"
+                }`}
+                style={{
+                  fontSize:
+                    locale === "km"
+                      ? "clamp(34px, 4.9vw, 66px)"
+                      : "clamp(32px, 4.6vw, 62px)",
+                }}
+              >
+                {t("headline")}
+              </h1>
+
+              {/* Description */}
+              <p className="mt-4 max-w-lg text-[15px] leading-[1.7] text-blue-100/90 md:text-[16px]">
+                {t("description")}
+              </p>
+
+              {/* Ask bar */}
+              <div className="relative z-50 mt-8 max-w-xl">
+                <AskLibraryHero
+                  trending={trendingTerms}
+                  prompts={[t("prompt1"), t("prompt2"), t("prompt3")]}
+                  askLabel={t("searchButton")}
+                  hint={t("askHint")}
+                  hintKeyboard={t("askHintKeyboard")}
+                />
+              </div>
+
+              {/* Quick access — phones only. Search, then the collections it
+                  searches, one swipe away, before any shelf. */}
+              <div className="mt-6 lg:hidden">
+                <QuickAccessRow />
+              </div>
+
+              {/* Constellation affordance — desktop only (the canvas glow is
+                  behind the left overlay and barely visible on phones) */}
+              <p className="mt-3 hidden text-[12px] text-blue-300/65 lg:block">
+                {t("constellationHint")}
+              </p>
+
+              {/* Mobile book strip — unchanged component. Its own root already
+                  carries mt-9; the old mt-10 here stacked 76px of empty ink
+                  above the "Featured" label. */}
+              <div className="mt-1 lg:hidden">
+                <MobileFeaturedStrip books={heroBooks} />
+              </div>
+
+            </div>
+
+            {/* ── Right column — desktop book stack ── */}
+            <div className="relative hidden lg:flex lg:items-center lg:justify-center">
+              <div aria-hidden className="pointer-events-none absolute inset-0">
+                <div className="absolute -right-8 -top-8 h-72 w-72 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.25)_0%,transparent_60%)]" />
+                <div className="absolute -bottom-4 -left-8 h-64 w-64 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.2)_0%,transparent_60%)]" />
+                <div className="absolute inset-x-0 bottom-0 h-40 bg-[radial-gradient(ellipse_80%_60%_at_50%_100%,rgba(37,99,235,0.18),transparent)]" />
+              </div>
+              <div className="relative scale-110">
+                <HeroBookStack
+                  books={heroBooks}
+                  labels={{ browseAll: t("ctaBrowse"), mostDownloaded: t("heroMostDownloaded") }}
+                />
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* Gold seam at the bottom of the hero */}
+        <div className="h-px w-full bg-gradient-to-r from-transparent via-gold-400/80 to-transparent" />
       </section>
 
       {/* ════════ THE ORDER BELOW THE HERO ════════════════════════════════
-          Six bands in all (the 2026-10 redesign; it was sixteen):
+          The hero above is the ORIGINAL one, kept as it was by the owner's
+          choice (2026-10-03): photograph, constellation, rotating book stack,
+          and the figures band directly under it. Below it, the redesigned
+          bands:
 
-          1. Hero        — search, popular topics, the three verified figures.
-          2. Start here  — what is in the library beside what you came to do.
-          3. Browse      — ONE shelf: Trending · Recently Added · Theses.
-          4. News        — the newest posts, beside the contribution card.
-          5. Visit       — the library's status and hours, one photograph.
-          6. FAQ         — the front desk's questions, with the sign-up card.
+          1. Start here  — what is in the library beside what you came to do.
+          2. Browse      — ONE shelf: Trending · Recently Added · Theses.
+          3. News        — the newest posts, beside the contribution card.
+          4. Visit       — the library's status and hours, one photograph.
+          5. FAQ         — the front desk's questions, with the sign-up card.
 
           Grounds alternate paper / surface and every card wears the opposite
           ground, so a card is never invisible on its own band. Each band
-          declares its own `surface` (see HomeSection.tsx). No book is shown
-          twice above the footer: the shelf is the only band that shows any. */}
+          declares its own `surface` (see HomeSection.tsx). */}
+
+      {/* ════════ TRUST BAR — verifiable figures, directly under the hero ════
+          Deliberately NOT wrapped in .cv-auto: it sits in the initial viewport
+          on most desktops, where content-visibility would defer work the
+          browser is about to need anyway. Every figure comes from
+          getCollectionStats(); nothing here is estimated. */}
+      <TrustBar />
 
       {/* Below-the-fold sections are wrapped in .cv-auto (content-visibility)
           so the browser skips their layout/paint work until scrolled near.

@@ -5,7 +5,6 @@ import { toBookCardList, type BookCardData } from "@/lib/books/card-data";
 import { getTranslations } from "next-intl/server";
 import { HomeSection, SectionHeader } from "./HomeSection";
 import { SHELF_MAX_ITEMS, type ShelfThesis } from "./shelf";
-import { HERO_SHELF_COUNT } from "./HeroShelf";
 
 /**
  * The homepage's one shelf: Trending · Recently Added · Theses, with the
@@ -28,11 +27,7 @@ export default async function BrowseBooksSection({ trendingBooks }: { trendingBo
   // here rather than hidden with CSS. toBookCardList decides how BIG each
   // item is — `summary` alone was 31 KB of the production homepage's payload
   // when whole books crossed this boundary.
-  // Trending carries HERO_SHELF_COUNT extra books: at lg the hero's shelf
-  // shows the top six, so the tab shows the next six there instead (see
-  // BookShowcaseTabs `skipOnDesktop`); phones, which have no hero shelf, show
-  // the top six.
-  const trendingPreview = toBookCardList(trendingBooks.slice(0, SHELF_MAX_ITEMS + HERO_SHELF_COUNT));
+  const trendingPreview = toBookCardList(trendingBooks.slice(0, SHELF_MAX_ITEMS));
   const recentPreview = toBookCardList(recentlyAdded.slice(0, SHELF_MAX_ITEMS));
   const deptBooksPreview = Object.fromEntries(
     Object.entries(deptBooks).map(([k, v]) => [k, toBookCardList(v.slice(0, SHELF_MAX_ITEMS))]),
@@ -58,7 +53,6 @@ export default async function BrowseBooksSection({ trendingBooks }: { trendingBo
       <ContinueReadingStrip />
       <BookShowcaseTabs
         trending={trendingPreview}
-        skipOnDesktop={HERO_SHELF_COUNT}
         recent={recentPreview}
         theses={thesisItems}
         depts={depts}

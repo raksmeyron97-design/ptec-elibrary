@@ -202,7 +202,7 @@ describe("display defects stay fixed", () => {
     // `<span aria-hidden>110+</span><span className="sr-only">115</span>` has
     // no separator in the DOM's text content — copy/paste, search snippets and
     // any CSS-less render concatenated it to "110+115".
-    // The homepage's figures live in the hero (TrustBar) since 2026-10; the
+    // The homepage's figures live in the figures band (TrustBar); the
     // sign-up banner that used to carry them is gone.
     const src = read("components/ui/home/TrustBar.tsx");
     expect(src).not.toContain("formatApproximateCount");
@@ -211,9 +211,9 @@ describe("display defects stay fixed", () => {
 
   it("the homepage states the resource count under exactly one label", () => {
     // "N educational resources" in prose PLUS "N Digital resources" in the
-    // stat strip read as two different, disagreeing metrics. Since the
-    // 2026-10 redesign the total is stated once, in the hero's figure row
-    // (<TrustBar variant="hero" />); the sign-up banner is gone.
+    // stat strip read as two different, disagreeing metrics. The total is
+    // stated once, in the figures band under the hero (<TrustBar />); the
+    // sign-up banner that used to repeat it is gone.
 
     const trust = read("components/ui/home/TrustBar.tsx");
     expect(trust).toContain("stats.totalDigitalResources");
@@ -221,7 +221,6 @@ describe("display defects stay fixed", () => {
 
     const page = read("app/[locale]/(public)/(home)/page.tsx");
     expect(page.match(/<TrustBar\b/g) ?? []).toHaveLength(1);
-    expect(page).toContain('<TrustBar variant="hero" />');
     expect(page).not.toContain('t("ctaBody"');
     expect(page).not.toContain('t("statDigitalResources")');
   });

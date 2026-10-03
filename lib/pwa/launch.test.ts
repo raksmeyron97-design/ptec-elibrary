@@ -72,10 +72,7 @@ describe("PWA launch surface", () => {
     // Those are opaque assets the OS composites; they stay ink regardless of
     // the splash background.
     expect(PWA_INK).toBe("#060B1A");
-    // The web hero no longer paints a flat ink ground (it is the plate since
-    // the 2026-10 homepage redesign), but ink is still the colour its plate
-    // fades into — the same navy the icons are plated with.
-    expect(read("app/[locale]/(public)/(home)/page.tsx")).toContain(PWA_INK);
+    expect(read("app/globals.css")).toContain(`background-color: ${PWA_INK}`);
     expect(read("scripts/generate-pwa-assets.mjs")).toContain("INK_RGB");
   });
 

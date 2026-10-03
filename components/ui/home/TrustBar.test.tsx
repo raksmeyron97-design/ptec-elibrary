@@ -138,51 +138,21 @@ describe("TrustBar — the grid tracks the number of tiles, not the breakpoint",
   });
 });
 
-describe("TrustBar — hero variant", () => {
-  async function renderHero(physicalCatalogs: number) {
-    getCollectionStats.mockResolvedValue(stats(physicalCatalogs));
-    const { container } = render(await resolveServerTree(<TrustBar variant="hero" />));
-    return container;
-  }
-
-  it("renders the same three figures as a labelled list, with no section of its own", async () => {
-    const container = await renderHero(300);
-    const list = screen.getByRole("list", { name: "PTEC Library at a glance" });
-    expect(list).toBeInTheDocument();
-    expect(screen.getAllByRole("listitem")).toHaveLength(3);
-    // The hero already has a heading; the band's sr-only <h2> must not follow it in.
-    expect(container.querySelector("section")).toBeNull();
-    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
-
-    expect(screen.getByText(DIGITAL_LABEL)).toBeInTheDocument();
-    expect(screen.getByText(PHYSICAL_LABEL)).toBeInTheDocument();
-    expect(screen.getByText(SINCE_LABEL)).toBeInTheDocument();
-  });
-
-  it("names each figure for the cross-surface e2e checks", async () => {
-    const container = await renderHero(300);
+describe("TrustBar — figures named for the cross-surface e2e checks", () => {
+  it("marks each figure and its value, in tile order", async () => {
+    getCollectionStats.mockResolvedValue(stats(300));
+    const { container } = render(await resolveServerTree(<TrustBar />));
     const keys = [...container.querySelectorAll("[data-stat]")].map((el) => el.getAttribute("data-stat"));
     expect(keys).toEqual(["digital", "physical", "since"]);
     expect(container.querySelector('[data-stat="digital"] [data-stat-value]')?.textContent).toBe("1,734");
+    // The year is printed raw, never grouped.
+    expect(container.querySelector('[data-stat="since"] [data-stat-value]')?.textContent).toBe(String(FOUNDING_YEAR));
   });
 
-  it("applies the physical-catalogue floor exactly as the band does", async () => {
-    await renderHero(PHYSICAL_CATALOG_MIN_DISPLAY - 1);
-    expect(screen.queryByText(PHYSICAL_LABEL)).not.toBeInTheDocument();
-    // Control: the list rendered, with the other two figures.
-    expect(screen.getAllByRole("listitem")).toHaveLength(2);
-    expect(screen.getByText(DIGITAL_LABEL)).toBeInTheDocument();
-  });
-
-  it("shows the physical figure AT the floor", async () => {
-    await renderHero(PHYSICAL_CATALOG_MIN_DISPLAY);
-    expect(screen.getByText(PHYSICAL_LABEL)).toBeInTheDocument();
-    expect(screen.getByText(String(PHYSICAL_CATALOG_MIN_DISPLAY))).toBeInTheDocument();
-  });
-
-  it("prints the founding year raw, never grouped", async () => {
-    await renderHero(300);
-    expect(screen.getByText(String(FOUNDING_YEAR))).toBeInTheDocument();
-    expect(screen.queryByText(FOUNDING_YEAR.toLocaleString("en"))).not.toBeInTheDocument();
+  it("names no figure the floor removed", async () => {
+    getCollectionStats.mockResolvedValue(stats(PHYSICAL_CATALOG_MIN_DISPLAY - 1));
+    const { container } = render(await resolveServerTree(<TrustBar />));
+    expect(container.querySelector('[data-stat="physical"]')).toBeNull();
+    expect(container.querySelector('[data-stat="digital"]')).not.toBeNull();
   });
 });

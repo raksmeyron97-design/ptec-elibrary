@@ -1,0 +1,85 @@
+// components/ui/MobileFeaturedStrip.tsx
+"use client";
+
+import Image from "next/image";
+import { Link } from "@/i18n/navigation";
+import { useTranslations, useLocale } from "next-intl";
+
+type StripBook = {
+  slug: string;
+  title: string;
+  author: string;
+  coverUrl?: string | null;
+  coverColor?: string;
+  department?: string;
+};
+
+type Props = {
+  books: StripBook[];
+};
+
+/**
+ * Shown only on mobile (the desktop HeroBookStack is hidden < lg).
+ * A swipeable row of covers so phone users get a visual hook in the hero.
+ */
+export default function MobileFeaturedStrip({ books }: Props) {
+  const t = useTranslations("home");
+  const locale = useLocale();
+  const latinLabel = locale === "en" ? "uppercase tracking-[0.18em]" : "tracking-normal";
+
+  if (books.length === 0) return null;
+
+  return (
+    <div className="mt-9 lg:hidden">
+      <div className="mb-3 flex items-center justify-between">
+        <span className={`text-[11px] font-bold text-gold-400 ${latinLabel}`}>{t("mobileFeatured")}</span>
+        {/* "See all" — a signpost, not a committed destination. All three of these
+   point at the same /books?sort=downloads route, whose RSC payload is a MEASURED
+   52.2 KB compressed, spent on a maybe-click. */}
+        <Link href="/books?sort=downloads" prefetch={false} className="inline-flex items-center gap-1 text-[12px] font-semibold text-blue-100 hover:text-white">
+          {t("mobileSeeAll")}
+          <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12h14M13 6l6 6-6 6" />
+          </svg>
+        </Link>
+      </div>
+
+      <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {books.map((b) => {
+          const hex = b.coverColor?.match(/#[0-9a-fA-F]{6}/)?.[0] ?? "#0a1629";
+          return (
+            <Link
+              key={b.slug}
+              href={`/books/${b.slug}`}
+              className="group relative w-[116px] shrink-0 snap-start overflow-hidden rounded-xl border border-white/15 shadow-lg shadow-black/30"
+            >
+              <div className="relative aspect-[3/4] w-full">
+                {/* alt="": the title is printed on the card below, so the link
+                    already has its name — an alt repeating it makes a screen
+                    reader say every title twice. */}
+                {b.coverUrl ? (
+                  <Image src={b.coverUrl} alt="" fill sizes="116px" className="object-cover" />
+                ) : (
+                  <div
+                    className="flex h-full w-full flex-col justify-end p-2.5"
+                    style={{ background: `linear-gradient(135deg, ${hex}, ${hex}cc)` }}
+                  >
+                    {b.department && (
+                      <span className="mb-1 text-[7px] font-bold uppercase tracking-widest text-white/50">{b.department}</span>
+                    )}
+                    <span className="line-clamp-3 text-[10px] font-bold leading-tight text-white">{b.title}</span>
+                  </div>
+                )}
+                {/* gold rule on press/hover */}
+                <span className="absolute inset-x-0 top-0 h-[3px] origin-left scale-x-0 bg-accent transition-transform duration-300 group-hover:scale-x-100" />
+              </div>
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-2 pb-1.5 pt-6">
+                <p className="line-clamp-1 text-[10px] font-bold text-white">{b.title}</p>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

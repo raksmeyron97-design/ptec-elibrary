@@ -70,17 +70,7 @@ type Tile = {
   minimum?: number;
 };
 
-/**
- * `band` — the standalone strip under the hero (icon plates, its own
- *          section). Kept for any page that wants the figures as a band.
- * `hero` — the same tiles, floors and figures as a quiet row inside the
- *          homepage hero, on the plate. No icons and no section of its own:
- *          the hero already has a heading, and three figures under the search
- *          bar are a fact line, not a band.
- */
-export type TrustBarVariant = "band" | "hero";
-
-export default async function TrustBar({ variant = "band" }: { variant?: TrustBarVariant } = {}) {
+export default async function TrustBar() {
   const [stats, t, locale] = await Promise.all([
     getCollectionStats(),
     getTranslations("home"),
@@ -119,32 +109,6 @@ export default async function TrustBar({ variant = "band" }: { variant?: TrustBa
     },
   ].filter((tile) => tile.minimum === undefined || tile.value >= tile.minimum);
 
-  if (variant === "hero") {
-    // One line from sm (number beside label, centred under the search from
-    // md); a three-column row on phones. `data-stat` names each figure so
-    // e2e/resource-stats.spec.ts can read it without matching label text.
-    return (
-      <ul
-        aria-label={t("trustTitle")}
-        className="mt-7 grid grid-cols-3 gap-3 sm:flex sm:flex-wrap sm:gap-x-9 sm:gap-y-2 md:justify-center"
-      >
-        {tiles.map(({ key, value, label, animate }) => (
-          <li key={key} data-stat={key} className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-2">
-            <span
-              data-stat-value
-              className="font-serif text-[22px] font-semibold leading-none tabular-nums text-white sm:text-[24px]"
-            >
-              {/* Years are printed raw: formatCount() would group them into
-                  "2,017". Only quantities get separators. */}
-              {animate ? <AnimatedStat targetValue={value} locale={locale} /> : String(value)}
-            </span>
-            <span className="text-[12px] leading-snug text-blue-100 sm:text-[13.5px]">{label}</span>
-          </li>
-        ))}
-      </ul>
-    );
-  }
-
   // One row at every width, as many columns as figures survived the filter.
   // Three stacked figures measured ~230 px on a 390 px phone — most of a
   // screen between the hero and the first goal card — to say three numbers.
@@ -167,7 +131,10 @@ export default async function TrustBar({ variant = "band" }: { variant?: TrustBa
             label, so every figure was announced twice. */}
         <ul className={`grid ${columns} gap-2 sm:gap-6`}>
           {tiles.map(({ key, value, label, Icon, plate, animate }) => (
-            <li key={key} className="flex min-w-0 flex-col items-center gap-2 text-center sm:flex-row sm:items-center sm:gap-4 sm:text-left">
+            // data-stat / data-stat-value: read by e2e/resource-stats.spec.ts to
+            // reconcile these figures with the listings, without matching on
+            // translated label text.
+            <li key={key} data-stat={key} className="flex min-w-0 flex-col items-center gap-2 text-center sm:flex-row sm:items-center sm:gap-4 sm:text-left">
               <span
                 className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl sm:h-12 sm:w-12 ${plate}`}
                 aria-hidden
@@ -175,7 +142,7 @@ export default async function TrustBar({ variant = "band" }: { variant?: TrustBa
                 <Icon className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.9} />
               </span>
               <div className="min-w-0">
-                <p className="text-[22px] font-bold leading-none tracking-tight text-text-heading sm:text-[32px]">
+                <p data-stat-value className="text-[22px] font-bold leading-none tracking-tight text-text-heading sm:text-[32px]">
                   {/* Years are printed raw: formatCount() would group them
                       into "2,017". Only quantities get separators. */}
                   {animate ? (

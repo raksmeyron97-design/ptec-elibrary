@@ -982,10 +982,23 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 
 /* ── Modern UI utilities (home page) ────────────────────────────── */
 /* ── Homepage hero redesign ─────────────────────────────────────── */
-/* The H1 is exempt: it is the page's LCP element, and an element painted at
-   opacity 0 is not a contentful paint — while it faded in, Lighthouse named
-   the boot screen's emblem as the LCP instead (2 of 6 runs, 2026-10-03). */
-.hero-stagger > :not(h1) {
+.hero-ink { background-color: #060B1A; }
+
+.aurora {
+  background:
+    radial-gradient(900px 480px at 85% -5%, rgba(34,211,238,0.22), transparent 60%),
+    radial-gradient(800px 500px at 5% 105%, rgba(245,158,11,0.16), transparent 58%),
+    radial-gradient(1200px 650px at 45% 45%, rgba(37,99,235,0.28), transparent 70%);
+  animation: aurora-drift 22s ease-in-out infinite alternate;
+  will-change: transform;
+}
+.aurora--dim { opacity: 0.55; }
+@keyframes aurora-drift {
+  0%   { transform: translate3d(0,0,0) scale(1); }
+  100% { transform: translate3d(-2.5%,2%,0) scale(1.07); }
+}
+
+.hero-stagger > * {
   opacity: 0; transform: translateY(14px);
   /* 300 ms, 40 ms apart. The hero is the first thing painted and it starts
      transparent, so every millisecond here is a millisecond the page's
@@ -1025,6 +1038,7 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .aurora { animation: none; }
   .hero-stagger > * { opacity:1; transform:none; animation:none; }
   .skeleton, .skeleton::after, .ptec-reveal { animation: none !important; }
   .modal-backdrop-in, .modal-pop-in, .drawer-slide-in, .fade-rise-in, .tab-panel-in { animation: none !important; }

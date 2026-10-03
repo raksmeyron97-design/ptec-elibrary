@@ -37,12 +37,12 @@ test.beforeAll(async ({ request }) => {
 });
 
 // The homepage states its figures in two places since the 2026-10 redesign:
-// the TOTAL in the hero's figure row (TrustBar variant="hero"), and each
+// the TOTAL in the figures band under the hero (TrustBar), and each
 // collection's count on its tile in "Start here" (CollectionGrid). The old
 // "PTEC Library in numbers" block that held all four is gone.
 const HERO_FIGURES = "ul:has(> li[data-stat])";
 
-// The hero figures count up from 0 once on screen; reduced motion renders the
+// The figures count up from 0 once on screen; reduced motion renders the
 // real value at once, so a read can never land mid-animation.
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -56,14 +56,14 @@ const BELOW_FLOOR =
   "(COLLECTION_COUNT_MIN_DISPLAY), so the tile shows no figure to reconcile.";
 
 /**
- * The hero figure row. Skips rather than fails when it is absent: by design,
+ * The figures band. Skips rather than fails when it is absent: by design,
  * a page whose stats cannot be read omits the figures entirely instead of
  * rendering a zero or an invented total, and the local e2e Supabase stack
  * denies anon access to the content tables (`permission denied for table
  * books`, which predates this suite). A regression that renders WRONG numbers
  * still fails every assertion below.
  */
-async function heroFigures(page: Page) {
+async function figuresBand(page: Page) {
   const list = page.locator(HERO_FIGURES).first();
   await list.waitFor({ state: "attached", timeout: 20_000 }).catch(() => {});
   test.skip((await page.locator(HERO_FIGURES).count()) === 0, NO_DATA);
@@ -72,10 +72,10 @@ async function heroFigures(page: Page) {
 
 type CollectionKey = "books" | "theses" | "publications";
 
-/** The digital total, from the hero. Keyed on data-stat, not on label text,
+/** The digital total, from the figures band. Keyed on data-stat, not on label text,
  *  so the same helper works in English and Khmer. */
 async function homepageTotal(page: Page): Promise<number> {
-  const list = await heroFigures(page);
+  const list = await figuresBand(page);
   const value = list.locator('li[data-stat="digital"] [data-stat-value]');
   await expect(value).toHaveCount(1, { timeout: 15_000 });
   return Number((await value.innerText()).replace(/[^\d]/g, ""));
@@ -83,7 +83,7 @@ async function homepageTotal(page: Page): Promise<number> {
 
 /** The visible label of the total, to assert it is translated at all. */
 async function homepageTotalLabel(page: Page): Promise<string> {
-  const list = await heroFigures(page);
+  const list = await figuresBand(page);
   const item = list.locator('li[data-stat="digital"]');
   const value = (await item.locator("[data-stat-value]").innerText()).trim();
   return (await item.innerText()).replace(value, "").trim();
@@ -91,7 +91,7 @@ async function homepageTotalLabel(page: Page): Promise<string> {
 
 /** One collection's count, from its tile. Skips when the tile shows none. */
 async function collectionCount(page: Page, key: CollectionKey): Promise<number> {
-  await heroFigures(page);
+  await figuresBand(page);
   const span = page.locator(`[data-collection-count="${key}"]`);
   await span.waitFor({ state: "attached", timeout: 15_000 }).catch(() => {});
   test.skip((await span.count()) === 0, BELOW_FLOOR);
@@ -131,7 +131,7 @@ const BOOKS_NOUN = /(?:resources?|e-books?)\b/;
  * paragraph arrives after DOMContentLoaded, so a single snapshot on a slow
  * render can miss it and make this suite flaky. Poll instead, then skip only
  * if the page genuinely never states a count — same reasoning as
- * heroFigures(): an empty environment cannot demonstrate consistency
+ * figuresBand(): an empty environment cannot demonstrate consistency
  * between two numbers.
  */
 async function requireListingCount(page: Page, noun: RegExp, scope = "body") {
@@ -154,7 +154,7 @@ async function requireListingCount(page: Page, noun: RegExp, scope = "body") {
 test.describe("homepage statistics", () => {
   test("the total equals the sum of the collections shown on the page", async ({ page }) => {
     await visit(page, "/");
-    const list = await heroFigures(page);
+    const list = await figuresBand(page);
     await expect(list).toBeVisible();
 
     const total = await homepageTotal(page);
@@ -174,7 +174,7 @@ test.describe("homepage statistics", () => {
     const body = await page.locator("body").innerText();
     expect(body).not.toMatch(/\d+\+\d/);
 
-    const list = await heroFigures(page);
+    const list = await figuresBand(page);
     for (const value of await list.locator("[data-stat-value]").all()) {
       // Each value cell holds exactly one number and nothing else.
       expect((await value.innerText()).trim()).toMatch(/^[\d,]+$/);
@@ -183,7 +183,7 @@ test.describe("homepage statistics", () => {
 
   test("the figures are a labelled list, one label per number", async ({ page }) => {
     await visit(page, "/");
-    const list = await heroFigures(page);
+    const list = await figuresBand(page);
     await expect(list).toHaveAttribute("aria-label", /.+/);
     const items = list.locator("li[data-stat]");
     const n = await items.count();
@@ -201,7 +201,7 @@ test.describe("homepage statistics", () => {
     const enTotal = await homepageTotal(page);
 
     await visit(page, "/km");
-    const list = await heroFigures(page);
+    const list = await figuresBand(page);
     await expect(list).toBeVisible();
     const kmTotal = await homepageTotal(page);
     expect(kmTotal).toBe(enTotal);

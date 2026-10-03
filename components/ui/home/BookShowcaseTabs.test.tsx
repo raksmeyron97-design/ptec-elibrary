@@ -172,37 +172,3 @@ describe("BookShowcaseTabs — bilingual", () => {
     expect(screen.getByRole("tabpanel")).toHaveTextContent(kmMessages.home.browseEmptyTrending);
   });
 });
-
-describe("BookShowcaseTabs — the hero shelf's books", () => {
-  const nine = Array.from({ length: 9 }, (_, i) => book(`n${i}`, `Nine ${i}`));
-
-  function renderSkip() {
-    return render(
-      <NextIntlClientProvider locale="en" messages={enMessages}>
-        <BookShowcaseTabs trending={nine} recent={[]} skipOnDesktop={3} />
-      </NextIntlClientProvider>,
-    );
-  }
-
-  it("hides the hero shelf's books at lg and shows the next six there; phones keep the top six", () => {
-    renderSkip();
-    const items = within(screen.getByRole("tabpanel")).getAllByRole("listitem");
-    expect(items).toHaveLength(9);
-    const at = (i: number) => items[i].className;
-    // Top three: on phones, not at lg (the hero shelf shows them there).
-    for (const i of [0, 1, 2]) expect(at(i)).toContain("lg:hidden");
-    // Four to six: everywhere.
-    for (const i of [3, 4, 5]) expect(at(i)).not.toMatch(/hidden/);
-    // Seven to nine: lg only.
-    for (const i of [6, 7, 8]) expect(at(i)).toContain("max-lg:hidden");
-  });
-
-  it("never skips on the other tabs", () => {
-    renderSkip();
-    fireEvent.click(screen.getByRole("tab", { name: "Recently Added" }));
-    fireEvent.click(screen.getByRole("tab", { name: "Trending" }));
-    // No departments in this render; the other tabs never skip.
-    fireEvent.click(screen.getByRole("tab", { name: "Theses" }));
-    expect(screen.getByRole("tabpanel").querySelectorAll(".lg\\:hidden")).toHaveLength(0);
-  });
-});
