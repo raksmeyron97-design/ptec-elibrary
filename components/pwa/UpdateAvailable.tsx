@@ -17,7 +17,16 @@ import { useTranslations } from "next-intl";
 // So the handover becomes a decision the reader makes. This watches for a
 // waiting worker and offers a button; nothing reloads until it is pressed, so
 // the update can never interrupt a PDF, a form, or an admin edit.
+//
+// It also never speaks in the first UPDATE_PROMPT_QUIET_MS of a visit: a
+// worker found while the page is still settling would put a toast over the
+// first thing a reader looks at, for an update that can wait ten seconds.
+// The clock is the document's (performance.now()), so a client-side route
+// change does not restart it.
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** No update prompt during the first ten seconds of a visit. */
+export const UPDATE_PROMPT_QUIET_MS = 10_000;
 
 export default function UpdateAvailable() {
   // RootShell mounts this under every root layout, so its namespace is in
@@ -25,7 +34,15 @@ export default function UpdateAvailable() {
   const t = useTranslations("pwaUpdate");
   const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [quietOver, setQuietOver] = useState(false);
   const reloading = useRef(false);
+
+  // Ends the quiet period at UPDATE_PROMPT_QUIET_MS after the document loaded
+  // (immediately, if that has already passed).
+  useEffect(() => {
+    const id = setTimeout(() => setQuietOver(true), Math.max(0, UPDATE_PROMPT_QUIET_MS - performance.now()));
+    return () => clearTimeout(id);
+  }, []);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -105,9 +122,10 @@ export default function UpdateAvailable() {
     waiting.postMessage({ type: "SKIP_WAITING" });
   }, [waiting]);
 
-  if (!waiting) return null;
+  if (!waiting || !quietOver) return null;
 
   return (
+    // Phones: docked above the tab bar (--ptec-mobile-nav-clearance, 0 at lg).
     <div
       role="status"
       aria-live="polite"

@@ -131,7 +131,10 @@ export default async function TrustBar() {
             label, so every figure was announced twice. */}
         <ul className={`grid ${columns} gap-2 sm:gap-6`}>
           {tiles.map(({ key, value, label, Icon, plate, animate }) => (
-            <li key={key} className="flex min-w-0 flex-col items-center gap-2 text-center sm:flex-row sm:items-center sm:gap-4 sm:text-left">
+            // data-stat / data-stat-value: read by e2e/resource-stats.spec.ts to
+            // reconcile these figures with the listings, without matching on
+            // translated label text.
+            <li key={key} data-stat={key} className="flex min-w-0 flex-col items-center gap-2 text-center sm:flex-row sm:items-center sm:gap-4 sm:text-left">
               <span
                 className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl sm:h-12 sm:w-12 ${plate}`}
                 aria-hidden
@@ -139,7 +142,7 @@ export default async function TrustBar() {
                 <Icon className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.9} />
               </span>
               <div className="min-w-0">
-                <p className="text-[22px] font-bold leading-none tracking-tight text-text-heading sm:text-[32px]">
+                <p data-stat-value className="text-[22px] font-bold leading-none tracking-tight text-text-heading sm:text-[32px]">
                   {/* Years are printed raw: formatCount() would group them
                       into "2,017". Only quantities get separators. */}
                   {animate ? (

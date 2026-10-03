@@ -29,16 +29,33 @@ export async function GET() {
   if (!user) return NextResponse.json({ books: [] }, { headers: noStore });
 
   const db = createServiceClient();
-  const { data: progress } = await db
-    .from("reading_progress")
-    .select("book_id, progress_pct, last_read_at")
-    .eq("user_id", user.id)
-    .gt("progress_pct", 0)
-    .lt("progress_pct", 100)
-    .order("last_read_at", { ascending: false })
-    .limit(10);
+  // `last_page`/`last_page_count` (0141) are asked for defensively and the
+  // read is retried without them — the dashboard's rule: on a database that
+  // predates 0141 an unknown column fails the whole query, and the homepage
+  // would lose the strip to gain an exact page.
+  type ProgressRow = {
+    book_id: string;
+    progress_pct: number;
+    last_read_at: string | null;
+    last_page?: number | null;
+    last_page_count?: number | null;
+  };
+  const run = (columns: string) =>
+    db
+      .from("reading_progress")
+      .select(columns)
+      .eq("user_id", user.id)
+      .gt("progress_pct", 0)
+      .lt("progress_pct", 100)
+      .order("last_read_at", { ascending: false })
+      .limit(10)
+      .returns<ProgressRow[]>();
+  let read = await run("book_id, progress_pct, last_read_at, last_page, last_page_count");
+  if (read.error && (read.error.code === "42703" || read.error.code === "PGRST204")) {
+    read = await run("book_id, progress_pct, last_read_at");
+  }
 
-  const rows = progress ?? [];
+  const rows = read.data ?? [];
   if (rows.length === 0) return NextResponse.json({ books: [] }, { headers: noStore });
 
   const { data: booksData } = await db
@@ -81,5 +98,14 @@ export async function GET() {
     ];
   });
 
-  return NextResponse.json({ books }, { headers: noStore });
+  // Where each book was left, keyed by slug, for the homepage strip's
+  // "Page 87 of 240" and its resume link. Kept beside `books` rather than on
+  // them: the card type is the card's fields, and a position is not one.
+  const positions: Record<string, { page: number | null; pageCount: number | null }> = {};
+  for (const r of rows) {
+    const b = byId.get(r.book_id);
+    if (b) positions[b.slug] = { page: r.last_page ?? null, pageCount: r.last_page_count ?? null };
+  }
+
+  return NextResponse.json({ books, positions }, { headers: noStore });
 }

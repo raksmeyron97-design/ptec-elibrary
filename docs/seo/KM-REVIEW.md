@@ -50,3 +50,8 @@ System Settings (the /km title suffix and `og:site_name`).
   No page reads this file; an approved pair is copied into
   `content/hub-intros.json`.
 | 6 | `/contact` map placeholder button (`contact.showMap`, decision P6-1) | `បង្ហាញផែនទី` | "Show the map" | sits under the existing `ទីតាំង` ("Find us") heading; the map loads only after the press |
+| Home 2026-10 | Homepage shelf, third tab (`home.tabTheses`) | `សារណា` | "Theses" | `home.recentTypeThesis` verbatim |
+| Home 2026-10 | the same tab's list label, read by screen readers (`home.browseListTheses`) | `សារណាដែលគេអានច្រើនជាងគេ` | "Most-read theses" | `សារណា` + `ដែលគេអានច្រើនជាងគេ` (new phrasing — "most read") |
+| Home 2026-10 | the same tab when empty (`home.browseEmptyTheses`) | `មិនទាន់មានសារណាផ្សាយនៅឡើយទេ។` | "No theses published yet." | `home.browseEmptyTrending` with `ធនធាន` → `សារណា` |
+| Home 2026-10 | Visit band, screen-reader caption of the week's hours table (`home.libraryNowWeekLabel`) | `ម៉ោងបើកទ្វារសប្ដាហ៍នេះ` | "Opening hours this week" | `ម៉ោងបើកទ្វារ` (`home.libraryNowHoursLink`) + `សប្ដាហ៍នេះ` |
+| Home 2026-10 | News band, contribution rows (`home.growDepositShort`, `home.growRequestShort`) | `បានបញ្ចប់និក្ខេបបទ របាយការណ៍ស្រាវជ្រាវ ឬធនធានបង្រៀនហើយឬ?` · `កំពុងស្វែងរកអ្វីដែលបណ្ណាល័យមិនទាន់មាន?` | "Finished a thesis, a research report or a teaching resource?" · "Looking for something the library does not hold yet?" | the first sentence of `home.growDepositBody` / `home.growRequestBody`, verbatim — listed only so a reviewer knows they now also stand alone |

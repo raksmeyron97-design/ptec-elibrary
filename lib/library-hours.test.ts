@@ -3,6 +3,7 @@ import {
   parseOpeningHours,
   getLibraryStatus,
   formatTimeLabel,
+  weekdayName,
 } from "./library-hours";
 
 // The PTEC spec: weekdays 7–17, Saturday 8–16, Sunday closed.
@@ -75,5 +76,19 @@ describe("formatTimeLabel", () => {
   it("uses 24-hour clock for Khmer", () => {
     expect(formatTimeLabel(1020, "km")).toBe("17:00");
     expect(formatTimeLabel(480, "km")).toBe("8:00");
+  });
+});
+
+describe("weekdayName — fixed names, identical on server and client", () => {
+  it("names every weekday in both languages, Sunday = 0", () => {
+    expect([0, 1, 2, 3, 4, 5, 6].map((d) => weekdayName(d, "en"))).toEqual(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
+    expect(weekdayName(1, "km")).toBe("ចន្ទ");
+    expect(weekdayName(4, "km")).toBe("ព្រហស្បតិ៍");
+    expect(weekdayName(0, "km")).toBe("អាទិត្យ");
+  });
+
+  it("wraps out-of-range weekdays rather than printing undefined", () => {
+    expect(weekdayName(7, "en")).toBe("Sun");
+    expect(weekdayName(-1, "km")).toBe("សៅរ៍");
   });
 });

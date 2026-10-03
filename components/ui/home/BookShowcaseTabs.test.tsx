@@ -14,11 +14,11 @@ vi.mock("@/i18n/navigation", () => ({
     createElement("a", { href, ...rest }, children),
 }));
 
-// BookCard reaches image/analytics plumbing that is irrelevant here — the
-// subject of this file is the tab semantics, not the card.
-vi.mock("@/components/ui/books/BookCard", () => ({
-  default: ({ book }: { book: { slug: string; title: string } }) =>
-    createElement("article", null, book.title),
+// The cover reaches image plumbing that is irrelevant here — the subject of
+// this file is the tab semantics, not the cover.
+vi.mock("./ShelfCover", () => ({
+  default: ({ item }: { item: { kind: string; title?: string; book?: { title: string } } }) =>
+    createElement("article", null, item.kind === "book" ? item.book!.title : item.title),
 }));
 
 
@@ -30,6 +30,9 @@ const TRENDING = [book("a", "Trending A"), book("b", "Trending B")];
 const RECENT = [book("c", "Recent C")];
 const DEPTS = ["Mathematics"];
 const DEPT_BOOKS = { Mathematics: [book("d", "Maths D")] };
+const THESES = [
+  { kind: "thesis" as const, id: "t1", href: "/theses/t1", title: "Thesis T1", author: "A", typeLabel: "Thesis" },
+];
 
 function renderTabs(messages: Record<string, unknown> = enMessages, locale = "en") {
   return render(
@@ -37,9 +40,9 @@ function renderTabs(messages: Record<string, unknown> = enMessages, locale = "en
       <BookShowcaseTabs
         trending={TRENDING}
         recent={RECENT}
+        theses={THESES}
         depts={DEPTS}
         deptBooks={DEPT_BOOKS}
-        layout="grid"
       />
     </NextIntlClientProvider>,
   );
@@ -61,7 +64,12 @@ describe("BookShowcaseTabs — WAI-ARIA tabs pattern", () => {
     expect(panel.getAttribute("aria-labelledby")).toBe(selected()[0].id);
   });
 
-  it("moves selection with Arrow/Home/End keys", () => {
+  it("offers three tabs: Trending, Recently Added, Theses", () => {
+    renderTabs();
+    expect(tabs().map((t) => t.textContent)).toEqual(["Trending", "Recently Added", "Theses"]);
+  });
+
+  it("moves selection with Arrow/Home/End keys, wrapping at both ends", () => {
     renderTabs();
 
     tabs()[0].focus();
@@ -71,30 +79,68 @@ describe("BookShowcaseTabs — WAI-ARIA tabs pattern", () => {
     // otherwise the next arrow press goes to the tab the user just left.
     expect(selected()[0]).toHaveFocus();
 
+    fireEvent.keyDown(document.activeElement!, { key: "ArrowRight" });
+    expect(selected()[0]).toHaveTextContent("Theses");
+    fireEvent.keyDown(document.activeElement!, { key: "ArrowRight" });
+    expect(selected()[0]).toHaveTextContent("Trending");
+    fireEvent.keyDown(document.activeElement!, { key: "ArrowLeft" });
+    expect(selected()[0]).toHaveTextContent("Theses");
+
     fireEvent.keyDown(document.activeElement!, { key: "Home" });
     expect(selected()[0]).toHaveTextContent("Trending");
 
     fireEvent.keyDown(document.activeElement!, { key: "End" });
-    expect(selected()[0]).toHaveTextContent("Recently Added");
+    expect(selected()[0]).toHaveTextContent("Theses");
+    expect(selected()[0]).toHaveFocus();
   });
 
-  // The defect this file exists for. `aria-selected` used to be
-  // `key === tab && !activeDept`, so choosing a department left a tablist with
-  // NO selected tab — and, because every department's books are ordered by
-  // download count, the still-lit "Recently Added" label described an order the
-  // panel was not in.
-  it("keeps exactly one tab selected when a department filter is applied", () => {
+  it("shows the theses in the Theses tab", () => {
     renderTabs();
+    fireEvent.click(screen.getByRole("tab", { name: "Theses" }));
+    expect(screen.getByRole("tabpanel")).toHaveTextContent("Thesis T1");
+    expect(screen.getByRole("tabpanel")).not.toHaveTextContent("Trending A");
+  });
+
+  it("shows the department chips on Trending only", () => {
+    renderTabs();
+    const label = enMessages.home.deptFilterLabel;
+    expect(screen.getByRole("group", { name: label })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Recently Added" }));
+    expect(screen.queryByRole("group", { name: label })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Theses" }));
+    expect(screen.queryByRole("group", { name: label })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Trending" }));
+    expect(screen.getByRole("group", { name: label })).toBeInTheDocument();
+  });
+
+  // `aria-selected` used to be `key === tab && !activeDept`, so choosing a
+  // department left a tablist with NO selected tab. Every department's books
+  // are download-ranked, so the honest selected tab is Trending — and leaving
+  // Trending must drop the department filter with its chips.
+  it("keeps exactly one tab selected through a department filter", () => {
+    renderTabs();
+
+    fireEvent.click(screen.getByRole("button", { name: "Mathematics" }));
+    expect(selected()).toHaveLength(1);
+    expect(selected()[0]).toHaveTextContent("Trending");
+    expect(screen.getByRole("tabpanel")).toHaveTextContent("Maths D");
 
     fireEvent.click(screen.getByRole("tab", { name: "Recently Added" }));
     expect(selected()).toHaveLength(1);
+    expect(screen.getByRole("tabpanel")).toHaveTextContent("Recent C");
+    expect(screen.getByRole("tabpanel")).not.toHaveTextContent("Maths D");
+  });
 
-    fireEvent.click(screen.getByRole("button", { name: "Mathematics" }));
-
-    expect(selected()).toHaveLength(1);
-    // Department books are download-ranked, so the honest label is Trending.
-    expect(selected()[0]).toHaveTextContent("Trending");
-    expect(screen.getByRole("tabpanel")).toHaveTextContent("Maths D");
+  it("shows at most six items in a tab", () => {
+    const many = Array.from({ length: 9 }, (_, i) => book(`m${i}`, `Many ${i}`));
+    render(
+      <NextIntlClientProvider locale="en" messages={enMessages}>
+        <BookShowcaseTabs trending={many} recent={[]} />
+      </NextIntlClientProvider>,
+    );
+    expect(within(screen.getByRole("tabpanel")).getAllByRole("article")).toHaveLength(6);
   });
 
   it("exposes department chip state as aria-pressed, not colour alone", () => {
@@ -118,7 +164,7 @@ describe("BookShowcaseTabs — bilingual", () => {
   it("takes the tablist and empty-state strings from the message catalogue", () => {
     render(
       <NextIntlClientProvider locale="km" messages={kmMessages}>
-        <BookShowcaseTabs trending={[]} recent={[]} layout="grid" />
+        <BookShowcaseTabs trending={[]} recent={[]} />
       </NextIntlClientProvider>,
     );
 

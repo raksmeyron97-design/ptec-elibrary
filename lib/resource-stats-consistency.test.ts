@@ -202,17 +202,27 @@ describe("display defects stay fixed", () => {
     // `<span aria-hidden>110+</span><span className="sr-only">115</span>` has
     // no separator in the DOM's text content — copy/paste, search snippets and
     // any CSS-less render concatenated it to "110+115".
-    const src = read("components/ui/home/SignupCta.tsx");
+    // The homepage's figures live in the figures band (TrustBar); the
+    // sign-up banner that used to carry them is gone.
+    const src = read("components/ui/home/TrustBar.tsx");
     expect(src).not.toContain("formatApproximateCount");
     expect(src).not.toMatch(/aria-hidden>\{value\}<\/span>\s*<span className="sr-only">/);
   });
 
   it("the homepage states the resource count under exactly one label", () => {
-    const src = read("components/ui/home/SignupCta.tsx");
     // "N educational resources" in prose PLUS "N Digital resources" in the
-    // stat strip read as two different, disagreeing metrics.
-    expect(src).not.toContain('t("ctaBody"');
-    expect(src).toContain('t("statDigitalResources")');
+    // stat strip read as two different, disagreeing metrics. The total is
+    // stated once, in the figures band under the hero (<TrustBar />); the
+    // sign-up banner that used to repeat it is gone.
+
+    const trust = read("components/ui/home/TrustBar.tsx");
+    expect(trust).toContain("stats.totalDigitalResources");
+    expect(trust).toContain('t("trustDigitalLabel")');
+
+    const page = read("app/[locale]/(public)/(home)/page.tsx");
+    expect(page.match(/<TrustBar\b/g) ?? []).toHaveLength(1);
+    expect(page).not.toContain('t("ctaBody"');
+    expect(page).not.toContain('t("statDigitalResources")');
   });
 
   it("the retired count-bearing message keys are gone from both locales", () => {

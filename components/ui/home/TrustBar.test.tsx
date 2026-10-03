@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
 import { resolveServerTree } from "@/components/ui/publications/article/test-utils";
+import { FOUNDING_YEAR } from "@/lib/about/content";
 import TrustBar, { PHYSICAL_CATALOG_MIN_DISPLAY } from "./TrustBar";
 
 // Server components read their strings through next-intl/server. Serve them
@@ -134,5 +135,24 @@ describe("TrustBar — the grid tracks the number of tiles, not the breakpoint",
     expect(cls).toContain("grid-cols-3");
     expect(cls).toContain("sm:grid-cols-2");
     expect(cls).toContain("lg:grid-cols-3");
+  });
+});
+
+describe("TrustBar — figures named for the cross-surface e2e checks", () => {
+  it("marks each figure and its value, in tile order", async () => {
+    getCollectionStats.mockResolvedValue(stats(300));
+    const { container } = render(await resolveServerTree(<TrustBar />));
+    const keys = [...container.querySelectorAll("[data-stat]")].map((el) => el.getAttribute("data-stat"));
+    expect(keys).toEqual(["digital", "physical", "since"]);
+    expect(container.querySelector('[data-stat="digital"] [data-stat-value]')?.textContent).toBe("1,734");
+    // The year is printed raw, never grouped.
+    expect(container.querySelector('[data-stat="since"] [data-stat-value]')?.textContent).toBe(String(FOUNDING_YEAR));
+  });
+
+  it("names no figure the floor removed", async () => {
+    getCollectionStats.mockResolvedValue(stats(PHYSICAL_CATALOG_MIN_DISPLAY - 1));
+    const { container } = render(await resolveServerTree(<TrustBar />));
+    expect(container.querySelector('[data-stat="physical"]')).toBeNull();
+    expect(container.querySelector('[data-stat="digital"]')).not.toBeNull();
   });
 });

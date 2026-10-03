@@ -17,7 +17,7 @@
 // the server: the homepage must not read cookies() or it stops prerendering.
 // This is a display rule only — submitBookRequest() re-checks auth server-side.
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 // Plain next/link: /auth/* sits outside the locale routing scheme.
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -50,10 +50,15 @@ export default function ContributeDialog({
   kind,
   triggerClassName,
   triggerLabel,
+  triggerContent,
 }: {
   kind: BookRequestKind;
   triggerClassName: string;
   triggerLabel: string;
+  /** Replaces the trigger's default icon + label — for a trigger that is a
+   *  whole action row rather than a button. It must still contain the label
+   *  text, which is the button's accessible name. */
+  triggerContent?: ReactNode;
 }) {
   const Icon = ICONS[kind];
   const t = useTranslations("home");
@@ -151,8 +156,12 @@ export default function ContributeDialog({
   return (
     <>
       <button type="button" onClick={open} className={triggerClassName}>
-        <Icon className="h-4 w-4" aria-hidden strokeWidth={2} />
-        {triggerLabel}
+        {triggerContent ?? (
+          <>
+            <Icon className="h-4 w-4" aria-hidden strokeWidth={2} />
+            {triggerLabel}
+          </>
+        )}
       </button>
 
       <dialog

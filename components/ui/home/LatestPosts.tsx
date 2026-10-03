@@ -1,9 +1,15 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+// components/ui/home/LatestPosts.tsx
+// The left column of the homepage News band: the newest post as a feature
+// card led by a date plate, then up to three compact rows.
+//
+// No cover images. The date is what makes news news, and printing it large on
+// the plate gives every post the same strong opening whether or not an editor
+// uploaded a picture — the old cards fell back to a gradient with the title
+// written on it twice.
 import { Link } from "@/i18n/navigation";
-import Image from "next/image";
-import { useTranslations, useLocale } from 'next-intl';
-import { formatPtecDate } from "@/lib/posts/event-status";
-import { HomeSection, SectionHeader, SectionMobileLink } from "./HomeSection";
+import { useTranslations, useLocale } from "next-intl";
+import { ArrowRight } from "lucide-react";
+import { formatDateParts, formatPtecDate } from "@/lib/posts/event-status";
 
 export type LatestPost = {
   id: string;
@@ -17,235 +23,106 @@ export type LatestPost = {
   views: number;
 };
 
-type Props = { posts: LatestPost[] };
+/** Most posts the band shows: the feature card plus three rows. */
+export const LATEST_POSTS_SHOWN = 4;
 
-/* ── helpers ──────────────────────────────────────────────────────────── */
-// Dates go through formatPtecDate, not toLocaleDateString: it renders in the
-// library's own timezone so the server and this client component agree on the
-// day near midnight, and it follows the active locale instead of pinning every
-// date on the Khmer homepage to en-US.
-function formatDate(iso: string | null, locale: string): string {
-  return formatPtecDate(iso, locale);
-}
-function timeAgo(iso: string | null, t: any, locale: string): string {
-  if (!iso) return "";
-  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
-  if (days === 0) return t('today');
-  if (days === 1) return t('yesterday');
-  if (days < 7) return t('daysAgo', { days });
-  if (days < 30) return t('weeksAgo', { weeks: Math.floor(days / 7) });
-  return formatDate(iso, locale);
-}
-
-const categoryStyles: Record<string, { bg: string; text: string; dot: string }> = {
-  Research:     { bg: "bg-brand/5",   text: "text-brand",                          dot: "bg-brand" },
-  Announcement: { bg: "bg-gold-50",   text: "text-gold-700 dark:text-accent-text", dot: "bg-accent" },
-  Event:        { bg: "bg-brand/5",   text: "text-brand",                          dot: "bg-brand" },
-  Journal:      { bg: "bg-gold-50",   text: "text-gold-700 dark:text-accent-text", dot: "bg-accent" },
-  Other:        { bg: "bg-paper",     text: "text-text-muted",                     dot: "bg-divider" },
+const CATEGORY_KEY: Record<string, string> = {
+  Research: "categoryResearch",
+  Announcement: "categoryAnnouncement",
+  Event: "categoryEvent",
+  Journal: "categoryJournal",
 };
 
-const bannerColors = [
-  "from-blue-700 to-blue-950",
-  "from-blue-900 to-blue-950",
-  "from-gold-700 to-gold-500",
-  "from-blue-800 to-blue-700",
-  "from-blue-950 to-blue-800",
-];
-function pickBanner(title: string): string {
-  let hash = 0;
-  for (let i = 0; i < title.length; i++) hash = title.charCodeAt(i) + ((hash << 5) - hash);
-  return bannerColors[Math.abs(hash) % bannerColors.length];
-}
-
-function CategoryBadge({ category, tPosts }: { category: string; tPosts: any }) {
-  const s = categoryStyles[category] ?? categoryStyles.Other;
-  const translated = category === "Research" ? tPosts("categoryResearch")
-    : category === "Announcement" ? tPosts("categoryAnnouncement")
-    : category === "Event" ? tPosts("categoryEvent")
-    : category === "Journal" ? tPosts("categoryJournal")
-    : tPosts("categoryOther");
-
+/** The navy date block. `size` = the feature card's plate or a row's 64 px one. */
+function DatePlate({ iso, size }: { iso: string | null; size: "feature" | "row" }) {
+  const locale = useLocale();
+  const parts = formatDateParts(iso, locale);
+  if (!parts) return null;
+  const feature = size === "feature";
+  // Khmer month names are not cased, and tracking breaks their stacked marks.
+  const monthType = locale === "km" ? "tracking-normal" : "uppercase tracking-[0.14em]";
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full bg-bg-surface/95 px-3 py-1.5 text-[11px] font-bold ${s.text} shadow-sm backdrop-blur-md`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
-      {translated}
+    <span
+      aria-hidden
+      className={`relative flex shrink-0 flex-col items-center justify-center overflow-hidden rounded-lg bg-plate text-center ${
+        feature ? "h-[104px] w-[84px] pb-1 sm:h-[132px] sm:w-[112px]" : "h-16 w-16 pb-0.5"
+      }`}
+    >
+      <span className={`font-serif font-semibold leading-none text-white ${feature ? "text-[34px] sm:text-[44px]" : "text-[24px]"}`}>
+        {parts.day}
+      </span>
+      <span className={`mt-1 font-bold text-gold-400 ${monthType} ${feature ? "text-[13px]" : "text-[10.5px]"}`}>
+        {parts.month}
+      </span>
+      {feature && <span className="mt-0.5 text-[12px] text-blue-100">{parts.year}</span>}
+      <span className="absolute inset-x-0 bottom-0 h-[3px] bg-accent" />
     </span>
   );
 }
 
-function MetaRow({ createdAt, t, locale }: { createdAt: string | null; t: any; locale: string }) {
-  const absolute = formatDate(createdAt, locale);
-  // timeAgo falls back to the absolute date once a post is over a month old,
-  // which rendered "Jul 1, 2026 • Jul 1, 2026". Only show the relative half
-  // while it is actually saying something different.
-  const relative = timeAgo(createdAt, t, locale);
-  const showRelative = relative !== "" && relative !== absolute;
-  return (
-    <div className="flex items-center gap-3 text-[12px] font-medium text-text-muted">
-      <span className="flex items-center gap-1.5">
-        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-        {absolute}
-      </span>
-      {showRelative && (
-        <>
-          <span className="text-divider">•</span>
-          <span>{relative}</span>
-        </>
-      )}
-    </div>
-  );
-}
-
-function AuthorChip({ author }: { author: string }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-brand to-blue-700 text-[11px] font-bold text-white shadow-sm">
-        {author.charAt(0).toUpperCase()}
-      </div>
-      <span className="max-w-[160px] truncate text-[13px] font-semibold text-text-heading">{author}</span>
-    </div>
-  );
-}
-
-/* ── Featured card — horizontal on desktop ────────────────────────────── */
-function FeaturedCard({ post, t, tPosts }: { post: LatestPost; t: any; tPosts: any }) {
+export default function LatestPosts({ posts }: { posts: LatestPost[] }) {
+  const t = useTranslations("home");
+  const tPosts = useTranslations("posts");
   const locale = useLocale();
-  return (
-    <Link
-      href={`/posts/${post.slug}`}
-      className="group relative flex flex-col overflow-hidden rounded-2xl border border-divider bg-paper shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-brand/20 hover:shadow-xl hover:shadow-brand/5 lg:flex-row"
-    >
-      {/* Animated top bar on hover */}
-      <span
-        aria-hidden
-        className="absolute inset-x-0 top-0 z-20 h-[3px] origin-left scale-x-0 rounded-t-2xl bg-gradient-to-r from-brand via-accent to-brand transition-transform duration-500 group-hover:scale-x-100"
-      />
-
-      {/* Image — full width mobile, left panel desktop */}
-      <div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden lg:aspect-auto lg:min-h-[300px] lg:w-[46%]">
-        {post.coverUrl ? (
-          <Image
-            src={post.coverUrl}
-            alt={post.title}
-            fill
-            // Without this Next defaults to 100vw, which on a 1920 desktop asked
-            // for a 1920px file to fill a 599px slot. MEASURED slot widths:
-            // 341 @375, 419 @1024, 537 @1280, 599 @1440 and @1920 (the panel is
-            // w-full below lg, then lg:w-[46%] of a container that caps ~1440).
-            sizes="(max-width: 1023px) 100vw, (max-width: 1440px) 46vw, 620px"
-            className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
-          />
-        ) : (
-          <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${pickBanner(post.title)} p-8`}>
-            <span className="line-clamp-3 text-center font-khmer-serif text-2xl font-bold leading-snug text-white/90">{post.title}</span>
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent lg:bg-gradient-to-r lg:from-transparent lg:via-transparent lg:to-black/10" />
-        <div className="absolute left-4 top-4 z-10">
-          <CategoryBadge category={post.category} tPosts={tPosts} />
-        </div>
-      </div>
-
-      {/* Text panel */}
-      <div className="flex flex-1 flex-col p-6 sm:p-7 lg:p-9 lg:pl-10">
-        <MetaRow createdAt={post.createdAt} t={t} locale={locale} />
-        <h3 className="mb-3 mt-3 font-khmer-serif text-xl font-bold leading-snug text-text-heading transition-colors group-hover:text-brand sm:text-2xl lg:text-[1.65rem]">
-          {post.title}
-        </h3>
-        {post.excerpt && (
-          <p className="line-clamp-3 text-[14px] leading-relaxed text-text-muted sm:text-[15px]">
-            {post.excerpt}
-          </p>
-        )}
-        <div className="mt-auto flex items-center justify-between border-t border-divider/50 pt-5">
-          <AuthorChip author={post.author} />
-          <span className="inline-flex items-center gap-1.5 rounded-xl bg-brand/8 px-3.5 py-2 text-[13px] font-semibold text-brand transition-all duration-200 group-hover:bg-brand group-hover:text-brand-contrast">
-            {t('readMore')}
-            <svg className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-          </span>
-        </div>
-      </div>
-    </Link>
-  );
-}
-
-/* ── Small card — stacked in 3-col grid below featured ───────────────── */
-function SmallCard({ post, tPosts }: { post: LatestPost; tPosts: any }) {
-  const locale = useLocale();
-  const s = categoryStyles[post.category] ?? categoryStyles.Other;
-  const translated = post.category === "Research" ? tPosts("categoryResearch")
-    : post.category === "Announcement" ? tPosts("categoryAnnouncement")
-    : post.category === "Event" ? tPosts("categoryEvent")
-    : post.category === "Journal" ? tPosts("categoryJournal")
-    : tPosts("categoryOther");
-
-  return (
-    <Link
-      href={`/posts/${post.slug}`}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-divider bg-paper shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-brand/20 hover:shadow-md"
-    >
-      {/* Image */}
-      <div className="relative aspect-[16/9] w-full overflow-hidden">
-        {post.coverUrl ? (
-          <Image src={post.coverUrl} alt={post.title} fill sizes="(max-width: 768px) 100vw, 400px" className="object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
-        ) : (
-          <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${pickBanner(post.title)} p-4`}>
-            <span className="line-clamp-2 text-center font-khmer-serif text-sm font-bold text-white/90">{post.title}</span>
-          </div>
-        )}
-      </div>
-      {/* Text */}
-      <div className="flex flex-1 flex-col p-4 sm:p-5">
-        <span className={`mb-2 inline-flex w-fit items-center gap-1 text-[10px] font-bold uppercase tracking-wide ${s.text}`}>
-          <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
-          {translated}
-        </span>
-        <h4 className="line-clamp-2 font-khmer-serif text-[15px] font-bold leading-snug text-text-heading transition-colors group-hover:text-brand sm:text-[16px]">
-          {post.title}
-        </h4>
-        <p className="mt-auto pt-3 text-[11px] font-medium text-text-muted">
-          {formatDate(post.createdAt, locale)}
-        </p>
-      </div>
-    </Link>
-  );
-}
-
-/* ── Section ──────────────────────────────────────────────────────────── */
-export default function LatestPosts({ posts }: Props) {
-  const t = useTranslations('home');
-  const tPosts = useTranslations('posts');
 
   if (!posts || posts.length === 0) return null;
 
-  const [featured, ...rest] = posts;
-  const smallCards = rest.slice(0, 3);
-  const viewAll = { href: "/posts", label: t('viewAllPosts') };
+  const [featured, ...rest] = posts.slice(0, LATEST_POSTS_SHOWN);
+  const category = (c: string) => tPosts(CATEGORY_KEY[c] ?? "categoryOther");
 
   return (
-    <HomeSection surface="surface" labelledBy="latest-posts-title">
-      <SectionHeader
-        id="latest-posts-title"
-        eyebrow={t('stayUpdated')}
-        title={t('latestInsights')}
-        lede={t('discoverLatest')}
-        action={viewAll}
-      />
-
-      {/* Featured card — full width, horizontal on desktop */}
-      <FeaturedCard post={featured} t={t} tPosts={tPosts} />
-
-      {/* 3-column small cards below */}
-      {smallCards.length > 0 && (
-        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-5">
-          {smallCards.map((post) => (
-            <SmallCard key={post.id} post={post} tPosts={tPosts} />
-          ))}
+    <div className="min-w-0">
+      {/* ── Feature card — the newest post ── */}
+      <article className="group relative flex gap-4 rounded-xl border border-border bg-bg-surface p-4 shadow-sm sm:gap-5 transition duration-200 ease-[cubic-bezier(.22,1,.36,1)] hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-5">
+        <DatePlate iso={featured.createdAt} size="feature" />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="inline-flex items-center rounded-full border border-info-line bg-info-soft px-2.5 py-0.5 text-[11.5px] font-bold text-info-text">
+              {category(featured.category)}
+            </span>
+            <span className="text-[12.5px] text-text-muted">{formatPtecDate(featured.createdAt, locale)}</span>
+          </div>
+          {/* The title is the card's link, stretched over the card. */}
+          <h3 className="mt-2 font-record text-[20px] font-bold leading-snug text-text-heading [text-wrap:balance] sm:text-[22px]">
+            <Link
+              href={`/posts/${featured.slug}`}
+              className="rounded-sm transition-colors after:absolute after:inset-0 after:rounded-xl group-hover:text-brand focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-focus-ring/50"
+            >
+              {featured.title}
+            </Link>
+          </h3>
+          {featured.excerpt && (
+            <p className="mt-2 line-clamp-2 text-[14px] leading-relaxed text-text-muted">{featured.excerpt}</p>
+          )}
+          <span className="mt-auto inline-flex items-center gap-1.5 pt-3 text-[13.5px] font-semibold text-brand" aria-hidden>
+            {t("readMore")}
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+          </span>
         </div>
-      )}
+      </article>
 
-      <SectionMobileLink {...viewAll} />
-    </HomeSection>
+      {/* ── Up to three more, as compact rows ── */}
+      {rest.length > 0 && (
+        <ul className="mt-3 divide-y divide-border rounded-xl border border-border bg-bg-surface shadow-sm">
+          {rest.map((post) => (
+            <li key={post.id}>
+              <Link
+                href={`/posts/${post.slug}`}
+                className="group flex items-center gap-4 p-3 transition-colors hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring/50"
+              >
+                <DatePlate iso={post.createdAt} size="row" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[11.5px] font-bold text-accent-text">{category(post.category)}</span>
+                  <span className="mt-0.5 line-clamp-2 text-[15px] font-semibold leading-snug text-text-heading transition-colors group-hover:text-brand">
+                    {post.title}
+                  </span>
+                  <span className="sr-only"> — {formatPtecDate(post.createdAt, locale)}</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

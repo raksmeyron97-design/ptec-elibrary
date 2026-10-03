@@ -9,31 +9,20 @@ import { getTrendingBooksCached, getTrendingTermsCached } from "@/lib/home-data"
 import { toBookCardList } from "@/lib/books/card-data";
 import { getPublishedPaths } from "@/app/actions/learning-paths";
 import { getHomepagePhotos } from "@/lib/homepage-photos";
-import HeroBookStack from "@/components/ui/home/HeroBookStack";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 // ── Feature components ───────────────────────────────────────────────────────
 import AskLibraryHero from "@/components/ui/home/AskLibraryHero";
 import HeroConstellation from "@/components/ui/home/HeroConstellation";
-import StartWithGoal from "@/components/ui/home/StartWithGoal";
-import CollectionGrid from "@/components/ui/home/CollectionGrid";
-import TrustBar from "@/components/ui/home/TrustBar";
-import NewArrivals from "@/components/ui/home/NewArrivals";
-import ForYouShelf from "@/components/ui/home/ForYouShelf";
-import GrowTheCollection from "@/components/ui/home/GrowTheCollection";
+import HeroBookStack from "@/components/ui/home/HeroBookStack";
 import MobileFeaturedStrip from "@/components/ui/home/MobileFeaturedStrip";
 import QuickAccessRow from "@/components/ui/home/QuickAccessRow";
+import TrustBar from "@/components/ui/home/TrustBar";
 import BrowseBooksSection from "@/components/ui/home/BrowseBooksSection";
-import CategoryGrid from "@/components/ui/home/CategoryGrid";
-import TrendingResearch from "@/components/ui/home/TrendingResearch";
+import StartHere from "@/components/ui/home/StartHere";
 import LatestPostsSection from "@/components/ui/home/LatestPostsSection";
 import LibraryNow from "@/components/ui/home/LibraryNow";
-import HeroPhotoGallery, { HERO_PHOTO_COUNT } from "@/components/ui/home/HeroPhotoGallery";
-import NarrativeCards, { NARRATIVE_PHOTO_COUNT } from "@/components/ui/home/NarrativeCards";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import FaqSection, { homeFaqNode } from "@/components/ui/home/FaqSection";
-import SignupCta from "@/components/ui/home/SignupCta";
-import SignedOutOnly from "@/components/ui/home/SignedOutOnly";
-import ContinueReadingSwap from "@/components/ui/home/ContinueReadingSwap";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 
@@ -117,9 +106,11 @@ export async function generateMetadata({
 // Public list data comes from lib/home-data.ts (unstable_cache, 5-min TTL).
 // NOTHING in this route may read cookies() or headers(). Suspense does not
 // buy an exemption: without PPR, one cookie read anywhere in the tree makes the
-// whole route render per request — which is exactly what the old
-// <SignupCta>/<ForYouShelf> auth checks did. Both are now client islands fed by
-// <SessionProvider>, and this page prerenders.
+// whole route render per request — which is exactly what the old sign-up
+// banner and For-you shelf auth checks did. Everything per-reader is now a
+// client island fed by <SessionProvider> (<SignedOutOnly> around the FAQ's
+// sign-up card, <ContinueReadingStrip> above the shelf), and this page
+// prerenders.
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
@@ -155,16 +146,10 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     getSiteConfig(),
   ]);
 
-  // Admin-managed gallery (/admin/homepage-photos). One fetch, sliced by
-  // position: the first three photos build the mosaic, the next three the
-  // narrative cards. Both components return null when their slice is short,
-  // so an empty or partly-filled gallery simply removes its own section.
+  // Admin-managed gallery (/admin/homepage-photos). The Visit band shows
+  // ONE photograph — the first in the admin's order — and falls back to the
+  // building when the gallery is empty.
   const galleryPhotos = await getHomepagePhotos(locale);
-  const mosaicPhotos = galleryPhotos.slice(0, HERO_PHOTO_COUNT);
-  const narrativePhotos = galleryPhotos.slice(
-    HERO_PHOTO_COUNT,
-    HERO_PHOTO_COUNT + NARRATIVE_PHOTO_COUNT,
-  );
 
   const heroBooks = trendingBooks.slice(0, 8).map((b) => ({
     slug: b.slug,
@@ -175,10 +160,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     department: b.department,
   }));
 
-  // One narrowing for both shelves that render cards from this set. The
-  // cards are client components, so this is the homepage's serialisation
-  // boundary: `trendingBooks` is a full `Book[]`, and of its fields the card
-  // renders 13.
+  // The shelf's covers are client components, so this is the homepage's
+  // serialisation boundary: `trendingBooks` is a full `Book[]`, and the card
+  // type keeps only the fields a card may draw.
   const trendingCards = toBookCardList(trendingBooks);
 
   const latinEyebrow = locale === "en" ? "uppercase tracking-[0.22em]" : "tracking-normal";
@@ -361,34 +345,20 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       </section>
 
       {/* ════════ THE ORDER BELOW THE HERO ════════════════════════════════
-          Three passes over one question: what does a reader who just landed
-          need next?
+          The hero above is the ORIGINAL one, kept as it was by the owner's
+          choice (2026-10-03): photograph, constellation, rotating book stack,
+          and the figures band directly under it. Below it, the redesigned
+          bands:
 
-          1. ORIENT — TrustBar (how big is this?), StartWithGoal (what am I
-             here to do?), CollectionGrid (what is in it?).
-          2. DISCOVER — the shelves, in decreasing generality: popular, the
-             full tabbed browse, by subject, newest, most-read research.
-          3. ACT / VISIT — contribute, read the news, see the place, come in,
-             ask a question, sign up.
+          1. Start here  — what is in the library beside what you came to do.
+          2. Browse      — ONE shelf: Trending · Recently Added · Theses.
+          3. News        — the newest posts, beside the contribution card.
+          4. Visit       — the library's status and hours, one photograph.
+          5. FAQ         — the front desk's questions, with the sign-up card.
 
-          Two moves against the previous order, both measured on a 375 px
-          phone against the live site:
-
-          • The photo gallery LEFT slot 2. It put 876 px of photographs
-            between the search box and the first book cover, so the first
-            cover sat five screens down. It now introduces <NarrativeCards>
-            and <LibraryNow> — the bands about the physical library — which
-            is the subject the photographs are actually about.
-          • <GrowTheCollection> MOVED AFTER discovery. "Tell us what's
-            missing" is a question for a reader who has just looked and not
-            found it, not for one who has seen nothing yet.
-
-          Backgrounds alternate paper / surface down the page and every card
-          wears the opposite ground, so a card is never invisible on its own
-          band. Each band declares its own `surface` (see HomeSection.tsx)
-          because the optional bands hide themselves and the page cannot know
-          at render time which neighbours survive; where one does hide, two
-          same-coloured bands meet and their divider still separates them. */}
+          Grounds alternate paper / surface and every card wears the opposite
+          ground, so a card is never invisible on its own band. Each band
+          declares its own `surface` (see HomeSection.tsx). */}
 
       {/* ════════ TRUST BAR — verifiable figures, directly under the hero ════
           Deliberately NOT wrapped in .cv-auto: it sits in the initial viewport
@@ -396,11 +366,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           browser is about to need anyway. Every figure comes from
           getCollectionStats(); nothing here is estimated. */}
       <TrustBar />
-
-      {/* ════════ START WITH YOUR GOAL — task-first discovery ════════════════
-          Wired to real learning paths (or curated routes); no data round-trip
-          beyond the paths already fetched above, so it renders immediately. */}
-      <StartWithGoal paths={paths} />
 
       {/* Below-the-fold sections are wrapped in .cv-auto (content-visibility)
           so the browser skips their layout/paint work until scrolled near.
@@ -410,119 +375,55 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           see .cv-auto in globals.css — so when a section grows, raise its
           number rather than trimming it. */}
 
-      {/* ════════ BROWSE BY COLLECTION — the four collections as equal cards ══
-          Answers "what is actually in here?" for the reader who cannot yet
-          name what they want and so has nothing to type into the hero search.
-          Collections and counts are read from the nav config and
-          getCollectionStats() respectively — see the component header. */}
-      <div className="cv-auto [--cv-reserve:1000px] lg:[--cv-reserve:560px]">
-        <Suspense fallback={<div className="h-96 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
-          <CollectionGrid />
+      {/* ════════ START HERE — collections (7/12) beside goals (5/12) ════════
+          Collections are read from the nav config, counts from
+          getCollectionStats(), goals from the published learning paths
+          already fetched above. Replaces three bands: Start with your goal,
+          Browse by Collection and Browse by Subject. */}
+      <div className="cv-auto [--cv-reserve:1500px] lg:[--cv-reserve:780px]">
+        <Suspense fallback={<div className="h-[780px] animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
+          <StartHere paths={paths} />
         </Suspense>
       </div>
 
-      {/* ════════ POPULAR / CONTINUE READING ════════
-          The public "popular" shelf is server-rendered into the prerendered
-          HTML; ContinueReadingSwap replaces it after hydration for the
-          signed-in users who have reading in progress. Deciding this
-          server-side is what used to make the whole homepage dynamic. */}
-      <ContinueReadingSwap>
-        <ForYouShelf popularBooks={trendingCards} />
-      </ContinueReadingSwap>
-
-      {/* ════════ COLLECTION PREVIEW — ≤8 cards, 4-per-row, tabbed ════════ */}
-      <div className="cv-auto [--cv-reserve:1950px] lg:[--cv-reserve:1650px]">
+      {/* ════════ BROWSE THE COLLECTION — the one shelf ════════
+          Trending · Recently Added · Theses, ≤ 6 each, plus a Continue-reading
+          strip for signed-in readers (a client island; the shelf itself is
+          identical for everyone and stays prerendered). It replaces four
+          bands that showed overlapping sets of the same books. */}
+      <div className="cv-auto [--cv-reserve:900px] lg:[--cv-reserve:1020px]">
         <Suspense fallback={<BrowseBooksSkeleton />}>
           <BrowseBooksSection trendingBooks={trendingCards} />
         </Suspense>
       </div>
 
-      {/* ════════ BROWSE BY SUBJECT ════════ */}
-      <div className="cv-auto [--cv-reserve:580px] lg:[--cv-reserve:600px]">
-        <Suspense fallback={<div className="h-48 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
-          <CategoryGrid />
-        </Suspense>
-      </div>
-
-      {/* ════════ NEW THIS WEEK — chronological, across all three types ══════
-          Purely "what arrived most recently". Since <ThisWeekAtPtec> was
-          replaced by <GrowTheCollection>, this is the only curated-by-date
-          band left, so it no longer has a sibling to differentiate from. */}
-      <div className="cv-auto [--cv-reserve:1080px] lg:[--cv-reserve:830px]">
-        <Suspense fallback={<div className="h-72 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
-          <NewArrivals />
-        </Suspense>
-      </div>
-
-      {/* ════════ TRENDING RESEARCH — top-5 theses by reader activity ════════ */}
-      <div className="cv-auto [--cv-reserve:1000px] lg:[--cv-reserve:700px]">
-        <Suspense fallback={<div className="h-64 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
-          <TrendingResearch />
-        </Suspense>
-      </div>
-
-      {/* ════════ GROW THE COLLECTION — the contribution band ════════
-          Replaces "This week at PTEC" / "New and noteworthy", which was a fifth
-          view of the same handful of books the shelves above already showed
-          (audit: 32 resource links on this page resolved to 16 unique items).
-          This slot ASKS rather than displays, because the collection's real
-          constraint is its size. Both doors land in the existing
-          /admin/book-requests queue via the `kind` column from migration 0119. */}
-      <div className="cv-auto [--cv-reserve:1000px] lg:[--cv-reserve:680px]">
-        <Suspense fallback={<div className="h-80 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
-          <GrowTheCollection />
-        </Suspense>
-      </div>
-
-      {/* ════════ NEWS & EVENTS ════════
-          The site's only news band now that <ThisWeekAtPtec> is gone — a
-          featured post plus three more, with its own "view all posts" exit to
-          /posts. */}
-      <div className="cv-auto [--cv-reserve:1300px] lg:[--cv-reserve:1060px]">
+      {/* ════════ NEWS & CONTRIBUTE ════════
+          The newest post as a feature card plus up to three rows (8/12),
+          beside the contribution card on the plate (4/12, id="contribute").
+          With no posts, the contribution card takes the band. */}
+      <div className="cv-auto [--cv-reserve:1360px] lg:[--cv-reserve:880px]">
         <Suspense fallback={<LatestPostsSkeleton />}>
           <LatestPostsSection />
         </Suspense>
       </div>
 
-      {/* ════════ LIFE AT THE LIBRARY — admin-managed photo mosaic ════════
-          Editorial, not decorative: it answers "is this place actually used?"
-          Content comes from /admin/homepage-photos, so a new term's photos
-          need no deploy. The section removes itself entirely when no photos
-          are active. Together with <NarrativeCards> below it, it introduces
-          <LibraryNow> — these are photographs of the room that section is
-          inviting the reader into. */}
-      <div className="cv-auto [--cv-reserve:1000px] lg:[--cv-reserve:650px]">
-        <HeroPhotoGallery photos={mosaicPhotos} totalCount={galleryPhotos.length} />
-      </div>
-
-      {/* ════════ FOCUS / DISCOVER / CONNECT — the gallery's second half ════
-          Needs all three slots filled or it renders nothing. */}
-      <div className="cv-auto [--cv-reserve:1000px] lg:[--cv-reserve:700px]">
-        <NarrativeCards photos={narrativePhotos} />
-      </div>
-
-      {/* ════════ LIBRARY NOW — digital ↔ physical bridge (live open/closed) ════════ */}
-      <div className="cv-auto [--cv-reserve:920px] lg:[--cv-reserve:620px]">
+      {/* ════════ VISIT — e-library + physical library status and hours, one photo ════════ */}
+      <div className="cv-auto [--cv-reserve:1400px] lg:[--cv-reserve:940px]">
         <LibraryNow
           openingHoursSpec={[...siteConfig.hours.openingHoursSpec]}
           closures={siteConfig.hours.closures}
           mapPlaceUrl={siteConfig.links.mapPlace}
+          photo={galleryPhotos[0] ?? null}
         />
       </div>
 
-      {/* ════════ FAQ — six real front-desk questions + FAQPage schema ════════
+      {/* ════════ FAQ — six real front-desk questions + FAQPage schema, with the
+          sign-up card (signed-out only) in its left column ════════
           (JSON-LD inside stays in the HTML — content-visibility only skips
           rendering work, not markup, so the FAQPage schema is still crawled) */}
-      <div className="cv-auto [--cv-reserve:760px] lg:[--cv-reserve:560px]">
+      <div className="cv-auto [--cv-reserve:1110px] lg:[--cv-reserve:660px]">
         <FaqSection />
       </div>
-
-      {/* ════════ CTA BANNER — logged-out visitors only ════════
-          Public content; hidden client-side for signed-in users rather than
-          gated on a server auth read (which would make this page dynamic). */}
-      <SignedOutOnly>
-        <SignupCta />
-      </SignedOutOnly>
     </div>
   );
 }
