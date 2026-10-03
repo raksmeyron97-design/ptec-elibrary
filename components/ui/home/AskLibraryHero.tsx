@@ -293,44 +293,48 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
           )}
 
           {/* Trending chips, then Advanced search at the end of the row.
+              The chips wrap in their own group so the link keeps the first
+              line's right edge instead of wrapping alone onto a second line.
               Phones scroll the chips sideways in one row instead of wrapping
-              them into three. */}
-          <div className="-mx-4 flex items-center gap-x-3 py-1 gap-y-2 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
-            {trending.length > 0 && (
-              <span className={`shrink-0 text-[11px] font-bold text-gold-400 ${trendingLabel}`}>
-                {t("trending")}
-              </span>
-            )}
-            {trending.slice(0, 5).map((term) => (
-              <Link
-                key={`t-${term}`}
-                // Honours the chosen scope, like the input and the recent
-                // chips — a chip that ignored it would silently widen the
-                // search the user just narrowed.
-                href={searchHref(term)}
-                // Five chips, five DIFFERENT search results pages, all
-                // prefetched the moment the hero scrolls into view: MEASURED
-                // 39.4 KB compressed each, 197 KB total, to speculate on a
-                // click that lands on at most one of them. They are a
-                // suggestion, not a route the reader has committed to.
-                prefetch={false}
-                // Deliberately still a link, not a <button>: it navigates, so
-                // keeping the href preserves middle-click and open-in-new-tab.
-                // The click also fills the field first, so if the navigation
-                // is slow the user can see what they are searching for.
-                onClick={() => {
-                  setValue(term);
-                  pushRecentSearch(term);
-                }}
-                aria-label={t("trendingPillLabel", { term, scope: tSearch(scopeLabelKey) })}
-                className={`shrink-0 whitespace-nowrap ${chipClass}`}
-              >
-                {term}
-              </Link>
-            ))}
+              them into three, and hide the link. */}
+          <div className="flex items-start gap-x-4">
+            <div className="-mx-4 flex min-w-0 flex-1 items-center gap-x-3 gap-y-2 overflow-x-auto px-4 py-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
+              {trending.length > 0 && (
+                <span className={`shrink-0 text-[11px] font-bold text-gold-400 ${trendingLabel}`}>
+                  {t("trending")}
+                </span>
+              )}
+              {trending.slice(0, 5).map((term) => (
+                <Link
+                  key={`t-${term}`}
+                  // Honours the chosen scope, like the input and the recent
+                  // chips — a chip that ignored it would silently widen the
+                  // search the user just narrowed.
+                  href={searchHref(term)}
+                  // Five chips, five DIFFERENT search results pages, all
+                  // prefetched the moment the hero scrolls into view: MEASURED
+                  // 39.4 KB compressed each, 197 KB total, to speculate on a
+                  // click that lands on at most one of them. They are a
+                  // suggestion, not a route the reader has committed to.
+                  prefetch={false}
+                  // Deliberately still a link, not a <button>: it navigates, so
+                  // keeping the href preserves middle-click and open-in-new-tab.
+                  // The click also fills the field first, so if the navigation
+                  // is slow the user can see what they are searching for.
+                  onClick={() => {
+                    setValue(term);
+                    pushRecentSearch(term);
+                  }}
+                  aria-label={t("trendingPillLabel", { term, scope: tSearch(scopeLabelKey) })}
+                  className={`shrink-0 whitespace-nowrap ${chipClass}`}
+                >
+                  {term}
+                </Link>
+              ))}
+            </div>
             <Link
               href="/search"
-              className="ml-auto hidden shrink-0 rounded-sm text-[13px] font-semibold text-blue-100 underline-offset-2 transition-colors hover:text-white hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/40 sm:inline"
+              className="mt-2 hidden shrink-0 rounded-sm text-[13px] font-semibold text-blue-100 underline-offset-2 transition-colors hover:text-white hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/40 sm:inline"
             >
               {t("searchAdvanced")}
             </Link>

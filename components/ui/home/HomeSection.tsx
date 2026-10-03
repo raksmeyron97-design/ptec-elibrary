@@ -10,9 +10,8 @@
 //
 // Backgrounds alternate paper / surface in PAGE order, and each band's cards
 // wear the opposite surface so they stay lifted. The assignment lives with
-// the band (its `surface` prop) rather than being computed, because optional
-// bands (<TrendingResearch>, <NarrativeCards>) hide themselves inside
-// Suspense and the page cannot know at render time which neighbours exist.
+// the band (its `surface` prop) rather than being computed, so a band's
+// ground is visible where the band is written, not in a page-level index.
 //
 // Deliberately free of server-only imports: <LibraryNow> is a client
 // component and imports these too.

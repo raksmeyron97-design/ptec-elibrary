@@ -207,34 +207,19 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       </section>
 
       {/* ════════ THE ORDER BELOW THE HERO ════════════════════════════════
-          Three passes over one question: what does a reader who just landed
-          need next?
+          Six bands in all (the 2026-10 redesign; it was sixteen):
 
-          1. ORIENT — the hero's figures (how big is this?), StartWithGoal (what am I
-             here to do?), CollectionGrid (what is in it?).
-          2. DISCOVER — the shelves, in decreasing generality: popular, the
-             full tabbed browse, by subject, newest, most-read research.
-          3. ACT / VISIT — contribute, read the news, see the place, come in,
-             ask a question, sign up.
+          1. Hero        — search, popular topics, the three verified figures.
+          2. Start here  — what is in the library beside what you came to do.
+          3. Browse      — ONE shelf: Trending · Recently Added · Theses.
+          4. News        — the newest posts, beside the contribution card.
+          5. Visit       — the library's status and hours, one photograph.
+          6. FAQ         — the front desk's questions, with the sign-up card.
 
-          Two moves against the previous order, both measured on a 375 px
-          phone against the live site:
-
-          • The photo gallery LEFT slot 2. It put 876 px of photographs
-            between the search box and the first book cover, so the first
-            cover sat five screens down. It now introduces <NarrativeCards>
-            and <LibraryNow> — the bands about the physical library — which
-            is the subject the photographs are actually about.
-          • <GrowTheCollection> MOVED AFTER discovery. "Tell us what's
-            missing" is a question for a reader who has just looked and not
-            found it, not for one who has seen nothing yet.
-
-          Backgrounds alternate paper / surface down the page and every card
-          wears the opposite ground, so a card is never invisible on its own
-          band. Each band declares its own `surface` (see HomeSection.tsx)
-          because the optional bands hide themselves and the page cannot know
-          at render time which neighbours survive; where one does hide, two
-          same-coloured bands meet and their divider still separates them. */}
+          Grounds alternate paper / surface and every card wears the opposite
+          ground, so a card is never invisible on its own band. Each band
+          declares its own `surface` (see HomeSection.tsx). No book is shown
+          twice above the footer: the shelf is the only band that shows any. */}
 
       {/* Below-the-fold sections are wrapped in .cv-auto (content-visibility)
           so the browser skips their layout/paint work until scrolled near.
