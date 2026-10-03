@@ -12,7 +12,6 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 // ── Feature components ───────────────────────────────────────────────────────
 import AskLibraryHero from "@/components/ui/home/AskLibraryHero";
 import TrustBar from "@/components/ui/home/TrustBar";
-import GrowTheCollection from "@/components/ui/home/GrowTheCollection";
 import BrowseBooksSection from "@/components/ui/home/BrowseBooksSection";
 import StartHere from "@/components/ui/home/StartHere";
 import LatestPostsSection from "@/components/ui/home/LatestPostsSection";
@@ -267,24 +266,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </Suspense>
       </div>
 
-      {/* ════════ GROW THE COLLECTION — the contribution band ════════
-          Replaces "This week at PTEC" / "New and noteworthy", which was a fifth
-          view of the same handful of books the shelves above already showed
-          (audit: 32 resource links on this page resolved to 16 unique items).
-          This slot ASKS rather than displays, because the collection's real
-          constraint is its size. Both doors land in the existing
-          /admin/book-requests queue via the `kind` column from migration 0119. */}
-      <div className="cv-auto [--cv-reserve:1000px] lg:[--cv-reserve:680px]">
-        <Suspense fallback={<div className="h-80 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
-          <GrowTheCollection />
-        </Suspense>
-      </div>
-
-      {/* ════════ NEWS & EVENTS ════════
-          The site's only news band now that <ThisWeekAtPtec> is gone — a
-          featured post plus three more, with its own "view all posts" exit to
-          /posts. */}
-      <div className="cv-auto [--cv-reserve:1300px] lg:[--cv-reserve:1060px]">
+      {/* ════════ NEWS & CONTRIBUTE ════════
+          The newest post as a feature card plus up to three rows (8/12),
+          beside the contribution card on the plate (4/12, id="contribute").
+          With no posts, the contribution card takes the band. */}
+      <div className="cv-auto [--cv-reserve:1360px] lg:[--cv-reserve:880px]">
         <Suspense fallback={<LatestPostsSkeleton />}>
           <LatestPostsSection />
         </Suspense>

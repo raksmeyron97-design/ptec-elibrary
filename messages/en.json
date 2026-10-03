@@ -539,6 +539,8 @@
     "growDepositSubmit": "Submit work",
     "growRequestTitle": "Request a book",
     "growRequestBody": "Looking for something the library does not hold yet? Tell us the title and why it matters, and we will try to source it or find an open-access alternative.",
+    "growDepositShort": "Finished a thesis, a research report or a teaching resource?",
+    "growRequestShort": "Looking for something the library does not hold yet?",
     "growRequestCta": "Make a request",
     "growRequestIntro": "Can't find what you need? Tell us and we'll try to add it to the library.",
     "growRequestSent": "We'll review your request and add the book if we can source it.",
