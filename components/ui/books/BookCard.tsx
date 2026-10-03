@@ -34,12 +34,6 @@ type BookCardProps = {
   variant?: "browse" | "continue";
   /** Eagerly load the cover (use for above-the-fold cards only). */
   priority?: boolean;
-  /**
-   * Views, downloads and rating under the title. On by default (/books keeps
-   * them); the homepage turns them off — its shelves are for choosing a
-   * book, not for ranking them, and a "3 views" line undersells a new one.
-   */
-  showMetrics?: boolean;
 };
 
 const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
@@ -53,7 +47,7 @@ const formatCount = (n: number) =>
       ? `${(n / 1_000).toFixed(1)}K`
       : String(n);
 
-export default function BookCard({ book, variant = "browse", priority = false, showMetrics = true }: BookCardProps) {
+export default function BookCard({ book, variant = "browse", priority = false }: BookCardProps) {
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => setNow(Date.now()), []);
 
@@ -210,7 +204,7 @@ export default function BookCard({ book, variant = "browse", priority = false, s
             {/* Stats + Rating — browse variant only. Zero-value metrics are
                 hidden: "0 views · 0 downloads · No reviews yet" is anti-proof,
                 not information. */}
-            {!isContinue && showMetrics && ((book.viewCount ?? 0) > 0 || (book.downloadCount ?? 0) > 0 || reviews > 0) && (
+            {!isContinue && ((book.viewCount ?? 0) > 0 || (book.downloadCount ?? 0) > 0 || reviews > 0) && (
               <div className="flex flex-col gap-1.5 sm:mb-2.5">
                 <ResourceMetrics
                   views={book.viewCount}

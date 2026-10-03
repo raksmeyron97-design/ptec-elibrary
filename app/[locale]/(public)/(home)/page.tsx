@@ -14,12 +14,9 @@ import AskLibraryHero from "@/components/ui/home/AskLibraryHero";
 import StartWithGoal from "@/components/ui/home/StartWithGoal";
 import CollectionGrid from "@/components/ui/home/CollectionGrid";
 import TrustBar from "@/components/ui/home/TrustBar";
-import NewArrivals from "@/components/ui/home/NewArrivals";
-import ForYouShelf from "@/components/ui/home/ForYouShelf";
 import GrowTheCollection from "@/components/ui/home/GrowTheCollection";
 import BrowseBooksSection from "@/components/ui/home/BrowseBooksSection";
 import CategoryGrid from "@/components/ui/home/CategoryGrid";
-import TrendingResearch from "@/components/ui/home/TrendingResearch";
 import LatestPostsSection from "@/components/ui/home/LatestPostsSection";
 import LibraryNow from "@/components/ui/home/LibraryNow";
 import HeroPhotoGallery, { HERO_PHOTO_COUNT } from "@/components/ui/home/HeroPhotoGallery";
@@ -28,7 +25,6 @@ import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import FaqSection, { homeFaqNode } from "@/components/ui/home/FaqSection";
 import SignupCta from "@/components/ui/home/SignupCta";
 import SignedOutOnly from "@/components/ui/home/SignedOutOnly";
-import ContinueReadingSwap from "@/components/ui/home/ContinueReadingSwap";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { buildOpenGraph, buildTwitter } from "@/lib/seo/open-graph";
 
@@ -132,10 +128,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     HERO_PHOTO_COUNT + NARRATIVE_PHOTO_COUNT,
   );
 
-  // One narrowing for both shelves that render cards from this set. The
-  // cards are client components, so this is the homepage's serialisation
-  // boundary: `trendingBooks` is a full `Book[]`, and of its fields the card
-  // renders 13.
+  // The shelf's covers are client components, so this is the homepage's
+  // serialisation boundary: `trendingBooks` is a full `Book[]`, and the card
+  // type keeps only the fields a card may draw.
   const trendingCards = toBookCardList(trendingBooks);
 
   const latinEyebrow = locale === "en" ? "uppercase tracking-[0.22em]" : "tracking-normal";
@@ -276,17 +271,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </Suspense>
       </div>
 
-      {/* ════════ POPULAR / CONTINUE READING ════════
-          The public "popular" shelf is server-rendered into the prerendered
-          HTML; ContinueReadingSwap replaces it after hydration for the
-          signed-in users who have reading in progress. Deciding this
-          server-side is what used to make the whole homepage dynamic. */}
-      <ContinueReadingSwap>
-        <ForYouShelf popularBooks={trendingCards} />
-      </ContinueReadingSwap>
-
-      {/* ════════ COLLECTION PREVIEW — ≤8 cards, 4-per-row, tabbed ════════ */}
-      <div className="cv-auto [--cv-reserve:1950px] lg:[--cv-reserve:1650px]">
+      {/* ════════ BROWSE THE COLLECTION — the one shelf ════════
+          Trending · Recently Added · Theses, ≤ 6 each, plus a Continue-reading
+          strip for signed-in readers (a client island; the shelf itself is
+          identical for everyone and stays prerendered). It replaces four
+          bands that showed overlapping sets of the same books. */}
+      <div className="cv-auto [--cv-reserve:900px] lg:[--cv-reserve:1020px]">
         <Suspense fallback={<BrowseBooksSkeleton />}>
           <BrowseBooksSection trendingBooks={trendingCards} />
         </Suspense>
@@ -296,23 +286,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       <div className="cv-auto [--cv-reserve:580px] lg:[--cv-reserve:600px]">
         <Suspense fallback={<div className="h-48 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
           <CategoryGrid />
-        </Suspense>
-      </div>
-
-      {/* ════════ NEW THIS WEEK — chronological, across all three types ══════
-          Purely "what arrived most recently". Since <ThisWeekAtPtec> was
-          replaced by <GrowTheCollection>, this is the only curated-by-date
-          band left, so it no longer has a sibling to differentiate from. */}
-      <div className="cv-auto [--cv-reserve:1080px] lg:[--cv-reserve:830px]">
-        <Suspense fallback={<div className="h-72 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
-          <NewArrivals />
-        </Suspense>
-      </div>
-
-      {/* ════════ TRENDING RESEARCH — top-5 theses by reader activity ════════ */}
-      <div className="cv-auto [--cv-reserve:1000px] lg:[--cv-reserve:700px]">
-        <Suspense fallback={<div className="h-64 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
-          <TrendingResearch />
         </Suspense>
       </div>
 

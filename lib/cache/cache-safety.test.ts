@@ -138,7 +138,7 @@ describe("public cache safety", () => {
             `HTML goes to every visitor, so per-user state must not shape it — and ` +
             `the read would silently drop the page back to per-request rendering. ` +
             `Move the personalised part to a client island fed by <SessionProvider> ` +
-            `(see components/ui/home/ContinueReadingSwap.tsx and SignedOutOnly.tsx) ` +
+            `(see components/ui/home/ContinueReadingStrip.tsx and SignedOutOnly.tsx) ` +
             `backed by a private no-store route (app/api/me/*).`,
         ).toBe(false);
       }
