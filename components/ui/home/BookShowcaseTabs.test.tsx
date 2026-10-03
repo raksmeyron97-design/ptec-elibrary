@@ -173,7 +173,7 @@ describe("BookShowcaseTabs — bilingual", () => {
   });
 });
 
-describe("BookShowcaseTabs — the hero fan's books", () => {
+describe("BookShowcaseTabs — the hero shelf's books", () => {
   const nine = Array.from({ length: 9 }, (_, i) => book(`n${i}`, `Nine ${i}`));
 
   function renderSkip() {
@@ -184,12 +184,12 @@ describe("BookShowcaseTabs — the hero fan's books", () => {
     );
   }
 
-  it("hides the fan's three at lg and shows the next six there; phones keep the top six", () => {
+  it("hides the hero shelf's books at lg and shows the next six there; phones keep the top six", () => {
     renderSkip();
     const items = within(screen.getByRole("tabpanel")).getAllByRole("listitem");
     expect(items).toHaveLength(9);
     const at = (i: number) => items[i].className;
-    // Top three: on phones, not at lg (the hero fan shows them there).
+    // Top three: on phones, not at lg (the hero shelf shows them there).
     for (const i of [0, 1, 2]) expect(at(i)).toContain("lg:hidden");
     // Four to six: everywhere.
     for (const i of [3, 4, 5]) expect(at(i)).not.toMatch(/hidden/);

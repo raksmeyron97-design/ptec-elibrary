@@ -120,24 +120,25 @@ export default async function TrustBar({ variant = "band" }: { variant?: TrustBa
   ].filter((tile) => tile.minimum === undefined || tile.value >= tile.minimum);
 
   if (variant === "hero") {
-    // `data-stat` names each figure so e2e/resource-stats.spec.ts can read it
-    // without matching on translated label text.
+    // One line from sm (number beside label, centred under the search from
+    // md); a three-column row on phones. `data-stat` names each figure so
+    // e2e/resource-stats.spec.ts can read it without matching label text.
     return (
       <ul
         aria-label={t("trustTitle")}
-        className="mt-10 grid grid-cols-3 gap-3 border-t border-white/15 pt-5 sm:flex sm:gap-10"
+        className="mt-7 grid grid-cols-3 gap-3 sm:flex sm:flex-wrap sm:gap-x-9 sm:gap-y-2 md:justify-center"
       >
         {tiles.map(({ key, value, label, animate }) => (
-          <li key={key} data-stat={key} className="flex min-w-0 flex-col gap-1.5">
+          <li key={key} data-stat={key} className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-2">
             <span
               data-stat-value
-              className="font-serif text-[22px] font-semibold leading-none tabular-nums text-white sm:text-[28px]"
+              className="font-serif text-[22px] font-semibold leading-none tabular-nums text-white sm:text-[24px]"
             >
               {/* Years are printed raw: formatCount() would group them into
                   "2,017". Only quantities get separators. */}
               {animate ? <AnimatedStat targetValue={value} locale={locale} /> : String(value)}
             </span>
-            <span className="text-[12px] leading-snug text-blue-100 sm:text-[13px]">{label}</span>
+            <span className="text-[12px] leading-snug text-blue-100 sm:text-[13.5px]">{label}</span>
           </li>
         ))}
       </ul>

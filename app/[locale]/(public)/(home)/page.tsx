@@ -14,7 +14,7 @@ import AskLibraryHero from "@/components/ui/home/AskLibraryHero";
 import TrustBar from "@/components/ui/home/TrustBar";
 import BrowseBooksSection from "@/components/ui/home/BrowseBooksSection";
 import StartHere from "@/components/ui/home/StartHere";
-import HeroCoverFan from "@/components/ui/home/HeroCoverFan";
+import HeroShelf from "@/components/ui/home/HeroShelf";
 import LatestPostsSection from "@/components/ui/home/LatestPostsSection";
 import LibraryNow from "@/components/ui/home/LibraryNow";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
@@ -123,7 +123,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   // type keeps only the fields a card may draw.
   const trendingCards = toBookCardList(trendingBooks);
 
-  const latinEyebrow = locale === "en" ? "uppercase tracking-[0.22em]" : "tracking-normal";
+  // Phones get tighter tracking so the college name stays on one line in its
+  // pill at 375 px; from sm the full 0.22em.
+  const latinEyebrow = locale === "en" ? "uppercase tracking-[0.1em] sm:tracking-[0.22em]" : "tracking-normal";
 
   return (
     <div className="min-h-screen bg-paper">
@@ -132,19 +134,19 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           strings as the visible accordion. */}
       <PageJsonLd nodes={[await homeFaqNode(locale)]} />
 
-      {/* ════════ HERO ════════
-          The plate, the headline, one search bar. No photograph, canvas or
-          rotating book stack: the H1 is the largest thing painted, so it is
-          the LCP element and nothing has to be fetched before the page reads.
-          The building photo moved to the Visit band, where it is about the
-          place rather than decoration behind the search box. */}
+      {/* ════════ HERO — the front desk, with the open shelf behind it ════════
+          One column, centred from md: the headline, the search bar as the one
+          obvious action, the topics people search for, the three verified
+          figures as a single line — and, on desktop, the most-downloaded books
+          standing on the hero's gold seam. No photograph or canvas: the H1 is
+          the largest thing painted, so it is the LCP element. */}
       <section className="relative isolate z-40 overflow-clip bg-plate text-white">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(70%_90%_at_88%_-10%,rgba(58,95,196,.32),transparent_62%),linear-gradient(180deg,transparent_35%,#060B1A_140%)]"
+          className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_80%_at_50%_-20%,rgba(58,95,196,.38),transparent_65%),linear-gradient(180deg,transparent_45%,#060B1A_150%)]"
         />
-        <div className="mx-auto grid max-w-[1400px] items-center gap-14 px-4 pb-8 pt-9 sm:px-8 sm:py-16 md:px-12 lg:grid-cols-[1.12fr_.88fr] lg:pb-20 lg:pt-24">
-          <div className="hero-stagger min-w-0">
+        <div className="mx-auto max-w-[1400px] px-4 pb-9 pt-9 sm:px-8 sm:pt-14 md:px-12 md:text-center lg:pb-0 lg:pt-11">
+          <div className="hero-stagger mx-auto min-w-0 max-w-[980px]">
             {/* Gold eyebrow — pill badge */}
             <div className="inline-flex items-center gap-2 rounded-full border border-gold-400/30 bg-gold-400/[0.09] px-3 py-1.5 backdrop-blur-sm">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-gold-400" aria-hidden />
@@ -163,47 +165,49 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 floor where the stacked vowel signs and the subscript ជើង of
                 "បណ្ណាល័យឌីជីថល" start to clip) and no negative tracking, which
                 would collide those subscripts with the next base glyph.
-                The slightly larger clamp compensates for Koulen being more
-                condensed than Hanuman at the same pixel size. */}
+                [text-wrap:balance] keeps the English two lines even, with no
+                word left alone on a third. Not staggered (see .hero-stagger):
+                it is the LCP element and must be visible on first paint. */}
             <h1
-              className={`mt-3 text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.55)] ${
+              className={`mx-auto mt-4 max-w-[21ch] text-white [text-wrap:balance] drop-shadow-[0_2px_16px_rgba(0,0,0,0.55)] md:max-w-none ${
                 locale === "km"
                   ? "font-khmer-display font-normal leading-[1.3] tracking-normal"
-                  : "font-serif font-bold leading-[1.06] tracking-[-0.025em]"
+                  : "font-serif font-bold leading-[1.08] tracking-[-0.02em]"
               }`}
               style={{
                 fontSize:
                   locale === "km"
-                    ? "clamp(34px, 4.9vw, 66px)"
-                    : "clamp(32px, 4.6vw, 62px)",
+                    ? "clamp(34px, 4.6vw, 60px)"
+                    : "clamp(32px, 4.3vw, 58px)",
               }}
             >
               {t("headline")}
             </h1>
 
-            <p className="mt-4 max-w-[34em] text-[16px] leading-[1.65] text-blue-100 md:text-[18px]">
+            <p className="mt-4 max-w-[38em] text-[16px] leading-[1.65] text-blue-100 md:mx-auto md:text-[18px]">
               {t("description")}
             </p>
 
-            <div className="relative z-50 mt-8 max-w-[640px]">
+            <div className="relative z-50 mx-auto mt-7 max-w-[720px] md:text-left">
               <AskLibraryHero
                 trending={trendingTerms.slice(0, 5)}
                 prompts={[t("prompt1"), t("prompt2"), t("prompt3")]}
                 askLabel={t("searchButton")}
                 hintKeyboard={t("askHintKeyboard")}
+                centered
               />
             </div>
 
-            {/* The three verified figures — the TrustBar band, folded into
-                the hero. Every number is getCollectionStats(), floors and all. */}
+            {/* The three verified figures, as one line. Every number is
+                getCollectionStats(), floors and all. */}
             <TrustBar variant="hero" />
           </div>
 
-          {/* Desktop only: the three most-downloaded books, fanned. */}
-          <HeroCoverFan books={trendingCards} />
+          {/* Desktop only: the most-downloaded books, on the gold seam. */}
+          <HeroShelf books={trendingCards} />
         </div>
 
-        {/* Gold seam at the bottom of the hero */}
+        {/* The gold seam — on desktop, the shelf the books stand on. */}
         <div aria-hidden className="h-px w-full bg-gradient-to-r from-transparent via-gold-400/80 to-transparent" />
       </section>
 

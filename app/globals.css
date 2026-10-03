@@ -982,7 +982,10 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 
 /* ── Modern UI utilities (home page) ────────────────────────────── */
 /* ── Homepage hero redesign ─────────────────────────────────────── */
-.hero-stagger > * {
+/* The H1 is exempt: it is the page's LCP element, and an element painted at
+   opacity 0 is not a contentful paint — while it faded in, Lighthouse named
+   the boot screen's emblem as the LCP instead (2 of 6 runs, 2026-10-03). */
+.hero-stagger > :not(h1) {
   opacity: 0; transform: translateY(14px);
   /* 300 ms, 40 ms apart. The hero is the first thing painted and it starts
      transparent, so every millisecond here is a millisecond the page's

@@ -50,7 +50,7 @@ type Props = {
   /** Pre-grouped books per department (trending order) */
   deptBooks?: Record<string, BookCardData[]>;
   /**
-   * Trending books the hero already shows at lg (its cover fan). Those are
+   * Trending books the hero already shows at lg (its shelf). Those are
    * hidden from the unfiltered Trending tab at lg and the next ones shown, so
    * no book is on screen twice; below lg (no fan) the tab shows the top six.
    * `trending` must carry SHELF_MAX_ITEMS + skipOnDesktop books for this.
@@ -122,7 +122,7 @@ export default function BookShowcaseTabs({
     [tab, select],
   );
 
-  // The unfiltered Trending tab is the one the hero's fan overlaps.
+  // The unfiltered Trending tab is the one the hero's shelf overlaps.
   const skip = !activeDept && tab === "trending" ? skipOnDesktop : 0;
   const items: ShelfItem[] = (
     activeDept
