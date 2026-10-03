@@ -49,6 +49,13 @@ type Props = {
   depts?: string[];
   /** Pre-grouped books per department (trending order) */
   deptBooks?: Record<string, BookCardData[]>;
+  /**
+   * Trending books the hero already shows at lg (its cover fan). Those are
+   * hidden from the unfiltered Trending tab at lg and the next ones shown, so
+   * no book is on screen twice; below lg (no fan) the tab shows the top six.
+   * `trending` must carry SHELF_MAX_ITEMS + skipOnDesktop books for this.
+   */
+  skipOnDesktop?: number;
 };
 
 const TAB_HREFS: Record<TabKey, string> = {
@@ -72,6 +79,7 @@ export default function BookShowcaseTabs({
   theses = [],
   depts = [],
   deptBooks = {},
+  skipOnDesktop = 0,
 }: Props) {
   const t = useTranslations("home");
   const baseId = useId();
@@ -114,6 +122,8 @@ export default function BookShowcaseTabs({
     [tab, select],
   );
 
+  // The unfiltered Trending tab is the one the hero's fan overlaps.
+  const skip = !activeDept && tab === "trending" ? skipOnDesktop : 0;
   const items: ShelfItem[] = (
     activeDept
       ? bookItems(deptBooks[activeDept] ?? [])
@@ -122,7 +132,10 @@ export default function BookShowcaseTabs({
         : tab === "recent"
           ? bookItems(recent)
           : theses
-  ).slice(0, SHELF_MAX_ITEMS);
+  ).slice(0, SHELF_MAX_ITEMS + skip);
+  /** Phones show items [0, 6); lg shows [skip, skip + 6). */
+  const itemVisibility = (i: number) =>
+    i < skip ? "lg:hidden" : i >= SHELF_MAX_ITEMS ? "max-lg:hidden" : "";
 
   const viewAllHref = activeDept
     ? `/books?dept=${encodeURIComponent(activeDept)}`
@@ -259,8 +272,8 @@ export default function BookShowcaseTabs({
               aria-label={listLabel}
               className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto px-4 pb-2 pt-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:scroll-px-0 sm:grid-cols-4 sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-6 [&::-webkit-scrollbar]:hidden"
             >
-              {items.map((item) => (
-                <li key={shelfKey(item)} className="w-[40%] shrink-0 snap-start sm:w-auto">
+              {items.map((item, i) => (
+                <li key={shelfKey(item)} className={`w-[40%] shrink-0 snap-start sm:w-auto ${itemVisibility(i)}`}>
                   <ShelfCover item={item} />
                 </li>
               ))}

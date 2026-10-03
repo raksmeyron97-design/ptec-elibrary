@@ -14,6 +14,7 @@ import AskLibraryHero from "@/components/ui/home/AskLibraryHero";
 import TrustBar from "@/components/ui/home/TrustBar";
 import BrowseBooksSection from "@/components/ui/home/BrowseBooksSection";
 import StartHere from "@/components/ui/home/StartHere";
+import HeroCoverFan from "@/components/ui/home/HeroCoverFan";
 import LatestPostsSection from "@/components/ui/home/LatestPostsSection";
 import LibraryNow from "@/components/ui/home/LibraryNow";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
@@ -198,8 +199,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             <TrustBar variant="hero" />
           </div>
 
-          {/* Desktop column for the cover fan (Phase 2). Empty until then. */}
-          <div className="hidden lg:block" aria-hidden />
+          {/* Desktop only: the three most-downloaded books, fanned. */}
+          <HeroCoverFan books={trendingCards} />
         </div>
 
         {/* Gold seam at the bottom of the hero */}
