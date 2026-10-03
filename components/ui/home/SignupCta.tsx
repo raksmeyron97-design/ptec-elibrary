@@ -52,9 +52,6 @@ export default async function SignupCta() {
 
   return (
     <section className="hero-ink relative overflow-hidden">
-      {/* Aurora animated gradient */}
-      <div className="aurora absolute inset-0" aria-hidden />
-
       {/* Dot grid texture */}
       <div
         aria-hidden
