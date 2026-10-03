@@ -19,6 +19,7 @@ import {
   parseOpeningHours,
   formatTimeLabel,
   weekdayLabel,
+  weekdayName,
 } from "@/lib/library-hours";
 import { activeClosure } from "@/lib/system-settings/hours";
 import type { HoursClosure } from "@/lib/system-settings/types";
@@ -114,7 +115,9 @@ export default function LibraryNow({
     return {
       weekday,
       isToday,
-      day: weekdayLabel(scheduleNow, offset, locale),
+      // A fixed name table, not Intl: Khmer weekday names differ between
+      // ICU builds, and this text is rendered on the server AND the client.
+      day: weekdayName(weekday, locale),
       hours: isToday ? todayLabel : rangesLabel(sched[weekday] ?? []),
     };
   });

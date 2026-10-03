@@ -149,6 +149,18 @@ function compactRange(r: DayRange): string {
 const KM_DAY_SHORT = ["អា", "ច", "អ", "ព", "ព្រ", "សុ", "សៅ"] as const;
 const EN_DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
+// Weekday names for the homepage's weekly table, from a fixed table rather
+// than Intl. ICU data for Khmer differs by runtime: Node prints ចន្ទ, a
+// small-ICU browser build (Playwright's Chromium, some Android WebViews)
+// prints "Mon" — and a server/client disagreement is a hydration error.
+const KM_DAY_NAME = ["អាទិត្យ", "ចន្ទ", "អង្គារ", "ពុធ", "ព្រហស្បតិ៍", "សុក្រ", "សៅរ៍"] as const;
+
+/** Weekday name (0=Sun … 6=Sat): Khmer in full, English short ("Mon"). */
+export function weekdayName(weekday: number, locale: string): string {
+  const i = ((weekday % 7) + 7) % 7;
+  return locale === "km" ? KM_DAY_NAME[i] : EN_DAY_SHORT[i];
+}
+
 /**
  * Compact one-line hours label derived from the openingHoursSpec SSOT —
  * e.g. km: "ច-សុ 7:00–17:00 · ស 8:00–16:00", en: "Mon-Fri 7:00–17:00 ·
