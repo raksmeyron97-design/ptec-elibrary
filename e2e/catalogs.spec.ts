@@ -105,15 +105,31 @@ test.describe("facets", () => {
 });
 
 test.describe("record page", () => {
-  test("holdings say where and whether, never the barcode", async ({ page }) => {
+  test("holdings say where, whether and which copy — its barcode (PTEC, 2026-10-04)", async ({ page }) => {
     await page.goto("/catalogs/teaching-practice-handbook");
     await expect(page.getByRole("heading", { level: 1, name: HANDBOOK })).toBeVisible();
-    // The table (≥ sm) and the cards (phone) both carry it; one of them is shown.
+    // The table (≥ sm) and the cards (phone) both carry them; one of them is shown.
     await expect(page.getByText("371.102 SOK").filter({ visible: true }).first()).toBeVisible();
-    await expect(page.getByText("BC-000000101")).toHaveCount(0);
-    await expect(page.getByRole("columnheader", { name: "Barcode" })).toHaveCount(0);
+    await expect(page.getByText("BC-000000101").filter({ visible: true }).first()).toBeVisible();
+    // Its keywords, each a link to a subject search.
+    await expect(page.getByRole("link", { name: "practicum", exact: true })).toHaveAttribute("href", /\/catalogs\?q=practicum&in=subject$/);
     // The breadcrumb names the listing the way the listing names itself.
     await expect(page.getByRole("navigation", { name: /breadcrumb/i }).getByRole("link", { name: "Physical Library" })).toBeVisible();
+  });
+});
+
+test.describe("search by a copy's barcode and by keyword (PTEC, 2026-10-04)", () => {
+  test("a copy's barcode finds its record, in any case", async ({ page }) => {
+    await page.goto("/catalogs?q=BC-000000101");
+    await expect.poll(() => cardTitles(page), { timeout: 60_000 }).toEqual([HANDBOOK]);
+    await page.goto("/catalogs?q=bc-000000101&in=barcode");
+    await expect.poll(() => cardTitles(page), { timeout: 60_000 }).toEqual([HANDBOOK]);
+  });
+
+  test("a keyword finds its record where only the keywords hold it", async ({ page }) => {
+    // The category is "Education": under Subject only the keyword leg can match.
+    await page.goto("/catalogs?q=practicum&in=subject");
+    await expect.poll(() => cardTitles(page), { timeout: 60_000 }).toEqual([HANDBOOK]);
   });
 });
 
