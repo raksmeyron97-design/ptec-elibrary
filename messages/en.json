@@ -784,6 +784,8 @@
       "home": "Home",
       "library": "Physical Library",
       "descriptionHeading": "Description",
+      "descriptionShowMore": "Read more",
+      "descriptionShowLess": "Show less",
       "digitalTwinLabel": "Also in the digital library",
       "digitalTwinCta": "Read the e-book",
       "viewInOpac": "View in the library catalogue",
