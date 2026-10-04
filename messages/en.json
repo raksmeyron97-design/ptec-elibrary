@@ -7882,6 +7882,9 @@
       "ddcHint": "What the book is about — e.g. 372.7 BIL. The shelf location is where it physically sits.",
       "shelfHint": "Pre-fills new copies — each copy can override it",
       "description": "Description",
+      "aboutBook": "About this book / Description",
+      "aboutBookPlaceholder": "Book summary, abstract, or fetch from publisher link...",
+      "aboutBookHint": "The publisher's blurb or the author's own abstract: what a reader learns before opening the book.",
       "descriptionPlaceholder": "Brief description of the book…",
       "keywords": "Keywords / Tags",
       "keywordsPlaceholder": "e.g. ច្បាប់, law, reference…",
@@ -8297,7 +8300,7 @@
       "hint": "Fills empty fields from Open Library and Google Books. Nothing is saved until you press Save.",
       "needIsbn": "Enter a valid 10- or 13-digit ISBN first.",
       "fetchSuccess": "Filled {fields} from {sources}. Review, then save.",
-      "onMediaTab": "Description, keywords and cover are on the Cover & SEO tab.",
+      "onMediaTab": "Keywords and cover are on the Cover & SEO tab.",
       "nothingToFill": "{sources} found this ISBN, but had nothing for the empty fields.",
       "fetchNotFound": "No record found for this ISBN in Open Library or Google Books.",
       "fetchIncomplete": "No record found — but not every source answered (see Sources). Try again later.",
@@ -8319,6 +8322,36 @@
         "language": "Language",
         "keywords": "Keywords",
         "cover": "Cover"
+      }
+    },
+    "publisherFetch": {
+      "label": "Fetch from Publisher Link",
+      "placeholder": "Paste the publisher's page, e.g. https://link.springer.com/book/…",
+      "fetch": "Fetch",
+      "fetching": "Fetching…",
+      "fetched": "Filled from {host} ({source}). Review it before saving.",
+      "source": {
+        "about_section": "its “About this book” section",
+        "json_ld": "the page's description",
+        "og": "the page's description",
+        "meta": "the page's description",
+        "crossref": "Crossref's abstract for the DOI"
+      },
+      "truncated": "The publisher's page only gives a shortened text (it ends in “…”). Copy the rest from the page if you need it.",
+      "replaceTitle": "Replace the current description?",
+      "replaceBody": "The field already has a description. Replace it with this text from {host}?",
+      "replaceConfirm": "Replace",
+      "err": {
+        "invalid_url": "That is not a web address. Paste the full link, starting with https://.",
+        "blocked_address": "That address is not a public website, so the library's server will not open it.",
+        "rate_limited": "Too many fetches in a few minutes. Wait a moment and try again.",
+        "unreachable": "The page could not be reached. Check the link, or try again later.",
+        "timeout": "The publisher's site took too long to answer. Try again later.",
+        "http": "The publisher's site answered with an error. Check the link.",
+        "not_html": "That link is not a web page (it may be a PDF or an image).",
+        "too_large": "That page is too large to read.",
+        "bot_wall": "This publisher's site blocks automatic reading. Open the page, copy the “About this book” text, and paste it into the field.",
+        "not_found": "The page has no book description we can recognise. Copy the text from the page and paste it into the field."
       }
     },
     "koha": {

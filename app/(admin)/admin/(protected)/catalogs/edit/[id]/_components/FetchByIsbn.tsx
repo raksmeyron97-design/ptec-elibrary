@@ -84,7 +84,7 @@ export default function FetchByIsbn({
     }
 
     if (filled.length) {
-      const onMedia = filled.some((f) => f === "description" || f === "keywords" || f === "cover");
+      const onMedia = filled.some((f) => f === "keywords" || f === "cover");
       toast.success(
         t("fetchSuccess", { fields: filled.map(fieldLabel).join(", "), sources: providerList(filled.map((f) => plan.sources[f])) }) +
           (onMedia ? ` ${t("onMediaTab")}` : ""),

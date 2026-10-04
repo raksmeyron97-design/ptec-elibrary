@@ -10,6 +10,7 @@ import CopiesPanel from "../../_components/CopiesPanel";
 import TagInput from "@/components/ui/core/TagInput";
 import { Field, ERROR_CLASS } from "@/components/admin/kit/form";
 import CatalogCoverField from "@/components/admin/catalogs/CatalogCoverField";
+import BookDescriptionField from "@/components/admin/catalogs/BookDescriptionField";
 import {
   FormShell,
   FormTabs,
@@ -393,6 +394,13 @@ export default function AddBookWizard({
             )}
           </Field>
 
+          <BookDescriptionField
+            className="sm:col-span-2"
+            defaultValue={initial?.description}
+            error={fieldErrors.description}
+            disabled={loading}
+          />
+
           <Field label={t("category")} htmlFor="f-category" error={fieldErrors.category}>
             {(p) => (
               <>
@@ -468,19 +476,6 @@ export default function AddBookWizard({
             {fieldErrors.cover}
           </p>
         )}
-
-        <Field label={t("description")} htmlFor="f-description" error={fieldErrors.description}>
-          {(p) => (
-            <textarea
-              {...p}
-              className={`${p.className} h-auto resize-none py-3 leading-relaxed`}
-              name="description"
-              defaultValue={initial?.description}
-              rows={4}
-              placeholder={t("descriptionPlaceholder")}
-            />
-          )}
-        </Field>
 
         <Field label={t("keywords")} htmlFor="f-keywords" hint={t("keywordsHint")}>
           <TagInput name="keywords" defaultTags={initial?.keywords} placeholder={t("keywordsPlaceholder")} disabled={loading} />

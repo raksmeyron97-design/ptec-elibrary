@@ -18,6 +18,7 @@ vi.mock("../../../isbn-actions", () => ({ lookupCatalogIsbn: vi.fn() }));
 vi.mock("../../../actions", () => ({ updateCatalogBook: vi.fn(), checkCatalogSlugAvailable: vi.fn().mockResolvedValue(true) }));
 vi.mock("../../../_components/CopiesPanel", () => ({ default: () => null }));
 vi.mock("@/app/actions/tags", () => ({ getAllTags: vi.fn().mockResolvedValue([]) }));
+vi.mock("../../../publisher-actions", () => ({ fetchPublisherDescription: vi.fn() }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
@@ -65,6 +66,18 @@ function renderForm(book: CatalogBook = fidler) {
 }
 
 beforeEach(() => lookup.mockReset());
+
+describe("About this book on the edit form", () => {
+  it("is on the first tab, beside the facts it describes", () => {
+    const { input } = renderForm({ ...fidler, description: "Strategic planning for schools." });
+    const info = document.getElementById("catalog-panel-info")!;
+    expect(info).not.toHaveAttribute("hidden");
+    expect(info.contains(input("description"))).toBe(true);
+    expect(input("description").value).toBe("Strategic planning for schools.");
+    expect(screen.getByLabelText("About this book / Description")).toBe(input("description"));
+    expect(document.getElementById("catalog-panel-media")!.querySelector('[name="description"]')).toBeNull();
+  });
+});
 
 describe("Fetch by ISBN on the edit form", () => {
   it("waits for a valid ISBN", () => {
