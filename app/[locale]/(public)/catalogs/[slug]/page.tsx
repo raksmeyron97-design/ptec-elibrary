@@ -38,6 +38,8 @@ import { getCategoryCoverTheme } from "@/lib/cover-theme";
 import SmartBookCover from "@/components/ui/books/SmartBookCover";
 import CatalogAvailabilityNotice from "@/components/ui/books/CatalogAvailabilityNotice";
 import CatalogHoldAction from "@/components/ui/books/CatalogHoldAction";
+import CatalogDescription from "@/components/ui/books/CatalogDescription";
+import { descriptionLength, descriptionParagraphs as toParagraphs } from "@/lib/catalogs/description-text";
 import { kohaHoldsForReaders } from "@/lib/koha/patron-server";
 import { kohaOpacRecordUrl } from "@/lib/opac/links";
 import { BookMarked, ExternalLink } from "lucide-react";
@@ -230,6 +232,9 @@ const TONE_SURFACE: Record<string, string> = {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+/** Past about two short paragraphs, a description folds behind "Read more". */
+const DESCRIPTION_FOLD_CHARS = 900;
+
 export default async function CatalogBookPage({
   params,
 }: {
@@ -284,6 +289,7 @@ export default async function CatalogBookPage({
   // does not state where its surname ends comes back unchanged — see
   // lib/catalogs/author-name.ts.
   const authorDisplay = displayAuthorName(b.author);
+  const descriptionParagraphs = toParagraphs(b.description);
 
   // Hero/accent tint comes from the deterministic category theme, so records
   // with and without real covers share the same visual identity.
@@ -356,7 +362,7 @@ export default async function CatalogBookPage({
           style={{ background: `linear-gradient(to right, transparent, ${coverHex}55, transparent)` }}
         />
 
-        <div className="relative mx-auto max-w-[1100px] px-4 pb-6 pt-4 md:px-12">
+        <div className="relative mx-auto max-w-[1400px] px-4 pb-6 pt-4 md:px-12">
           {/* Breadcrumb */}
           <BreadcrumbNav className="flex items-center gap-1.5 text-sm text-text-muted">
             <Link href="/" className="transition-colors hover:text-brand">{t("detail.home")}</Link>
@@ -369,11 +375,14 @@ export default async function CatalogBookPage({
       </div>
 
       {/* ── Main content ── */}
-      <div className="mx-auto max-w-[1100px] px-4 py-8 md:px-12 md:py-10">
-        <div className="grid gap-8 lg:grid-cols-[260px_1fr] lg:gap-10">
+      {/* The width of /catalogs, the page a reader arrives from. At xl the
+          record is three columns: what the object is and where it stands
+          (sticky), what the book is about (a reading column), and the facts. */}
+      <div className="mx-auto max-w-[1400px] px-4 py-8 md:px-12 md:py-10">
+        <div className="grid gap-8 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-10 xl:grid-cols-[280px_minmax(0,1fr)] xl:gap-12">
 
           {/* ══ LEFT SIDEBAR ══ */}
-          <aside className="flex flex-col items-center gap-5 lg:items-stretch">
+          <aside className="flex flex-col items-center gap-5 lg:items-stretch lg:self-start lg:[@media(min-height:820px)]:sticky lg:[@media(min-height:820px)]:top-[84px]">
 
             {/* Book cover */}
             <div className="group relative mx-auto w-full max-w-[220px] lg:max-w-none">
@@ -493,7 +502,7 @@ export default async function CatalogBookPage({
           </aside>
 
           {/* ══ RIGHT CONTENT ══ */}
-          <div className="min-w-0 space-y-5">
+          <div className="min-w-0 space-y-6">
 
             {/* Title / Category / Author */}
             <div className="border-b border-divider/60 pb-5">
@@ -507,7 +516,7 @@ export default async function CatalogBookPage({
                   {b.category}
                 </span>
               )}
-              <h1 className="font-khmer-serif text-2xl font-bold leading-tight text-text-heading md:text-[28px]">
+              <h1 className="font-khmer-serif text-2xl font-bold leading-tight text-text-heading md:text-[30px] xl:text-[34px]">
                 {displayTitle}
               </h1>
               {authorDisplay && (
@@ -532,19 +541,30 @@ export default async function CatalogBookPage({
               )}
             </div>
 
+            {/* Reading column + facts rail. Below xl it is one column, in the
+                order a reader needs: what it is about, the facts, the copies. */}
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px] xl:grid-rows-[auto_auto_1fr] xl:gap-x-8">
+
             {/* Description */}
-            {b.description && (
-              <div className="rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm">
-                <h2 className="mb-2.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-gold-700 dark:text-gold-400">
+            {descriptionParagraphs.length > 0 && (
+              <section aria-labelledby="catalog-about-heading" className="rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm sm:p-7 xl:col-start-1">
+                <h2 id="catalog-about-heading" className="mb-4 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-gold-700 dark:text-gold-400">
                   <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden>
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
                   </svg>
                   {t("detail.descriptionHeading")}
                 </h2>
-                <p className="whitespace-pre-line text-[14.5px] leading-[1.75] text-text-body">{b.description}</p>
-              </div>
+                <CatalogDescription
+                  paragraphs={descriptionParagraphs}
+                  collapsible={descriptionLength(descriptionParagraphs) > DESCRIPTION_FOLD_CHARS}
+                  showMoreLabel={t("detail.descriptionShowMore")}
+                  showLessLabel={t("detail.descriptionShowLess")}
+                />
+              </section>
             )}
 
+            {/* Facts rail: beside the text at xl, where it stays in view. */}
+            <div className="min-w-0 space-y-5 xl:col-start-2 xl:row-span-3 xl:row-start-1 xl:self-start xl:sticky xl:top-[84px]">
             {/* Book Details */}
             {metaFields.length > 0 && (
               <div className="rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm">
@@ -554,11 +574,11 @@ export default async function CatalogBookPage({
                   </svg>
                   {t("detail.detailsHeading")}
                 </h2>
-                <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm sm:grid-cols-3">
+                <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm sm:grid-cols-3 xl:grid-cols-1 xl:gap-y-3.5">
                   {metaFields.map(({ label, value }) => (
                     <div key={label} className="space-y-0.5">
                       <dt className="text-[11px] font-medium uppercase tracking-wider text-text-muted">{label}</dt>
-                      <dd className="font-semibold text-text-heading">{value}</dd>
+                      <dd className="break-words font-semibold text-text-heading">{value}</dd>
                     </div>
                   ))}
                 </dl>
@@ -589,8 +609,10 @@ export default async function CatalogBookPage({
               </div>
             )}
 
+            </div>
+
             {/* Physical Copies */}
-            <div className="rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm">
+            <div className="rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm xl:col-start-1">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-gold-700 dark:text-gold-400">
                   <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden>
@@ -719,14 +741,14 @@ export default async function CatalogBookPage({
 
             {/* Related records */}
             {related.length > 0 && (
-              <div className="rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm">
+              <div className="rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm xl:col-start-1">
                 <h2 className="mb-4 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-gold-700 dark:text-gold-400">
                   <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden>
                     <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
                   </svg>
                   {t("detail.relatedHeading")}
                 </h2>
-                <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
                   {related.map((r) => (
                     <li key={r.id}>
                       <Link
@@ -758,6 +780,8 @@ export default async function CatalogBookPage({
                 </ul>
               </div>
             )}
+
+            </div>
 
             {/* Back link — inline on mobile */}
             <Link
