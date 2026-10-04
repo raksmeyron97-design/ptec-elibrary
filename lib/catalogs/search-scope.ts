@@ -23,10 +23,19 @@
 // catalogue leg uses (lib/catalogs/match-fields.ts, Phase 9.1), so the two
 // pages that search the physical library look in the same places.
 //
-// "subject" is the record's category (its DDC class name in the PMB data).
-// Keywords are deliberately not searched: the column is a text[] PostgREST
-// cannot substring-match without a migration, and widening search to them is
-// a product decision that was explicitly deferred (Gate 2).
+// "subject" is the record's category (its DDC class name in the PMB data),
+// and its keywords.
+//
+// Keywords and copy barcodes (PTEC, 2026-10-04) are matched WHOLE, not as
+// substrings, each in a leg of its own:
+//   • `keywords` is a text[]: PostgREST cannot substring-match it without a
+//     migration, but array containment (`cs`) asks the right question anyway
+//     — a reader typing a keyword means that keyword. Comma-separated terms
+//     must all be keywords of the record.
+//   • a barcode belongs to a copy (`catalog_copies.barcode`), so its leg
+//     reads the record through an inner join on its copies. Exact, ignoring
+//     case ("3v81" finds 3V81), and only for a query shaped like a barcode,
+//     so "All fields" does not turn every word into a copy lookup.
 
 import { CATALOG_MATCH_FIELDS } from "./match-fields";
 import { clausesWithinBudget } from "@/lib/db/postgrest-url";
@@ -34,7 +43,7 @@ import { clausesWithinBudget } from "@/lib/db/postgrest-url";
 /** Longer than any title a reader would type; keeps every single-column filter far under the URL ceiling. */
 const MAX_QUERY_LENGTH = 200;
 
-export const CATALOG_SEARCH_SCOPES = ["all", "title", "author", "subject", "isbn", "callnumber"] as const;
+export const CATALOG_SEARCH_SCOPES = ["all", "title", "author", "subject", "isbn", "callnumber", "barcode"] as const;
 export type CatalogSearchScope = (typeof CATALOG_SEARCH_SCOPES)[number];
 
 /** Anything unrecognised — including an absent or empty `in` — searches all fields. */
@@ -51,7 +60,11 @@ export type CatalogSearchLeg =
   /** A PostgREST `.or()` over several columns; `filter` is already sanitised. */
   | { kind: "or"; filter: string }
   /** `.ilike(column, pattern)`; `pattern` is passed as a value, never spliced. */
-  | { kind: "ilike"; column: CatalogSearchColumn; pattern: string };
+  | { kind: "ilike"; column: CatalogSearchColumn; pattern: string }
+  /** `.contains("keywords", literal)`; `literal` is a quoted array literal built here. */
+  | { kind: "keyword"; literal: string }
+  /** Records with a copy whose barcode is `barcode` (case-insensitive equality: no wildcards in it). */
+  | { kind: "barcode"; barcode: string };
 
 const collapse = (s: string) => s.replace(/\s+/g, " ").trim();
 
@@ -83,6 +96,26 @@ export function looksLikeIsbn(raw: string): boolean {
 }
 
 /**
+ * The keywords a query names, as a Postgres array literal for `cs`: split on
+ * commas, each element quoted. Braces, quotes and backslashes are dropped —
+ * keywords contain none, and they are the literal's own syntax. Exact and
+ * case-sensitive, as array containment is. Null when nothing is left.
+ */
+export function keywordArrayLiteral(raw: string): string | null {
+  const terms = raw
+    .split(",")
+    .map((t) => collapse(t.replace(/[{}"\\]/g, " ")))
+    // A term with no letter or digit ("*", "%%") names no keyword.
+    .filter((t) => /[\p{L}\p{N}]/u.test(t));
+  return terms.length ? `{${terms.map((t) => `"${t}"`).join(",")}}` : null;
+}
+
+/** "0437", "28816", "3V81": letters, digits and hyphens, no spaces, at most 30. */
+export function looksLikeBarcode(raw: string): boolean {
+  return /^[A-Za-z0-9-]{1,30}$/.test(raw.trim()) && /\d/.test(raw);
+}
+
+/**
  * The candidate legs for one query. Their results are UNIONED by the caller.
  * An empty array means the query cannot match anything in this scope (an ISBN
  * search containing no digits) — the caller answers "no results", never "all".
@@ -101,8 +134,13 @@ export function catalogSearchLegs(rawQuery: string, scope: CatalogSearchScope): 
       return value ? [ilike("title", value)] : [];
     case "author":
       return value ? [ilike("author", value)] : [];
-    case "subject":
-      return value ? [ilike("category", value)] : [];
+    case "subject": {
+      const keyword = keywordArrayLiteral(rawQ);
+      return [
+        ...(value ? [ilike("category", value)] : []),
+        ...(keyword ? [{ kind: "keyword" as const, literal: keyword }] : []),
+      ];
+    }
     case "isbn": {
       const digits = isbnSearchDigits(rawQ);
       if (!digits) return [];
@@ -116,6 +154,8 @@ export function catalogSearchLegs(rawQuery: string, scope: CatalogSearchScope): 
       // The PMB call number ("371.1 HAT") lives in `ddc`; a hand-catalogued
       // record may carry its shelf mark in `shelf_location` instead.
       return value ? [ilike("ddc", value), ilike("shelf_location", value)] : [];
+    case "barcode":
+      return looksLikeBarcode(rawQ) ? [{ kind: "barcode", barcode: rawQ.trim() }] : [];
     case "all": {
       const q = sanitizeOrTerm(rawQ);
       const legs: CatalogSearchLeg[] = [];
@@ -129,6 +169,9 @@ export function catalogSearchLegs(rawQuery: string, scope: CatalogSearchScope): 
       // A hyphenated ISBN reaches the `.or()` leg with its hyphens and cannot
       // match the stored bare digits.
       if (looksLikeIsbn(rawQ)) legs.push(ilike("isbn", isbnSearchDigits(rawQ)));
+      const keyword = keywordArrayLiteral(rawQ);
+      if (keyword) legs.push({ kind: "keyword", literal: keyword });
+      if (looksLikeBarcode(rawQ)) legs.push({ kind: "barcode", barcode: rawQ.trim() });
       return legs;
     }
   }

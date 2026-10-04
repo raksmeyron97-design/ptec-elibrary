@@ -177,7 +177,8 @@ function compareCandidates(sortKey: SortKey) {
  * here, and only the visible page's records are fetched by id.
  *
  * Which columns a query searches is `catalogSearchLegs()`'s decision
- * (lib/catalogs/search-scope.ts), including why keywords are not among them.
+ * (lib/catalogs/search-scope.ts), including how keywords and copy barcodes
+ * are matched (whole, each in a leg of its own).
  *
  * The legs do NOT apply the category/language/availability filters: the
  * candidates are the query's whole answer, so they can also say how many of
@@ -198,11 +199,19 @@ async function searchCatalogBooks(supabase: PublicClient, o: ListingQuery): Prom
   const results = await Promise.all(
     legs.map((leg) =>
       pagedScan<CandidateRow>((from, to) => {
+        // A barcode is a copy's: its leg reads the record through its copies
+        // (inner join), and the embedded copy rows are ignored.
         const base = supabase
           .from("catalog_books")
-          .select("id, created_at, title, copies_available, category, language")
+          .select(leg.kind === "barcode"
+            ? "id, created_at, title, copies_available, category, language, catalog_copies!inner(barcode)"
+            : "id, created_at, title, copies_available, category, language")
           .eq("is_active", true);
-        const matched = leg.kind === "or" ? base.or(leg.filter) : base.ilike(leg.column, leg.pattern);
+        const matched =
+          leg.kind === "or" ? base.or(leg.filter)
+          : leg.kind === "ilike" ? base.ilike(leg.column, leg.pattern)
+          : leg.kind === "keyword" ? base.contains("keywords", leg.literal)
+          : base.ilike("catalog_copies.barcode", leg.barcode);
         return matched.order("id", { ascending: true }).range(from, to);
       }, CATALOG_SCAN_CAP),
     ),

@@ -15,8 +15,10 @@
 // as one phrase (a GET form that filters a shelf list), /search takes it word
 // by word and ranks — but they look in the same places.
 //
-// Keywords are not here: `keywords` is a text[] PostgREST cannot
-// substring-match, and widening search to it was deferred at Gate 2.
+// Keywords and copy barcodes are not here: these are the columns matched as
+// substrings, and `keywords` (a text[]) and `catalog_copies.barcode` (another
+// table) are matched whole, in legs of their own, by both pages
+// (lib/catalogs/search-scope.ts; PTEC, 2026-10-04).
 
 // Most valuable first: a URL has a ceiling (lib/db/postgrest-url.ts), and a
 // very long query keeps the fields at the front of this list.

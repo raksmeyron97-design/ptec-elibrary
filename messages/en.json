@@ -788,6 +788,7 @@
       "digitalTwinCta": "Read the e-book",
       "viewInOpac": "View in the library catalogue",
       "detailsHeading": "Book Details",
+      "keywordsHeading": "Keywords",
       "copiesHeading": "Physical Copies",
       "availableCount": "{available} available",
       "copiesSummary": "{available} of {total} copies available to borrow",
@@ -833,7 +834,8 @@
       "author": "Author",
       "subject": "Subject",
       "isbn": "ISBN",
-      "callnumber": "Call number"
+      "callnumber": "Call number",
+      "barcode": "Barcode"
     },
     "facetSubject": "Subject",
     "facetLanguage": "Language and availability",

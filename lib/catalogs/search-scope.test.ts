@@ -7,6 +7,8 @@ import {
   CATALOG_SEARCH_SCOPES,
   catalogSearchLegs,
   isbnSearchDigits,
+  keywordArrayLiteral,
+  looksLikeBarcode,
   looksLikeIsbn,
   parseSearchScope,
   sanitizeOrTerm,
@@ -59,11 +61,50 @@ describe("ISBN queries", () => {
   });
 });
 
+describe("keywords and copy barcodes (PTEC, 2026-10-04)", () => {
+  it("a keyword is matched whole: one quoted element per comma-separated term", () => {
+    expect(keywordArrayLiteral("វិទ្យាសាស្ត្រសង្គម")).toBe('{"វិទ្យាសាស្ត្រសង្គម"}');
+    expect(keywordArrayLiteral(" អាពាហ៍ពិពាហ៍ ,  traditional  wedding ")).toBe('{"អាពាហ៍ពិពាហ៍","traditional wedding"}');
+    expect(keywordArrayLiteral('a{b}"c\\d')).toBe('{"a b c d"}');
+    expect(keywordArrayLiteral("*, %%, ,")).toBeNull();
+  });
+
+  it("a barcode is a short token with a digit in it", () => {
+    for (const b of ["0437", "28816", "3V81", "3v81", "PTEC-0001"]) expect(looksLikeBarcode(b)).toBe(true);
+    for (const b of ["teaching", "two words", "", "372.7", "a".repeat(31) + "1"]) expect(looksLikeBarcode(b)).toBe(false);
+  });
+
+  it("all fields: a barcode-shaped query also looks up copies, as typed (trimmed)", () => {
+    expect(catalogSearchLegs(" 0437 ", "all")).toContainEqual({ kind: "barcode", barcode: "0437" });
+    expect(catalogSearchLegs("teaching", "all").some((l) => l.kind === "barcode")).toBe(false);
+  });
+
+  it("all fields: the keyword leg rides along, after the search's own legs", () => {
+    const legs = catalogSearchLegs("អាពាហ៍ពិពាហ៍", "all");
+    expect(legs[0].kind).toBe("or");
+    expect(legs).toContainEqual({ kind: "keyword", literal: '{"អាពាហ៍ពិពាហ៍"}' });
+  });
+
+  it("both pages that search print run the same two legs", () => {
+    const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
+    const page = read("app/[locale]/(public)/catalogs/page.tsx");
+    const search = read("lib/search/native-search.ts");
+    for (const src of [page, search]) {
+      expect(src).toMatch(/\.contains\("keywords", /);
+      expect(src).toMatch(/catalog_copies!inner\(barcode\)/);
+      expect(src).toMatch(/\.ilike\("catalog_copies\.barcode", /);
+    }
+    // A barcode is not in a record's text: /search keeps its records as it keeps seeds.
+    expect(search).toMatch(/\[\.\.\.seedIds, \.\.\.barcodeIds\]/);
+  });
+});
+
 describe("catalogSearchLegs", () => {
-  it("all fields: one .or() leg over the shared match fields, plus the DDC leg, dot intact", () => {
+  it("all fields: one .or() leg over the shared match fields, the DDC leg with its dot intact, and the keyword leg", () => {
     expect(catalogSearchLegs("372.7", "all")).toEqual([
       { kind: "or", filter: CATALOG_MATCH_FIELDS.map((f) => `${f}.ilike.%372 7%`).join(",") },
       { kind: "ilike", column: "ddc", pattern: "%372.7%" },
+      { kind: "keyword", literal: '{"372.7"}' },
     ]);
   });
 
@@ -87,7 +128,11 @@ describe("catalogSearchLegs", () => {
   it("each narrow scope reaches its own column only", () => {
     expect(catalogSearchLegs("Hattie", "author")).toEqual([{ kind: "ilike", column: "author", pattern: "%Hattie%" }]);
     expect(catalogSearchLegs("Vol. 2", "title")).toEqual([{ kind: "ilike", column: "title", pattern: "%Vol. 2%" }]);
-    expect(catalogSearchLegs("អប់រំ", "subject")).toEqual([{ kind: "ilike", column: "category", pattern: "%អប់រំ%" }]);
+    expect(catalogSearchLegs("អប់រំ", "subject")).toEqual([
+      { kind: "ilike", column: "category", pattern: "%អប់រំ%" },
+      { kind: "keyword", literal: '{"អប់រំ"}' },
+    ]);
+    expect(catalogSearchLegs("0437", "barcode")).toEqual([{ kind: "barcode", barcode: "0437" }]);
     expect(catalogSearchLegs("978-0-306-40615-7", "isbn")).toEqual([
       { kind: "ilike", column: "isbn", pattern: "%9780306406157%" },
       // …and as typed, for a row stored before normalisation.
@@ -112,12 +157,21 @@ describe("catalogSearchLegs", () => {
     expect(catalogSearchLegs("*", "all")).toEqual([]);
     expect(catalogSearchLegs("%%", "title")).toEqual([]);
     expect(catalogSearchLegs("no digits", "isbn")).toEqual([]);
+    expect(catalogSearchLegs("two words", "barcode")).toEqual([]);
+    expect(catalogSearchLegs("*", "subject")).toEqual([]);
   });
 
   it("no leg ever carries a reader-supplied wildcard or .or() separator into its value", () => {
     const hostile = "a%b_c*d),title.eq.x(";
     for (const scope of CATALOG_SEARCH_SCOPES) {
       for (const leg of catalogSearchLegs(hostile, scope)) {
+        if (leg.kind === "keyword") {
+          // Every element quoted; no brace, quote or backslash of the reader's survives inside one.
+          expect(leg.literal).toMatch(/^\{"[^"{}\\]*"(,"[^"{}\\]*")*\}$/);
+          continue;
+        }
+        expect(leg.kind).not.toBe("barcode"); // not barcode-shaped: no copy lookup
+        if (leg.kind === "barcode") continue;
         const value = leg.kind === "or" ? leg.filter : leg.pattern;
         // Only the wildcards this module wraps the term in may remain.
         const inner = leg.kind === "or"
