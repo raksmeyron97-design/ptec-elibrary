@@ -10,8 +10,9 @@
  *     path filters in memory with `matchesSelection()`; the browse path filters
  *     in SQL, and must ask the same exact-match question (`.eq`, never the old
  *     substring `ilike` on category, which counted "370" as a category).
- *   • The holdings table does not show barcodes — a desk identifier, not a
- *     reader's. (Presentation only: the column stays API-readable.)
+ *   • The holdings table shows each copy's barcode (PTEC, 2026-10-04; until
+ *     then it was hidden as a desk identifier, presentation only), and the
+ *     record page shows its keywords, each a link to a subject search.
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
@@ -87,9 +88,14 @@ describe("facet counts and results share one predicate", () => {
 describe("the public record page", () => {
   const src = read(DETAIL);
 
-  it("shows no barcode", () => {
-    expect(src).not.toMatch(/copy\.barcode/);
-    expect(src).not.toMatch(/detail\.barcode/);
+  it("shows each copy's barcode, in the table and on the phone cards", () => {
+    expect(src.match(/t\("detail\.barcode"\)/g)?.length).toBe(2);
+    expect(src).toMatch(/\{copy\.barcode \?\? <span aria-hidden/);
+  });
+
+  it("shows the keywords, each searching the Physical Library for itself", () => {
+    expect(src).toMatch(/t\("detail\.keywordsHeading"\)/);
+    expect(src).toMatch(/href=\{`\/catalogs\?q=\$\{encodeURIComponent\(k\)\}&in=subject`\}/);
   });
 
   it("names the listing the same way the listing names itself", () => {

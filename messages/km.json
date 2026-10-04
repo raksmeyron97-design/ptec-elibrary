@@ -794,6 +794,7 @@
       "digitalTwinCta": "អានសៀវភៅអេឡិចត្រូនិក",
       "viewInOpac": "មើលក្នុងកាតាឡុកបណ្ណាល័យ",
       "detailsHeading": "ព័ត៌មានលម្អិតអំពីសៀវភៅ",
+      "keywordsHeading": "ពាក្យគន្លឹះ",
       "copiesHeading": "ច្បាប់ចម្លងនៅបណ្ណាល័យ",
       "availableCount": "ទំនេរ {available}",
       "copiesSummary": "{available} ក្នុងចំណោម {total} ច្បាប់ អាចខ្ចីបាន",
@@ -838,7 +839,8 @@
       "author": "អ្នកនិពន្ធ",
       "subject": "ប្រធានបទ",
       "isbn": "ISBN",
-      "callnumber": "លេខហៅសៀវភៅ"
+      "callnumber": "លេខហៅសៀវភៅ",
+      "barcode": "បាកូដ"
     },
     "facetSubject": "ប្រធានបទ",
     "facetLanguage": "ភាសា និងស្ថានភាព",

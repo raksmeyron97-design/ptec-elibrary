@@ -55,12 +55,14 @@ export function generateStaticParams() {
 
 // ── Cached data access (public client → safe inside unstable_cache) ───────────
 
-// No barcode: it identifies a copy to the circulation desk, not to a reader,
-// and a reader finds the book by its call number. It is not access control —
-// the column stays readable through the API under the table's public policy.
+// The barcode is shown (PTEC, 2026-10-04): a reader can name the exact copy
+// at the desk or search for it, and it is no secret — the column was always
+// readable through the API under the table's public policy. It used to be
+// hidden as "a desk identifier, not a reader's".
 type PublicCopy = {
   id: string;
   call_number: string | null;
+  barcode: string | null;
   shelf_location: string | null;
   holding_library: string | null;
   status: string | null;
@@ -259,6 +261,8 @@ export default async function CatalogBookPage({
 
   const stats = computeCopyStats(copies);
   const availability = getCatalogAvailability(stats);
+  // Distinct, non-empty: the column is a free text[] the admin and imports write.
+  const keywords = [...new Set((b.keywords ?? []).map((k) => k?.trim()).filter((k): k is string => !!k))];
   // Koha Phase 10.2: "Place a hold" only on a Koha title with no copy on the
   // shelf, and only while holds are on (which needs live availability).
   const offerHold = b.koha_biblio_id != null && titleMayBeHeld(stats) && kohaHoldsForReaders();
@@ -561,6 +565,30 @@ export default async function CatalogBookPage({
               </div>
             )}
 
+            {/* Keywords: each one searches the Physical Library for it */}
+            {keywords.length > 0 && (
+              <div className="rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm">
+                <h2 className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-gold-700 dark:text-gold-400">
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden>
+                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>
+                  </svg>
+                  {t("detail.keywordsHeading")}
+                </h2>
+                <ul className="flex flex-wrap gap-2">
+                  {keywords.map((k) => (
+                    <li key={k}>
+                      <Link
+                        href={`/catalogs?q=${encodeURIComponent(k)}&in=subject`}
+                        className="inline-flex items-center rounded-full border border-divider bg-paper/60 px-3 py-1 text-xs font-medium text-text-body transition-colors hover:border-brand hover:text-brand"
+                      >
+                        {k}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {/* Physical Copies */}
             <div className="rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
@@ -604,6 +632,7 @@ export default async function CatalogBookPage({
                           {[
                             "",
                             t("detail.callNumber"),
+                            t("detail.barcode"),
                             t("detail.shelf"),
                             t("detail.holdingLibrary"),
                             t("detail.status"),
@@ -625,6 +654,9 @@ export default async function CatalogBookPage({
                               </th>
                               <td className="px-3 py-2.5 font-mono text-xs">
                                 {copy.call_number ?? b.ddc ?? <span aria-hidden className="text-text-muted">—</span>}
+                              </td>
+                              <td className="px-3 py-2.5 font-mono text-xs">
+                                {copy.barcode ?? <span aria-hidden className="text-text-muted">—</span>}
                               </td>
                               <td className="px-3 py-2.5 font-mono text-xs">
                                 {copy.shelf_location ?? b.shelf_location ?? <span aria-hidden className="text-text-muted">—</span>}
@@ -658,6 +690,12 @@ export default async function CatalogBookPage({
                               <div>
                                 <dt className="font-medium uppercase tracking-wider text-text-muted">{t("detail.callNumber")}</dt>
                                 <dd className="font-mono font-semibold text-text-heading">{copy.call_number ?? b.ddc}</dd>
+                              </div>
+                            )}
+                            {copy.barcode && (
+                              <div>
+                                <dt className="font-medium uppercase tracking-wider text-text-muted">{t("detail.barcode")}</dt>
+                                <dd className="font-mono font-semibold text-text-heading">{copy.barcode}</dd>
                               </div>
                             )}
                             {(copy.shelf_location ?? b.shelf_location) && (

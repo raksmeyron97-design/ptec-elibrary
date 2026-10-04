@@ -83,6 +83,7 @@ import type { ServerTiming } from "@/lib/search/server-timing";
 import { SEARCH_LEG_BUDGET_MS, withinBudget, type SearchLeg } from "@/lib/search/budgets";
 import { catalogAvailabilityIsLive } from "@/lib/catalogs/availability-live";
 import { CATALOG_MATCH_FIELDS } from "@/lib/catalogs/match-fields";
+import { keywordArrayLiteral, looksLikeBarcode } from "@/lib/catalogs/search-scope";
 import { CATALOG_SCAN_CAP } from "@/lib/catalog";
 import { pagedScan } from "@/lib/db/paged-scan";
 import { clausesWithinBudget } from "@/lib/db/postgrest-url";
@@ -922,8 +923,8 @@ async function searchCatalog(db: DB, rawQ: string, filters: Filters, _limit: num
   // Print has no PDF/HTML; any other format excludes the whole leg.
   if (filters.format && normalizeSearchText(filters.format) !== "print") return { data: [], count: 0, allCandidates: [] };
 
-  const base = () => {
-    let query: any = db.from("catalog_books").select(CATALOG_SEARCH_COLUMNS).eq("is_active", true);
+  const base = (columns = CATALOG_SEARCH_COLUMNS) => {
+    let query: any = db.from("catalog_books").select(columns).eq("is_active", true);
     if (filters.author) query = query.ilike("author", `%${filters.author}%`);
     if (filters.isbn) query = query.or([`isbn.ilike.%${sanitize(filters.isbn)}%`, ...isbnClauses(filters.isbn)].join(","));
     if (filters.publisher) query = query.ilike("publisher", `%${filters.publisher}%`);
@@ -939,13 +940,24 @@ async function searchCatalog(db: DB, rawQ: string, filters: Filters, _limit: num
   // "All fields" (lib/catalogs/match-fields.ts).
   const broadOr = orFilter([...CATALOG_MATCH_FIELDS], tokens);
   const phraseOr = phraseFilter(["title", "author", "category"], prepared, filters, true, seedIds);
-  const [broad, phrase] = await Promise.all([
+  // Whole keywords and a copy's barcode, matched as /catalogs matches them
+  // (lib/catalogs/search-scope.ts). A barcode is not in a record's text, so
+  // its records are kept by the ranker as seeds are.
+  const keywordLiteral = keywordArrayLiteral(rawQ);
+  const barcode = looksLikeBarcode(rawQ) ? rawQ.trim() : null;
+  const [broad, phrase, byKeyword, byBarcode] = await Promise.all([
     broadOr
       ? pagedScan<any>((from, to) => base().or(broadOr).order("id", { ascending: true }).range(from, to), CATALOG_SCAN_CAP)
       : Promise.resolve({ data: [] as any[], error: null, truncated: false }),
     // Whole-query and ISBN-key matches the word pool can miss (a hyphenated
     // ISBN), and the trigram seeds a misspelling needs.
     phraseOr ? base().or(phraseOr).order("id", { ascending: true }).limit(PHRASE_POOL_LIMIT) : Promise.resolve({ data: [] as any[], error: null }),
+    keywordLiteral
+      ? base().contains("keywords", keywordLiteral).order("id", { ascending: true }).limit(PHRASE_POOL_LIMIT)
+      : Promise.resolve({ data: [] as any[], error: null }),
+    barcode
+      ? base(`${CATALOG_SEARCH_COLUMNS}, catalog_copies!inner(barcode)`).ilike("catalog_copies.barcode", barcode).order("id", { ascending: true }).limit(PHRASE_POOL_LIMIT)
+      : Promise.resolve({ data: [] as any[], error: null }),
   ]);
   if (broad.error || broad.truncated) {
     console.error("[native-search/catalog]", broad.error?.message ?? "scan cap reached");
@@ -954,6 +966,9 @@ async function searchCatalog(db: DB, rawQ: string, filters: Filters, _limit: num
   const rows = new Map<string, any>();
   for (const r of broad.data) rows.set(r.id, r);
   if (!phrase.error) for (const r of (phrase.data ?? []) as any[]) if (!rows.has(r.id)) rows.set(r.id, r);
+  if (!byKeyword.error) for (const r of (byKeyword.data ?? []) as any[]) if (!rows.has(r.id)) rows.set(r.id, r);
+  const barcodeIds: string[] = byBarcode.error ? [] : ((byBarcode.data ?? []) as any[]).map((r) => r.id);
+  if (!byBarcode.error) for (const r of (byBarcode.data ?? []) as any[]) if (!rows.has(r.id)) rows.set(r.id, r);
 
   const candidates: Candidate[] = [...rows.values()].map((r: any) => {
     const keywords = cleanArray(r.keywords);
@@ -1001,7 +1016,7 @@ async function searchCatalog(db: DB, rawQ: string, filters: Filters, _limit: num
     };
   }).filter((row: Candidate) => filterCommon(row, filters));
 
-  return rankCandidates(candidates, prepared, pageHitIds, sort, candidates.length, seedIds);
+  return rankCandidates(candidates, prepared, pageHitIds, sort, candidates.length, [...seedIds, ...barcodeIds]);
 }
 
 async function searchPosts(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort, seedIds: string[] = []): Promise<PerTypeSearch> {
