@@ -8291,6 +8291,36 @@
       "prefilledFrom": "Filled from {provider} for ISBN {isbn}. Check every field before saving — category, department, DDC and shelf are left for you to set.",
       "coverAlt": "Cover: {title}"
     },
+    "isbnFetch": {
+      "fetchByIsbn": "Fetch details via ISBN",
+      "fetching": "Fetching…",
+      "hint": "Fills empty fields from Open Library and Google Books. Nothing is saved until you press Save.",
+      "needIsbn": "Enter a valid 10- or 13-digit ISBN first.",
+      "fetchSuccess": "Filled {fields} from {sources}. Review, then save.",
+      "onMediaTab": "Description, keywords and cover are on the Cover & SEO tab.",
+      "nothingToFill": "{sources} found this ISBN, but had nothing for the empty fields.",
+      "fetchNotFound": "No record found for this ISBN in Open Library or Google Books.",
+      "fetchIncomplete": "No record found — but not every source answered (see Sources). Try again later.",
+      "titleMismatch": "{source} lists this ISBN as “{found}” — not this book's title. Check the ISBN for a typo. Nothing has been filled.",
+      "useAnyway": "It is this book — fill anyway",
+      "dismiss": "Don't fill",
+      "duplicate": "Another record already has this ISBN:",
+      "conflictsTitle": "These fields already hold something different. Tick the ones to replace:",
+      "derived": "only restates the record; replacing it is suggested",
+      "current": "Now",
+      "found": "From {source}",
+      "replaceSelected": "Replace selected",
+      "keepCurrent": "Keep current values",
+      "replaced": "Replaced {fields}. Review, then save.",
+      "field": {
+        "description": "Description",
+        "publisher": "Publisher",
+        "year": "Year",
+        "language": "Language",
+        "keywords": "Keywords",
+        "cover": "Cover"
+      }
+    },
     "koha": {
       "linkedTitle": "From Koha (record {id})",
       "linkedBody": "Title, author, ISBN, publisher, year, language, category, call number and department are copied from Koha, and the sync overwrites them here. Change them in Koha. The description, cover, keywords, web address and SEO fields belong to the e-Library and are kept.",

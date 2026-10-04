@@ -16,6 +16,9 @@ import type { CatalogCopy } from "../../../copy-actions";
 import { computeCopyStats, catalogRecordSlug } from "@/lib/catalog";
 import CopiesPanel from "../../../_components/CopiesPanel";
 import RecordHealthPanel from "./RecordHealthPanel";
+import FetchByIsbn from "./FetchByIsbn";
+import type { CurrentRecord, EnrichField, FillValue } from "@/lib/isbn/enrich";
+import { isDerivedDescription } from "@/lib/catalogs/derived-description";
 import { assessCatalogRecordHealth } from "@/lib/catalogs/record-health";
 import { ConfirmDialog } from "@/components/admin/kit";
 import TagInput from "@/components/ui/core/TagInput";
@@ -109,6 +112,7 @@ export default function EditBookWizard({
   const t = useTranslations("adminCatalog.form");
   const te = useTranslations("adminCatalog.edit");
   const tk = useTranslations("adminCatalog.koha");
+  const tf = useTranslations("adminCatalog.isbnFetch");
   const kohaId = book.koha_biblio_id ?? null;
   // Koha owns its copies and the fields derived from them (call number, department).
   const kohaOwned = kohaId !== null && !!koha?.owned;
@@ -124,6 +128,49 @@ export default function EditBookWizard({
   const [slug, setSlug] = useState(book.slug);
   const [pendingTab, setPendingTab] = useState<Tab | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  // Fetch by ISBN reads the ISBN live, and fills fields the form does not
+  // control: keywords and the cover remount with new starting values.
+  const [isbn, setIsbn] = useState(book.isbn ?? "");
+  const keywordsRef = useRef<string[]>(book.keywords ?? []);
+  const [keywordsSeed, setKeywordsSeed] = useState({ key: 0, tags: book.keywords ?? [] });
+  const [coverImport, setCoverImport] = useState<string | null>(null);
+
+  function readCurrent(): CurrentRecord {
+    const el = (name: string) => formRef.current?.elements.namedItem(name) as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null;
+    const description = el("description")?.value ?? "";
+    const publisher = el("publisher")?.value ?? "";
+    return {
+      description,
+      descriptionIsDerived: isDerivedDescription({
+        description,
+        title,
+        author: el("author")?.value,
+        category: el("category")?.value,
+        department: el("department")?.value,
+        ddc: el("ddc")?.value,
+        publisher,
+        shelfLocation: el("shelf_location")?.value,
+      }),
+      publisher,
+      year: el("year")?.value ?? "",
+      language: el("language")?.value ?? book.language,
+      keywords: keywordsRef.current,
+      // A cover already offered (or any cover of the record's own) is not replaced.
+      coverIsGenerated: coverSource === "generated" && coverImport === null,
+    };
+  }
+
+  function applyFetched(values: Partial<Record<EnrichField, FillValue>>) {
+    for (const name of ["description", "publisher", "year", "language"] as const) {
+      const v = values[name];
+      const el = formRef.current?.elements.namedItem(name) as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null;
+      if (typeof v === "string" && el) el.value = v;
+    }
+    if (Array.isArray(values.keywords)) setKeywordsSeed((s) => ({ key: s.key + 1, tags: values.keywords as string[] }));
+    if (typeof values.cover === "string") setCoverImport(values.cover);
+    setDirty(true);
+    setSaved(null);
+  }
 
   const stats = useMemo(() => computeCopyStats(initialCopies), [initialCopies]);
   const health = useMemo(() => assessCatalogRecordHealth(book, stats), [book, stats]);
@@ -394,11 +441,29 @@ export default function EditBookWizard({
             )}
           </Field>
 
-          <Field label={t("isbn")} htmlFor="f-isbn" error={fieldErrors.isbn}>
-            {(p) => (
-              <input {...p} name="isbn" defaultValue={book.isbn ?? ""} placeholder="978-2-940396-75-7" />
-            )}
-          </Field>
+          <div className="sm:col-span-2">
+            <FetchByIsbn
+              bookId={book.id}
+              isbn={isbn}
+              recordTitle={title}
+              readCurrent={readCurrent}
+              onApply={applyFetched}
+              disabled={loading}
+              field={
+                <Field label={t("isbn")} htmlFor="f-isbn" error={fieldErrors.isbn} hint={tf("hint")}>
+                  {(p) => (
+                    <input
+                      {...p}
+                      name="isbn"
+                      defaultValue={book.isbn ?? ""}
+                      onChange={(e) => setIsbn(e.target.value)}
+                      placeholder="978-2-940396-75-7"
+                    />
+                  )}
+                </Field>
+              }
+            />
+          </div>
 
           <Field label={t("publisher")} htmlFor="f-publisher" error={fieldErrors.publisher}>
             {(p) => <input {...p} name="publisher" defaultValue={book.publisher ?? ""} />}
@@ -493,6 +558,9 @@ export default function EditBookWizard({
         {/* Book cover — upload to PTEC Storage / external URL / auto-generated */}
         <div>
           <CatalogCoverField
+            // Remounts once when Fetch by ISBN finds a cover, preselecting it.
+            key={coverImport ?? "cover"}
+            importFrom={coverImport}
             initialCoverUrl={book.cover_url}
             initialSource={coverSource}
             title={book.title}
@@ -522,8 +590,10 @@ export default function EditBookWizard({
 
         <Field label={t("keywords")} htmlFor="f-keywords">
           <TagInput
+            key={keywordsSeed.key}
             name="keywords"
-            defaultTags={book.keywords ?? []}
+            defaultTags={keywordsSeed.tags}
+            onChange={(tags) => { keywordsRef.current = tags; }}
             placeholder={t("keywordsPlaceholder")}
             disabled={loading}
           />
