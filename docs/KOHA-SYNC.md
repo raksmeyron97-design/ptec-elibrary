@@ -20,7 +20,7 @@ Code: `lib/koha/projection.ts` (Koha → rows, pure), `lib/koha/sync-plan.ts`
 
 | Koha owns (the sync overwrites these) | The e-Library owns (the sync never touches these) |
 |---|---|
-| Record: title, author, ISBN, publisher, year, language, category, call number (`ddc`), department | slug, description, cover, keywords, SEO overrides |
+| Record: title, author, ISBN, publisher, year, language, category, call number (`ddc`), department | slug, description, cover (except a cover from Koha, below), keywords, SEO overrides |
 | Copy: barcode, call number, status, shelf, holding library, accession number | copy number, condition, notes |
 | Whether a copy still exists (withdrawn when Koha deletes it) | whether a record is listed (the sync only ever **un**lists) |
 
@@ -176,9 +176,83 @@ Koha-owned fields overwritten.
 **Turning it off:** `KOHA_INTEGRATION=off` on the box. The cron then answers
 409, the data stays as it is, and the admin forms work as before.
 
+## Covers from Koha
+
+**Switch: `KOHA_COVERS=on` + `KOHA_COVER_REPORT_ID` (off: nothing changes).**
+A cover a librarian uploads in Koha (*Tools › Upload local cover image*, or
+*Images* on a record) shows on `/catalogs` too, so nobody uploads it twice.
+Code: `lib/koha/covers.ts` (the rules, pure), `lib/koha/cover-sync.ts` (one
+refresh), `app/api/catalog-covers/[imageId]/route.ts` (the image).
+
+How Koha 26.05.03 keeps and serves covers, measured on PTEC's Koha on
+2026-10-03 (ptec-koha-deployment, docs/10, 2.8):
+
+| | |
+|---|---|
+| Where | table `cover_images`: one row per image, the record's number, a PNG Koha re-encodes the upload to, and a thumbnail. Replacing a cover makes a NEW image number, so an image number's bytes never change |
+| REST API | no cover route in 26.05 |
+| Image | the OPAC, anonymous: `opac-image.pl?imagenumber=N` (`&thumbnail=1` for the small one). The staff route needs a login (403) |
+| No cover | `opac-image.pl?biblionumber=N` answers **200 with a 43-byte 1×1 GIF**, not an error; an unknown image number is a 302 to the 404 page |
+| Caching | every answer is `Expires: now` |
+| Which records | none of the above can list them without one request per record. So PTEC's Koha has a **public** saved report (report 2, *PTEC public: local cover images*) that the OPAC serves as JSON: `svc/report?id=2&annotated=1`, one row per record (`biblionumber`, its first `imagenumber`, `updated`, `total`). Koha caches it for 5 minutes and returns at most `SvcMaxReportRows` rows (set to 10,000); `total` lets a cut-short list be recognised |
+
+What the e-Library does with it:
+
+- **After each applied sync run** (every 15 minutes), one request reads the
+  report from the OPAC (`KOHA_OPAC_INTERNAL_URL`, read at runtime here). A
+  record with a Koha cover gets `cover_url = /api/catalog-covers/{imagenumber}`;
+  its image number changing changes it; a cover Koha no longer has is cleared.
+  Every page that shows `cover_url` shows it — nothing else changed.
+- **Ownership stays with the e-Library.** The sync writes `cover_url` only when
+  it is empty or one of its own `/api/catalog-covers/…` paths. A cover a
+  librarian saved in the e-Library is never touched, and wins over Koha's.
+  Each write is a compare-and-set on the value read, so a cover saved during
+  the refresh is not overwritten.
+- **A list that cannot be read, or is not the report's shape, changes nothing.
+  A list cut short (fewer rows than `total`) may set and change covers but
+  never clears one.**
+- **The image**: `/api/catalog-covers/{N}` fetches `opac-image.pl?imagenumber=N`
+  and answers it with `Cache-Control: public, max-age=604800, immutable`
+  (image numbers never change); Koha's "no cover" GIF and its 302 become a
+  404 (5 minutes); anything else from Koha is a 502, not cached. `<Image>`
+  optimises it like every other cover.
+- From upload in Koha to the e-Library: up to 5 minutes (Koha's report cache)
+  + up to 15 (the sync schedule).
+
+Verified 2026-10-03 against PTEC's Koha with a temporary test cover on record
+308 (uploaded, read, deleted): the report listed record 308 → image 2,
+complete; the plan set `/api/catalog-covers/2` and left a librarian's own
+cover alone; the route's decision on Koha's real answers was *image* for the
+cover and *missing* for an unknown number; after deletion (and the 5-minute
+report cache) the report was empty and the plan cleared the cover. Tests:
+`lib/koha/covers.test.ts`, `lib/koha/cover-sync.test.ts` (ownership,
+completeness and the compare-and-set are each negative-controlled).
+
+**Switching it on:** `KOHA_COVERS=on` and `KOHA_COVER_REPORT_ID=2` in the
+e-Library's `.env`; restart. The next applied sync run fills the covers.
+**Off again:** unset `KOHA_COVERS`; the route then answers 404 and the sync
+writes no cover (paths already written fall back to the generated cover; a
+full clean-up is a one-line SQL update on `cover_url like '/api/catalog-covers/%'`).
+
+## Known data to fix
+
+- **`catalog_books` "Miss Peregrine's Home for Peculiar Children"** (slug
+  `miss-peregrine-s-home-for-peculiar-children`, id
+  `2fe1f825-9cf7-4621-a701-589083222b70`, ISBN 9781594746031) still links to
+  **Koha record 2639, which Koha deleted on 2026-10-01 19:10 (+07)**. The
+  record was created in Koha on 2026-09-27, the same minute as the e-Library
+  row; the row is unlisted (`is_active = false`) but keeps the link and a
+  cover. Found 2026-10-03 when the e-Library's covers were copied into Koha
+  (ptec-koha-deployment, docs/10, 2.8): Koha refused the cover because the
+  record is gone. Fix one way or the other:
+  - the book is on PTEC's shelves → create it again (in Koha, or from the
+    admin, which writes to Koha first), link the row to the new record, and
+    re-run the cover backfill (`scripts/backfill-elibrary-covers.cjs`); or
+  - it is not → clear `koha_biblio_id` and leave the row unlisted, or delete it.
+
 ## What Phase 2 does not do
 
-No writes to Koha (Phase 5+). No patrons, loans or holds (Phases 7–8). No
-covers from Koha. No deletion, ever. The CSV importer remains in the admin, but
+No writes to Koha (Phase 5+). No patrons, loans or holds (Phases 7–8).
+Covers from Koha came later (above). No deletion, ever. The CSV importer remains in the admin, but
 a record added only in the e-Library is not in Koha, so it cannot be lent; the
 nightly run lists it for review. New physical books are catalogued in Koha.
