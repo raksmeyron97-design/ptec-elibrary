@@ -32,6 +32,17 @@
 # route output all survive a deploy unchanged). So: capture it, wait for it to
 # change, then verify.
 #
+# ── Why it starts when Docker Publish FINISHES, not on push ──────────────────
+#
+# It used to start on push and poll for 25 minutes. Docker Publish now gates
+# on the whole CI run (e2e included) and takes 43–94 minutes (measured
+# 2026-10-04, eleven runs), so the fingerprint NEVER changed inside the window:
+# every run since at least 2026-09-30 timed out and verified the PREVIOUS
+# build. Starting on `workflow_run` (Docker Publish completed, successfully)
+# leaves only the box's own pull to wait for: a 5-minute GHCR check, the pull,
+# and ≤180 s to healthy (docs/ZIMAOS-DEPLOYMENT.md) — 20 minutes is ample, and
+# no runner idles for an hour.
+#
 # ── Why a missing fixture does not page anybody ─────────────────────────────
 #
 # The fixtures are ten real production records. A librarian unpublishing one is
@@ -47,7 +58,9 @@
 name: Entity verification
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Docker Publish"]
+    types: [completed]
     branches: ["main"]
   schedule:
     # Weekly, off the top-of-hour cron rush. Catches drift that no deploy
@@ -77,10 +90,12 @@ env:
 
 jobs:
   verify:
+    # An image that was not published was not deployed: nothing new to verify.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    # 25 min of polling + the run itself. The deploy takes ~20 min; a box that
-    # has not pulled in 25 is a deploy problem, and the step says so.
-    timeout-minutes: 35
+    # 20 min of polling + the run itself. A box that has not pulled 20 minutes
+    # after the image was published is a deploy problem, and the step says so.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -95,10 +110,10 @@ jobs:
       - name: Install tsx
         run: npm install --no-save tsx@4
 
-      # ── Wait for the deploy, on push only ────────────────────────────────
+      # ── Wait for the deploy, after a publish only ────────────────────────
       - name: Wait for the new build to reach production
         id: deploy
-        if: github.event_name == 'push'
+        if: github.event_name == 'workflow_run'
         run: |
           set -uo pipefail
 
@@ -114,11 +129,14 @@ jobs:
             echo "waited=unknown" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          echo "Fingerprint before deploy: $before"
+          echo "Fingerprint before deploy: $before (image for ${{ github.event.workflow_run.head_sha }})"
 
-          # 33 x 45s = ~25 min. The box pulls within 5 min of the image being
-          # published, and docker-publish.yml gates on the full ci job first.
-          for i in $(seq 1 33); do
+          # 27 x 45s = ~20 min, counted from the image being PUBLISHED: the box
+          # checks GHCR every 5 min, pulls, and is healthy within 180 s.
+          # (If it was quicker than this job's start, the fingerprint above is
+          # already the new build: the wait times out, and the live build —
+          # the new one — is what gets verified.)
+          for i in $(seq 1 27); do
             sleep 45
             now=$(fingerprint)
             if [ -n "$now" ] && [ "$now" != "$before" ]; then
@@ -133,7 +151,7 @@ jobs:
           # NOT a failure of this job's subject. The entities may be perfectly
           # correct; we simply never saw the new code. Verifying the old build
           # and reporting it as a pass would be the actual harm.
-          echo "::warning title=Deploy not observed::The /_next/static fingerprint did not change in 25 minutes. Verifying whatever is live, which may be the previous build."
+          echo "::warning title=Deploy not observed::The /_next/static fingerprint did not change in 20 minutes after the image was published. Verifying whatever is live — the new build if the box pulled before this job started, else the previous one."
           echo "waited=timeout" >> "$GITHUB_OUTPUT"
 
       - name: Verify contributor entities
@@ -196,9 +214,11 @@ jobs:
                    --workflow entity-verification.yml \
                    --branch "${{ github.ref_name }}" \
                    --status completed \
-                   --limit 5 \
                    --json databaseId,conclusion \
-                   --jq "[.[] | select(.databaseId != ${{ github.run_id }})] | .[0].conclusion" 2>/dev/null || echo "")
+                   --limit 20 \
+                   --jq "[.[] | select(.databaseId != ${{ github.run_id }} and .conclusion != \"skipped\" and .conclusion != \"cancelled\")] | .[0].conclusion" 2>/dev/null || echo "")
+          # Skipped (a publish that failed) and cancelled runs verified nothing:
+          # they are not the state an alert transitions from.
           # Unlike uptime.yml, an unknown previous state defaults to FAILURE
           # here — i.e. toward staying quiet. A missed availability alert costs
           # an outage; a duplicate correctness alert costs trust in the channel,
