@@ -19,13 +19,19 @@
  * Field ownership, the rule that keeps a librarian's work from vanishing:
  *   Koha-owned (Koha's value wins WHEN KOHA HAS ONE):
  *     title, author, isbn, publisher, year, language, category, ddc
- *     (the record's call number), department (Koha collection);
+ *     (the record's call number), department (Koha collection),
+ *     description (520) and keywords (653 other than the category's);
  *     copies: barcode, call number, status, shelf, holding library, accession.
  *     "When Koha has one" means clearing a field in Koha does not clear it
- *     here — the price of never wiping a value Koha simply does not hold.
- *   e-Library-owned (never touched): slug (the URL), description, cover, SEO
- *     overrides, keywords — and is_active, except that a record whose Koha
- *     record was deleted is UNLISTED (never re-listed, never deleted).
+ *     here — the price of never wiping a value Koha simply does not hold. For
+ *     description and keywords that is most records today: the PMB converter
+ *     wrote no 520, and the e-Library's own were never sent until saving
+ *     started to write them (marc-write.ts). Description and keywords are
+ *     compared as a reader sees them — whitespace and keyword order/case are
+ *     not changes — so a run over an unchanged Koha still plans nothing.
+ *   e-Library-owned (never touched): slug (the URL), cover, SEO overrides —
+ *     and is_active, except that a record whose Koha record was deleted is
+ *     UNLISTED (never re-listed, never deleted).
  *
  * Only a FULL run can see deletions: an incremental run is handed changed
  * rows, so absence proves nothing. Deletions are therefore full-mode only, and
@@ -33,6 +39,7 @@
  * is deleted from the e-Library by the sync.
  */
 import type { CopyStatus } from "@/lib/catalog";
+import { isDerivedDescription } from "@/lib/catalogs/derived-description";
 import { recordCallNumber, recordDepartment, type ProjectedBook, type ProjectedCopy } from "./projection";
 
 export type SyncMode = "full" | "incremental";
@@ -50,6 +57,8 @@ export interface PtecBook {
   category: string | null;
   department: string | null;
   ddc: string | null;
+  description: string | null;
+  keywords: string[] | null;
   is_active: boolean;
 }
 
@@ -66,7 +75,9 @@ export interface PtecCopy {
   copy_number: number | null;
 }
 
-export type BookFields = Pick<PtecBook, "title" | "author" | "isbn" | "publisher" | "year" | "language" | "category" | "department" | "ddc">;
+export type BookFields = Pick<PtecBook, "title" | "author" | "isbn" | "publisher" | "year" | "language" | "category" | "department" | "ddc" | "description"> & {
+  keywords: string[];
+};
 export type CopyFields = {
   barcode: string | null;
   call_number: string | null;
@@ -85,7 +96,8 @@ export type ExceptionKind =
   | "record_emptied"          // an unlinked e-Library record whose copies Koha grouped under other records
   | "regrouped"               // Koha grouped this record's copies differently; copies were moved to follow Koha
   | "barcode_conflict"        // a Koha barcode is held by an e-Library copy linked to a DIFFERENT Koha item
-  | "missing_biblio";         // a Koha item whose record could not be read
+  | "missing_biblio"          // a Koha item whose record could not be read
+  | "description_replaced";   // Koha's 520 replaced a different description written in the e-Library (the old text is in the message)
 
 export interface SyncException {
   kind: ExceptionKind;
@@ -109,15 +121,28 @@ export interface SyncPlan {
   counts: Record<string, number>;
 }
 
-const norm = (v: unknown) => (v === undefined || v === "" ? null : v);
+/**
+ * A value as the comparison sees it. Description: whitespace is not a change.
+ * Keywords: a set — order and case are not a change, and an empty list is
+ * "Koha holds none" (null), so keepWhenIncomingNull applies to it.
+ */
+const norm = (k: string, v: unknown): unknown => {
+  if (v === undefined || v === "") return null;
+  if (k === "description" && typeof v === "string") return v.replace(/\s+/g, " ").trim() || null;
+  if (k === "keywords") {
+    const set = [...new Set((Array.isArray(v) ? v : []).map((x) => String(x ?? "").replace(/\s+/g, " ").trim().toLocaleLowerCase()).filter(Boolean))].sort();
+    return set.length ? set.join("\u0001") : null;
+  }
+  return v;
+};
 
 /** A patch containing only the Koha-owned fields Koha has a value for AND that differ. */
 function diff<T extends Record<string, unknown>>(current: Record<string, unknown>, incoming: T, opts: { keepWhenIncomingNull: boolean }): Partial<T> {
   const patch: Partial<T> = {};
   for (const [k, v] of Object.entries(incoming)) {
-    const next = norm(v);
+    const next = norm(k, v);
     if (next === null && opts.keepWhenIncomingNull) continue;
-    if (norm(current[k]) !== next) (patch as Record<string, unknown>)[k] = next;
+    if (norm(k, current[k]) !== next) (patch as Record<string, unknown>)[k] = next === null ? null : v;
   }
   return patch;
 }
@@ -133,6 +158,8 @@ function bookFields(b: ProjectedBook, copies: ProjectedCopy[]): BookFields {
     category: b.category,
     department: recordDepartment(copies),
     ddc: recordCallNumber(copies, b.ddcClass),
+    description: b.description,
+    keywords: b.keywords,
   };
 }
 
@@ -237,6 +264,16 @@ export function planSync(input: {
       const current = ptecBookById.get(ref.existing)!;
       const patch: SyncPlan["updateBooks"][number]["patch"] = diff(current as unknown as Record<string, unknown>, fields, { keepWhenIncomingNull: true });
       if (current.koha_biblio_id !== b.kohaBiblioId) patch.koha_biblio_id = b.kohaBiblioId;
+      // Koha wins — but a librarian's own description is not lost without a
+      // trace: the run's exceptions keep it (a template that only restates the
+      // record is not worth keeping).
+      if (patch.description !== undefined && current.description?.trim()
+        && !isDerivedDescription({ description: current.description, title: current.title, author: current.author, category: current.category,
+          department: current.department, ddc: current.ddc, publisher: current.publisher })) {
+        const old = current.description.replace(/\s+/g, " ").trim();
+        plan.exceptions.push({ kind: "description_replaced", bookId: current.id, kohaBiblioId: b.kohaBiblioId,
+          message: `"${current.title}": Koha's summary (520) replaced the e-Library's description, which was: ${old.length > 600 ? `${old.slice(0, 599)}…` : old}` });
+      }
       if (Object.keys(patch).length) plan.updateBooks.push({ id: current.id, patch });
       continue;
     }

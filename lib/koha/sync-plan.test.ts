@@ -11,7 +11,7 @@ import type { ProjectedBook, ProjectedCopy } from "./projection";
 
 const kb = (id: number, over: Partial<ProjectedBook> = {}): ProjectedBook => ({
   kohaBiblioId: id, title: `Book ${id}`, author: `Author ${id}`, isbn: null, publisher: null, year: null,
-  language: "en", category: "370 Education", ddcClass: null, ...over,
+  language: "en", category: "370 Education", description: null, keywords: [], ddcClass: null, ...over,
 });
 const ki = (itemId: number, biblioId: number, barcode: string | null, over: Partial<ProjectedCopy> = {}): ProjectedCopy => ({
   kohaItemId: itemId, kohaBiblioId: biblioId, barcode, callNumber: `37${biblioId} ABC`, shelfLocation: null,
@@ -19,7 +19,7 @@ const ki = (itemId: number, biblioId: number, barcode: string | null, over: Part
 });
 const pb = (id: string, over: Partial<PtecBook> = {}): PtecBook => ({
   id, slug: id, koha_biblio_id: null, title: `Old ${id}`, author: null, isbn: null, publisher: null, year: null,
-  language: "en", category: null, department: null, ddc: null, is_active: true, ...over,
+  language: "en", category: null, department: null, ddc: null, description: null, keywords: [], is_active: true, ...over,
 });
 const pc = (id: string, book: string, barcode: string | null, over: Partial<PtecCopy> = {}): PtecCopy => ({
   id, catalog_book_id: book, koha_item_id: null, barcode, status: "available", call_number: null,
@@ -177,5 +177,59 @@ describe("an item checked out in Koha", () => {
     const plan = planSync({ mode: "incremental", kohaBooks: [kb(1)], kohaCopies: [ki(10, 1, "A", { status: "on_loan" })], ptecBooks: built.books, ptecCopies: built.copies });
     expect(plan.updateCopies).toEqual([{ id: "copy-10", patch: { status: "on_loan" }, moveTo: undefined }]);
     expect(plan.updateBooks).toEqual([]);
+  });
+});
+
+describe("description (520) and keywords (653)", () => {
+  const linked = (over: Partial<PtecBook> = {}) =>
+    pb("p1", { koha_biblio_id: 1, title: "Book 1", author: "Author 1", category: "370 Education", ddc: "371 ABC", ...over });
+  const run = (book: Partial<ProjectedBook>, ptec: PtecBook) => planSync({
+    mode: "incremental", kohaBooks: [kb(1, book)], kohaCopies: [ki(10, 1, "0803")],
+    ptecBooks: [ptec], ptecCopies: [pc("c1", "p1", "0803", { koha_item_id: 10, call_number: "371 ABC" })],
+  });
+
+  it("Koha's summary and keywords fill an e-Library record that has none", () => {
+    const plan = run({ description: "A summary.\n\nTwo paragraphs.", keywords: ["Pedagogy", "Assessment"] }, linked());
+    expect(plan.updateBooks).toEqual([{ id: "p1", patch: { description: "A summary.\n\nTwo paragraphs.", keywords: ["Pedagogy", "Assessment"] } }]);
+    expect(plan.exceptions).toEqual([]);
+  });
+
+  it("Koha holding no 520 and no keywords never wipes the e-Library's", () => {
+    const plan = run({ description: null, keywords: [] }, linked({ description: "Ours.", keywords: ["Ours"] }));
+    expect(plan.updateBooks).toEqual([]);
+  });
+
+  it("whitespace, keyword order and case are not changes: nothing is planned", () => {
+    const plan = run(
+      { description: "A summary. Two paragraphs.", keywords: ["assessment", "Pedagogy"] },
+      linked({ description: "A summary.\n\nTwo   paragraphs.", keywords: ["Pedagogy", "Assessment"] }),
+    );
+    expect(isNoop(plan)).toBe(true);
+  });
+
+  it("plans nothing on a second run after applying", () => {
+    const koha = { description: "A summary.", keywords: ["Pedagogy"] };
+    const first = run(koha, linked());
+    const after = apply(first, [linked()], [pc("c1", "p1", "0803", { koha_item_id: 10, call_number: "371 ABC" })]);
+    expect(isNoop(run(koha, after.books[0]))).toBe(true);
+  });
+
+  it("Koha's summary replaces a different one written in the e-Library — and the old text is kept in the run's exceptions", () => {
+    const mine = "Our own summary of this book, written by a PTEC librarian for student teachers.";
+    const plan = run({ description: "Koha's summary." }, linked({ description: mine }));
+    expect(plan.updateBooks[0].patch).toEqual({ description: "Koha's summary." });
+    expect(plan.exceptions).toEqual([expect.objectContaining({ kind: "description_replaced", bookId: "p1", kohaBiblioId: 1 })]);
+    expect(plan.exceptions[0].message).toContain(mine);
+  });
+
+  it("a description that only restated the record is replaced without a report", () => {
+    const plan = run({ description: "A real summary of the book." }, linked({ description: "Book 1 by Author 1. DDC call number: 371 ABC." }));
+    expect(plan.updateBooks[0].patch).toEqual({ description: "A real summary of the book." });
+    expect(plan.exceptions).toEqual([]);
+  });
+
+  it("a new record from Koha brings its description and keywords", () => {
+    const plan = planSync({ mode: "full", kohaBooks: [kb(5, { description: "S.", keywords: ["K"] })], kohaCopies: [ki(50, 5, "5555")], ptecBooks: [], ptecCopies: [] });
+    expect(plan.createBooks[0].fields).toMatchObject({ description: "S.", keywords: ["K"] });
   });
 });

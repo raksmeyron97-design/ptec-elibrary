@@ -207,7 +207,9 @@ export function marcForEnrichment(v: {
     lines.push(`264  1 ${v.publisher ? `$b ${v.publisher}${v.year ? "," : ""}` : ""}${v.publisher && v.year ? " " : ""}${v.year ? `$c ${v.year}` : ""}`);
   }
   if (v.description) lines.push(`520    $a ${v.description.replace(/\s*\n+\s*/g, " ")}`);
-  for (const k of v.keywords ?? []) lines.push(`653    $a ${k}`);
+  // Second indicator 0, "topical term": the category is the 653 with a blank
+  // one, so a keyword must never be written blank (lib/koha/projection.ts).
+  for (const k of v.keywords ?? []) lines.push(`653  0 $a ${k}`);
   return lines;
 }
 

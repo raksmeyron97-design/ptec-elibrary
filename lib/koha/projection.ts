@@ -14,7 +14,7 @@
  *     author (contributor-trust.ts); ISBNs are stored as bare digits; language
  *     is one of km/en/fr/zh/other.
  */
-import { normalizeIsbn, validateIsbn, type CopyStatus } from "@/lib/catalog";
+import { MAX_TEXT, normalizeIsbn, validateIsbn, type CopyStatus } from "@/lib/catalog";
 import { assessContributorName } from "@/lib/resources/contributor-trust";
 
 // ── MARC-in-JSON (Koha: Accept: application/marc-in-json) ──────────────────────
@@ -54,6 +54,87 @@ const tidy = (s: string | null | undefined) => (s ?? "").replace(/[\s﻿]+/g, " 
 const stripIsbd = (s: string) => tidy(s).replace(/\s*[/:;=,]\s*$/u, "").trim();
 const first = (xs: string[]) => xs.map(tidy).find(Boolean) ?? null;
 
+// ── Category, keywords, description ───────────────────────────────────────────
+//
+// 653 carries TWO things. The PMB converter put the PTEC category ("370 អប់រំ …")
+// in a 653 with blank indicators, on all 2,638 records it made, and the
+// e-Library writes a new record's category the same way. Keywords are 653s
+// too — written with second indicator 0, "topical term", which is what MARC
+// says a keyword is. So the category is told apart by its INDICATOR, never by
+// its position or its text: a record with keywords and no category must not
+// have its first keyword read as its category.
+
+const blankIndicator = (v: string | undefined) => v === undefined || v.trim() === "";
+const dataField = (f: Record<string, string | MarcDataField>, tag: string): MarcDataField | null => {
+  const v = f[tag];
+  return v && typeof v === "object" && Array.isArray(v.subfields) ? v : null;
+};
+const firstA = (f: MarcDataField) => first(f.subfields.flatMap((sf) => (typeof sf.a === "string" ? [sf.a] : [])));
+
+/** Index in `rec.fields` of the 653 that holds the category: the first with a blank second indicator and an $a. -1 if none. */
+export function categoryFieldIndex(rec: MarcInJson): number {
+  return rec.fields.findIndex((f) => {
+    const d = dataField(f, "653");
+    return !!d && blankIndicator(d.ind2) && !!firstA(d);
+  });
+}
+
+/** Every 653$a except the category itself, tidied, de-duplicated (case-insensitively), in record order. */
+export function keywordsOf(rec: MarcInJson): string[] {
+  const at = categoryFieldIndex(rec);
+  const out: string[] = [];
+  const seen = new Set<string>();
+  rec.fields.forEach((f, i) => {
+    const d = dataField(f, "653");
+    if (!d) return;
+    const values = d.subfields.flatMap((sf) => (typeof sf.a === "string" ? [tidy(sf.a)] : [])).filter(Boolean);
+    // The category field's first $a is the category; any further $a in it are terms.
+    for (const v of i === at ? values.slice(1) : values) {
+      const key = v.toLocaleLowerCase();
+      if (!seen.has(key)) { seen.add(key); out.push(v); }
+    }
+  });
+  return out;
+}
+
+/** Whitespace tidied line by line, paragraph breaks (a blank line) kept. */
+export function tidyParagraphs(s: string | null | undefined): string {
+  return (s ?? "")
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((l) => l.replace(/[\s\uFEFF]+/g, " ").trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/**
+ * 520 is a summary unless its first indicator says otherwise: 1 is a review,
+ * 4 content advice — neither describes the book. Several 520s are paragraphs
+ * of one description (the e-Library splits one longer than a MARC field may
+ * hold; lib/koha/marc-write.ts).
+ */
+export const isSummary520 = (f: MarcDataField) => !["1", "4"].includes((f.ind1 ?? "").trim());
+
+export function descriptionOf(rec: MarcInJson): string | null {
+  const parts: string[] = [];
+  for (const f of rec.fields) {
+    const d = dataField(f, "520");
+    if (!d || !isSummary520(d)) continue;
+    const text = ["a", "b"]
+      .flatMap((code) => d.subfields.flatMap((sf) => (typeof sf[code] === "string" ? [tidyParagraphs(sf[code])] : [])))
+      .filter(Boolean)
+      .join(" ");
+    if (text) parts.push(text);
+  }
+  const text = parts.join("\n\n");
+  if (!text) return null;
+  // The e-Library's form refuses a longer description; one from Koha must still save.
+  if (text.length <= MAX_TEXT.description) return text;
+  const cut = text.slice(0, MAX_TEXT.description - 1);
+  return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), MAX_TEXT.description - 200)).trimEnd()}…`;
+}
+
 // ── Records ────────────────────────────────────────────────────────────────────
 
 export type CatalogLanguageCode = "km" | "en" | "fr" | "zh" | "other";
@@ -72,8 +153,12 @@ export interface ProjectedBook {
   publisher: string | null;
   year: number | null;
   language: CatalogLanguageCode;
-  /** 653$a — the shelf class label in the PMB records ("370 អប់រំ …"). */
+  /** 653$a — the shelf class label in the PMB records ("370 អប់រំ …"). See categoryFieldIndex(). */
   category: string | null;
+  /** 520 — the summary, paragraphs kept; null when Koha holds none. See descriptionOf(). */
+  description: string | null;
+  /** Every 653$a that is not the category — uncontrolled index terms. See keywordsOf(). */
+  keywords: string[];
   /** 082 $a (+ $b) — the Dewey number, used only when no item carries a call number. */
   ddcClass: string | null;
 }
@@ -149,7 +234,9 @@ export function projectBiblio(rec: MarcInJson, opts: { maxYear?: number } = {}):
     publisher: publisherRaw ? stripIsbd(publisherRaw) || null : null,
     year: yearOf(rec, opts.maxYear ?? new Date().getFullYear() + 1),
     language: languageOf(rec, title),
-    category: first(marcSubfields(rec, "653", "a")),
+    category: (() => { const at = categoryFieldIndex(rec); return at >= 0 ? firstA(rec.fields[at]["653"] as MarcDataField) : null; })(),
+    description: descriptionOf(rec),
+    keywords: keywordsOf(rec),
     ddcClass: ddcOf(rec),
   };
 }

@@ -20,7 +20,7 @@ Code: `lib/koha/projection.ts` (Koha → rows, pure), `lib/koha/sync-plan.ts`
 
 | Koha owns (the sync overwrites these) | The e-Library owns (the sync never touches these) |
 |---|---|
-| Record: title, author, ISBN, publisher, year, language, category, call number (`ddc`), department | slug, description, cover (except a cover from Koha, below), keywords, SEO overrides |
+| Record: title, author, ISBN, publisher, year, language, category, call number (`ddc`), department, **description** (520), **keywords** (653) | slug, cover (except a cover from Koha, below), SEO overrides |
 | Copy: barcode, call number, status, shelf, holding library, accession number | copy number, condition, notes |
 | Whether a copy still exists (withdrawn when Koha deletes it) | whether a record is listed (the sync only ever **un**lists) |
 
@@ -34,7 +34,17 @@ Where each value comes from in Koha:
   refused if it names nobody (`lib/resources/contributor-trust.ts`); **ISBN**
   020$a, validated, stored as digits; **publisher / year** 264 (else 260) $b/$c,
   year falling back to 008; **language** 041$a, else 008/35-37, else the
-  title's script; **category** 653$a (the PMB shelf label).
+  title's script; **category** 653$a of the first 653 with a blank second
+  indicator (the PMB shelf label); **keywords** every other 653$a (the
+  e-Library writes them with second indicator 0, so a record with keywords
+  and no category never reads a keyword as its category); **description**
+  every 520 but reviews (ind1 1) and content advice (ind1 4), joined as
+  paragraphs, cut at 5,000 characters (the e-Library's limit).
+- Description and keywords are compared as a reader sees them: whitespace,
+  keyword order and keyword case are not changes, so a run over an unchanged
+  Koha still plans nothing. When Koha's 520 replaces a DIFFERENT description
+  written in the e-Library (not a template), the run logs a
+  `description_replaced` exception carrying the old text.
 - **call number** — the call number most of the record's copies carry.
 - **department** — the **collection** (952$8, CCODE) most of its copies are in,
   by its label. The PMB department was not imported into Koha; the deployment

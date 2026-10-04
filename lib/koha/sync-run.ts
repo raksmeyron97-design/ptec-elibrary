@@ -62,7 +62,7 @@ export type SyncRunResult =
 
 type Db = SupabaseClient;
 
-const BOOK_COLUMNS = "id, slug, koha_biblio_id, title, author, isbn, publisher, year, language, category, department, ddc, is_active";
+const BOOK_COLUMNS = "id, slug, koha_biblio_id, title, author, isbn, publisher, year, language, category, department, ddc, description, keywords, is_active";
 const COPY_COLUMNS = "id, catalog_book_id, koha_item_id, barcode, status, call_number, shelf_location, holding_library, accession_number, copy_number";
 
 async function readAllRows<T>(db: Db, table: string, columns: string): Promise<T[]> {
@@ -195,7 +195,6 @@ export async function runKohaSync(db: Db, koha: KohaClient, opts: SyncRunOptions
           is_active: true,
           copies_total: 0,
           copies_available: 0,
-          keywords: [],
           created_by: opts.actorId ?? null,
         }));
         const { data, error } = await db.from("catalog_books").insert(rows).select("id, koha_biblio_id");
