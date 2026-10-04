@@ -68,6 +68,35 @@ keyword suggestions, description (Google only), and a found cover to import (Ope
 PTEC's taxonomy, and a plausible-looking wrong category is worse than an empty
 one the librarian notices.
 
+## Fetch by ISBN — an existing record
+
+The edit form has the same lookup beside its ISBN field ("Fetch details via
+ISBN"), for records that came in thin — the PMB migration left most without a
+description, publisher or year. Its rules (`lib/isbn/enrich.ts`) differ from
+Add by ISBN's because the record already says which book it is:
+
+- The candidates are merged field by field: the description from Google Books
+  (Open Library's provider never returns one), publisher, year and the cover
+  from Open Library, subjects as keywords.
+- An **empty** field is filled. A field that **already holds something
+  different** is offered with a tick box and changes only when ticked. A
+  description that merely restates the record
+  (`lib/catalogs/derived-description.ts`) is offered pre-ticked. A found cover
+  is offered only to a record showing the generated one.
+- **Nothing is filled while the found title disagrees with the record's.** A
+  mistyped ISBN fetches a real book: `9781853963285`, once given for Fidler's
+  *Strategic management for school development*, is Open Library's
+  *Educational management today* (1996). The librarian can override.
+- It saves nothing; Save does, through the ordinary update path (and the Koha
+  write, for a record Koha owns).
+
+`scripts/enrich-catalog-book.ts` does the same from a terminal, plus an
+`--abstract` mode for books with no ISBN (the author's own abstract, typed or
+pasted by the librarian — no AI). It is a dry run without `--apply`, replaces a
+differing value only when named in `--replace`, and prints the MARC21
+(`020`, `041`, `264`, `520`, `653`) for Koha, where publisher, year, language
+and ISBN have to be set to last (docs/KOHA-SYNC.md).
+
 ## Safety
 
 - Server-side only: the lookup is a Server Action behind `catalog: write`,
