@@ -22,7 +22,7 @@
  * except that a new record's Dewey class goes to 082, which is where the
  * projection looks when a record has no copies yet.
  */
-import type { CatalogLanguageCode, MarcDataField, MarcInJson } from "./projection";
+import { categoryFieldIndex, isSummary520, tidyParagraphs, type CatalogLanguageCode, type MarcDataField, type MarcInJson } from "./projection";
 
 /** The bibliographic fields the e-Library may change in Koha. */
 export interface WritableBookFields {
@@ -33,8 +33,12 @@ export interface WritableBookFields {
   year: number | null;
   language: CatalogLanguageCode;
   category: string | null;
+  /** 520 $a. Paragraphs are kept (a blank line between them). */
+  description: string | null;
+  /** One 653 (second indicator 0, "topical term") per keyword — never the category's 653. */
+  keywords: string[];
 }
-export const WRITABLE_BOOK_FIELDS = ["title", "author", "isbn", "publisher", "year", "language", "category"] as const;
+export const WRITABLE_BOOK_FIELDS = ["title", "author", "isbn", "publisher", "year", "language", "category", "description", "keywords"] as const;
 export type WritableField = (typeof WRITABLE_BOOK_FIELDS)[number];
 
 /** MARC 21 language codes (008/35-37, 041$a) — the converter's own table. */
@@ -55,6 +59,67 @@ const data = (tag: string, ind1: string, ind2: string, subfields: [string, strin
   return sfs.length ? { [tag]: { ind1, ind2, subfields: sfs } } : null;
 };
 const tagOf = (f: Field) => Object.keys(f)[0];
+
+/**
+ * A MARC field holds at most 9,999 bytes (ISO 2709 — Koha's exports, Z39.50),
+ * and Khmer is three bytes a character: the e-Library's 5,000-character limit
+ * is up to 15,000 bytes. So a long description becomes several 520s, split
+ * between paragraphs (or, for one enormous paragraph, between sentences); the
+ * projection joins them back with a blank line.
+ */
+export const MAX_520_BYTES = 9000;
+const bytes = (s: string) => new TextEncoder().encode(s).length;
+
+function splitToFit(paragraph: string, max: number): string[] {
+  if (bytes(paragraph) <= max) return [paragraph];
+  const out: string[] = [];
+  let cur = "";
+  // Between sentences (Latin and Khmer full stops), else characters. Split,
+  // never matched, so no character can fall between two pieces.
+  const pieces = paragraph.split(/(?<=[.!?។៕])\s+/u).map((x, i, all) => (i < all.length - 1 ? `${x} ` : x));
+  for (const piece of pieces) {
+    if (bytes(cur + piece) <= max) { cur += piece; continue; }
+    if (cur.trim()) out.push(cur.trim());
+    cur = "";
+    if (bytes(piece) <= max) { cur = piece; continue; }
+    for (const ch of piece) {
+      if (bytes(cur + ch) > max) { out.push(cur.trim()); cur = ""; }
+      cur += ch;
+    }
+  }
+  if (cur.trim()) out.push(cur.trim());
+  return out;
+}
+
+/** The 520s for a description: as few as fit, split between paragraphs. */
+export function descriptionFields(description: string | null): Field[] {
+  const text = tidyParagraphs(description);
+  if (!text) return [];
+  const chunks: string[] = [];
+  let cur = "";
+  for (const p of text.split("\n\n").flatMap((para) => splitToFit(para, MAX_520_BYTES))) {
+    const next = cur ? `${cur}\n\n${p}` : p;
+    if (bytes(next) <= MAX_520_BYTES) cur = next;
+    else { chunks.push(cur); cur = p; }
+  }
+  if (cur) chunks.push(cur);
+  // Written as is (not through data()): data() collapses the paragraph breaks.
+  return chunks.map((a) => ({ "520": { ind1: " ", ind2: " ", subfields: [{ a }] } }));
+}
+
+/** Keywords tidied and de-duplicated (case-insensitively), in the librarian's order. */
+export function cleanKeywords(keywords: readonly (string | null | undefined)[] | null | undefined): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const k of keywords ?? []) {
+    const v = tidy(k);
+    const key = v.toLocaleLowerCase();
+    if (v && !seen.has(key)) { seen.add(key); out.push(v); }
+  }
+  return out;
+}
+
+const keywordField = (k: string): Field => ({ "653": { ind1: " ", ind2: "0", subfields: [{ a: k }] } });
 
 /**
  * 008 for books, 40 characters, exactly as the converter writes it:
@@ -92,7 +157,9 @@ export function newBiblioMarc(
     data("100", "1", " ", [["a", f.author]]),
     data("245", f.author ? "1" : "0", "0", [["a", f.title]]),
     data("264", " ", "1", [["b", f.publisher], ["c", f.year ? String(f.year) : null]]),
+    ...descriptionFields(f.description),
     data("653", " ", " ", [["a", f.category]]),
+    ...cleanKeywords(f.keywords).map(keywordField),
     data("942", " ", " ", [["c", opts.itemType], ["2", ddc ? "ddc" : null]]),
   ].filter((x): x is Field => x !== null);
   return { leader: NEW_RECORD_LEADER, fields };
@@ -237,13 +304,57 @@ export function editBiblioMarc(
 
   if (has("category")) {
     const category = tidy(changes.category) || null;
-    const at = indexOf(rec, "653");
+    // The category's own 653 (blank second indicator) — never a keyword's.
+    const at = categoryFieldIndex(rec);
     if (!category) {
-      if (at >= 0) rec.fields.splice(at, 1);
+      if (at >= 0) {
+        // Only the category goes: further $a in that field are terms, and stay.
+        const f = rec.fields[at]["653"] as MarcDataField;
+        const firstA = f.subfields.findIndex((sf) => typeof sf.a === "string" && tidy(sf.a));
+        f.subfields = f.subfields.filter((_, i) => i !== firstA);
+        if (!f.subfields.some((sf) => typeof sf.a === "string" && tidy(sf.a))) rec.fields.splice(at, 1);
+      }
     } else if (at >= 0) {
-      setSubfield(rec.fields[at]["653"] as MarcDataField, "a", category);
+      const f = rec.fields[at]["653"] as MarcDataField;
+      const firstA = f.subfields.findIndex((sf) => typeof sf.a === "string" && tidy(sf.a));
+      f.subfields[firstA] = { a: category };
     } else {
-      insertInOrder(rec, data("653", " ", " ", [["a", category]])!);
+      // Before any keyword 653, so a person reading the record sees it first.
+      const field = data("653", " ", " ", [["a", category]])!;
+      const firstKeyword = rec.fields.findIndex((f) => tagOf(f) === "653");
+      if (firstKeyword >= 0) rec.fields.splice(firstKeyword, 0, field);
+      else insertInOrder(rec, field);
+    }
+  }
+
+  if (has("description")) {
+    // Every summary 520 is replaced; reviews (ind1 1) and content advice (4) are not ours.
+    const ours = (f: Field) => tagOf(f) === "520" && isData(f["520"]) && isSummary520(f["520"] as MarcDataField);
+    const at = rec.fields.findIndex(ours);
+    rec.fields = rec.fields.filter((f) => !ours(f));
+    const fields = descriptionFields(changes.description ?? null);
+    if (fields.length) {
+      if (at >= 0) rec.fields.splice(at, 0, ...fields);
+      else for (const f of fields) insertInOrder(rec, f);
+    }
+  }
+
+  if (has("keywords")) {
+    // Every 653 but the category's own goes; the new keywords follow it.
+    const cat = categoryFieldIndex(rec);
+    const catField = cat >= 0 ? rec.fields[cat] : null;
+    const category = catField ? (catField["653"] as MarcDataField) : null;
+    if (category) {
+      // Further $a in the category's field were terms: they are replaced too.
+      const firstA = category.subfields.findIndex((sf) => typeof sf.a === "string" && tidy(sf.a));
+      category.subfields = category.subfields.filter((sf, i) => !(typeof sf.a === "string") || i === firstA);
+    }
+    rec.fields = rec.fields.filter((f) => tagOf(f) !== "653" || f === catField);
+    const fields = cleanKeywords(changes.keywords).map(keywordField);
+    if (fields.length) {
+      const after = catField ? rec.fields.indexOf(catField) + 1 : -1;
+      if (after > 0) rec.fields.splice(after, 0, ...fields);
+      else for (const f of fields) insertInOrder(rec, f);
     }
   }
 

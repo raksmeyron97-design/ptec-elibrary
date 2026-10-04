@@ -37,7 +37,7 @@ import {
   readKohaRecord,
   updateInKoha,
 } from "@/lib/koha/catalog-writes";
-import { pickWritable, type FieldConflict } from "@/lib/koha/biblio-write";
+import { pickWritable, rowFieldsFromKoha, type FieldConflict } from "@/lib/koha/biblio-write";
 import type { WritableField } from "@/lib/koha/marc-write";
 import type { KohaError } from "@/lib/koha/errors";
 
@@ -74,6 +74,7 @@ export type BookActionResult =
 const KOHA_FIELD_LABEL: Record<WritableField, string> = {
   title: "Title", author: "Author", isbn: "ISBN", publisher: "Publisher",
   year: "Publication year", language: "Language", category: "Category",
+  description: "Description", keywords: "Keywords",
 };
 
 function kohaFailure(error: KohaError, ambiguous: boolean, what: "create" | "save"): string {
@@ -328,7 +329,8 @@ export async function addCatalogBook(formData: FormData): Promise<BookActionResu
     } else {
       const confirmNotDuplicate = formData.get("koha_confirm_not_duplicate") === "1";
       const created = await createInKoha(
-        { ...pickWritable(parsed.fields), ddc: (parsed.fields.ddc as string | null) ?? null },
+        // Keywords are parsed apart from the other fields; Koha gets them too (653).
+        { ...pickWritable({ ...parsed.fields, keywords: parseTags(formData, "keywords") }), ddc: (parsed.fields.ddc as string | null) ?? null },
         { confirmNotDuplicate, recheckExisting: formData.get("koha_recheck") === "1" },
       );
       if (created.kind !== "created") {
@@ -362,8 +364,9 @@ export async function addCatalogBook(formData: FormData): Promise<BookActionResu
   // Copies start at 0 — counters are derived from catalog_copies rows.
   const record = {
     ...parsed.fields,
-    // What Koha holds wins over the form it was built from.
-    ...(koha ? { ...koha.fields, koha_biblio_id: koha.biblioId } : {}),
+    // What Koha holds wins over the form it was built from — but an empty 520
+    // or no keywords in Koha never wipes the e-Library's own.
+    ...(koha ? { ...rowFieldsFromKoha(koha.fields), koha_biblio_id: koha.biblioId } : {}),
     cover_url: cover.update?.cover_url ?? null,
     cover_color: pickCatalogColor(parsed.fields.title as string),
     copies_total: 0,
@@ -442,7 +445,13 @@ export async function updateCatalogBook(bookId: string, formData: FormData): Pro
   // ── Koha first (Phase 5) ──
   let kohaWrite: { fields: ReturnType<typeof pickWritable>; changed: string[] } | null = null;
   if (kohaBiblioId !== null && kohaWritesRecords()) {
-    const outcome = await updateInKoha(kohaBiblioId, pickWritable(current), pickWritable(parsed.fields));
+    // `current` is the row as last saved (keywords included); the form's
+    // keywords are parsed apart from its other fields.
+    const outcome = await updateInKoha(
+      kohaBiblioId,
+      pickWritable(current),
+      pickWritable({ ...current, ...parsed.fields, keywords: parseTags(formData, "keywords") }),
+    );
     if (outcome.kind !== "updated" && outcome.kind !== "unchanged") {
       if (cover.uploadedUrl) await deleteCatalogCoverIfOwned(cover.uploadedUrl);
       if (outcome.kind === "conflict") {
@@ -472,7 +481,7 @@ export async function updateCatalogBook(bookId: string, formData: FormData): Pro
       ...parsed.fields,
       // What Koha now holds — including any Koha-side change to a field this
       // librarian did not touch — so the e-Library matches Koha at once.
-      ...(kohaWrite?.fields ?? {}),
+      ...(kohaWrite ? rowFieldsFromKoha(kohaWrite.fields) : {}),
       keywords: parseTags(formData, "keywords"),
       ...(cover.update ?? {}),
       ...(slugChanged ? { slug: requestedSlug } : {}),

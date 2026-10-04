@@ -32,11 +32,22 @@ and the client's `write()` (`lib/koha/client.ts`). Copies (Phase 6):
 | ISBN | the first valid 020 $a | yes |
 | Publisher, year | the first 264 (else 260) $b / $c, and 008/07-10 | yes |
 | Language | 041 $a and 008/35-37 (`khm`, `eng`, `fre`, `chi`; "other" = `und`) | yes |
-| Category | the first 653 $a | yes |
+| Category | the first 653 with a **blank** second indicator, its $a | yes |
+| Description | every 520 except reviews (ind1 1) and content advice (ind1 4), joined as paragraphs | yes — paragraphs kept; split into several 520s past 9,000 bytes (a MARC field holds 9,999, and Khmer is 3 bytes a character); a description that only restates the record (`lib/catalogs/derived-description.ts`) is never sent |
+| Keywords | every 653 $a but the category's; written as 653 with second indicator **0** (topical term) | yes — the category's 653 is never touched by a keyword edit |
 | Call number | the copies' 952 $o; a new record's Dewey number goes to 082 $a/$b | on create only; read-only afterwards |
 | Department | the copies' collection, 952 $8 | no: read-only, from the copies in Koha |
 | Item type | 942 $c on a new record; a new copy's item type (952 $y) | on create only, from the language: Khmer → `BK`, any other language → `BKEN` (below) |
-| Description, cover, keywords, web address, SEO | — | the e-Library's own; never sent to Koha |
+| Cover, web address, SEO | — | the e-Library's own; never sent to Koha |
+
+**Description and keywords: Koha holding nothing is not a conflict.** Most
+Koha records have no 520 and no keyword 653 (the PMB converter wrote none), so
+an e-Library edit to either is written even though Koha's value differs from
+the e-Library's — Koha never held one. A 520 that Koha DOES hold and that
+changed there since the last sync is a conflict like any other field. After a
+save, Koha's empty description or keyword list never replaces the e-Library's
+(`rowFieldsFromKoha`). Records saved before this existed are filled once by
+`scripts/sync-all-to-koha.ts` (dry run by default).
 
 **The item type follows the language.** PTEC lends by language (*Library
 rules* v1.0): a student teacher keeps a Khmer book 14 days and an English one

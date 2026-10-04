@@ -8,7 +8,7 @@ import { describe, it, expect } from "vitest";
 import { createKohaClient } from "./client";
 import { resolveKohaConfig } from "./config";
 import { createMockKoha, type MockKoha } from "./mock";
-import { createBiblio, updateBiblio, pickWritable } from "./biblio-write";
+import { createBiblio, updateBiblio, pickWritable, rowFieldsFromKoha, kohaDescription } from "./biblio-write";
 import { projectBiblio, type MarcDataField } from "./projection";
 import type { WritableBookFields } from "./marc-write";
 import type { FetchLike } from "./auth";
@@ -16,6 +16,8 @@ import type { FetchLike } from "./auth";
 const BOOK: WritableBookFields = {
   title: "Visible Learning for Teachers", author: "Hattie, John", isbn: "9780415690157",
   publisher: "Routledge", year: 2012, language: "en", category: "370 Education",
+  description: "A synthesis of more than 800 meta-analyses about what influences achievement in school.",
+  keywords: ["Effective teaching", "Learning"],
 };
 
 function setup(opts: Parameters<typeof createMockKoha>[0] = {}, wrap?: (f: FetchLike) => FetchLike) {
@@ -191,5 +193,76 @@ describe("edit", () => {
     const r = await createBiblio(koha, BOOK);
     expect(r).toMatchObject({ kind: "failed", ambiguous: false, error: { kind: "config" } });
     expect(mock.calls.filter((c) => c.method !== "GET" && !c.path.includes("oauth"))).toHaveLength(0);
+  });
+});
+
+describe("description and keywords", () => {
+  // A record as the PMB converter made it, and as most of Koha still is: a
+  // category 653, no 520, no keyword 653s — while the e-Library row has both.
+  const PMB_SHAPED: WritableBookFields = { ...BOOK, description: null, keywords: [] };
+  const ELIB: WritableBookFields = { ...BOOK, description: "What works best in classrooms, from 800 meta-analyses.", keywords: ["Pedagogy"] };
+
+  async function pmbRecord() {
+    const s = setup();
+    const r = await createBiblio(s.koha, PMB_SHAPED);
+    if (r.kind !== "created") throw new Error("setup failed");
+    return { ...s, id: r.biblioId };
+  }
+
+  it("Koha holding NO description is not a conflict: the librarian's edit is written", async () => {
+    const { mock, koha, id } = await pmbRecord();
+    const r = await updateBiblio(koha, id, ELIB, { ...ELIB, description: "A new summary of the book, written by a librarian." });
+    expect(r).toMatchObject({ kind: "updated", changed: ["description"] });
+    expect(held(mock, id).description).toBe("A new summary of the book, written by a librarian.");
+    expect(held(mock, id).category).toBe("370 Education");
+  });
+
+  it("…and the same for keywords", async () => {
+    const { mock, koha, id } = await pmbRecord();
+    const r = await updateBiblio(koha, id, ELIB, { ...ELIB, keywords: ["Pedagogy", "Assessment"] });
+    expect(r).toMatchObject({ kind: "updated", changed: ["keywords"] });
+    expect(held(mock, id)).toMatchObject({ category: "370 Education", keywords: ["Pedagogy", "Assessment"] });
+  });
+
+  it("a description Koha DOES hold, changed there since the last sync, is a conflict", async () => {
+    const { mock, koha, id } = await pmbRecord();
+    mock.records.get(id)!.fields.push({ "520": { ind1: " ", ind2: " ", subfields: [{ a: "Edited in Koha." }] } });
+    const r = await updateBiblio(koha, id, ELIB, { ...ELIB, description: "Edited in the e-Library." });
+    expect(r).toMatchObject({ kind: "conflict", conflicts: [{ field: "description" }] });
+  });
+
+  it("keywords in another order or case are not a change: nothing is written", async () => {
+    const { mock, koha, id } = await pmbRecord();
+    await updateBiblio(koha, id, PMB_SHAPED, { ...PMB_SHAPED, keywords: ["Pedagogy", "Assessment"] });
+    const before = writes(mock).length;
+    const base = { ...PMB_SHAPED, keywords: ["Pedagogy", "Assessment"] };
+    expect((await updateBiblio(koha, id, base, { ...base, keywords: ["assessment", "PEDAGOGY"] })).kind).toBe("unchanged");
+    expect(writes(mock)).toHaveLength(before);
+  });
+
+  it("saving a record whose 520 is empty never wipes the e-Library's description", async () => {
+    const { koha, id } = await pmbRecord();
+    const r = await updateBiblio(koha, id, ELIB, { ...ELIB, year: 2013 });
+    expect(r.kind).toBe("updated");
+    if (r.kind !== "updated") return;
+    expect(r.fields.description).toBeNull(); // what Koha holds…
+    const row = rowFieldsFromKoha(r.fields);
+    expect("description" in row).toBe(false); // …is not applied to the row
+    expect("keywords" in row).toBe(false);
+    expect(row.year).toBe(2013);
+  });
+
+  it("a description that only restates the record never goes to Koha", () => {
+    const row = { title: "Social sciences", author: "Martin Ann M.", ddc: "300 MAR", description: "Social sciences by Martin Ann M. DDC call number: 300 MAR." };
+    expect(kohaDescription(row)).toBeNull();
+    expect(pickWritable(row).description).toBeNull();
+    expect(kohaDescription({ ...row, description: "A survey of the social sciences for teachers in training, with exercises." })).not.toBeNull();
+  });
+
+  it("a new record carries its description and keywords to Koha", async () => {
+    const { mock, koha } = setup();
+    const r = await createBiblio(koha, ELIB);
+    expect(r.kind).toBe("created");
+    if (r.kind === "created") expect(held(mock, r.biblioId)).toMatchObject({ description: ELIB.description, keywords: ["Pedagogy"], category: "370 Education" });
   });
 });

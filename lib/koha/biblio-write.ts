@@ -23,9 +23,10 @@ import { normalizeIsbn, validateIsbn } from "@/lib/catalog";
 import type { KohaClient } from "./client";
 import { kohaPath } from "./client";
 import { KohaError } from "./errors";
-import { editBiblioMarc, newBiblioMarc, WRITABLE_BOOK_FIELDS, type WritableBookFields, type WritableField } from "./marc-write";
+import { isDerivedDescription } from "@/lib/catalogs/derived-description";
+import { cleanKeywords, editBiblioMarc, newBiblioMarc, WRITABLE_BOOK_FIELDS, type WritableBookFields, type WritableField } from "./marc-write";
 import { kohaItemTypeFor } from "./item-types";
-import { isMarcInJson, projectBiblio, type MarcInJson } from "./projection";
+import { isMarcInJson, projectBiblio, tidyParagraphs, type MarcInJson } from "./projection";
 import { isKohaBiblioList, isKohaBiblioSummary } from "./types";
 
 const isIdBody = (v: unknown): v is { id: number } =>
@@ -43,6 +44,11 @@ export const isAmbiguous = (e: KohaError) => e.kind === "timeout" || e.kind === 
 const norm = (f: WritableField, v: unknown): string | number | null => {
   if (v === null || v === undefined) return null;
   if (f === "year") return typeof v === "number" ? v : Number(v) || null;
+  // Keywords are a SET: order and case are presentation, not a change.
+  if (f === "keywords") {
+    const list = cleanKeywords(Array.isArray(v) ? (v as string[]) : []).map((k) => k.toLocaleLowerCase()).sort();
+    return list.length ? list.join("\u0001") : null;
+  }
   const s = String(v).replace(/[\s﻿]+/g, " ").trim();
   if (!s) return null;
   if (f === "isbn") return normalizeIsbn(s) || null;
@@ -50,7 +56,26 @@ const norm = (f: WritableField, v: unknown): string | number | null => {
 };
 export const sameField = (f: WritableField, a: unknown, b: unknown) => norm(f, a) === norm(f, b);
 
-export function pickWritable(src: Partial<Record<WritableField, unknown>>): WritableBookFields {
+/**
+ * The description Koha should hold for a record, or null. A description that
+ * only restates the record ("Social sciences by Martin Ann M. DDC call number:
+ * 300 MAR." — every row of the PMB import sheets carries one) is not a
+ * summary, and never goes to 520 (lib/catalogs/derived-description.ts).
+ */
+export function kohaDescription(src: Record<string, unknown>): string | null {
+  const text = tidyParagraphs(typeof src.description === "string" ? src.description : null);
+  if (!text) return null;
+  const s = (k: string) => (typeof src[k] === "string" ? (src[k] as string) : null);
+  const derived = isDerivedDescription({
+    description: text, title: s("title"), author: s("author"), category: s("category"),
+    department: s("department"), ddc: s("ddc"), publisher: s("publisher"), shelfLocation: s("shelf_location"),
+  });
+  return derived ? null : text;
+}
+
+/** Any row-shaped object: an e-Library row, a form, a projection. Extra columns are context for kohaDescription(). */
+export function pickWritable(row: object): WritableBookFields {
+  const src = row as Partial<Record<WritableField, unknown>> & Record<string, unknown>;
   return {
     title: String(src.title ?? ""),
     author: (src.author as string | null) ?? null,
@@ -59,8 +84,28 @@ export function pickWritable(src: Partial<Record<WritableField, unknown>>): Writ
     year: (src.year as number | null) ?? null,
     language: (src.language as WritableBookFields["language"]) ?? "other",
     category: (src.category as string | null) ?? null,
+    description: kohaDescription(src),
+    keywords: cleanKeywords(Array.isArray(src.keywords) ? (src.keywords as string[]) : []),
   };
 }
+
+/**
+ * The e-Library-facing half of what Koha holds after a write: description and
+ * keywords only when Koha HAS them. A record whose 520 is empty must not have
+ * the e-Library's own description wiped by saving it — the sync's rule
+ * (keepWhenIncomingNull), applied to the save as well.
+ */
+export function rowFieldsFromKoha(fields: WritableBookFields): Partial<WritableBookFields> {
+  const { description, keywords, ...rest } = fields;
+  return {
+    ...rest,
+    ...(description ? { description } : {}),
+    ...(keywords.length ? { keywords } : {}),
+  };
+}
+
+/** Fields where Koha holding NOTHING means "never held", not "cleared in Koha" — so never a conflict. */
+const KEPT_WHEN_KOHA_EMPTY: readonly WritableField[] = ["description", "keywords"];
 
 /** What the projection makes of a record — the fields as Koha now holds them. */
 function heldBy(rec: MarcInJson, biblioId: number): WritableBookFields | null {
@@ -210,6 +255,7 @@ export async function updateBiblio(
   if (!changed.length) return { kind: "unchanged", fields: held };
 
   const conflicts = changed
+    .filter((f) => !(KEPT_WHEN_KOHA_EMPTY.includes(f) && norm(f, held[f]) === null))
     .filter((f) => !sameField(f, held[f], base[f]) && !sameField(f, held[f], next[f]))
     .map((f) => ({ field: f, koha: held[f], mine: next[f] }));
   if (conflicts.length) return { kind: "conflict", conflicts };

@@ -55,6 +55,8 @@ describe("projectBiblio", () => {
       year: null,
       language: "km",
       category: "900 ប្រវត្តិសាស្ត្រ និងភូមិសាស្ត្រ",
+      description: null,
+      keywords: [],
       ddcClass: "920",
     });
   });
@@ -153,5 +155,53 @@ describe("record-level fields from copies", () => {
   it("takes the department most copies are collected under", () => {
     expect(recordDepartment([{ collection: "Department of Pedagogy", status: "available" }, { collection: null, status: "available" }])).toBe("Department of Pedagogy");
     expect(recordDepartment([{ collection: null, status: "available" }])).toBeNull();
+  });
+});
+
+describe("category, keywords and description (653 / 520)", () => {
+  const rec = (...fields: MarcInJson["fields"]): MarcInJson => ({ fields: [{ "245": df("10", [["a", "T"]]) }, ...fields, { "999": df("  ", [["c", "5"]]) }] });
+
+  it("the category is the 653 with a blank second indicator; every other 653 is a keyword", () => {
+    const p = projectBiblio(rec(
+      { "653": df("  ", [["a", "370 Education"]]) },
+      { "653": df(" 0", [["a", "Assessment"]]) },
+      { "653": df(" 0", [["a", "Pedagogy"], ["a", "assessment"]]) },
+    ))!;
+    expect(p.category).toBe("370 Education");
+    expect(p.keywords).toEqual(["Assessment", "Pedagogy"]); // de-duplicated, case-insensitively
+  });
+
+  it("a record with keywords and NO category does not read its first keyword as the category", () => {
+    const p = projectBiblio(rec({ "653": df(" 0", [["a", "Assessment"]]) }, { "653": df(" 0", [["a", "Pedagogy"]]) }))!;
+    expect(p.category).toBeNull();
+    expect(p.keywords).toEqual(["Assessment", "Pedagogy"]);
+  });
+
+  it("further $a in the category's own field are keywords", () => {
+    const p = projectBiblio(rec({ "653": df("  ", [["a", "370 Education"], ["a", "Teaching"]]) }))!;
+    expect(p.category).toBe("370 Education");
+    expect(p.keywords).toEqual(["Teaching"]);
+  });
+
+  it("description: summary 520s joined as paragraphs, line breaks kept; reviews and content advice are not the description", () => {
+    const p = projectBiblio(rec(
+      { "520": df("  ", [["a", "First   paragraph,\nwith a kept line."]]) },
+      { "520": df("1 ", [["a", "A review: wonderful."]]) },
+      { "520": df("4 ", [["a", "Contains violence."]]) },
+      { "520": df("3 ", [["a", "Second paragraph"], ["b", "and its expansion."]]) },
+    ))!;
+    expect(p.description).toBe("First paragraph,\nwith a kept line.\n\nSecond paragraph and its expansion.");
+  });
+
+  it("no 520, or an empty one: no description (the sync then keeps the e-Library's)", () => {
+    expect(projectBiblio(rec())!.description).toBeNull();
+    expect(projectBiblio(rec({ "520": df("  ", [["a", "   "]]) }))!.description).toBeNull();
+  });
+
+  it("a 520 longer than the e-Library allows is cut at a word, so the record can still be saved there", () => {
+    const long = "word ".repeat(1500).trim(); // 7,499 characters
+    const d = projectBiblio(rec({ "520": df("  ", [["a", long]]) }))!.description!;
+    expect(d.length).toBeLessThanOrEqual(5000);
+    expect(d.endsWith("word…")).toBe(true);
   });
 });

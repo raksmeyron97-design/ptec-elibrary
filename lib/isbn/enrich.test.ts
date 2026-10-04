@@ -108,7 +108,7 @@ describe("marcForEnrichment", () => {
       "041 0  $a eng",
       "264  1 $b Paul Chapman, $c 2002",
       "520    $a Line one. Line two.",
-      "653    $a Schools",
+      "653  0 $a Schools",
     ]);
   });
 
