@@ -48,6 +48,7 @@ import { isMarcInJson, projectBiblio, type MarcInJson } from "../lib/koha/projec
 import type { WritableBookFields } from "../lib/koha/marc-write";
 
 const { values: args } = parseArgs({
+  allowPositionals: true,
   options: {
     apply: { type: "boolean", default: false },
     "dry-run": { type: "boolean", default: false },
