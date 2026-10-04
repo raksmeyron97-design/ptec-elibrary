@@ -27,6 +27,12 @@ const eslintConfig = defineConfig([
     // out a clean tree and never sees them, so only local runs were wrong.
     // Mirrors the same exclusion vitest already carries (vitest.config.ts).
     ".claude/**",
+    // Bundled scripts (esbuild output of a scripts/*.ts, committed so the box
+    // can run it with plain `node`, e.g. scripts/sync-all-to-koha.bundle.cjs).
+    // Generated, not hand-written — and a .cjs is outside the files the
+    // react-hooks plugin is registered for, so the rules block below made
+    // ESLint crash on it ("could not find plugin react-hooks").
+    "scripts/**/*.bundle.cjs",
   ]),
   {
     // These rules flag patterns that are either intentional (dynamic Supabase
