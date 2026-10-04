@@ -57,7 +57,7 @@ describe("statusPatch: one e-Library status ⇄ Koha's four flags", () => {
 describe("create", () => {
   it("POSTs one item and reads back as written; the shelf is a code from Koha's location list", async () => {
     const { mock, koha } = setup();
-    const r = await createItem(koha, BIBLIO, COPY, { libraryId: "PTEC", locations: LOCS });
+    const r = await createItem(koha, BIBLIO, COPY, { libraryId: "PTEC", locations: LOCS, language: "km" });
     expect(r.kind).toBe("created");
     if (r.kind !== "created") return;
     expect(r.existed).toBe(false);
@@ -67,10 +67,29 @@ describe("create", () => {
     expect(writes(mock)[0].headers["content-type"]).toBe("application/json");
   });
 
+  it("the record's language decides the item type: BK for Khmer, BKEN for every other language", async () => {
+    const cases: [string | null, string][] = [["km", "BK"], ["en", "BKEN"], ["fr", "BKEN"], ["zh", "BKEN"], ["other", "BKEN"], [null, "BK"]];
+    for (const [i, [language, want]] of cases.entries()) {
+      const { mock, koha } = setup();
+      const r = await createItem(koha, BIBLIO, { ...COPY, barcode: `L${i}` }, { libraryId: "PTEC", locations: LOCS, language });
+      expect(r.kind, `${language}`).toBe("created");
+      if (r.kind !== "created") continue;
+      // The mock gives an item no default type: what it holds is what was sent.
+      expect(mock.items.get(r.item.item_id), `${language}`).toMatchObject({ item_type_id: want });
+    }
+  });
+
+  it("an explicit item type wins over the language", async () => {
+    const { mock, koha } = setup();
+    const r = await createItem(koha, BIBLIO, COPY, { libraryId: "PTEC", locations: LOCS, language: "en", itemType: "REF" });
+    expect(r.kind).toBe("created");
+    if (r.kind === "created") expect(mock.items.get(r.item.item_id)).toMatchObject({ item_type_id: "REF" });
+  });
+
   it("a repeated create meets its own barcode and TAKES the item instead of making a second", async () => {
     const { mock, koha } = setup();
-    await createItem(koha, BIBLIO, COPY, { libraryId: "PTEC", locations: LOCS });
-    const again = await createItem(koha, BIBLIO, COPY, { libraryId: "PTEC", locations: LOCS });
+    await createItem(koha, BIBLIO, COPY, { libraryId: "PTEC", locations: LOCS, language: "km" });
+    const again = await createItem(koha, BIBLIO, COPY, { libraryId: "PTEC", locations: LOCS, language: "km" });
     expect(again).toMatchObject({ kind: "created", existed: true });
     expect(mock.items.size).toBe(1);
   });
@@ -78,8 +97,8 @@ describe("create", () => {
   it("a barcode another record holds is reported with that record, and nothing is created", async () => {
     const { mock, koha } = setup();
     mock.records.set(7, { fields: [{ "999": { subfields: [{ c: "7" }] } }] });
-    await createItem(koha, 7, COPY, { libraryId: "PTEC", locations: LOCS });
-    expect(await createItem(koha, BIBLIO, COPY, { libraryId: "PTEC", locations: LOCS })).toEqual({ kind: "barcode_taken", barcode: "0803", biblioId: 7 });
+    await createItem(koha, 7, COPY, { libraryId: "PTEC", locations: LOCS, language: "km" });
+    expect(await createItem(koha, BIBLIO, COPY, { libraryId: "PTEC", locations: LOCS, language: "km" })).toEqual({ kind: "barcode_taken", barcode: "0803", biblioId: 7 });
     expect(mock.items.size).toBe(1);
   });
 
@@ -90,33 +109,33 @@ describe("create", () => {
       if (lose && init?.method === "POST" && url.endsWith("/items")) { lose = false; throw new TypeError("fetch failed: socket hang up"); }
       return res;
     });
-    expect(await createItem(koha, BIBLIO, COPY, { libraryId: "PTEC", locations: LOCS })).toMatchObject({ kind: "created", existed: true });
+    expect(await createItem(koha, BIBLIO, COPY, { libraryId: "PTEC", locations: LOCS, language: "km" })).toMatchObject({ kind: "created", existed: true });
     expect(mock.items.size).toBe(1);
 
     const never = setup({}, (f) => async (url, init) => {
       if (init?.method === "POST" && url.endsWith("/items")) throw new TypeError("fetch failed");
       return f(url, init);
     });
-    expect(await createItem(never.koha, BIBLIO, COPY, { libraryId: "PTEC", locations: LOCS })).toMatchObject({ kind: "failed", ambiguous: false });
+    expect(await createItem(never.koha, BIBLIO, COPY, { libraryId: "PTEC", locations: LOCS, language: "km" })).toMatchObject({ kind: "failed", ambiguous: false });
     expect(never.mock.items.size).toBe(0);
   });
 
   it("refuses what Koha cannot hold or the e-Library may not set", async () => {
     const { koha } = setup();
-    expect(await createItem(koha, BIBLIO, { ...COPY, barcode: " " }, { libraryId: "PTEC", locations: LOCS })).toMatchObject({ kind: "failed", ambiguous: false });
-    expect(await createItem(koha, BIBLIO, { ...COPY, status: "on_loan" }, { libraryId: "PTEC", locations: LOCS })).toMatchObject({ kind: "failed", ambiguous: false });
+    expect(await createItem(koha, BIBLIO, { ...COPY, barcode: " " }, { libraryId: "PTEC", locations: LOCS, language: "km" })).toMatchObject({ kind: "failed", ambiguous: false });
+    expect(await createItem(koha, BIBLIO, { ...COPY, status: "on_loan" }, { libraryId: "PTEC", locations: LOCS, language: "km" })).toMatchObject({ kind: "failed", ambiguous: false });
     // A free-text shelf mark is not a Koha location: refused, not written as a code Koha's editor would blank.
-    expect(await createItem(koha, BIBLIO, { ...COPY, shelfLocation: "B-2-01" }, { libraryId: "PTEC", locations: LOCS })).toMatchObject({ kind: "failed", ambiguous: false });
-    expect(await createItem(koha, 999, COPY, { libraryId: "PTEC", locations: LOCS })).toEqual({ kind: "gone" });
+    expect(await createItem(koha, BIBLIO, { ...COPY, shelfLocation: "B-2-01" }, { libraryId: "PTEC", locations: LOCS, language: "km" })).toMatchObject({ kind: "failed", ambiguous: false });
+    expect(await createItem(koha, 999, COPY, { libraryId: "PTEC", locations: LOCS, language: "km" })).toEqual({ kind: "gone" });
     const noPerm = setup({ canWriteItems: false });
-    expect(await createItem(noPerm.koha, BIBLIO, COPY, { libraryId: "PTEC", locations: LOCS })).toMatchObject({ kind: "failed", ambiguous: false, error: { kind: "forbidden" } });
+    expect(await createItem(noPerm.koha, BIBLIO, COPY, { libraryId: "PTEC", locations: LOCS, language: "km" })).toMatchObject({ kind: "failed", ambiguous: false, error: { kind: "forbidden" } });
   });
 });
 
 describe("edit", () => {
   async function created() {
     const s = setup();
-    const r = await createItem(s.koha, BIBLIO, COPY, { libraryId: "PTEC", locations: LOCS });
+    const r = await createItem(s.koha, BIBLIO, COPY, { libraryId: "PTEC", locations: LOCS, language: "km" });
     if (r.kind !== "created") throw new Error("setup");
     return { ...s, id: r.item.item_id };
   }
@@ -167,7 +186,7 @@ describe("edit", () => {
 
   it("a barcode another item holds is refused; an item Koha moved or deleted is gone", async () => {
     const { mock, koha, id } = await created();
-    await createItem(koha, BIBLIO, { ...COPY, barcode: "0991" }, { libraryId: "PTEC", locations: LOCS });
+    await createItem(koha, BIBLIO, { ...COPY, barcode: "0991" }, { libraryId: "PTEC", locations: LOCS, language: "km" });
     expect(await updateItem(koha, BIBLIO, id, COPY, { ...COPY, barcode: "0991" }, LOCS)).toEqual({ kind: "barcode_taken", barcode: "0991" });
     expect(itemOf(mock, id).external_id).toBe("0803");
     expect(await updateItem(koha, 2, id, COPY, { ...COPY, callNumber: "x" }, LOCS)).toEqual({ kind: "gone" });
@@ -187,7 +206,7 @@ describe("the shelf is Koha's location list", () => {
 
   it("a legacy free-text mark in the e-Library cannot manufacture a conflict", async () => {
     const s = setup();
-    const r = await createItem(s.koha, BIBLIO, COPY, { libraryId: "PTEC", locations: LOCS });
+    const r = await createItem(s.koha, BIBLIO, COPY, { libraryId: "PTEC", locations: LOCS, language: "km" });
     if (r.kind !== "created") throw new Error("setup");
     // The e-Library's row holds "B-2-01" (typed before Koha); Koha holds GEN.
     const out = await updateItem(s.koha, BIBLIO, r.item.item_id, { ...COPY, shelfLocation: "B-2-01" }, { ...COPY, shelfLocation: "REF" }, LOCS);

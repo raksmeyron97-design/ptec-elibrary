@@ -80,10 +80,11 @@ async function labelled<T extends { kind: string; item?: KohaItem }>(outcome: T)
   }
 }
 
-export async function createItemInKoha(biblioId: number, fields: WritableCopyFields) {
+/** `language`: the record's, which decides the copy's item type (item-types.ts). */
+export async function createItemInKoha(biblioId: number, fields: WritableCopyFields, language: string | null) {
   const locations = await readKohaLocations();
   if (locations === null && fields.shelfLocation?.trim()) return noList();
-  return labelled(await createItem(getKohaClient(), biblioId, fields, { libraryId: getKohaConfig().libraryId, locations: locations ?? [] }));
+  return labelled(await createItem(getKohaClient(), biblioId, fields, { libraryId: getKohaConfig().libraryId, locations: locations ?? [], language }));
 }
 
 export async function updateItemInKoha(biblioId: number, itemId: number, base: WritableCopyFields, next: WritableCopyFields) {
