@@ -38,6 +38,7 @@ import {
 } from "@/components/admin/kit/form";
 import { AlertCircle, BookOpen, Check, ExternalLink, Image as ImageIcon, Info, Layers, Search, type LucideIcon } from "lucide-react";
 import CatalogCoverField from "@/components/admin/catalogs/CatalogCoverField";
+import BookDescriptionField from "@/components/admin/catalogs/BookDescriptionField";
 import SeoOverrideFields from "@/components/admin/seo/SeoOverrideFields";
 import { SITE_URL } from "@/lib/seo/site";
 import { useTranslations } from "next-intl";
@@ -481,6 +482,16 @@ export default function EditBookWizard({
             )}
           </Field>
 
+          {/* On the first tab, beside the facts it describes: on "Cover & SEO" it
+              went unseen, and Fetch by ISBN filled it out of sight. */}
+          <BookDescriptionField
+            className="sm:col-span-2"
+            defaultValue={book.description}
+            error={fieldErrors.description}
+            disabled={loading}
+            onChanged={() => { setDirty(true); setSaved(null); }}
+          />
+
           <Field label={t("category")} htmlFor="f-category" error={fieldErrors.category}>
             {(p) => (
               <>
@@ -575,18 +586,6 @@ export default function EditBookWizard({
             </p>
           )}
         </div>
-
-        <Field label={t("description")} htmlFor="f-description" error={fieldErrors.description}>
-          {(p) => (
-            <textarea
-              {...p}
-              className={`${p.className} h-auto resize-none py-3 leading-relaxed`}
-              name="description"
-              rows={4}
-              defaultValue={book.description ?? ""}
-            />
-          )}
-        </Field>
 
         <Field label={t("keywords")} htmlFor="f-keywords">
           <TagInput

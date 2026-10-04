@@ -97,8 +97,40 @@ differing value only when named in `--replace`, and prints the MARC21
 (`020`, `041`, `264`, `520`, `653`) for Koha, where publisher, year, language
 and ISBN have to be set to last (docs/KOHA-SYNC.md).
 
+## Fetch from publisher link — "About this book"
+
+Open Library and Google Books often have no description for academic books;
+the publisher's own page does. "About this book / Description" sits on the
+first tab of both catalogue forms (it was on "Cover & SEO", where cataloguers
+did not find it) with a link box above it: paste the publisher's page, press
+Fetch (`publisher-actions.ts`).
+
+- **Which text** (`lib/catalogs/publisher-description.ts`): the page's own
+  "About this book" section (Springer's `section[data-title]`, or a real
+  heading named Description / Synopsis / Summary / Overview), else the
+  LONGEST of JSON-LD, `og:description` and `meta description`. Measured
+  2026-10-04: Springer's JSON-LD cuts the text at 200 characters, its meta
+  tag has all 1,732; SAGE's meta tags end in "...". A text ending in an
+  ellipsis is flagged as shortened.
+- **No text on the page, but a DOI in the URL** (Springer, Wiley, T&F): the
+  Crossref abstract, when Crossref has one.
+- **The User-Agent is the library's own** (`PTEC-eLibrary/1.0`). Springer
+  serves it the real page and serves a browser-imitating one a JavaScript
+  challenge. Bot walls (Springer's, Cloudflare, AWS WAF — OUP answers 202)
+  are recognised and reported as such: the librarian copies the text by hand.
+- An empty field is filled; an existing description is replaced only after
+  a confirmation that shows the new text. Nothing is saved until Save.
+
 ## Safety
 
+- **Publisher links are fetched by the server** (`lib/net/public-fetch.ts`),
+  which sits on the ZimaOS box's LAN. Only http(s) on ports 80/443, no
+  credentials in the URL, no single-label or `.local` names; every address a
+  name resolves to must be public unicast, checked in the socket's own DNS
+  lookup (so DNS rebinding gets no socket); IP literals are checked before
+  connecting; redirects are followed by hand, at most 4, each re-checked; the
+  body is read to 3 MB after decompression; only HTML is read. Rate-limited to
+  30 fetches per 10 minutes per librarian (`RL_PUBLISHER_FETCH_PER_10MIN`).
 - Server-side only: the lookup is a Server Action behind `catalog: write`,
   rate-limited to 60 lookups per 10 minutes per librarian
   (`RL_ISBN_LOOKUP_PER_10MIN`). Provider URLs are constants; only digits reach them.

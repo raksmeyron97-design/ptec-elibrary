@@ -234,6 +234,16 @@ const POLICIES = {
     windowMs: 10 * 60_000,
   }),
   /**
+   * "Fetch from publisher link" on the catalogue forms — per librarian. Each
+   * one is a server fetch of a page a librarian pasted (lib/net/public-fetch.ts);
+   * 30 per 10 minutes is a book every 20 seconds, and bounds what a stuck
+   * client can make the library's address request from one publisher.
+   */
+  publisherFetch: () => ({
+    limit: envInt("RL_PUBLISHER_FETCH_PER_10MIN", 30),
+    windowMs: 10 * 60_000,
+  }),
+  /**
    * Online renewals (Phase 10.1) — per reader. Each press is one write to
    * Koha; a reader with a full shelf renews a handful at a time, so 20 an hour
    * is generous for people and a wall for a script. Koha's own renewal limit
