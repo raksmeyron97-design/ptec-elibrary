@@ -17,6 +17,7 @@ import { computeCopyStats, catalogRecordSlug } from "@/lib/catalog";
 import CopiesPanel from "../../../_components/CopiesPanel";
 import RecordHealthPanel from "./RecordHealthPanel";
 import FetchByIsbn from "./FetchByIsbn";
+import TitleSearch from "./TitleSearch";
 import type { CurrentRecord, EnrichField, FillValue } from "@/lib/isbn/enrich";
 import { isDerivedDescription } from "@/lib/catalogs/derived-description";
 import { assessCatalogRecordHealth } from "@/lib/catalogs/record-health";
@@ -73,6 +74,8 @@ export type EditorReview = {
   holdNotice: string | null;
   canVerify: boolean;
   after: (intent: "next" | "verify") => Promise<string | null>;
+  /** The review queue — Khmer opens the ISBN-less fallbacks on arrival. */
+  queue?: "km" | "en" | null;
 };
 
 type ReviewIntent = "save" | "next" | "verify";
@@ -671,6 +674,26 @@ export default function EditBookWizard({
                 </Field>
               }
             />
+            {/* No ISBN at hand: a title search that only SUGGESTS one — the details
+                still come through Fetch by ISBN above. Open on arrival in the
+                Khmer review queue, where ISBNs are rarest. */}
+            <div className="mt-3">
+              <TitleSearch
+                readTitle={() => title}
+                readAuthor={() => (formRef.current?.elements.namedItem("author") as HTMLInputElement | null)?.value ?? ""}
+                onUseIsbn={(isbn13) => {
+                  const el = formRef.current?.elements.namedItem("isbn") as HTMLInputElement | null;
+                  if (el) el.value = isbn13;
+                  setIsbn(isbn13);
+                  setDirty(true);
+                  setSaved(null);
+                }}
+                disabled={loading}
+                defaultOpen={review?.queue === "km" && !isbn}
+                initialTitle={book.title}
+                initialAuthor={book.author ?? ""}
+              />
+            </div>
           </div>
 
           <Field label={t("publisher")} htmlFor="f-publisher" error={fieldErrors.publisher}>
@@ -728,7 +751,7 @@ export default function EditBookWizard({
           <div className="text-sm text-text-body">
             <span className="font-bold text-text-heading">{stats.total}</span> {te("copies", { count: stats.total })}
             {" · "}
-            <span className="font-semibold text-emerald-600">{te("available", { count: stats.available })}</span>
+            <span className="font-semibold text-success-text">{te("available", { count: stats.available })}</span>
             <p className="mt-0.5 text-[11px] text-text-muted">
               {te("totalsHint")}
             </p>

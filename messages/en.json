@@ -8670,6 +8670,20 @@
       "workHeading": "Open tasks by queue",
       "workTask": "Task",
       "workLinkAria": "{count} {queue} records where {task} is to do — open the queue"
+    },
+    "titleSearch": {
+      "toggle": "No ISBN at hand? Search Open Library by title and author",
+      "hint": "A result only suggests an ISBN. Use it, then press Fetch details via ISBN — the details are checked against this record's title before anything is offered. If the book has no ISBN printed, mark that in the review tasks and enter the details by hand.",
+      "title": "Title",
+      "author": "Author",
+      "search": "Search",
+      "searching": "Searching…",
+      "tooShort": "Enter at least two letters of the title.",
+      "failed": "Open Library could not be searched: {reason}",
+      "noResultTitle": "No result in Open Library",
+      "noResultBody": "Many Khmer books are not listed there. If no ISBN is printed in the book, mark “No ISBN printed” in the review tasks; take the publisher and year from the title page, or paste the publisher's page into “Fetch from Publisher Link”.",
+      "useIsbn": "Use ISBN {isbn}",
+      "noIsbn": "No ISBN listed for this result."
     }
   },
   "adminUpload": {

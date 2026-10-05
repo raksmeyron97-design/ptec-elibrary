@@ -198,6 +198,25 @@ later starts with its own open task, so the group comes back. "Review later"
 is leaving the group where it is; "open the existing record" is the record
 link. Route `catalog.review.duplicates` (read); the action needs write.
 
+## Fallbacks for books without an ISBN (Slice 7)
+
+Many Khmer books carry no ISBN, and Open Library rarely knows them. By PTEC
+decision (2026-10-05) there is **no AI and no OCR** here. The tools are:
+
+- **Search Open Library by title and author** (`searchOpenLibraryByTitle`,
+  `lib/isbn/title-search.ts`) under the ISBN field. A result only SUGGESTS AN
+  ISBN — *Use ISBN …* puts it in the field and touches nothing else; the
+  details then come through Fetch by ISBN, with its exact-identity and
+  title-mismatch checks and the preview. A fixed host, built from text; the
+  same per-user rate bucket as the ISBN lookups; nothing cached or written.
+- **"No ISBN printed"** — the ISBN task's waiver (Slice 2).
+- **Enter by hand** from the title page, or **Fetch from Publisher Link**.
+
+One engine for both languages; the Khmer queue only changes the order: the
+search is **open on arrival** for a Khmer record without an ISBN, and its
+"no result" says what to do next. In the English queue it starts closed, below
+Fetch by ISBN.
+
 ## Transitions
 
 `planReviewTransition()` (pure) decides; `app/(admin)/admin/(protected)/catalogs/review/actions.ts` applies.

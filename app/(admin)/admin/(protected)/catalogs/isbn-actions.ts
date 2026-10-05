@@ -13,7 +13,9 @@ import { lookupIsbnMetadata } from "@/lib/isbn/resolver";
 import { createSupabaseIsbnCache } from "@/lib/isbn/cache";
 import { createOpenLibraryProvider } from "@/lib/isbn/providers/open-library";
 import { createGoogleBooksProvider } from "@/lib/isbn/providers/google-books";
-import type { IsbnCandidate, ProviderOutcome } from "@/lib/isbn/types";
+import type { IsbnCandidate, ProviderErrorKind, ProviderOutcome } from "@/lib/isbn/types";
+import { fetchJson } from "@/lib/isbn/providers/fetch-json";
+import { parseTitleSearch, titleSearchUrl, type TitleSearchResult } from "@/lib/isbn/title-search";
 import { getKohaClient, getKohaConfig } from "@/lib/koha";
 import { kohaCanRead } from "@/lib/koha/config";
 import { findKohaBiblioIdsByIsbn } from "@/lib/koha/biblios";
@@ -188,4 +190,32 @@ export async function lookupIsbnProviders(isbn13: string): Promise<IsbnProviders
     cache: createSupabaseIsbnCache(supabase),
   });
   return { status: "ok", candidates, outcomes };
+}
+
+// ── Search by title and author (Slice 7) ──────────────────────────────────────
+
+export type TitleSearchResponse =
+  | { status: "invalid" }
+  | { status: "rate_limited" }
+  | { status: "error"; kind: ProviderErrorKind }
+  | { status: "ok"; results: TitleSearchResult[] };
+
+/**
+ * For a book whose ISBN the librarian does not have: ask Open Library by title
+ * and author. Returns SUGGESTIONS OF ISBNs only (lib/isbn/title-search.ts);
+ * the record's details still come through Fetch by ISBN. Charged to the same
+ * per-user bucket as the ISBN lookups; nothing is cached and nothing is written.
+ */
+export async function searchOpenLibraryByTitle(title: string, author: string | null): Promise<TitleSearchResponse> {
+  const { userId } = await requirePermission("catalog", "write");
+  const url = titleSearchUrl(typeof title === "string" ? title : "", typeof author === "string" ? author : null);
+  if (!url) return { status: "invalid" };
+
+  const policy = ratePolicy("isbnLookup");
+  const allowed = await rateLimit(`isbn-lookup:${userId}`, policy.limit, policy.windowMs);
+  if (!allowed.success) return { status: "rate_limited" };
+
+  const answer = await fetchJson((u, i) => fetch(u, i), url, 8_000);
+  if (!answer.ok) return { status: "error", kind: answer.kind };
+  return { status: "ok", results: parseTitleSearch(answer.body) };
 }

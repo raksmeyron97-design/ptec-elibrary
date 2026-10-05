@@ -543,6 +543,7 @@ export default function ReviewWorkspace({
           holdNotice,
           canVerify,
           after,
+          queue: query.language,
         }}
       />
     </>
