@@ -17,6 +17,7 @@ const REVIEW_ROUTES = [
   '/admin/catalogs/review?language=km',
   '/admin/catalogs/review?language=en&status=verified',
   '/admin/catalogs/review/00000000-0000-4000-8000-000000000000?language=km',
+  '/admin/catalogs/review/duplicates?language=en',
 ];
 
 test.describe('catalog review is not reachable without a session', () => {

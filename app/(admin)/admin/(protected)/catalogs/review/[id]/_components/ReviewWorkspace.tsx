@@ -230,13 +230,15 @@ export default function ReviewWorkspace({
   }
 
   /** The editor calls this after a successful save (or at once when nothing changed). */
-  async function after(intent: "next" | "verify"): Promise<string | null> {
+  async function after(intent: "next" | "verify", versionAfterSave?: number): Promise<string | null> {
+    // The save may have written provenance to the review row; its version is the one to press with.
+    const version = versionAfterSave ?? state.version;
     if (intent === "verify") {
-      const refused = await run(() => verifyCatalogReview(editor.book.id, state.version), () => UNHELD);
+      const refused = await run(() => verifyCatalogReview(editor.book.id, version), () => UNHELD);
       if (refused) return refused;
     } else if (state.claim === "mine") {
       // Moving on without verifying hands the record back to the queue.
-      const refused = await run(() => releaseCatalogReview(editor.book.id, state.version), () => UNHELD);
+      const refused = await run(() => releaseCatalogReview(editor.book.id, version), () => UNHELD);
       if (refused) return refused;
     }
     goNext();
@@ -544,6 +546,7 @@ export default function ReviewWorkspace({
           canVerify,
           after,
           queue: query.language,
+          onVersion: (version) => setState((s) => ({ ...s, version })),
         }}
       />
     </>

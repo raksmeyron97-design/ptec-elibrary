@@ -238,7 +238,10 @@ describe("the workspace reuses the editor and never moves on before the server a
     const handler = WIZARD.slice(WIZARD.indexOf("async function handleUpdateBook"));
     const save = handler.indexOf("await updateWithId(formData)");
     const success = handler.indexOf("if (result.success)");
-    const afterSave = handler.indexOf("await review.after(intent)", success);
+    const afterSave = handler.indexOf("await review.after(intent, reviewVersion)", success);
+    // The save's own provenance write bumps the review row; the step must press with THAT version.
+    expect(handler.indexOf("reviewVersion = recorded.version")).toBeGreaterThan(success);
+    expect(handler.indexOf("reviewVersion = recorded.version")).toBeLessThan(afterSave);
     expect(save).toBeGreaterThan(-1);
     expect(afterSave).toBeGreaterThan(success);
     // The only other call is the nothing-to-save shortcut, before any save.

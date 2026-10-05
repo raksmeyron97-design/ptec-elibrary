@@ -347,7 +347,7 @@ function providerValue(field: ProvenanceField, merged: MergedIsbnRecord | null):
  *
  * Writes field_sources only (compare-and-set), never the record.
  */
-export async function recordFieldSources(bookId: string, rawHints: unknown): Promise<{ ok: true; recorded: number } | { ok: false; error: "disabled" | "invalid" | "not_found" | "stale" | "failed" }> {
+export async function recordFieldSources(bookId: string, rawHints: unknown): Promise<{ ok: true; recorded: number; version?: number } | { ok: false; error: "disabled" | "invalid" | "not_found" | "stale" | "failed" }> {
   if (!catalogReviewEnabled()) return { ok: false, error: "disabled" };
   const { supabase, userId } = await requireAction("catalog.review.transition");
   if (typeof bookId !== "string" || !UUID.test(bookId)) return { ok: false, error: "invalid" };
@@ -419,7 +419,9 @@ export async function recordFieldSources(bookId: string, rawHints: unknown): Pro
     await logAdminAction(userId, "catalogReview.provenance", "catalog_books", bookId, {
       fields: Object.fromEntries(Object.entries(entries).map(([f, e]) => [f, e!.source])),
     });
-    return { ok: true, recorded: Object.keys(entries).length };
+    // The new version, so the page that asked can keep pressing without its own
+    // write reading as someone else's (the editor hands it to the review step).
+    return { ok: true, recorded: Object.keys(entries).length, version: written.version };
   }
   return { ok: false, error: "stale" };
 }

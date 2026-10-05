@@ -73,7 +73,14 @@ export type EditorReview = {
   /** Set when someone else holds the record: the forward actions explain why they are off. */
   holdNotice: string | null;
   canVerify: boolean;
-  after: (intent: "next" | "verify") => Promise<string | null>;
+  /**
+   * `version` is the review row's version after this save's own provenance
+   * write, when there was one — the review step must use it, or the page's own
+   * write reads as someone else's change.
+   */
+  after: (intent: "next" | "verify", version?: number) => Promise<string | null>;
+  /** Told the review row's version after any save that wrote provenance, so later presses use it. */
+  onVersion?: (version: number) => void;
   /** The review queue — Khmer opens the ISBN-less fallbacks on arrival. */
   queue?: "km" | "en" | null;
 };
@@ -326,14 +333,17 @@ export default function EditBookWizard({
         setSaved(te("savedMessage"));
         // Where the saved values came from — after the save, never before it.
         // A refusal here costs only the credit; the record is saved either way.
+        let reviewVersion: number | undefined;
         if (hints.length) {
-          await recordFieldSources(book.id, hints).catch(() => null);
+          const recorded = await recordFieldSources(book.id, hints).catch(() => null);
+          if (recorded?.ok) reviewVersion = recorded.version;
+          if (reviewVersion !== undefined) review?.onVersion?.(reviewVersion);
         }
         baseline.current = { ...formRecord(), cover_url: baseline.current.cover_url };
         pendingSources.current.clear();
         if (review && intent !== "save") {
           // The record is saved whatever happens next; only the step after it may be refused.
-          const refused = await review.after(intent);
+          const refused = await review.after(intent, reviewVersion);
           if (refused) setError(tr("savedButStepRefused", { reason: refused }));
         }
       } else {

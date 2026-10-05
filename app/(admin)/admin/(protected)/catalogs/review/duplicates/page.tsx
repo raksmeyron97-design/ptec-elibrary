@@ -84,7 +84,10 @@ export default async function CatalogDuplicatesPage({
   const shown = groups.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const qs = (over: Record<string, string | null>) => {
     const p = new URLSearchParams({ language, ...(showAll ? { signals: "all" } : {}), ...(showResolved ? { resolved: "1" } : {}) });
-    for (const [k, v] of Object.entries(over)) (v === null ? p.delete(k) : p.set(k, v));
+    for (const [k, v] of Object.entries(over)) {
+      if (v === null) p.delete(k);
+      else p.set(k, v);
+    }
     return `/admin/catalogs/review/duplicates?${p}`;
   };
 
