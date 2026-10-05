@@ -8637,7 +8637,22 @@
         "verified": "verified"
       },
       "provenanceAccepted": "accepted by {name}, {date}",
-      "provenanceChanged": "changed since (was {source})"
+      "provenanceChanged": "changed since (was {source})",
+      "duplicatesTitle": "Possible duplicates",
+      "duplicatesDescription": "Records that share an ISBN, or a title confirmed by the author or year. Nothing here merges: open a record to fix it, or keep the records as separate editions.",
+      "weakSignal": "weak signal — no task",
+      "separateEdition": "kept as a separate edition",
+      "keepSeparate": "Keep as separate editions",
+      "reviewLaterHint": "Or leave the group here to review later.",
+      "keptSeparate": "Kept {done} as separate editions. {refused, plural, =0 {} =1 {# was not changed (someone else is reviewing it, or it changed).} other {# were not changed (someone else is reviewing them, or they changed).}}",
+      "signalsAll": "Show weak signals too",
+      "signalsStrongOnly": "Strong signals only",
+      "showResolved": "Show groups already kept apart",
+      "hideResolved": "Hide groups already kept apart",
+      "groupCount": "{count, plural, =1 {# group} other {# groups}}",
+      "noDuplicatesTitle": "No possible duplicates",
+      "noDuplicatesBody": "Nothing in this queue shares an ISBN, or a title confirmed by the author or year.",
+      "openDuplicates": "Possible duplicates"
     },
     "list": {
       "caption": "Physical catalog books",

@@ -25,7 +25,8 @@ import {
   type ProvenanceRecord,
   type ProvenanceView,
 } from "./provenance";
-import { duplicateGroups, reviewTasks, type CopySummary, type ReviewTask, type ReviewTaskId } from "./review-tasks";
+import { duplicateClusters, duplicateGroups, reviewTasks, type CopySummary, type ReviewTask, type ReviewTaskId } from "./review-tasks";
+import type { DuplicateGroup } from "@/lib/admin/duplicates";
 import {
   REVIEW_ROW_COLUMNS,
   fingerprintInput,
@@ -91,7 +92,16 @@ const INDEX_COLUMNS =
   "id, title, author, language, ddc, is_active, category, department, shelf_location, isbn, publisher, year, cover_url, description, catalog_copies(status, shelf_location)";
 
 export type ReviewIndex =
-  | { ok: true; items: QueueItem[]; duplicates: Map<string, string[]> }
+  | {
+      ok: true;
+      items: QueueItem[];
+      /** Records carrying the duplicate TASK → the other members of their group. */
+      duplicates: Map<string, string[]>;
+      /** Every possible-duplicate group, low confidence included (the duplicates view). */
+      clusters: DuplicateGroup[];
+      /** Every record's language and call number, for a group whose members sit in different queues. */
+      records: Map<string, { title: string; author: string | null; language: string | null; callNumber: string | null; isbn: string | null; year: number | null }>;
+    }
   | { ok: false; missingTable: boolean; message: string };
 
 /** Copies a reader could find: not withdrawn. Shelved = Koha gave it a location. */
@@ -125,7 +135,9 @@ export async function loadReviewIndex(supabase: Db, queue: ReviewQueue | null): 
   const rows = await loadReviewRows(supabase);
   if (!rows.ok) return rows;
 
-  const duplicates = duplicateGroups(scan.data);
+  const clusters = duplicateClusters(scan.data);
+  const duplicates = duplicateGroups(scan.data, clusters);
+  const records = new Map(scan.data.map((b) => [b.id, { title: b.title, author: b.author, language: b.language, callNumber: b.ddc, isbn: b.isbn, year: b.year }]));
   const items: QueueItem[] = [];
   for (const b of scan.data) {
     if (queue && reviewQueueOf(b.language) !== queue) continue;
@@ -141,7 +153,7 @@ export async function loadReviewIndex(supabase: Db, queue: ReviewQueue | null): 
       tasks: reviewTasks(b, summariseCopies(b.catalog_copies), duplicates.has(b.id), review?.waivedTasks ?? []),
     });
   }
-  return { ok: true, items, duplicates };
+  return { ok: true, items, duplicates, clusters, records };
 }
 
 /** Display names for the people a page mentions (claim holders, reviewers). Unknown ids are simply absent. */

@@ -33,7 +33,7 @@
  */
 import { assessCatalogRecordHealth, type RecordHealthCheckId } from "./record-health";
 import { isDerivedDescription } from "./derived-description";
-import { normalizeIsbn, normalizePersonName, normalizeTitle } from "@/lib/books/duplicate-detection/normalize";
+import { findDuplicateGroups, type DuplicateConfidence, type DuplicateGroup } from "@/lib/admin/duplicates";
 import { CATALOG_LANGUAGES } from "@/lib/catalog-import";
 
 export const REVIEW_TASK_IDS = [
@@ -163,38 +163,53 @@ export function compareUrgency(a: readonly ReviewTask[], b: readonly ReviewTask[
 
 // ── Duplicates ────────────────────────────────────────────────────────────────
 
-export type DuplicateCandidate = { id: string; isbn: string | null; title: string | null; author: string | null };
+export type DuplicateCandidate = {
+  id: string;
+  isbn: string | null;
+  title: string | null;
+  author: string | null;
+  year?: number | null;
+  created_at?: string | null;
+};
+
+/** Confidence a group must reach to put a "possible duplicate" task on its records. */
+export const TASK_CONFIDENCES: readonly DuplicateConfidence[] = ["high", "medium"];
 
 /**
- * Which records share an IDENTITY KEY with another record: the canonical ISBN,
- * or the normalized title AND author together. Exact keys only — a signal for
- * a person to look at, never a merge (CLAUDE.md: a model, or a fuzzy score,
- * never decides identity). A title with no meaningful author is not keyed on
- * title alone: PMB carries many unauthored series volumes, and keying them
- * would flag every one.
+ * Possible-duplicate groups over the catalogue, by the library's ONE grouping
+ * (lib/admin/duplicates.ts, the digital collection's review queue): a shared
+ * canonical ISBN is high confidence; the same normalized title is low, raised
+ * to medium when every record agrees on the author or on the year; a title that
+ * is a word-boundary prefix of another by the same author is low. Never a
+ * merge — a signal for a person to look at.
  */
-export function duplicateGroups(records: readonly DuplicateCandidate[]): Map<string, string[]> {
-  const byKey = new Map<string, string[]>();
-  const add = (key: string, id: string) => {
-    const list = byKey.get(key);
-    if (list) list.push(id);
-    else byKey.set(key, [id]);
-  };
-  for (const r of records) {
-    const isbn = normalizeIsbn(r.isbn);
-    if (isbn) add(`isbn:${isbn}`, r.id);
-    const title = normalizeTitle(r.title);
-    const author = normalizePersonName(r.author);
-    if (title && author) add(`ta:${title}|${author}`, r.id);
-  }
+export function duplicateClusters(records: readonly DuplicateCandidate[]): DuplicateGroup[] {
+  return findDuplicateGroups(
+    records.map((r) => ({
+      id: r.id,
+      slug: r.id,
+      title: r.title ?? "",
+      isbn: r.isbn,
+      year: r.year ?? null,
+      author: r.author,
+      pages: null,
+      fileSizeKb: null,
+      contentHash: null,
+      createdAt: r.created_at ?? null,
+    })),
+  );
+}
+
+/**
+ * Which records carry the "possible duplicate" TASK: those in a high- or
+ * medium-confidence group. A title alone (PMB holds many unauthored series
+ * volumes) or a prefix is low — shown in the duplicates view, never a task.
+ */
+export function duplicateGroups(records: readonly DuplicateCandidate[], groups = duplicateClusters(records)): Map<string, string[]> {
   const out = new Map<string, string[]>();
-  for (const ids of byKey.values()) {
-    if (ids.length < 2) continue;
-    for (const id of ids) {
-      const others = new Set(out.get(id) ?? []);
-      for (const other of ids) if (other !== id) others.add(other);
-      out.set(id, [...others]);
-    }
+  for (const g of groups) {
+    if (!TASK_CONFIDENCES.includes(g.confidence)) continue;
+    for (const b of g.books) out.set(b.id, g.books.filter((o) => o.id !== b.id).map((o) => o.id));
   }
   return out;
 }

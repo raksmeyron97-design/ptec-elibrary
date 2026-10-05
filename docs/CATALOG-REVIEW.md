@@ -94,11 +94,13 @@ A waiver says "this does not apply to this book"; it is stored in
 claim, and is audited (`catalogReview.waive` / `.unwaive`). A task that is done
 stays done whatever was waived.
 
-Duplicates are exact identity keys only (the duplicate-detection module's
-`normalizeIsbn`/`normalizeTitle`/`normalizePersonName`), computed across BOTH
-languages. A title with no author is never keyed alone — PMB holds many
-unauthored series volumes. The workspace links to the other records; nothing
-merges.
+Duplicates use the library's ONE grouping (`findDuplicateGroups`,
+`lib/admin/duplicates.ts`, the digital collection's queue) across BOTH
+languages: a record carries the task when its group is high (shared canonical
+ISBN) or medium confidence (same normalized title, and every record agrees on
+the author — compared case-insensitively, nothing looser — or on the year). A
+title alone or a prefix is low: shown in the duplicates view, never a task.
+The workspace links to the other records; nothing merges.
 
 The queue gains `task=<id>` (records where that task is OPEN — waived does not
 count) and `sort=urgent` (open blocking tasks first, then open tasks, then shelf
@@ -179,6 +181,22 @@ the cache, rate limits, the cover allow-list). The interaction changed:
   book* is a deliberate override that still goes through the preview.
 - "Not found" only when every provider answered; one that failed makes the
   result *incomplete* or *partial*, said as such.
+
+## Possible duplicates (Slice 6)
+
+`/admin/catalogs/review/duplicates?language=km|en` lists the groups that touch
+a queue (a group may cross languages; every member is shown with its own
+queue). Strong groups (high/medium) by default; `signals=all` adds the weak
+ones, labelled "weak signal — no task".
+
+**Keep as separate editions** waives the duplicate task on each record of the
+group, one guarded, compare-and-set, audited waiver per record — so it is
+refused over another librarian's fresh claim. Nothing merges, nothing is
+unlisted, no record is written. A group whose records are all kept apart
+leaves the default view (`resolved=1` shows it); a record that joins the group
+later starts with its own open task, so the group comes back. "Review later"
+is leaving the group where it is; "open the existing record" is the record
+link. Route `catalog.review.duplicates` (read); the action needs write.
 
 ## Transitions
 

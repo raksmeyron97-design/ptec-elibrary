@@ -138,6 +138,12 @@ export default async function CatalogReviewPage({
             <h2 id="review-queue-heading" className="text-lg font-semibold text-text-heading">
               {t(`queue.${query.language}`)} · {t("listCount", { count: list.length })}
             </h2>
+            <Link
+              href={`/admin/catalogs/review/duplicates?language=${query.language}`}
+              className="focus-field inline-flex h-10 items-center rounded-lg border border-divider bg-bg-surface px-4 text-sm font-semibold text-text-body hover:bg-paper"
+            >
+              {t("openDuplicates")}
+            </Link>
             {canReview && first && (
               <Link href={reviewRecordHref(first.id, query)} className="focus-field inline-flex h-10 items-center gap-2 rounded-lg bg-admin-accent px-5 text-sm font-semibold text-white hover:bg-admin-accent-hover">
                 {t(`continue.${query.language}`)}

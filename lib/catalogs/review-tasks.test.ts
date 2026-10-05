@@ -4,6 +4,7 @@ import {
   REVIEW_TASK_IDS,
   WAIVABLE_TASKS,
   compareUrgency,
+  duplicateClusters,
   duplicateGroups,
   openBlockingTasks,
   openTasks,
@@ -96,14 +97,31 @@ describe("duplicates are exact identity keys, never a fuzzy guess", () => {
     expect(g.get("a")).toEqual(["b"]);
   });
 
-  it("title AND author, after normalisation (case, spacing, punctuation)", () => {
+  it("the same title (case, spacing, punctuation folded) by the same author is a task", () => {
     const g = duplicateGroups([
-      { id: "a", isbn: null, title: "Visible Learning", author: "Hattie, John" },
+      { id: "a", isbn: null, title: "Visible Learning", author: "Hattie John" },
       { id: "b", isbn: null, title: "  visible   learning ", author: "hattie john" },
-      { id: "c", isbn: null, title: "Visible Learning", author: "Someone Else" },
     ]);
     expect(g.get("a")).toEqual(["b"]);
-    expect(g.has("c")).toBe(false);
+  });
+
+  it("authors are compared as the library's duplicate queue compares them: case-insensitive, nothing looser", () => {
+    // lib/admin/duplicates.ts normalizeAuthor — "Hattie, John" ≠ "Hattie John" there, and so here.
+    const g = duplicateGroups([
+      { id: "a", isbn: null, title: "Visible Learning", author: "Hattie, John" },
+      { id: "b", isbn: null, title: "Visible Learning", author: "Hattie John" },
+    ]);
+    expect(g.size).toBe(0);
+  });
+
+  it("the same title under different authors is only a weak signal — shown in the view, never a task", () => {
+    const records = [
+      { id: "a", isbn: null, title: "Visible Learning", author: "Hattie, John" },
+      { id: "b", isbn: null, title: "Visible Learning", author: "Hattie, John" },
+      { id: "c", isbn: null, title: "Visible Learning", author: "Someone Else" },
+    ];
+    expect(duplicateGroups(records).size).toBe(0);
+    expect(duplicateClusters(records)).toEqual([expect.objectContaining({ confidence: "low" })]);
   });
 
   it("a title with no author is not keyed alone — unauthored series volumes are not duplicates", () => {

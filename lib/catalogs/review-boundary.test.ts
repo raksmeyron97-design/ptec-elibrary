@@ -20,6 +20,7 @@ const ACTIONS = read(`${ADMIN}/review/actions.ts`);
 const ACTIONS_CODE = ACTIONS.split("\n").filter((l) => !l.trim().startsWith("//")).join("\n");
 const LIST_PAGE = read(`${ADMIN}/review/page.tsx`);
 const RECORD_PAGE = read(`${ADMIN}/review/[id]/page.tsx`);
+const DUPLICATES_PAGE = read(`${ADMIN}/review/duplicates/page.tsx`);
 const WORKSPACE = read(`${ADMIN}/review/[id]/_components/ReviewWorkspace.tsx`);
 const OVERVIEW = read(`${ADMIN}/page.tsx`);
 const EDIT_PAGE = read(`${ADMIN}/edit/[id]/page.tsx`);
@@ -71,14 +72,15 @@ describe("review actions write review state and nothing else", () => {
 
   it("every exported action is guarded: the switch and the registry come before any read", () => {
     const parts = ACTIONS_CODE.split(/^export async function /m).slice(1);
-    expect(parts.length).toBe(12);
+    expect(parts.length).toBe(13);
     for (const part of parts) {
       const name = part.slice(0, part.indexOf("("));
       const body = part.slice(0, part.search(/^}/m) + 1);
       if (/return (transition|waiver)\(/.test(body)) continue;
+      // Bulk wrappers: switch and registry first, then only the guarded inner path.
       const flag = body.indexOf("catalogReviewEnabled()");
       const guard = body.search(/requireAction\("catalog\.review\.(transition|view)"\)/);
-      const firstRead = body.search(/\.from\(|loadReviewIndex\(|transition\(/);
+      const firstRead = body.search(/\.from\(|loadReviewIndex\(|transition\(|waiver\(/);
       expect(flag, name).toBeGreaterThan(-1);
       expect(guard, name).toBeGreaterThan(flag);
       expect(firstRead, name).toBeGreaterThan(guard);
@@ -174,9 +176,28 @@ describe("provenance (Slice 4) credits a source only on evidence", () => {
   });
 });
 
+describe("possible duplicates (Slice 6) never merge", () => {
+  const body = ACTIONS.slice(ACTIONS.indexOf("export async function keepAsSeparateEditions"));
+  const fn = body.slice(0, body.search(/^}/m) + 1);
+  it("keeping records apart is a per-record waiver of the duplicate task — no record write, no unlisting", () => {
+    expect(fn).toMatch(/await waiver\(String\(item\?\.id \?\? ""\), Number\(item\?\.version\), "duplicate", true\)/);
+    expect(fn).not.toMatch(/\.from\(/);
+    expect(fn).toMatch(/items\.length < 2 \|\| items\.length > 20/);
+  });
+  it("the view reads the library's one duplicate grouping, not a second one", () => {
+    expect(DUPLICATES_PAGE).toMatch(/index\.clusters/);
+    const tasks = read("lib/catalogs/review-tasks.ts");
+    expect(tasks).toMatch(/findDuplicateGroups\(/);
+  });
+  it("the view opens at read; keeping apart needs write", () => {
+    expect(routePolicy("catalog.review.duplicates")?.requires).toEqual({ kind: "perm", resource: "catalog", level: "read" });
+    expect(fn).toMatch(/requireAction\("catalog\.review\.transition"\)/);
+  });
+});
+
 describe("routes, switch and registry", () => {
   it("both review pages 404 when the switch is off and guard before the service client", () => {
-    for (const [name, src] of [["list", LIST_PAGE], ["record", RECORD_PAGE]] as const) {
+    for (const [name, src] of [["list", LIST_PAGE], ["record", RECORD_PAGE], ["duplicates", DUPLICATES_PAGE]] as const) {
       const flag = src.indexOf("if (!catalogReviewEnabled()) notFound();");
       const guard = src.indexOf("requireRouteAccess(");
       const client = src.indexOf("createServiceClient()");

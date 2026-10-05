@@ -423,3 +423,29 @@ export async function recordFieldSources(bookId: string, rawHints: unknown): Pro
   }
   return { ok: false, error: "stale" };
 }
+
+// ── Possible duplicates (Slice 6) ─────────────────────────────────────────────
+
+/**
+ * "Keep as separate editions": waive the duplicate task on each record of a
+ * group the librarian judged NOT to be duplicates. Each record goes through
+ * the same guarded, compare-and-set, audited waiver as a single press — so it
+ * is refused over another librarian's fresh claim — and a record joining the
+ * group later starts with its own open task, so the group comes back. Nothing
+ * is merged, nothing is unlisted, no record is written.
+ */
+export async function keepAsSeparateEditions(items: { id: string; version: number }[]): Promise<BulkResult> {
+  if (!catalogReviewEnabled()) return { ok: false, error: "disabled" };
+  await requireAction("catalog.review.transition");
+  if (!Array.isArray(items) || items.length < 2 || items.length > 20) return { ok: false, error: "invalid" };
+
+  let done = 0;
+  const refused: { id: string; error: Refused["error"] }[] = [];
+  for (const item of items) {
+    const r = await waiver(String(item?.id ?? ""), Number(item?.version), "duplicate", true);
+    // Already waived is the state the press asked for.
+    if (r.ok || r.error === "already") done += 1;
+    else refused.push({ id: String(item?.id ?? ""), error: r.error });
+  }
+  return { ok: true, done, refused };
+}
