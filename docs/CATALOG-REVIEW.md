@@ -1,0 +1,144 @@
+# Catalog review — the Physical Library's librarian review
+
+`/admin/catalogs/review` is where librarians check each Physical Library record
+against the book in hand. It is behind `CATALOG_REVIEW` (server-only; off in
+production unless `on`). This document covers Slice 1: the language queues, the
+review state, and Save & next. Later slices (tasks, provenance, copy locations,
+ISBN status, duplicates, Khmer fallbacks) build on the same state.
+
+## Why it exists
+
+All 2,639 production records (2026-10-05) came from PMB through Koha. The PMB
+export carried no ISBN, publisher or year, so almost every record is thin in
+the same ways — and until now nothing recorded which records a person had
+actually checked. `is_active` is public visibility, and stays that.
+
+## Two queues, one engine
+
+| Queue | Rule | Koha item type | Production, 2026-10-05 |
+|---|---|---|---|
+| Khmer books | `language = 'km'` | `BK` | 1,290 |
+| English & other languages | `language` is `en`, `fr`, `zh` or `other` | `BKEN` | 1,349 |
+| — (counted apart) | no language, or a value that is not a catalogue code | — | 0 |
+
+The rule is `reviewQueueOf()` in `lib/catalogs/review.ts`, pinned against
+`kohaItemTypeFor()` for every catalogue language. The language is the record's
+stored value, never a guess from the title. A value such as `"Khmer"` is not a
+code, so it is in **neither** queue and counted as unrecognised rather than
+guessed (by the BK/BKEN rule alone it would land in the English queue).
+
+The queue is part of every query: the list, the counts, previous/next. The URL
+carries the whole context — `?language=km|en&status=…&assignee=…&sort=shelf` —
+so refresh, bookmarks and back/forward land on the same record in the same
+queue. Previous/next are computed over the queue's one ordered list relative to
+the current record's place in it, so a record that just left the filter (it was
+verified) still has a next, and no navigation can step into the other language.
+
+Order is shelf order: call number (`catalog_books.ddc`, which for a Koha record
+is the best copy's call number), digit runs compared as numbers, records without
+one last, the record id breaking every tie.
+
+## Review state — `catalog_review_state` (0169)
+
+A table of its own because `catalog_books` is anon-readable (`USING (true)`,
+0117): a status or assignee column there would be public. Service role only, RLS
+on, revoked from `public`/`anon`/`authenticated`. Never written to Koha.
+
+**No row = needs review.** The migration writes no row, so turning the feature
+on is not a production write and turning it off leaves nothing a reader sees.
+
+| Stored `status` | Meaning |
+|---|---|
+| `needs_review` | (or no row) waiting for a librarian |
+| `in_review` | taken by `assigned_to` at `claimed_at` |
+| `verified` | checked by `reviewed_by` at `reviewed_at`; `verified_fingerprint` is the sha256 of the bibliographic fields as stored |
+| `blocked` | cannot be finished: `blocked_reason` (`book_not_found`, `needs_koha`, `needs_decision`, `other` + note) |
+
+One step: the librarian who checks the book verifies it. There is no
+READY_TO_VERIFY state (PTEC decision 2026-10-05).
+
+Derived, never stored:
+
+- **stale claim** — `claimed_at` older than 4 hours (`CLAIM_LEASE_MS`): anyone may take it;
+- **changed since verified** — the live row's fingerprint no longer matches (e.g. edited in Koha);
+- **imported** — a provenance fact about every current record, not a state.
+
+`waived_tasks` and `field_sources` exist for Slices 2 and 4 and are unused here.
+
+## Transitions
+
+`planReviewTransition()` (pure) decides; `app/(admin)/admin/(protected)/catalogs/review/actions.ts` applies.
+
+| Action | From | To | Refused when |
+|---|---|---|---|
+| claim | needs review / in review (stale or mine) | in review (me) | someone else holds a fresh claim → `takeover` |
+| takeover | in review (someone else) | in review (me) | — (confirmed in the UI, audited with `previousHolder`) |
+| release | in review (mine) | needs review | not mine |
+| verify | needs review / in review (not someone else's fresh claim) | verified | blocked, already verified |
+| block | needs review / in review | blocked | unknown reason; `other` without a note |
+| unblock | blocked | needs review | — |
+| reopen | verified | needs review | — |
+
+Every action: switch check → `requireAction("catalog.review.transition")`
+(`catalog: write`) → read → plan → compare-and-set on `version` (or an insert
+that collides on the primary key) → one `admin_audit_log` row
+(`catalogReview.<action>`, metadata: from, to, queue, previousHolder, reason).
+A press against an older page is refused as `stale` and nothing is written.
+None of them writes `catalog_books`, `catalog_copies` or Koha.
+
+## The workspace
+
+`/admin/catalogs/review/[id]` embeds the ordinary record editor
+(`EditBookWizard`, loaded by the shared `edit/[id]/load-record.ts`) with an
+optional `review` prop. Saving is still `updateCatalogBook` — Koha first, the
+three-way conflict check, sent once — unchanged.
+
+| Button | Does |
+|---|---|
+| Previous / Skip | moves within the queue; writes nothing; asks first if there are unsaved edits |
+| Save | saves the record; stays |
+| Save & next | saves (if changed), gives the claim back if it was mine, moves on |
+| Verify & next | saves (if changed), then verifies — fingerprinting the row as stored — then moves on |
+
+The review step runs only after the save succeeded, and navigation only after
+the review step succeeded. A Koha conflict, an ambiguous Koha answer, a refused
+slug or a stale review version keeps the librarian on the record with the
+reason shown. If the save succeeded and the review step was refused, the
+message says the record IS saved.
+
+While someone else holds a fresh claim, Save & next and Verify & next are off
+and the bar says who; Take over asks first.
+
+After moving on, focus goes to the new record's "Record N of M" heading (a
+callback ref, because FormShell moves the context panel between inline and
+sidebar after mount, replacing the node).
+
+## Routes and access
+
+| Route | Policy | Requires |
+|---|---|---|
+| `/admin/catalogs/review` | `catalog.review` | `catalog: read` |
+| `/admin/catalogs/review/[id]` | `catalog.review.record` | `catalog: write` (it embeds the editor, like `catalog.edit`) |
+| review actions | `catalog.review.transition` | `catalog: write` |
+
+`/admin/catalogs` shows a card per queue (counts from its existing collection
+scan plus the review rows) when the switch is on, and is unchanged when off.
+
+## Scale
+
+Each review page reads the catalogue's id/title/call number/language once
+(three 1,000-row pages at PTEC's size) plus the review rows, and derives the
+list, counts and neighbours from that one read. No query per record, no Koha
+call. A failed or cut-short read is reported, never shown as a partial queue.
+
+## Rollback
+
+`CATALOG_REVIEW=off` (or unset in production): the routes 404, the overview
+cards disappear, nothing else changes. The table keeps its rows and nobody reads
+them. Removing the feature for good is a later migration that drops the table.
+
+## Tests
+
+- `lib/catalogs/review.test.ts` — queues vs BK/BKEN, URL round-trip, language-scoped filters, shelf order, previous/next, counts, transitions, fingerprint.
+- `lib/catalogs/review-boundary.test.ts` — the migration is private/additive/empty; actions guard first, write only the review table, compare-and-set, audit; pages 404 when off; registry levels; the editor runs the review step only after a successful save.
+- `e2e/catalog-review.spec.ts` — anonymous visitors are sent to the admin login (no authenticated-admin fixture exists in `e2e/`).

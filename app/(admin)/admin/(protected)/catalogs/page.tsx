@@ -21,6 +21,10 @@ import AdminCoverThumb from "@/components/admin/catalogs/AdminCoverThumb";
 import { requireRouteAccess } from "@/lib/admin/route-guard";
 import { kohaOwnsLinkedRecords } from "@/lib/koha/catalog-writes";
 import { kohaReadsPatrons } from "@/lib/koha/patron-server";
+import { getTranslations } from "next-intl/server";
+import { catalogReviewEnabled } from "@/lib/catalogs/review-flag";
+import { loadReviewRows } from "@/lib/catalogs/review-server";
+import { REVIEW_QUEUES, reviewCounts, reviewListHref, DEFAULT_REVIEW_QUERY } from "@/lib/catalogs/review";
 
 export const dynamic = "force-dynamic";
 
@@ -143,6 +147,8 @@ export default async function AdminCatalogsPage({
   // below described an arbitrary 1,000 once the PMB import landed. A read that
   // fails or is cut short renders "—", never a count of what it happened to get.
   const metaScan = await pagedScan<{
+    id: string;
+    language: string | null;
     category: string | null;
     department: string | null;
     is_active: boolean;
@@ -154,7 +160,7 @@ export default async function AdminCatalogsPage({
     (from, to) =>
       supabase
         .from("catalog_books")
-        .select("category, department, is_active, isbn, year, cover_url, catalog_copies(status)")
+        .select("id, language, category, department, is_active, isbn, year, cover_url, catalog_copies(status)")
         .order("id", { ascending: true })
         .range(from, to),
     CATALOG_SCAN_CAP,
@@ -181,6 +187,14 @@ export default async function AdminCatalogsPage({
   const missingMeta    = activeMeta.filter((m) => !m.isbn || !m.year || !m.category).length;
   const missingCovers  = activeMeta.filter((m) => !m.cover_url).length;
   const unlistedBooks  = meta.length - activeMeta.length;
+
+  // Librarian review (docs/CATALOG-REVIEW.md), behind CATALOG_REVIEW. The
+  // per-language counts come from the scan above plus the review rows — no
+  // second read of the catalogue. Unknown renders as unknown, never as zero.
+  const reviewOn = catalogReviewEnabled();
+  const tr = reviewOn ? await getTranslations("adminCatalog.review") : null;
+  const reviewRows = reviewOn && !metaUnavailable ? await loadReviewRows(supabase) : null;
+  const review = reviewRows?.ok ? reviewCounts(meta, reviewRows.rows) : null;
 
   const totalItems = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
@@ -231,6 +245,45 @@ export default async function AdminCatalogsPage({
           </>
         )}
       </div>
+
+      {/* ── Librarian review: one card per language queue ── */}
+      {reviewOn && tr && (
+        <section aria-labelledby="catalog-review-heading" className="space-y-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="catalog-review-heading" className="text-sm font-bold uppercase tracking-wider text-text-muted">{tr("overviewHeading")}</h2>
+            <Link href="/admin/catalogs/review" className="text-xs font-semibold text-admin-accent-text hover:underline">{tr("overviewAll")}</Link>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {REVIEW_QUEUES.map((queue) => {
+              const c = review?.[queue];
+              return (
+                <div key={queue} className="rounded-xl border border-divider bg-bg-surface p-4 shadow-sm">
+                  <p className="text-xs font-semibold text-text-muted">{tr(`queue.${queue}`)}</p>
+                  {c ? (
+                    <>
+                      <p className="mt-1 text-sm text-text-body">
+                        {tr("cardTotal", { count: c.total })} · <span className="font-semibold text-text-heading">{tr("cardNeedsReview", { count: c.needsReview })}</span>
+                      </p>
+                      <p className="mt-0.5 text-xs text-text-muted">{tr("cardBreakdown", { inReview: c.inReview, verified: c.verified, blocked: c.blocked })}</p>
+                    </>
+                  ) : (
+                    <p className="mt-1 text-sm text-text-muted">{tr("countsUnavailable")}</p>
+                  )}
+                  <Link
+                    href={reviewListHref({ ...DEFAULT_REVIEW_QUERY, language: queue })}
+                    className="focus-field mt-3 inline-flex h-10 items-center rounded-lg border border-divider bg-bg-surface px-4 text-sm font-semibold text-text-body hover:bg-paper"
+                  >
+                    {tr(`open.${queue}`)}
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+          {review && review.noLanguage > 0 && (
+            <p role="status" className="text-xs text-warning-text">{tr("noLanguage", { count: review.noLanguage })}</p>
+          )}
+        </section>
+      )}
 
       {/* ── Stats row (always reflects ALL active books, derived from copy rows) ── */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">

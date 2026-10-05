@@ -22,6 +22,8 @@ vi.mock("../../../publisher-actions", () => ({ fetchPublisherDescription: vi.fn(
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
+  // The editor keeps tab state on its own path (the edit route or the review workspace).
+  usePathname: () => "/admin/catalogs/edit/b1",
 }));
 
 const lookup = vi.mocked(lookupCatalogIsbn);
