@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { AlertCircle, CheckCircle2, Circle, ClipboardList, Lock, MinusCircle, RotateCcw, ShieldCheck, TriangleAlert, Unlock } from "lucide-react";
 import type { ReviewTask, ReviewTaskId } from "@/lib/catalogs/review-tasks";
+import type { ProvenanceView } from "@/lib/catalogs/provenance";
 import EditBookWizard from "../../../edit/[id]/_components/EditBookWizard";
 import type { CatalogEditorData } from "../../../edit/[id]/load-record";
 import { Badge, ConfirmDialog, type BadgeTone } from "@/components/admin/kit";
@@ -85,6 +86,7 @@ export default function ReviewWorkspace({
   stateUnavailable,
   tasks: initialTasks,
   duplicates,
+  provenance,
 }: {
   editor: CatalogEditorData;
   query: ReviewQuery;
@@ -103,6 +105,8 @@ export default function ReviewWorkspace({
   tasks: ReviewTask[];
   /** Other records sharing this one's ISBN, or its title and author. */
   duplicates: { id: string; title: string; author: string | null; isbn: string | null }[];
+  /** Where each value came from (lib/catalogs/provenance.ts); null when it could not be read. */
+  provenance: (ProvenanceView & { byName: string | null })[] | null;
 }) {
   const t = useTranslations("adminCatalog.review");
   const router = useRouter();
@@ -460,6 +464,35 @@ export default function ReviewWorkspace({
               );
             })}
           </ul>
+        </div>
+
+        {/* Where the values came from — source, who accepted it, and whether it
+            changed since. As SAVED: an unsaved fetch is not a source yet. */}
+        <div className="border-t border-divider pt-3">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">{t("provenanceHeading")}</h3>
+          {provenance === null ? (
+            <p className="mt-2 text-xs text-text-muted">{t("provenanceUnavailable")}</p>
+          ) : (
+            <dl className="mt-2 space-y-1.5 text-xs">
+              {provenance.map((v) => (
+                <div key={v.field} className="flex items-baseline justify-between gap-3">
+                  <dt className="shrink-0 text-text-muted">{t(`provenanceField.${v.field}`)}</dt>
+                  <dd className="min-w-0 text-right text-text-body">
+                    <span className="font-medium">{t(`provenanceSource.${v.source}`)}</span>
+                    {v.host && <span className="text-text-muted"> · {v.host}</span>}
+                    <span className={`ml-1.5 ${v.state === "changed" ? "font-semibold text-warning-text" : "text-text-muted"}`}>
+                      ·{" "}
+                      {v.state === "changed"
+                        ? t("provenanceChanged", { source: t(`provenanceSource.${v.previousSource ?? "librarian"}`) })
+                        : v.state === "accepted"
+                          ? t("provenanceAccepted", { name: v.byName ?? t("someoneElse"), date: (v.at ?? "").slice(0, 10) })
+                          : t(`provenanceState.${v.state}`)}
+                    </span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          )}
         </div>
 
         {/* Results of the panel's own buttons; the editor's save bar reports its own. */}

@@ -130,6 +130,31 @@ Review list:
   read-level (`catalog.review.view`), audited (`catalogReview.export`), UTF-8
   with BOM so Excel reads Khmer.
 
+## Provenance (Slice 4)
+
+The workspace says, per field, **where the current value came from, who
+accepted it and when, and whether it changed since** (`lib/catalogs/provenance.ts`,
+stored in `catalog_review_state.field_sources` as `{ source, by, at, hash, host? }`).
+
+| Shown | Means |
+|---|---|
+| Open Library / Google Books · accepted by X, date | the saved value is exactly what that provider's cached answer gave |
+| Publisher's page (host) / Crossref · accepted by X | THIS server fetched that text for that librarian (in-memory, 2 h) |
+| Librarian · accepted by X | typed, or a fetched value the librarian then edited, or anything unproven |
+| Koha (PMB import) · not checked yet | nothing recorded — the record's origin (a non-Koha record says "Entered in the e-Library") |
+| … · changed since (was Open Library) | the value no longer matches what was recorded — edited here without a hint, or in Koha |
+| … · verified | the record is verified and unchanged since |
+
+Nothing is taken on the browser's word. The editor remembers which provider
+filled which field and, **after a save succeeded**, sends hints for every field
+whose saved value differs from the last saved one. `recordFieldSources` keeps a
+provider credit only on evidence (the ISBN cache's answer for that ISBN equals
+the saved value; for a cover, the provider offered an allow-listed cover and the
+record now holds a stored one; for a publisher page, the fetch memory) and
+otherwise credits the librarian. It writes `field_sources` only (compare-and-set)
+and is audited (`catalogReview.provenance`). "Changed since" is derived from the
+value hash on read — no trigger, no sync change.
+
 ## Transitions
 
 `planReviewTransition()` (pure) decides; `app/(admin)/admin/(protected)/catalogs/review/actions.ts` applies.

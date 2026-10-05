@@ -8,7 +8,7 @@ import { notFound, redirect } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireRouteAccess } from "@/lib/admin/route-guard";
 import { catalogReviewEnabled } from "@/lib/catalogs/review-flag";
-import { loadProfileNames, loadReviewIndex, loadReviewRow, reviewFingerprint, summariseCopies } from "@/lib/catalogs/review-server";
+import { loadProfileNames, loadProvenance, loadReviewIndex, loadReviewRow, reviewFingerprint, summariseCopies } from "@/lib/catalogs/review-server";
 import { reviewTasks } from "@/lib/catalogs/review-tasks";
 import {
   changedSinceVerified,
@@ -81,7 +81,17 @@ export default async function CatalogReviewRecordPage({
     nextHref = at.nextId ? reviewRecordHref(at.nextId, query) : null;
   }
 
-  const names = await loadProfileNames(supabase, [row?.assignedTo, row?.reviewedBy]);
+  const changed = changedSinceVerified(row, reviewFingerprint(book));
+  const provenance = await loadProvenance(
+    supabase,
+    { ...book, keywords: book.keywords ?? [] },
+    row?.status === "verified" && !changed,
+  );
+  const names = await loadProfileNames(supabase, [
+    row?.assignedTo,
+    row?.reviewedBy,
+    ...(provenance.ok ? provenance.views.map((v) => v.by) : []),
+  ]);
 
   // Tasks from the record AS SAVED, with the duplicate signal from the whole
   // catalogue when the queue was read (it always is, once the URL names one).
@@ -104,6 +114,7 @@ export default async function CatalogReviewRecordPage({
       itemType={kohaItemTypeFor(book.language)}
       stateUnavailable={!rowResult.ok || (index !== null && !index.ok)}
       tasks={tasks}
+      provenance={provenance.ok ? provenance.views.map((v) => ({ ...v, byName: v.by ? names.get(v.by) ?? null : null })) : null}
       duplicates={(dupRows ?? []).map((d) => ({ id: d.id, title: d.title, author: d.author, isbn: d.isbn }))}
       initial={{
         status: statusOf(row),
@@ -116,7 +127,7 @@ export default async function CatalogReviewRecordPage({
         blockedReason: row?.blockedReason ?? null,
         blockedNote: row?.blockedNote ?? null,
         waivedTasks: row?.waivedTasks ?? [],
-        changedSinceVerified: changedSinceVerified(row, reviewFingerprint(book)),
+        changedSinceVerified: changed,
       }}
     />
   );

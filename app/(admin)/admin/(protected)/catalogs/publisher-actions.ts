@@ -15,6 +15,8 @@ import { requirePermission } from "@/lib/auth/requireAdmin";
 import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy } from "@/lib/rate-limit-policy";
 import { fetchPublicHtml } from "@/lib/net/public-fetch";
+import { rememberPublisherFetch } from "@/lib/catalogs/publisher-fetch-memory";
+import { canonicalValue } from "@/lib/catalogs/provenance";
 import { ISBN_USER_AGENT } from "@/lib/isbn/providers/fetch-json";
 import {
   crossrefAbstract,
@@ -54,6 +56,21 @@ async function fromCrossref(doi: string): Promise<string | null> {
   }
 }
 
+/**
+ * Remember what this server fetched, so the review's provenance can credit the
+ * page only for text it really returned (lib/catalogs/publisher-fetch-memory.ts).
+ */
+function remembered(userId: string, result: PublisherDescriptionResult): PublisherDescriptionResult {
+  if (result.ok) {
+    const text = canonicalValue("description", {
+      title: null, author: null, isbn: null, publisher: null, year: null, language: null, category: null,
+      description: result.description, keywords: null, cover_url: null,
+    });
+    rememberPublisherFetch(userId, text, { host: result.host, source: result.source === "crossref" ? "crossref" : "publisher" });
+  }
+  return result;
+}
+
 export async function fetchPublisherDescription(rawUrl: string): Promise<PublisherDescriptionResult> {
   const { userId } = await requirePermission("catalog", "write");
 
@@ -69,14 +86,14 @@ export async function fetchPublisherDescription(rawUrl: string): Promise<Publish
 
   if (page.ok && !looksLikeBotWall(page.body)) {
     const found = extractPublisherDescription(page.body);
-    if (found) return { ok: true, description: found.text, source: found.source, truncated: found.truncated, host: new URL(page.finalUrl).hostname };
+    if (found) return remembered(userId, { ok: true, description: found.text, source: found.source, truncated: found.truncated, host: new URL(page.finalUrl).hostname });
   }
   // Refused addresses and malformed URLs are final; a DOI is not a way around them.
   if (!page.ok && (page.reason === "invalid_url" || page.reason === "blocked_address")) return { ok: false, error: page.reason };
 
   if (doi) {
     const abstract = await fromCrossref(doi);
-    if (abstract) return { ok: true, description: abstract, source: "crossref", truncated: false, host: "api.crossref.org" };
+    if (abstract) return remembered(userId, { ok: true, description: abstract, source: "crossref", truncated: false, host: "api.crossref.org" });
   }
 
   if (!page.ok) {

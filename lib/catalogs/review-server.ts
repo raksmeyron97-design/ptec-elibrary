@@ -16,6 +16,15 @@ import { createHash } from "node:crypto";
 import type { createServiceClient } from "@/lib/supabase/server";
 import { CATALOG_SCAN_CAP } from "@/lib/catalog";
 import { chunked, pagedScan } from "@/lib/db/paged-scan";
+import {
+  PROVENANCE_FIELDS,
+  canonicalValue,
+  provenanceView,
+  readFieldSources,
+  type ProvenanceField,
+  type ProvenanceRecord,
+  type ProvenanceView,
+} from "./provenance";
 import { duplicateGroups, reviewTasks, type CopySummary, type ReviewTask, type ReviewTaskId } from "./review-tasks";
 import {
   REVIEW_ROW_COLUMNS,
@@ -169,4 +178,33 @@ export function openTaskCounts(
     for (const task of tasks) if (task.state === "open") counts[queue][task.id] = (counts[queue][task.id] ?? 0) + 1;
   }
   return { counts, tasksById };
+}
+
+/** sha256 of a field's canonical value — what field_sources entries are compared against. */
+export function fieldHash(field: ProvenanceField, record: ProvenanceRecord): string {
+  return createHash("sha256").update(canonicalValue(field, record), "utf8").digest("hex");
+}
+
+/** One record's provenance, as the workspace shows it. A failed read is reported, not shown as "no sources". */
+export async function loadProvenance(
+  supabase: Db,
+  record: ProvenanceRecord & { id: string; koha_biblio_id?: number | null },
+  verifiedAndUnchanged: boolean,
+): Promise<{ ok: true; views: ProvenanceView[] } | { ok: false }> {
+  const { data, error } = await supabase.from("catalog_review_state").select("field_sources").eq("book_id", record.id).maybeSingle();
+  if (error) return { ok: false };
+  const sources = readFieldSources(data?.field_sources);
+  const views: ProvenanceView[] = [];
+  for (const field of PROVENANCE_FIELDS) {
+    const view = provenanceView({
+      field,
+      hasValue: canonicalValue(field, record) !== "",
+      currentHash: fieldHash(field, record),
+      entry: sources[field],
+      kohaLinked: record.koha_biblio_id != null,
+      verifiedAndUnchanged,
+    });
+    if (view) views.push(view);
+  }
+  return { ok: true, views };
 }

@@ -21,6 +21,20 @@ import { changedRow } from "@/lib/db/changed-row";
 import { catalogReviewEnabled } from "@/lib/catalogs/review-flag";
 import { loadReviewIndex, loadReviewRow, reviewFingerprint, summariseCopies } from "@/lib/catalogs/review-server";
 import { toCsv } from "@/lib/export/csv";
+import { createHash } from "node:crypto";
+import { mergeIsbnCandidates, type MergedIsbnRecord } from "@/lib/isbn/enrich";
+import type { IsbnCandidate } from "@/lib/isbn/types";
+import { isCatalogStorageCover } from "@/lib/catalog-cover";
+import { recallPublisherFetch } from "@/lib/catalogs/publisher-fetch-memory";
+import {
+  canonicalValue,
+  parseHints,
+  readFieldSources,
+  type FieldSourceEntry,
+  type ProvenanceField,
+  type ProvenanceRecord,
+  type ProvenanceSource,
+} from "@/lib/catalogs/provenance";
 import {
   isReviewQueue,
   matchesReviewQuery,
@@ -291,4 +305,121 @@ export async function exportReviewQueue(search: string): Promise<{ ok: true; fil
   ]);
   await logAdminAction(userId, "catalogReview.export", "catalog_books", undefined, { queue: query.language, rows: rows.length });
   return { ok: true, filename: `catalog-review-${query.language}-${now.toISOString().slice(0, 10)}.csv`, csv };
+}
+
+// ── Provenance (Slice 4) ──────────────────────────────────────────────────────
+
+const PROVENANCE_COLUMNS = "id, title, author, isbn, publisher, year, language, category, description, keywords, cover_url";
+
+/** The value a provider's cached answer gives for one field, canonical — or null when it gives none. */
+function providerValue(field: ProvenanceField, merged: MergedIsbnRecord | null): string | null {
+  if (!merged) return null;
+  const blank: ProvenanceRecord = {
+    title: null, author: null, isbn: null, publisher: null, year: null, language: null, category: null,
+    description: null, keywords: null, cover_url: null,
+  };
+  switch (field) {
+    case "description":
+      return merged.description ? canonicalValue("description", { ...blank, description: merged.description.value }) : null;
+    case "publisher":
+      return merged.publisher ? canonicalValue("publisher", { ...blank, publisher: merged.publisher.value }) : null;
+    case "year":
+      return merged.year ? canonicalValue("year", { ...blank, year: merged.year.value }) : null;
+    case "language":
+      return merged.language ? canonicalValue("language", { ...blank, language: merged.language.value }) : null;
+    case "keywords":
+      return merged.keywords ? canonicalValue("keywords", { ...blank, keywords: merged.keywords.value }) : null;
+    default:
+      return null;
+  }
+}
+
+/**
+ * Record where the values just SAVED came from. Called by the editor after a
+ * save succeeded, with hints; nothing is taken on the browser's word:
+ *
+ *   • Open Library / Google Books — kept only if that provider's cached answer
+ *     for that ISBN gives exactly the saved value (a cover: the provider offered
+ *     an allow-listed cover and the record now holds a cover this app stored);
+ *   • a publisher page / Crossref — kept only if THIS server fetched that text
+ *     for this librarian (lib/catalogs/publisher-fetch-memory.ts);
+ *   • anything unproven is credited to the librarian who saved it.
+ *
+ * Writes field_sources only (compare-and-set), never the record.
+ */
+export async function recordFieldSources(bookId: string, rawHints: unknown): Promise<{ ok: true; recorded: number } | { ok: false; error: "disabled" | "invalid" | "not_found" | "stale" | "failed" }> {
+  if (!catalogReviewEnabled()) return { ok: false, error: "disabled" };
+  const { supabase, userId } = await requireAction("catalog.review.transition");
+  if (typeof bookId !== "string" || !UUID.test(bookId)) return { ok: false, error: "invalid" };
+  const hints = parseHints(rawHints);
+  if (hints.length === 0) return { ok: true, recorded: 0 };
+
+  const { data, error } = await supabase.from("catalog_books").select(PROVENANCE_COLUMNS).eq("id", bookId).maybeSingle();
+  if (error) return { ok: false, error: "failed" };
+  if (!data) return { ok: false, error: "not_found" };
+  const book = data as unknown as ProvenanceRecord;
+
+  const cache = new Map<string, MergedIsbnRecord | null>();
+  async function providerAnswer(isbn13: string, provider: "open_library" | "google_books") {
+    const k = `${isbn13}:${provider}`;
+    if (!cache.has(k)) {
+      const { data: row } = await supabase
+        .from("isbn_metadata_cache")
+        .select("status, candidates")
+        .eq("isbn13", isbn13)
+        .eq("provider", provider)
+        .maybeSingle();
+      const candidates = row?.status === "found" && Array.isArray(row.candidates) ? (row.candidates as IsbnCandidate[]) : [];
+      cache.set(k, mergeIsbnCandidates(candidates));
+    }
+    return cache.get(k) ?? null;
+  }
+
+  const at = new Date().toISOString();
+  const entries: Partial<Record<ProvenanceField, FieldSourceEntry>> = {};
+  for (const hint of hints) {
+    const value = canonicalValue(hint.field, book);
+    if (!value) continue;
+    let source: ProvenanceSource = "librarian";
+    let host: string | undefined;
+    if ((hint.source === "open_library" || hint.source === "google_books") && hint.isbn13) {
+      const merged = await providerAnswer(hint.isbn13, hint.source);
+      const proven =
+        hint.field === "cover"
+          ? !!merged?.coverImportUrl && isCatalogStorageCover(book.cover_url)
+          : providerValue(hint.field, merged) === value;
+      if (proven) source = hint.source;
+    } else if ((hint.source === "publisher" || hint.source === "crossref") && hint.field === "description") {
+      const fetched = recallPublisherFetch(userId, value);
+      if (fetched) {
+        source = fetched.source;
+        host = fetched.host;
+      }
+    }
+    entries[hint.field] = { source, by: userId, at, hash: createHash("sha256").update(value, "utf8").digest("hex"), ...(host ? { host } : {}) };
+  }
+  if (Object.keys(entries).length === 0) return { ok: true, recorded: 0 };
+
+  // Merge into what is stored; one retry if another write landed in between.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const current = await loadReviewRow(supabase, bookId);
+    if (!current.ok) return { ok: false, error: "failed" };
+    const { data: stored } = current.row
+      ? await supabase.from("catalog_review_state").select("field_sources").eq("book_id", bookId).maybeSingle()
+      : { data: null };
+    const merged = { ...readFieldSources(stored?.field_sources), ...entries };
+    const written = await writeRow(
+      { supabase, userId, book: { id: bookId } as BookRow, row: current.row },
+      { field_sources: merged },
+    );
+    if ("ok" in written) {
+      if (written.error === "stale" && attempt === 0) continue;
+      return { ok: false, error: written.error === "stale" ? "stale" : "failed" };
+    }
+    await logAdminAction(userId, "catalogReview.provenance", "catalog_books", bookId, {
+      fields: Object.fromEntries(Object.entries(entries).map(([f, e]) => [f, e!.source])),
+    });
+    return { ok: true, recorded: Object.keys(entries).length };
+  }
+  return { ok: false, error: "stale" };
 }

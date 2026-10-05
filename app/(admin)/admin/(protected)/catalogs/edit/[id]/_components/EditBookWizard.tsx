@@ -43,6 +43,9 @@ import SeoOverrideFields from "@/components/admin/seo/SeoOverrideFields";
 import { SITE_URL } from "@/lib/seo/site";
 import { useTranslations } from "next-intl";
 import type { CoverSource } from "@/lib/catalog-cover-shared";
+import type { IsbnProvider } from "@/lib/isbn/types";
+import { PROVENANCE_FIELDS, canonicalValue, type ProvenanceField, type ProvenanceHint, type ProvenanceRecord, type ProvenanceSource } from "@/lib/catalogs/provenance";
+import { recordFieldSources } from "../../../review/actions";
 
 type Tab = "info" | "media" | "copies";
 
@@ -171,6 +174,49 @@ export default function EditBookWizard({
   const [keywordsSeed, setKeywordsSeed] = useState({ key: 0, tags: book.keywords ?? [] });
   const [coverImport, setCoverImport] = useState<string | null>(null);
 
+  /*
+    Provenance (lib/catalogs/provenance.ts). A value a provider or a publisher
+    page put in the form is remembered with its source; after a save SUCCEEDS,
+    every provenance field whose saved value differs from the last saved one is
+    reported — with its source if the value is still exactly what was fetched,
+    otherwise as the librarian's. The server re-checks every provider credit,
+    so this is a hint, never a claim. `baseline` moves on with each save, so a
+    second save does not re-report the first one's changes.
+  */
+  const pendingSources = useRef(new Map<ProvenanceField, { source: ProvenanceSource; value: string; isbn13?: string | null; host?: string | null }>());
+  const baseline = useRef<ProvenanceRecord>({
+    title: book.title, author: book.author, isbn: book.isbn, publisher: book.publisher, year: book.year,
+    language: book.language, category: book.category, description: book.description, keywords: book.keywords ?? [],
+    cover_url: book.cover_url,
+  });
+
+  function formRecord(): ProvenanceRecord {
+    const el = (name: string) => (formRef.current?.elements.namedItem(name) as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null)?.value ?? null;
+    return {
+      title: el("title"), author: el("author"), isbn: el("isbn"), publisher: el("publisher"), year: el("year"),
+      language: el("language"), category: el("category"), description: el("description"), keywords: keywordsRef.current,
+      cover_url: baseline.current.cover_url,
+    };
+  }
+
+  function provenanceHints(formData: FormData): ProvenanceHint[] {
+    const now = formRecord();
+    const hints: ProvenanceHint[] = [];
+    for (const field of PROVENANCE_FIELDS) {
+      if (field === "cover") continue;
+      const value = canonicalValue(field, now);
+      if (value === canonicalValue(field, baseline.current)) continue;
+      const p = pendingSources.current.get(field);
+      hints.push(p && p.value === value ? { field, source: p.source, isbn13: p.isbn13, host: p.host } : { field, source: "librarian" });
+    }
+    const mode = formData.get("cover_mode");
+    const coverPending = pendingSources.current.get("cover");
+    if (mode === "import" && coverPending) hints.push({ field: "cover", source: coverPending.source, isbn13: coverPending.isbn13 });
+    else if (mode === "upload") hints.push({ field: "cover", source: "librarian" });
+    else if (mode === "external" && formData.get("cover_url") !== (book.cover_url ?? "")) hints.push({ field: "cover", source: "librarian" });
+    return hints;
+  }
+
   function readCurrent(): CurrentRecord {
     const el = (name: string) => formRef.current?.elements.namedItem(name) as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null;
     const description = el("description")?.value ?? "";
@@ -196,7 +242,19 @@ export default function EditBookWizard({
     };
   }
 
-  function applyFetched(values: Partial<Record<EnrichField, FillValue>>) {
+  function applyFetched(
+    values: Partial<Record<EnrichField, FillValue>>,
+    sources: Partial<Record<EnrichField, IsbnProvider>> = {},
+    isbn13: string | null = null,
+  ) {
+    for (const [field, value] of Object.entries(values) as [EnrichField, FillValue][]) {
+      const source = sources[field];
+      if (!source) continue;
+      const record: ProvenanceRecord = { ...baseline.current };
+      if (field === "keywords") record.keywords = value as string[];
+      else if (field !== "cover") (record as Record<string, unknown>)[field] = value;
+      pendingSources.current.set(field, { source, value: field === "cover" ? "" : canonicalValue(field, record), isbn13 });
+    }
     for (const name of ["description", "publisher", "year", "language"] as const) {
       const v = values[name];
       const el = formRef.current?.elements.namedItem(name) as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null;
@@ -258,10 +316,18 @@ export default function EditBookWizard({
         if (refused) setError(refused);
         return;
       }
+      const hints = provenanceHints(formData);
       const result = await updateWithId(formData);
       if (result.success) {
         setDirty(false);
         setSaved(te("savedMessage"));
+        // Where the saved values came from — after the save, never before it.
+        // A refusal here costs only the credit; the record is saved either way.
+        if (hints.length) {
+          await recordFieldSources(book.id, hints).catch(() => null);
+        }
+        baseline.current = { ...formRecord(), cover_url: baseline.current.cover_url };
+        pendingSources.current.clear();
         if (review && intent !== "save") {
           // The record is saved whatever happens next; only the step after it may be refused.
           const refused = await review.after(intent);
@@ -631,6 +697,10 @@ export default function EditBookWizard({
             error={fieldErrors.description}
             disabled={loading}
             onChanged={() => { setDirty(true); setSaved(null); }}
+            onFetchedApplied={(f) => {
+              const record: ProvenanceRecord = { ...baseline.current, description: f.description };
+              pendingSources.current.set("description", { source: f.source, value: canonicalValue("description", record), host: f.host });
+            }}
           />
 
           <Field label={t("category")} htmlFor="f-category" error={fieldErrors.category}>

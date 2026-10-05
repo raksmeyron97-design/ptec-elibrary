@@ -50,7 +50,16 @@ export default function FetchByIsbn({
   recordTitle: string;
   /** This record's values as they stand in the form right now. */
   readCurrent: () => CurrentRecord;
-  onApply: (values: Partial<Record<EnrichField, FillValue>>) => void;
+  /**
+   * Values to put in the form, with the provider each came from and the ISBN
+   * asked — so the editor can say where they came from once they are SAVED
+   * (lib/catalogs/provenance.ts). The server re-checks every credit.
+   */
+  onApply: (
+    values: Partial<Record<EnrichField, FillValue>>,
+    sources: Partial<Record<EnrichField, IsbnProvider>>,
+    isbn13: string | null,
+  ) => void;
   disabled?: boolean;
   /** The ISBN <Field>, laid out beside the button. */
   field: React.ReactNode;
@@ -76,7 +85,7 @@ export default function FetchByIsbn({
     if (!merged) return;
     const plan = planIsbnFill(readCurrent(), merged);
     const filled = Object.keys(plan.fill) as EnrichField[];
-    if (filled.length) onApply(plan.fill);
+    if (filled.length) onApply(plan.fill, plan.sources, parsed.ok ? parsed.isbn13 : null);
     if (plan.conflicts.length) {
       const chosen = new Set<Conflict["field"]>();
       for (const c of plan.conflicts) if (c.suggested) chosen.add(c.field);
@@ -137,7 +146,7 @@ export default function FetchByIsbn({
     for (const c of conflicts.items) if (conflicts.chosen.has(c.field)) values[c.field] = c.found;
     const fields = Object.keys(values) as EnrichField[];
     if (fields.length) {
-      onApply(values);
+      onApply(values, conflicts.sources, parsed.ok ? parsed.isbn13 : null);
       toast.success(t("replaced", { fields: fields.map(fieldLabel).join(", ") }));
     }
     setReview(null);

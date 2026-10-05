@@ -27,6 +27,7 @@ export default function BookDescriptionField({
   error,
   disabled,
   onChanged,
+  onFetchedApplied,
   className = "",
 }: {
   defaultValue?: string | null;
@@ -34,6 +35,8 @@ export default function BookDescriptionField({
   disabled?: boolean;
   /** A value set by the fetch fires no form change event — this marks the form dirty. */
   onChanged?: () => void;
+  /** A fetched description was put in the field: where it came from (provenance; re-checked on the server). */
+  onFetchedApplied?: (fetched: { description: string; source: "publisher" | "crossref"; host: string }) => void;
   className?: string;
 }) {
   const t = useTranslations("adminCatalog.form");
@@ -50,6 +53,7 @@ export default function BookDescriptionField({
     setStatus({ kind: "ok", fetched });
     setPending(null);
     onChanged?.();
+    onFetchedApplied?.({ description: fetched.description, source: fetched.source === "crossref" ? "crossref" : "publisher", host: fetched.host });
   }
 
   async function run() {

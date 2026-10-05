@@ -8570,7 +8570,36 @@
       "exported": "CSV downloaded.",
       "exportFailed": "The list could not be exported. Nothing was changed.",
       "selectAll": "Select every record on this page",
-      "selectRow": "Select {title}"
+      "selectRow": "Select {title}",
+      "provenanceHeading": "Where the values came from",
+      "provenanceUnavailable": "Sources could not be read.",
+      "provenanceField": {
+        "title": "Title",
+        "author": "Author",
+        "isbn": "ISBN",
+        "publisher": "Publisher",
+        "year": "Year",
+        "language": "Language",
+        "category": "Subject",
+        "description": "Description",
+        "keywords": "Keywords",
+        "cover": "Cover"
+      },
+      "provenanceSource": {
+        "open_library": "Open Library",
+        "google_books": "Google Books",
+        "publisher": "Publisher's page",
+        "crossref": "Crossref",
+        "librarian": "Librarian",
+        "koha": "Koha (PMB import)",
+        "elibrary": "Entered in the e-Library"
+      },
+      "provenanceState": {
+        "imported": "not checked yet",
+        "verified": "verified"
+      },
+      "provenanceAccepted": "accepted by {name}, {date}",
+      "provenanceChanged": "changed since (was {source})"
     },
     "list": {
       "caption": "Physical catalog books",

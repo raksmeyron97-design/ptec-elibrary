@@ -8575,7 +8575,36 @@
       "exported": "បានទាញយក CSV។",
       "exportFailed": "មិនអាចនាំចេញបញ្ជីបានទេ។ គ្មានអ្វីត្រូវបានផ្លាស់ប្ដូរទេ។",
       "selectAll": "ជ្រើសរើសកំណត់ត្រាទាំងអស់នៅលើទំព័រនេះ",
-      "selectRow": "ជ្រើសរើស {title}"
+      "selectRow": "ជ្រើសរើស {title}",
+      "provenanceHeading": "ប្រភពនៃតម្លៃ",
+      "provenanceUnavailable": "មិនអាចអានប្រភពបានទេ។",
+      "provenanceField": {
+        "title": "ចំណងជើង",
+        "author": "អ្នកនិពន្ធ",
+        "isbn": "ISBN",
+        "publisher": "អ្នកបោះពុម្ព",
+        "year": "ឆ្នាំ",
+        "language": "ភាសា",
+        "category": "មុខវិជ្ជា",
+        "description": "ការពិពណ៌នា",
+        "keywords": "ពាក្យគន្លឹះ",
+        "cover": "ក្របសៀវភៅ"
+      },
+      "provenanceSource": {
+        "open_library": "Open Library",
+        "google_books": "Google Books",
+        "publisher": "ទំព័ររបស់អ្នកបោះពុម្ព",
+        "crossref": "Crossref",
+        "librarian": "បណ្ណារក្ស",
+        "koha": "Koha (នាំចូលពី PMB)",
+        "elibrary": "បញ្ចូលក្នុងបណ្ណាល័យអេឡិចត្រូនិក"
+      },
+      "provenanceState": {
+        "imported": "មិនទាន់ពិនិត្យ",
+        "verified": "បានផ្ទៀងផ្ទាត់"
+      },
+      "provenanceAccepted": "ទទួលយកដោយ {name}, {date}",
+      "provenanceChanged": "បានផ្លាស់ប្ដូរតាំងពីពេលនោះ (ពីមុនមកពី {source})"
     },
     "list": {
       "caption": "សៀវភៅក្នុងកាតាឡុកបណ្ណាល័យរូបវន្ត",

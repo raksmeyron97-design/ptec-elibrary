@@ -69,10 +69,20 @@ describe("review actions write review state and nothing else", () => {
     expect(firstRead).toBeGreaterThan(guard);
   });
 
-  it("every exported action goes through that one guarded path", () => {
-    const exported = [...ACTIONS.matchAll(/export async function (\w+)\([^)]*\)\s*\{([\s\S]*?)\n\}/g)];
-    expect(exported.length).toBe(9);
-    for (const [, name, fnBody] of exported) expect(fnBody, name).toMatch(/return (transition|waiver)\(/);
+  it("every exported action is guarded: the switch and the registry come before any read", () => {
+    const parts = ACTIONS_CODE.split(/^export async function /m).slice(1);
+    expect(parts.length).toBe(12);
+    for (const part of parts) {
+      const name = part.slice(0, part.indexOf("("));
+      const body = part.slice(0, part.search(/^}/m) + 1);
+      if (/return (transition|waiver)\(/.test(body)) continue;
+      const flag = body.indexOf("catalogReviewEnabled()");
+      const guard = body.search(/requireAction\("catalog\.review\.(transition|view)"\)/);
+      const firstRead = body.search(/\.from\(|loadReviewIndex\(|transition\(/);
+      expect(flag, name).toBeGreaterThan(-1);
+      expect(guard, name).toBeGreaterThan(flag);
+      expect(firstRead, name).toBeGreaterThan(guard);
+    }
     for (const inner of ["async function transition", "async function waiver"]) {
       const body = ACTIONS.slice(ACTIONS.indexOf(inner));
       expect(body.indexOf("await prepare("), inner).toBeGreaterThan(-1);
@@ -139,6 +149,28 @@ describe("bulk and export (Slice 3)", () => {
     expect(body).toMatch(/sortQueue\(index\.items, query\.sort\)\.filter\(\(i\) => matchesReviewQuery\(i, query, userId, now\)\)/);
     expect(body).toMatch(/logAdminAction\(userId, "catalogReview\.export"/);
     expect(ACTION_POLICIES["catalog.review.view"]).toEqual({ kind: "perm", resource: "catalog", level: "read" });
+  });
+});
+
+describe("provenance (Slice 4) credits a source only on evidence", () => {
+  const body = ACTIONS.slice(ACTIONS.indexOf("export async function recordFieldSources"));
+  it("a provider is credited only when its cached answer gives exactly the saved value", () => {
+    expect(body).toMatch(/from\("isbn_metadata_cache"\)/);
+    expect(body).toMatch(/providerValue\(hint\.field, merged\) === value/);
+    expect(body).toMatch(/let source: ProvenanceSource = "librarian";/);
+  });
+  it("a publisher page is credited only when this server fetched that text for this librarian", () => {
+    expect(body).toMatch(/recallPublisherFetch\(userId, value\)/);
+    const pub = read(`${ADMIN}/publisher-actions.ts`);
+    expect(pub).toMatch(/return remembered\(userId, \{ ok: true/);
+    expect(pub).not.toMatch(/rememberPublisherFetch\([^)]*ok: false/);
+  });
+  it("the editor reports sources only after a save succeeded", () => {
+    const handler = WIZARD.slice(WIZARD.indexOf("async function handleUpdateBook"));
+    const success = handler.indexOf("if (result.success)");
+    const record = handler.indexOf("await recordFieldSources(");
+    expect(record).toBeGreaterThan(success);
+    expect(handler.indexOf("const hints = provenanceHints(formData)")).toBeLessThan(handler.indexOf("await updateWithId(formData)"));
   });
 });
 
