@@ -2,12 +2,9 @@
 import { notFound } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/server";
 
-import type { CatalogBook } from "@/lib/catalog";
-import type { CatalogCopy } from "../../copy-actions";
-import { coverSourceFromUrl } from "@/lib/catalog-cover";
 import EditBookWizard from "./_components/EditBookWizard";
 import { requireRouteAccess } from "@/lib/admin/route-guard";
-import { kohaOwnsLinkedRecords, kohaStaffLinksFor, kohaWritesItems, kohaWritesRecords, readKohaLocations } from "@/lib/koha/catalog-writes";
+import { loadCatalogEditorData } from "./load-record";
 
 export default async function EditCatalogBookPage({
   params,
@@ -27,52 +24,18 @@ export default async function EditCatalogBookPage({
 
   const supabase = createServiceClient();
 
-  const { data: book } = await supabase.from("catalog_books").select("*").eq("id", id).single();
-  if (!book) notFound();
-
-  const b = book as CatalogBook;
-
-  const [{ data: catRows }, { data: copies }] = await Promise.all([
-    supabase
-      .from("catalog_books")
-      .select("category")
-      .not("category", "is", null)
-      .limit(200),
-    supabase
-      .from("catalog_copies")
-      .select("*")
-      .eq("catalog_book_id", id)
-      .order("created_at", { ascending: true }),
-  ]);
-
-  const categories = [
-    ...new Set((catRows ?? []).map((r: { category: string | null }) => r.category).filter(Boolean)),
-  ].sort() as string[];
-
-  const kohaId = b.koha_biblio_id ?? null;
-  const links = kohaId !== null ? kohaStaffLinksFor(kohaId) : null;
-  const koha = {
-    owned: kohaOwnsLinkedRecords(),
-    writes: kohaWritesRecords(),
-    itemWrites: kohaWritesItems(),
-    // Koha's shelving locations, for the shelf of a Koha copy (null = could not be read).
-    locations: kohaId !== null && kohaWritesItems() ? await readKohaLocations() : null,
-    recordUrl: links?.record ?? null,
-    addItemUrl: links?.addItem ?? null,
-  };
-
-  const initialCopies = ((copies ?? []) as CatalogCopy[]).sort(
-    (a, c) => (a.copy_number ?? 1e9) - (c.copy_number ?? 1e9),
-  );
+  // Shared with the review workspace, which embeds this same editor.
+  const data = await loadCatalogEditorData(supabase, id);
+  if (!data) notFound();
 
   return (
     <EditBookWizard
-      book={b}
-      coverSource={coverSourceFromUrl(b.cover_url)}
-      categories={categories}
-      initialCopies={initialCopies}
+      book={data.book}
+      coverSource={data.coverSource}
+      categories={data.categories}
+      initialCopies={data.initialCopies}
       initialTab={sp.tab === "copies" ? "copies" : "info"}
-      koha={koha}
+      koha={data.koha}
     />
   );
 }

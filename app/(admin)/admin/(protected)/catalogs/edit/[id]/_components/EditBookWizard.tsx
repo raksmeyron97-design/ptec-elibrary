@@ -9,7 +9,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { updateCatalogBook, checkCatalogSlugAvailable } from "../../../actions";
 import type { CatalogBook } from "@/lib/catalog";
 import type { CatalogCopy } from "../../../copy-actions";
@@ -36,7 +36,7 @@ import {
   BTN_SECONDARY,
   type FormTab,
 } from "@/components/admin/kit/form";
-import { AlertCircle, BookOpen, Check, ExternalLink, Image as ImageIcon, Info, Layers, Search, type LucideIcon } from "lucide-react";
+import { AlertCircle, BookOpen, Check, ChevronLeft, ChevronRight, ExternalLink, Image as ImageIcon, Info, Layers, Search, ShieldCheck, type LucideIcon } from "lucide-react";
 import CatalogCoverField from "@/components/admin/catalogs/CatalogCoverField";
 import BookDescriptionField from "@/components/admin/catalogs/BookDescriptionField";
 import SeoOverrideFields from "@/components/admin/seo/SeoOverrideFields";
@@ -45,6 +45,35 @@ import { useTranslations } from "next-intl";
 import type { CoverSource } from "@/lib/catalog-cover-shared";
 
 type Tab = "info" | "media" | "copies";
+
+/**
+ * The review workspace (/admin/catalogs/review/[id]) embeds this editor rather
+ * than a second one. With `review` set, the save bar carries the queue's
+ * controls — Previous, Skip, Save, Save & next, Verify & next — and the side
+ * panel opens with the review context. Without it, nothing here changes.
+ *
+ * The editor still owns the save: "Save & next" and "Verify & next" submit the
+ * ordinary form (updateCatalogBook, Koha first) when something changed, and
+ * call `after` ONLY once that save succeeded — or at once when nothing changed.
+ * `after` does the review transition and the navigation, and returns an error
+ * message to show instead when either is refused; the page then stays put.
+ */
+export type EditorReview = {
+  backHref: string;
+  backLabel: string;
+  /** Replaces the page's subtitle: which queue, and where in it. */
+  subtitle: string;
+  panel: React.ReactNode;
+  prevHref: string | null;
+  nextHref: string | null;
+  /** Set when someone else holds the record: the forward actions explain why they are off. */
+  holdNotice: string | null;
+  canVerify: boolean;
+  after: (intent: "next" | "verify") => Promise<string | null>;
+};
+
+type ReviewIntent = "save" | "next" | "verify";
+const REVIEW_INTENT_FIELD = "review_intent";
 
 /*
   Three tabs where there were two. The Info tab had grown into the whole record —
@@ -91,6 +120,7 @@ export default function EditBookWizard({
   initialCopies,
   initialTab = "info",
   koha,
+  review,
 }: {
   book: CatalogBook;
   coverSource: CoverSource;
@@ -107,9 +137,12 @@ export default function EditBookWizard({
     owned: boolean; writes: boolean; itemWrites?: boolean; recordUrl: string | null; addItemUrl: string | null;
     locations?: { code: string; label: string }[] | null;
   };
+  review?: EditorReview;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+  const tr = useTranslations("adminCatalog.review");
   const t = useTranslations("adminCatalog.form");
   const te = useTranslations("adminCatalog.edit");
   const tk = useTranslations("adminCatalog.koha");
@@ -128,6 +161,8 @@ export default function EditBookWizard({
   const [title, setTitle] = useState(book.title);
   const [slug, setSlug] = useState(book.slug);
   const [pendingTab, setPendingTab] = useState<Tab | null>(null);
+  // Previous / Skip with unsaved edits asks first, like switching tabs does.
+  const [pendingNav, setPendingNav] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   // Fetch by ISBN reads the ISBN live, and fills fields the form does not
   // control: keywords and the cover remount with new starting values.
@@ -183,7 +218,9 @@ export default function EditBookWizard({
     const qs = new URLSearchParams(searchParams.toString());
     if (next === "copies") qs.set("tab", "copies");
     else qs.delete("tab");
-    router.replace(`/admin/catalogs/edit/${book.id}${qs.size ? `?${qs}` : ""}`, { scroll: false });
+    // The current path, not the edit route: in the review workspace the URL
+    // also carries the queue (language, filters), which a tab switch keeps.
+    router.replace(`${pathname}${qs.size ? `?${qs}` : ""}`, { scroll: false });
   }
 
   function switchTab(next: Tab) {
@@ -195,18 +232,41 @@ export default function EditBookWizard({
     doSwitchTab(next);
   }
 
+  function navigateTo(href: string) {
+    if (dirty) {
+      setPendingNav(href);
+      return;
+    }
+    router.push(href);
+  }
+
   async function handleUpdateBook(formData: FormData) {
     if (loading) return;
+    const rawIntent = formData.get(REVIEW_INTENT_FIELD);
+    formData.delete(REVIEW_INTENT_FIELD);
+    const intent: ReviewIntent = review && (rawIntent === "next" || rawIntent === "verify") ? rawIntent : "save";
     setError(null);
     setFieldErrors({});
     setSaved(null);
     setLoading(true);
 
     try {
+      // Nothing to save: go straight to the review step. A Koha write of an
+      // unchanged record would only spend a round-trip to learn that.
+      if (review && intent !== "save" && !dirty) {
+        const refused = await review.after(intent);
+        if (refused) setError(refused);
+        return;
+      }
       const result = await updateWithId(formData);
       if (result.success) {
         setDirty(false);
         setSaved(te("savedMessage"));
+        if (review && intent !== "save") {
+          // The record is saved whatever happens next; only the step after it may be refused.
+          const refused = await review.after(intent);
+          if (refused) setError(tr("savedButStepRefused", { reason: refused }));
+        }
       } else {
         setError(result.error || te("updateFailed"));
         setFieldErrors(result.fieldErrors ?? {});
@@ -222,7 +282,7 @@ export default function EditBookWizard({
     this read to someone who has not seen the book". Copies is its own inventory
     surface and needs no commentary from the side.
   */
-  const context =
+  const editorContext =
     tab === "copies" ? null : tab === "info" ? (
       <div className="space-y-4">
       <ContextPanel title={te("contextRecordTitle")} icon={BookOpen} hint={te("contextRecordHint")}>
@@ -258,13 +318,21 @@ export default function EditBookWizard({
         </div>
       </ContextPanel>
     );
+  const context = review && editorContext ? (
+    <div className="space-y-4">
+      {review.panel}
+      {editorContext}
+    </div>
+  ) : editorContext;
+
+  const forwardDisabled = loading || !!review?.holdNotice;
 
   return (
     <FormShell
-      backHref="/admin/catalogs"
-      backLabel={t("backToCatalog")}
+      backHref={review?.backHref ?? "/admin/catalogs"}
+      backLabel={review?.backLabel ?? t("backToCatalog")}
       title={book.title}
-      description={te("title")}
+      description={review?.subtitle ?? te("title")}
       contentKey={tab}
       formRef={formRef}
       action={handleUpdateBook}
@@ -320,7 +388,68 @@ export default function EditBookWizard({
           and is unaffected by Save, so a bar there would offer to save a tab it
           has no part in.
         */
-        tab === "copies" ? undefined : (
+        review ? (
+          <StickyActionBar
+            status={
+              error ? (
+                <span role="alert" className="inline-flex items-center gap-1.5 font-medium text-danger-text">
+                  <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                  {error}
+                </span>
+              ) : review.holdNotice ? (
+                <span className="inline-flex items-center gap-1.5 font-medium text-warning-text">
+                  <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                  {review.holdNotice}
+                </span>
+              ) : saved ? (
+                <span className="inline-flex items-center gap-1.5 font-medium text-success-text">
+                  <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                  {saved}
+                </span>
+              ) : dirty ? (
+                <UnsavedPill label={te("unsavedChanges")} />
+              ) : (
+                <span className="text-text-muted">{te("savedShort")}</span>
+              )
+            }
+          >
+            {/* Previous / Skip write nothing; they move inside this queue only. */}
+            <button
+              type="button"
+              onClick={() => review.prevHref && navigateTo(review.prevHref)}
+              disabled={loading || !review.prevHref}
+              className={BTN_SECONDARY}
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+              {tr("previous")}
+            </button>
+            <button
+              type="button"
+              onClick={() => review.nextHref && navigateTo(review.nextHref)}
+              disabled={loading || !review.nextHref}
+              className={BTN_SECONDARY}
+            >
+              {tr("skip")}
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </button>
+            <button type="submit" name={REVIEW_INTENT_FIELD} value="save" disabled={loading || !dirty} className={BTN_SECONDARY}>
+              {te("saveChanges")}
+            </button>
+            <button type="submit" name={REVIEW_INTENT_FIELD} value="next" disabled={forwardDisabled} className={BTN_SECONDARY}>
+              {tr("saveNext")}
+            </button>
+            {review.canVerify && (
+              <button type="submit" name={REVIEW_INTENT_FIELD} value="verify" disabled={forwardDisabled} className={BTN_PRIMARY}>
+                {loading ? <ButtonBusy label={t("saving")} /> : (
+                  <>
+                    <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                    {tr("verifyNext")}
+                  </>
+                )}
+              </button>
+            )}
+          </StickyActionBar>
+        ) : tab === "copies" ? undefined : (
           <StickyActionBar
             status={
               error ? (
@@ -350,6 +479,18 @@ export default function EditBookWizard({
         )
       }
     >
+      <ConfirmDialog
+        open={pendingNav !== null}
+        title={te("discardTitle")}
+        description={te("discardBody")}
+        confirmLabel={te("discardConfirm")}
+        onCancel={() => setPendingNav(null)}
+        onConfirm={() => {
+          const href = pendingNav;
+          setPendingNav(null);
+          if (href) router.push(href);
+        }}
+      />
       <ConfirmDialog
         open={pendingTab !== null}
         title={te("discardTitle")}
