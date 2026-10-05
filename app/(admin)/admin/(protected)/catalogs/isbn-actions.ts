@@ -13,7 +13,9 @@ import { lookupIsbnMetadata } from "@/lib/isbn/resolver";
 import { createSupabaseIsbnCache } from "@/lib/isbn/cache";
 import { createOpenLibraryProvider } from "@/lib/isbn/providers/open-library";
 import { createGoogleBooksProvider } from "@/lib/isbn/providers/google-books";
-import type { IsbnCandidate, ProviderOutcome } from "@/lib/isbn/types";
+import type { IsbnCandidate, ProviderErrorKind, ProviderOutcome } from "@/lib/isbn/types";
+import { fetchJson } from "@/lib/isbn/providers/fetch-json";
+import { parseTitleSearch, titleSearchUrl, type TitleSearchResult } from "@/lib/isbn/title-search";
 import { getKohaClient, getKohaConfig } from "@/lib/koha";
 import { kohaCanRead } from "@/lib/koha/config";
 import { findKohaBiblioIdsByIsbn } from "@/lib/koha/biblios";
@@ -115,4 +117,105 @@ export async function lookupCatalogIsbn(
   });
 
   return { status: "ok", isbn13, isbn10, local, koha, lookedUp: true, candidates, outcomes };
+}
+
+// ── Fetch by ISBN on an existing record, in two honest steps (Slice 5) ─────────
+//
+// The edit form shows each step as it really finishes: first this catalogue
+// and Koha, then the providers. One call could only show both as done at once,
+// which is a progress bar pretending. Each step is its own request and is
+// charged to the same per-user bucket as Add by ISBN, so a lookup costs two of
+// the 60 per 10 minutes — enough for a librarian at the shelf, not for a loop.
+
+export type IsbnIdentityResponse =
+  | { status: "invalid"; reason: "empty" | "not_an_isbn" | "bad_check_digit" }
+  | { status: "rate_limited" }
+  | { status: "error"; message: string }
+  | { status: "ok"; isbn13: string; isbn10: string | null; local: LocalIsbnMatch[]; koha: KohaIsbnCheck };
+
+/** Step 1: is the ISBN valid, and who already holds it — this catalogue, Koha. Asks no provider. */
+export async function checkIsbnIdentity(raw: string): Promise<IsbnIdentityResponse> {
+  const { supabase, userId } = await requirePermission("catalog", "write");
+
+  const policy = ratePolicy("isbnLookup");
+  const allowed = await rateLimit(`isbn-lookup:${userId}`, policy.limit, policy.windowMs);
+  if (!allowed.success) return { status: "rate_limited" };
+
+  const parsed = parseIsbnInput(typeof raw === "string" ? raw.slice(0, 40) : "");
+  if (!parsed.ok) return { status: "invalid", reason: parsed.reason };
+  const { isbn13, isbn10 } = parsed;
+
+  const { data: localRows, error: localError } = await supabase
+    .from("catalog_books")
+    .select("id, slug, title, author, is_active, copies_total")
+    .in("isbn", isbn10 ? [isbn13, isbn10] : [isbn13])
+    .limit(10);
+  if (localError) return { status: "error", message: `Could not check the catalogue for this ISBN (${localError.message}).` };
+  const local: LocalIsbnMatch[] = (localRows ?? []).map((r) => ({
+    id: r.id, slug: r.slug, title: r.title, author: r.author, isActive: r.is_active, copiesTotal: r.copies_total ?? 0,
+  }));
+
+  let koha: KohaIsbnCheck = { status: "not_connected" };
+  if (kohaCanRead(getKohaConfig())) {
+    try {
+      const matches = await findKohaBiblioIdsByIsbn(getKohaClient(), isbn13, isbn10);
+      koha = { status: "checked", matches: matches.map((b) => ({ biblioId: b.biblio_id, title: b.title, author: b.author })) };
+    } catch (e) {
+      koha = { status: "error", message: e instanceof KohaError ? e.message : "The Koha check failed." };
+    }
+  }
+  return { status: "ok", isbn13, isbn10, local, koha };
+}
+
+export type IsbnProvidersResponse =
+  | { status: "invalid" }
+  | { status: "rate_limited" }
+  | { status: "ok"; candidates: IsbnCandidate[]; outcomes: ProviderOutcome[] };
+
+/** Step 2: the cache, then Open Library and Google Books in parallel. The ISBN is re-validated here. */
+export async function lookupIsbnProviders(isbn13: string): Promise<IsbnProvidersResponse> {
+  const { supabase, userId } = await requirePermission("catalog", "write");
+  const parsed = parseIsbnInput(typeof isbn13 === "string" ? isbn13.slice(0, 40) : "");
+  if (!parsed.ok) return { status: "invalid" };
+
+  const policy = ratePolicy("isbnLookup");
+  const allowed = await rateLimit(`isbn-lookup:${userId}`, policy.limit, policy.windowMs);
+  if (!allowed.success) return { status: "rate_limited" };
+
+  const { candidates, outcomes } = await lookupIsbnMetadata(parsed.isbn13, parsed.isbn10, {
+    providers: [
+      { name: "open_library", lookup: openLibrary },
+      { name: "google_books", lookup: googleBooks },
+    ],
+    cache: createSupabaseIsbnCache(supabase),
+  });
+  return { status: "ok", candidates, outcomes };
+}
+
+// ── Search by title and author (Slice 7) ──────────────────────────────────────
+
+export type TitleSearchResponse =
+  | { status: "invalid" }
+  | { status: "rate_limited" }
+  | { status: "error"; kind: ProviderErrorKind }
+  | { status: "ok"; results: TitleSearchResult[] };
+
+/**
+ * For a book whose ISBN the librarian does not have: ask Open Library by title
+ * and author. Returns SUGGESTIONS OF ISBNs only (lib/isbn/title-search.ts);
+ * the record's details still come through Fetch by ISBN. Charged to the same
+ * per-user bucket as the ISBN lookups; nothing is cached and nothing is written.
+ */
+export async function searchOpenLibraryByTitle(title: string, author: string | null): Promise<TitleSearchResponse> {
+  const { userId } = await requirePermission("catalog", "write");
+  const url = titleSearchUrl(typeof title === "string" ? title : "", typeof author === "string" ? author : null);
+  if (!url) return { status: "invalid" };
+
+  const policy = ratePolicy("isbnLookup");
+  const allowed = await rateLimit(`isbn-lookup:${userId}`, policy.limit, policy.windowMs);
+  if (!allowed.success) return { status: "rate_limited" };
+
+  const answer = await fetchJson((u, i) => fetch(u, i), url, 8_000);
+  if (!answer.ok) return { status: "error", kind: answer.kind };
+  return { status: "ok", results: parseTitleSearch(answer.body) };
 }

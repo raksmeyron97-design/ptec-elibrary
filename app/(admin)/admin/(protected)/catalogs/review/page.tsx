@@ -15,31 +15,28 @@ import { loadProfileNames, loadReviewIndex } from "@/lib/catalogs/review-server"
 import {
   ASSIGNEE_FILTERS,
   REVIEW_QUEUES,
+  REVIEW_SORTS,
   STATUS_FILTERS,
   claimState,
   matchesReviewQuery,
   parseReviewQuery,
   reviewCounts,
   reviewListHref,
+  reviewQueryString,
   reviewRecordHref,
   sortQueue,
   statusOf,
   type ReviewRow,
-  type ReviewStatus,
 } from "@/lib/catalogs/review";
-import { Badge, EmptyState, PageHeader, type BadgeTone } from "@/components/admin/kit";
+import { EmptyState, PageHeader } from "@/components/admin/kit";
 import Pagination from "@/components/ui/core/Pagination";
+import ReviewListTable, { type ReviewListRow } from "./_components/ReviewListTable";
+import { REVIEW_TASK_IDS, openBlockingTasks, openTasks } from "@/lib/catalogs/review-tasks";
 
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 50;
 
-const STATUS_TONE: Record<ReviewStatus, BadgeTone> = {
-  needs_review: "warning",
-  in_review: "info",
-  verified: "success",
-  blocked: "danger",
-};
 
 export default async function CatalogReviewPage({
   searchParams,
@@ -141,6 +138,12 @@ export default async function CatalogReviewPage({
             <h2 id="review-queue-heading" className="text-lg font-semibold text-text-heading">
               {t(`queue.${query.language}`)} · {t("listCount", { count: list.length })}
             </h2>
+            <Link
+              href={`/admin/catalogs/review/duplicates?language=${query.language}`}
+              className="focus-field inline-flex h-10 items-center rounded-lg border border-divider bg-bg-surface px-4 text-sm font-semibold text-text-body hover:bg-paper"
+            >
+              {t("openDuplicates")}
+            </Link>
             {canReview && first && (
               <Link href={reviewRecordHref(first.id, query)} className="focus-field inline-flex h-10 items-center gap-2 rounded-lg bg-admin-accent px-5 text-sm font-semibold text-white hover:bg-admin-accent-hover">
                 {t(`continue.${query.language}`)}
@@ -175,7 +178,23 @@ export default async function CatalogReviewPage({
                 ))}
               </select>
             </label>
-            <p className="pb-2.5 text-xs text-text-muted">{t("orderShelf")}</p>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-text-muted">
+              {t("filterTask")}
+              <select name="task" defaultValue={query.task ?? ""} className={selectCls}>
+                <option value="">{t("filter.task.any")}</option>
+                {REVIEW_TASK_IDS.map((id) => (
+                  <option key={id} value={id}>{t("filter.task.open", { task: t(`task.${id}`) })}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-text-muted">
+              {t("filterOrder")}
+              <select name="sort" defaultValue={query.sort} className={selectCls}>
+                {REVIEW_SORTS.map((o) => (
+                  <option key={o} value={o}>{t(`filter.sort.${o}`)}</option>
+                ))}
+              </select>
+            </label>
             <button type="submit" className="focus-field h-10 rounded-lg border border-divider bg-bg-surface px-4 text-sm font-semibold text-text-body hover:bg-paper">
               {t("applyFilters")}
             </button>
@@ -184,56 +203,38 @@ export default async function CatalogReviewPage({
           {pageItems.length === 0 ? (
             <EmptyState title={t("emptyTitle")} description={t("emptyBody")} />
           ) : (
-            <div className="overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <caption className="sr-only">{t(`queue.${query.language}`)}</caption>
-                  <thead>
-                    <tr className="border-b border-divider bg-paper/60 text-left">
-                      <th scope="col" className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">{t("colCallNumber")}</th>
-                      <th scope="col" className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">{t("colBook")}</th>
-                      <th scope="col" className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">{t("colStatus")}</th>
-                      <th scope="col" className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">{t("colWho")}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-divider">
-                    {pageItems.map((item) => {
-                      const status = statusOf(item.review);
-                      const claim = claimState(item.review, userId, now);
-                      const who =
-                        status === "in_review" && item.review?.assignedTo
-                          ? claim === "mine"
-                            ? t("you")
-                            : names.get(item.review.assignedTo) ?? t("someoneElse")
-                          : status === "verified" && item.review?.reviewedBy
-                            ? names.get(item.review.reviewedBy) ?? t("someoneElse")
-                            : "—";
-                      return (
-                        <tr key={item.id} className="hover:bg-paper/50">
-                          <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-text-body">{item.callNumber || "—"}</td>
-                          <td className="max-w-[360px] px-4 py-3">
-                            {canReview ? (
-                              <Link href={reviewRecordHref(item.id, query)} className="font-semibold text-text-heading hover:text-brand">
-                                {item.title}
-                              </Link>
-                            ) : (
-                              <span className="font-semibold text-text-heading">{item.title}</span>
-                            )}
-                            {item.author && <p className="truncate text-xs text-text-muted">{item.author}</p>}
-                            {!item.isActive && <p className="text-[11px] font-semibold text-text-muted">{t("unlisted")}</p>}
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3">
-                            <Badge tone={STATUS_TONE[status]}>{t(`status.${status}`)}</Badge>
-                            {claim === "stale" && <span className="ml-2 text-[11px] text-text-muted">{t("staleClaim")}</span>}
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3 text-text-body">{who}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <ReviewListTable
+              queue={query.language}
+              queueLabel={t(`queue.${query.language}`)}
+              canReview={canReview}
+              queryString={reviewQueryString(query)}
+              rows={pageItems.map((item): ReviewListRow => {
+                const status = statusOf(item.review);
+                const claim = claimState(item.review, userId, now);
+                const who =
+                  status === "in_review" && item.review?.assignedTo
+                    ? claim === "mine"
+                      ? t("you")
+                      : names.get(item.review.assignedTo) ?? t("someoneElse")
+                    : status === "verified" && item.review?.reviewedBy
+                      ? names.get(item.review.reviewedBy) ?? t("someoneElse")
+                      : "—";
+                return {
+                  id: item.id,
+                  href: reviewRecordHref(item.id, query),
+                  title: item.title,
+                  author: item.author,
+                  callNumber: item.callNumber,
+                  isActive: item.isActive,
+                  status,
+                  version: item.review?.version ?? 0,
+                  staleClaim: claim === "stale",
+                  who,
+                  openTasks: openTasks(item.tasks).length,
+                  blockingTasks: openBlockingTasks(item.tasks).length,
+                };
+              })}
+            />
           )}
 
           <Pagination

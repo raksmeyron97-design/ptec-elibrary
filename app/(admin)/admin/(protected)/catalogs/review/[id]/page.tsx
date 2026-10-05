@@ -8,10 +8,12 @@ import { notFound, redirect } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireRouteAccess } from "@/lib/admin/route-guard";
 import { catalogReviewEnabled } from "@/lib/catalogs/review-flag";
-import { loadProfileNames, loadReviewIndex, loadReviewRow, reviewFingerprint } from "@/lib/catalogs/review-server";
+import { loadProfileNames, loadProvenance, loadReviewIndex, loadReviewRow, reviewFingerprint, summariseCopies } from "@/lib/catalogs/review-server";
+import { reviewTasks } from "@/lib/catalogs/review-tasks";
 import {
   changedSinceVerified,
   claimState,
+  comparatorFor,
   matchesReviewQuery,
   parseReviewQuery,
   queuePosition,
@@ -68,13 +70,36 @@ export default async function CatalogReviewRecordPage({
   let nextHref: string | null = null;
   if (index?.ok) {
     const sorted = sortQueue(index.items, query.sort);
-    const at = queuePosition(sorted, { id, callNumber: book.ddc }, (item) => matchesReviewQuery(item, query, userId, now));
+    // The record as the queue sees it; a record from the other language (its
+    // language just changed) is placed by call number alone.
+    const current = index.items.find((i) => i.id === id) ?? {
+      id, title: book.title, author: book.author, language: book.language, callNumber: book.ddc, isActive: book.is_active, review: row, tasks: [],
+    };
+    const at = queuePosition(sorted, current, (item) => matchesReviewQuery(item, query, userId, now), comparatorFor(query.sort));
     position = { position: at.position, total: at.total };
     prevHref = at.prevId ? reviewRecordHref(at.prevId, query) : null;
     nextHref = at.nextId ? reviewRecordHref(at.nextId, query) : null;
   }
 
-  const names = await loadProfileNames(supabase, [row?.assignedTo, row?.reviewedBy]);
+  const changed = changedSinceVerified(row, reviewFingerprint(book));
+  const provenance = await loadProvenance(
+    supabase,
+    { ...book, keywords: book.keywords ?? [] },
+    row?.status === "verified" && !changed,
+  );
+  const names = await loadProfileNames(supabase, [
+    row?.assignedTo,
+    row?.reviewedBy,
+    ...(provenance.ok ? provenance.views.map((v) => v.by) : []),
+  ]);
+
+  // Tasks from the record AS SAVED, with the duplicate signal from the whole
+  // catalogue when the queue was read (it always is, once the URL names one).
+  const duplicateIds = index?.ok ? index.duplicates.get(id) ?? [] : [];
+  const tasks = reviewTasks(book, summariseCopies(editor.initialCopies), duplicateIds.length > 0, row?.waivedTasks ?? []);
+  const { data: dupRows } = duplicateIds.length
+    ? await supabase.from("catalog_books").select("id, title, author, isbn").in("id", duplicateIds.slice(0, 10))
+    : { data: [] as { id: string; title: string; author: string | null; isbn: string | null }[] };
 
   return (
     <ReviewWorkspace
@@ -88,6 +113,9 @@ export default async function CatalogReviewRecordPage({
       kohaBiblioId={book.koha_biblio_id ?? null}
       itemType={kohaItemTypeFor(book.language)}
       stateUnavailable={!rowResult.ok || (index !== null && !index.ok)}
+      tasks={tasks}
+      provenance={provenance.ok ? provenance.views.map((v) => ({ ...v, byName: v.by ? names.get(v.by) ?? null : null })) : null}
+      duplicates={(dupRows ?? []).map((d) => ({ id: d.id, title: d.title, author: d.author, isbn: d.isbn }))}
       initial={{
         status: statusOf(row),
         version: row?.version ?? 0,
@@ -98,7 +126,8 @@ export default async function CatalogReviewRecordPage({
         reviewedAt: row?.reviewedAt ?? null,
         blockedReason: row?.blockedReason ?? null,
         blockedNote: row?.blockedNote ?? null,
-        changedSinceVerified: changedSinceVerified(row, reviewFingerprint(book)),
+        waivedTasks: row?.waivedTasks ?? [],
+        changedSinceVerified: changed,
       }}
     />
   );

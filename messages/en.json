@@ -8301,7 +8301,6 @@
       "fetching": "Fetching…",
       "hint": "Fills empty fields from Open Library and Google Books. Nothing is saved until you press Save.",
       "needIsbn": "Enter a valid 10- or 13-digit ISBN first.",
-      "fetchSuccess": "Filled {fields} from {sources}. Review, then save.",
       "onMediaTab": "Keywords and cover are on the Cover & SEO tab.",
       "nothingToFill": "{sources} found this ISBN, but had nothing for the empty fields.",
       "fetchNotFound": "No record found for this ISBN in Open Library or Google Books.",
@@ -8310,13 +8309,9 @@
       "useAnyway": "It is this book — fill anyway",
       "dismiss": "Don't fill",
       "duplicate": "Another record already has this ISBN:",
-      "conflictsTitle": "These fields already hold something different. Tick the ones to replace:",
       "derived": "only restates the record; replacing it is suggested",
       "current": "Now",
       "found": "From {source}",
-      "replaceSelected": "Replace selected",
-      "keepCurrent": "Keep current values",
-      "replaced": "Replaced {fields}. Review, then save.",
       "field": {
         "description": "Description",
         "publisher": "Publisher",
@@ -8324,7 +8319,50 @@
         "language": "Language",
         "keywords": "Keywords",
         "cover": "Cover"
-      }
+      },
+      "stepsLabel": "What each source answered",
+      "step": {
+        "waiting": "waiting",
+        "checking": "checking…",
+        "asking": "asking…",
+        "notAsked": "not asked",
+        "catalogNone": "no other record has this ISBN",
+        "catalogOthers": "{count, plural, =1 {# other record has} other {# other records have}} this ISBN",
+        "kohaNotConnected": "not connected",
+        "kohaError": "could not be checked",
+        "kohaFound": "record {ids} has this ISBN",
+        "kohaNone": "no record has this ISBN",
+        "name": {
+          "catalog": "This catalogue",
+          "koha": "Koha",
+          "open_library": "Open Library",
+          "google_books": "Google Books"
+        }
+      },
+      "coverFound": "a cover image",
+      "applied": "Put {fields} in the form. Review, then save.",
+      "mismatchTitle": "Possible mismatch",
+      "mismatchCurrent": "This record: “{title}”.",
+      "editionsTitle": "Several editions share this ISBN in the sources",
+      "editionsBody": "Pick the one in your hands. Nothing is merged across editions.",
+      "identityExact": "exact ISBN match",
+      "useEdition": "Use this edition",
+      "previewTitle": "Found for this ISBN — choose what to put in the form",
+      "partialNote": "Not every source answered; what is below is from the ones that did.",
+      "section": {
+        "safe": "Safe to apply — the record has nothing here",
+        "review": "Needs review — the record already holds something",
+        "noTrusted": "No trusted data"
+      },
+      "noTrustedField": {
+        "category": "Category",
+        "department": "Department",
+        "call-number": "Call number",
+        "shelf": "Shelf"
+      },
+      "noTrustedBody": "no provider is trusted for these; set them from the book, or in Koha.",
+      "applySelected": "{count, plural, =0 {Apply} =1 {Apply # field} other {Apply # fields}}",
+      "discard": "Discard"
     },
     "publisherFetch": {
       "label": "Fetch from Publisher Link",
@@ -8434,9 +8472,16 @@
           "any": "Anyone",
           "me": "Taken by me",
           "unassigned": "Not taken"
+        },
+        "task": {
+          "any": "Any task",
+          "open": "{task} to do"
+        },
+        "sort": {
+          "shelf": "Shelf order (call number)",
+          "urgent": "Urgent tasks first"
         }
       },
-      "orderShelf": "In shelf order (call number)",
       "applyFilters": "Apply",
       "emptyTitle": "Nothing here",
       "emptyBody": "No record in this queue matches these filters.",
@@ -8517,8 +8562,128 @@
         "disabled": "Catalog review is switched off.",
         "not_found": "This record no longer exists.",
         "invalid": "That request was not valid. Nothing was changed.",
-        "failed": "The review could not be saved. Nothing was changed; try again."
-      }
+        "failed": "The review could not be saved. Nothing was changed; try again.",
+        "open_tasks": "Not verified: fix or block first — {tasks}.",
+        "not_waivable": "That task cannot be marked as not applying.",
+        "other_language": "That record is in the other language queue, so it was not changed."
+      },
+      "task": {
+        "language": "Language",
+        "subject": "Subject (category)",
+        "call-number": "Call number",
+        "copies": "Copies",
+        "isbn": "ISBN",
+        "publication": "Publisher and year",
+        "description": "Description",
+        "cover": "Cover",
+        "shelf": "Shelf location in Koha",
+        "duplicate": "Possible duplicate"
+      },
+      "waive": {
+        "isbn": "No ISBN printed",
+        "publication": "Not stated in the book",
+        "description": "Nothing to describe",
+        "cover": "No usable cover",
+        "duplicate": "Separate edition"
+      },
+      "undoWaive": "Undo",
+      "needsTasks": "{count, plural, =1 {Needs # task} other {Needs # tasks}}",
+      "noOpenTasks": "No open tasks",
+      "taskDone": "done",
+      "taskWaived": "does not apply",
+      "taskBlocking": "blocks verification",
+      "taskOpen": "to do",
+      "waived": "{task}: marked as not applying.",
+      "unwaived": "{task}: back to do.",
+      "blockingCount": "{count} blocking",
+      "filterTask": "Task",
+      "filterOrder": "Order",
+      "colTasks": "Tasks",
+      "selectedCount": "{count} selected",
+      "bulkTake": "Take selected",
+      "bulkGiveBack": "Give back selected",
+      "bulkTaken": "Took {done}. {refused, plural, =0 {} =1 {# was not changed (someone else holds it, or it changed).} other {# were not changed (someone else holds them, or they changed).}}",
+      "bulkGivenBack": "Gave back {done}. {refused, plural, =0 {} =1 {# was not changed (not yours, or it changed).} other {# were not changed (not yours, or they changed).}}",
+      "exportCsv": "Export this list (CSV)",
+      "exported": "CSV downloaded.",
+      "exportFailed": "The list could not be exported. Nothing was changed.",
+      "selectAll": "Select every record on this page",
+      "selectRow": "Select {title}",
+      "provenanceHeading": "Where the values came from",
+      "provenanceUnavailable": "Sources could not be read.",
+      "provenanceField": {
+        "title": "Title",
+        "author": "Author",
+        "isbn": "ISBN",
+        "publisher": "Publisher",
+        "year": "Year",
+        "language": "Language",
+        "category": "Subject",
+        "description": "Description",
+        "keywords": "Keywords",
+        "cover": "Cover"
+      },
+      "provenanceSource": {
+        "open_library": "Open Library",
+        "google_books": "Google Books",
+        "publisher": "Publisher's page",
+        "crossref": "Crossref",
+        "librarian": "Librarian",
+        "koha": "Koha (PMB import)",
+        "elibrary": "Entered in the e-Library"
+      },
+      "provenanceState": {
+        "imported": "not checked yet",
+        "verified": "verified"
+      },
+      "provenanceAccepted": "accepted by {name}, {date}",
+      "provenanceChanged": "changed since (was {source})",
+      "duplicatesTitle": "Possible duplicates",
+      "duplicatesDescription": "Records that share an ISBN, or a title confirmed by the author or year. Nothing here merges: open a record to fix it, or keep the records as separate editions.",
+      "weakSignal": "weak signal — no task",
+      "separateEdition": "kept as a separate edition",
+      "keepSeparate": "Keep as separate editions",
+      "reviewLaterHint": "Or leave the group here to review later.",
+      "keptSeparate": "Kept {done} as separate editions. {refused, plural, =0 {} =1 {# was not changed (someone else is reviewing it, or it changed).} other {# were not changed (someone else is reviewing them, or they changed).}}",
+      "signalsAll": "Show weak signals too",
+      "signalsStrongOnly": "Strong signals only",
+      "showResolved": "Show groups already kept apart",
+      "hideResolved": "Hide groups already kept apart",
+      "groupCount": "{count, plural, =1 {# group} other {# groups}}",
+      "noDuplicatesTitle": "No possible duplicates",
+      "noDuplicatesBody": "Nothing in this queue shares an ISBN, or a title confirmed by the author or year.",
+      "openDuplicates": "Possible duplicates"
+    },
+    "list": {
+      "caption": "Physical catalog books",
+      "colCover": "Cover",
+      "colBook": "Title / Author",
+      "colCategory": "Category",
+      "colCallNumber": "Call number",
+      "colLocation": "Location",
+      "colAvailability": "Availability",
+      "colCopies": "Copies",
+      "colReview": "Review",
+      "colActions": "Actions",
+      "noCopies": "No copies",
+      "noShelf": "{count, plural, =1 {# copy} other {# copies}} with no shelf in Koha",
+      "workHeading": "Open tasks by queue",
+      "workTask": "Task",
+      "workLinkAria": "{count} {queue} records where {task} is to do — open the queue"
+    },
+    "titleSearch": {
+      "toggle": "No ISBN at hand? Search Open Library by title and author",
+      "hint": "A result only suggests an ISBN. Use it, then press Fetch details via ISBN — the details are checked against this record's title before anything is offered. If the book has no ISBN printed, mark that in the review tasks and enter the details by hand.",
+      "title": "Title",
+      "author": "Author",
+      "search": "Search",
+      "searching": "Searching…",
+      "tooShort": "Enter at least two letters of the title.",
+      "failed": "Open Library could not be searched: {reason}",
+      "noResultTitle": "No result in Open Library",
+      "noResultBody": "Many Khmer books are not listed there. If no ISBN is printed in the book, mark “No ISBN printed” in the review tasks; take the publisher and year from the title page, or paste the publisher's page into “Fetch from Publisher Link”.",
+      "useIsbn": "Use ISBN {isbn}",
+      "noIsbn": "No ISBN listed for this result."
     }
   },
   "adminUpload": {

@@ -182,6 +182,7 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
      workspace embeds the record editor, so it is WRITE to open, like
      catalog.edit; every review transition is gated again per action. */
   { id: "catalog.review", route: "/admin/catalogs/review", requires: perm("catalog", "read"), backTo: "/admin/catalogs" },
+  { id: "catalog.review.duplicates", route: "/admin/catalogs/review/duplicates", requires: perm("catalog", "read"), backTo: "/admin/catalogs/review" },
   { id: "catalog.review.record", route: "/admin/catalogs/review/[id]", requires: perm("catalog", "write"), backTo: "/admin/catalogs/review" },
 
   // ── Posts ─────────────────────────────────────────────────────────────────
@@ -386,6 +387,8 @@ export const ACTION_POLICIES: Readonly<Record<string, Requirement>> = {
   // Claim, release, take over, verify, block, unblock, reopen — one authority
   // over one record's review state; none of them writes the record itself.
   "catalog.review.transition": perm("catalog", "write"),
+  // The queue as CSV: what the queue page already shows, so READ.
+  "catalog.review.view": perm("catalog", "read"),
   // Content
   "posts.create": perm("posts", "write"),
   "posts.edit": perm("posts", "write"),

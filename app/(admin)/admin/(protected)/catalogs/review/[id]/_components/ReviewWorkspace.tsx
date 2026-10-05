@@ -11,7 +11,9 @@
 import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ClipboardList, Lock, RotateCcw, ShieldCheck, TriangleAlert, Unlock } from "lucide-react";
+import { AlertCircle, CheckCircle2, Circle, ClipboardList, Lock, MinusCircle, RotateCcw, ShieldCheck, TriangleAlert, Unlock } from "lucide-react";
+import type { ReviewTask, ReviewTaskId } from "@/lib/catalogs/review-tasks";
+import type { ProvenanceView } from "@/lib/catalogs/provenance";
 import EditBookWizard from "../../../edit/[id]/_components/EditBookWizard";
 import type { CatalogEditorData } from "../../../edit/[id]/load-record";
 import { Badge, ConfirmDialog, type BadgeTone } from "@/components/admin/kit";
@@ -33,6 +35,8 @@ import {
   reopenCatalogReview,
   takeOverCatalogReview,
   unblockCatalogReview,
+  unwaiveCatalogTask,
+  waiveCatalogTask,
   verifyCatalogReview,
   type ReviewActionResult,
 } from "../../actions";
@@ -47,6 +51,7 @@ export type ReviewSnapshot = {
   reviewedAt: string | null;
   blockedReason: BlockReason | null;
   blockedNote: string | null;
+  waivedTasks: string[];
   changedSinceVerified: boolean;
 };
 
@@ -79,6 +84,9 @@ export default function ReviewWorkspace({
   kohaBiblioId,
   itemType,
   stateUnavailable,
+  tasks: initialTasks,
+  duplicates,
+  provenance,
 }: {
   editor: CatalogEditorData;
   query: ReviewQuery;
@@ -93,6 +101,12 @@ export default function ReviewWorkspace({
   itemType: string;
   /** The review table could not be read: the record can still be edited, not reviewed. */
   stateUnavailable: boolean;
+  /** The record's tasks as last saved (lib/catalogs/review-tasks.ts). */
+  tasks: ReviewTask[];
+  /** Other records sharing this one's ISBN, or its title and author. */
+  duplicates: { id: string; title: string; author: string | null; isbn: string | null }[];
+  /** Where each value came from (lib/catalogs/provenance.ts); null when it could not be read. */
+  provenance: (ProvenanceView & { byName: string | null })[] | null;
 }) {
   const t = useTranslations("adminCatalog.review");
   const router = useRouter();
@@ -135,6 +149,9 @@ export default function ReviewWorkspace({
 
   function describe(result: Extract<ReviewActionResult, { ok: false }>): string {
     if (result.error === "stale") setStale(true);
+    if (result.error === "open_tasks") {
+      return t("error.open_tasks", { tasks: (result.tasks ?? []).map((id) => t(`task.${id}`)).join(", ") });
+    }
     if (result.error === "held_by_other") {
       return t("error.held_by_other", { name: state.holderName ?? t("someoneElse") });
     }
@@ -213,13 +230,15 @@ export default function ReviewWorkspace({
   }
 
   /** The editor calls this after a successful save (or at once when nothing changed). */
-  async function after(intent: "next" | "verify"): Promise<string | null> {
+  async function after(intent: "next" | "verify", versionAfterSave?: number): Promise<string | null> {
+    // The save may have written provenance to the review row; its version is the one to press with.
+    const version = versionAfterSave ?? state.version;
     if (intent === "verify") {
-      const refused = await run(() => verifyCatalogReview(editor.book.id, state.version), () => UNHELD);
+      const refused = await run(() => verifyCatalogReview(editor.book.id, version), () => UNHELD);
       if (refused) return refused;
     } else if (state.claim === "mine") {
       // Moving on without verifying hands the record back to the queue.
-      const refused = await run(() => releaseCatalogReview(editor.book.id, state.version), () => UNHELD);
+      const refused = await run(() => releaseCatalogReview(editor.book.id, version), () => UNHELD);
       if (refused) return refused;
     }
     goNext();
@@ -228,6 +247,24 @@ export default function ReviewWorkspace({
 
   const holdNotice = state.claim === "other" ? t("heldNotice", { name: state.holderName ?? t("someoneElse") }) : null;
   const canVerify = !stateUnavailable && state.status !== "verified" && state.status !== "blocked";
+
+  // Waivers change only a waivable task between open and waived; done stays done.
+  const tasks = initialTasks.map((task) =>
+    task.state === "done" || !task.waivable
+      ? task
+      : { ...task, state: state.waivedTasks.includes(task.id) ? ("waived" as const) : ("open" as const) },
+  );
+  const open = tasks.filter((x) => x.state === "open");
+
+  function setWaiver(task: ReviewTaskId, waive: boolean) {
+    startTransition(async () => {
+      await run(
+        () => (waive ? waiveCatalogTask : unwaiveCatalogTask)(editor.book.id, state.version, task),
+        (r) => ({ waivedTasks: r.waivedTasks ?? state.waivedTasks }),
+        waive ? t("waived", { task: t(`task.${task}`) }) : t("unwaived", { task: t(`task.${task}`) }),
+      );
+    });
+  }
   const disabled = pending || stateUnavailable;
 
   const panel = (
@@ -373,6 +410,93 @@ export default function ReviewWorkspace({
           </div>
         )}
 
+        {/* Tasks — "Needs 3 tasks", never a percentage. As last SAVED: a fix
+            typed into the form counts once it is saved. */}
+        <div className="border-t border-divider pt-3">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
+            {open.length ? t("needsTasks", { count: open.length }) : t("noOpenTasks")}
+          </h3>
+          <ul className="mt-2 space-y-1.5">
+            {tasks.map((task) => {
+              const Icon = task.state === "done" ? CheckCircle2 : task.state === "waived" ? MinusCircle : task.tier === "blocking" ? AlertCircle : Circle;
+              const tone =
+                task.state === "done" ? "text-success-text" : task.state === "waived" ? "text-text-muted" : task.tier === "blocking" ? "text-danger-text" : "text-warning-text";
+              return (
+                <li key={task.id} className="flex items-start gap-2">
+                  <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${tone}`} aria-hidden="true" />
+                  <div className="min-w-0 flex-1">
+                    <span className={task.state === "open" ? "text-text-body" : "text-text-muted"}>
+                      {t(`task.${task.id}`)}
+                    </span>
+                    {/* The state in words, so it never rests on the icon's colour. */}
+                    <span className="ml-1.5 text-[11px] text-text-muted">
+                      {task.state === "done"
+                        ? t("taskDone")
+                        : task.state === "waived"
+                          ? t("taskWaived")
+                          : task.tier === "blocking"
+                            ? t("taskBlocking")
+                            : t("taskOpen")}
+                    </span>
+                    {task.id === "duplicate" && task.state !== "done" && duplicates.length > 0 && (
+                      <ul className="mt-1 space-y-0.5">
+                        {duplicates.map((d) => (
+                          <li key={d.id}>
+                            <a href={`/admin/catalogs/review/${d.id}`} className="text-xs font-semibold text-admin-accent-text underline">
+                              {d.title}
+                            </a>
+                            {d.author && <span className="text-xs text-text-muted"> · {d.author}</span>}
+                            {d.isbn && <span className="font-mono text-[11px] text-text-muted"> · {d.isbn}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  {task.waivable && task.state !== "done" && state.claim !== "other" && (
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => setWaiver(task.id, task.state === "open")}
+                      className="focus-field inline-flex min-h-10 shrink-0 items-center rounded-md px-2 text-[11px] font-semibold text-admin-accent-text underline-offset-2 hover:underline disabled:opacity-50"
+                    >
+                      {task.state === "open" ? t(`waive.${task.id}`) : t("undoWaive")}
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+
+        {/* Where the values came from — source, who accepted it, and whether it
+            changed since. As SAVED: an unsaved fetch is not a source yet. */}
+        <div className="border-t border-divider pt-3">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">{t("provenanceHeading")}</h3>
+          {provenance === null ? (
+            <p className="mt-2 text-xs text-text-muted">{t("provenanceUnavailable")}</p>
+          ) : (
+            <dl className="mt-2 space-y-1.5 text-xs">
+              {provenance.map((v) => (
+                <div key={v.field} className="flex items-baseline justify-between gap-3">
+                  <dt className="shrink-0 text-text-muted">{t(`provenanceField.${v.field}`)}</dt>
+                  <dd className="min-w-0 text-right text-text-body">
+                    <span className="font-medium">{t(`provenanceSource.${v.source}`)}</span>
+                    {v.host && <span className="text-text-muted"> · {v.host}</span>}
+                    <span className={`ml-1.5 ${v.state === "changed" ? "font-semibold text-warning-text" : "text-text-muted"}`}>
+                      ·{" "}
+                      {v.state === "changed"
+                        ? t("provenanceChanged", { source: t(`provenanceSource.${v.previousSource ?? "librarian"}`) })
+                        : v.state === "accepted"
+                          ? t("provenanceAccepted", { name: v.byName ?? t("someoneElse"), date: (v.at ?? "").slice(0, 10) })
+                          : t(`provenanceState.${v.state}`)}
+                    </span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          )}
+        </div>
+
         {/* Results of the panel's own buttons; the editor's save bar reports its own. */}
         <div role="status" aria-live="polite" className="min-h-[1em]">
           {message && (
@@ -421,6 +545,8 @@ export default function ReviewWorkspace({
           holdNotice,
           canVerify,
           after,
+          queue: query.language,
+          onVersion: (version) => setState((s) => ({ ...s, version })),
         }}
       />
     </>

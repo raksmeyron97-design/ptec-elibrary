@@ -65,6 +65,158 @@ Derived, never stored:
 
 `waived_tasks` and `field_sources` exist for Slices 2 and 4 and are unused here.
 
+## Tasks and waivers (Slice 2)
+
+`lib/catalogs/review-tasks.ts` (pure) turns the SAVED record into tasks — "Needs 3
+tasks", never a percentage. It is built on `assessCatalogRecordHealth()` (the
+edit page's six checks keep their meaning) plus four:
+
+| Task | Tier | Waivable | Done when |
+|---|---|---|---|
+| language | blocking | no | `language` is a catalogue code |
+| subject | blocking | no | a category |
+| call number | blocking | no | `ddc` (Koha's best copy call number) or the book-level shelf |
+| copies | blocking | no | at least one copy that is not withdrawn |
+| ISBN | info | "No ISBN printed" | an ISBN |
+| publisher and year | info | "Not stated in the book" | both |
+| description | info | "Nothing to describe" | one that says more than the record (`isDerivedDescription`) |
+| cover | info | "No usable cover" | a cover of its own |
+| shelf in Koha | info | no — set in Koha | every copy has a Koha location (copy-level; the book-level field is never counted) |
+| possible duplicate | info | "Separate edition" | no other record shares the canonical ISBN, or the normalized title AND author |
+
+**Verification waits on the blocking tasks**, recomputed on the server from the
+row as stored at the moment of verifying — the editor saves first, so a subject
+typed a moment ago counts. A record that cannot get there (no copies) is
+blocked with a reason instead. Info tasks never block.
+
+A waiver says "this does not apply to this book"; it is stored in
+`waived_tasks`, changes no review status, is refused over someone else's fresh
+claim, and is audited (`catalogReview.waive` / `.unwaive`). A task that is done
+stays done whatever was waived.
+
+Duplicates use the library's ONE grouping (`findDuplicateGroups`,
+`lib/admin/duplicates.ts`, the digital collection's queue) across BOTH
+languages: a record carries the task when its group is high (shared canonical
+ISBN) or medium confidence (same normalized title, and every record agrees on
+the author — compared case-insensitively, nothing looser — or on the year). A
+title alone or a prefix is low: shown in the duplicates view, never a task.
+The workspace links to the other records; nothing merges.
+
+The queue gains `task=<id>` (records where that task is OPEN — waived does not
+count) and `sort=urgent` (open blocking tasks first, then open tasks, then shelf
+order). Previous/next use the same comparator as the list.
+
+## The catalogue list and bulk (Slice 3)
+
+`/admin/catalogs`:
+
+- **Call number**, not "DDC": for a Koha record `catalog_books.ddc` holds the
+  best copy's call number (`510 BRO`, `ប.ល គីម`).
+- **Location** comes from the copies (`lib/catalogs/copy-location.ts`): library
+  · Koha shelf × count, and "N copies with no shelf in Koha" — never the
+  book-level `shelf_location`, which Koha does not sync and which is empty on
+  every production record. Withdrawn copies are left out.
+- With the switch on, a **Review** column (status + "Needs N tasks", linking into
+  the record's queue) and an **Open tasks by queue** table whose every count
+  links to that queue filtered to that task. Both come from the page's existing
+  collection scan, extended with the task fields — no second read.
+
+Review list:
+
+- Select rows, then **Take selected** or **Give back selected**. One request per
+  page (≤ 50), each record through the same guarded, compare-and-set, audited
+  transition as a single press. The request names its queue and the server
+  refuses any record outside it (`other_language`). **No bulk verify** —
+  verifying means checking the book in hand.
+- **Export this list (CSV)**: the same parse, order and filter as the page,
+  read-level (`catalog.review.view`), audited (`catalogReview.export`), UTF-8
+  with BOM so Excel reads Khmer.
+
+## Provenance (Slice 4)
+
+The workspace says, per field, **where the current value came from, who
+accepted it and when, and whether it changed since** (`lib/catalogs/provenance.ts`,
+stored in `catalog_review_state.field_sources` as `{ source, by, at, hash, host? }`).
+
+| Shown | Means |
+|---|---|
+| Open Library / Google Books · accepted by X, date | the saved value is exactly what that provider's cached answer gave |
+| Publisher's page (host) / Crossref · accepted by X | THIS server fetched that text for that librarian (in-memory, 2 h) |
+| Librarian · accepted by X | typed, or a fetched value the librarian then edited, or anything unproven |
+| Koha (PMB import) · not checked yet | nothing recorded — the record's origin (a non-Koha record says "Entered in the e-Library") |
+| … · changed since (was Open Library) | the value no longer matches what was recorded — edited here without a hint, or in Koha |
+| … · verified | the record is verified and unchanged since |
+
+Nothing is taken on the browser's word. The editor remembers which provider
+filled which field and, **after a save succeeded**, sends hints for every field
+whose saved value differs from the last saved one. `recordFieldSources` keeps a
+provider credit only on evidence (the ISBN cache's answer for that ISBN equals
+the saved value; for a cover, the provider offered an allow-listed cover and the
+record now holds a stored one; for a publisher page, the fetch memory) and
+otherwise credits the librarian. It writes `field_sources` only (compare-and-set)
+and is audited (`catalogReview.provenance`). "Changed since" is derived from the
+value hash on read — no trigger, no sync change.
+
+## Fetch by ISBN as a preview (Slice 5)
+
+The rules of `lib/isbn/enrich.ts` are unchanged (empty fields fillable,
+different values only offered, nothing filled while the found title disagrees,
+the cache, rate limits, the cover allow-list). The interaction changed:
+
+- **Real status per step.** Two requests — `checkIsbnIdentity` (this catalogue,
+  Koha) then `lookupIsbnProviders` (cache, then Open Library and Google Books in
+  parallel) — so each line of "What each source answered" changes when that
+  source actually answered. The two providers finish together, and the list
+  says so. Each step is charged to the same per-user bucket, so a lookup costs
+  two of the 60 per 10 minutes. Add by ISBN keeps its single call.
+- **A preview, then Apply.** `lib/isbn/fetch-review.ts` arranges the answer as
+  *Safe to apply* (empty fields, ticked), *Needs review* (fields that hold
+  something else, unticked unless the current value only restates the record)
+  and *No trusted data* (category, department, call number, shelf — never from
+  a provider). Nothing reaches the form until Apply; nothing is saved until Save.
+- **Editions are choices.** Candidates that name the work but give another
+  publisher or year for the same ISBN are shown as cards ("exact ISBN match")
+  and never merged; a candidate that states no edition joins every card.
+- **Mismatch** ("This ISBN appears to belong to …") fills nothing. *It is this
+  book* is a deliberate override that still goes through the preview.
+- "Not found" only when every provider answered; one that failed makes the
+  result *incomplete* or *partial*, said as such.
+
+## Possible duplicates (Slice 6)
+
+`/admin/catalogs/review/duplicates?language=km|en` lists the groups that touch
+a queue (a group may cross languages; every member is shown with its own
+queue). Strong groups (high/medium) by default; `signals=all` adds the weak
+ones, labelled "weak signal — no task".
+
+**Keep as separate editions** waives the duplicate task on each record of the
+group, one guarded, compare-and-set, audited waiver per record — so it is
+refused over another librarian's fresh claim. Nothing merges, nothing is
+unlisted, no record is written. A group whose records are all kept apart
+leaves the default view (`resolved=1` shows it); a record that joins the group
+later starts with its own open task, so the group comes back. "Review later"
+is leaving the group where it is; "open the existing record" is the record
+link. Route `catalog.review.duplicates` (read); the action needs write.
+
+## Fallbacks for books without an ISBN (Slice 7)
+
+Many Khmer books carry no ISBN, and Open Library rarely knows them. By PTEC
+decision (2026-10-05) there is **no AI and no OCR** here. The tools are:
+
+- **Search Open Library by title and author** (`searchOpenLibraryByTitle`,
+  `lib/isbn/title-search.ts`) under the ISBN field. A result only SUGGESTS AN
+  ISBN — *Use ISBN …* puts it in the field and touches nothing else; the
+  details then come through Fetch by ISBN, with its exact-identity and
+  title-mismatch checks and the preview. A fixed host, built from text; the
+  same per-user rate bucket as the ISBN lookups; nothing cached or written.
+- **"No ISBN printed"** — the ISBN task's waiver (Slice 2).
+- **Enter by hand** from the title page, or **Fetch from Publisher Link**.
+
+One engine for both languages; the Khmer queue only changes the order: the
+search is **open on arrival** for a Khmer record without an ISBN, and its
+"no result" says what to do next. In the English queue it starts closed, below
+Fetch by ISBN.
+
 ## Transitions
 
 `planReviewTransition()` (pure) decides; `app/(admin)/admin/(protected)/catalogs/review/actions.ts` applies.

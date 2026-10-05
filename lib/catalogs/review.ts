@@ -22,6 +22,7 @@
  */
 
 import { CATALOG_LANGUAGES } from "@/lib/catalog-import";
+import { compareUrgency, isReviewTaskId, isWaivable, type ReviewTask, type ReviewTaskId } from "./review-tasks";
 
 // ── Queues ────────────────────────────────────────────────────────────────────
 
@@ -69,6 +70,8 @@ export type ReviewRow = {
   verifiedFingerprint: string | null;
   blockedReason: BlockReason | null;
   blockedNote: string | null;
+  /** Tasks a librarian has said do not apply to this book (Slice 2). */
+  waivedTasks: string[];
   version: number;
 };
 
@@ -82,11 +85,12 @@ export type DbReviewRow = {
   verified_fingerprint: string | null;
   blocked_reason: string | null;
   blocked_note: string | null;
+  waived_tasks: string[] | null;
   version: number;
 };
 
 export const REVIEW_ROW_COLUMNS =
-  "book_id, status, assigned_to, claimed_at, reviewed_by, reviewed_at, verified_fingerprint, blocked_reason, blocked_note, version";
+  "book_id, status, assigned_to, claimed_at, reviewed_by, reviewed_at, verified_fingerprint, blocked_reason, blocked_note, waived_tasks, version";
 
 export function reviewRowFromDb(r: DbReviewRow): ReviewRow {
   return {
@@ -98,6 +102,7 @@ export function reviewRowFromDb(r: DbReviewRow): ReviewRow {
     verifiedFingerprint: r.verified_fingerprint,
     blockedReason: (BLOCK_REASONS as readonly string[]).includes(r.blocked_reason ?? "") ? (r.blocked_reason as BlockReason) : null,
     blockedNote: r.blocked_note,
+    waivedTasks: (r.waived_tasks ?? []).filter(isReviewTaskId),
     version: r.version,
   };
 }
@@ -121,8 +126,8 @@ export const STATUS_FILTERS = ["open", "needs_review", "in_review", "verified", 
 export type StatusFilter = (typeof STATUS_FILTERS)[number];
 export const ASSIGNEE_FILTERS = ["any", "me", "unassigned"] as const;
 export type AssigneeFilter = (typeof ASSIGNEE_FILTERS)[number];
-/** Shelf order (call number) is the default so a librarian can work along a shelf. */
-export const REVIEW_SORTS = ["shelf"] as const;
+/** Shelf order (call number) is the default so a librarian can work along a shelf; "urgent" puts blocking tasks first. */
+export const REVIEW_SORTS = ["shelf", "urgent"] as const;
 export type ReviewSort = (typeof REVIEW_SORTS)[number];
 
 export type ReviewQuery = {
@@ -130,9 +135,11 @@ export type ReviewQuery = {
   status: StatusFilter;
   assignee: AssigneeFilter;
   sort: ReviewSort;
+  /** Only records where this task is OPEN (not done, not waived). */
+  task: ReviewTaskId | null;
 };
 
-export const DEFAULT_REVIEW_QUERY: Omit<ReviewQuery, "language"> = { status: "open", assignee: "any", sort: "shelf" };
+export const DEFAULT_REVIEW_QUERY: Omit<ReviewQuery, "language"> = { status: "open", assignee: "any", sort: "shelf", task: null };
 
 type SearchParamsLike = Record<string, string | string[] | undefined> | URLSearchParams;
 
@@ -154,6 +161,7 @@ export function parseReviewQuery(sp: SearchParamsLike): ReviewQuery {
     status: oneOf(STATUS_FILTERS, param(sp, "status"), DEFAULT_REVIEW_QUERY.status),
     assignee: oneOf(ASSIGNEE_FILTERS, param(sp, "assignee"), DEFAULT_REVIEW_QUERY.assignee),
     sort: oneOf(REVIEW_SORTS, param(sp, "sort"), DEFAULT_REVIEW_QUERY.sort),
+    task: isReviewTaskId(param(sp, "task")) ? (param(sp, "task") as ReviewTaskId) : null,
   };
 }
 
@@ -164,6 +172,7 @@ export function reviewQueryString(q: ReviewQuery): string {
   if (q.status !== DEFAULT_REVIEW_QUERY.status) out.set("status", q.status);
   if (q.assignee !== DEFAULT_REVIEW_QUERY.assignee) out.set("assignee", q.assignee);
   if (q.sort !== DEFAULT_REVIEW_QUERY.sort) out.set("sort", q.sort);
+  if (q.task) out.set("task", q.task);
   return out.toString();
 }
 
@@ -190,6 +199,8 @@ export type QueueItem = {
   callNumber: string | null;
   isActive: boolean;
   review: ReviewRow | null;
+  /** Derived from the saved row (lib/catalogs/review-tasks.ts); empty when not computed. */
+  tasks: ReviewTask[];
 };
 
 /*
@@ -210,23 +221,30 @@ export function compareShelf(a: Pick<QueueItem, "id" | "callNumber">, b: Pick<Qu
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
-export function sortQueue<T extends Pick<QueueItem, "id" | "callNumber">>(items: readonly T[], sort: ReviewSort): T[] {
-  // One sort today; the switch is where "urgent tasks first" lands (Slice 2).
+export function sortQueue<T extends Pick<QueueItem, "id" | "callNumber" | "tasks">>(items: readonly T[], sort: ReviewSort): T[] {
   switch (sort) {
+    case "urgent":
+      return [...items].sort((a, b) => compareUrgency(a.tasks, b.tasks) || compareShelf(a, b));
     case "shelf":
     default:
       return [...items].sort(compareShelf);
   }
 }
 
+/** The comparator a sort uses — previous/next place the current record with the same one. */
+export function comparatorFor(sort: ReviewSort): (a: QueueItem, b: QueueItem) => number {
+  return sort === "urgent" ? (a, b) => compareUrgency(a.tasks, b.tasks) || compareShelf(a, b) : compareShelf;
+}
+
 /** Does this record belong in the list the URL describes? The language is always part of the answer. */
 export function matchesReviewQuery(
-  item: Pick<QueueItem, "language" | "review">,
+  item: Pick<QueueItem, "language" | "review"> & { tasks?: readonly ReviewTask[] },
   q: ReviewQuery,
   viewerId: string,
   now: Date,
 ): boolean {
   if (!q.language || reviewQueueOf(item.language) !== q.language) return false;
+  if (q.task && !(item.tasks ?? []).some((t) => t.id === q.task && t.state === "open")) return false;
   const status = statusOf(item.review);
   switch (q.status) {
     case "open":
@@ -260,8 +278,9 @@ export type QueuePosition = {
  */
 export function queuePosition(
   sorted: readonly QueueItem[],
-  current: Pick<QueueItem, "id" | "callNumber">,
+  current: QueueItem,
   matches: (item: QueueItem) => boolean,
+  compare: (a: QueueItem, b: QueueItem) => number = compareShelf,
 ): QueuePosition {
   let prevId: string | null = null;
   let nextId: string | null = null;
@@ -274,7 +293,7 @@ export function queuePosition(
       position = total;
       continue;
     }
-    const cmp = compareShelf(item, current);
+    const cmp = compare(item, current);
     if (cmp < 0) prevId = item.id;
     else if (cmp > 0 && nextId === null) nextId = item.id;
   }
@@ -451,4 +470,30 @@ export function fingerprintInput(book: FingerprintFields): string {
 /** Verified, and the record no longer says what the librarian verified (e.g. it was edited in Koha). */
 export function changedSinceVerified(row: ReviewRow | null, liveFingerprint: string): boolean {
   return !!row && row.status === "verified" && !!row.verifiedFingerprint && row.verifiedFingerprint !== liveFingerprint;
+}
+
+// ── Waivers ───────────────────────────────────────────────────────────────────
+
+export type WaiverPlan =
+  | { ok: true; waivedTasks: string[] }
+  | { ok: false; reason: "held_by_other" | "not_waivable" | "already" };
+
+/**
+ * Waive (or un-waive) one task. Only WAIVABLE tasks; never over someone else's
+ * fresh claim. Waiving changes no review status — a verified record stays
+ * verified, a blocked one stays blocked.
+ */
+export function planTaskWaiver(input: {
+  row: ReviewRow | null;
+  actorId: string;
+  now: Date;
+  task: string;
+  waive: boolean;
+}): WaiverPlan {
+  if (!isReviewTaskId(input.task) || !isWaivable(input.task)) return { ok: false, reason: "not_waivable" };
+  if (claimState(input.row, input.actorId, input.now) === "other") return { ok: false, reason: "held_by_other" };
+  const current = input.row?.waivedTasks ?? [];
+  const has = current.includes(input.task);
+  if (input.waive === has) return { ok: false, reason: "already" };
+  return { ok: true, waivedTasks: input.waive ? [...current, input.task] : current.filter((t) => t !== input.task) };
 }

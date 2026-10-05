@@ -20,6 +20,7 @@ const ACTIONS = read(`${ADMIN}/review/actions.ts`);
 const ACTIONS_CODE = ACTIONS.split("\n").filter((l) => !l.trim().startsWith("//")).join("\n");
 const LIST_PAGE = read(`${ADMIN}/review/page.tsx`);
 const RECORD_PAGE = read(`${ADMIN}/review/[id]/page.tsx`);
+const DUPLICATES_PAGE = read(`${ADMIN}/review/duplicates/page.tsx`);
 const WORKSPACE = read(`${ADMIN}/review/[id]/_components/ReviewWorkspace.tsx`);
 const OVERVIEW = read(`${ADMIN}/page.tsx`);
 const EDIT_PAGE = read(`${ADMIN}/edit/[id]/page.tsx`);
@@ -60,7 +61,7 @@ describe("review actions write review state and nothing else", () => {
   });
 
   it("checks the switch, then the registry, before it reads anything", () => {
-    const body = ACTIONS.slice(ACTIONS.indexOf("async function transition"));
+    const body = ACTIONS.slice(ACTIONS.indexOf("async function prepare"));
     const flag = body.indexOf("catalogReviewEnabled()");
     const guard = body.indexOf('requireAction("catalog.review.transition")');
     const firstRead = body.indexOf(".from(");
@@ -69,15 +70,32 @@ describe("review actions write review state and nothing else", () => {
     expect(firstRead).toBeGreaterThan(guard);
   });
 
-  it("every exported action goes through that one guarded path", () => {
-    const exported = [...ACTIONS.matchAll(/export async function (\w+)\([^)]*\)\s*\{([\s\S]*?)\n\}/g)];
-    expect(exported.length).toBe(7);
-    for (const [, name, fnBody] of exported) expect(fnBody, name).toMatch(/return transition\(/);
+  it("every exported action is guarded: the switch and the registry come before any read", () => {
+    const parts = ACTIONS_CODE.split(/^export async function /m).slice(1);
+    expect(parts.length).toBe(13);
+    for (const part of parts) {
+      const name = part.slice(0, part.indexOf("("));
+      const body = part.slice(0, part.search(/^}/m) + 1);
+      if (/return (transition|waiver)\(/.test(body)) continue;
+      // Bulk wrappers: switch and registry first, then only the guarded inner path.
+      const flag = body.indexOf("catalogReviewEnabled()");
+      const guard = body.search(/requireAction\("catalog\.review\.(transition|view)"\)/);
+      const firstRead = body.search(/\.from\(|loadReviewIndex\(|transition\(|waiver\(/);
+      expect(flag, name).toBeGreaterThan(-1);
+      expect(guard, name).toBeGreaterThan(flag);
+      expect(firstRead, name).toBeGreaterThan(guard);
+    }
+    for (const inner of ["async function transition", "async function waiver"]) {
+      const body = ACTIONS.slice(ACTIONS.indexOf(inner));
+      expect(body.indexOf("await prepare("), inner).toBeGreaterThan(-1);
+      expect(body.indexOf("await prepare("), inner).toBeLessThan(body.indexOf("writeRow("));
+    }
   });
 
   it("never writes the record, its copies, or Koha", () => {
     expect(ACTIONS_CODE).not.toMatch(/from\("catalog_books"\)\s*\.(update|insert|upsert|delete)/);
-    expect(ACTIONS_CODE).not.toMatch(/catalog_copies/);
+    // Copies are READ (embedded under the record, for the shelf and copies tasks); never addressed for a write.
+    expect(ACTIONS_CODE).not.toMatch(/from\("catalog_copies"\)/);
     expect(ACTIONS_CODE).not.toMatch(/@\/lib\/koha/);
     expect(ACTIONS_CODE).not.toMatch(/is_active/);
     // Every write in the file names the review table.
@@ -87,20 +105,99 @@ describe("review actions write review state and nothing else", () => {
   });
 
   it("writes by compare-and-set on the version it read, and audits every transition", () => {
-    expect(ACTIONS).toMatch(/\.eq\("version", row\.version\)/);
+    expect(ACTIONS).toMatch(/\.eq\("version", p\.row\.version\)/);
     expect(ACTIONS).toMatch(/changedRow/);
-    expect(ACTIONS).toMatch(/logAdminAction\(userId, `catalogReview\.\$\{action\}`/);
+    expect(ACTIONS).toMatch(/logAdminAction\(p\.userId, `catalogReview\.\$\{action\}`/);
+    expect(ACTIONS).toMatch(/waive \? "catalogReview\.waive" : "catalogReview\.unwaive"/);
   });
 
   it("fingerprints the row as stored, never a value the browser sent", () => {
-    expect(ACTIONS).toMatch(/reviewFingerprint\(book\)/);
+    expect(ACTIONS).toMatch(/reviewFingerprint\(p\.book\)/);
     expect(ACTIONS).not.toMatch(/fingerprint:\s*(input|args|params|formData)/);
+  });
+});
+
+describe("verification waits on the blocking tasks of the SAVED record", () => {
+  it("verify recomputes blocking tasks from the row it read, before planning", () => {
+    const body = ACTIONS.slice(ACTIONS.indexOf("async function transition"));
+    const gate = body.indexOf("openBlockingTasks(tasks)");
+    const plan = body.indexOf("planReviewTransition(");
+    expect(gate).toBeGreaterThan(-1);
+    expect(gate).toBeLessThan(plan);
+    expect(body).toMatch(/error: "open_tasks"/);
+  });
+});
+
+describe("bulk and export (Slice 3)", () => {
+  it("a server-action module exports only async functions", () => {
+    expect(ACTIONS_CODE).not.toMatch(/^export (const|let|var|class) /m);
+  });
+
+  it("bulk carries only take and give back — never verify — and every record goes through the guarded transition with its queue", () => {
+    const body = ACTIONS.slice(ACTIONS.indexOf("export async function bulkCatalogReview"));
+    const fn = body.slice(0, body.indexOf("\n}\n") + 3);
+    expect(fn).toMatch(/action !== "claim" && action !== "release"/);
+    expect(fn).not.toMatch(/"verify"/);
+    expect(fn).toMatch(/requireAction\("catalog\.review\.transition"\)/);
+    expect(fn).toMatch(/await transition\(.*\{ expectQueue: queue \}\)/);
+    expect(fn).toMatch(/items\.length > BULK_LIMIT/);
+    expect(ACTIONS).toMatch(/reviewQueueOf\(p\.book\.language\) !== extra\.expectQueue\) return \{ ok: false, error: "other_language" \}/);
+  });
+
+  it("export is read-level, uses the page's own parse/order/filter, and is audited", () => {
+    const body = ACTIONS.slice(ACTIONS.indexOf("export async function exportReviewQueue"));
+    expect(body).toMatch(/requireAction\("catalog\.review\.view"\)/);
+    expect(body).toMatch(/parseReviewQuery\(/);
+    expect(body).toMatch(/sortQueue\(index\.items, query\.sort\)\.filter\(\(i\) => matchesReviewQuery\(i, query, userId, now\)\)/);
+    expect(body).toMatch(/logAdminAction\(userId, "catalogReview\.export"/);
+    expect(ACTION_POLICIES["catalog.review.view"]).toEqual({ kind: "perm", resource: "catalog", level: "read" });
+  });
+});
+
+describe("provenance (Slice 4) credits a source only on evidence", () => {
+  const body = ACTIONS.slice(ACTIONS.indexOf("export async function recordFieldSources"));
+  it("a provider is credited only when its cached answer gives exactly the saved value", () => {
+    expect(body).toMatch(/from\("isbn_metadata_cache"\)/);
+    expect(body).toMatch(/providerValue\(hint\.field, merged\) === value/);
+    expect(body).toMatch(/let source: ProvenanceSource = "librarian";/);
+  });
+  it("a publisher page is credited only when this server fetched that text for this librarian", () => {
+    expect(body).toMatch(/recallPublisherFetch\(userId, value\)/);
+    const pub = read(`${ADMIN}/publisher-actions.ts`);
+    expect(pub).toMatch(/return remembered\(userId, \{ ok: true/);
+    expect(pub).not.toMatch(/rememberPublisherFetch\([^)]*ok: false/);
+  });
+  it("the editor reports sources only after a save succeeded", () => {
+    const handler = WIZARD.slice(WIZARD.indexOf("async function handleUpdateBook"));
+    const success = handler.indexOf("if (result.success)");
+    const record = handler.indexOf("await recordFieldSources(");
+    expect(record).toBeGreaterThan(success);
+    expect(handler.indexOf("const hints = provenanceHints(formData)")).toBeLessThan(handler.indexOf("await updateWithId(formData)"));
+  });
+});
+
+describe("possible duplicates (Slice 6) never merge", () => {
+  const body = ACTIONS.slice(ACTIONS.indexOf("export async function keepAsSeparateEditions"));
+  const fn = body.slice(0, body.search(/^}/m) + 1);
+  it("keeping records apart is a per-record waiver of the duplicate task — no record write, no unlisting", () => {
+    expect(fn).toMatch(/await waiver\(String\(item\?\.id \?\? ""\), Number\(item\?\.version\), "duplicate", true\)/);
+    expect(fn).not.toMatch(/\.from\(/);
+    expect(fn).toMatch(/items\.length < 2 \|\| items\.length > 20/);
+  });
+  it("the view reads the library's one duplicate grouping, not a second one", () => {
+    expect(DUPLICATES_PAGE).toMatch(/index\.clusters/);
+    const tasks = read("lib/catalogs/review-tasks.ts");
+    expect(tasks).toMatch(/findDuplicateGroups\(/);
+  });
+  it("the view opens at read; keeping apart needs write", () => {
+    expect(routePolicy("catalog.review.duplicates")?.requires).toEqual({ kind: "perm", resource: "catalog", level: "read" });
+    expect(fn).toMatch(/requireAction\("catalog\.review\.transition"\)/);
   });
 });
 
 describe("routes, switch and registry", () => {
   it("both review pages 404 when the switch is off and guard before the service client", () => {
-    for (const [name, src] of [["list", LIST_PAGE], ["record", RECORD_PAGE]] as const) {
+    for (const [name, src] of [["list", LIST_PAGE], ["record", RECORD_PAGE], ["duplicates", DUPLICATES_PAGE]] as const) {
       const flag = src.indexOf("if (!catalogReviewEnabled()) notFound();");
       const guard = src.indexOf("requireRouteAccess(");
       const client = src.indexOf("createServiceClient()");
@@ -141,7 +238,10 @@ describe("the workspace reuses the editor and never moves on before the server a
     const handler = WIZARD.slice(WIZARD.indexOf("async function handleUpdateBook"));
     const save = handler.indexOf("await updateWithId(formData)");
     const success = handler.indexOf("if (result.success)");
-    const afterSave = handler.indexOf("await review.after(intent)", success);
+    const afterSave = handler.indexOf("await review.after(intent, reviewVersion)", success);
+    // The save's own provenance write bumps the review row; the step must press with THAT version.
+    expect(handler.indexOf("reviewVersion = recorded.version")).toBeGreaterThan(success);
+    expect(handler.indexOf("reviewVersion = recorded.version")).toBeLessThan(afterSave);
     expect(save).toBeGreaterThan(-1);
     expect(afterSave).toBeGreaterThan(success);
     // The only other call is the nothing-to-save shortcut, before any save.
