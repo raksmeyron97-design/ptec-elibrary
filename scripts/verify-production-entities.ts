@@ -38,6 +38,7 @@ import {
   tally,
   type Outcome,
 } from "../lib/verify/http";
+import { findNode, INSTITUTION_ID, isInstitutionRef, jsonLdNodes } from "../lib/verify/jsonld";
 
 const argv = process.argv.slice(2);
 const flag = (name: string, fallback?: string) => {
@@ -57,25 +58,21 @@ type Check = {
   /** Which JSON-LD node to read, and which property carries the contributors. */
   node: string;
   property: "author" | "mainEntity";
-  expect: (value: unknown) => string | null;
+  /** `nodes`: every node of the page's graph, so a reference can be resolved. */
+  expect: (value: unknown, nodes: readonly any[]) => string | null;
 };
 
 // ── Assertions ───────────────────────────────────────────────────────────────
 
-const ORGANIZATION_NODE_ID = `${BASE}/#organization`;
-
 const asArray = (v: unknown): any[] => (Array.isArray(v) ? v : v == null ? [] : [v]);
 
-/** A bare `@id` reference — the institution, never a second node. */
-function isInstitutionRef(v: any): boolean {
-  return !!v && typeof v === "object" && "@id" in v && !("@type" in v) && v["@id"] === ORGANIZATION_NODE_ID;
-}
-
-const expectInstitutionRef = (value: unknown): string | null => {
+// The institution is a bare `@id` reference to the node the page's own graph
+// declares — never a second node (lib/verify/jsonld.ts).
+const expectInstitutionRef = (value: unknown, graph: readonly any[]): string | null => {
   const nodes = asArray(value);
   if (nodes.length !== 1) return `expected exactly 1 node, got ${nodes.length}`;
-  if (!isInstitutionRef(nodes[0])) {
-    return `expected a bare @id reference to ${ORGANIZATION_NODE_ID}, got ${JSON.stringify(nodes[0])}`;
+  if (!isInstitutionRef(nodes[0], graph)) {
+    return `expected a bare @id reference to ${INSTITUTION_ID}, declared in the page's graph; got ${JSON.stringify(nodes[0])}`;
   }
   return null;
 };
@@ -168,18 +165,6 @@ const SYSTEMIC_WARN_RATIO = 0.5;
 
 // ── Runner ───────────────────────────────────────────────────────────────────
 
-function jsonLdNodes(html: string): any[] {
-  const out: any[] = [];
-  for (const m of html.matchAll(/<script type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)) {
-    try {
-      out.push(JSON.parse(m[1]));
-    } catch {
-      /* a malformed block is reported by the caller as a missing node */
-    }
-  }
-  return out;
-}
-
 async function run() {
   console.log(`\nEntity smoke test — ${BASE}${STRICT ? " (strict)" : ""}\n`);
   const results: any[] = [];
@@ -205,13 +190,15 @@ async function run() {
         detail = `HTTP ${status}`;
       } else {
         const html = await res.text();
-        const node = jsonLdNodes(html).find((d) => d?.["@type"] === check.node);
+        // Since 2026-10-01 one document per page holds an @graph; jsonLdNodes follows it.
+        const graph = jsonLdNodes(html);
+        const node = findNode(graph, check.node);
         if (!node) {
           outcome = "fail";
           detail = `the page rendered but carries no ${check.node} JSON-LD`;
         } else {
           actual = node[check.property];
-          detail = check.expect(actual);
+          detail = check.expect(actual, graph);
           if (detail) outcome = "fail";
         }
       }
