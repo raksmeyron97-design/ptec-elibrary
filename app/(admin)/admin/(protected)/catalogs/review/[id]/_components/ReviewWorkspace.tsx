@@ -11,7 +11,8 @@
 import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ClipboardList, Lock, RotateCcw, ShieldCheck, TriangleAlert, Unlock } from "lucide-react";
+import { AlertCircle, CheckCircle2, Circle, ClipboardList, Lock, MinusCircle, RotateCcw, ShieldCheck, TriangleAlert, Unlock } from "lucide-react";
+import type { ReviewTask, ReviewTaskId } from "@/lib/catalogs/review-tasks";
 import EditBookWizard from "../../../edit/[id]/_components/EditBookWizard";
 import type { CatalogEditorData } from "../../../edit/[id]/load-record";
 import { Badge, ConfirmDialog, type BadgeTone } from "@/components/admin/kit";
@@ -33,6 +34,8 @@ import {
   reopenCatalogReview,
   takeOverCatalogReview,
   unblockCatalogReview,
+  unwaiveCatalogTask,
+  waiveCatalogTask,
   verifyCatalogReview,
   type ReviewActionResult,
 } from "../../actions";
@@ -47,6 +50,7 @@ export type ReviewSnapshot = {
   reviewedAt: string | null;
   blockedReason: BlockReason | null;
   blockedNote: string | null;
+  waivedTasks: string[];
   changedSinceVerified: boolean;
 };
 
@@ -79,6 +83,8 @@ export default function ReviewWorkspace({
   kohaBiblioId,
   itemType,
   stateUnavailable,
+  tasks: initialTasks,
+  duplicates,
 }: {
   editor: CatalogEditorData;
   query: ReviewQuery;
@@ -93,6 +99,10 @@ export default function ReviewWorkspace({
   itemType: string;
   /** The review table could not be read: the record can still be edited, not reviewed. */
   stateUnavailable: boolean;
+  /** The record's tasks as last saved (lib/catalogs/review-tasks.ts). */
+  tasks: ReviewTask[];
+  /** Other records sharing this one's ISBN, or its title and author. */
+  duplicates: { id: string; title: string; author: string | null; isbn: string | null }[];
 }) {
   const t = useTranslations("adminCatalog.review");
   const router = useRouter();
@@ -135,6 +145,9 @@ export default function ReviewWorkspace({
 
   function describe(result: Extract<ReviewActionResult, { ok: false }>): string {
     if (result.error === "stale") setStale(true);
+    if (result.error === "open_tasks") {
+      return t("error.open_tasks", { tasks: (result.tasks ?? []).map((id) => t(`task.${id}`)).join(", ") });
+    }
     if (result.error === "held_by_other") {
       return t("error.held_by_other", { name: state.holderName ?? t("someoneElse") });
     }
@@ -228,6 +241,24 @@ export default function ReviewWorkspace({
 
   const holdNotice = state.claim === "other" ? t("heldNotice", { name: state.holderName ?? t("someoneElse") }) : null;
   const canVerify = !stateUnavailable && state.status !== "verified" && state.status !== "blocked";
+
+  // Waivers change only a waivable task between open and waived; done stays done.
+  const tasks = initialTasks.map((task) =>
+    task.state === "done" || !task.waivable
+      ? task
+      : { ...task, state: state.waivedTasks.includes(task.id) ? ("waived" as const) : ("open" as const) },
+  );
+  const open = tasks.filter((x) => x.state === "open");
+
+  function setWaiver(task: ReviewTaskId, waive: boolean) {
+    startTransition(async () => {
+      await run(
+        () => (waive ? waiveCatalogTask : unwaiveCatalogTask)(editor.book.id, state.version, task),
+        (r) => ({ waivedTasks: r.waivedTasks ?? state.waivedTasks }),
+        waive ? t("waived", { task: t(`task.${task}`) }) : t("unwaived", { task: t(`task.${task}`) }),
+      );
+    });
+  }
   const disabled = pending || stateUnavailable;
 
   const panel = (
@@ -372,6 +403,64 @@ export default function ReviewWorkspace({
             </div>
           </div>
         )}
+
+        {/* Tasks — "Needs 3 tasks", never a percentage. As last SAVED: a fix
+            typed into the form counts once it is saved. */}
+        <div className="border-t border-divider pt-3">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
+            {open.length ? t("needsTasks", { count: open.length }) : t("noOpenTasks")}
+          </h3>
+          <ul className="mt-2 space-y-1.5">
+            {tasks.map((task) => {
+              const Icon = task.state === "done" ? CheckCircle2 : task.state === "waived" ? MinusCircle : task.tier === "blocking" ? AlertCircle : Circle;
+              const tone =
+                task.state === "done" ? "text-success-text" : task.state === "waived" ? "text-text-muted" : task.tier === "blocking" ? "text-danger-text" : "text-warning-text";
+              return (
+                <li key={task.id} className="flex items-start gap-2">
+                  <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${tone}`} aria-hidden="true" />
+                  <div className="min-w-0 flex-1">
+                    <span className={task.state === "open" ? "text-text-body" : "text-text-muted"}>
+                      {t(`task.${task.id}`)}
+                    </span>
+                    {/* The state in words, so it never rests on the icon's colour. */}
+                    <span className="ml-1.5 text-[11px] text-text-muted">
+                      {task.state === "done"
+                        ? t("taskDone")
+                        : task.state === "waived"
+                          ? t("taskWaived")
+                          : task.tier === "blocking"
+                            ? t("taskBlocking")
+                            : t("taskOpen")}
+                    </span>
+                    {task.id === "duplicate" && task.state !== "done" && duplicates.length > 0 && (
+                      <ul className="mt-1 space-y-0.5">
+                        {duplicates.map((d) => (
+                          <li key={d.id}>
+                            <a href={`/admin/catalogs/review/${d.id}`} className="text-xs font-semibold text-admin-accent-text underline">
+                              {d.title}
+                            </a>
+                            {d.author && <span className="text-xs text-text-muted"> · {d.author}</span>}
+                            {d.isbn && <span className="font-mono text-[11px] text-text-muted"> · {d.isbn}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  {task.waivable && task.state !== "done" && state.claim !== "other" && (
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => setWaiver(task.id, task.state === "open")}
+                      className="focus-field inline-flex min-h-10 shrink-0 items-center rounded-md px-2 text-[11px] font-semibold text-admin-accent-text underline-offset-2 hover:underline disabled:opacity-50"
+                    >
+                      {task.state === "open" ? t(`waive.${task.id}`) : t("undoWaive")}
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
 
         {/* Results of the panel's own buttons; the editor's save bar reports its own. */}
         <div role="status" aria-live="polite" className="min-h-[1em]">

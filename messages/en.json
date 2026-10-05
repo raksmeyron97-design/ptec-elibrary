@@ -8434,9 +8434,16 @@
           "any": "Anyone",
           "me": "Taken by me",
           "unassigned": "Not taken"
+        },
+        "task": {
+          "any": "Any task",
+          "open": "{task} to do"
+        },
+        "sort": {
+          "shelf": "Shelf order (call number)",
+          "urgent": "Urgent tasks first"
         }
       },
-      "orderShelf": "In shelf order (call number)",
       "applyFilters": "Apply",
       "emptyTitle": "Nothing here",
       "emptyBody": "No record in this queue matches these filters.",
@@ -8517,8 +8524,42 @@
         "disabled": "Catalog review is switched off.",
         "not_found": "This record no longer exists.",
         "invalid": "That request was not valid. Nothing was changed.",
-        "failed": "The review could not be saved. Nothing was changed; try again."
-      }
+        "failed": "The review could not be saved. Nothing was changed; try again.",
+        "open_tasks": "Not verified: fix or block first — {tasks}.",
+        "not_waivable": "That task cannot be marked as not applying."
+      },
+      "task": {
+        "language": "Language",
+        "subject": "Subject (category)",
+        "call-number": "Call number",
+        "copies": "Copies",
+        "isbn": "ISBN",
+        "publication": "Publisher and year",
+        "description": "Description",
+        "cover": "Cover",
+        "shelf": "Shelf location in Koha",
+        "duplicate": "Possible duplicate"
+      },
+      "waive": {
+        "isbn": "No ISBN printed",
+        "publication": "Not stated in the book",
+        "description": "Nothing to describe",
+        "cover": "No usable cover",
+        "duplicate": "Separate edition"
+      },
+      "undoWaive": "Undo",
+      "needsTasks": "{count, plural, =1 {Needs # task} other {Needs # tasks}}",
+      "noOpenTasks": "No open tasks",
+      "taskDone": "done",
+      "taskWaived": "does not apply",
+      "taskBlocking": "blocks verification",
+      "taskOpen": "to do",
+      "waived": "{task}: marked as not applying.",
+      "unwaived": "{task}: back to do.",
+      "blockingCount": "{count} blocking",
+      "filterTask": "Task",
+      "filterOrder": "Order",
+      "colTasks": "Tasks"
     }
   },
   "adminUpload": {

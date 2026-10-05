@@ -16,6 +16,7 @@ import { createHash } from "node:crypto";
 import type { createServiceClient } from "@/lib/supabase/server";
 import { CATALOG_SCAN_CAP } from "@/lib/catalog";
 import { chunked, pagedScan } from "@/lib/db/paged-scan";
+import { duplicateGroups, reviewTasks, type CopySummary } from "./review-tasks";
 import {
   REVIEW_ROW_COLUMNS,
   fingerprintInput,
@@ -59,34 +60,67 @@ export async function loadReviewRow(supabase: Db, bookId: string): Promise<{ ok:
   return { ok: true, row: data ? reviewRowFromDb(data as DbReviewRow) : null };
 }
 
-type BookIndexRow = { id: string; title: string; author: string | null; language: string | null; ddc: string | null; is_active: boolean };
+type BookIndexRow = {
+  id: string;
+  title: string;
+  author: string | null;
+  language: string | null;
+  ddc: string | null;
+  is_active: boolean;
+  category: string | null;
+  department: string | null;
+  shelf_location: string | null;
+  isbn: string | null;
+  publisher: string | null;
+  year: number | null;
+  cover_url: string | null;
+  description: string | null;
+  catalog_copies: { status: string | null; shelf_location: string | null }[] | null;
+};
+
+const INDEX_COLUMNS =
+  "id, title, author, language, ddc, is_active, category, department, shelf_location, isbn, publisher, year, cover_url, description, catalog_copies(status, shelf_location)";
 
 export type ReviewIndex =
-  | { ok: true; items: QueueItem[] }
+  | { ok: true; items: QueueItem[]; duplicates: Map<string, string[]> }
   | { ok: false; missingTable: boolean; message: string };
 
+/** Copies a reader could find: not withdrawn. Shelved = Koha gave it a location. */
+export function summariseCopies(copies: BookIndexRow["catalog_copies"]): CopySummary {
+  let total = 0;
+  let shelved = 0;
+  for (const c of copies ?? []) {
+    if (c.status === "withdrawn") continue;
+    total += 1;
+    if (c.shelf_location && c.shelf_location.trim()) shelved += 1;
+  }
+  return { total, shelved };
+}
+
 /**
- * The records of one queue (or of the whole catalogue, for the counts) with
- * their review rows. The language filter runs in the database AND again here
- * through reviewQueueOf, so a value the SQL filter would let through (an empty
- * string) still cannot reach a queue it does not belong to.
+ * The whole catalogue with its review rows and tasks, then narrowed to one
+ * queue (or not, for the counts). Read whole on purpose: a duplicate can sit
+ * in either language, and its key must be compared across both. The language
+ * filter runs here through reviewQueueOf, so a value that is not a code never
+ * reaches a queue. Copies are embedded for their shelf only — status and
+ * location — the same embed /admin/catalogs already reads for its figures.
  */
 export async function loadReviewIndex(supabase: Db, queue: ReviewQueue | null): Promise<ReviewIndex> {
-  const scan = await pagedScan<BookIndexRow>((from, to) => {
-    let q = supabase.from("catalog_books").select("id, title, author, language, ddc, is_active");
-    if (queue === "km") q = q.eq("language", "km");
-    else if (queue === "en") q = q.neq("language", "km");
-    return q.order("id", { ascending: true }).range(from, to);
-  }, CATALOG_SCAN_CAP);
+  const scan = await pagedScan<BookIndexRow>(
+    (from, to) => supabase.from("catalog_books").select(INDEX_COLUMNS).order("id", { ascending: true }).range(from, to),
+    CATALOG_SCAN_CAP,
+  );
   if (scan.error) return { ok: false, missingTable: false, message: scan.error.message ?? "read failed" };
   if (scan.truncated) return { ok: false, missingTable: false, message: "the catalogue is larger than one scan may read" };
 
   const rows = await loadReviewRows(supabase);
   if (!rows.ok) return rows;
 
+  const duplicates = duplicateGroups(scan.data);
   const items: QueueItem[] = [];
   for (const b of scan.data) {
     if (queue && reviewQueueOf(b.language) !== queue) continue;
+    const review = rows.rows.get(b.id) ?? null;
     items.push({
       id: b.id,
       title: b.title,
@@ -94,10 +128,11 @@ export async function loadReviewIndex(supabase: Db, queue: ReviewQueue | null): 
       language: b.language,
       callNumber: b.ddc,
       isActive: b.is_active,
-      review: rows.rows.get(b.id) ?? null,
+      review,
+      tasks: reviewTasks(b, summariseCopies(b.catalog_copies), duplicates.has(b.id), review?.waivedTasks ?? []),
     });
   }
-  return { ok: true, items };
+  return { ok: true, items, duplicates };
 }
 
 /** Display names for the people a page mentions (claim holders, reviewers). Unknown ids are simply absent. */

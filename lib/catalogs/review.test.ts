@@ -35,6 +35,7 @@ const row = (over: Partial<ReviewRow> = {}): ReviewRow => ({
   verifiedFingerprint: null,
   blockedReason: null,
   blockedNote: null,
+  waivedTasks: [],
   version: 1,
   ...over,
 });
@@ -50,9 +51,10 @@ const item = (language: string | null, callNumber: string | null, review: Review
   callNumber,
   isActive: true,
   review,
+  tasks: [],
 });
 
-const q = (over: Partial<ReviewQuery> = {}): ReviewQuery => ({ language: "km", status: "open", assignee: "any", sort: "shelf", ...over });
+const q = (over: Partial<ReviewQuery> = {}): ReviewQuery => ({ language: "km", status: "open", assignee: "any", sort: "shelf", task: null, ...over });
 
 describe("language queues follow the record's stored language and Koha's BK/BKEN split", () => {
   it("km is the Khmer queue; every other stated language is English & other languages", () => {
@@ -105,7 +107,7 @@ describe("the URL carries the whole review context", () => {
 
   it("an unknown value falls back to the default, never to 'everything'", () => {
     const parsed = parseReviewQuery({ language: "fr", status: "bogus", assignee: "x", sort: "y" });
-    expect(parsed).toEqual({ language: null, status: "open", assignee: "any", sort: "shelf" });
+    expect(parsed).toEqual({ language: null, status: "open", assignee: "any", sort: "shelf", task: null });
   });
 
   it("reads the first value of a repeated parameter", () => {

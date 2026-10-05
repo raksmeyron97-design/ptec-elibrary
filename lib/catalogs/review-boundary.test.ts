@@ -60,7 +60,7 @@ describe("review actions write review state and nothing else", () => {
   });
 
   it("checks the switch, then the registry, before it reads anything", () => {
-    const body = ACTIONS.slice(ACTIONS.indexOf("async function transition"));
+    const body = ACTIONS.slice(ACTIONS.indexOf("async function prepare"));
     const flag = body.indexOf("catalogReviewEnabled()");
     const guard = body.indexOf('requireAction("catalog.review.transition")');
     const firstRead = body.indexOf(".from(");
@@ -71,13 +71,19 @@ describe("review actions write review state and nothing else", () => {
 
   it("every exported action goes through that one guarded path", () => {
     const exported = [...ACTIONS.matchAll(/export async function (\w+)\([^)]*\)\s*\{([\s\S]*?)\n\}/g)];
-    expect(exported.length).toBe(7);
-    for (const [, name, fnBody] of exported) expect(fnBody, name).toMatch(/return transition\(/);
+    expect(exported.length).toBe(9);
+    for (const [, name, fnBody] of exported) expect(fnBody, name).toMatch(/return (transition|waiver)\(/);
+    for (const inner of ["async function transition", "async function waiver"]) {
+      const body = ACTIONS.slice(ACTIONS.indexOf(inner));
+      expect(body.indexOf("await prepare("), inner).toBeGreaterThan(-1);
+      expect(body.indexOf("await prepare("), inner).toBeLessThan(body.indexOf("writeRow("));
+    }
   });
 
   it("never writes the record, its copies, or Koha", () => {
     expect(ACTIONS_CODE).not.toMatch(/from\("catalog_books"\)\s*\.(update|insert|upsert|delete)/);
-    expect(ACTIONS_CODE).not.toMatch(/catalog_copies/);
+    // Copies are READ (embedded under the record, for the shelf and copies tasks); never addressed for a write.
+    expect(ACTIONS_CODE).not.toMatch(/from\("catalog_copies"\)/);
     expect(ACTIONS_CODE).not.toMatch(/@\/lib\/koha/);
     expect(ACTIONS_CODE).not.toMatch(/is_active/);
     // Every write in the file names the review table.
@@ -87,14 +93,26 @@ describe("review actions write review state and nothing else", () => {
   });
 
   it("writes by compare-and-set on the version it read, and audits every transition", () => {
-    expect(ACTIONS).toMatch(/\.eq\("version", row\.version\)/);
+    expect(ACTIONS).toMatch(/\.eq\("version", p\.row\.version\)/);
     expect(ACTIONS).toMatch(/changedRow/);
-    expect(ACTIONS).toMatch(/logAdminAction\(userId, `catalogReview\.\$\{action\}`/);
+    expect(ACTIONS).toMatch(/logAdminAction\(p\.userId, `catalogReview\.\$\{action\}`/);
+    expect(ACTIONS).toMatch(/waive \? "catalogReview\.waive" : "catalogReview\.unwaive"/);
   });
 
   it("fingerprints the row as stored, never a value the browser sent", () => {
-    expect(ACTIONS).toMatch(/reviewFingerprint\(book\)/);
+    expect(ACTIONS).toMatch(/reviewFingerprint\(p\.book\)/);
     expect(ACTIONS).not.toMatch(/fingerprint:\s*(input|args|params|formData)/);
+  });
+});
+
+describe("verification waits on the blocking tasks of the SAVED record", () => {
+  it("verify recomputes blocking tasks from the row it read, before planning", () => {
+    const body = ACTIONS.slice(ACTIONS.indexOf("async function transition"));
+    const gate = body.indexOf("openBlockingTasks(tasks)");
+    const plan = body.indexOf("planReviewTransition(");
+    expect(gate).toBeGreaterThan(-1);
+    expect(gate).toBeLessThan(plan);
+    expect(body).toMatch(/error: "open_tasks"/);
   });
 });
 

@@ -15,6 +15,7 @@ import { loadProfileNames, loadReviewIndex } from "@/lib/catalogs/review-server"
 import {
   ASSIGNEE_FILTERS,
   REVIEW_QUEUES,
+  REVIEW_SORTS,
   STATUS_FILTERS,
   claimState,
   matchesReviewQuery,
@@ -29,6 +30,7 @@ import {
 } from "@/lib/catalogs/review";
 import { Badge, EmptyState, PageHeader, type BadgeTone } from "@/components/admin/kit";
 import Pagination from "@/components/ui/core/Pagination";
+import { REVIEW_TASK_IDS, openBlockingTasks, openTasks } from "@/lib/catalogs/review-tasks";
 
 export const dynamic = "force-dynamic";
 
@@ -175,7 +177,23 @@ export default async function CatalogReviewPage({
                 ))}
               </select>
             </label>
-            <p className="pb-2.5 text-xs text-text-muted">{t("orderShelf")}</p>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-text-muted">
+              {t("filterTask")}
+              <select name="task" defaultValue={query.task ?? ""} className={selectCls}>
+                <option value="">{t("filter.task.any")}</option>
+                {REVIEW_TASK_IDS.map((id) => (
+                  <option key={id} value={id}>{t("filter.task.open", { task: t(`task.${id}`) })}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-text-muted">
+              {t("filterOrder")}
+              <select name="sort" defaultValue={query.sort} className={selectCls}>
+                {REVIEW_SORTS.map((o) => (
+                  <option key={o} value={o}>{t(`filter.sort.${o}`)}</option>
+                ))}
+              </select>
+            </label>
             <button type="submit" className="focus-field h-10 rounded-lg border border-divider bg-bg-surface px-4 text-sm font-semibold text-text-body hover:bg-paper">
               {t("applyFilters")}
             </button>
@@ -192,6 +210,7 @@ export default async function CatalogReviewPage({
                     <tr className="border-b border-divider bg-paper/60 text-left">
                       <th scope="col" className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">{t("colCallNumber")}</th>
                       <th scope="col" className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">{t("colBook")}</th>
+                      <th scope="col" className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">{t("colTasks")}</th>
                       <th scope="col" className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">{t("colStatus")}</th>
                       <th scope="col" className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">{t("colWho")}</th>
                     </tr>
@@ -221,6 +240,20 @@ export default async function CatalogReviewPage({
                             )}
                             {item.author && <p className="truncate text-xs text-text-muted">{item.author}</p>}
                             {!item.isActive && <p className="text-[11px] font-semibold text-text-muted">{t("unlisted")}</p>}
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-xs">
+                            {openTasks(item.tasks).length ? (
+                              <span className="text-text-body">
+                                {t("needsTasks", { count: openTasks(item.tasks).length })}
+                                {openBlockingTasks(item.tasks).length > 0 && (
+                                  <span className="ml-1 font-semibold text-danger-text">
+                                    · {t("blockingCount", { count: openBlockingTasks(item.tasks).length })}
+                                  </span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-success-text">{t("noOpenTasks")}</span>
+                            )}
                           </td>
                           <td className="whitespace-nowrap px-4 py-3">
                             <Badge tone={STATUS_TONE[status]}>{t(`status.${status}`)}</Badge>

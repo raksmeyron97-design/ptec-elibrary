@@ -65,6 +65,45 @@ Derived, never stored:
 
 `waived_tasks` and `field_sources` exist for Slices 2 and 4 and are unused here.
 
+## Tasks and waivers (Slice 2)
+
+`lib/catalogs/review-tasks.ts` (pure) turns the SAVED record into tasks — "Needs 3
+tasks", never a percentage. It is built on `assessCatalogRecordHealth()` (the
+edit page's six checks keep their meaning) plus four:
+
+| Task | Tier | Waivable | Done when |
+|---|---|---|---|
+| language | blocking | no | `language` is a catalogue code |
+| subject | blocking | no | a category |
+| call number | blocking | no | `ddc` (Koha's best copy call number) or the book-level shelf |
+| copies | blocking | no | at least one copy that is not withdrawn |
+| ISBN | info | "No ISBN printed" | an ISBN |
+| publisher and year | info | "Not stated in the book" | both |
+| description | info | "Nothing to describe" | one that says more than the record (`isDerivedDescription`) |
+| cover | info | "No usable cover" | a cover of its own |
+| shelf in Koha | info | no — set in Koha | every copy has a Koha location (copy-level; the book-level field is never counted) |
+| possible duplicate | info | "Separate edition" | no other record shares the canonical ISBN, or the normalized title AND author |
+
+**Verification waits on the blocking tasks**, recomputed on the server from the
+row as stored at the moment of verifying — the editor saves first, so a subject
+typed a moment ago counts. A record that cannot get there (no copies) is
+blocked with a reason instead. Info tasks never block.
+
+A waiver says "this does not apply to this book"; it is stored in
+`waived_tasks`, changes no review status, is refused over someone else's fresh
+claim, and is audited (`catalogReview.waive` / `.unwaive`). A task that is done
+stays done whatever was waived.
+
+Duplicates are exact identity keys only (the duplicate-detection module's
+`normalizeIsbn`/`normalizeTitle`/`normalizePersonName`), computed across BOTH
+languages. A title with no author is never keyed alone — PMB holds many
+unauthored series volumes. The workspace links to the other records; nothing
+merges.
+
+The queue gains `task=<id>` (records where that task is OPEN — waived does not
+count) and `sort=urgent` (open blocking tasks first, then open tasks, then shelf
+order). Previous/next use the same comparator as the list.
+
 ## Transitions
 
 `planReviewTransition()` (pure) decides; `app/(admin)/admin/(protected)/catalogs/review/actions.ts` applies.
