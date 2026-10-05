@@ -16,7 +16,7 @@ import { createHash } from "node:crypto";
 import type { createServiceClient } from "@/lib/supabase/server";
 import { CATALOG_SCAN_CAP } from "@/lib/catalog";
 import { chunked, pagedScan } from "@/lib/db/paged-scan";
-import { duplicateGroups, reviewTasks, type CopySummary } from "./review-tasks";
+import { duplicateGroups, reviewTasks, type CopySummary, type ReviewTask, type ReviewTaskId } from "./review-tasks";
 import {
   REVIEW_ROW_COLUMNS,
   fingerprintInput,
@@ -147,4 +147,26 @@ export async function loadProfileNames(supabase: Db, ids: readonly (string | nul
     }
   }
   return out;
+}
+
+/**
+ * Open tasks per language queue, from rows the caller already holds (the
+ * /admin/catalogs collection scan) — so the overview's work figures cost no
+ * second read of the catalogue. Duplicates are compared across both queues.
+ */
+export function openTaskCounts(
+  books: readonly (Omit<BookIndexRow, "is_active" | "title"> & { title: string | null })[],
+  rows: ReadonlyMap<string, ReviewRow>,
+): { counts: Record<ReviewQueue, Partial<Record<ReviewTaskId, number>>>; tasksById: Map<string, ReviewTask[]> } {
+  const duplicates = duplicateGroups(books);
+  const counts: Record<ReviewQueue, Partial<Record<ReviewTaskId, number>>> = { km: {}, en: {} };
+  const tasksById = new Map<string, ReviewTask[]>();
+  for (const b of books) {
+    const tasks = reviewTasks(b, summariseCopies(b.catalog_copies), duplicates.has(b.id), rows.get(b.id)?.waivedTasks ?? []);
+    tasksById.set(b.id, tasks);
+    const queue = reviewQueueOf(b.language);
+    if (!queue) continue;
+    for (const task of tasks) if (task.state === "open") counts[queue][task.id] = (counts[queue][task.id] ?? 0) + 1;
+  }
+  return { counts, tasksById };
 }

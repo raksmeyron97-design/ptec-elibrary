@@ -19,19 +19,25 @@ import { requireAction } from "@/lib/admin/route-guard";
 import { logAdminAction } from "@/app/actions/audit";
 import { changedRow } from "@/lib/db/changed-row";
 import { catalogReviewEnabled } from "@/lib/catalogs/review-flag";
-import { loadReviewRow, reviewFingerprint, summariseCopies } from "@/lib/catalogs/review-server";
+import { loadReviewIndex, loadReviewRow, reviewFingerprint, summariseCopies } from "@/lib/catalogs/review-server";
+import { toCsv } from "@/lib/export/csv";
 import {
+  isReviewQueue,
+  matchesReviewQuery,
+  parseReviewQuery,
   planReviewTransition,
   planTaskWaiver,
+  sortQueue,
   reviewQueueOf,
   statusOf,
   type ReviewAction,
+  type ReviewQueue,
   type ReviewRow,
   type ReviewStatus,
   type TransitionRefusal,
   type WaiverPlan,
 } from "@/lib/catalogs/review";
-import { openBlockingTasks, reviewTasks, type ReviewTaskId, type TaskInput } from "@/lib/catalogs/review-tasks";
+import { openBlockingTasks, openTasks, reviewTasks, type ReviewTaskId, type TaskInput } from "@/lib/catalogs/review-tasks";
 
 export type ReviewActionResult =
   | { ok: true; status: ReviewStatus; version: number; waivedTasks?: string[] }
@@ -41,6 +47,7 @@ export type ReviewActionResult =
         | TransitionRefusal
         | WaiverRefusal
         | "open_tasks"
+        | "other_language"
         | "stale"
         | "disabled"
         | "not_found"
@@ -123,10 +130,13 @@ async function transition(
   bookId: string,
   action: ReviewAction,
   expectedVersion: number,
-  extra: { block?: { reason: string; note?: string | null } } = {},
+  extra: { block?: { reason: string; note?: string | null }; expectQueue?: ReviewQueue } = {},
 ): Promise<ReviewActionResult> {
   const p = await prepare(bookId, expectedVersion);
   if ("refused" in p) return p.refused;
+  // A bulk press names its queue; a record that is not in it is refused rather
+  // than changed — a selection can never reach across languages.
+  if (extra.expectQueue && reviewQueueOf(p.book.language) !== extra.expectQueue) return { ok: false, error: "other_language" };
 
   // Verification waits on the blocking tasks of the record AS SAVED — the
   // editor saves first, so a subject typed a moment ago already counts.
@@ -214,4 +224,71 @@ export async function waiveCatalogTask(bookId: string, expectedVersion: number, 
 
 export async function unwaiveCatalogTask(bookId: string, expectedVersion: number, task: string) {
   return waiver(bookId, expectedVersion, task, false);
+}
+
+// ── Bulk (Slice 3) ────────────────────────────────────────────────────────────
+
+/** At most one page of the list per press. */
+const BULK_LIMIT = 50;
+
+export type BulkResult =
+  | { ok: true; done: number; refused: { id: string; error: Refused["error"] }[] }
+  | { ok: false; error: "disabled" | "invalid" };
+
+/**
+ * Take or give back a selection, inside ONE queue. Each record goes through
+ * the same guarded, compare-and-set, audited transition as a single press, so
+ * a bulk action cannot do anything one press could not — and a record whose
+ * language is not the queue's is refused, never changed. No bulk verify:
+ * verifying means checking the book in hand.
+ */
+export async function bulkCatalogReview(
+  action: "claim" | "release",
+  queue: string,
+  items: { id: string; version: number }[],
+): Promise<BulkResult> {
+  if (!catalogReviewEnabled()) return { ok: false, error: "disabled" };
+  await requireAction("catalog.review.transition");
+  if (action !== "claim" && action !== "release") return { ok: false, error: "invalid" };
+  if (!isReviewQueue(queue)) return { ok: false, error: "invalid" };
+  if (!Array.isArray(items) || items.length === 0 || items.length > BULK_LIMIT) return { ok: false, error: "invalid" };
+
+  let done = 0;
+  const refused: { id: string; error: Refused["error"] }[] = [];
+  for (const item of items) {
+    const r = await transition(String(item?.id ?? ""), action, Number(item?.version), { expectQueue: queue });
+    if (r.ok) done += 1;
+    else refused.push({ id: String(item?.id ?? ""), error: r.error });
+  }
+  return { ok: true, done, refused };
+}
+
+/**
+ * The filtered queue as CSV — what is left to do, for a librarian to plan or
+ * share. Read-level: it shows what the queue page already shows. The same
+ * parse, order and filter as the page, so the file is the list on screen.
+ */
+export async function exportReviewQueue(search: string): Promise<{ ok: true; filename: string; csv: string } | { ok: false; error: "disabled" | "invalid" | "failed" }> {
+  if (!catalogReviewEnabled()) return { ok: false, error: "disabled" };
+  const { supabase, userId } = await requireAction("catalog.review.view");
+  const query = parseReviewQuery(new URLSearchParams(typeof search === "string" ? search.slice(0, 500) : ""));
+  if (!query.language) return { ok: false, error: "invalid" };
+
+  const index = await loadReviewIndex(supabase, query.language);
+  if (!index.ok) return { ok: false, error: "failed" };
+  const now = new Date();
+  const rows = sortQueue(index.items, query.sort).filter((i) => matchesReviewQuery(i, query, userId, now));
+
+  const csv = toCsv(rows, [
+    { key: "call_number", header: "call_number", value: (r) => r.callNumber },
+    { key: "title", header: "title", value: (r) => r.title },
+    { key: "author", header: "author", value: (r) => r.author },
+    { key: "language", header: "language", value: (r) => r.language },
+    { key: "review_status", header: "review_status", value: (r) => statusOf(r.review) },
+    { key: "open_tasks", header: "open_tasks", value: (r) => openTasks(r.tasks).map((t) => t.id).join(" ") },
+    { key: "blocking_tasks", header: "blocking_tasks", value: (r) => openBlockingTasks(r.tasks).map((t) => t.id).join(" ") },
+    { key: "record_id", header: "record_id", value: (r) => r.id },
+  ]);
+  await logAdminAction(userId, "catalogReview.export", "catalog_books", undefined, { queue: query.language, rows: rows.length });
+  return { ok: true, filename: `catalog-review-${query.language}-${now.toISOString().slice(0, 10)}.csv`, csv };
 }

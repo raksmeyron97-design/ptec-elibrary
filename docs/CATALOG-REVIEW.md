@@ -104,6 +104,32 @@ The queue gains `task=<id>` (records where that task is OPEN — waived does not
 count) and `sort=urgent` (open blocking tasks first, then open tasks, then shelf
 order). Previous/next use the same comparator as the list.
 
+## The catalogue list and bulk (Slice 3)
+
+`/admin/catalogs`:
+
+- **Call number**, not "DDC": for a Koha record `catalog_books.ddc` holds the
+  best copy's call number (`510 BRO`, `ប.ល គីម`).
+- **Location** comes from the copies (`lib/catalogs/copy-location.ts`): library
+  · Koha shelf × count, and "N copies with no shelf in Koha" — never the
+  book-level `shelf_location`, which Koha does not sync and which is empty on
+  every production record. Withdrawn copies are left out.
+- With the switch on, a **Review** column (status + "Needs N tasks", linking into
+  the record's queue) and an **Open tasks by queue** table whose every count
+  links to that queue filtered to that task. Both come from the page's existing
+  collection scan, extended with the task fields — no second read.
+
+Review list:
+
+- Select rows, then **Take selected** or **Give back selected**. One request per
+  page (≤ 50), each record through the same guarded, compare-and-set, audited
+  transition as a single press. The request names its queue and the server
+  refuses any record outside it (`other_language`). **No bulk verify** —
+  verifying means checking the book in hand.
+- **Export this list (CSV)**: the same parse, order and filter as the page,
+  read-level (`catalog.review.view`), audited (`catalogReview.export`), UTF-8
+  with BOM so Excel reads Khmer.
+
 ## Transitions
 
 `planReviewTransition()` (pure) decides; `app/(admin)/admin/(protected)/catalogs/review/actions.ts` applies.

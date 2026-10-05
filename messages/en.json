@@ -8526,7 +8526,8 @@
         "invalid": "That request was not valid. Nothing was changed.",
         "failed": "The review could not be saved. Nothing was changed; try again.",
         "open_tasks": "Not verified: fix or block first — {tasks}.",
-        "not_waivable": "That task cannot be marked as not applying."
+        "not_waivable": "That task cannot be marked as not applying.",
+        "other_language": "That record is in the other language queue, so it was not changed."
       },
       "task": {
         "language": "Language",
@@ -8559,7 +8560,34 @@
       "blockingCount": "{count} blocking",
       "filterTask": "Task",
       "filterOrder": "Order",
-      "colTasks": "Tasks"
+      "colTasks": "Tasks",
+      "selectedCount": "{count} selected",
+      "bulkTake": "Take selected",
+      "bulkGiveBack": "Give back selected",
+      "bulkTaken": "Took {done}. {refused, plural, =0 {} =1 {# was not changed (someone else holds it, or it changed).} other {# were not changed (someone else holds them, or they changed).}}",
+      "bulkGivenBack": "Gave back {done}. {refused, plural, =0 {} =1 {# was not changed (not yours, or it changed).} other {# were not changed (not yours, or they changed).}}",
+      "exportCsv": "Export this list (CSV)",
+      "exported": "CSV downloaded.",
+      "exportFailed": "The list could not be exported. Nothing was changed.",
+      "selectAll": "Select every record on this page",
+      "selectRow": "Select {title}"
+    },
+    "list": {
+      "caption": "Physical catalog books",
+      "colCover": "Cover",
+      "colBook": "Title / Author",
+      "colCategory": "Category",
+      "colCallNumber": "Call number",
+      "colLocation": "Location",
+      "colAvailability": "Availability",
+      "colCopies": "Copies",
+      "colReview": "Review",
+      "colActions": "Actions",
+      "noCopies": "No copies",
+      "noShelf": "{count, plural, =1 {# copy} other {# copies}} with no shelf in Koha",
+      "workHeading": "Open tasks by queue",
+      "workTask": "Task",
+      "workLinkAria": "{count} {queue} records where {task} is to do — open the queue"
     }
   },
   "adminUpload": {

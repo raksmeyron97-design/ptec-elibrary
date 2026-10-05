@@ -386,6 +386,8 @@ export const ACTION_POLICIES: Readonly<Record<string, Requirement>> = {
   // Claim, release, take over, verify, block, unblock, reopen — one authority
   // over one record's review state; none of them writes the record itself.
   "catalog.review.transition": perm("catalog", "write"),
+  // The queue as CSV: what the queue page already shows, so READ.
+  "catalog.review.view": perm("catalog", "read"),
   // Content
   "posts.create": perm("posts", "write"),
   "posts.edit": perm("posts", "write"),

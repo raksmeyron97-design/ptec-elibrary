@@ -23,8 +23,11 @@ import { kohaOwnsLinkedRecords } from "@/lib/koha/catalog-writes";
 import { kohaReadsPatrons } from "@/lib/koha/patron-server";
 import { getTranslations } from "next-intl/server";
 import { catalogReviewEnabled } from "@/lib/catalogs/review-flag";
-import { loadReviewRows } from "@/lib/catalogs/review-server";
-import { REVIEW_QUEUES, reviewCounts, reviewListHref, DEFAULT_REVIEW_QUERY } from "@/lib/catalogs/review";
+import { loadReviewRows, openTaskCounts } from "@/lib/catalogs/review-server";
+import { REVIEW_QUEUES, reviewCounts, reviewListHref, reviewQueueOf, reviewRecordHref, DEFAULT_REVIEW_QUERY, statusOf } from "@/lib/catalogs/review";
+import { REVIEW_TASK_IDS, openTasks } from "@/lib/catalogs/review-tasks";
+import { copyLocations, unshelvedCount } from "@/lib/catalogs/copy-location";
+import { Badge } from "@/components/admin/kit";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +43,9 @@ type SP = {
   cover?: string;  // has | missing | ""
 };
 
-type BookWithCopies = CatalogBook & { catalog_copies: { status: string | null }[] };
+type BookWithCopies = CatalogBook & {
+  catalog_copies: { status: string | null; shelf_location: string | null; holding_library: string | null }[];
+};
 
 const TONE_TEXT: Record<string, string> = {
   positive: "text-emerald-600",
@@ -82,7 +87,7 @@ export default async function AdminCatalogsPage({
   // ── Page query (search / filter / sort / paginate — all in DB) ──
   let query = supabase
     .from("catalog_books")
-    .select("*, catalog_copies(status)", { count: "exact" });
+    .select("*, catalog_copies(status, shelf_location, holding_library)", { count: "exact" });
 
   if (q) {
     // `.or()` is comma-separated, so strip chars that would break the filter string.
@@ -148,19 +153,27 @@ export default async function AdminCatalogsPage({
   // fails or is cut short renders "—", never a count of what it happened to get.
   const metaScan = await pagedScan<{
     id: string;
+    title: string | null;
+    author: string | null;
     language: string | null;
     category: string | null;
     department: string | null;
+    ddc: string | null;
+    shelf_location: string | null;
+    publisher: string | null;
+    description: string | null;
     is_active: boolean;
     isbn: string | null;
     year: number | null;
     cover_url: string | null;
-    catalog_copies: { status: string | null }[];
+    catalog_copies: { status: string | null; shelf_location: string | null }[];
   }>(
     (from, to) =>
       supabase
         .from("catalog_books")
-        .select("id, language, category, department, is_active, isbn, year, cover_url, catalog_copies(status)")
+        // The review's task fields ride on the same scan (no second read): the
+        // overview's work figures and the Review column are derived from it.
+        .select("id, title, author, language, category, department, ddc, shelf_location, publisher, description, is_active, isbn, year, cover_url, catalog_copies(status, shelf_location)")
         .order("id", { ascending: true })
         .range(from, to),
     CATALOG_SCAN_CAP,
@@ -195,6 +208,8 @@ export default async function AdminCatalogsPage({
   const tr = reviewOn ? await getTranslations("adminCatalog.review") : null;
   const reviewRows = reviewOn && !metaUnavailable ? await loadReviewRows(supabase) : null;
   const review = reviewRows?.ok ? reviewCounts(meta, reviewRows.rows) : null;
+  const work = reviewRows?.ok ? openTaskCounts(meta, reviewRows.rows) : null;
+  const tl = await getTranslations("adminCatalog.list");
 
   const totalItems = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
@@ -282,6 +297,49 @@ export default async function AdminCatalogsPage({
           {review && review.noLanguage > 0 && (
             <p role="status" className="text-xs text-warning-text">{tr("noLanguage", { count: review.noLanguage })}</p>
           )}
+
+          {/* Work, not inventory: open tasks per queue, each a link into that
+              queue filtered to that task. Waived tasks are not open. */}
+          {work && (
+            <div className="overflow-x-auto rounded-xl border border-divider bg-bg-surface shadow-sm">
+              <table className="w-full text-sm">
+                <caption className="px-4 pt-3 text-left text-xs font-bold uppercase tracking-wider text-text-muted">{tl("workHeading")}</caption>
+                <thead>
+                  <tr className="border-b border-divider text-left">
+                    <th scope="col" className="px-4 py-2 text-xs font-semibold text-text-muted">{tl("workTask")}</th>
+                    {REVIEW_QUEUES.map((queue) => (
+                      <th key={queue} scope="col" className="px-4 py-2 text-right text-xs font-semibold text-text-muted">{tr(`queue.${queue}`)}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-divider">
+                  {REVIEW_TASK_IDS.filter((id) => REVIEW_QUEUES.some((queue) => work.counts[queue][id])).map((id) => (
+                    <tr key={id}>
+                      <th scope="row" className="px-4 py-2 text-left font-medium text-text-body">{tr(`task.${id}`)}</th>
+                      {REVIEW_QUEUES.map((queue) => {
+                        const n = work.counts[queue][id] ?? 0;
+                        return (
+                          <td key={queue} className="px-4 py-2 text-right tabular-nums">
+                            {n ? (
+                              <Link
+                                href={reviewListHref({ ...DEFAULT_REVIEW_QUERY, language: queue, task: id })}
+                                className="font-semibold text-admin-accent-text hover:underline"
+                                aria-label={tl("workLinkAria", { count: n, task: tr(`task.${id}`), queue: tr(`queue.${queue}`) })}
+                              >
+                                {n.toLocaleString("en")}
+                              </Link>
+                            ) : (
+                              <span className="text-text-muted">0</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
       )}
 
@@ -337,11 +395,24 @@ export default async function AdminCatalogsPage({
       <div className="overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <caption className="sr-only">Physical catalog books</caption>
+            <caption className="sr-only">{tl("caption")}</caption>
             <thead>
               <tr className="border-b border-divider bg-paper/60 text-left">
-                <th scope="col" className="w-16 px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-text-muted">Cover</th>
-                {["Title / Author", "Category", "DDC", "Shelf", "Availability", "Copies", "Actions"].map((h) => (
+                <th scope="col" className="w-16 px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-text-muted">{tl("colCover")}</th>
+                {/* "Call number", not "DDC": for a Koha record the column holds the
+                    best copy's call number (lib/koha/projection.ts). "Location" is
+                    the copies' Koha shelves — the book-level field Koha never
+                    syncs is not shown as if it were the shelf. */}
+                {[
+                  tl("colBook"),
+                  tl("colCategory"),
+                  tl("colCallNumber"),
+                  tl("colLocation"),
+                  tl("colAvailability"),
+                  tl("colCopies"),
+                  ...(work ? [tl("colReview")] : []),
+                  tl("colActions"),
+                ].map((h) => (
                   <th key={h} scope="col" className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">
                     {h}
                   </th>
@@ -351,7 +422,7 @@ export default async function AdminCatalogsPage({
             <tbody className="divide-y divide-slate-50">
               {pageBooks.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-16 text-center text-text-muted">
+                  <td colSpan={work ? 9 : 8} className="px-4 py-16 text-center text-text-muted">
                     {q
                       ? <>No books matched <span className="font-semibold text-text-muted">&ldquo;{q}&rdquo;</span>. Try a different search.</>
                       : <>No books yet. Click &ldquo;Add Book&rdquo; or import CSV to get started.</>}
@@ -386,17 +457,32 @@ export default async function AdminCatalogsPage({
                     <td className="whitespace-nowrap px-4 py-3 text-text-muted">
                       {book.category ?? <span className="text-text-muted">—</span>}
                     </td>
-                    {/* DDC — the subject class of the work (0140) */}
+                    {/* Call number (catalog_books.ddc — Koha's best copy call number) */}
                     <td className="whitespace-nowrap px-4 py-3">
                       {book.ddc
                         ? <span className="font-mono text-xs text-text-body">{book.ddc}</span>
                         : <span className="text-text-muted">—</span>}
                     </td>
-                    {/* Shelf */}
-                    <td className="px-4 py-3">
-                      {book.shelf_location
-                        ? <span className="rounded-md bg-paper px-2 py-0.5 font-mono text-xs text-text-body">{book.shelf_location}</span>
-                        : <span className="text-text-muted">—</span>}
+                    {/* Location — from the copies, as Koha holds them */}
+                    <td className="px-4 py-3 text-xs">
+                      {(() => {
+                        const groups = copyLocations(book.catalog_copies);
+                        if (groups.length === 0) return <span className="text-text-muted">{tl("noCopies")}</span>;
+                        const shelved = groups.filter((g) => g.shelf !== null).slice(0, 2);
+                        const unshelved = unshelvedCount(groups);
+                        return (
+                          <div className="space-y-0.5">
+                            {shelved.map((g) => (
+                              <p key={`${g.library}|${g.shelf}`} className="whitespace-nowrap text-text-body">
+                                {g.library ? `${g.library} · ` : ""}<span className="font-mono">{g.shelf}</span> ×{g.count}
+                              </p>
+                            ))}
+                            {unshelvedCount(groups) > 0 && (
+                              <p className="whitespace-nowrap text-text-muted">{tl("noShelf", { count: unshelved })}</p>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
                     {/* Availability */}
                     <td className="whitespace-nowrap px-4 py-3">
@@ -410,6 +496,23 @@ export default async function AdminCatalogsPage({
                       <span className={`font-bold ${TONE_TEXT[tone]}`}>{stats.available}</span>
                       <span className="text-text-muted">/{stats.total}</span>
                     </td>
+                    {/* Review — status and open tasks, a link into the queue */}
+                    {work && tr && (
+                      <td className="whitespace-nowrap px-4 py-3 text-xs">
+                        {(() => {
+                          const status = statusOf(reviewRows?.ok ? reviewRows.rows.get(book.id) ?? null : null);
+                          const open = openTasks(work.tasksById.get(book.id) ?? []).length;
+                          const queue = reviewQueueOf(book.language);
+                          const badge = <Badge tone={status === "verified" ? "success" : status === "blocked" ? "danger" : status === "in_review" ? "info" : "warning"}>{tr(`status.${status}`)}</Badge>;
+                          return (
+                            <div className="space-y-1">
+                              {queue ? <Link href={reviewRecordHref(book.id, { ...DEFAULT_REVIEW_QUERY, language: queue })}>{badge}</Link> : badge}
+                              <p className="text-text-muted">{open ? tr("needsTasks", { count: open }) : tr("noOpenTasks")}</p>
+                            </div>
+                          );
+                        })()}
+                      </td>
+                    )}
                     {/* Actions */}
                     <td className="px-4 py-3">
                       <CatalogAdminActions book={book} copyCount={stats.total} kohaOwned={kohaOn && book.koha_biblio_id != null} />

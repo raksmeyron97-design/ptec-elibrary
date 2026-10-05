@@ -116,6 +116,32 @@ describe("verification waits on the blocking tasks of the SAVED record", () => {
   });
 });
 
+describe("bulk and export (Slice 3)", () => {
+  it("a server-action module exports only async functions", () => {
+    expect(ACTIONS_CODE).not.toMatch(/^export (const|let|var|class) /m);
+  });
+
+  it("bulk carries only take and give back — never verify — and every record goes through the guarded transition with its queue", () => {
+    const body = ACTIONS.slice(ACTIONS.indexOf("export async function bulkCatalogReview"));
+    const fn = body.slice(0, body.indexOf("\n}\n") + 3);
+    expect(fn).toMatch(/action !== "claim" && action !== "release"/);
+    expect(fn).not.toMatch(/"verify"/);
+    expect(fn).toMatch(/requireAction\("catalog\.review\.transition"\)/);
+    expect(fn).toMatch(/await transition\(.*\{ expectQueue: queue \}\)/);
+    expect(fn).toMatch(/items\.length > BULK_LIMIT/);
+    expect(ACTIONS).toMatch(/reviewQueueOf\(p\.book\.language\) !== extra\.expectQueue\) return \{ ok: false, error: "other_language" \}/);
+  });
+
+  it("export is read-level, uses the page's own parse/order/filter, and is audited", () => {
+    const body = ACTIONS.slice(ACTIONS.indexOf("export async function exportReviewQueue"));
+    expect(body).toMatch(/requireAction\("catalog\.review\.view"\)/);
+    expect(body).toMatch(/parseReviewQuery\(/);
+    expect(body).toMatch(/sortQueue\(index\.items, query\.sort\)\.filter\(\(i\) => matchesReviewQuery\(i, query, userId, now\)\)/);
+    expect(body).toMatch(/logAdminAction\(userId, "catalogReview\.export"/);
+    expect(ACTION_POLICIES["catalog.review.view"]).toEqual({ kind: "perm", resource: "catalog", level: "read" });
+  });
+});
+
 describe("routes, switch and registry", () => {
   it("both review pages 404 when the switch is off and guard before the service client", () => {
     for (const [name, src] of [["list", LIST_PAGE], ["record", RECORD_PAGE]] as const) {

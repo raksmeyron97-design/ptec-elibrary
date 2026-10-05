@@ -22,26 +22,21 @@ import {
   parseReviewQuery,
   reviewCounts,
   reviewListHref,
+  reviewQueryString,
   reviewRecordHref,
   sortQueue,
   statusOf,
   type ReviewRow,
-  type ReviewStatus,
 } from "@/lib/catalogs/review";
-import { Badge, EmptyState, PageHeader, type BadgeTone } from "@/components/admin/kit";
+import { EmptyState, PageHeader } from "@/components/admin/kit";
 import Pagination from "@/components/ui/core/Pagination";
+import ReviewListTable, { type ReviewListRow } from "./_components/ReviewListTable";
 import { REVIEW_TASK_IDS, openBlockingTasks, openTasks } from "@/lib/catalogs/review-tasks";
 
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 50;
 
-const STATUS_TONE: Record<ReviewStatus, BadgeTone> = {
-  needs_review: "warning",
-  in_review: "info",
-  verified: "success",
-  blocked: "danger",
-};
 
 export default async function CatalogReviewPage({
   searchParams,
@@ -202,71 +197,38 @@ export default async function CatalogReviewPage({
           {pageItems.length === 0 ? (
             <EmptyState title={t("emptyTitle")} description={t("emptyBody")} />
           ) : (
-            <div className="overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <caption className="sr-only">{t(`queue.${query.language}`)}</caption>
-                  <thead>
-                    <tr className="border-b border-divider bg-paper/60 text-left">
-                      <th scope="col" className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">{t("colCallNumber")}</th>
-                      <th scope="col" className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">{t("colBook")}</th>
-                      <th scope="col" className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">{t("colTasks")}</th>
-                      <th scope="col" className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">{t("colStatus")}</th>
-                      <th scope="col" className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">{t("colWho")}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-divider">
-                    {pageItems.map((item) => {
-                      const status = statusOf(item.review);
-                      const claim = claimState(item.review, userId, now);
-                      const who =
-                        status === "in_review" && item.review?.assignedTo
-                          ? claim === "mine"
-                            ? t("you")
-                            : names.get(item.review.assignedTo) ?? t("someoneElse")
-                          : status === "verified" && item.review?.reviewedBy
-                            ? names.get(item.review.reviewedBy) ?? t("someoneElse")
-                            : "—";
-                      return (
-                        <tr key={item.id} className="hover:bg-paper/50">
-                          <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-text-body">{item.callNumber || "—"}</td>
-                          <td className="max-w-[360px] px-4 py-3">
-                            {canReview ? (
-                              <Link href={reviewRecordHref(item.id, query)} className="font-semibold text-text-heading hover:text-brand">
-                                {item.title}
-                              </Link>
-                            ) : (
-                              <span className="font-semibold text-text-heading">{item.title}</span>
-                            )}
-                            {item.author && <p className="truncate text-xs text-text-muted">{item.author}</p>}
-                            {!item.isActive && <p className="text-[11px] font-semibold text-text-muted">{t("unlisted")}</p>}
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3 text-xs">
-                            {openTasks(item.tasks).length ? (
-                              <span className="text-text-body">
-                                {t("needsTasks", { count: openTasks(item.tasks).length })}
-                                {openBlockingTasks(item.tasks).length > 0 && (
-                                  <span className="ml-1 font-semibold text-danger-text">
-                                    · {t("blockingCount", { count: openBlockingTasks(item.tasks).length })}
-                                  </span>
-                                )}
-                              </span>
-                            ) : (
-                              <span className="text-success-text">{t("noOpenTasks")}</span>
-                            )}
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3">
-                            <Badge tone={STATUS_TONE[status]}>{t(`status.${status}`)}</Badge>
-                            {claim === "stale" && <span className="ml-2 text-[11px] text-text-muted">{t("staleClaim")}</span>}
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3 text-text-body">{who}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <ReviewListTable
+              queue={query.language}
+              queueLabel={t(`queue.${query.language}`)}
+              canReview={canReview}
+              queryString={reviewQueryString(query)}
+              rows={pageItems.map((item): ReviewListRow => {
+                const status = statusOf(item.review);
+                const claim = claimState(item.review, userId, now);
+                const who =
+                  status === "in_review" && item.review?.assignedTo
+                    ? claim === "mine"
+                      ? t("you")
+                      : names.get(item.review.assignedTo) ?? t("someoneElse")
+                    : status === "verified" && item.review?.reviewedBy
+                      ? names.get(item.review.reviewedBy) ?? t("someoneElse")
+                      : "—";
+                return {
+                  id: item.id,
+                  href: reviewRecordHref(item.id, query),
+                  title: item.title,
+                  author: item.author,
+                  callNumber: item.callNumber,
+                  isActive: item.isActive,
+                  status,
+                  version: item.review?.version ?? 0,
+                  staleClaim: claim === "stale",
+                  who,
+                  openTasks: openTasks(item.tasks).length,
+                  blockingTasks: openBlockingTasks(item.tasks).length,
+                };
+              })}
+            />
           )}
 
           <Pagination
