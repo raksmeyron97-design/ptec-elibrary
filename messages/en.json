@@ -8301,7 +8301,6 @@
       "fetching": "Fetching…",
       "hint": "Fills empty fields from Open Library and Google Books. Nothing is saved until you press Save.",
       "needIsbn": "Enter a valid 10- or 13-digit ISBN first.",
-      "fetchSuccess": "Filled {fields} from {sources}. Review, then save.",
       "onMediaTab": "Keywords and cover are on the Cover & SEO tab.",
       "nothingToFill": "{sources} found this ISBN, but had nothing for the empty fields.",
       "fetchNotFound": "No record found for this ISBN in Open Library or Google Books.",
@@ -8310,13 +8309,9 @@
       "useAnyway": "It is this book — fill anyway",
       "dismiss": "Don't fill",
       "duplicate": "Another record already has this ISBN:",
-      "conflictsTitle": "These fields already hold something different. Tick the ones to replace:",
       "derived": "only restates the record; replacing it is suggested",
       "current": "Now",
       "found": "From {source}",
-      "replaceSelected": "Replace selected",
-      "keepCurrent": "Keep current values",
-      "replaced": "Replaced {fields}. Review, then save.",
       "field": {
         "description": "Description",
         "publisher": "Publisher",
@@ -8324,7 +8319,50 @@
         "language": "Language",
         "keywords": "Keywords",
         "cover": "Cover"
-      }
+      },
+      "stepsLabel": "What each source answered",
+      "step": {
+        "waiting": "waiting",
+        "checking": "checking…",
+        "asking": "asking…",
+        "notAsked": "not asked",
+        "catalogNone": "no other record has this ISBN",
+        "catalogOthers": "{count, plural, =1 {# other record has} other {# other records have}} this ISBN",
+        "kohaNotConnected": "not connected",
+        "kohaError": "could not be checked",
+        "kohaFound": "record {ids} has this ISBN",
+        "kohaNone": "no record has this ISBN",
+        "name": {
+          "catalog": "This catalogue",
+          "koha": "Koha",
+          "open_library": "Open Library",
+          "google_books": "Google Books"
+        }
+      },
+      "coverFound": "a cover image",
+      "applied": "Put {fields} in the form. Review, then save.",
+      "mismatchTitle": "Possible mismatch",
+      "mismatchCurrent": "This record: “{title}”.",
+      "editionsTitle": "Several editions share this ISBN in the sources",
+      "editionsBody": "Pick the one in your hands. Nothing is merged across editions.",
+      "identityExact": "exact ISBN match",
+      "useEdition": "Use this edition",
+      "previewTitle": "Found for this ISBN — choose what to put in the form",
+      "partialNote": "Not every source answered; what is below is from the ones that did.",
+      "section": {
+        "safe": "Safe to apply — the record has nothing here",
+        "review": "Needs review — the record already holds something",
+        "noTrusted": "No trusted data"
+      },
+      "noTrustedField": {
+        "category": "Category",
+        "department": "Department",
+        "call-number": "Call number",
+        "shelf": "Shelf"
+      },
+      "noTrustedBody": "no provider is trusted for these; set them from the book, or in Koha.",
+      "applySelected": "{count, plural, =0 {Apply} =1 {Apply # field} other {Apply # fields}}",
+      "discard": "Discard"
     },
     "publisherFetch": {
       "label": "Fetch from Publisher Link",

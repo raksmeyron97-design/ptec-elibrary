@@ -155,6 +155,31 @@ otherwise credits the librarian. It writes `field_sources` only (compare-and-set
 and is audited (`catalogReview.provenance`). "Changed since" is derived from the
 value hash on read — no trigger, no sync change.
 
+## Fetch by ISBN as a preview (Slice 5)
+
+The rules of `lib/isbn/enrich.ts` are unchanged (empty fields fillable,
+different values only offered, nothing filled while the found title disagrees,
+the cache, rate limits, the cover allow-list). The interaction changed:
+
+- **Real status per step.** Two requests — `checkIsbnIdentity` (this catalogue,
+  Koha) then `lookupIsbnProviders` (cache, then Open Library and Google Books in
+  parallel) — so each line of "What each source answered" changes when that
+  source actually answered. The two providers finish together, and the list
+  says so. Each step is charged to the same per-user bucket, so a lookup costs
+  two of the 60 per 10 minutes. Add by ISBN keeps its single call.
+- **A preview, then Apply.** `lib/isbn/fetch-review.ts` arranges the answer as
+  *Safe to apply* (empty fields, ticked), *Needs review* (fields that hold
+  something else, unticked unless the current value only restates the record)
+  and *No trusted data* (category, department, call number, shelf — never from
+  a provider). Nothing reaches the form until Apply; nothing is saved until Save.
+- **Editions are choices.** Candidates that name the work but give another
+  publisher or year for the same ISBN are shown as cards ("exact ISBN match")
+  and never merged; a candidate that states no edition joins every card.
+- **Mismatch** ("This ISBN appears to belong to …") fills nothing. *It is this
+  book* is a deliberate override that still goes through the preview.
+- "Not found" only when every provider answered; one that failed makes the
+  result *incomplete* or *partial*, said as such.
+
 ## Transitions
 
 `planReviewTransition()` (pure) decides; `app/(admin)/admin/(protected)/catalogs/review/actions.ts` applies.
