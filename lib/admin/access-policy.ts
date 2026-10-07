@@ -239,6 +239,9 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   // SEO Phase 5.2 (0164): the book description review queue. Opening it is
   // READ; saving, approving or discarding a draft is `books.description.review`.
   { id: "books.descriptions", route: "/admin/data-quality/descriptions", requires: perm("books", "read"), backTo: "/admin/data-quality" },
+  // The private rights basis (0174): what a book may be shared on. Write-level
+  // to open — its rows are rights material, not a read surface for staff.
+  { id: "books.rights", route: "/admin/data-quality/rights", requires: perm("books", "write"), backTo: "/admin/data-quality" },
 
   // ── Administration ────────────────────────────────────────────────────────
   { id: "users.manage", route: "/admin/users", requires: perm("users", "read") },
@@ -372,6 +375,7 @@ export const ACTION_POLICIES: Readonly<Record<string, Requirement>> = {
   // SEO Phase 5.2: save, approve or discard a description draft. Approval
   // replaces a book's public description, so it is book WRITE.
   "books.description.review": perm("books", "write"),
+  "books.rights.review": perm("books", "write"),
   // Review queue — read the queue, write to move anything in it
   "books.review.view": perm("books", "read"),
   "books.review.approve": perm("books", "write"),

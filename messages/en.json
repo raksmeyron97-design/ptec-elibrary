@@ -5805,6 +5805,78 @@
       "sourceClaude": "Written by Claude from the book's metadata and pages — check every fact before approving",
       "errorNotFound": "This book no longer exists.",
       "errorFailed": "Could not save. Try again."
+    },
+    "rights": {
+      "link": "Rights basis",
+      "title": "Rights basis",
+      "subtitle": "Record the basis on which the library may share each book. A rule drafts; a librarian confirms.",
+      "privateNote": "This page is private. Nothing here is shown on the public site, written to the activity log, or changes what readers can do. A missing, unreviewed or “Unknown” basis is always treated as commercial.",
+      "errorFailed": "Part of this page could not be loaded, so the lists may be incomplete. Reload to try again.",
+      "viewsLabel": "Review views",
+      "view": {
+        "unreviewed": "To review ({count})",
+        "reviewed": "Confirmed ({count})"
+      },
+      "setsTitle": "Drafted sets",
+      "filtered": "{count, plural, one {# book matches this set.} other {# books match this set.}}",
+      "clearFilter": "Show all",
+      "pagination": "Pages",
+      "draftLabel": "Draft",
+      "confirmedLabel": "Confirmed",
+      "unpublished": "Unpublished",
+      "basisLabel": "Basis",
+      "evidenceLabel": "Evidence",
+      "evidencePlaceholder": "Optional: where you checked (title page, MoEYS list, licence…)",
+      "fact": {
+        "author": "Author",
+        "publisher": "Publisher"
+      },
+      "basis": {
+        "ptec_original": "PTEC original",
+        "government_public": "Government public",
+        "open_licence": "Open licence",
+        "commercial": "Commercial",
+        "unknown": "Unknown"
+      },
+      "source": {
+        "moeys_publisher": "MoEYS is the publisher",
+        "moeys_author": "MoEYS is an author",
+        "ptec_publisher": "PTEC is the publisher",
+        "ptec_author": "PTEC is an author",
+        "commercial_publisher": "Commercial publisher",
+        "commercial_isbn": "Commercial ISBN registrant",
+        "none": "No rule matched"
+      },
+      "actions": {
+        "confirm": "Confirm",
+        "update": "Update",
+        "bulkConfirm": "Confirm all {count}",
+        "generate": "Draft {count, plural, one {# book} other {# books}}",
+        "generating": "Drafting…"
+      },
+      "bulkDialog": {
+        "title": "Confirm this set?",
+        "body": "{count, plural, one {# book} other {# books}} drafted “{basis}” ({source}) will be confirmed as “{basis}”. Check a few of them first; you can change any one afterwards.",
+        "confirm": "Confirm {count}"
+      },
+      "toast": {
+        "confirmed": "Basis confirmed.",
+        "bulkConfirmed": "{count, plural, one {# book confirmed.} other {# books confirmed.}}",
+        "drafted": "{count, plural, one {# draft added} other {# drafts added}}; {remaining} still to draft."
+      },
+      "errors": {
+        "forbidden": "You don't have permission to do that.",
+        "rate_limited": "Too many changes. Wait a moment and try again.",
+        "invalid": "That basis isn't one of the options.",
+        "not_found": "That book no longer exists. Reload the page.",
+        "stale": "The set changed since this page loaded. Reload, then confirm again.",
+        "failed": "Something went wrong. Try again."
+      },
+      "empty": {
+        "unreviewed": "Nothing waiting for review",
+        "reviewed": "Nothing confirmed yet",
+        "undrafted": "{count, plural, one {# book has} other {# books have}} no draft yet. Use “Draft” to start."
+      }
     }
   },
   "adminSearchInsights": {
