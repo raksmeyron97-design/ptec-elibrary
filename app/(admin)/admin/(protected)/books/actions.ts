@@ -1,7 +1,7 @@
 "use server";
 
 // app/admin/books/actions.ts
-import { revalidateLocalizedPath as revalidatePath, revalidateBook } from "@/lib/cache/revalidate";
+import { revalidateLocalizedPath as revalidatePath, revalidateBook, revalidateTaxonomy } from "@/lib/cache/revalidate";
 import { toBookFileAccess, type BookFileAccess } from "@/lib/books/access";
 import { after } from "next/server";
 import { requirePermission } from "@/lib/auth/requireAdmin";
@@ -1165,6 +1165,11 @@ export async function updateCategory(id: string, newName: string): Promise<{ suc
 
   await logAdminAction(user.id, "category.update", "categories", id, { newName: trimmed });
   revalidatePath("/admin");
+  // The public subject index, every hub, the sitemaps, the homepage grid and
+  // the listings all read categories/departments through cached tags. Without
+  // this a rename reached the public site only when the cache expired — and a
+  // renamed subject's OLD hub kept answering from the cache meanwhile.
+  revalidateTaxonomy();
   return { success: true };
 }
 
@@ -1187,6 +1192,11 @@ export async function deleteCategory(id: string): Promise<{ success?: boolean; e
 
   await logAdminAction(user.id, "category.delete", "categories", id);
   revalidatePath("/admin");
+  // The public subject index, every hub, the sitemaps, the homepage grid and
+  // the listings all read categories/departments through cached tags. Without
+  // this a rename reached the public site only when the cache expired — and a
+  // renamed subject's OLD hub kept answering from the cache meanwhile.
+  revalidateTaxonomy();
   return { success: true };
 }
 
@@ -1214,6 +1224,11 @@ export async function updateDepartment(id: string, newName: string): Promise<{ s
 
   await logAdminAction(user.id, "department.update", "departments", id, { newName: trimmed });
   revalidatePath("/admin");
+  // The public subject index, every hub, the sitemaps, the homepage grid and
+  // the listings all read categories/departments through cached tags. Without
+  // this a rename reached the public site only when the cache expired — and a
+  // renamed subject's OLD hub kept answering from the cache meanwhile.
+  revalidateTaxonomy();
   return { success: true };
 }
 
@@ -1236,5 +1251,10 @@ export async function deleteDepartment(id: string): Promise<{ success?: boolean;
 
   await logAdminAction(user.id, "department.delete", "departments", id);
   revalidatePath("/admin");
+  // The public subject index, every hub, the sitemaps, the homepage grid and
+  // the listings all read categories/departments through cached tags. Without
+  // this a rename reached the public site only when the cache expired — and a
+  // renamed subject's OLD hub kept answering from the cache meanwhile.
+  revalidateTaxonomy();
   return { success: true };
 }
