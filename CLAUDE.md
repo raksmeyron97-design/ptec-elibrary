@@ -418,6 +418,26 @@ repo). The rules that must keep holding:
   `lib/catalogs/indexability.ts`), the description gate
   (`lib/seo/description-gate.ts`, `SEO_DESCRIPTION_GATE`, off by default). A
   withheld page keeps `follow`, and noindex pages carry no hreflang.
+- **A public URL that once worked never silently 404s** (URL permanence,
+  0170; `lib/url-redirect-gate.ts`, `/admin/books/retired-urls`). Every
+  not-found branch in middleware goes through `notFoundOrRedirect()`, which
+  asks `url_redirects` — a path-to-path table with NO foreign keys, so a
+  redirect outlives both rows — for a 301 or a deliberate 410 before serving
+  the 404. It runs only AFTER a slug gate has said "not found", and a fresh,
+  complete snapshot answers a miss with no network call; `URL_REDIRECTS=off`
+  restores the old middleware. Triggers capture every slug change of a live
+  book/thesis/subject (renaming A → B → A succeeds — the old plan raised and
+  aborted it), and queue every published book/thesis that is deleted or
+  unpublished (plus its `book_slug_redirects` aliases, which die with it) for
+  a librarian. Three rules: `upsert_url_redirect()` is the ONLY writer (it
+  collapses chains and refuses loops); the edge reads a COLUMN grant on the
+  decision, never `reason` (it can say `rights_removal`, and rights material
+  never reaches a public surface, an audit row or a log); and no trigger is
+  a column-list `update of …` trigger, because `is_published` is mirrored
+  from `status` by a BEFORE trigger such a trigger cannot see. A just-
+  unpublished book can still 404 for up to the book gate's 120 s snapshot
+  before its 301/410 takes over. Verify production with
+  `scripts/verify-redirects.ts`.
 - **Every record helper in `lib/cache/revalidate.ts` fires `TAGS.sitemap`**, so
   a publish reaches the sitemaps on the next request. A new record type needs
   the same, plus an `announce()` for IndexNow (`INDEXNOW_KEY`, off by default).
@@ -535,6 +555,7 @@ A dozen unit tests enforce architecture rules by scanning files. When one fails,
 | `lib/uploads/reconcile.test.ts` | the reconciler never deletes a DB row, never deletes a storage object a record references, and treats a FAILED reference lookup as "referenced" |
 | `lib/csp.test.ts` | the split CSP and `THEME_INIT_SCRIPT` stay consistent |
 | `lib/resource-slug-gate.test.ts` | every public detail route is slug-gated (unknown slug → real 404, not a streamed 200) |
+| `lib/url-redirects-boundary.test.ts` | URL permanence (0170): both tables RLS-on and revoked, the edge's column grant never includes `reason`, `upsert_url_redirect` is service-role only, every slug change / return to life / retirement of a book, thesis or subject has its trigger, no column-list `update of` trigger; middleware calls the gate once, inside the not-found helper, behind `URL_REDIRECTS`, and no not-found rewrite bypasses it; the 410 is noindex and states no reason (negative-controlled) |
 | `components/admin/dashboard/markup-nesting.test.ts` | no block-level tag (e.g. `InfoTip`'s `<details>`) inside a `<p>`, and no nested interactive elements — the parser re-parents that markup, so the DOM stops matching the server render and hydration fails. Invisible to jsdom and to a production build, which is why it's a source scan |
 | `lib/committee/public.test.ts` | the committee's public order is deterministic at the editor's default `display_order`, a section with no published seat renders no heading, the profile link is offered only where one resolves, and a committee role is never reported as a library position |
 | `lib/committee/schema.test.ts` | the committee stays a relationship — no identity column on `committee_members`, the cascade points at the person, one seat per person, RLS + revokes, no contact column in the public view, no `team_members` write in any committee action, a guard before every service client, and both locales revalidated |
