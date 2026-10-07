@@ -8,6 +8,8 @@ import { canonicalHostRedirect } from "@/lib/canonical-host";
 import { inferAuthLocale, LOCALE_COOKIE } from "@/lib/i18n/auth-locale";
 import { gateBookSlug } from "@/lib/book-slug-gate";
 import { gateResourceSlug, RESOURCE_GATES } from "@/lib/resource-slug-gate";
+import { gateUrlRedirect, redirectLocation, urlRedirectsEnabled } from "@/lib/url-redirect-gate";
+import { goneResponse } from "@/lib/gone-response";
 import {
   buildNonceCsp,
   buildPublicCsp,
@@ -394,6 +396,32 @@ export async function middleware(request: NextRequest) {
   if (pathWithoutLocale === "") pathWithoutLocale = "/";
   const localePrefix = activeLocale === "km" ? "/km" : "";
 
+  // Every "this does not exist" answer below goes through here. Before it
+  // serves the 404, it asks url_redirects (0170) whether a live URL used to be
+  // at this path: a 301 to its successor, a 410 for a deliberate removal, or —
+  // the overwhelmingly common case, decided from an in-memory snapshot with no
+  // network call — the 404 exactly as before. It runs ONLY after a slug gate
+  // has already said "not found", so a live page never pays for it.
+  // URL_REDIRECTS=off is the rollback: the helper then is the old rewrite.
+  const notFoundOrRedirect = async (): Promise<NextResponse> => {
+    if (urlRedirectsEnabled()) {
+      const verdict = await gateUrlRedirect(pathWithoutLocale, {
+        supabaseUrl: serverSupabaseUrl(),
+        anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
+      });
+      if (verdict?.kind === "redirect") {
+        return applySecurity(
+          NextResponse.redirect(
+            new URL(redirectLocation(localePrefix, verdict.path, url.search), request.url),
+            301,
+          ),
+        );
+      }
+      if (verdict?.kind === "gone") return applySecurity(goneResponse(activeLocale));
+    }
+    return applySecurity(NextResponse.rewrite(new URL(NOT_FOUND_PATH, request.url)));
+  };
+
   // The canonical homepage is the locale root (/ and /km). The legacy /home
   // URLs 308 onto it so search engines consolidate every homepage signal on
   // one URL. (Until 2026-07 the redirect ran the OTHER way — / → /home; the
@@ -429,8 +457,7 @@ export async function middleware(request: NextRequest) {
         // unrouted path renders the global not-found page with a real HTTP
         // 404 status — inside the route tree the (public) loading boundary
         // would stream a 200 shell before notFound() could set the status.
-        const res = NextResponse.rewrite(new URL(NOT_FOUND_PATH, request.url));
-        return applySecurity(res);
+        return notFoundOrRedirect();
       }
     } catch {
       // Lookup failed — let the page route resolve or 404 the id itself.
@@ -463,10 +490,7 @@ export async function middleware(request: NextRequest) {
         );
         return applySecurity(res);
       }
-      if (verdict?.kind === "not-found") {
-        const res = NextResponse.rewrite(new URL(NOT_FOUND_PATH, request.url));
-        return applySecurity(res);
-      }
+      if (verdict?.kind === "not-found") return notFoundOrRedirect();
       // ok / null → fall through to the page unchanged.
     }
   }
@@ -534,10 +558,7 @@ export async function middleware(request: NextRequest) {
       supabaseUrl: serverSupabaseUrl(),
       anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
     });
-    if (verdict?.kind === "not-found") {
-      const res = NextResponse.rewrite(new URL(NOT_FOUND_PATH, request.url));
-      return applySecurity(res);
-    }
+    if (verdict?.kind === "not-found") return notFoundOrRedirect();
     // A retired slug (currently only catalogs, whose slug is editable) gets a
     // real 301 to the record's current URL, keeping the locale prefix and the
     // query string so a shared link survives the rename intact.

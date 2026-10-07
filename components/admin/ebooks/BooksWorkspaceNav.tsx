@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { BookCopy, Copy, Sparkles, Upload, type LucideIcon } from "lucide-react";
+import { BookCopy, Copy, Link2Off, Sparkles, Upload, type LucideIcon } from "lucide-react";
 import {
   EBOOKS_BASE_PATH,
   EBOOKS_DUPLICATES_PATH,
   EBOOKS_FEATURED_PATH,
+  EBOOKS_RETIRED_URLS_PATH,
   EBOOKS_UPLOAD_PATH,
 } from "@/lib/admin/ebooks-url";
 import { canRoute } from "@/lib/admin/route-guard";
 
-export type BooksWorkspace = "manage" | "upload" | "featured" | "duplicates";
+export type BooksWorkspace = "manage" | "upload" | "featured" | "duplicates" | "retiredUrls";
 
 /**
  * The one element that makes Collection, Upload and Duplicate review read as a
@@ -39,16 +40,20 @@ export default async function BooksWorkspaceNav({
   duplicateCount,
   /** Shown on the Featured entry — how many books the shelf currently holds. */
   featuredCount,
+  /** Shown on the Retired URLs entry — how many retired URLs await a decision. */
+  retiredUrlCount,
 }: {
   current: BooksWorkspace;
   duplicateCount?: number;
   featuredCount?: number;
+  retiredUrlCount?: number;
 }) {
-  const [t, canUpload, canCurate, canSweepDuplicates] = await Promise.all([
+  const [t, canUpload, canCurate, canSweepDuplicates, canDecideRetiredUrls] = await Promise.all([
     getTranslations("adminEbooks.workspace"),
     canRoute("books.upload"),
     canRoute("books.featured"),
     canRoute("books.duplicates"),
+    canRoute("books.retiredUrls"),
   ]);
 
   const items: { key: BooksWorkspace; href: string; label: string; icon: LucideIcon; count?: number }[] = [
@@ -79,6 +84,19 @@ export default async function BooksWorkspaceNav({
             label: t("duplicates"),
             icon: Copy,
             count: duplicateCount,
+          },
+        ]
+      : []),
+    /* The other half of collection hygiene: URLs that stopped existing when a
+       book left the site, waiting for a successor or a deliberate 410. */
+    ...(canDecideRetiredUrls
+      ? [
+          {
+            key: "retiredUrls" as const,
+            href: EBOOKS_RETIRED_URLS_PATH,
+            label: t("retiredUrls"),
+            icon: Link2Off,
+            count: retiredUrlCount,
           },
         ]
       : []),

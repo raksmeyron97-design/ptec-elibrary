@@ -108,6 +108,26 @@ const GATED_SURFACES: { file: string; label: string; ids: string[] }[] = [
     file: `${ADMIN_ROOT}/books/featured/_components/FeaturedBooksClient.tsx`,
     ids: ["books.feature"],
   },
+  {
+    label: "retired URL queue rows",
+    file: `${ADMIN_ROOT}/books/retired-urls/_components/PendingRow.tsx`,
+    ids: ["books.retiredUrls.resolve"],
+  },
+  {
+    label: "retired URL bulk ignore",
+    file: `${ADMIN_ROOT}/books/retired-urls/_components/IgnoreResolvedButton.tsx`,
+    ids: ["books.retiredUrls.resolve"],
+  },
+  {
+    label: "url redirect table",
+    file: `${ADMIN_ROOT}/books/retired-urls/_components/RedirectsTable.tsx`,
+    ids: ["books.retiredUrls.deleteRedirect"],
+  },
+  {
+    label: "retired URL page",
+    file: `${ADMIN_ROOT}/books/retired-urls/page.tsx`,
+    ids: ["books.retiredUrls.resolve", "books.retiredUrls.viewRedirects", "books.retiredUrls.deleteRedirect"],
+  },
 ];
 
 describe("every mutation surface asks the registry", () => {

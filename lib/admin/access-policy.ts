@@ -153,6 +153,11 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   { id: "books.manage", route: "/admin/books", requires: perm("books", "read"), navKey: "manageEbooks" },
   { id: "books.upload", route: "/admin/books/upload", requires: perm("books", "write"), backTo: "/admin/books" },
   { id: "books.duplicates", route: "/admin/books/duplicates", requires: perm("books", "write"), backTo: "/admin/books" },
+  // URL permanence (0170): the queue of retired public URLs waiting for a
+  // successor (301), a removal (410) or an ignore. Write-level, like the
+  // duplicate sweep it sits beside: every decision changes what a public URL
+  // answers.
+  { id: "books.retiredUrls", route: "/admin/books/retired-urls", requires: perm("books", "write"), backTo: "/admin/books" },
   /* Curation is READ, like the collection: seeing what the library promotes on
      /books is part of knowing the collection, and every control that changes
      the shelf is gated separately on `books.feature`. */
@@ -351,6 +356,11 @@ export const ACTION_POLICIES: Readonly<Record<string, Requirement>> = {
      from every other reviewer's queue, so it is the same bar as the retire it
      stands opposite. */
   "books.dismissDuplicate": perm("books", "write"),
+  "books.retiredUrls.resolve": perm("books", "write"),
+  // The redirect table carries a private `reason` (it can say
+  // rights_removal), so listing it — and deleting a row — is admin-only.
+  "books.retiredUrls.viewRedirects": roles(ADMIN_ROLES),
+  "books.retiredUrls.deleteRedirect": roles(ADMIN_ROLES),
   /* Editorial curation — the "Featured by PTEC Library" shelf (0149).
      One id for feature, unfeature and reorder: all three are the same
      authority over the same public surface, and splitting them would create

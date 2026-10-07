@@ -1220,3 +1220,12 @@ INSERT INTO public.learning_path_step_progress (user_id, step_id, completed_at)
 VALUES ('44444444-4444-4444-4444-444444444444', '99999999-9999-4999-8999-888888880001', now() - interval '1 day')
 ON CONFLICT (user_id, step_id) DO NOTHING;
 
+
+-- ── URL permanence (0170) — fixtures for e2e/url-redirects.spec.ts ─────────
+-- One 301 per script (a Latin and a Khmer old slug, each to a live seed
+-- book) and one deliberate removal. Paths are decoded and locale-less.
+INSERT INTO public.url_redirects (old_path, target_path, status, reason) VALUES
+  ('/books/foundations-of-education-first-printing', '/books/foundations-of-education', 301, 'recreated'),
+  ('/books/វិធីសាស្ត្របង្រៀនភាសាខ្មែរ-ចាស់', '/books/khmer-teaching-methods', 301, 'typo_fix'),
+  ('/books/e2e-withdrawn-title', NULL, 410, 'withdrawn')
+ON CONFLICT (old_path) DO NOTHING;
