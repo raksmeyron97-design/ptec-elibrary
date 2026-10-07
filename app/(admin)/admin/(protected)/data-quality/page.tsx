@@ -174,6 +174,12 @@ export default async function DataQualityPage({ searchParams }: { searchParams: 
           >
             {t("descriptions.link")} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
           </Link>
+          <Link
+            href="/admin/data-quality/classification"
+            className="inline-flex items-center gap-1.5 rounded-full border border-divider px-3 py-1.5 text-[12px] font-semibold text-brand hover:border-brand/40"
+          >
+            {t("classification.link")} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </Link>
           {canRights && (
             <Link
               href="/admin/data-quality/rights"

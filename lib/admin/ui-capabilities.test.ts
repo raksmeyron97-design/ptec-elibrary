@@ -119,6 +119,21 @@ const GATED_SURFACES: { file: string; label: string; ids: string[] }[] = [
     ids: ["books.rights.review"],
   },
   {
+    label: "classification row",
+    file: `${ADMIN_ROOT}/data-quality/classification/_components/ClassificationRow.tsx`,
+    ids: ["books.classification.review"],
+  },
+  {
+    label: "classification bulk confirm",
+    file: `${ADMIN_ROOT}/data-quality/classification/_components/BulkConfirmClassification.tsx`,
+    ids: ["books.classification.review"],
+  },
+  {
+    label: "classification drafts",
+    file: `${ADMIN_ROOT}/data-quality/classification/_components/GenerateClassificationDrafts.tsx`,
+    ids: ["books.classification.review"],
+  },
+  {
     label: "featured books",
     file: `${ADMIN_ROOT}/books/featured/_components/FeaturedBooksClient.tsx`,
     ids: ["books.feature"],
