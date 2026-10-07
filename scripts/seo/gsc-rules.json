@@ -1,0 +1,90 @@
+{
+  "_source": "Definitions come from the 2026-10 search-visibility audit: the noise and brand rules from Gate 4 §5.1, the KPI rows from Gate 4 §5.2, the query clusters from Gate 2 §4. They are copied here, not invented: every definition below is null until someone copies it from those documents, and a null definition prints [UNKNOWN]. Labels are placeholders to be replaced with the Gate 4 names.",
+  "_format": {
+    "definition": {
+      "table": "queries | pages | dates",
+      "metric": "clicks | impressions | ctr | position | rows",
+      "segment": "all | brand | nonbrand | cluster:<name> (queries only)",
+      "pathPrefix": "/books/ (pages only)",
+      "excludeNoise": true,
+      "minImpressions": 1
+    }
+  },
+  "rules": {
+    "noise": [],
+    "brand": [],
+    "clusters": {}
+  },
+  "kpis": [
+    {
+      "id": "K-S1",
+      "label": "Search: total clicks",
+      "definition": null
+    },
+    {
+      "id": "K-S2",
+      "label": "Search: total impressions",
+      "definition": null
+    },
+    {
+      "id": "K-S3",
+      "label": "Search: CTR",
+      "definition": null
+    },
+    {
+      "id": "K-S4",
+      "label": "Search: average position",
+      "definition": null
+    },
+    {
+      "id": "K-C1",
+      "label": "Clusters: cluster 1",
+      "definition": null
+    },
+    {
+      "id": "K-C2",
+      "label": "Clusters: cluster 2",
+      "definition": null
+    },
+    {
+      "id": "K-P1",
+      "label": "Pages: KPI 1",
+      "definition": null
+    },
+    {
+      "id": "K-P2",
+      "label": "Pages: KPI 2",
+      "definition": null
+    },
+    {
+      "id": "K-P3",
+      "label": "Pages: KPI 3",
+      "definition": null
+    },
+    {
+      "id": "K-P4",
+      "label": "Pages: KPI 4",
+      "definition": null
+    },
+    {
+      "id": "K-P5",
+      "label": "Pages: KPI 5",
+      "definition": null
+    },
+    {
+      "id": "K-P6",
+      "label": "Pages: KPI 6",
+      "definition": null
+    },
+    {
+      "id": "K-P7",
+      "label": "Pages: KPI 7",
+      "definition": null
+    },
+    {
+      "id": "K-P8",
+      "label": "Pages: KPI 8",
+      "definition": null
+    }
+  ]
+}
