@@ -2,9 +2,9 @@
 --
 -- URL permanence (SEO audit 2026-10, WI-1 / P0-1).
 --
--- 43 URLs Google was showing answered 404 when the audit looked (1,047
--- impressions, 42 clicks in the window). Four mechanisms each killed URLs and
--- none of them left a trace:
+-- 43 book URLs that search engines were still showing answered 404 when the
+-- audit looked. Four mechanisms each killed URLs and none of them left a
+-- trace:
 --   * book_slug_redirects (0091) cascades away with its TARGET book, and the
 --     edge gate follows only PUBLISHED targets, so deleting or unpublishing a
 --     book also kills every old slug that redirected to it;
