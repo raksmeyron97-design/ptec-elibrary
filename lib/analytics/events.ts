@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { EntryClass } from "@/lib/analytics/entry-class";
 import { headers } from "next/headers";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { anonymousSessionHash, isLikelyBot } from "@/lib/search/analytics";
@@ -69,6 +70,8 @@ const RETRYABLE_COLUMN_ERRORS = new Set(["42703", "PGRST204"]);
 export async function logContentView(
   contentType: ViewableContentType,
   contentId: string,
+  /** How the session began (WI-3, 0173) — a validated class or null. */
+  entryClass: EntryClass | null = null,
 ): Promise<void> {
   try {
     const ctx = await getViewerContext();
@@ -88,7 +91,13 @@ export async function logContentView(
       session_hash: ctx.sessionHash,
       locale: ctx.locale,
     };
-    const { error } = await supabase.from("view_logs").insert(payload);
+    if (entryClass) payload.entry_class = entryClass;
+    let { error } = await supabase.from("view_logs").insert(payload);
+    if (error && RETRYABLE_COLUMN_ERRORS.has(error.code ?? "") && "entry_class" in payload) {
+      // Pre-0173 (the deploy window): no entry_class column yet. Drop only it.
+      delete payload.entry_class;
+      ({ error } = await supabase.from("view_logs").insert(payload));
+    }
     if (error && RETRYABLE_COLUMN_ERRORS.has(error.code ?? "")) {
       // Pre-0090: session_hash/locale columns don't exist yet.
       delete payload.session_hash;
@@ -107,6 +116,8 @@ export async function logContentView(
 export async function logReaderOpen(
   contentType: "book" | "research_report" | "publication",
   contentId: string,
+  /** How the session began (WI-3, 0173) — a validated class or null. */
+  entryClass: EntryClass | null = null,
 ): Promise<void> {
   try {
     const ctx = await getViewerContext();
@@ -117,13 +128,20 @@ export async function logReaderOpen(
     }
 
     const supabase = createServiceClient();
-    await supabase.from("reader_open_logs").insert({
+    const row: Record<string, unknown> = {
       content_type: contentType,
       content_id: contentId,
       user_id: ctx.userId,
       session_hash: ctx.sessionHash,
       locale: ctx.locale,
-    });
+    };
+    if (entryClass) row.entry_class = entryClass;
+    const { error } = await supabase.from("reader_open_logs").insert(row);
+    if (error && RETRYABLE_COLUMN_ERRORS.has(error.code ?? "") && "entry_class" in row) {
+      // Pre-0173 (the deploy window): no entry_class column yet.
+      delete row.entry_class;
+      await supabase.from("reader_open_logs").insert(row);
+    }
   } catch (err) {
     console.error("[logReaderOpen]", err instanceof Error ? err.message : err);
   }

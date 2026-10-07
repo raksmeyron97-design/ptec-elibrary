@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { incrementViewCount } from "@/app/actions/view-count";
+import { landingEntryClass } from "@/lib/analytics/entry-class";
 
 /**
  * Fire-and-forget detail-view analytics ping, mounted on the book detail
@@ -19,7 +20,8 @@ export default function BookViewPing({ bookId }: { bookId: string }) {
     } catch {
       // Private mode — fall through and ping anyway.
     }
-    incrementViewCount(bookId).catch(() => {});
+    // How this tab's session began (WI-3) — the class only, never a referrer.
+    incrementViewCount(bookId, landingEntryClass()).catch(() => {});
   }, [bookId]);
 
   return null;

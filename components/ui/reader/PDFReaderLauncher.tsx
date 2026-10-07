@@ -7,6 +7,7 @@ import { BookOpen, ExternalLink, Loader2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import PDFViewer from "@/components/ui/reader/PDFViewerClient";
 import { recordReaderOpen } from "@/app/actions/reader-events";
+import { landingEntryClass } from "@/lib/analytics/entry-class";
 import type { ReaderCitationSource } from "@/components/ui/reader/ReaderCitation";
 
 type PDFReaderLauncherProps = {
@@ -66,7 +67,7 @@ export default function PDFReaderLauncher({
     } catch {
       // Private mode — ping anyway.
     }
-    recordReaderOpen("book", bookId).catch(() => {});
+    recordReaderOpen("book", bookId, landingEntryClass()).catch(() => {});
   };
 
   if (open) {
