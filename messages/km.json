@@ -564,7 +564,11 @@
     "growClose": "បិទ",
     "askHintKeyboard": "ចុច / ដើម្បីចាប់ផ្ដើម។",
     "heroMostDownloaded": "សៀវភៅដែលទាញយកច្រើនបំផុត",
-    "quickAccessLabel": "រុករកបណ្ដុំឯកសារ"
+    "quickAccessLabel": "រុករកបណ្ដុំឯកសារ",
+    "hubLinksEyebrow": "ស្វែងរកតាមមុខវិជ្ជា",
+    "hubLinksTitle": "មុខវិជ្ជា និងផ្លូវសិក្សា",
+    "hubLinksAll": "មុខវិជ្ជាទាំងអស់",
+    "hubLinksPaths": "ផ្លូវសិក្សា"
   },
   "books": {
     "title": "សៀវភៅ",

@@ -559,7 +559,11 @@
     "growClose": "Close",
     "askHintKeyboard": "Press / to start typing.",
     "heroMostDownloaded": "Most downloaded books",
-    "quickAccessLabel": "Browse the collections"
+    "quickAccessLabel": "Browse the collections",
+    "hubLinksEyebrow": "Explore by subject",
+    "hubLinksTitle": "Subjects and learning paths",
+    "hubLinksAll": "All subjects",
+    "hubLinksPaths": "Learning paths"
   },
   "books": {
     "title": "Books",
