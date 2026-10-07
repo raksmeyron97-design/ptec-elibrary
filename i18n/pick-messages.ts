@@ -81,7 +81,7 @@ export const AUTH_NAMESPACES = ["auth"] as const;
  *  the reader saw when they filled it in — the alternative was a second copy
  *  of thirty field and enum labels in `adminUsers`, in two languages, free to
  *  drift from the form that writes them. */
-export const ADMIN_NAMESPACES = ["adminAnnouncements", "adminBookRequests", "adminCatalog", "adminCatalogCover", "adminDashboard", "adminDataQuality", "adminDuplicates", "adminErrors", "adminEbooks", "adminExport", "adminHomepagePhotos", "adminJournals", "adminLogs", "adminPaths", "adminPostForm", "adminPosts", "adminReview", "adminRoles", "adminSearchInsights", "adminShell", "adminStorage", "adminTheses", "adminThesisForm", "adminUpload", "adminUsers", "downloadProfile", "pagination"] as const;
+export const ADMIN_NAMESPACES = ["adminAnnouncements", "adminBookRequests", "adminCatalog", "adminCatalogCover", "adminDashboard", "adminDataQuality", "adminDuplicates", "adminErrors", "adminEbooks", "adminExport", "adminHomepagePhotos", "adminJournals", "adminLogs", "adminPaths", "adminPostForm", "adminPosts", "adminRetiredUrls", "adminReview", "adminRoles", "adminSearchInsights", "adminShell", "adminStorage", "adminTheses", "adminThesisForm", "adminUpload", "adminUsers", "downloadProfile", "pagination"] as const;
 
 /** Narrow a full message catalogue to the given namespaces. */
 export function pickMessages(

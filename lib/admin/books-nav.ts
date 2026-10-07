@@ -33,14 +33,16 @@
  *                        as one column. Both are READ surfaces whose actions
  *                        are separately gated on write.
  *   4. Duplicates      — a periodic sweep, and a destructive one: write.
- *   5. Catalog         — the physical collection. A different collection with
+ *   5. Retired URLs    — the same sweep's other half: public URLs that stopped
+ *                        existing, waiting for a 301 or a 410. Write (0170).
+ *   6. Catalog         — the physical collection. A different collection with
  *                        its own permission, so it ends the group rather than
  *                        sitting between two e-book entries.
  */
 
 import { canAccessRoute, routePolicy, type AdminViewer } from "./access-policy";
 
-export type BooksNavKey = "manage" | "review" | "requests" | "duplicates" | "catalog";
+export type BooksNavKey = "manage" | "review" | "requests" | "duplicates" | "retiredUrls" | "catalog";
 
 export type BooksNavEntry = {
   key: BooksNavKey;
@@ -57,6 +59,7 @@ export const BOOKS_NAV: readonly BooksNavEntry[] = [
   { key: "review", policyId: "books.review", labelKey: "reviewQueue", badge: "review" },
   { key: "requests", policyId: "books.requests", labelKey: "bookRequests", badge: "bookRequests" },
   { key: "duplicates", policyId: "books.duplicates", labelKey: "duplicates" },
+  { key: "retiredUrls", policyId: "books.retiredUrls", labelKey: "retiredUrls" },
   { key: "catalog", policyId: "catalog.manage", labelKey: "catalog" },
 ];
 

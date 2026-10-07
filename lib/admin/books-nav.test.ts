@@ -26,6 +26,7 @@ const ROUTE_FILE: Record<BooksNavKey, string> = {
   review: "app/(admin)/admin/(protected)/review/page.tsx",
   requests: "app/(admin)/admin/(protected)/book-requests/page.tsx",
   duplicates: "app/(admin)/admin/(protected)/books/duplicates/page.tsx",
+  retiredUrls: "app/(admin)/admin/(protected)/books/retired-urls/page.tsx",
   catalog: "app/(admin)/admin/(protected)/catalogs/page.tsx",
 };
 
@@ -46,6 +47,7 @@ describe("Books section shape", () => {
       "review",
       "requests",
       "duplicates",
+      "retiredUrls",
       "catalog",
     ]);
   });
@@ -121,6 +123,7 @@ describe("what each default role sees", () => {
         "review",
         "requests",
         "duplicates",
+        "retiredUrls",
         "catalog",
       ]);
     }

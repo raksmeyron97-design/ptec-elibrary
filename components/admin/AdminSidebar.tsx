@@ -8,6 +8,7 @@ import {
   BookOpen,
   BookCopy,
   Copy,
+  Link2Off,
   Library,
   FileText,
   Users,
@@ -133,6 +134,7 @@ const BOOKS_NAV_ICONS: Record<BooksNavKey, NavIcon> = {
   review: ClipboardCheck,
   requests: BookPlus,
   duplicates: Copy,
+  retiredUrls: Link2Off,
   catalog: Library,
 };
 

@@ -26,6 +26,9 @@ export const EBOOKS_DUPLICATES_PATH = "/admin/books/duplicates";
 /** Editorial curation: the shelf readers see at the top of /books (0149). */
 export const EBOOKS_FEATURED_PATH = "/admin/books/featured";
 
+/** The retired-URL queue (0170): successors, removals, ignores. */
+export const EBOOKS_RETIRED_URLS_PATH = "/admin/books/retired-urls";
+
 /** Where a pending-review upload lands — the queue, not the collection. */
 export const EBOOKS_REVIEW_PATH = "/admin/review";
 

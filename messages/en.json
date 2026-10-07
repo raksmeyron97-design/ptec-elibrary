@@ -4074,7 +4074,8 @@
       "badgeCritical": "{count} items need attention",
       "homepagePhotos": "Homepage Photos",
       "journals": "Journals",
-      "featuredBooks": "Featured Books"
+      "featuredBooks": "Featured Books",
+      "retiredUrls": "Retired URLs"
     },
     "roles": {
       "superAdmin": "Super Admin",
@@ -6828,7 +6829,8 @@
       "manage": "Collection",
       "upload": "Upload",
       "duplicates": "Duplicates",
-      "featured": "Featured"
+      "featured": "Featured",
+      "retiredUrls": "Retired URLs"
     },
     "featuredFilter": {
       "featured": "Featured",
@@ -10287,5 +10289,139 @@
     "relatedAll": "All",
     "reasonAdvisor": "Same advisor",
     "askAboutThesis": "Ask about this thesis"
+  },
+  "adminRetiredUrls": {
+    "title": "Retired URLs",
+    "description": "Public URLs that stopped working when a book, thesis or subject left the site. Point each one at its successor, mark it removed, or leave it as a 404.",
+    "readFailed": "Part of this page could not be loaded, so the lists below may be incomplete. Reload to try again.",
+    "elsewhereUnavailable": "We could not check which of these URLs already work another way, so none are marked “Resolved elsewhere”.",
+    "suggestionsUnavailable": "We could not load the library's titles, so no similar records are suggested below.",
+    "elsewhereSummary": "{count, plural, one {# URL already works another way} other {# URLs already work another way}} and need no decision.",
+    "resolvedElsewhere": "Resolved elsewhere",
+    "retiredOn": "Retired {date}",
+    "suggestedLabel": "Suggested successor:",
+    "similarLabel": "Live records with the same or a very similar title",
+    "tabs": {
+      "aria": "Retired URL views",
+      "pending": "Pending",
+      "resolved": "Resolved",
+      "redirects": "Redirects"
+    },
+    "recordType": {
+      "book": "Book",
+      "thesis": "Thesis",
+      "subject": "Subject"
+    },
+    "cause": {
+      "deleted": "Deleted",
+      "unpublished": "Unpublished",
+      "seeded": "Was in Google"
+    },
+    "resolution": {
+      "pending": "Pending",
+      "redirected": "Redirected",
+      "gone": "Removed (410)",
+      "ignored": "Ignored"
+    },
+    "reason": {
+      "slug_change": "URL changed",
+      "recreated": "Record re-created",
+      "collection_move": "Moved collection",
+      "duplicate_retired": "Duplicate retired",
+      "typo_fix": "Typo fixed",
+      "rights_removal": "Rights removal",
+      "withdrawn": "Withdrawn",
+      "manual": "Set by a librarian"
+    },
+    "goneReason": {
+      "withdrawn": "Withdrawn",
+      "rights_removal": "Rights removal"
+    },
+    "answer": {
+      "gone": "410 removed"
+    },
+    "createdBy": {
+      "person": "by a librarian",
+      "system": "automatic"
+    },
+    "columns": {
+      "path": "URL",
+      "title": "Title",
+      "resolution": "Decision",
+      "retired": "Retired",
+      "from": "Old URL",
+      "answer": "Now answers",
+      "reason": "Reason",
+      "created": "Created",
+      "actions": "Actions"
+    },
+    "actions": {
+      "confirmSuggested": "Confirm suggested",
+      "redirectHere": "Redirect here",
+      "redirectTo": "Redirect to…",
+      "ignore": "Ignore",
+      "gone": "Removed (410)",
+      "ignoreResolved": "Ignore resolved",
+      "delete": "Delete"
+    },
+    "search": {
+      "label": "Find the successor",
+      "placeholder": "Search titles, or paste a library URL",
+      "hint": "Search live books, theses and subjects by title, or paste a URL from library.ptec.edu.kh.",
+      "usePath": "Redirect to {path}",
+      "results": "Matching live records"
+    },
+    "goneDialog": {
+      "title": "Mark this URL as removed?",
+      "body": "{path} will answer “410 Gone”, which tells search engines the page was removed on purpose and should leave their index.",
+      "reasonLegend": "Why was it removed?",
+      "private": "The reason is stored privately. It is never shown on the public site or written to the activity log.",
+      "confirm": "Mark as removed",
+      "busy": "Saving…"
+    },
+    "ignoreResolvedDialog": {
+      "title": "Ignore the resolved URLs?",
+      "body": "{count, plural, one {# URL already works} other {# URLs already work}} without a decision here. They leave the pending list; nothing about them changes.",
+      "confirm": "Ignore them"
+    },
+    "deleteDialog": {
+      "title": "Delete this redirect?",
+      "body": "{path} will answer 404 again. You can set a new redirect from the queue if it comes back.",
+      "confirm": "Delete redirect"
+    },
+    "toast": {
+      "redirected": "Now redirects to {target}.",
+      "gone": "Marked as removed.",
+      "ignored": "Ignored. The URL stays a 404.",
+      "ignoredMany": "{count, plural, one {# URL ignored} other {# URLs ignored}}.",
+      "redirectDeleted": "Redirect deleted."
+    },
+    "errors": {
+      "forbidden": "You don't have permission to do that.",
+      "rate_limited": "Too many changes. Wait a moment and try again.",
+      "invalid": "That isn't a book, thesis or subject URL on this library.",
+      "not_found": "This URL is no longer in the queue. Reload the page.",
+      "target_not_live": "That record isn't published, so it can't be the successor.",
+      "path_is_live": "This URL works again, so it needs no decision. Reload the page.",
+      "loop": "That redirect would loop back to itself.",
+      "failed": "Something went wrong. Try again."
+    },
+    "empty": {
+      "title": "No retired URLs waiting",
+      "description": "When a published book, thesis or subject leaves the site, its URL appears here for a decision."
+    },
+    "resolvedEmpty": {
+      "title": "Nothing resolved yet",
+      "description": "Decisions you make on the Pending tab are listed here."
+    },
+    "redirectsEmpty": {
+      "title": "No redirects yet",
+      "description": "Redirects appear here when a URL changes or a librarian points a retired URL at its successor."
+    },
+    "basis": {
+      "same_title": "Same title",
+      "other_edition": "Same work, another edition",
+      "similar_title": "Similar title ({score}%)"
+    }
   }
 }
