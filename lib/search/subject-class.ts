@@ -66,12 +66,12 @@ export const CATEGORY_SUBJECT_CLASS: Readonly<Record<string, SubjectClass>> = {
   "ភាសាខ្មែរ": "400", // Khmer language
   "ភាសាបារាំង": "400", // French
   "ភាសាអង់គ្លេសសិក្សា": "400", // English studies
-  "កញ្ជប់គណិតវិទ្យា": "500", // mathematics package
+  "កញ្ចប់គណិតវិទ្យា": "500", // mathematics package
   "គណិតវិទ្យា": "500", // mathematics
   "គីមីវិទ្យា": "500", // chemistry
   "ជីវវិទ្យា": "500", // biology
   "រូបវិទ្យា": "500", // physics
-  "វិទ្យសាស្ត្រ": "500", // science
+  "វិទ្យាសាស្ត្រ": "500", // science
   "បច្ចេកវិទ្យា": "600", // technology
   "អក្សរសិល្ប៍": "800", // literature
   "ប្រវត្តិសាស្ត្រ": "900", // history

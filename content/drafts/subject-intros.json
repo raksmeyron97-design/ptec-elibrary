@@ -4,8 +4,8 @@
   "source": "supabase.storage-ptec.online (anon, read-only)",
   "subjects": [
     {
-      "slug": "កញ្ជប់គណិតវិទ្យា",
-      "name_km": "កញ្ជប់គណិតវិទ្យា",
+      "slug": "កញ្ចប់គណិតវិទ្យា",
+      "name_km": "កញ្ចប់គណិតវិទ្យា",
       "name_en": {
         "value": "Mathematics Kits",
         "status": "needs_review",
@@ -25,15 +25,14 @@
         "parent": "គណិតវិទ្យា",
         "learning_paths": []
       },
-      "intro_en": "This page gathers everything PTEC Library holds on Mathematics Kits (កញ្ជប់គណិតវិទ្យា). The collection holds 21 free e-books. The most downloaded e-books are “សៀវភៅលំហាត់ គណិតវិទ្យា ថ្នាក់ទី២ ន២”, “សៀវភៅសិស្សអក្ខរកម្មឌីជីថល សម្រាប់បឋមសិក្សា” and “សៀវភៅលំហាត់ គណិតវិទ្យា ថ្នាក់ទី៣ ប១”. It is a subtopic of Mathematics (គណិតវិទ្យា).",
-      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា កញ្ជប់គណិតវិទ្យា។ បណ្ណាល័យមាន 21 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «សៀវភៅលំហាត់ គណិតវិទ្យា ថ្នាក់ទី២ ន២» «សៀវភៅសិស្សអក្ខរកម្មឌីជីថល សម្រាប់បឋមសិក្សា» និង «សៀវភៅលំហាត់ គណិតវិទ្យា ថ្នាក់ទី៣ ប១»។ ប្រធានបទរងនៃ គណិតវិទ្យា។",
+      "intro_en": "This page gathers everything PTEC Library holds on Mathematics Kits (កញ្ចប់គណិតវិទ្យា). The collection holds 21 free e-books. The most downloaded e-books are “សៀវភៅលំហាត់ គណិតវិទ្យា ថ្នាក់ទី២ ន២”, “សៀវភៅសិស្សអក្ខរកម្មឌីជីថល សម្រាប់បឋមសិក្សា” and “សៀវភៅលំហាត់ គណិតវិទ្យា ថ្នាក់ទី៣ ប១”. It is a subtopic of Mathematics (គណិតវិទ្យា).",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា កញ្ចប់គណិតវិទ្យា។ បណ្ណាល័យមាន 21 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «សៀវភៅលំហាត់ គណិតវិទ្យា ថ្នាក់ទី២ ន២» «សៀវភៅសិស្សអក្ខរកម្មឌីជីថល សម្រាប់បឋមសិក្សា» និង «សៀវភៅលំហាត់ គណិតវិទ្យា ថ្នាក់ទី៣ ប១»។ ប្រធានបទរងនៃ គណិតវិទ្យា។",
       "words_en": 51,
       "words_km": 49,
       "km_review": "TODO(km-review)",
       "status": "needs_review",
       "notes": [
-        "English draft is 51 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving.",
-        "Spelling: the learning paths write កញ្ចប់ (package), this category កញ្ជប់. Confirm which is intended."
+        "English draft is 51 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
       ]
     },
     {
@@ -119,7 +118,7 @@
           "ឯកសារជំនួយស្មារតីតេស្ត PISA-D គណិតវិទ្យា"
         ],
         "subtopics": [
-          "កញ្ជប់គណិតវិទ្យា"
+          "កញ្ចប់គណិតវិទ្យា"
         ],
         "parent": null,
         "learning_paths": [
@@ -130,8 +129,8 @@
           "early-grade-math-grade-3"
         ]
       },
-      "intro_en": "This page gathers everything PTEC Library holds on Mathematics (គណិតវិទ្យា). The collection holds 440 free e-books and 489 printed books held in the library. The most downloaded e-books are “សៀវភៅណែនាំគ្រូបង្រៀន គណិតវិទ្យា ថ្នាក់ទី៨ (STEPSAM3)”, “គណិតវិទ្យា ថ្នាក់ទី៣ សៀវភៅលំហាត់ ភាគ១” and “ឯកសារជំនួយស្មារតីតេស្ត PISA-D គណិតវិទ្យា”. Its subtopics are Mathematics Kits (កញ្ជប់គណិតវិទ្យា). The learning paths “Early Grade Mathematics: Grade 1 Curriculum & Manipulatives”, “Early Grade Learning: MoEYS Reading & Mathematics Curriculum (Grades 1–3)”, “Early Grade Mathematics: Complete Primary Curriculum (Grades 1–3)”, “Early Grade Mathematics: Grade 2 Curriculum & Manipulatives” and “Early Grade Mathematics: Grade 3 Curriculum & Advanced Foundations” draw on this subject.",
-      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា គណិតវិទ្យា។ បណ្ណាល័យមាន 440 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ និង 489 សៀវភៅរូបវន្ត។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «សៀវភៅណែនាំគ្រូបង្រៀន គណិតវិទ្យា ថ្នាក់ទី៨ (STEPSAM3)» «គណិតវិទ្យា ថ្នាក់ទី៣ សៀវភៅលំហាត់ ភាគ១» និង «ឯកសារជំនួយស្មារតីតេស្ត PISA-D គណិតវិទ្យា»។ ប្រធានបទរង៖ កញ្ជប់គណិតវិទ្យា។ ផ្លូវសិក្សា «កញ្ចប់គណិតវិទ្យាថ្នាក់ដំបូង ថ្នាក់ទី១៖ វិធីសាស្ត្របង្រៀន និងកម្រងលំហាត់» «កញ្ចប់សិក្សាថ្នាក់ដំបូង៖ អំណាន និងគណិតវិទ្យា (ថ្នាក់ទី១ ដល់ទី៣)» «កញ្ចប់គណិតវិទ្យាថ្នាក់ដំបូង (ថ្នាក់ទី១ ទី២ និងទី៣)» «កញ្ចប់គណិតវិទ្យាថ្នាក់ដំបូង ថ្នាក់ទី២៖ វិធីសាស្ត្របង្រៀន និងកម្រងលំហាត់» និង «កញ្ចប់គណិតវិទ្យាថ្នាក់ដំបូង ថ្នាក់ទី៣៖ វិធីសាស្ត្របង្រៀន និងកម្រងលំហាត់» ប្រើធនធានពីមុខវិជ្ជានេះ។",
+      "intro_en": "This page gathers everything PTEC Library holds on Mathematics (គណិតវិទ្យា). The collection holds 440 free e-books and 489 printed books held in the library. The most downloaded e-books are “សៀវភៅណែនាំគ្រូបង្រៀន គណិតវិទ្យា ថ្នាក់ទី៨ (STEPSAM3)”, “គណិតវិទ្យា ថ្នាក់ទី៣ សៀវភៅលំហាត់ ភាគ១” and “ឯកសារជំនួយស្មារតីតេស្ត PISA-D គណិតវិទ្យា”. Its subtopics are Mathematics Kits (កញ្ចប់គណិតវិទ្យា). The learning paths “Early Grade Mathematics: Grade 1 Curriculum & Manipulatives”, “Early Grade Learning: MoEYS Reading & Mathematics Curriculum (Grades 1–3)”, “Early Grade Mathematics: Complete Primary Curriculum (Grades 1–3)”, “Early Grade Mathematics: Grade 2 Curriculum & Manipulatives” and “Early Grade Mathematics: Grade 3 Curriculum & Advanced Foundations” draw on this subject.",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា គណិតវិទ្យា។ បណ្ណាល័យមាន 440 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ និង 489 សៀវភៅរូបវន្ត។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «សៀវភៅណែនាំគ្រូបង្រៀន គណិតវិទ្យា ថ្នាក់ទី៨ (STEPSAM3)» «គណិតវិទ្យា ថ្នាក់ទី៣ សៀវភៅលំហាត់ ភាគ១» និង «ឯកសារជំនួយស្មារតីតេស្ត PISA-D គណិតវិទ្យា»។ ប្រធានបទរង៖ កញ្ចប់គណិតវិទ្យា។ ផ្លូវសិក្សា «កញ្ចប់គណិតវិទ្យាថ្នាក់ដំបូង ថ្នាក់ទី១៖ វិធីសាស្ត្របង្រៀន និងកម្រងលំហាត់» «កញ្ចប់សិក្សាថ្នាក់ដំបូង៖ អំណាន និងគណិតវិទ្យា (ថ្នាក់ទី១ ដល់ទី៣)» «កញ្ចប់គណិតវិទ្យាថ្នាក់ដំបូង (ថ្នាក់ទី១ ទី២ និងទី៣)» «កញ្ចប់គណិតវិទ្យាថ្នាក់ដំបូង ថ្នាក់ទី២៖ វិធីសាស្ត្របង្រៀន និងកម្រងលំហាត់» និង «កញ្ចប់គណិតវិទ្យាថ្នាក់ដំបូង ថ្នាក់ទី៣៖ វិធីសាស្ត្របង្រៀន និងកម្រងលំហាត់» ប្រើធនធានពីមុខវិជ្ជានេះ។",
       "words_en": 108,
       "words_km": 109,
       "km_review": "TODO(km-review)",
@@ -189,11 +188,11 @@
           "គីមីវិទ្យា បណ្តុំវិទ្យាសាស្ត្រ"
         ],
         "subtopics": [],
-        "parent": "វិទ្យសាស្ត្រ",
+        "parent": "វិទ្យាសាស្ត្រ",
         "learning_paths": []
       },
-      "intro_en": "This page gathers everything PTEC Library holds on Chemistry (គីមីវិទ្យា). The collection holds 119 free e-books. The most downloaded e-books are “សៀវភៅពិសោធគីមីវិទ្យា ភាគ២”, “សទ្ទានុក្រមវិទ្យាសាស្ត្រ និងបច្ចេកវិទ្យា ខ្មែរ-អង់គ្លេស-បារំាង” and “គីមីវិទ្យា បណ្តុំវិទ្យាសាស្ត្រ”. It is a subtopic of Science (វិទ្យសាស្ត្រ).",
-      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា គីមីវិទ្យា។ បណ្ណាល័យមាន 119 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «សៀវភៅពិសោធគីមីវិទ្យា ភាគ២» «សទ្ទានុក្រមវិទ្យាសាស្ត្រ និងបច្ចេកវិទ្យា ខ្មែរ-អង់គ្លេស-បារំាង» និង «គីមីវិទ្យា បណ្តុំវិទ្យាសាស្ត្រ»។ ប្រធានបទរងនៃ វិទ្យសាស្ត្រ។",
+      "intro_en": "This page gathers everything PTEC Library holds on Chemistry (គីមីវិទ្យា). The collection holds 119 free e-books. The most downloaded e-books are “សៀវភៅពិសោធគីមីវិទ្យា ភាគ២”, “សទ្ទានុក្រមវិទ្យាសាស្ត្រ និងបច្ចេកវិទ្យា ខ្មែរ-អង់គ្លេស-បារំាង” and “គីមីវិទ្យា បណ្តុំវិទ្យាសាស្ត្រ”. It is a subtopic of Science (វិទ្យាសាស្ត្រ).",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា គីមីវិទ្យា។ បណ្ណាល័យមាន 119 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «សៀវភៅពិសោធគីមីវិទ្យា ភាគ២» «សទ្ទានុក្រមវិទ្យាសាស្ត្រ និងបច្ចេកវិទ្យា ខ្មែរ-អង់គ្លេស-បារំាង» និង «គីមីវិទ្យា បណ្តុំវិទ្យាសាស្ត្រ»។ ប្រធានបទរងនៃ វិទ្យាសាស្ត្រ។",
       "words_en": 47,
       "words_km": 46,
       "km_review": "TODO(km-review)",
@@ -285,11 +284,11 @@
           "ជីវវិទ្យា ថ្នាក់ទី​១២ ៖ មេរៀន​សង្ខេប និង​លំហាត់​គំរូ​សម្រាប់​ជា​ជ"
         ],
         "subtopics": [],
-        "parent": "វិទ្យសាស្ត្រ",
+        "parent": "វិទ្យាសាស្ត្រ",
         "learning_paths": []
       },
-      "intro_en": "This page gathers everything PTEC Library holds on Biology (ជីវវិទ្យា). The collection holds 81 free e-books. The most downloaded e-books are “ជីវវិទ្យា ថ្នាក់ទី៧ មេរៀនទី ២៖ ផ្នែកផ្សេងៗនៃប្រដាប់រំលាយអាហារ”, “ជីវវិទ្យា” and “ជីវវិទ្យា ថ្នាក់ទី​១២ ៖ មេរៀន​សង្ខេប និង​លំហាត់​គំរូ​សម្រាប់​ជា​ជ”. It is a subtopic of Science (វិទ្យសាស្ត្រ).",
-      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា ជីវវិទ្យា។ បណ្ណាល័យមាន 81 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «ជីវវិទ្យា ថ្នាក់ទី៧ មេរៀនទី ២៖ ផ្នែកផ្សេងៗនៃប្រដាប់រំលាយអាហារ» «ជីវវិទ្យា» និង «ជីវវិទ្យា ថ្នាក់ទី​១២ ៖ មេរៀន​សង្ខេប និង​លំហាត់​គំរូ​សម្រាប់​ជា​ជ»។ ប្រធានបទរងនៃ វិទ្យសាស្ត្រ។",
+      "intro_en": "This page gathers everything PTEC Library holds on Biology (ជីវវិទ្យា). The collection holds 81 free e-books. The most downloaded e-books are “ជីវវិទ្យា ថ្នាក់ទី៧ មេរៀនទី ២៖ ផ្នែកផ្សេងៗនៃប្រដាប់រំលាយអាហារ”, “ជីវវិទ្យា” and “ជីវវិទ្យា ថ្នាក់ទី​១២ ៖ មេរៀន​សង្ខេប និង​លំហាត់​គំរូ​សម្រាប់​ជា​ជ”. It is a subtopic of Science (វិទ្យាសាស្ត្រ).",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា ជីវវិទ្យា។ បណ្ណាល័យមាន 81 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «ជីវវិទ្យា ថ្នាក់ទី៧ មេរៀនទី ២៖ ផ្នែកផ្សេងៗនៃប្រដាប់រំលាយអាហារ» «ជីវវិទ្យា» និង «ជីវវិទ្យា ថ្នាក់ទី​១២ ៖ មេរៀន​សង្ខេប និង​លំហាត់​គំរូ​សម្រាប់​ជា​ជ»។ ប្រធានបទរងនៃ វិទ្យាសាស្ត្រ។",
       "words_en": 57,
       "words_km": 56,
       "km_review": "TODO(km-review)",
@@ -639,11 +638,11 @@
           "ការអនុវត្តវិធីសាស្ត្របង្រៀនតាមបែបប្លូមតាកសូណូមី និងវិធីបង្រៀនតាមក"
         ],
         "subtopics": [],
-        "parent": "វិទ្យសាស្ត្រ",
+        "parent": "វិទ្យាសាស្ត្រ",
         "learning_paths": []
       },
-      "intro_en": "This page gathers everything PTEC Library holds on Physics (រូបវិទ្យា). The collection holds 101 free e-books. The most downloaded e-books are “រលក”, “អន្តរកម្មសម្រាប់វិទ្យាសាស្ត្ររូបវិទ្យា សៀវភៅសម្រាប់សិស្ស ភាគ៣” and “ការអនុវត្តវិធីសាស្ត្របង្រៀនតាមបែបប្លូមតាកសូណូមី និងវិធីបង្រៀនតាមក”. It is a subtopic of Science (វិទ្យសាស្ត្រ).",
-      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា រូបវិទ្យា។ បណ្ណាល័យមាន 101 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «រលក» «អន្តរកម្មសម្រាប់វិទ្យាសាស្ត្ររូបវិទ្យា សៀវភៅសម្រាប់សិស្ស ភាគ៣» និង «ការអនុវត្តវិធីសាស្ត្របង្រៀនតាមបែបប្លូមតាកសូណូមី និងវិធីបង្រៀនតាមក»។ ប្រធានបទរងនៃ វិទ្យសាស្ត្រ។",
+      "intro_en": "This page gathers everything PTEC Library holds on Physics (រូបវិទ្យា). The collection holds 101 free e-books. The most downloaded e-books are “រលក”, “អន្តរកម្មសម្រាប់វិទ្យាសាស្ត្ររូបវិទ្យា សៀវភៅសម្រាប់សិស្ស ភាគ៣” and “ការអនុវត្តវិធីសាស្ត្របង្រៀនតាមបែបប្លូមតាកសូណូមី និងវិធីបង្រៀនតាមក”. It is a subtopic of Science (វិទ្យាសាស្ត្រ).",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា រូបវិទ្យា។ បណ្ណាល័យមាន 101 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «រលក» «អន្តរកម្មសម្រាប់វិទ្យាសាស្ត្ររូបវិទ្យា សៀវភៅសម្រាប់សិស្ស ភាគ៣» និង «ការអនុវត្តវិធីសាស្ត្របង្រៀនតាមបែបប្លូមតាកសូណូមី និងវិធីបង្រៀនតាមក»។ ប្រធានបទរងនៃ វិទ្យាសាស្ត្រ។",
       "words_en": 57,
       "words_km": 56,
       "km_review": "TODO(km-review)",
@@ -717,8 +716,8 @@
       ]
     },
     {
-      "slug": "វិទ្យសាស្ត្រ",
-      "name_km": "វិទ្យសាស្ត្រ",
+      "slug": "វិទ្យាសាស្ត្រ",
+      "name_km": "វិទ្យាសាស្ត្រ",
       "name_en": {
         "value": "Science",
         "status": "needs_review",
@@ -742,15 +741,14 @@
         "parent": null,
         "learning_paths": []
       },
-      "intro_en": "This page gathers everything PTEC Library holds on Science (វិទ្យសាស្ត្រ). The collection holds 401 free e-books. The most downloaded e-books are “ថ្នាក់ទី៦៖ វិទ្យាសាស្ត្រ”, “ថ្នាក់ទី៨៖ វិទ្យាសាស្ត្រ” and “ថ្នាក់ទី៧៖ វិទ្យាសាស្ត្រ”. Its subtopics are Physics (រូបវិទ្យា), Chemistry (គីមីវិទ្យា) and Biology (ជីវវិទ្យា).",
-      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា វិទ្យសាស្ត្រ។ បណ្ណាល័យមាន 401 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «ថ្នាក់ទី៦៖ វិទ្យាសាស្ត្រ» «ថ្នាក់ទី៨៖ វិទ្យាសាស្ត្រ» និង «ថ្នាក់ទី៧៖ វិទ្យាសាស្ត្រ»។ ប្រធានបទរង៖ រូបវិទ្យា គីមីវិទ្យា និង ជីវវិទ្យា។",
+      "intro_en": "This page gathers everything PTEC Library holds on Science (វិទ្យាសាស្ត្រ). The collection holds 401 free e-books. The most downloaded e-books are “ថ្នាក់ទី៦៖ វិទ្យាសាស្ត្រ”, “ថ្នាក់ទី៨៖ វិទ្យាសាស្ត្រ” and “ថ្នាក់ទី៧៖ វិទ្យាសាស្ត្រ”. Its subtopics are Physics (រូបវិទ្យា), Chemistry (គីមីវិទ្យា) and Biology (ជីវវិទ្យា).",
+      "intro_km": "ទំព័រនេះប្រមូលអ្វីៗទាំងអស់ដែលបណ្ណាល័យ វ.គ.ភ មានលើមុខវិជ្ជា វិទ្យាសាស្ត្រ។ បណ្ណាល័យមាន 401 សៀវភៅអេឡិចត្រូនិកឥតគិតថ្លៃ។ សៀវភៅដែលទាញយកច្រើនបំផុត៖ «ថ្នាក់ទី៦៖ វិទ្យាសាស្ត្រ» «ថ្នាក់ទី៨៖ វិទ្យាសាស្ត្រ» និង «ថ្នាក់ទី៧៖ វិទ្យាសាស្ត្រ»។ ប្រធានបទរង៖ រូបវិទ្យា គីមីវិទ្យា និង ជីវវិទ្យា។",
       "words_en": 44,
       "words_km": 42,
       "km_review": "TODO(km-review)",
       "status": "needs_review",
       "notes": [
-        "English draft is 44 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving.",
-        "Spelling: the usual form is វិទ្យាសាស្ត្រ (with ា). Confirm which is intended."
+        "English draft is 44 words, below the 80-word minimum: the database holds no more facts about this subject. Add what a librarian knows (what it covers at PTEC, which programmes use it) before approving."
       ]
     },
     {

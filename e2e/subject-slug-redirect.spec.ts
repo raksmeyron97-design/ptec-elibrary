@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import {
   SUBJECT_SLUG_REDIRECTS,
   LEGACY_SUBJECT_SLUG,
+  currentSubjectSlug,
 } from "../lib/seo/subject-slug-redirects";
 
 /**
@@ -18,8 +19,11 @@ import {
  * what the target resolves to.
  */
 
+// The destination is the slug the hub carries TODAY: the historical `to`,
+// followed through any later rename (LATER_SUBJECT_RENAMES — the kit hub's
+// corrected spelling, SEO audit 2026-10 WI-2). Still one hop.
 const localeCases = SUBJECT_SLUG_REDIRECTS.flatMap((r) =>
-  ["", "/km"].map((prefix) => ({ prefix, ...r })),
+  ["", "/km"].map((prefix) => ({ prefix, ...r, to: currentSubjectSlug(r.to) })),
 );
 
 test.describe("retired subject slugs 301 to their Khmer slug", () => {
