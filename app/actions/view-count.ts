@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getViewerContext, logContentView } from "@/lib/analytics/events";
 import { decideLifetimeCount, viewerIdentity } from "@/lib/analytics/counting";
 import { viewCountedWithinWindow } from "@/lib/analytics/lifetime-counters";
+import { entryClassForLog } from "@/lib/analytics/entry-class-server";
 
 /**
  * Called from the book detail page's view ping (one call per detail view).
@@ -26,7 +27,7 @@ import { viewCountedWithinWindow } from "@/lib/analytics/lifetime-counters";
  * mistake but carried a read-then-write fallback that quietly did the update,
  * which is the whole of why downloads climbed while views stood still.
  */
-export async function incrementViewCount(bookId: string) {
+export async function incrementViewCount(bookId: string, entry?: unknown) {
   if (!bookId) return;
 
   const viewer = await getViewerContext();
@@ -42,5 +43,5 @@ export async function incrementViewCount(bookId: string) {
   }
 
   // Always after the dedupe read — this is the row that read looks for.
-  await logContentView("book", bookId);
+  await logContentView("book", bookId, entryClassForLog(entry));
 }

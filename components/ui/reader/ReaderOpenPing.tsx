@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { recordReaderOpen } from "@/app/actions/reader-events";
+import { landingEntryClass } from "@/lib/analytics/entry-class";
 
 /**
  * Logs a "reader opened" funnel event when a reading surface mounts
@@ -24,7 +25,7 @@ export default function ReaderOpenPing({
     } catch {
       // Private mode — ping anyway.
     }
-    recordReaderOpen(contentType, contentId).catch(() => {});
+    recordReaderOpen(contentType, contentId, landingEntryClass()).catch(() => {});
   }, [contentType, contentId]);
 
   return null;

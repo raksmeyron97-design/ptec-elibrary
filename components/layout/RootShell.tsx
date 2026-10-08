@@ -19,6 +19,7 @@ import PTECBootScreen, {
   PTECShellReadyMarker,
 } from "@/components/pwa/PTECBootScreen";
 import UpdateAvailable from "@/components/pwa/UpdateAvailable";
+import EntryClassMarker from "@/components/analytics/EntryClassMarker";
 import { iosLaunchLinks } from "@/lib/pwa/launch";
 import { THEME_INIT_SCRIPT } from "@/lib/csp";
 import { getSiteConfig } from "@/lib/system-settings/config";
@@ -135,6 +136,7 @@ export default async function RootShell({
               reaches it only once the shell above it exists — and once it is in
               the DOM it never leaves. */}
           <PTECShellReadyMarker />
+          <EntryClassMarker />
           <UpdateAvailable />
           <PushNotificationOnboarding />
           <Suspense fallback={null}>

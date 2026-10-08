@@ -22,6 +22,7 @@ import { useTranslations } from "next-intl";
 import { BookOpen, Lock, LogIn } from "lucide-react";
 import PDFViewer from "@/components/ui/reader/PDFViewerClient";
 import { recordReaderOpen } from "@/app/actions/reader-events";
+import { landingEntryClass } from "@/lib/analytics/entry-class";
 import { onThesisReaderOpen } from "@/lib/theses/reader-bus";
 import type { ThesisAccess } from "@/lib/theses/access";
 import { useThesisAccess } from "./useThesisAccess";
@@ -58,7 +59,7 @@ export default function FullTextPreview({
     } catch {
       // Private mode — ping anyway.
     }
-    recordReaderOpen("research_report", reportId).catch(() => {});
+    recordReaderOpen("research_report", reportId, landingEntryClass()).catch(() => {});
   }, [reportId, canRead]);
 
   useEffect(() => onThesisReaderOpen(openReader), [openReader]);
