@@ -6902,6 +6902,9 @@
         "confirm": "Remove from Featured",
         "busy": "Removing…"
       }
+    },
+    "manage": {
+      "renameChangesUrl": "Renaming changes the public URL. The old URL redirects automatically."
     }
   },
   "adminTheses": {

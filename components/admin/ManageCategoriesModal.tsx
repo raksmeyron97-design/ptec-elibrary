@@ -4,7 +4,8 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
+import { useTranslations } from "next-intl";
 import { X, Edit2, Trash2, Plus, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { addCategory, updateCategory, deleteCategory } from "@/app/(admin)/admin/(protected)/books/actions";
@@ -35,6 +36,8 @@ export default function ManageCategoriesModal() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const supabase = createClient();
+  const t = useTranslations("adminEbooks.manage");
+  const renameNoteId = useId();
 
   // Fetch categories when modal opens
   useEffect(() => {
@@ -178,9 +181,11 @@ export default function ManageCategoriesModal() {
                   {categories.map((cat) => (
                     <li key={cat.id} className="flex items-center justify-between p-3 rounded-lg border border-divider bg-paper hover:border-brand/30 transition-colors">
                       {editingId === cat.id ? (
+                        <div className="flex flex-1 flex-col gap-1.5">
                         <form onSubmit={handleEdit} className="flex flex-1 gap-2">
                           <input
                             type="text"
+                            aria-describedby={renameNoteId}
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
                             className="flex-1 h-8 rounded border border-brand px-2 text-sm outline-none focus:ring-2 focus:ring-brand/20"
@@ -203,6 +208,13 @@ export default function ManageCategoriesModal() {
                             Cancel
                           </button>
                         </form>
+                        {/* A subject's URL is its slug, and renaming rewrites the slug.
+                            0170 records the old URL as a 301, so say so here —
+                            the moment the librarian is about to change it. */}
+                        <p id={renameNoteId} className="text-xs leading-5 text-text-muted">
+                          {t("renameChangesUrl")}
+                        </p>
+                        </div>
                       ) : (
                         <>
                           <span className="text-sm font-medium text-text-body">{cat.name}</span>

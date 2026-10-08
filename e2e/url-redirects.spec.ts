@@ -120,6 +120,40 @@ test.describe("the triggers capture every way a URL dies", () => {
     }
   });
 
+  test("renaming a category re-syncs its canonical subject row (0172)", async ({ request }) => {
+    const suffix = Date.now().toString(36);
+    const created = await request.post(rest("categories"), {
+      headers,
+      data: { name: `វិទ្យសាស្ត្រ ${suffix}`, slug: `e2e-sync-a-${suffix}` },
+    });
+    expect(created.ok(), await created.text()).toBe(true);
+    const [{ id }] = (await created.json()) as { id: string }[];
+    try {
+      const subject = await request.post(rest("subjects"), {
+        headers,
+        data: { name_en: "stale", slug: `e2e-stale-${suffix}`, legacy_category_id: id, status: "active" },
+      });
+      expect(subject.ok(), await subject.text()).toBe(true);
+
+      const renamed = await request.patch(rest(`categories?id=eq.${id}`), {
+        headers,
+        data: { name: `វិទ្យាសាស្ត្រ ${suffix}`, slug: `e2e-sync-b-${suffix}` },
+      });
+      expect(renamed.ok()).toBe(true);
+      const read = await request.get(rest(`subjects?legacy_category_id=eq.${id}&select=slug,name_en,name_km`), { headers });
+      expect(await read.json()).toEqual([
+        { slug: `e2e-sync-b-${suffix}`, name_en: `វិទ្យាសាស្ត្រ ${suffix}`, name_km: `វិទ្យាសាស្ត្រ ${suffix}` },
+      ]);
+    } finally {
+      await request.delete(rest(`subjects?legacy_category_id=eq.${id}`), { headers });
+      await request.delete(rest(`categories?id=eq.${id}`), { headers });
+      for (const p of [`/subjects/e2e-sync-a-${suffix}`, `/subjects/e2e-sync-b-${suffix}`]) {
+        await request.delete(rest(`url_redirects?old_path=eq.${encodeURIComponent(p)}`), { headers });
+        await request.delete(rest(`retired_url_queue?path=eq.${encodeURIComponent(p)}`), { headers });
+      }
+    }
+  });
+
   test("a book that leaves the site is queued, with its aliases; coming back clears them", async ({ request }) => {
     const suffix = Date.now().toString(36);
     const slug = `e2e-retiring-book-${suffix}`;
