@@ -23,6 +23,8 @@ import { revalidateBook, revalidateLocalizedPath, revalidateTaxonomy, revalidate
 import { EBOOKS_RETIRED_URLS_PATH } from "@/lib/admin/ebooks-url";
 import {
   isGoneReason,
+  pathFromInput,
+  targetFromInput,
   isStoredPathShape,
   parseTarget,
   redirectReason,
@@ -266,6 +268,50 @@ export async function deleteUrlRedirect(input: { path: string }): Promise<Retire
     if (error) return { success: false, code: "failed", detail: error.message };
     if (!deleted?.length) return { success: false, code: "not_found" };
     await logAdminAction(user.id, "url.redirect_delete", "url_redirects", undefined, { path });
+    revalidateLocalizedPath(EBOOKS_RETIRED_URLS_PATH);
+    return { success: true };
+  } catch (error) {
+    return toResult(error);
+  }
+}
+
+/**
+ * Add (or restore) a 301 by hand — admins only, the counterpart of
+ * deleteUrlRedirect. A slug-change redirect never passes through the queue, so
+ * without this a deleted one could not be put back: on 2026-10-08 the two
+ * subject-rename 301s were deleted from the Redirects tab and the hubs' old
+ * URLs fell to 404 with no way back in the UI. Same rules as a queue decision:
+ * the old path must not be live, the target must be, and the write goes
+ * through upsert_url_redirect (chain collapse, loop refusal).
+ */
+export async function addUrlRedirect(input: { from: string; to: string }): Promise<RetiredUrlResult> {
+  try {
+    const { supabase, user } = await open("books.retiredUrls.addRedirect");
+    const path = pathFromInput(input.from ?? "");
+    const target = targetFromInput(input.to ?? "");
+    if (!path || !target || path === target) return { success: false, code: "invalid" };
+
+    const [pathLive, targetLive] = await Promise.all([isLive(supabase, path), isLive(supabase, target)]);
+    if (pathLive === null || targetLive === null) return { success: false, code: "failed" };
+    if (pathLive) return { success: false, code: "path_is_live" };
+    if (!targetLive) return { success: false, code: "target_not_live" };
+
+    const { error } = await supabase.rpc("upsert_url_redirect", {
+      p_old: path,
+      p_target: target,
+      p_status: 301,
+      p_reason: "manual",
+      p_actor: user.id,
+    });
+    if (error) {
+      return /would loop/.test(error.message)
+        ? { success: false, code: "loop" }
+        : { success: false, code: "failed", detail: error.message };
+    }
+    // A queued retirement of the same path is answered by this redirect.
+    await markResolved(supabase, path, "redirected", user.id);
+    await logAdminAction(user.id, "url.redirect_add", "url_redirects", undefined, { path, target });
+    revalidateTarget(target);
     revalidateLocalizedPath(EBOOKS_RETIRED_URLS_PATH);
     return { success: true };
   } catch (error) {

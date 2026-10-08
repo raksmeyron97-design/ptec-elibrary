@@ -145,3 +145,37 @@ describe("chunkByEncodedLength", () => {
     expect(chunkByEncodedLength([])).toEqual([]);
   });
 });
+
+import { pathFromInput } from "@/lib/url-redirects/queue";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
+describe("pathFromInput — the old URL of a hand-added redirect", () => {
+  it("accepts any stored-shape path, from a URL, a /km path or an encoded path", () => {
+    expect(pathFromInput("https://library.ptec.edu.kh/km/subjects/%E1%9E%80%E1%9E%89")).toBe("/subjects/កញ");
+    expect(pathFromInput("/journals/articles/old-slug/")).toBe("/journals/articles/old-slug");
+  });
+
+  it("refuses what is not a path we store", () => {
+    for (const bad of ["", "subjects/x", "/", "/Subjects/x", "https://x/%E0%A4"]) expect(pathFromInput(bad), bad).toBeNull();
+  });
+});
+
+describe("addUrlRedirect — the counterpart of delete", () => {
+  const src = readFileSync(path.resolve(__dirname, "../../app/actions/retired-urls.ts"), "utf8");
+  const body = src.slice(src.indexOf("export async function addUrlRedirect("), src.indexOf("export type RedirectTargetOption"));
+
+  it("is gated admin-only before it reads or writes, and writes only through the RPC", () => {
+    const gate = body.indexOf('open("books.retiredUrls.addRedirect")');
+    expect(gate).toBeGreaterThan(-1);
+    expect(gate).toBeLessThan(body.indexOf("isLive("));
+    expect(gate).toBeLessThan(body.indexOf('rpc("upsert_url_redirect"'));
+    expect(body).not.toMatch(/from\("url_redirects"\)\s*\.(insert|upsert|update)/);
+  });
+
+  it("re-checks both ends on the server and audits the path and target only", () => {
+    expect(body).toContain('code: "path_is_live"');
+    expect(body).toContain('code: "target_not_live"');
+    expect(body).toMatch(/logAdminAction\(user\.id, "url\.redirect_add", "url_redirects", undefined, \{ path, target \}\)/);
+  });
+});

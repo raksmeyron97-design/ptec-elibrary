@@ -143,11 +143,11 @@ export function parseQueueTab(value: string | undefined): QueueTab {
 }
 
 /**
- * A redirect target typed or pasted by a librarian — a full URL, a /km path,
- * or a percent-encoded path — as the decoded, locale-less path 0170 stores.
- * Anything that is not a book, thesis or subject URL is `null`.
+ * A path typed or pasted by a librarian — a full URL, a /km path, or a
+ * percent-encoded path — as the decoded, locale-less path 0170 stores, or
+ * null when it is not shaped like one.
  */
-export function targetFromInput(raw: string): string | null {
+export function pathFromInput(raw: string): string | null {
   let value = raw.trim();
   if (!value) return null;
   if (/^https?:\/\//i.test(value)) {
@@ -167,5 +167,11 @@ export function targetFromInput(raw: string): string | null {
   } catch {
     return null;
   }
-  return parseTarget(value) ? value : null;
+  return isStoredPathShape(value) ? value : null;
+}
+
+/** A redirect TARGET: a book, thesis or subject path, or null. */
+export function targetFromInput(raw: string): string | null {
+  const value = pathFromInput(raw);
+  return value && parseTarget(value) ? value : null;
 }
