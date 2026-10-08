@@ -58,6 +58,9 @@ import {
   type RightsClass,
 } from "../lib/rights/publisher-signals";
 import { fetchMergedSitemap } from "../lib/verify/sitemap";
+// The SAME draft rule the admin review uses (WI-5), so this CSV and
+// /admin/data-quality/rights cannot propose different bases for one book.
+import { draftRightsBasis } from "../lib/books/rights-draft";
 
 // `export {}` at the foot of this file is load-bearing: without it TypeScript
 // treats a script with no top-level import as a GLOBAL script, and its consts
@@ -88,6 +91,8 @@ type Row = {
   language: string;
   downloadable: boolean;
   rightsClass: RightsClass;
+  draftBasis: string;
+  draftSource: string;
   priority: ReviewPriority;
   isbnPrefix: string;
   reason: string;
@@ -196,6 +201,10 @@ async function auditBook(slug: string): Promise<void> {
     language,
     downloadable,
     rightsClass: verdict.rightsClass,
+    ...(() => {
+      const draft = draftRightsBasis({ publisher, authors, isbn });
+      return { draftBasis: draft.basis, draftSource: draft.source };
+    })(),
     priority: reviewPriority({ rightsClass: verdict.rightsClass, title, isbn }),
     isbnPrefix: isbnPrefix8(isbn),
     reason: verdict.reason,
@@ -258,6 +267,8 @@ function toCsv(sorted: readonly Row[], incomplete: string | null): string {
       "review_priority",
       "class",
       "reason",
+      "draft_basis",
+      "draft_source",
     ].join(","),
   );
   for (const r of sorted) {
@@ -275,6 +286,8 @@ function toCsv(sorted: readonly Row[], incomplete: string | null): string {
         r.priority,
         r.rightsClass,
         r.reason,
+        r.draftBasis,
+        r.draftSource,
       ]
         .map(cell)
         .join(","),
