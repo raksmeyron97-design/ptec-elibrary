@@ -5,8 +5,7 @@ import {
   SUBJECT_SLUG_REDIRECTS,
   SUBJECT_REDIRECT_STATUS,
   LEGACY_SUBJECT_SLUG,
-  subjectSlugRedirectRules,
-} from "@/lib/seo/subject-slug-redirects";
+  subjectSlugRedirectRules, LATER_SUBJECT_RENAMES } from "@/lib/seo/subject-slug-redirects";
 import { slugify } from "@/lib/book-utils";
 
 const ROOT = path.join(__dirname, "..", "..");
@@ -222,3 +221,33 @@ describe("§28 no real name may mint a machine-generated slug", () => {
     expect(slugify("!!!")).toMatch(LEGACY);
   });
 });
+
+describe("later renames (SEO audit 2026-10, WI-2)", () => {
+  it("the kit hub's legacy URL lands in one hop on its corrected slug", () => {
+    const rule = subjectSlugRedirectRules().find((r) => r.source === "/subjects/book-1781239299098");
+    expect(decodeURIComponent(rule!.destination)).toBe("/subjects/កញ្ចប់គណិតវិទ្យា");
+    const km = subjectSlugRedirectRules().find((r) => r.source === "/km/subjects/book-1781239299098");
+    expect(decodeURIComponent(km!.destination)).toBe("/km/subjects/កញ្ចប់គណិតវិទ្យា");
+  });
+
+  it("a rename never chains: no renamed target is itself renamed again, and none is a no-op", () => {
+    for (const [from, to] of Object.entries(LATER_SUBJECT_RENAMES)) {
+      expect(to).not.toBe(from);
+      expect(LATER_SUBJECT_RENAMES).not.toHaveProperty(to);
+    }
+  });
+
+  it("only renames a slug the historical table actually targets", () => {
+    const targets = new Set(SUBJECT_SLUG_REDIRECTS.map((r) => r.to));
+    for (const from of Object.keys(LATER_SUBJECT_RENAMES)) expect(targets.has(from)).toBe(true);
+  });
+
+  it("leaves every other destination exactly as history wrote it", () => {
+    for (const { from, to } of SUBJECT_SLUG_REDIRECTS) {
+      if (to in LATER_SUBJECT_RENAMES) continue;
+      const rule = subjectSlugRedirectRules().find((r) => r.source === `/subjects/${from}`);
+      expect(decodeURIComponent(rule!.destination)).toBe(`/subjects/${to}`);
+    }
+  });
+});
+

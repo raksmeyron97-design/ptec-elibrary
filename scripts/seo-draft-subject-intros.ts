@@ -79,6 +79,7 @@ const KHMER = /[\u1780-\u17FF]/u;
 // approves it. The storage shelf table was tried first and rejected — it
 // names SHELVES ("Science" for biology, chemistry and physics alike).
 const SUGGESTED_EN: Record<string, string> = {
+  "កញ្ចប់គណិតវិទ្យា": "Mathematics Kits",
   "កញ្ជប់គណិតវិទ្យា": "Mathematics Kits",
   "កម្មវិធី PISA": "PISA Programme",
   "កម្មវិធីសិក្សា": "Curriculum",
@@ -101,6 +102,7 @@ const SUGGESTED_EN: Record<string, string> = {
   "រូបវិទ្យា": "Physics",
   "វប្បធម៌": "Culture",
   "វិញ្ញាសាប្រឡង": "Exam Papers",
+  "វិទ្យាសាស្ត្រ": "Science",
   "វិទ្យសាស្ត្រ": "Science",
   "វិធីសាស្ត្របង្រៀនរូបវិទ្យា": "Physics Teaching Methods",
   "សិក្សាសង្គម": "Social Studies",
@@ -120,9 +122,6 @@ const SUGGESTED_EN: Record<string, string> = {
 // for a Khmer reader; nothing here renames a category (its slug and every
 // link depend on it).
 const SPELLING_NOTES: Record<string, string> = {
-  "កញ្ជប់គណិតវិទ្យា":
-    "Spelling: the learning paths write កញ្ចប់ (package), this category កញ្ជប់. Confirm which is intended.",
-  "វិទ្យសាស្ត្រ": "Spelling: the usual form is វិទ្យាសាស្ត្រ (with ា). Confirm which is intended.",
 };
 
 const englishName = (km: string | null): string | null => (km ? (SUGGESTED_EN[km] ?? null) : null);
