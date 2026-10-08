@@ -31,10 +31,11 @@
 // next.config.ts `redirects()` runs BEFORE middleware, costs no query and no
 // runtime work, and cannot fail open.
 //
-// KNOWN GAP, recorded rather than silently accepted: this does not make future
-// category renames safe. An admin renaming a category still breaks its old URL,
-// exactly as before. Closing that needs the redirect table above, and is not
-// part of this change.
+// Future renames are no longer a gap: since migration 0170 (SEO audit 2026-10,
+// WI-1) every category slug change is recorded in url_redirects by a trigger,
+// and middleware 301s the old URL. This table stays for the ten book-<epoch>
+// slugs, which predate that and are answered here, before middleware, at no
+// cost.
 
 export type SubjectSlugRedirect = {
   /** The retired `book-<epoch>` slug, as it appears in Google's index. */
@@ -88,6 +89,27 @@ export const LEGACY_SUBJECT_SLUG = /^book-\d+$/;
  */
 export const SUBJECT_REDIRECT_STATUS = 301;
 
+/**
+ * Renames made AFTER 0142/0143, as `old slug → current slug`. The table above
+ * is history — exactly what those migrations applied, pinned by a parity
+ * test — so a later rename is recorded here instead of rewriting it, and the
+ * redirect follows it: a legacy URL still lands in ONE hop on the slug the
+ * hub has today. The rename itself happens in the admin (and 0170 301s the
+ * intermediate slug); this entry must land only AFTER it, or the legacy URL
+ * would 301 to a hub that does not exist yet.
+ *
+ *   កញ្ជប់គណិតវិទ្យា → កញ្ចប់គណិតវិទ្យា   kit hub spelling, as the learning
+ *     paths and MoEYS write it (owner decision O-3, SEO audit 2026-10 WI-2)
+ */
+export const LATER_SUBJECT_RENAMES: Readonly<Record<string, string>> = {
+  "កញ្ជប់គណិតវិទ្យា": "កញ្ចប់គណិតវិទ្យា",
+};
+
+/** The slug a historical target carries today. */
+export function currentSubjectSlug(slug: string): string {
+  return LATER_SUBJECT_RENAMES[slug] ?? slug;
+}
+
 export function subjectSlugRedirectRules(): {
   source: string;
   destination: string;
@@ -96,7 +118,7 @@ export function subjectSlugRedirectRules(): {
   return SUBJECT_SLUG_REDIRECTS.flatMap(({ from, to }) =>
     ["", "/km"].map((prefix) => ({
       source: `${prefix}/subjects/${from}`,
-      destination: `${prefix}/subjects/${encodeURIComponent(to)}`,
+      destination: `${prefix}/subjects/${encodeURIComponent(currentSubjectSlug(to))}`,
       statusCode: SUBJECT_REDIRECT_STATUS,
     })),
   );

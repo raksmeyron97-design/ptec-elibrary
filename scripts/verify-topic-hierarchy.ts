@@ -86,7 +86,7 @@ const PARENTS = [
   },
   {
     slug: "គណិតវិទ្យា",
-    expectedChildren: ["កញ្ជប់គណិតវិទ្យា"],
+    expectedChildren: ["កញ្ចប់គណិតវិទ្យា"],
   },
 ];
 
