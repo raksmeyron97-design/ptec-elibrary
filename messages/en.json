@@ -10389,7 +10389,7 @@
     },
     "deleteDialog": {
       "title": "Delete this redirect?",
-      "body": "{path} will answer 404 again. You can set a new redirect from the queue if it comes back.",
+      "body": "{path} will answer 404 again. A redirect created by a rename never returns to the queue, so restore it with “Add a redirect” if you delete it by mistake.",
       "confirm": "Delete redirect"
     },
     "toast": {
@@ -10397,7 +10397,8 @@
       "gone": "Marked as removed.",
       "ignored": "Ignored. The URL stays a 404.",
       "ignoredMany": "{count, plural, one {# URL ignored} other {# URLs ignored}}.",
-      "redirectDeleted": "Redirect deleted."
+      "redirectDeleted": "Redirect deleted.",
+      "redirectAdded": "Redirect added."
     },
     "errors": {
       "forbidden": "You don't have permission to do that.",
@@ -10405,7 +10406,7 @@
       "invalid": "That isn't a book, thesis or subject URL on this library.",
       "not_found": "This URL is no longer in the queue. Reload the page.",
       "target_not_live": "That record isn't published, so it can't be the successor.",
-      "path_is_live": "This URL works again, so it needs no decision. Reload the page.",
+      "path_is_live": "That old URL is a live page, so it needs no redirect. Reload the page.",
       "loop": "That redirect would loop back to itself.",
       "failed": "Something went wrong. Try again."
     },
@@ -10425,6 +10426,13 @@
       "same_title": "Same title",
       "other_edition": "Same work, another edition",
       "similar_title": "Similar title ({score}%)"
+    },
+    "addRedirect": {
+      "title": "Add a redirect",
+      "hint": "For an old URL that should lead somewhere live, for example a redirect deleted by mistake. The old URL must not be a live page; the new one must be.",
+      "from": "Old URL",
+      "to": "Redirect to",
+      "submit": "Add redirect"
     }
   }
 }
