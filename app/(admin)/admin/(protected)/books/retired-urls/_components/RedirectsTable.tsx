@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ConfirmDialog, useToast } from "@/components/admin/kit";
 import { useCan } from "@/components/admin/access/AdminCapabilities";
-import { deleteUrlRedirect } from "@/app/actions/retired-urls";
+import { addUrlRedirect, deleteUrlRedirect } from "@/app/actions/retired-urls";
+import { INPUT_CLASS, LABEL_CLASS } from "@/components/admin/kit/form";
 
 export type UIRedirect = {
   oldPath: string;
@@ -28,6 +29,26 @@ export default function RedirectsTable({ rows, canDelete }: { rows: UIRedirect[]
   const allowed = useCan("books.retiredUrls.deleteRedirect") && canDelete;
   const [target, setTarget] = useState<UIRedirect | null>(null);
   const [pending, startTransition] = useTransition();
+  const canAdd = useCan("books.retiredUrls.addRedirect");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const fromId = useId();
+  const toId = useId();
+
+  function add(e: React.FormEvent) {
+    e.preventDefault();
+    startTransition(async () => {
+      const result = await addUrlRedirect({ from, to });
+      if (result.success) {
+        toast.success(t("toast.redirectAdded"));
+        setFrom("");
+        setTo("");
+        router.refresh();
+      } else {
+        toast.error(t(`errors.${result.code}`));
+      }
+    });
+  }
 
   function confirmDelete() {
     if (!target) return;
@@ -45,6 +66,32 @@ export default function RedirectsTable({ rows, canDelete }: { rows: UIRedirect[]
   }
 
   return (
+    <div className="space-y-4">
+      {canAdd && (
+        <form onSubmit={add} className="space-y-3 rounded-xl border border-divider bg-bg-surface p-4" aria-labelledby={`${fromId}-title`}>
+          <div>
+            <h3 id={`${fromId}-title`} className="text-sm font-semibold text-text-heading">{t("addRedirect.title")}</h3>
+            <p className="text-xs text-text-muted">{t("addRedirect.hint")}</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+            <div>
+              <label htmlFor={fromId} className={`${LABEL_CLASS} mb-1.5 block`}>{t("addRedirect.from")}</label>
+              <input id={fromId} value={from} onChange={(e) => setFrom(e.target.value)} required className={INPUT_CLASS} placeholder="/subjects/…" />
+            </div>
+            <div>
+              <label htmlFor={toId} className={`${LABEL_CLASS} mb-1.5 block`}>{t("addRedirect.to")}</label>
+              <input id={toId} value={to} onChange={(e) => setTo(e.target.value)} required className={INPUT_CLASS} placeholder="/subjects/…" />
+            </div>
+            <button
+              type="submit"
+              disabled={pending || !from.trim() || !to.trim()}
+              className="focus-field inline-flex h-10 items-center justify-center rounded-lg bg-brand px-4 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover disabled:opacity-50"
+            >
+              {t("addRedirect.submit")}
+            </button>
+          </div>
+        </form>
+      )}
     <div className="overflow-x-auto rounded-xl border border-divider bg-bg-surface">
       <table className="w-full text-left text-sm">
         <thead className="border-b border-divider bg-paper text-xs font-semibold text-text-muted">
@@ -95,6 +142,7 @@ export default function RedirectsTable({ rows, canDelete }: { rows: UIRedirect[]
         onCancel={() => setTarget(null)}
         onConfirm={confirmDelete}
       />
+    </div>
     </div>
   );
 }

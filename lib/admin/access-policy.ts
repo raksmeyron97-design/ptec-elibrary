@@ -361,6 +361,7 @@ export const ACTION_POLICIES: Readonly<Record<string, Requirement>> = {
   // rights_removal), so listing it — and deleting a row — is admin-only.
   "books.retiredUrls.viewRedirects": roles(ADMIN_ROLES),
   "books.retiredUrls.deleteRedirect": roles(ADMIN_ROLES),
+  "books.retiredUrls.addRedirect": roles(ADMIN_ROLES),
   /* Editorial curation — the "Featured by PTEC Library" shelf (0149).
      One id for feature, unfeature and reorder: all three are the same
      authority over the same public surface, and splitting them would create

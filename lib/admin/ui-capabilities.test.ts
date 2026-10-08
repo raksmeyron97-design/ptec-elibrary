@@ -121,7 +121,7 @@ const GATED_SURFACES: { file: string; label: string; ids: string[] }[] = [
   {
     label: "url redirect table",
     file: `${ADMIN_ROOT}/books/retired-urls/_components/RedirectsTable.tsx`,
-    ids: ["books.retiredUrls.deleteRedirect"],
+    ids: ["books.retiredUrls.deleteRedirect", "books.retiredUrls.addRedirect"],
   },
   {
     label: "retired URL page",
