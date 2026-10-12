@@ -5881,6 +5881,77 @@
         "reviewed": "Nothing confirmed yet",
         "undrafted": "{count, plural, one {# book has} other {# books have}} no draft yet. Use “Draft” to start."
       }
+    },
+    "classification": {
+      "link": "Type, grade & part",
+      "title": "Type, grade and part",
+      "subtitle": "What each book is, and which grade and part, as data a librarian confirms. A rule reads the title into a private draft; only a confirmation is saved to the book.",
+      "errorFailed": "Part of this page could not be loaded, so the lists may be incomplete. Reload to try again.",
+      "viewsLabel": "Review views",
+      "view": {
+        "drafts": "Drafts ({count})",
+        "confirmed": "Confirmed ({count})"
+      },
+      "setsTitle": "Identical drafts",
+      "filtered": "{count, plural, one {# book has this draft.} other {# books have this draft.}}",
+      "clearFilter": "Show all",
+      "pagination": "Pages",
+      "draftLabel": "Draft",
+      "confirmedLabel": "Confirmed",
+      "ruleLabel": "Read from the title: {rule}",
+      "typeLabel": "Type",
+      "typeNone": "— Not set",
+      "gradeFromLabel": "Grade from",
+      "gradeToLabel": "Grade to",
+      "partLabel": "Part",
+      "grade": "Grade {n}",
+      "gradeRange": "Grades {from}–{to}",
+      "part": "Part {n}",
+      "type": {
+        "student_textbook": "Student textbook",
+        "teacher_guide": "Teacher's guide",
+        "answer_key": "Answer key",
+        "supplementary": "Supplementary reader",
+        "homework_exercise": "Homework & exercises",
+        "exam_paper": "Exam paper",
+        "lesson_plan": "Lesson plan",
+        "curriculum": "Curriculum",
+        "lab_manual": "Lab manual",
+        "children_reader": "Children's reader",
+        "reference": "Reference",
+        "research_report": "Research report",
+        "other": "Other"
+      },
+      "actions": {
+        "confirm": "Confirm",
+        "update": "Update",
+        "bulkConfirm": "Confirm all {count}",
+        "generate": "Read titles ({count, plural, one {# book} other {# books}})",
+        "generating": "Reading…"
+      },
+      "bulkDialog": {
+        "title": "Confirm this set?",
+        "body": "{count, plural, one {# book} other {# books}} with the draft “{label}” will be confirmed exactly as drafted. Check a few first; you can change any one afterwards.",
+        "confirm": "Confirm {count}"
+      },
+      "toast": {
+        "confirmed": "Saved to the book.",
+        "bulkConfirmed": "{count, plural, one {# book confirmed.} other {# books confirmed.}}",
+        "drafted": "{count, plural, one {# draft added} other {# drafts added}}; {remaining} still to write."
+      },
+      "errors": {
+        "forbidden": "You don't have permission to do that.",
+        "rate_limited": "Too many changes. Wait a moment and try again.",
+        "invalid": "Check the values: grades run 0–12, “to” can't be before “from”, and at least one field must be set.",
+        "not_found": "That book no longer exists. Reload the page.",
+        "stale": "The set changed since this page loaded. Reload, then confirm again.",
+        "failed": "Something went wrong. Try again."
+      },
+      "empty": {
+        "drafts": "No drafts waiting",
+        "confirmed": "Nothing confirmed yet",
+        "undrafted": "{count, plural, one {# book hasn't} other {# books haven't}} been read yet. Use “Read titles” to start."
+      }
     }
   },
   "adminSearchInsights": {

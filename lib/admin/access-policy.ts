@@ -242,6 +242,9 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   // The private rights basis (0174): what a book may be shared on. Write-level
   // to open — its rows are rights material, not a read surface for staff.
   { id: "books.rights", route: "/admin/data-quality/rights", requires: perm("books", "write"), backTo: "/admin/data-quality" },
+  // Type, grade and part (0175): drafts are read like the description queue;
+  // confirming writes public columns and needs write.
+  { id: "books.classification", route: "/admin/data-quality/classification", requires: perm("books", "read"), backTo: "/admin/data-quality" },
 
   // ── Administration ────────────────────────────────────────────────────────
   { id: "users.manage", route: "/admin/users", requires: perm("users", "read") },
@@ -377,6 +380,7 @@ export const ACTION_POLICIES: Readonly<Record<string, Requirement>> = {
   // replaces a book's public description, so it is book WRITE.
   "books.description.review": perm("books", "write"),
   "books.rights.review": perm("books", "write"),
+  "books.classification.review": perm("books", "write"),
   // Review queue — read the queue, write to move anything in it
   "books.review.view": perm("books", "read"),
   "books.review.approve": perm("books", "write"),
