@@ -128,7 +128,7 @@ export default async function HeroPhotoGallery({
               <cite> is for the title of a work. */}
           <figure className="relative m-0 rounded-xl border border-divider bg-bg-surface px-5 pb-4 pt-5">
             <Quote
-              className="absolute -top-3.5 left-5 h-7 w-7 rounded-full bg-brand p-1.5 text-accent shadow-sm"
+              className="absolute -top-3.5 left-5 size-7 rounded-full bg-brand p-1.5 text-accent shadow-sm"
               fill="currentColor"
               strokeWidth={0}
               aria-hidden
@@ -150,7 +150,7 @@ export default async function HeroPhotoGallery({
               href={`#${LIBRARY_NOW_ANCHOR}`}
               className="focus-field inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover"
             >
-              <MapPin className="h-4 w-4" aria-hidden />
+              <MapPin className="size-4" aria-hidden />
               {t("photosVisitCta")}
             </a>
             <Link
@@ -158,7 +158,7 @@ export default async function HeroPhotoGallery({
               className="focus-field group inline-flex min-h-[44px] items-center gap-1.5 rounded-sm text-sm font-semibold text-brand transition-colors hover:text-brand-hover"
             >
               {t("photosCta")}
-              <ArrowRight className="h-4 w-4 motion-safe:transition-transform motion-safe:group-hover:translate-x-0.5" aria-hidden />
+              <ArrowRight className="size-4 motion-safe:transition-transform motion-safe:group-hover:translate-x-0.5" aria-hidden />
             </Link>
           </div>
         </div>
