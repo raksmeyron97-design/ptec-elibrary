@@ -24,6 +24,7 @@ import MobileFeaturedStrip from "@/components/ui/home/MobileFeaturedStrip";
 import QuickAccessRow from "@/components/ui/home/QuickAccessRow";
 import BrowseBooksSection from "@/components/ui/home/BrowseBooksSection";
 import CategoryGrid from "@/components/ui/home/CategoryGrid";
+import SubjectHubLinks from "@/components/ui/home/SubjectHubLinks";
 import TrendingResearch from "@/components/ui/home/TrendingResearch";
 import LatestPostsSection from "@/components/ui/home/LatestPostsSection";
 import LibraryNow from "@/components/ui/home/LibraryNow";
@@ -443,6 +444,15 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           <CategoryGrid />
         </Suspense>
       </div>
+
+      {/* ════════ SUBJECT HUBS + LEARNING PATHS — text links (WI-4) ════════
+          The grid above links filtered listings (noindex); this band links
+          the indexable hubs themselves and every published path. No cv-auto
+          wrapper: a text band's height is known, and an under-reserved
+          content-visibility box is what failed target-size here before. */}
+      <Suspense fallback={null}>
+        <SubjectHubLinks locale={locale} paths={paths} />
+      </Suspense>
 
       {/* ════════ NEW THIS WEEK — chronological, across all three types ══════
           Purely "what arrived most recently". Since <ThisWeekAtPtec> was
