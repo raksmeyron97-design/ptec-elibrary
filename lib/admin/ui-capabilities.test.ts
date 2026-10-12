@@ -104,6 +104,21 @@ const GATED_SURFACES: { file: string; label: string; ids: string[] }[] = [
     ids: ["books.review.approve", "research.review.approve"],
   },
   {
+    label: "rights review row",
+    file: `${ADMIN_ROOT}/data-quality/rights/_components/RightsReviewRow.tsx`,
+    ids: ["books.rights.review"],
+  },
+  {
+    label: "rights bulk confirm",
+    file: `${ADMIN_ROOT}/data-quality/rights/_components/BulkConfirmRights.tsx`,
+    ids: ["books.rights.review"],
+  },
+  {
+    label: "rights draft generation",
+    file: `${ADMIN_ROOT}/data-quality/rights/_components/GenerateRightsDrafts.tsx`,
+    ids: ["books.rights.review"],
+  },
+  {
     label: "featured books",
     file: `${ADMIN_ROOT}/books/featured/_components/FeaturedBooksClient.tsx`,
     ids: ["books.feature"],

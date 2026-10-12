@@ -36,7 +36,7 @@ import CatalogueTextAudit from "@/components/admin/CatalogueTextAudit";
 import MetadataAnalysis from "@/components/admin/data-quality/MetadataAnalysis";
 import RepairQueue from "@/components/admin/data-quality/RepairQueue";
 import { PageHeader } from "@/components/admin/kit";
-import { requireRouteAccess } from "@/lib/admin/route-guard";
+import { canRoute, requireRouteAccess } from "@/lib/admin/route-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -113,6 +113,8 @@ function MetricCard({
 
 export default async function DataQualityPage({ searchParams }: { searchParams: Promise<SP> }) {
   await requireRouteAccess("insights.dataQuality");
+  // The rights review opens at books: write — link it only for those it admits.
+  const canRights = await canRoute("books.rights");
 
   const sp = await searchParams;
   const [t, metadata, fileHealth, brokenFiles, resourceStats, backfill, seoHealth, contributors] =
@@ -172,6 +174,14 @@ export default async function DataQualityPage({ searchParams }: { searchParams: 
           >
             {t("descriptions.link")} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
           </Link>
+          {canRights && (
+            <Link
+              href="/admin/data-quality/rights"
+              className="inline-flex items-center gap-1.5 rounded-full border border-divider px-3 py-1.5 text-[12px] font-semibold text-brand hover:border-brand/40"
+            >
+              {t("rights.link")} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </Link>
+          )}
           <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-semibold ${
             urgentCount > 0
               ? "border-danger/25 bg-danger/5 text-danger"
