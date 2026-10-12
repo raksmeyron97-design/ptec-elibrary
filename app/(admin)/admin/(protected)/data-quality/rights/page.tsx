@@ -63,7 +63,10 @@ export default async function RightsReviewPage({ searchParams }: { searchParams:
           .range(from, to),
       50_000,
     ),
-    supabase.from("books").select("id", { count: "exact", head: true }),
+    // Ids, not a count query: published-count queries over books live in the
+    // stats layer only (lib/resource-stats-consistency.test.ts), and this page
+    // needs "books with no draft yet", which is not a collection statistic.
+    pagedScan<{ id: string }>((from, to) => supabase.from("books").select("id").order("id").range(from, to), 50_000),
   ]);
 
   const view = sp.view === "reviewed" ? "reviewed" : "unreviewed";
@@ -72,7 +75,8 @@ export default async function RightsReviewPage({ searchParams }: { searchParams:
 
   const unreviewed = rights.data.filter((r) => r.basis === null);
   const reviewed = rights.data.filter((r) => r.basis !== null);
-  const undrafted = bookCount.count === null ? null : Math.max(0, bookCount.count - rights.data.length);
+  const drafted = new Set(rights.data.map((r) => r.book_id));
+  const undrafted = bookCount.error ? null : bookCount.data.filter((b) => !drafted.has(b.id)).length;
 
   // The bulk sets: unreviewed rows grouped by (draft basis, rule).
   const groups = new Map<string, { draftBasis: string; source: string; count: number }>();
