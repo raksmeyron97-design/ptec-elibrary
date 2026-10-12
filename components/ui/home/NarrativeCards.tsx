@@ -55,7 +55,7 @@ export default async function NarrativeCards({
                   // Below the fold — next/image lazy-loads by default; nothing
                   // here should compete with the hero for bandwidth.
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                  quality={85}
+                  quality={75}
                   className="object-cover motion-safe:transition-transform motion-safe:duration-500 motion-safe:group-hover:scale-105"
                   {...(photo.blurDataUrl
                     ? { placeholder: "blur" as const, blurDataURL: photo.blurDataUrl }

@@ -1,7 +1,7 @@
 // components/ui/home/HeroPhotoGallery.tsx
-// "Life at the library" — a split band pairing one line of copy with an
-// asymmetric photo mosaic drawn from the admin-managed gallery (migration
-// 0118, /admin/homepage-photos).
+// "Life at the library" — a split band pairing one line of copy with a photo
+// grid drawn from the admin-managed gallery (migration 0118,
+// /admin/homepage-photos).
 //
 // It sits in the page's second half, beside the physical-library bridge, and
 // is deliberately not the hero itself: the hero
@@ -14,176 +14,183 @@
 // a book: on a 375 px phone that put 876 px of photographs between the search
 // box and the first cover, and the first cover five screens down. Photos of
 // the reading room introduce the section about VISITING it, so they lead
-// into <NarrativeCards> and <LibraryNow> instead.
+// into <NarrativeCards> and <LibraryNow> instead — which is why the primary
+// action here is "Visit us" (an in-page jump to <LibraryNow>'s hours and
+// directions) and browsing the collection is the secondary one.
+//
+// The photos are a grid, not an overlapping collage. The collage it replaces
+// laid two framed photos over the main one, and with reading-room shots the
+// part they covered was the people — the only thing the section is about.
+// Every tile now shows its whole crop, edges align with the copy column, and
+// an editor's caption is visible at every width rather than on phones only.
 //
 // Renders nothing when the gallery is empty — an empty photo frame says less
 // about the library than no section at all.
 import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import { getTranslations, getLocale } from "next-intl/server";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, MapPin, Quote } from "lucide-react";
 import type { PublicHomepagePhoto } from "@/lib/types/homepage-photo";
-import { HomeSection } from "./HomeSection";
+import { HomeSection, SectionHeader, LIBRARY_NOW_ANCHOR } from "./HomeSection";
 
-/** Photos consumed by the mosaic. The rest feed <NarrativeCards> and the
- *  "+N more" badge. Mirrors HERO_SLOTS in the admin grid. */
+/** Photos consumed by the grid. The next three feed <NarrativeCards>.
+ *  Mirrors HERO_SLOTS in the admin grid. */
 export const HERO_PHOTO_COUNT = 3;
 
 /**
- * Per-slot `sizes`. Each is the slot's real share of the 1400px container, so
- * a phone never downloads a desktop-width file for a photo that renders at a
- * third of the screen.
+ * Per-slot `sizes`, from the grid's geometry: the photo column is 3/5 of a
+ * container that stops growing at 1400px (1304px of content at md padding),
+ * split 1.6fr / 1fr with a 16px gap. So at ≥1440 the lead tile is ~470px and
+ * each side tile ~290px; below lg the grid is full width, lead on its own row
+ * and the side tiles sharing the next one.
+ *
+ * Each arm caps in px past 1440 for the same reason the collage's did — a
+ * bare vw tail keeps inflating after the slot stops growing.
  */
-// MEASURED slot widths (CSS px, this page, five viewports):
-//
-//            375   1024   1280   1440   1920
-//   main     343    396    512    572    572
-//   bot-left 158    230    299    335    335
-//   floating 158    151    197    221    221
-//
-// Two corrections fall out of that. The container stops growing at ~1440, so a
-// bare vw tail keeps inflating past the point the slot does — 45vw asked for
-// 864px at 1920 to fill 572. And the `(max-width: 1024px)` arm was doing double
-// duty for phone AND tablet: at 1024 the grid has already gone side-by-side, so
-// 100vw/50vw/40vw asked for 2.2-2.7x the real slot right where the layout is
-// densest. Each now caps in px past 1440 and splits the phone case off at 640.
-const SIZES = [
-  // 45vw declared 648px for a 572px slot at 1440 — only 13% over, but enough
-  // to cross the 1200 rung and fetch the 1920 variant at DPR 2. The 600px tail
-  // lands exactly on 1200 there, and on the same rung at 1920.
-  "(max-width: 640px) 100vw, (max-width: 1024px) 45vw, (max-width: 1280px) 42vw, 600px", // main
-  "(max-width: 640px) 50vw, (max-width: 1440px) 26vw, 340px",  // bottom-left
-  "(max-width: 640px) 45vw, (max-width: 1024px) 20vw, (max-width: 1440px) 18vw, 230px", // floating
-];
+const SIZES = {
+  lead: "(max-width: 1023px) 100vw, (max-width: 1440px) 34vw, 480px",
+  side: "(max-width: 1023px) 50vw, (max-width: 1440px) 21vw, 300px",
+  // With two photos the second stands beside the lead at full height.
+  pair: "(max-width: 1023px) 100vw, (max-width: 1440px) 21vw, 300px",
+  // A single photo takes the whole column.
+  solo: "(max-width: 1023px) 100vw, (max-width: 1440px) 56vw, 800px",
+} as const;
+
+function Tile({
+  photo,
+  sizes,
+  className,
+}: {
+  photo: PublicHomepagePhoto;
+  sizes: string;
+  className: string;
+}) {
+  return (
+    <figure className={`group relative m-0 overflow-hidden rounded-2xl bg-bg-surface shadow-sm ring-1 ring-divider/60 ${className}`}>
+      <Image
+        src={photo.url}
+        alt={photo.alt}
+        fill
+        sizes={sizes}
+        quality={75}
+        // motion-safe: the zoom is decorative, and a reader who asked their
+        // OS for reduced motion does not get it.
+        className="object-cover motion-safe:transition-transform motion-safe:duration-700 motion-safe:ease-out motion-safe:group-hover:scale-[1.04]"
+        {...(photo.blurDataUrl ? { placeholder: "blur" as const, blurDataURL: photo.blurDataUrl } : {})}
+      />
+      {photo.caption && (
+        // A scrim, not glass: this is text over a photograph, and the
+        // gradient guarantees its contrast whatever the photo holds.
+        <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/40 to-transparent px-4 pb-3 pt-10 text-[12.5px] font-medium leading-snug text-white">
+          <span className="line-clamp-2">{photo.caption}</span>
+        </figcaption>
+      )}
+    </figure>
+  );
+}
 
 export default async function HeroPhotoGallery({
   photos,
-  totalCount,
 }: {
   photos: PublicHomepagePhoto[];
-  /** Every active photo, not just the ones rendered here — drives "+N more". */
-  totalCount: number;
 }) {
   if (photos.length === 0) return null;
 
   const [t, locale] = await Promise.all([getTranslations("home"), getLocale()]);
-  const latinEyebrow = locale === "en" ? "uppercase tracking-[0.2em]" : "tracking-normal";
-  const [main, second, third] = photos.slice(0, HERO_PHOTO_COUNT);
-  const remaining = Math.max(0, totalCount - photos.slice(0, HERO_PHOTO_COUNT).length);
+  const [lead, second, third] = photos.slice(0, HERO_PHOTO_COUNT);
+  const count = [lead, second, third].filter(Boolean).length;
+  // Khmer has no italic: a browser fakes one by slanting the glyphs, which
+  // drags stacked vowel signs off their consonants. Latin keeps the italic.
+  const quoteStyle = locale === "en" ? "italic" : "";
 
-  // This band keeps its own two-column header (copy beside the mosaic), so it
-  // uses the section shell but not <SectionHeader>; the eyebrow and title
-  // below are typographically identical to it.
+  // Phones and tablets: the lead photo on its own row, the others beside each
+  // other under it. From lg: lead on the left at full height, the others
+  // stacked to its right — one grid, so every edge lines up.
+  const grid =
+    count === 1
+      ? "grid-cols-1 lg:h-[460px]"
+      : "grid-cols-2 lg:h-[460px] lg:grid-cols-[1.6fr_1fr] lg:grid-rows-2";
+
   return (
     <HomeSection surface="paper" labelledBy="library-life-title">
-        <div className="grid items-center gap-8 lg:grid-cols-5 lg:gap-12">
+      <div className="grid items-center gap-10 lg:grid-cols-5 lg:gap-14">
 
-          {/* ── Copy ── */}
-          <div className="lg:col-span-2">
-            <div className="mb-2 flex items-center gap-3">
-              <span className="h-[3px] w-7 rounded-full bg-gradient-to-r from-brand to-accent" aria-hidden />
-              <span className={`text-[11px] font-bold text-brand ${latinEyebrow}`}>
-                {t("photosEyebrow")}
-              </span>
-            </div>
-            <h2
-              id="library-life-title"
-              className="font-khmer-serif font-bold leading-tight tracking-tight text-text-heading"
-              style={{ fontSize: "clamp(22px, 2.4vw, 32px)" }}
-            >
-              {t("photosTitle")}
-            </h2>
+        {/* ── Copy ── */}
+        <div className="lg:col-span-2">
+          <SectionHeader
+            id="library-life-title"
+            eyebrow={t("photosEyebrow")}
+            title={t("photosTitle")}
+            lede={t("photosBody")}
+          />
 
-            {/* The quote is attributed copy, so it is a real <blockquote> with
-                a <cite> — not a styled paragraph. */}
-            <blockquote className="mt-5 border-l-[3px] border-accent pl-4">
-              <p className="text-[15px] italic leading-relaxed text-text-body">{t("photosQuote")}</p>
-              <cite className="mt-1.5 block text-[12.5px] not-italic text-text-muted">
-                {t("photosQuoteAuthor")}
-              </cite>
+          {/* Attribution is a person, not a work, so it is a <figcaption> —
+              <cite> is for the title of a work. */}
+          <figure className="relative m-0 rounded-xl border border-divider bg-bg-surface px-5 pb-4 pt-5">
+            <Quote
+              className="absolute -top-3.5 left-5 size-7 rounded-full bg-brand p-1.5 text-accent shadow-sm"
+              fill="currentColor"
+              strokeWidth={0}
+              aria-hidden
+            />
+            <blockquote className="m-0">
+              <p className={`font-khmer-serif text-[16px] leading-relaxed text-text-heading sm:text-[17px] ${quoteStyle}`}>
+                {t("photosQuote")}
+              </p>
             </blockquote>
+            <figcaption className="mt-2 text-[12.5px] text-text-muted">
+              {t("photosQuoteAuthor")}
+            </figcaption>
+          </figure>
 
-            <p className="mt-5 text-[14.5px] leading-relaxed text-text-muted">{t("photosBody")}</p>
-
+          <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">
+            {/* A same-page fragment, so it works before (or without) the app
+                bundle and needs no locale prefix. */}
+            <a
+              href={`#${LIBRARY_NOW_ANCHOR}`}
+              className="focus-field inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover"
+            >
+              <MapPin className="size-4" aria-hidden />
+              {t("photosVisitCta")}
+            </a>
             <Link
               href="/books"
-              className="focus-field mt-6 inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover"
+              className="focus-field group inline-flex min-h-[44px] items-center gap-1.5 rounded-sm text-sm font-semibold text-brand transition-colors hover:text-brand-hover"
             >
               {t("photosCta")}
-              <ArrowRight className="h-4 w-4" aria-hidden />
+              <ArrowRight className="size-4 motion-safe:transition-transform motion-safe:group-hover:translate-x-0.5" aria-hidden />
             </Link>
           </div>
-
-          {/* ── Mosaic ──
-              Absolute positioning only from lg: below that the overlap turns
-              three photos into an unreadable pile on a 360px screen, so phones
-              and tablets get a plain two-row grid instead. */}
-          <div className="lg:col-span-3">
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:relative lg:block lg:h-[460px] lg:gap-0">
-
-              <figure className="col-span-2 lg:absolute lg:right-0 lg:top-0 lg:m-0 lg:h-[85%] lg:w-[75%]">
-                <div className="relative aspect-[16/10] overflow-hidden rounded-2xl bg-bg-surface shadow-xl lg:aspect-auto lg:h-full">
-                  <Image
-                    src={main.url}
-                    alt={main.alt}
-                    fill
-                    sizes={SIZES[0]}
-                    quality={85}
-                    className="object-cover"
-                    {...(main.blurDataUrl ? { placeholder: "blur" as const, blurDataURL: main.blurDataUrl } : {})}
-                  />
-                </div>
-                {main.caption && (
-                  <figcaption className="mt-2 text-[12.5px] text-text-muted lg:hidden">
-                    {main.caption}
-                  </figcaption>
-                )}
-              </figure>
-
-              {second && (
-                <figure className="lg:absolute lg:bottom-0 lg:left-0 lg:z-10 lg:m-0 lg:h-[50%] lg:w-[45%]">
-                  <div className="relative aspect-[4/3] overflow-hidden rounded-xl border-4 border-paper bg-bg-surface shadow-lg lg:aspect-auto lg:h-full">
-                    <Image
-                      src={second.url}
-                      alt={second.alt}
-                      fill
-                      sizes={SIZES[1]}
-                      quality={85}
-                      className="object-cover"
-                      {...(second.blurDataUrl ? { placeholder: "blur" as const, blurDataURL: second.blurDataUrl } : {})}
-                    />
-                  </div>
-                </figure>
-              )}
-
-              {third && (
-                <figure className="lg:absolute lg:left-[10%] lg:top-8 lg:z-20 lg:m-0 lg:h-[35%] lg:w-[30%]">
-                  <div className="relative aspect-[4/3] overflow-hidden rounded-xl border-4 border-paper bg-bg-surface shadow-md lg:aspect-auto lg:h-full">
-                    <Image
-                      src={third.url}
-                      alt={third.alt}
-                      fill
-                      sizes={SIZES[2]}
-                      quality={85}
-                      className="object-cover"
-                      {...(third.blurDataUrl ? { placeholder: "blur" as const, blurDataURL: third.blurDataUrl } : {})}
-                    />
-                  </div>
-                </figure>
-              )}
-
-              {remaining > 0 && (
-                // Left-aligned below lg on purpose: the mobile nav's floating
-                // action button occupies the bottom-right corner, and a
-                // right-aligned line lands underneath it.
-                <p className="col-span-2 text-left text-[12px] font-medium text-text-muted lg:absolute lg:bottom-4 lg:right-4 lg:z-30 lg:col-span-1 lg:rounded-lg lg:bg-paper/90 lg:px-3 lg:py-1.5 lg:text-right lg:shadow-sm lg:backdrop-blur-sm">
-                  {t("photosMore", { count: remaining })}
-                </p>
-              )}
-            </div>
-          </div>
-
         </div>
+
+        {/* ── Photos ── */}
+        <div className="lg:col-span-3">
+          <div className={`grid gap-3 sm:gap-4 ${grid}`}>
+            <Tile
+              photo={lead}
+              sizes={count === 1 ? SIZES.solo : SIZES.lead}
+              className={
+                count === 1
+                  ? "aspect-[16/10] lg:aspect-auto lg:h-full"
+                  : "col-span-2 aspect-[16/10] lg:col-span-1 lg:row-span-2 lg:aspect-auto"
+              }
+            />
+            {second && (
+              <Tile
+                photo={second}
+                sizes={count === 2 ? SIZES.pair : SIZES.side}
+                className={
+                  count === 2
+                    ? "col-span-2 aspect-[16/10] lg:col-span-1 lg:row-span-2 lg:aspect-auto"
+                    : "aspect-[4/3] lg:aspect-auto"
+                }
+              />
+            )}
+            {third && <Tile photo={third} sizes={SIZES.side} className="aspect-[4/3] lg:aspect-auto" />}
+          </div>
+        </div>
+
+      </div>
     </HomeSection>
   );
 }

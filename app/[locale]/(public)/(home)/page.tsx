@@ -492,7 +492,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           <LibraryNow> — these are photographs of the room that section is
           inviting the reader into. */}
       <div className="cv-auto [--cv-reserve:1000px] lg:[--cv-reserve:650px]">
-        <HeroPhotoGallery photos={mosaicPhotos} totalCount={galleryPhotos.length} />
+        <HeroPhotoGallery photos={mosaicPhotos} />
       </div>
 
       {/* ════════ FOCUS / DISCOVER / CONNECT — the gallery's second half ════

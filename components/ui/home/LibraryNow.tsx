@@ -21,7 +21,7 @@ import {
 } from "@/lib/library-hours";
 import { activeClosure } from "@/lib/system-settings/hours";
 import type { HoursClosure } from "@/lib/system-settings/types";
-import { HomeSection, SectionHeader } from "./HomeSection";
+import { HomeSection, SectionHeader, LIBRARY_NOW_ANCHOR } from "./HomeSection";
 
 export default function LibraryNow({
   openingHoursSpec,
@@ -97,7 +97,7 @@ export default function LibraryNow({
     "inline-flex min-h-[40px] items-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-semibold text-brand transition-colors hover:bg-brand/8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand";
 
   return (
-    <HomeSection surface="surface" labelledBy="library-now-title">
+    <HomeSection id={LIBRARY_NOW_ANCHOR} surface="surface" labelledBy="library-now-title">
       <SectionHeader
         id="library-now-title"
         eyebrow={t("libraryNowEyebrow")}
