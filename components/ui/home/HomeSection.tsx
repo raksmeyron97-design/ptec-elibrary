@@ -23,6 +23,11 @@ import { ArrowRight } from "lucide-react";
 
 type Surface = "paper" | "surface";
 
+/** id of <LibraryNow>'s band, the target of "Visit us" in <HeroPhotoGallery>.
+ *  Lives here because LibraryNow is a client module: a server component
+ *  importing a constant from it would receive a client reference, not "visit". */
+export const LIBRARY_NOW_ANCHOR = "visit";
+
 const SURFACE_CLASS: Record<Surface, string> = {
   paper: "bg-paper",
   surface: "bg-bg-surface",
