@@ -69,6 +69,8 @@ describe("normalizeCategorySlug", () => {
     expect(normalizeCategorySlug("ភាសាអង់គ្លេសសិក្សា")).toBe("language");
     expect(normalizeCategorySlug("គណិតវិទ្យា")).toBe("mathematics");
     expect(normalizeCategorySlug("កញ្ជប់គណិតវិទ្យា")).toBe("mathematics");
+    // The kit hub's corrected spelling (O-3, 2026-10) keeps its theme.
+    expect(normalizeCategorySlug("កញ្ចប់គណិតវិទ្យា")).toBe("mathematics");
     expect(normalizeCategorySlug("កម្មវិធីសិក្សា")).toBe("curriculum");
     expect(normalizeCategorySlug("វិទ្យាសាស្ត្រ")).toBe("science");
   });
