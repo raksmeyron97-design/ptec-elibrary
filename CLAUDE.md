@@ -29,6 +29,7 @@ npx tsx --tsconfig scripts/tsconfig.benchmark.json scripts/calibrate-work-thresh
 npx tsx --tsconfig scripts/tsconfig.benchmark.json scripts/audit-khmer-page-text.ts --sample=20000  # how much Khmer full text is readable (read-only)
 npm run ai:answer-benchmark -- --live-suite smoke --artifact --gate   # The weekly live run (~15k tokens)
 npm run ai:local-check                 # Verify local AI (Ollama) end to end: reachability, models, Khmer output, embedding width, fallback
+npx tsx scripts/audit-retired-urls.ts  # Read-only audit of 0171's seeded dead URLs vs production (AUDIT_SUPABASE_URL/AUDIT_ANON_KEY, optional AUDIT_SERVICE_ROLE_KEY for the private queue; GET only). Source, chain, queue, approval and semantic are separate fields — a target's 200 never resolves a source; reviewer confirmations live in docs/seo/retired-url-confirmations.json
 npx tsx scripts/check-file-health.ts   # Out-of-band sweep of book/thesis file+cover URLs → file_health table (needs ZIMA_API_KEY: anonymous /files reads are capped at 300/min and a sweep is ~540 requests; a 429 is recorded as `unknown`, never `broken` — lib/file-health/check.ts)
 ```
 
