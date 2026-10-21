@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
   analyseChain,
+  canonicalCheck,
   classifyRecord,
   parseSeedRows,
   reconcile,
@@ -274,5 +275,147 @@ describe("the collector is read-only", () => {
     expect(src).not.toMatch(/createClient/);
     expect(src).not.toMatch(/select=[^"`]*\breason\b/);
     expect(src).toMatch(/method: "GET"/);
+  });
+});
+
+describe("semantic confidence is carried, never upgraded", () => {
+  const resolvedWith = (confirmation: RecordEvidence["confirmation"]) =>
+    classifyRecord(evidence({ queue: redirected, redirectRow: personRow, probes: bothRedirect(), confirmation }));
+
+  it("a HIGH confirmation resolves with nothing pending", () => {
+    const v = resolvedWith({ ...confirmed, confidence: "high" });
+    expect(v.classification).toBe("RESOLVED_REDIRECT");
+    expect(v.semanticConfidence).toBe("high");
+    expect(v.reviewStatus).toBe("none_pending");
+    expect(v.semanticBasis).toMatch(/high confidence/);
+  });
+
+  it("a MEDIUM confirmation is technically resolved but still owed a librarian's look", () => {
+    const v = resolvedWith({ ...confirmed, confidence: "medium" });
+    expect(v.classification).toBe("RESOLVED_REDIRECT");
+    expect(v.semanticConfidence).toBe("medium");
+    expect(v.reviewStatus).toBe("librarian_review_pending");
+  });
+
+  it("LOW, missing and unrecognised confidence all stay pending — absence never reads as high", () => {
+    expect(resolvedWith({ ...confirmed, confidence: "low" }).reviewStatus).toBe("librarian_review_pending");
+    const missing = resolvedWith({ ...confirmed });
+    expect(missing.semanticConfidence).toBe("unrecorded");
+    expect(missing.reviewStatus).toBe("librarian_review_pending");
+    const odd = resolvedWith({ ...confirmed, confidence: "very high" });
+    expect(odd.semanticConfidence).toBe("unrecorded");
+    expect(odd.reviewStatus).toBe("librarian_review_pending");
+  });
+
+  it("a confirmation for a different target supports nothing and carries no confidence", () => {
+    const v = resolvedWith({ ...confirmed, target: "/books/other", confidence: "high" });
+    expect(v.classification).toBe("SOURCE_REDIRECTS_TARGET_UNVERIFIED");
+    expect(v.semanticConfidence).toBeNull();
+    expect(v.reviewStatus).toBe("decision_required");
+  });
+
+  it("an explicitly incorrect mapping breaks the redirect, whatever confidence it records", () => {
+    const v = resolvedWith({ ...confirmed, verdict: "incorrect", confidence: "high" });
+    expect(v.classification).toBe("BROKEN_REDIRECT");
+    expect(v.semantic).toBe("INCORRECT");
+    expect(v.semanticConfidence).toBeNull();
+    expect(v.reviewStatus).toBe("engineer_action");
+  });
+
+  it("the same record (a captured rename) is structural evidence, not a judgement", () => {
+    const v = classifyRecord(evidence({ queue: redirected, redirectRow: { ...personRow, decidedByPerson: false }, probes: bothRedirect() }));
+    expect(v.semanticConfidence).toBe("structural");
+    expect(v.reviewStatus).toBe("none_pending");
+  });
+
+  it("reconcile splits resolved redirects by confidence and counts review status", () => {
+    const recs: AuditedRecord[] = (["high", "medium", undefined] as const).map((confidence, i) => {
+      const path = `/books/r${i}`;
+      const ev = evidence({
+        path,
+        queue: redirected,
+        redirectRow: { ...personRow, targetPath: DEST },
+        probes: { en: redirectTo(path, DEST), km: redirectTo(`/km${path}`, `/km${DEST}`) },
+        confirmation: { ...confirmed, path, confidence },
+      });
+      return { id: path, path, evidence: ev, verdict: classifyRecord(ev) };
+    });
+    const r = reconcile(recs.map((x) => ({ path: x.path, suggested: null, note: "" })), recs, true);
+    expect(r.fullyResolved).toBe(3);
+    expect(r.resolvedByConfidence).toMatchObject({ high: 1, medium: 1, unrecorded: 1, low: 0, structural: 0 });
+    expect(r.byReviewStatus).toMatchObject({ none_pending: 1, librarian_review_pending: 2 });
+  });
+});
+
+describe("an Ignore is an intentional 404, not a resolution", () => {
+  const ignored = { ...pending, resolution: "ignored" as const, decidedByPerson: true };
+  const note = { path: SRC, reason: "no live record", decidedBy: "Claude Code (not individually reviewed by a person)", decidedAt: "2026-10-20" };
+
+  it("is reported with its recorded note, verbatim, and is never counted resolved", () => {
+    const v = classifyRecord(evidence({ queue: ignored, ignoreDecision: note }));
+    expect(v.classification).toBe("SOURCE_404_IGNORED");
+    expect(v.reviewStatus).toBe("intentional_404");
+    expect(v.ignoreNote).toMatch(/not individually reviewed by a person/);
+    const r = reconcile([{ path: SRC, suggested: null, note: "" }], [{ id: "x", path: SRC, evidence: evidence({ queue: ignored }), verdict: v }], true);
+    expect(r.fullyResolved).toBe(0);
+    expect(r.byReviewStatus.intentional_404).toBe(1);
+  });
+
+  it("a note recorded for a different path is not attached", () => {
+    expect(classifyRecord(evidence({ queue: ignored, ignoreDecision: { ...note, path: "/books/other" } })).ignoreNote).toBeNull();
+  });
+});
+
+describe("canonical diagnostics", () => {
+  const withCanonical = (from: string, to: string, canonical: string | null): ChainProbe => ({
+    kind: "answered",
+    hops: [hop(from, 301, to), hop(to, 200)],
+    stop: "final",
+    canonical,
+  });
+  const run = (en: string | null, km: string | null) =>
+    classifyRecord(
+      evidence({
+        queue: redirected,
+        redirectRow: personRow,
+        confirmation: { ...confirmed, confidence: "high" },
+        probes: { en: withCanonical(SRC, DEST, en), km: withCanonical(`/km${SRC}`, `/km${DEST}`, km) },
+      }),
+    );
+
+  it("agrees when each locale's destination names itself", () => {
+    const v = run(`${BASE}${DEST}`, `${BASE}/km${DEST}`);
+    expect(v.canonical.en.status).toBe("match");
+    expect(v.canonical.km.status).toBe("match");
+  });
+
+  it("resolves a relative canonical and compares decoded Khmer paths", () => {
+    const kmPath = "/books/ថ្នាក់ទី៩";
+    const enc = kmPath.split("/").map(encodeURIComponent).join("/");
+    const probe: ChainProbe = { kind: "answered", hops: [hop(SRC, 301, enc), hop(enc, 200)], stop: "final", canonical: enc };
+    expect(canonicalCheck(probe, "", kmPath).status).toBe("match");
+  });
+
+  it("flags a destination that canonicalises elsewhere, and a /km page pointing at English", () => {
+    const v = run(`${BASE}/books/something-else`, `${BASE}${DEST}`);
+    expect(v.canonical.en).toEqual({ status: "mismatch", canonical: `${BASE}/books/something-else` });
+    expect(v.canonical.km.status).toBe("mismatch");
+  });
+
+  it("separates missing, malformed and off-site canonicals", () => {
+    expect(run(null, null).canonical.en.status).toBe("missing");
+    expect(run("http://[broken", "javascript:alert(1)").canonical.en.status).toBe("invalid");
+    expect(run("http://[broken", "javascript:alert(1)").canonical.km.status).toBe("invalid");
+    expect(run("https://evil.example/books/x", `${BASE}/km${DEST}`).canonical.en.status).toBe("off_site");
+  });
+
+  it("is a diagnostic only: a mismatch never changes the classification", () => {
+    expect(run(`${BASE}/books/something-else`, null).classification).toBe("RESOLVED_REDIRECT");
+  });
+
+  it("has nothing to say about a source that does not redirect", () => {
+    const v = classifyRecord(evidence());
+    expect(v.canonical.en.status).toBe("not_applicable");
+    expect(v.canonical.km.status).toBe("not_applicable");
   });
 });

@@ -22,7 +22,8 @@
 // of url_redirects rows; this is the population audit it never covered.
 
 import { execSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import {
   analyseChain,
   ALLOWED_REDIRECT_HOPS,
@@ -32,15 +33,23 @@ import {
   FOLLOW_LIMIT,
   parseSeedRows,
   reconcile,
-  RESOLVED,
   type AuditedRecord,
   type ChainProbe,
   type Confirmation,
   type Hop,
+  type IgnoreDecision,
   type QueueState,
   type RecordEvidence,
   type RedirectRow,
 } from "../lib/url-redirects/audit";
+import {
+  postgrestInFilter,
+  renderCsv,
+  renderMarkdown,
+  resolveReportBase,
+  writeReportFile,
+  type TargetMeta,
+} from "../lib/url-redirects/audit-report";
 import { suggestSuccessors, type Candidate } from "../lib/url-redirects/queue";
 import { fetchWithRetry, classifyError } from "../lib/verify/http";
 
@@ -100,11 +109,8 @@ async function getAll<T>(query: string, key: string): Promise<T[]> {
 async function getIn<T>(table: string, select: string, column: string, values: string[], key: string, extra = ""): Promise<T[]> {
   const out: T[] = [];
   for (let i = 0; i < values.length; i += 8) {
-    const list = values
-      .slice(i, i + 8)
-      .map((v) => `"${v.replace(/"/g, '\\"')}"`)
-      .join(",");
-    out.push(...(await get<T[]>(`${table}?select=${select}&${column}=in.(${encodeURIComponent(list)})${extra}`, key)));
+    // Quoted, `\` and `"` escaped, validated, percent-encoded: lib/url-redirects/audit-report.ts.
+    out.push(...(await get<T[]>(`${table}?select=${select}&${column}=${postgrestInFilter(values.slice(i, i + 8))}${extra}`, key)));
   }
   return out;
 }
@@ -178,15 +184,6 @@ async function probeChain(start: string): Promise<ChainProbe> {
 
 // ── Collect ─────────────────────────────────────────────────────────────────
 
-type TargetMeta = {
-  path: string;
-  title: string | null;
-  published: boolean;
-  verifiedByStaff: boolean | null;
-  createdAt: string | null;
-  slugHistory: string[] | "unavailable" | null;
-};
-
 async function run() {
   if (!SUPABASE_URL || !ANON_KEY) {
     console.error("Set AUDIT_SUPABASE_URL and AUDIT_ANON_KEY (AUDIT_SERVICE_ROLE_KEY optional, read-only use).");
@@ -199,6 +196,17 @@ async function run() {
   const localDb = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(dbHost);
   if (localDb && !/^(localhost|127\.)/.test(siteHost) && !argv.includes("--allow-mismatch")) {
     console.error(`Refusing: site ${siteHost} audited against local database ${dbHost} (--allow-mismatch to override).`);
+    process.exit(2);
+  }
+
+  // Where the report goes is decided before a single request is made: inside
+  // <repo>/reports/ or not at all (lib/url-redirects/audit-report.ts).
+  const repoRoot = execSync("git rev-parse --show-toplevel").toString().trim();
+  let outBase: string;
+  try {
+    outBase = resolveReportBase(OUT, repoRoot);
+  } catch (err) {
+    console.error(`Refusing --out: ${(err as Error).message}`);
     process.exit(2);
   }
 
@@ -215,8 +223,11 @@ async function run() {
   for (const r of originals) SEED_NOTES.set(r.path, r.note);
 
   let confirmations: Confirmation[] = [];
+  let ignoreDecisions: IgnoreDecision[] = [];
   try {
-    confirmations = (JSON.parse(readFileSync(CONFIRMATIONS, "utf8")) as { confirmations: Confirmation[] }).confirmations ?? [];
+    const file = JSON.parse(readFileSync(CONFIRMATIONS, "utf8")) as { confirmations?: Confirmation[]; ignore?: IgnoreDecision[] };
+    confirmations = file.confirmations ?? [];
+    ignoreDecisions = file.ignore ?? [];
   } catch (err) {
     limitations.push(`confirmations file ${CONFIRMATIONS} not read: ${(err as Error).message}`);
   }
@@ -337,6 +348,7 @@ async function run() {
       probes: probes.get(r.path) ?? { en: null, km: null },
       target: suggestion ? { path: suggestion, probe: targetProbes.get(suggestion) ?? null } : null,
       confirmation: confirmations.find((c) => c.path === r.path) ?? null,
+      ignoreDecision: ignoreDecisions.find((d) => d.path === r.path) ?? null,
     };
     return { id: r.id, path: r.path, evidence, verdict: classifyRecord(evidence) };
   });
@@ -452,187 +464,18 @@ async function run() {
       pageCandidates: pageCandidates.get(r.path) ?? null,
     })),
   };
-  writeFileSync(`${OUT}.json`, `${JSON.stringify(json, null, 2)}\n`);
-  writeFileSync(`${OUT}.csv`, toCsv(records, meta));
-  writeFileSync(`${OUT}.md`, toMarkdown(header, recon, records, meta, oldSnapshots, pageCandidates, outsidePopulation, limitations));
+  writeReportFile(`${outBase}.json`, `${JSON.stringify(json, null, 2)}\n`);
+  writeReportFile(`${outBase}.csv`, renderCsv(records, meta));
+  writeReportFile(
+    `${outBase}.md`,
+    renderMarkdown({ header, recon, records, meta, oldSnapshots, pageCandidates, seedNotes: SEED_NOTES, outside: outsidePopulation, limitations }),
+  );
   console.log(`\n${CLASSIFICATIONS.filter((c) => recon.byClassification[c]).map((c) => `${c} ${recon.byClassification[c]}`).join(" · ")}`);
   console.log(`fully resolved ${recon.fullyResolved}/${records.length} · accounted for: ${recon.accountedFor}`);
   if (limitations.length) console.log(`LIMITATIONS:\n  ${limitations.join("\n  ")}`);
-  console.log(`Wrote ${OUT}.{md,json,csv}`);
+  console.log(`Wrote ${path.relative(repoRoot, outBase)}.{md,json,csv}`);
   // Exit 0 for an audit that ran; 1 only when the population cannot be accounted for.
   process.exit(recon.accountedFor ? 0 : 1);
-}
-
-// ── Rendering ───────────────────────────────────────────────────────────────
-
-function chainText(probe: ChainProbe | null): string {
-  if (!probe) return "not requested";
-  const hops = probe.hops.map((h) => `${h.status}${h.location ? ` → ${safeDecode(h.location)}` : ""}`).join(" ⇒ ");
-  if (probe.kind === "no_answer") return `${hops ? `${hops} ⇒ ` : ""}NO ANSWER (${probe.detail})`;
-  return probe.stop === "final" ? hops : `${hops} [${probe.stop}]`;
-}
-
-function safeDecode(s: string): string {
-  try {
-    return decodeURIComponent(s);
-  } catch {
-    return s;
-  }
-}
-
-function queueText(q: RecordEvidence["queue"]): string {
-  if (typeof q === "string") return q;
-  return `${q.resolution}${q.decidedByPerson ? ` by ${q.deciderRole ?? "a person"} ${q.resolvedAt?.slice(0, 10) ?? ""}` : ""}`.trim();
-}
-
-function rowText(r: RecordEvidence["redirectRow"]): string {
-  if (r === "unavailable") return "unavailable";
-  if (!r) return "none";
-  const who = r.decidedByPerson === null ? "decider unknown" : r.decidedByPerson ? "person" : "trigger";
-  return `${r.status}${r.targetPath ? ` → ${r.targetPath}` : ""} (${who})`;
-}
-
-const cell = (s: string | null | undefined) => (s ?? "—").replace(/\|/g, "\\|").replace(/\n/g, " ");
-
-function toMarkdown(
-  header: Record<string, unknown>,
-  recon: ReturnType<typeof reconcile>,
-  records: AuditedRecord[],
-  meta: Map<string, TargetMeta>,
-  oldSnapshots: Map<string, number | "unavailable">,
-  pageCandidates: Map<string, string[]>,
-  outside: string[] | null,
-  limitations: string[],
-): string {
-  const L: string[] = [];
-  L.push(`# Retired-URL queue audit — ${String(header.generatedAt).slice(0, 10)}`, "");
-  L.push("Generated by `scripts/audit-retired-urls.ts` (classification rules: `lib/url-redirects/audit.ts`). Read-only: GET requests only, one at a time.", "");
-  L.push("| | |", "|---|---|");
-  for (const [k, v] of Object.entries(header)) L.push(`| ${k} | ${cell(typeof v === "string" ? v : JSON.stringify(v))} |`);
-  L.push("");
-  L.push("**A suggested target answering 200 never resolves the source.** A record is resolved only as `RESOLVED_REDIRECT` (source 301/308, one hop, both locales, destination 200, destination shown to be the same work) or `RESOLVED_RETIRED` (410 + noindex in both locales, decided by a person through the queue).", "");
-
-  L.push("## Reconciliation", "");
-  L.push("| Count | Value |", "|---|---|");
-  const rows: [string, unknown][] = [
-    ["Seed entries in 0171", recon.seedEntries],
-    ["Duplicate seed entries", recon.duplicateSeedEntries.length ? recon.duplicateSeedEntries.join(", ") : 0],
-    ["Original records (distinct paths)", recon.originalRecords],
-    ["Found in retired_url_queue", recon.foundInQueue ?? "unavailable"],
-    ["Missing from retired_url_queue", recon.missingFromQueue.length ? recon.missingFromQueue.join(", ") : 0],
-    ["Queue rows outside the original population", outside === null ? "unavailable" : outside.length ? outside.join(", ") : 0],
-    ["Records with a suggested target", recon.withSuggestion],
-    ["Records without a suggested target", recon.withoutSuggestion],
-    ["Source URL checks (records × 2 locales)", recon.sourceChecks],
-    ["Source URL checks that got an answer", recon.sourceChecksAnswered],
-    ["Redirect responses observed (all hops)", recon.redirectHopsObserved],
-    ["Target checks", recon.targetChecks],
-    ["Sources answering 404 in both locales", recon.observed404],
-    ["…of which the queue still has pending", recon.observed404AwaitingDecision],
-    ...CLASSIFICATIONS.map((c) => [`\`${c}\``, recon.byClassification[c]] as [string, unknown]),
-    ["**Fully resolved**", recon.fullyResolved],
-    ["**Not resolved**", recon.unresolved],
-    ["Every original record accounted for exactly once", recon.accountedFor ? "yes" : "**NO**"],
-  ];
-  for (const [k, v] of rows) L.push(`| ${k} | ${cell(String(v))} |`);
-  L.push("");
-
-  L.push("## Per-record audit", "");
-  L.push("| ID | Source path | en chain | km chain | Lands on | Canonical | Queue | url_redirects | Suggestion | Target | Semantic | Classification |");
-  L.push("|---|---|---|---|---|---|---|---|---|---|---|---|");
-  for (const r of records) {
-    const v = r.verdict;
-    const en = r.evidence.probes.en;
-    const canonical = en?.kind === "answered" && en.hops.length > 1 ? en.canonical : null;
-    const target =
-      v.suggestion === null ? "—" : v.suggestionUnsafe ? "refused" : v.targetAvailable === null ? "unchecked" : v.targetAvailable ? "200" : "not 200";
-    L.push(
-      `| ${r.id} | \`${cell(r.path)}\` | ${cell(chainText(en))} | ${cell(chainText(r.evidence.probes.km))} | ${cell(v.observedTarget)} | ${cell(canonical ? safeDecode(canonical) : null)} | ${cell(queueText(r.evidence.queue))} | ${cell(rowText(r.evidence.redirectRow))} | ${cell(v.suggestion)}${v.suggestionSource === "seed" ? " (seed)" : ""} | ${target} | ${v.semantic} | \`${v.classification}\` |`,
-    );
-  }
-  L.push("");
-
-  const redirected = records.filter((r) => r.verdict.observedTarget || r.verdict.recordedTarget);
-  if (redirected.length) {
-    L.push("## Redirect evidence", "");
-    for (const r of redirected) {
-      const v = r.verdict;
-      const m = v.observedTarget ? meta.get(v.observedTarget) : undefined;
-      L.push(`### ${r.id} \`${r.path}\``, "");
-      L.push(`- Source, en: ${chainText(r.evidence.probes.en)}`);
-      L.push(`- Source, km: ${chainText(r.evidence.probes.km)}`);
-      L.push(`- Recorded: url_redirects ${rowText(r.evidence.redirectRow)}; queue ${queueText(r.evidence.queue)}; seed suggestion ${r.evidence.seededSuggestion ?? "none"}`);
-      if (m) {
-        L.push(`- Destination record: "${m.title}", published ${m.published}, verified by library staff ${m.verifiedByStaff ?? "unknown"}, created ${m.createdAt?.slice(0, 10) ?? "?"}`);
-        L.push(`- Destination slug history: ${m.slugHistory === null ? "not read" : m.slugHistory === "unavailable" ? "unavailable" : m.slugHistory.join(", ") || "none"} — ${Array.isArray(m.slugHistory) && m.slugHistory.includes(r.path.slice(7)) ? "it WAS once at the old path (same record)" : "never at the old path (a different record)"}`);
-      }
-      const snaps = oldSnapshots.get(r.path);
-      L.push(`- Version snapshots of the old record: ${snaps === undefined ? "not read" : snaps}${snaps === 0 ? " — its edition/ISBN cannot be recovered from version history" : ""}`);
-      L.push(`- Approval: ${v.approval}. Semantic: **${v.semantic}** (${v.semanticBasis})`);
-      L.push(`- Classification: \`${v.classification}\`${v.reasons.length ? ` — ${v.reasons.join("; ")}` : ""}`);
-      if (v.discrepancies.length) L.push(`- Discrepancies: ${v.discrepancies.join("; ")}`);
-      L.push("");
-    }
-  }
-
-  L.push("## Unresolved records and next action", "");
-  L.push("| ID | Source path | Classification | Reviewer | Next action | Evidence notes | Queue page candidates (not answers) |");
-  L.push("|---|---|---|---|---|---|---|");
-  for (const r of records.filter((x) => !RESOLVED.has(x.verdict.classification))) {
-    const v = r.verdict;
-    const notes = [...v.reasons, ...v.discrepancies];
-    const sm = v.suggestion ? meta.get(v.suggestion) : undefined;
-    if (sm) notes.push(`suggestion "${sm.title}" verified by staff: ${sm.verifiedByStaff ?? "unknown"}`);
-    const seedNote = SEED_NOTES.get(r.path);
-    if (seedNote) notes.push(`0171 note: ${seedNote}`);
-    L.push(
-      `| ${r.id} | \`${cell(r.path)}\` | \`${v.classification}\` | ${v.reviewer} | ${cell(v.action)} | ${cell(notes.join("; ") || null)} | ${cell((pageCandidates.get(r.path) ?? []).join("; ") || null)} |`,
-    );
-  }
-  L.push("");
-
-  L.push("## Limitations", "");
-  L.push(limitations.length ? limitations.map((l) => `- ${l}`).join("\n") : "- None recorded by the collector.");
-  L.push("- `approval` says THAT a person decided (and their role), never who; a queue decision records no bibliographic basis, so it is not semantic support.");
-  L.push("- Production redirects are served from a 120 s edge snapshot; a decision made in the last two minutes may not be visible yet.");
-  L.push("");
-  return `${L.join("\n")}\n`;
-}
-
-function toCsv(records: AuditedRecord[], meta: Map<string, TargetMeta>): string {
-  const cols = [
-    "id", "source_path", "locale_checks", "en_status", "en_location", "en_chain", "km_status", "km_location", "km_chain",
-    "final_destination", "final_status", "canonical", "queue_resolution", "queue_decided_by_person", "redirect_row",
-    "suggestion", "suggestion_source", "target_available", "destination_verified_by_staff", "approval", "semantic",
-    "classification", "reviewer", "recommended_action",
-  ];
-  const q = (v: unknown) => {
-    const s = v === null || v === undefined ? "" : String(v);
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const lines = [cols.join(",")];
-  for (const r of records) {
-    const { en, km } = r.evidence.probes;
-    const v = r.verdict;
-    const last = en?.hops[en.hops.length - 1];
-    const queue = r.evidence.queue;
-    lines.push(
-      [
-        r.id, r.path, 2,
-        en?.hops[0]?.status ?? "no_answer", en?.hops[0]?.location ? safeDecode(en.hops[0].location) : "", chainText(en),
-        km?.hops[0]?.status ?? "no_answer", km?.hops[0]?.location ? safeDecode(km.hops[0].location) : "", chainText(km),
-        v.observedTarget ?? "", en?.kind === "answered" && en.hops.length > 1 ? last?.status ?? "" : "",
-        en?.kind === "answered" && en.hops.length > 1 && en.canonical ? safeDecode(en.canonical) : "",
-        typeof queue === "string" ? queue : queue.resolution, typeof queue === "string" ? "" : queue.decidedByPerson,
-        rowText(r.evidence.redirectRow), v.suggestion ?? "", v.suggestionSource ?? "", v.targetAvailable ?? "",
-        v.observedTarget ? meta.get(v.observedTarget)?.verifiedByStaff ?? "" : "",
-        v.approval, v.semantic, v.classification, v.reviewer, v.action,
-      ]
-        .map(q)
-        .join(","),
-    );
-  }
-  return `${lines.join("\n")}\n`;
 }
 
 run().catch((err) => {

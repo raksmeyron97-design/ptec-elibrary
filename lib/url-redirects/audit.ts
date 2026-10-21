@@ -69,14 +69,22 @@ export type RedirectRow = {
   decidedByPerson: boolean | null;
 };
 
+/** How strong the recorded evidence is that a target is the same work. */
+export type EvidenceConfidence = "high" | "medium" | "low";
+
 export type Confirmation = {
   path: string;
   target: string;
   verdict: "supported" | "incorrect";
   basis: string;
+  /** As recorded; absent or unrecognised reads as "unrecorded", never as high. */
+  confidence?: string;
   confirmedBy: string;
   confirmedAt: string;
 };
+
+/** A recorded decision to leave a path at 404 (the confirmations file's `ignore` list). */
+export type IgnoreDecision = { path: string; reason: string; decidedBy: string; decidedAt: string };
 
 /** "unavailable" = the read failed or the key could not see it — never "absent". */
 type Maybe<T> = T | null | "unavailable";
@@ -92,6 +100,8 @@ export type RecordEvidence = {
   /** The suggested successor, checked separately from the source (English only). */
   target: { path: string; probe: ChainProbe | null } | null;
   confirmation: Confirmation | null;
+  /** The recorded reasoning behind an Ignore, if the confirmations file has one. */
+  ignoreDecision?: IgnoreDecision | null;
 };
 
 // ── Chain analysis ──────────────────────────────────────────────────────────
@@ -190,10 +200,39 @@ export type Semantic = "SUPPORTED" | "INCORRECT" | "UNVERIFIED" | "NOT_APPLICABL
 export type Approval = "PERSON_DECISION" | "AUTOMATIC_RENAME" | "ALIAS" | "NONE" | "UNKNOWN";
 export type Reviewer = "none" | "librarian" | "owner_or_librarian" | "engineer";
 
+/**
+ * Four questions the report keeps apart:
+ *   classification       is the URL TECHNICALLY handled (and the successor supported)?
+ *   semantic             is the destination shown to be the same work?
+ *   semanticConfidence   how strong is that evidence? "structural" = the same
+ *                        record (a captured rename or an alias) — not a judgement.
+ *   reviewStatus         is a person still owed a look?
+ * A medium/low/unrecorded confidence keeps a technically resolved redirect
+ * `librarian_review_pending`: it is a reasoned mapping, not a verified
+ * bibliographic equivalence, and nothing here claims a librarian approved it.
+ */
+export type SemanticConfidence = EvidenceConfidence | "unrecorded" | "structural";
+export type ReviewStatus =
+  | "none_pending"
+  | "librarian_review_pending"
+  | "decision_required"
+  | "intentional_404"
+  | "engineer_action";
+
+export type CanonicalStatus = "match" | "mismatch" | "missing" | "invalid" | "off_site" | "not_applicable";
+export type CanonicalCheck = { status: CanonicalStatus; canonical: string | null };
+
 export type Verdict = {
   classification: Classification;
   semantic: Semantic;
   semanticBasis: string;
+  /** Only meaningful when `semantic` is SUPPORTED; null otherwise. */
+  semanticConfidence: SemanticConfidence | null;
+  reviewStatus: ReviewStatus;
+  /** Who recorded an Ignore and how, verbatim from the confirmations file. */
+  ignoreNote: string | null;
+  /** Whether each locale's destination names itself as canonical. Diagnostic only. */
+  canonical: { en: CanonicalCheck; km: CanonicalCheck };
   approval: Approval;
   /** Where the observed redirect lands, if it does (locale-less). */
   observedTarget: string | null;
@@ -241,20 +280,71 @@ function approvalOf(ev: RecordEvidence): Approval {
  * from a title. Same record (a captured rename or an alias) or an explicit
  * reviewer confirmation naming exactly this pair.
  */
-function semanticOf(ev: RecordEvidence, target: string | null, approval: Approval): { semantic: Semantic; basis: string } {
-  if (!target) return { semantic: "NOT_APPLICABLE", basis: "no destination" };
+type SemanticReading = { semantic: Semantic; basis: string; confidence: SemanticConfidence | null };
+
+/** A recorded confidence, or "unrecorded" — an absent or unknown value is never read as high. */
+export function confidenceOf(c: Pick<Confirmation, "confidence">): EvidenceConfidence | "unrecorded" {
+  return c.confidence === "high" || c.confidence === "medium" || c.confidence === "low" ? c.confidence : "unrecorded";
+}
+
+function semanticOf(ev: RecordEvidence, target: string | null, approval: Approval): SemanticReading {
+  if (!target) return { semantic: "NOT_APPLICABLE", basis: "no destination", confidence: null };
   const c = ev.confirmation;
   if (c && c.path === ev.path && c.target === target) {
+    const confidence = confidenceOf(c);
     return c.verdict === "supported"
-      ? { semantic: "SUPPORTED", basis: `reviewer confirmation (${c.basis}, ${c.confirmedBy}, ${c.confirmedAt})` }
-      : { semantic: "INCORRECT", basis: `reviewer marked incorrect (${c.basis}, ${c.confirmedBy}, ${c.confirmedAt})` };
+      ? { semantic: "SUPPORTED", basis: `recorded confirmation (${c.basis}, ${confidence} confidence, ${c.confirmedBy}, ${c.confirmedAt})`, confidence }
+      : { semantic: "INCORRECT", basis: `recorded as incorrect (${c.basis}, ${c.confirmedBy}, ${c.confirmedAt})`, confidence: null };
   }
-  if (approval === "AUTOMATIC_RENAME") return { semantic: "SUPPORTED", basis: "same record: rename captured by trigger" };
-  if (approval === "ALIAS") return { semantic: "SUPPORTED", basis: "book_slug_redirects alias of the destination record" };
+  if (approval === "AUTOMATIC_RENAME") return { semantic: "SUPPORTED", basis: "same record: rename captured by trigger", confidence: "structural" };
+  if (approval === "ALIAS") return { semantic: "SUPPORTED", basis: "book_slug_redirects alias of the destination record", confidence: "structural" };
   if (approval === "PERSON_DECISION") {
-    return { semantic: "UNVERIFIED", basis: "a person pressed Redirect; the queue records no bibliographic basis" };
+    return { semantic: "UNVERIFIED", basis: "a person pressed Redirect; the queue records no bibliographic basis", confidence: null };
   }
-  return { semantic: "UNVERIFIED", basis: "suggestion only — HTTP availability is not equivalence" };
+  return { semantic: "UNVERIFIED", basis: "suggestion only — HTTP availability is not equivalence", confidence: null };
+}
+
+/**
+ * Does the destination name itself as canonical? Compared on origin and
+ * DECODED path (the page may percent-encode Khmer differently from the
+ * Location header). A mismatch is a diagnostic for an engineer to read, never
+ * a reason for this audit to fail a redirect or suggest a different one.
+ */
+export function canonicalCheck(probe: ChainProbe | null, localePrefix: "" | "/km", expectedPath: string | null): CanonicalCheck {
+  if (!probe || probe.kind !== "answered" || probe.stop !== "final" || !expectedPath) {
+    return { status: "not_applicable", canonical: null };
+  }
+  const last = probe.hops[probe.hops.length - 1];
+  if (!last || last.status !== 200) return { status: "not_applicable", canonical: null };
+  const raw = probe.canonical;
+  if (!raw) return { status: "missing", canonical: null };
+  let url: URL;
+  try {
+    url = new URL(raw, last.url);
+  } catch {
+    return { status: "invalid", canonical: raw };
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return { status: "invalid", canonical: raw };
+  if (url.origin !== new URL(last.url).origin) return { status: "off_site", canonical: raw };
+  const { path, localeKept } = sitePath(url.toString(), localePrefix);
+  return { status: localeKept && path === expectedPath ? "match" : "mismatch", canonical: raw };
+}
+
+function reviewStatusOf(classification: Classification, confidence: SemanticConfidence | null): ReviewStatus {
+  switch (classification) {
+    case "RESOLVED_REDIRECT":
+      return confidence === "high" || confidence === "structural" ? "none_pending" : "librarian_review_pending";
+    case "RESOLVED_RETIRED":
+      return "none_pending";
+    case "SOURCE_404_IGNORED":
+      return "intentional_404";
+    case "BROKEN_REDIRECT":
+    case "DECISION_NOT_EFFECTIVE":
+    case "NOT_VERIFIED":
+      return "engineer_action";
+    default:
+      return "decision_required";
+  }
 }
 
 const ACTIONS: Record<Classification, { reviewer: Reviewer; action: string }> = {
@@ -298,12 +388,26 @@ const ACTIONS: Record<Classification, { reviewer: Reviewer; action: string }> = 
   NOT_VERIFIED: { reviewer: "engineer", action: "Re-run this audit; the evidence named in the reasons was not obtained." },
 };
 
-function verdict(
-  ev: RecordEvidence,
-  classification: Classification,
-  parts: Omit<Verdict, "classification" | "action" | "reviewer">,
-): Verdict {
-  return { classification, ...parts, ...ACTIONS[classification] };
+type VerdictParts = Omit<
+  Verdict,
+  "classification" | "action" | "reviewer" | "semanticConfidence" | "reviewStatus" | "ignoreNote" | "canonical"
+> & { semanticConfidence?: SemanticConfidence | null };
+
+function verdict(ev: RecordEvidence, classification: Classification, parts: VerdictParts): Verdict {
+  const semanticConfidence = parts.semantic === "SUPPORTED" ? parts.semanticConfidence ?? "unrecorded" : null;
+  const ig = ev.ignoreDecision && ev.ignoreDecision.path === ev.path ? ev.ignoreDecision : null;
+  return {
+    classification,
+    ...parts,
+    semanticConfidence,
+    reviewStatus: reviewStatusOf(classification, semanticConfidence),
+    ignoreNote: ig ? `${ig.reason} — decided by ${ig.decidedBy}, ${ig.decidedAt}` : null,
+    canonical: {
+      en: canonicalCheck(ev.probes.en, "", parts.observedTarget),
+      km: canonicalCheck(ev.probes.km, "/km", parts.observedTarget),
+    },
+    ...ACTIONS[classification],
+  };
 }
 
 export function classifyRecord(ev: RecordEvidence): Verdict {
@@ -372,7 +476,7 @@ export function classifyRecord(ev: RecordEvidence): Verdict {
     const observedTarget = en.finalPath;
     if (en.finalPath !== km.finalPath) defects.push(`locales land on different paths (${en.finalPath} vs ${km.finalPath})`);
     const sem = semanticOf(ev, observedTarget, approval);
-    const parts = { ...base, observedTarget, semantic: sem.semantic, semanticBasis: sem.basis };
+    const parts = { ...base, observedTarget, semantic: sem.semantic, semanticBasis: sem.basis, semanticConfidence: sem.confidence };
     if (sem.semantic === "INCORRECT") defects.push("destination marked semantically incorrect by a reviewer");
     if (defects.length) {
       reasons.push(...defects);
@@ -419,7 +523,7 @@ export function classifyRecord(ev: RecordEvidence): Verdict {
   }
   if (!sug.path) return verdict(ev, "NO_SUCCESSOR_REVIEW_REQUIRED", base);
   const sem = semanticOf(ev, sug.path, "NONE");
-  const withSem = { ...base, semantic: sem.semantic, semanticBasis: sem.basis };
+  const withSem = { ...base, semantic: sem.semantic, semanticBasis: sem.basis, semanticConfidence: sem.confidence };
   if (targetAvailable === true) return verdict(ev, "TARGET_AVAILABLE_SOURCE_UNRESOLVED", withSem);
   if (targetAvailable === null && !suggestionUnsafe) return verdict(ev, "NOT_VERIFIED", withSem);
   return verdict(ev, "SOURCE_404_REVIEW_REQUIRED", withSem);
@@ -483,6 +587,11 @@ export type Reconciliation = {
   observed404AwaitingDecision: number;
   byClassification: Record<Classification, number>;
   fullyResolved: number;
+  /** Resolved redirects by the confidence of their semantic evidence. */
+  resolvedByConfidence: Record<SemanticConfidence, number>;
+  byReviewStatus: Record<ReviewStatus, number>;
+  /** Canonical diagnostics over every locale check that reached a destination. */
+  canonicalByStatus: Record<CanonicalStatus, number>;
   unresolved: number;
   accountedFor: boolean;
 };
@@ -537,7 +646,25 @@ export function reconcile(seed: readonly SeedRow[], records: readonly AuditedRec
     observed404AwaitingDecision,
     byClassification,
     fullyResolved,
+    resolvedByConfidence: count(
+      ["high", "medium", "low", "unrecorded", "structural"] as const,
+      records.filter((r) => r.verdict.classification === "RESOLVED_REDIRECT").map((r) => r.verdict.semanticConfidence),
+    ),
+    byReviewStatus: count(
+      ["none_pending", "librarian_review_pending", "decision_required", "intentional_404", "engineer_action"] as const,
+      records.map((r) => r.verdict.reviewStatus),
+    ),
+    canonicalByStatus: count(
+      ["match", "mismatch", "missing", "invalid", "off_site", "not_applicable"] as const,
+      records.flatMap((r) => [r.verdict.canonical.en.status, r.verdict.canonical.km.status]),
+    ),
     unresolved: records.length - fullyResolved,
     accountedFor: total === records.length && records.length === seen.size && [...seen].every((p) => recordPaths.has(p)),
   };
+}
+
+function count<K extends string>(keys: readonly K[], values: readonly (K | null)[]): Record<K, number> {
+  const out = Object.fromEntries(keys.map((k) => [k, 0])) as Record<K, number>;
+  for (const v of values) if (v !== null) out[v]++;
+  return out;
 }
