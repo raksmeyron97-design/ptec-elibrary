@@ -53,6 +53,13 @@ programme's scripts and one test (PR #285); `#163` from the cowork-drafts work
 reason, and two are recommended for dismissal by whoever owns them. The
 section is [Triage — 2026-10-01](#triage--2026-10-01).
 
+### 2026-10-21 — the four alerts on PR #322
+
+`#199`–`#202`, all on the retired-URL audit script. Two fixed in code; the two
+`js/http-to-file-access` writes became one sink, recommended for dismissal
+under `#149`'s reason. The section is
+[Triage — 2026-10-21 (PR #322)](#triage--2026-10-21-pr-322).
+
 ## What CodeQL does and does not recognise here
 
 Three facts about this codebase's interaction with the JS queries, learned the
@@ -446,6 +453,61 @@ trigger character, so nothing was exposed before the fix.
   The script's `apply` step sends a drafts file, written and checked in a
   supervised session, to the database. Same reason as the 20 dismissed under
   this rule on 2026-09-11: the file is the script's input.
+
+## Triage — 2026-10-21 (PR #322)
+
+Four alerts on `scripts/audit-retired-urls.ts`, the read-only audit of the 43
+URLs migration 0171 seeded. Verified against CodeQL 2.27.3 databases built from
+the PR head (`62d767b`) and from the fixed tree, same `security-and-quality`
+suite (201 rules): **4 alerts in the changed files before, 1 after, 0 new
+anywhere else** (repository total 80 → 77).
+
+### Fixed in code (2) — #199, #200 `js/incomplete-sanitization`
+
+- **#199** — `getIn()` quoted PostgREST `in.()` values escaping `"` but not
+  `\`. Checked against production PostgREST v14 rather than assumed: inside a
+  quoted list value `\` escapes the next character (`"… \(5th Edition\)"`
+  matched the title `… (5th Edition)`), so a value ending in `\` would have
+  swallowed its own closing quote and changed the filter. A real if latent
+  defect — no slug or id carries a backslash today. `postgrestQuoted()` in
+  `lib/url-redirects/audit-report.ts` escapes both in ONE pass (`/[\\"]/g`),
+  refuses control characters, empty and over-long values;
+  `audit-report.test.ts` round-trips backslashes, quotes, commas, parentheses,
+  Khmer and combinations through a parser of the v14 grammar, with the old
+  escape's literal output as a negative control.
+- **#200** — the report's Markdown cells escaped `|` without `\`, the defect
+  #155–#157 fixed in `scripts/seo-check.ts`. `mdText()` escapes `\` together
+  with every cell-ending and markup-opening character in one pass and turns line
+  breaks into spaces; tests feed hostile evidence (pipes, newlines, HTML, links,
+  formulas) through the real renderer and assert every row keeps its header's
+  column count.
+
+### Recommended for dismissal (1 remaining) — `js/http-to-file-access`
+
+#201 and #202 were the JSON and CSV writes. All three report writes now go
+through one sink, `writeSync` in `writeReportFile()` (`audit-report.ts`), so
+the next scan reports one alert there; dismiss it, and #201/#202 if they are
+still open, under the reason #149 records: the pack ships no sanitizer for this
+rule, and a report script writing what it read to a local file is what it is
+for. What the dismissal now rests on, each tested:
+
+- **Where:** `resolveReportBase()` confines `--out` to `<repo>/reports/`
+  (gitignored) before any request is made — traversal, absolute paths, odd
+  names and symlinked directories are refused — and `writeReportFile()` opens
+  with `O_NOFOLLOW`, so a link planted at the report file is not followed.
+- **What:** the CSV now goes through `toCsv()` from `lib/export/csv.ts`. The
+  first version of this script had its own quoting writer and NO formula
+  guard — the same gap #159–#162 had — on a file a librarian opens in Excel.
+  JSON is `JSON.stringify` and stays the unaltered evidence.
+- **Not in it:** no key, Authorization header, user id or `url_redirects.reason`
+  reaches any report (the collector never selects `reason`; who decided is a
+  boolean and a role).
+
+```bash
+gh api -X PATCH repos/raksmeyron97-design/ptec-elibrary/code-scanning/alerts/<id> \
+  -f state=dismissed -f dismissed_reason="won't fix" \
+  -f dismissed_comment="Read-only audit writing fetched evidence to a local report; same shape as #149 (rule ships no sanitizer). Output confined to reports/ with O_NOFOLLOW; CSV via escapeCsvCell. See docs/CODEQL-TRIAGE.md 2026-10-21."
+```
 
 ## Re-triaging
 

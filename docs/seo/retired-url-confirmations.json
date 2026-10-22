@@ -1,0 +1,457 @@
+{
+  "_readme": "Reviewer confirmations for scripts/audit-retired-urls.ts. A redirect counts as semantically supported ONLY when its exact (path, target) pair is listed here with verdict 'supported', or it is the same record (a captured rename or a book_slug_redirects alias). A queue decision records that someone pressed Redirect, not why, so it is not a confirmation. verdict: 'supported' | 'incorrect'. basis: e.g. 'same_work', 'replacement_edition', 'corrected_slug', 'approved_replacement'. confirmedBy: a role or initials, never an email. confirmedAt: YYYY-MM-DD.",
+  "confirmations": [
+    {
+      "id": "0171#01",
+      "path": "/books/ថ្នាក់ទី៩-សិក្ាសង្គម",
+      "target": "/books/ថ្នាក់ទី៩-សិក្សាសង្គម",
+      "verdict": "supported",
+      "basis": "corrected_slug",
+      "confidence": "high",
+      "evidence": "old slug is the target slug with one character mistyped",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#02",
+      "path": "/books/ប្រវត្តិវិទ្យា-ថ្នាក់ទ១២",
+      "target": "/books/ប្រវត្តិវិទ្យា-ថ្នាក់ទី១២",
+      "verdict": "supported",
+      "basis": "corrected_slug",
+      "confidence": "high",
+      "evidence": "old slug is the target slug with one character missing",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#03",
+      "path": "/books/កំណែវិទ្យាសាស្ត្រ-សិក្សាសង្គម-ថ្នាក់ទ៳",
+      "target": "/books/កំណែវិទ្យាសាស្ត្រ-សិក្សាសង្គម-ថ្នាក់ទី៣",
+      "verdict": "supported",
+      "basis": "corrected_slug",
+      "confidence": "high",
+      "evidence": "old slug is the target slug with one character mistyped",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#04",
+      "path": "/books/កម្មវិធីសិក្សាលម្អិត-បំណិនជីវិត-ថ្នាក់ទីឡ-៦",
+      "target": "/books/កម្មវិធីសិក្សាលម្អិត-បំណិនជីវិត-ថ្នាក់ទី១-៦",
+      "verdict": "supported",
+      "basis": "corrected_slug",
+      "confidence": "high",
+      "evidence": "old slug is the target slug with one character mistyped",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#05",
+      "path": "/books/ពិសោធគីមីវិទ្យា-ភាគ២",
+      "target": "/books/សៀវភៅពិសោធគីមីវិទ្យា-ភាគ២",
+      "verdict": "supported",
+      "basis": "replacement_record",
+      "confidence": "high",
+      "evidence": "July 2026 Khmer slug of record 49646f01 (rename script); same title, re-created in September",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#06",
+      "path": "/books/ឯកសារណែនាំស្តីពីឧបករណ៍ពិសោធ",
+      "target": "/books/សៀវភៅណែនាំស្ដីពីឧបករណ៍ពិសោធ-មន្ទីរពិសោធវិទ្យាសាស្ត្រ",
+      "verdict": "supported",
+      "basis": "replacement_record",
+      "confidence": "medium",
+      "evidence": "July 2026 Khmer slug of record 2cb5a693 (rename script); same title stem, re-created in September",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#07",
+      "path": "/books/កម្មវិធីសិក្សាលម្អិតវិធីសាស្ត្របង្រៀនគណិតវិទ្យា-១",
+      "target": "/books/កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា១",
+      "verdict": "supported",
+      "basis": "replacement_record",
+      "confidence": "high",
+      "evidence": "July 2026 Khmer slug of record 12ca2d37; same syllabus title, re-created in September",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#08",
+      "path": "/books/កម្មវិធីសិក្សាលម្អិតវិធីសាស្ត្របង្រៀនគណិតវិទ្យា-២",
+      "target": "/books/កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា២",
+      "verdict": "supported",
+      "basis": "replacement_record",
+      "confidence": "high",
+      "evidence": "July 2026 Khmer slug of record 97b4285a; July backup title matches the target",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#09",
+      "path": "/books/educational-research-competencies-for-analysis-and-applications-10th-edition",
+      "target": "/books/educational-research-competencies-for-analysis-10th-edition",
+      "verdict": "supported",
+      "basis": "replacement_record",
+      "confidence": "high",
+      "evidence": "same title, same (10th) edition; the only record of that edition",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#10",
+      "path": "/books/how-to-design-and-evaluate-research-in-education",
+      "target": "/books/how-to-design-and-evaluate-research-in-education-8th-edition",
+      "verdict": "supported",
+      "basis": "replacement_edition",
+      "confidence": "high",
+      "evidence": "same title; the library holds only the 8th edition",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#11",
+      "path": "/books/effective-school-management",
+      "target": "/books/effective-school-management-4th-edition",
+      "verdict": "supported",
+      "basis": "replacement_edition",
+      "confidence": "medium",
+      "evidence": "same title; the library holds only the 4th edition; old record edition unknown",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#12",
+      "path": "/books/interviewing-as-qualitative-research",
+      "target": "/books/interviewing-as-qualitative-research-3rd-edition",
+      "verdict": "supported",
+      "basis": "replacement_edition",
+      "confidence": "high",
+      "evidence": "same title; the library holds only the 3rd edition",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#13",
+      "path": "/books/doing-data-analysis-with-spss",
+      "target": "/books/doing-data-analysis-with-spss-version-18-5th-edition",
+      "verdict": "supported",
+      "basis": "replacement_edition",
+      "confidence": "medium",
+      "evidence": "same title; the library holds only one edition; old record edition unknown",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#14",
+      "path": "/books/operations-research-an-introduction-10th-edition",
+      "target": "/books/operations-research-an-introduction-10th-edition-global-edition",
+      "verdict": "supported",
+      "basis": "replacement_record",
+      "confidence": "high",
+      "evidence": "same title, same (10th) edition, Global Edition printing",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#15",
+      "path": "/books/book-1781238136253",
+      "target": "/books/សៀវភៅណែនាំស្ដីពីឧបករណ៍ពិសោធ-មន្ទីរពិសោធវិទ្យាសាស្ត្រ",
+      "verdict": "supported",
+      "basis": "replacement_record",
+      "confidence": "medium",
+      "evidence": "July 2026 Khmer slug of record 2cb5a693 (rename script): same title stem; the target title adds \"science laboratory\"",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#16",
+      "path": "/books/book-1781238137178",
+      "target": "/books/សៀវភៅពិសោធគីមីវិទ្យា-ភាគ២",
+      "verdict": "supported",
+      "basis": "replacement_record",
+      "confidence": "high",
+      "evidence": "July rename of record 49646f01; same title",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#17",
+      "path": "/books/book-1781238128375",
+      "target": "/books/កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា១",
+      "verdict": "supported",
+      "basis": "replacement_record",
+      "confidence": "high",
+      "evidence": "July rename of record 12ca2d37; same syllabus",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#18",
+      "path": "/books/book-1781238129420",
+      "target": "/books/កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា២",
+      "verdict": "supported",
+      "basis": "replacement_record",
+      "confidence": "high",
+      "evidence": "July backup title is the target title",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#19",
+      "path": "/books/action-research-top-10-2023",
+      "target": "/theses/quality-of-teaching-and-learning-action-research-top-10-cohort-2-2022-2023",
+      "verdict": "supported",
+      "basis": "collection_move",
+      "confidence": "high",
+      "evidence": "same compilation (Action Research Top 10, 2022-2023) moved to /theses",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#20",
+      "path": "/books/action-research-top-10-2025",
+      "target": "/theses/quality-of-teaching-and-learning-21st-century-action-research-top-10-cohort-3-2024-2025",
+      "verdict": "supported",
+      "basis": "collection_move",
+      "confidence": "high",
+      "evidence": "same compilation (Action Research Top 10, 2024-2025) moved to /theses",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#21",
+      "path": "/books/ba-1",
+      "target": "/books/កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាការស្រាវជ្រាវអប់រំ-ba-1",
+      "verdict": "supported",
+      "basis": "replacement_record",
+      "confidence": "high",
+      "evidence": "July backup title: BA+1 educational-research syllabus (final draft 2024)",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#22",
+      "path": "/books/practicum-syllabus-ba-1",
+      "target": "/books/កម្មវិធីសិក្សាលម្អិត-ផ្នែកកម្មសិក្សាគរុកោសល្យ-ba-1",
+      "verdict": "supported",
+      "basis": "replacement_record",
+      "confidence": "high",
+      "evidence": "the only live BA+1 practicum syllabus",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#23",
+      "path": "/books/syllabus-pedagogy-ba-1",
+      "target": "/books/កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាគរុកោសល្យនិងការបង្រៀន-ba-1",
+      "verdict": "supported",
+      "basis": "replacement_record",
+      "confidence": "high",
+      "evidence": "the only live BA+1 pedagogy-and-teaching syllabus",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#24",
+      "path": "/books/educational-research-competencies-for-analysis-and-applications",
+      "target": "/books/educational-research-competencies-for-analysis-12th-edition",
+      "verdict": "supported",
+      "basis": "replacement_edition",
+      "confidence": "medium",
+      "evidence": "same work; 10th, 11th and 12th are held and the old edition is unknown, so the newest",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#25",
+      "path": "/books/action-research-a-guide-for-the-teacher-researcher",
+      "target": "/books/action-research-a-guide-for-the-teacher-researcher-5th-edition",
+      "verdict": "supported",
+      "basis": "replacement_edition",
+      "confidence": "medium",
+      "evidence": "same title; the library holds only the 5th edition; old record edition unknown",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#26",
+      "path": "/books/action-research-in-practice",
+      "target": "/books/action-research-in-practice-partnerships-for-social-justice-in-education",
+      "verdict": "supported",
+      "basis": "replacement_record",
+      "confidence": "high",
+      "evidence": "old slug is the leading part of the full title; the only match",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#28",
+      "path": "/books/becoming-a-teacher-through-action-research-process-context-and-self-study",
+      "target": "/books/becoming-a-teacher-through-action-research-3rd-edition",
+      "verdict": "supported",
+      "basis": "replacement_edition",
+      "confidence": "high",
+      "evidence": "same title (subtitle dropped); the only edition held",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#31",
+      "path": "/books/educational-research-planning-conducting-and-evaluating-quantitative-and-qualitative-research",
+      "target": "/books/educational-research-planning-conducting-and-evaluating-4th-edition",
+      "verdict": "supported",
+      "basis": "replacement_edition",
+      "confidence": "high",
+      "evidence": "same title (subtitle dropped); the only edition held",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#34",
+      "path": "/books/introduction-to-research-in-education",
+      "target": "/books/introduction-to-research-in-education-8th-edition",
+      "verdict": "supported",
+      "basis": "replacement_edition",
+      "confidence": "high",
+      "evidence": "same title; the only edition held",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#37",
+      "path": "/books/quantitative-data-analysis-in-education-a-critical-introduction-using-spss",
+      "target": "/books/quantitative-data-analysis-in-education",
+      "verdict": "supported",
+      "basis": "replacement_record",
+      "confidence": "high",
+      "evidence": "ISBN 978-0-415-37298-5 is this exact title with the old slug's subtitle",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#38",
+      "path": "/books/research-design-quantitative-qualitative-mixed-methods-arts-based-and-community-based-participatory-research-approaches",
+      "target": "/books/research-design-quantitative-qualitative-and-arts-based-approaches",
+      "verdict": "supported",
+      "basis": "replacement_record",
+      "confidence": "high",
+      "evidence": "ISBN 978-1-4625-1438-0 is the book whose full title is the old slug",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#39",
+      "path": "/books/research-methods-and-statistics",
+      "target": "/books/research-methods-and-statistics-a-critical-thinking-approach-3rd-edition",
+      "verdict": "supported",
+      "basis": "replacement_edition",
+      "confidence": "medium",
+      "evidence": "old slug is the leading part of the title; the only match",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#40",
+      "path": "/books/student-statistics-challenges-in-data-collection-processes",
+      "target": "/books/student-statistics-challenges-in-collection-and-validity",
+      "verdict": "supported",
+      "basis": "replacement_record",
+      "confidence": "medium",
+      "evidence": "same report, reworded subtitle; the only match",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#42",
+      "path": "/books/កម្មវិធីសិក្សាលម្អិតចំណេះដឹងឯកទេសគណិតវិទ្យា",
+      "target": "/books/កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាចំណេះដឹងឯកទេសគណិតវិទ្យា",
+      "verdict": "supported",
+      "basis": "replacement_record",
+      "confidence": "high",
+      "evidence": "same slug with មុខវិជ្ជា inserted, the pattern of #07/#08",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#43",
+      "path": "/books/book-1781238127030",
+      "target": "/books/កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាចំណេះដឹងឯកទេសគណិតវិទ្យា",
+      "verdict": "supported",
+      "basis": "replacement_record",
+      "confidence": "high",
+      "evidence": "July rename of record 22838ea0 to the title of #42",
+      "confirmedBy": "owner (via Admin UI), 2026-10-20",
+      "confirmedAt": "2026-10-20"
+    }
+  ],
+  "ignore": [
+    {
+      "id": "0171#27",
+      "path": "/books/action-research-in-teacher-education",
+      "decision": "ignore",
+      "reason": "no live record of this title",
+      "decidedBy": "Claude Code, deciding on the owner's instruction (not individually reviewed by a person)",
+      "decidedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#29",
+      "path": "/books/chapter-12-action-research",
+      "decision": "ignore",
+      "reason": "a chapter excerpt; no live record",
+      "decidedBy": "Claude Code, deciding on the owner's instruction (not individually reviewed by a person)",
+      "decidedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#30",
+      "path": "/books/data-analysis-with-microsoft-excel",
+      "decision": "ignore",
+      "reason": "no live record of this title (only unrelated Excel manuals)",
+      "decidedBy": "Claude Code, deciding on the owner's instruction (not individually reviewed by a person)",
+      "decidedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#32",
+      "path": "/books/educational-research-quantitative-approaches",
+      "decision": "ignore",
+      "reason": "no live record of this title",
+      "decidedBy": "Claude Code, deciding on the owner's instruction (not individually reviewed by a person)",
+      "decidedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#33",
+      "path": "/books/educational-research-text",
+      "decision": "ignore",
+      "reason": "placeholder record (\"Educational Research (Text)\"); nothing identifiable",
+      "decidedBy": "Claude Code, deciding on the owner's instruction (not individually reviewed by a person)",
+      "decidedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#35",
+      "path": "/books/pedagogy-and-practice-teaching-and-learning-in-secondary-schools",
+      "decision": "ignore",
+      "reason": "no live record of this title (only an unrelated Leadership Guide)",
+      "decidedBy": "Claude Code, deciding on the owner's instruction (not individually reviewed by a person)",
+      "decidedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#36",
+      "path": "/books/qualitative-research",
+      "decision": "ignore",
+      "reason": "title too generic: four unrelated live candidates",
+      "decidedBy": "Claude Code, deciding on the owner's instruction (not individually reviewed by a person)",
+      "decidedAt": "2026-10-20"
+    },
+    {
+      "id": "0171#41",
+      "path": "/books/the-skillful-teacher-building-your-teaching-skills",
+      "decision": "ignore",
+      "reason": "no live record of this title",
+      "decidedBy": "Claude Code, deciding on the owner's instruction (not individually reviewed by a person)",
+      "decidedAt": "2026-10-20"
+    }
+  ],
+  "_policy": "Redirect only when one live record is clearly the same work (same title or title prefix, matching ISBN, or a title link in the old catalogue); another edition counts when it replaced the old record (0171). Otherwise Ignore (404 stays). No 410: nothing shows a deliberate withdrawal."
+}
