@@ -86,6 +86,7 @@
     "exceljs": {
       "uuid": "^11.1.1"
     },
-    "browserslist": "~4.28.7"
+    "browserslist": "~4.28.7",
+    "zod": "4.6.7"
   }
 }
