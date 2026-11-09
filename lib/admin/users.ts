@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/server";
+import { pagedScan } from "@/lib/db/paged-scan";
 import {
   preferStored,
   providerAvatarUrl,
@@ -30,11 +31,21 @@ import {
  * precedence rule is `lib/auth/oauth-avatar.ts`'s, not this file's.
  *
  * SCALE NOTE: filtering/sort/pagination run in memory over the candidate set
- * (bounded by CANDIDATE_CAP). Correct and fast for a university library
+ * (bounded by USERS_SCAN_CAP). Correct and fast for a university library
  * (hundreds–low thousands). Past that, push filters into a Postgres view/RPC.
+ *
+ * The candidate set is read with `pagedScan()`, never one `.limit()`: PostgREST
+ * clips every response at db-max-rows (1000) whatever the request asks for, so
+ * the old `.limit(2000)` silently returned 1000 profiles in heap order. The
+ * moment the library passed 1,000 accounts the page read "Total users 1000",
+ * and because the read had no ORDER BY the accounts it dropped were mostly the
+ * NEWEST — readers who had just registered were in the notifications bell and
+ * nowhere in the list. The KPI cards are exact `count` requests, which are not
+ * clipped.
  */
 
-const CANDIDATE_CAP = 2000;
+/** Ceiling on the in-memory candidate set (and on one export). */
+export const USERS_SCAN_CAP = 20_000;
 type SB = ReturnType<typeof createServiceClient>;
 
 // ── auth.users metadata ──────────────────────────────────────────────────────
@@ -50,7 +61,7 @@ async function loadAuthMeta(sb: SB): Promise<Map<string, AuthMeta>> {
   const map = new Map<string, AuthMeta>();
   try {
     const perPage = 1000;
-    for (let page = 1; page <= 5; page++) {
+    for (let page = 1; page <= Math.ceil(USERS_SCAN_CAP / perPage); page++) {
       const { data, error } = await sb.auth.admin.listUsers({ page, perPage });
       if (error || !data?.users?.length) break;
       for (const u of data.users) {
@@ -87,19 +98,29 @@ function deriveStatus(explicit: string | null | undefined, meta: AuthMeta | unde
   return "active";
 }
 
-/** Try selecting the status/phone columns; fall back to the base set. */
-async function fetchProfiles(sb: SB): Promise<{ rows: Record<string, unknown>[]; hasStatusCol: boolean }> {
-  const rich = await sb
-    .from("profiles")
-    .select("id, full_name, email, role, created_at, avatar_url, is_super_admin, status, phone")
-    .limit(CANDIDATE_CAP);
-  if (!rich.error) return { rows: (rich.data ?? []) as Record<string, unknown>[], hasStatusCol: true };
+const RICH_COLUMNS = "id, full_name, email, role, created_at, avatar_url, is_super_admin, status, phone";
+const BASE_COLUMNS = "id, full_name, email, role, created_at, avatar_url, is_super_admin";
 
-  const base = await sb
-    .from("profiles")
-    .select("id, full_name, email, role, created_at, avatar_url, is_super_admin")
-    .limit(CANDIDATE_CAP);
-  return { rows: (base.data ?? []) as Record<string, unknown>[], hasStatusCol: false };
+/** Every profile, paged past the 1000-row cap. Try the status/phone columns first; fall back to the base set. */
+async function fetchProfiles(
+  sb: SB,
+): Promise<{ rows: Record<string, unknown>[]; hasStatusCol: boolean; truncated: boolean }> {
+  const scan = (columns: string) =>
+    pagedScan<Record<string, unknown>>(
+      // `id` is unique, so pages neither overlap nor skip a row.
+      (from, to) => sb.from("profiles").select(columns).order("id").range(from, to),
+      USERS_SCAN_CAP,
+    );
+
+  const rich = await scan(RICH_COLUMNS);
+  if (!rich.error) return { rows: rich.data, hasStatusCol: true, truncated: rich.truncated };
+
+  const base = await scan(BASE_COLUMNS);
+  if (base.error) {
+    // "We could not read the directory" must not render as "nobody is registered".
+    throw new Error(`Could not read profiles: ${base.error.message ?? base.error.code ?? "unknown error"}`);
+  }
+  return { rows: base.data, hasStatusCol: false, truncated: base.truncated };
 }
 
 // ── main list query ──────────────────────────────────────────────────────────
@@ -117,6 +138,8 @@ export type GetUsersResult = {
   rows: UserRow[];
   total: number;
   hasAnyAtAll: boolean;
+  /** The directory holds more than USERS_SCAN_CAP accounts — `total` is a floor, not a count. */
+  truncated: boolean;
 };
 
 function joinedCutoff(range: JoinedRange | undefined): number | null {
@@ -132,8 +155,11 @@ function joinedCutoff(range: JoinedRange | undefined): number | null {
 
 export async function getUsers(params: GetUsersParams): Promise<GetUsersResult> {
   const sb = createServiceClient();
-  const { rows: profileRows, hasStatusCol } = await fetchProfiles(sb);
+  const { rows: profileRows, hasStatusCol, truncated } = await fetchProfiles(sb);
   const hasAnyAtAll = profileRows.length > 0;
+  if (truncated) {
+    console.error(`[admin/users] profile scan hit USERS_SCAN_CAP (${USERS_SCAN_CAP}); the list is incomplete`);
+  }
 
   const authMeta = await loadAuthMeta(sb);
 
@@ -201,34 +227,45 @@ export async function getUsers(params: GetUsersParams): Promise<GetUsersResult> 
   const from = (params.page - 1) * params.pageSize;
   const paged = rows.slice(from, from + params.pageSize);
 
-  return { rows: paged, total, hasAnyAtAll };
+  return { rows: paged, total, hasAnyAtAll, truncated };
 }
 
 // ── summary / KPI cards ──────────────────────────────────────────────────────
 export async function getUsersSummary(): Promise<UsersSummary> {
   const sb = createServiceClient();
 
-  const { data: profileRows } = await sb
-    .from("profiles")
-    .select("role, created_at")
-    .limit(CANDIDATE_CAP);
+  const now = new Date();
+  const startThisMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const startLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+
+  /* Exact counts, never a row scan: a `head: true` count is not subject to
+     PostgREST's 1000-row cap, so these numbers stay true at any size. A failed
+     count throws rather than rendering a zero that reads as a fact. */
+  const base = () => sb.from("profiles").select("id", { count: "exact", head: true });
+  const count = async (
+    narrow: (q: ReturnType<typeof base>) => ReturnType<typeof base> = (q) => q,
+  ): Promise<number> => {
+    const { count: n, error } = await narrow(base());
+    if (error) throw new Error(`Could not count profiles: ${error.message}`);
+    return n ?? 0;
+  };
+
+  const [total, newThisMonth, newLastMonth, ...roleCounts] = await Promise.all([
+    count(),
+    count((q) => q.gte("created_at", startThisMonth)),
+    count((q) => q.gte("created_at", startLastMonth).lt("created_at", startThisMonth)),
+    ...ALL_ROLES.map((role) =>
+      role === "reader"
+        // The old scan counted a NULL role as a reader; keep that.
+        ? count((q) => q.or("role.eq.reader,role.is.null"))
+        : count((q) => q.eq("role", role)),
+    ),
+  ]);
 
   const byRole = { reader: 0, staff: 0, librarian: 0, admin: 0, super_admin: 0 } as Record<AppRole, number>;
-  const now = new Date();
-  const startThisMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-  const startLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
-  let newThisMonth = 0;
-  let newLastMonth = 0;
+  ALL_ROLES.forEach((role, i) => { byRole[role] = roleCounts[i]; });
 
-  for (const r of profileRows ?? []) {
-    const role = ((r as { role: string }).role ?? "reader") as AppRole;
-    if (role in byRole) byRole[role]++;
-    const created = new Date((r as { created_at: string }).created_at).getTime();
-    if (created >= startThisMonth) newThisMonth++;
-    else if (created >= startLastMonth) newLastMonth++;
-  }
-
-  return { total: (profileRows ?? []).length, byRole, newThisMonth, newLastMonth };
+  return { total, byRole, newThisMonth, newLastMonth };
 }
 
 // ── detail drawer ────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requirePermission, isAdminAuthError } from "@/lib/auth/requireAdmin";
 import { rateLimit } from "@/lib/rate-limit";
-import { getUsers } from "@/lib/admin/users";
+import { getUsers, USERS_SCAN_CAP } from "@/lib/admin/users";
 import { usersExportSheet } from "@/lib/admin/users-export";
 import {
   USER_SORT_OPTIONS,
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
       .filter((s) => UUID_RE.test(s))
       .slice(0, MAX_SELECTED_IDS);
 
-    // Whole filtered result set (the users query is capped at 2000 candidates).
+    // Whole filtered result set (paged past PostgREST's 1000-row cap, up to USERS_SCAN_CAP).
     const result = await getUsers({
       q,
       role: roleFilter,
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
       joined,
       sort,
       page: 1,
-      pageSize: 2000,
+      pageSize: USERS_SCAN_CAP,
     });
     const rows = ids.length
       ? result.rows.filter((u) => ids.includes(u.id))
