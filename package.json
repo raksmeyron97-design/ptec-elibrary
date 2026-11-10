@@ -75,7 +75,7 @@
     "eslint": "^9",
     "eslint-config-next": "^16.4.5",
     "jsdom": "^29.1.1",
-    "react-doctor": "^0.2.14",
+    "react-doctor": "^0.9.22",
     "supabase": "^2.104.0",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
