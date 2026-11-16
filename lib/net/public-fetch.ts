@@ -140,6 +140,14 @@ function request(url: URL, userAgent: string, signal: AbortSignal): Promise<Raw>
       },
       (res) => resolve({ status: res.statusCode ?? 0, headers: res.headers, stream: res }),
     );
+    req.on("socket", (socket) => {
+      socket.on("connect", () => {
+        const remote = (socket.remoteAddress ?? "").replace(/^\[|\]$/g, "");
+        if (!remote || !isPublicAddress(remote)) {
+          req.destroy(new BlockedAddressError(`${url.hostname} connected to a non-public address`));
+        }
+      });
+    });
     req.on("error", reject);
     req.end();
   });
