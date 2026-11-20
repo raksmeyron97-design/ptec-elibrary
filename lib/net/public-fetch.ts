@@ -83,9 +83,21 @@ export function checkPublicUrl(raw: string): PublicUrlCheck {
   if (!host || host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host.endsWith(".internal")) {
     return { ok: false, reason: "blocked_address" };
   }
-  if (isIP(host) && !isPublicAddress(host)) return { ok: false, reason: "blocked_address" };
   // A bare single label ("intranet", "koha") only resolves on a private network.
   if (!isIP(host) && !host.includes(".")) return { ok: false, reason: "blocked_address" };
+  if (!isIP(host)) {
+    // Conservative DNS hostname validation to avoid ambiguous parser/smuggling forms.
+    const labels = host.split(".");
+    const validLabels = labels.length >= 2 && labels.every((label) =>
+      label.length > 0 &&
+      label.length <= 63 &&
+      /^[a-z0-9-]+$/i.test(label) &&
+      !label.startsWith("-") &&
+      !label.endsWith("-")
+    );
+    if (!validLabels) return { ok: false, reason: "invalid_url" };
+  }
+  if (isIP(host) && !isPublicAddress(host)) return { ok: false, reason: "blocked_address" };
   return { ok: true, url };
 }
 
