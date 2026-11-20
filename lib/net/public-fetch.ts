@@ -83,6 +83,8 @@ export function checkPublicUrl(raw: string): PublicUrlCheck {
   if (!host || host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host.endsWith(".internal")) {
     return { ok: false, reason: "blocked_address" };
   }
+  // A bare single label ("intranet", "koha") only resolves on a private network.
+  if (!isIP(host) && !host.includes(".")) return { ok: false, reason: "blocked_address" };
   if (!isIP(host)) {
     // Conservative DNS hostname validation to avoid ambiguous parser/smuggling forms.
     const labels = host.split(".");
@@ -96,8 +98,6 @@ export function checkPublicUrl(raw: string): PublicUrlCheck {
     if (!validLabels) return { ok: false, reason: "invalid_url" };
   }
   if (isIP(host) && !isPublicAddress(host)) return { ok: false, reason: "blocked_address" };
-  // A bare single label ("intranet", "koha") only resolves on a private network.
-  if (!isIP(host) && !host.includes(".")) return { ok: false, reason: "blocked_address" };
   return { ok: true, url };
 }
 
